@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aros Provodka</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#ffffff; --card2:#f7f7fa; --text:#1c1c1e; --muted:#8e8e93;
+    --line:#e5e5ea; --accent:#0a84ff; --green:#34c759; --red:#ff3b30; --greenbg:#e7f9ec; --redbg:#ffecec;
+  }
+  [data-theme="dark"]{
+    --bg:#000000; --card:#1c1c1e; --card2:#2c2c2e; --text:#f2f2f7; --muted:#8e8e93;
+    --line:#38383a; --accent:#0a84ff; --green:#30d158; --red:#ff453a; --greenbg:#0f2e18; --redbg:#3a1210;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 40px}
+  .wrap{max-width:480px;margin:0 auto;padding:16px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 16px}
+  .top h1{font-size:22px;margin:0;font-weight:700}
+  .theme{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:16px}
+  .kassalar{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px}
+  .kchip{flex:0 0 auto;background:var(--card);border-radius:14px;padding:12px 14px;min-width:120px}
+  .kchip .n{font-size:12px;color:var(--muted)}
+  .kchip .v{font-size:17px;font-weight:600;margin-top:3px}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:18px}
+  .seg{display:flex;background:var(--card2);border-radius:12px;padding:4px;margin-bottom:18px}
+  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:15px;font-weight:600;padding:9px 0;border-radius:9px}
+  .seg button.on-in{background:var(--green);color:#fff}
+  .seg button.on-out{background:var(--red);color:#fff}
+  label{font-size:13px;color:var(--muted);display:block;margin:0 0 6px 2px}
+  .amount{width:100%;border:none;background:transparent;color:var(--text);font-size:32px;font-weight:700;outline:none;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:16px}
+  select,.txt{width:100%;height:46px;border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;outline:none;margin-bottom:14px;-webkit-appearance:none;appearance:none}
+  .prov{background:var(--card2);border-radius:12px;padding:11px 13px;margin-bottom:16px;font-size:13px}
+  .prov .h{font-size:11px;color:var(--muted);letter-spacing:.04em;margin-bottom:6px}
+  .prov .r{display:flex;justify-content:space-between;margin-bottom:3px}
+  .prov .r span:first-child{color:var(--muted)}
+  .save{width:100%;height:50px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-size:17px;font-weight:600}
+  .save:disabled{opacity:.5}
+  h2.sec{font-size:15px;color:var(--muted);margin:0 0 10px 4px;font-weight:600}
+  .je{background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+  .je .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+  .je .ic.in{background:var(--greenbg);color:var(--green)}
+  .je .ic.out{background:var(--redbg);color:var(--red)}
+  .je .mid{flex:1;min-width:0}
+  .je .mid .t{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .je .mid .s{font-size:12px;color:var(--muted);margin-top:2px}
+  .je .amt{font-size:16px;font-weight:600;white-space:nowrap}
+  .je .amt.in{color:var(--green)}
+  .je .amt.out{color:var(--red)}
+  .je .del{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 2px}
+  .empty{color:var(--muted);text-align:center;padding:24px;font-size:14px}
+  .banner{background:var(--redbg);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Provodka</h1>
+    <button class="theme" onclick="toggleTheme()">◐</button>
+  </div>
+
+  <div id="cfgbanner" class="banner"></div>
+  <div class="kassalar" id="kassalar"></div>
+
+  <div class="card">
+    <div class="seg">
+      <button id="btnIn"  class="on-in"  onclick="setDir('kirim')">Kirim</button>
+      <button id="btnOut"                 onclick="setDir('chiqim')">Chiqim</button>
+    </div>
+
+    <label>Summa</label>
+    <input class="amount" id="amount" inputmode="numeric" placeholder="0" oninput="fmtAmount(this)">
+
+    <label id="kassaLbl">Qaysi kassaga</label>
+    <select id="kassa"></select>
+
+    <label id="counterLbl">Nimadan</label>
+    <select id="counter"></select>
+
+    <label>Izoh</label>
+    <input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
+
+    <label>Sana</label>
+    <input class="txt" id="sana" type="date">
+
+    <div class="prov">
+      <div class="h">ORQADA AVTOMATIK YOZILADI</div>
+      <div class="r"><span id="dtLbl">Dt · —</span><span id="dtAmt">0</span></div>
+      <div class="r"><span id="ktLbl">Kt · —</span><span id="ktAmt">0</span></div>
+    </div>
+
+    <button class="save" id="saveBtn" onclick="save()">Saqlash</button>
+  </div>
+
+  <h2 class="sec">Jurnal</h2>
+  <div id="journal"></div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ===================== SHU YERGA YOZ =====================
+const SUPABASE_URL      = 'https://SENING-PROJECTING.supabase.co';
+const SUPABASE_ANON_KEY = 'SENING-ANON-KEYING';
+// =========================================================
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let dir = 'kirim';
+let accounts = [];
+const $ = id => document.getElementById(id);
+const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+const parseAmt = () => Number(($('amount').value||'').replaceAll(' ',''))||0;
+
+window.toggleTheme = () => {
+  const d = document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', d?'light':'dark');
+  localStorage.setItem('prov-theme', d?'light':'dark');
+};
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+
+window.fmtAmount = el => {
+  const raw = el.value.replaceAll(' ','').replace(/\D/g,'');
+  el.value = raw ? money(raw) : '';
+  updateProv();
+};
+
+function isKassa(a){ return a.type==='aktiv' && a.code.startsWith('5'); }
+function counterList(){
+  if(dir==='chiqim') return accounts.filter(a=>a.type==='xarajat');
+  return accounts.filter(a=> a.type==='daromad' || a.code==='4010' || a.code==='8000');
+}
+
+window.setDir = d => {
+  dir = d;
+  $('btnIn').className  = d==='kirim'  ? 'on-in'  : '';
+  $('btnOut').className = d==='chiqim' ? 'on-out' : '';
+  $('kassaLbl').textContent   = d==='kirim' ? 'Qaysi kassaga' : 'Qaysi kassadan';
+  $('counterLbl').textContent = d==='kirim' ? 'Nimadan' : 'Nimaga';
+  const c = $('counter'); c.innerHTML='';
+  counterList().forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=a.name; c.appendChild(o); });
+  updateProv();
+};
+
+function updateProv(){
+  const amt = parseAmt();
+  const kassa = accounts.find(a=>a.id===$('kassa').value);
+  const counter = accounts.find(a=>a.id===$('counter').value);
+  let dt, kt;
+  if(dir==='chiqim'){ dt=counter; kt=kassa; } else { dt=kassa; kt=counter; }
+  $('dtLbl').textContent = 'Dt · ' + (dt?dt.name:'—');
+  $('ktLbl').textContent = 'Kt · ' + (kt?kt.name:'—');
+  $('dtAmt').textContent = money(amt);
+  $('ktAmt').textContent = money(amt);
+}
+
+async function loadAccounts(){
+  const {data,error} = await sb.from('accounts').select('*').eq('is_active',true).order('code');
+  if(error){ showCfgError(error.message); return; }
+  accounts = data;
+  const k = $('kassa'); k.innerHTML='';
+  accounts.filter(isKassa).forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=a.name; k.appendChild(o); });
+  k.onchange = updateProv;
+  $('counter').onchange = updateProv;
+  setDir('kirim');
+}
+
+async function loadKassalar(){
+  const {data,error} = await sb.from('v_kassa_qoldiq').select('*');
+  if(error) return;
+  $('kassalar').innerHTML = data.map(r=>
+    `<div class="kchip"><div class="n">${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('');
+}
+
+async function loadJournal(){
+  const {data,error} = await sb.from('entry')
+    .select('id,doc_no,entry_date,description,entry_line(debit,credit,accounts(code,name))')
+    .order('created_at',{ascending:false}).limit(50);
+  if(error){ $('journal').innerHTML=`<div class="empty">${error.message}</div>`; return; }
+  if(!data.length){ $('journal').innerHTML='<div class="empty">Hozircha yozuv yoq</div>'; return; }
+  $('journal').innerHTML = data.map(e=>{
+    const dtLine = e.entry_line.find(l=>Number(l.debit)>0)  || {};
+    const ktLine = e.entry_line.find(l=>Number(l.credit)>0) || {};
+    const amt = Number(dtLine.debit)||0;
+    const dtIsKassa = (dtLine.accounts?.code||'').startsWith('5');
+    const inn = dtIsKassa; // pul kassaga tushdi = kirim
+    const label = inn ? (ktLine.accounts?.name||'') : (dtLine.accounts?.name||'');
+    const kassaName = inn ? (dtLine.accounts?.name||'') : (ktLine.accounts?.name||'');
+    return `<div class="je">
+      <div class="ic ${inn?'in':'out'}">${inn?'↓':'↑'}</div>
+      <div class="mid">
+        <div class="t">${label}</div>
+        <div class="s">${e.entry_date} · ${kassaName}${e.description?' · '+e.description:''}</div>
+      </div>
+      <div class="amt ${inn?'in':'out'}">${inn?'+':'−'}${money(amt)}</div>
+      <button class="del" onclick="delEntry('${e.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+window.delEntry = async id => {
+  if(!confirm('Ochirilsinmi?')) return;
+  const {error} = await sb.from('entry').delete().eq('id',id);
+  if(error){ alert(error.message); return; }
+  await refresh();
+};
+
+window.save = async () => {
+  const amt = parseAmt();
+  if(amt<=0){ alert('Summa kiriting'); return; }
+  const kassa = $('kassa').value, counter = $('counter').value;
+  if(!kassa || !counter){ alert('Kassa va kategoriya tanlang'); return; }
+  let dtAcc, ktAcc;
+  if(dir==='chiqim'){ dtAcc=counter; ktAcc=kassa; } else { dtAcc=kassa; ktAcc=counter; }
+
+  $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
+  const {data:ent,error:e1} = await sb.from('entry').insert({
+    entry_date: $('sana').value || null,
+    description: $('izoh').value || null,
+    source:'manual'
+  }).select('id').single();
+  if(e1){ alert(e1.message); reset(); return; }
+
+  const {error:e2} = await sb.from('entry_line').insert([
+    {entry_id:ent.id, account_id:dtAcc, debit:amt,  credit:0},
+    {entry_id:ent.id, account_id:ktAcc, debit:0,    credit:amt}
+  ]);
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); reset(); return; }
+
+  $('amount').value=''; $('izoh').value=''; updateProv();
+  reset();
+  await refresh();
+};
+
+function reset(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Saqlash'; }
+
+function showCfgError(msg){
+  const b=$('cfgbanner'); b.style.display='block';
+  b.textContent = SUPABASE_URL.includes('SENING')
+    ? 'Supabase URL va anon key yozilmagan — script ichidagi 2 qatorni tolriring.'
+    : ('Xato: '+msg);
+}
+
+async function refresh(){ await Promise.all([loadKassalar(), loadJournal()]); }
+
+async function init(){
+  $('sana').value = new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+  if(SUPABASE_URL.includes('SENING')){ showCfgError(''); return; }
+  await loadAccounts();
+  await refresh();
+}
+init();
+</script>
+</body>
+</html>
