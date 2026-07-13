@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aros Hisobot</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#ffffff; --card2:#f7f7fa; --text:#1c1c1e; --muted:#8e8e93;
+    --line:#e5e5ea; --accent:#0a84ff; --green:#34c759; --red:#ff3b30; --bar:#0a84ff;
+  }
+  [data-theme="dark"]{
+    --bg:#000000; --card:#1c1c1e; --card2:#2c2c2e; --text:#f2f2f7; --muted:#8e8e93;
+    --line:#38383a; --accent:#0a84ff; --green:#30d158; --red:#ff453a; --bar:#0a84ff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 40px}
+  .wrap{max-width:480px;margin:0 auto;padding:16px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 14px}
+  .top h1{font-size:22px;margin:0;font-weight:700}
+  .top .r{display:flex;gap:8px}
+  .top a,.theme{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px;text-decoration:none}
+  .period{display:flex;gap:10px;margin-bottom:16px}
+  .period select{flex:1;height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;-webkit-appearance:none;appearance:none}
+  .hero{background:var(--card);border-radius:18px;padding:20px;margin-bottom:16px;text-align:center}
+  .hero .lbl{font-size:13px;color:var(--muted)}
+  .hero .big{font-size:36px;font-weight:800;margin:6px 0 2px}
+  .hero .big.pos{color:var(--green)} .hero .big.neg{color:var(--red)}
+  .hero .row{display:flex;justify-content:space-between;font-size:15px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .hero .row .v.in{color:var(--green)} .hero .row .v.out{color:var(--red)}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px}
+  h2.sec{font-size:15px;color:var(--muted);margin:0 0 12px 2px;font-weight:600}
+  .exp{margin-bottom:13px}
+  .exp .l{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
+  .exp .l .a{font-weight:600}
+  .track{height:8px;background:var(--card2);border-radius:5px;overflow:hidden}
+  .track .fill{height:100%;background:var(--bar);border-radius:5px}
+  .kassalar{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .kchip{flex:0 0 auto;background:var(--card2);border-radius:14px;padding:12px 14px;min-width:120px}
+  .kchip .n{font-size:12px;color:var(--muted)} .kchip .v{font-size:17px;font-weight:600;margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:right;color:var(--muted);font-weight:500;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+  th:first-child{text-align:left}
+  td{padding:8px 0;border-bottom:1px solid var(--line);text-align:right}
+  td:first-child{text-align:left}
+  td .code{color:var(--muted);font-size:12px;margin-right:6px}
+  .empty{color:var(--muted);text-align:center;padding:18px;font-size:14px}
+  .banner{background:#ffecec;color:#ff3b30;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Hisobot</h1>
+    <div class="r">
+      <a href="provodka.html">＋ Kiritish</a>
+      <button class="theme" onclick="toggleTheme()">◐</button>
+    </div>
+  </div>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="period">
+    <select id="oy"></select>
+    <select id="yil"></select>
+  </div>
+
+  <div class="hero">
+    <div class="lbl">Sof foyda / zarar</div>
+    <div class="big" id="foyda">0</div>
+    <div class="row"><span>Daromad</span><span class="v in" id="daromad">0</span></div>
+    <div class="row"><span>Xarajat</span><span class="v out" id="xarajat">0</span></div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">Xarajat taqsimoti</h2>
+    <div id="expList"><div class="empty">—</div></div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">Kassa qoldiqlari (joriy)</h2>
+    <div class="kassalar" id="kassalar"></div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">Aylanma-saldo</h2>
+    <table>
+      <thead><tr><th>Hisob</th><th>Debet</th><th>Kredit</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ===================== SHU YERGA YOZ (provodka.html'dagi bilan bir xil) =====================
+const SUPABASE_URL      = 'https://SENING-PROJECTING.supabase.co';
+const SUPABASE_ANON_KEY = 'SENING-ANON-KEYING';
+// ===========================================================================================
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const OYLAR = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+const $ = id => document.getElementById(id);
+const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+
+function toggleTheme(){
+  const d = document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', d?'light':'dark');
+  localStorage.setItem('prov-theme', d?'light':'dark');
+}
+window.toggleTheme = toggleTheme;
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+
+function fillSelectors(){
+  const now = new Date(Date.now()+5*3600*1000);
+  const oySel=$('oy'), yilSel=$('yil');
+  OYLAR.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; oySel.appendChild(o); });
+  const y=now.getUTCFullYear();
+  for(let yy=y-1; yy<=y+1; yy++){ const o=document.createElement('option'); o.value=yy; o.textContent=yy; yilSel.appendChild(o); }
+  oySel.value = now.getUTCMonth()+1;
+  yilSel.value = y;
+  oySel.onchange = load; yilSel.onchange = load;
+}
+
+async function loadKassalar(){
+  const {data,error} = await sb.from('v_kassa_qoldiq').select('*');
+  if(error){ return; }
+  $('kassalar').innerHTML = (data||[]).map(r=>
+    `<div class="kchip"><div class="n">${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('') || '<div class="empty">—</div>';
+}
+
+async function load(){
+  const oy = Number($('oy').value), yil = Number($('yil').value);
+  const d1 = `${yil}-${String(oy).padStart(2,'0')}-01`;
+  const lastDay = new Date(yil, oy, 0).getDate();
+  const d2 = `${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+
+  const {data,error} = await sb.from('entry')
+    .select('entry_date, entry_line(debit,credit,accounts(code,name,type))')
+    .gte('entry_date', d1).lte('entry_date', d2);
+
+  if(error){ showErr(error.message); return; }
+
+  let income=0, expense=0;
+  const expByCat={}, turnover={};
+  (data||[]).forEach(e=>{
+    (e.entry_line||[]).forEach(l=>{
+      const a=l.accounts; if(!a) return;
+      const deb=Number(l.debit)||0, cred=Number(l.credit)||0;
+      const t = turnover[a.code] || (turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0});
+      t.deb+=deb; t.cred+=cred;
+      if(a.type==='daromad') income += (cred-deb);
+      if(a.type==='xarajat'){ const v=deb-cred; expense+=v; expByCat[a.name]=(expByCat[a.name]||0)+v; }
+    });
+  });
+
+  const foyda = income - expense;
+  const fEl=$('foyda');
+  fEl.textContent = (foyda<0?'−':'') + money(Math.abs(foyda));
+  fEl.className = 'big ' + (foyda<0?'neg':'pos');
+  $('daromad').textContent = '+' + money(income);
+  $('xarajat').textContent = '−' + money(expense);
+
+  const cats = Object.entries(expByCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  $('expList').innerHTML = cats.length ? cats.map(([name,v])=>{
+    const pct = expense>0 ? Math.round(v/expense*100) : 0;
+    return `<div class="exp"><div class="l"><span>${name}</span><span class="a">${money(v)} <span style="color:var(--muted);font-weight:400">${pct}%</span></span></div>
+      <div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+  }).join('') : '<div class="empty">Bu oyda xarajat yoq</div>';
+
+  const rows = Object.values(turnover).sort((a,b)=>a.code.localeCompare(b.code));
+  $('tb').innerHTML = rows.length ? rows.map(r=>
+    `<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`
+  ).join('') : '<tr><td colspan="3" class="empty">Bu oyda yozuv yoq</td></tr>';
+
+  loadKassalar();
+}
+
+function showErr(m){ const b=$('banner'); b.style.display='block';
+  b.textContent = SUPABASE_URL.includes('SENING') ? 'Supabase URL va anon key yozilmagan.' : ('Xato: '+m); }
+
+function init(){
+  fillSelectors();
+  if(SUPABASE_URL.includes('SENING')){ showErr(''); return; }
+  load();
+}
+init();
+</script>
+</body>
+</html>
