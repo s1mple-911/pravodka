@@ -2,201 +2,207 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Aros Hisobot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aros Provodka — Hisobot</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
-  :root{--bg:#f2f2f7;--card:#fff;--card2:#f7f7fa;--text:#1c1c1e;--muted:#8e8e93;--line:#e5e5ea;--accent:#0a84ff;--green:#34c759;--red:#ff3b30;--bar:#0a84ff}
-  [data-theme="dark"]{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--text:#f2f2f7;--muted:#8e8e93;--line:#38383a;--accent:#0a84ff;--green:#30d158;--red:#ff453a;--bar:#0a84ff}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 78px}
-  .wrap{max-width:480px;margin:0 auto;padding:16px}
-  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 14px}
-  .top h1{font-size:22px;margin:0;font-weight:700}
-  .top .r{display:flex;gap:8px}
-  .iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px}
-  .period{display:flex;gap:10px;margin-bottom:16px}
-  .period select{flex:1;height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;-webkit-appearance:none;appearance:none}
-  .hero{background:var(--card);border-radius:18px;padding:20px;margin-bottom:16px;text-align:center}
-  .hero .lbl{font-size:13px;color:var(--muted)}
-  .hero .big{font-size:36px;font-weight:800;margin:6px 0 2px}
-  .hero .big.pos{color:var(--green)} .hero .big.neg{color:var(--red)}
-  .hero .row{display:flex;justify-content:space-between;font-size:15px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-  .hero .row .v.in{color:var(--green)} .hero .row .v.out{color:var(--red)}
-  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px}
-  h2.sec{font-size:15px;color:var(--muted);margin:0 0 12px 2px;font-weight:600}
-  .exp{margin-bottom:13px}
-  .exp .l{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
-  .exp .l .a{font-weight:600}
-  .track{height:8px;background:var(--card2);border-radius:5px;overflow:hidden}
-  .track .fill{height:100%;background:var(--bar);border-radius:5px}
-  .kassalar{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
-  .kchip{flex:0 0 auto;background:var(--card2);border-radius:14px;padding:12px 14px;min-width:120px}
-  .kchip .n{font-size:12px;color:var(--muted)} .kchip .v{font-size:17px;font-weight:600;margin-top:3px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
+  .num,.hero .big,.hero .v,.kchip .v,.exp .a,td{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  #app{display:none}.sidebar{display:none}
+  .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
+  .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
+  .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:4px;align-items:center}
+  .period{display:flex;gap:8px}
+  .period select{height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14px;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;transition:border-color .13s}
+  .period select:focus{outline:none;border-color:var(--primary)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+  .hero{text-align:left}
+  .hero .lbl{font-size:13px;color:var(--muted);font-weight:500}
+  .hero .big{font-size:44px;font-weight:800;letter-spacing:-.03em;margin:8px 0 4px}
+  .hero .big.pos{color:var(--green)}.hero .big.neg{color:var(--red)}
+  .hero .rows{display:flex;gap:28px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  .hero .rows .it .k{font-size:12.5px;color:var(--muted)}
+  .hero .rows .it .v{font-size:18px;font-weight:700;margin-top:2px}
+  .hero .rows .it .v.in{color:var(--green)}.hero .rows .it .v.out{color:var(--red)}
+  .grid2{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:900px){.grid2{grid-template-columns:1fr 1fr;align-items:start}}
+  .sec{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .exp{margin-bottom:14px}
+  .exp .l{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+  .exp .l .a{font-weight:600}.exp .l .a .p{color:var(--muted);font-weight:400;margin-left:4px}
+  .track{height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+  .track .fill{height:100%;background:var(--primary);border-radius:5px;transition:width .4s ease}
+  .kassa-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;margin-bottom:18px}
+  @media(min-width:900px){.kassa-strip{flex-wrap:wrap;overflow:visible}}
+  .kchip{flex:0 0 auto;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+  .kchip .top{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:8px}
+  .kchip .top svg{width:15px;height:15px}.kchip .v{font-size:19px;font-weight:700}
   table{width:100%;border-collapse:collapse;font-size:14px}
-  th{text-align:right;color:var(--muted);font-weight:500;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+  th{text-align:right;color:var(--muted);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:0 0 10px;border-bottom:1px solid var(--line)}
   th:first-child{text-align:left}
-  td{padding:8px 0;border-bottom:1px solid var(--line);text-align:right}
-  td:first-child{text-align:left}
-  td .code{color:var(--muted);font-size:12px;margin-right:6px}
-  .empty{color:var(--muted);text-align:center;padding:18px;font-size:14px}
-  .banner{background:#ffecec;color:#ff3b30;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  td{padding:10px 0;border-bottom:1px solid var(--line);text-align:right}
+  td:first-child{text-align:left}tr:last-child td{border-bottom:none}
+  td .code{color:var(--muted);font-size:12px;margin-right:7px}
+  .empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
+  .banner{background:#feecea;color:#f04438;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
-  .authbox{width:100%;max-width:340px}
-  .authbox h1{font-size:26px;text-align:center;margin:0 0 22px;font-weight:700}
-  .authbox input{width:100%;height:48px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;outline:none}
-  .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
+  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
+  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
+  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
+  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
   .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
-  #app{display:none}
-  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:50;max-width:480px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
-  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:8px 0}
-  .bnav a .ic{font-size:17px}
-  .bnav a.active{color:var(--accent)}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
+  .bnav a svg{width:20px;height:20px}.bnav a.active{color:var(--primary)}
 </style>
 </head>
 <body>
+<div id="gate" class="gate"><div class="authbox">
+  <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
+  <input id="email" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+</div></div>
 
-<div id="gate" class="gate">
-  <div class="authbox">
-    <h1>Aros Hisobot</h1>
-    <input id="email" type="email" placeholder="Email" autocomplete="username">
-    <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
-    <button onclick="doLogin()">Kirish</button>
-    <div id="authErr" class="autherr"></div>
-  </div>
-</div>
-
-<div id="app">
-<div class="wrap">
-  <div class="top">
-    <h1>Hisobot</h1>
-    <div class="r">
-      <button class="iconbtn" onclick="toggleTheme()">◐</button>
-      <button class="iconbtn" onclick="logout()">⎋</button>
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <nav class="side-nav">
+      <a class="nav-item" href="provodka.html"><i data-lucide="circle-plus"></i><span>Kiritish</span></a>
+      <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item active" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+    </nav>
+    <div class="side-foot">
+      <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
+      <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
     </div>
-  </div>
+  </aside>
 
-  <div id="banner" class="banner"></div>
+  <main class="main">
+    <div class="page-head">
+      <h1>Hisobot</h1>
+      <div class="head-actions">
+        <div class="period"><select id="oy"></select><select id="yil"></select></div>
+        <div class="mobile-only" style="display:flex;gap:4px">
+          <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+          <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+        </div>
+      </div>
+    </div>
+    <div id="banner" class="banner"></div>
 
-  <div class="period">
-    <select id="oy"></select>
-    <select id="yil"></select>
-  </div>
+    <div class="kassa-strip" id="kassalar"></div>
 
-  <div class="hero">
-    <div class="lbl">Sof foyda / zarar</div>
-    <div class="big" id="foyda">0</div>
-    <div class="row"><span>Daromad</span><span class="v in" id="daromad">0</span></div>
-    <div class="row"><span>Xarajat</span><span class="v out" id="xarajat">0</span></div>
-  </div>
+    <div class="card hero">
+      <div class="lbl">Sof foyda / zarar</div>
+      <div class="big" id="foyda">0</div>
+      <div class="rows">
+        <div class="it"><div class="k">Daromad</div><div class="v in" id="daromad">0</div></div>
+        <div class="it"><div class="k">Xarajat</div><div class="v out" id="xarajat">0</div></div>
+      </div>
+    </div>
 
-  <div class="card">
-    <h2 class="sec">Xarajat taqsimoti</h2>
-    <div id="expList"><div class="empty">—</div></div>
-  </div>
+    <div class="grid2">
+      <div class="card"><div class="sec">Xarajat taqsimoti</div><div id="expList"><div class="empty">—</div></div></div>
+      <div class="card"><div class="sec">Aylanma-saldo</div>
+        <table><thead><tr><th>Hisob</th><th>Debet</th><th>Kredit</th></tr></thead><tbody id="tb"></tbody></table>
+      </div>
+    </div>
+  </main>
 
-  <div class="card">
-    <h2 class="sec">Kassa qoldiqlari (joriy)</h2>
-    <div class="kassalar" id="kassalar"></div>
-  </div>
-
-  <div class="card">
-    <h2 class="sec">Aylanma-saldo</h2>
-    <table>
-      <thead><tr><th>Hisob</th><th>Debet</th><th>Kredit</th></tr></thead>
-      <tbody id="tb"></tbody>
-    </table>
-  </div>
-</div>
-
-<nav class="bnav">
-  <a href="provodka.html"><span class="ic">＋</span>Kiritish</a>
-  <a href="professional.html"><span class="ic">≡</span>Pro</a>
-  <a href="hisobot.html" class="active"><span class="ic">▤</span>Hisobot</a>
-  <a href="qarzdor.html"><span class="ic">◔</span>Qarzdor</a>
-  <a href="sozlama.html"><span class="ic">⚙</span>Sozlama</a>
-</nav>
+  <nav class="bnav mobile-only">
+    <a href="provodka.html"><i data-lucide="circle-plus"></i>Kiritish</a>
+    <a href="professional.html"><i data-lucide="list-plus"></i>Pro</a>
+    <a href="hisobot.html" class="active"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="qarzdor.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="sozlama.html"><i data-lucide="settings"></i>Sozlama</a>
+  </nav>
 </div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
-
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const OYLAR = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
-const $ = id => document.getElementById(id);
-const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
-
-function toggleTheme(){ const d=document.documentElement.getAttribute('data-theme')==='dark';
-  document.documentElement.setAttribute('data-theme', d?'light':'dark'); localStorage.setItem('prov-theme', d?'light':'dark'); }
-window.toggleTheme=toggleTheme;
+const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const OYLAR=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+const $=id=>document.getElementById(id);
+const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
+window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
-
-window.doLogin = async () => {
-  const email=$('email').value.trim(), password=$('password').value; $('authErr').textContent='';
-  const {error} = await sb.auth.signInWithPassword({email,password});
-  if(error){ $('authErr').textContent='Kirish xato: '+error.message; return; } enterApp();
-};
-window.logout = async () => { await sb.auth.signOut(); location.reload(); };
-$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
-function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
-async function boot(){ const {data:{session}} = await sb.auth.getSession(); if(session) enterApp(); }
+window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} enterApp(); };
+window.logout=async()=>{ await sb.auth.signOut(); location.reload(); };
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
+function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
 boot();
 
 function fillSelectors(){
-  const now=new Date(Date.now()+5*3600*1000);
-  const oySel=$('oy'), yilSel=$('yil');
+  const now=new Date(Date.now()+5*3600*1000); const oySel=$('oy'),yilSel=$('yil');
   OYLAR.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; oySel.appendChild(o); });
   const y=now.getUTCFullYear();
-  for(let yy=y-1; yy<=y+1; yy++){ const o=document.createElement('option'); o.value=yy; o.textContent=yy; yilSel.appendChild(o); }
-  oySel.value=now.getUTCMonth()+1; yilSel.value=y;
-  oySel.onchange=load; yilSel.onchange=load;
+  for(let yy=y-1;yy<=y+1;yy++){ const o=document.createElement('option'); o.value=yy; o.textContent=yy; yilSel.appendChild(o); }
+  oySel.value=now.getUTCMonth()+1; yilSel.value=y; oySel.onchange=load; yilSel.onchange=load;
 }
-
 async function loadKassalar(){
-  const {data,error} = await sb.from('v_kassa_qoldiq').select('*');
-  if(error) return;
-  $('kassalar').innerHTML = (data||[]).map(r=>`<div class="kchip"><div class="n">${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('') || '<div class="empty">—</div>';
+  const {data,error}=await sb.from('v_kassa_qoldiq').select('*'); if(error) return;
+  $('kassalar').innerHTML=(data||[]).map(r=>`<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('')||'<div class="empty">—</div>';
+  icons();
 }
-
 async function load(){
-  const oy=Number($('oy').value), yil=Number($('yil').value);
+  const oy=Number($('oy').value),yil=Number($('yil').value);
   const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
   const lastDay=new Date(yil,oy,0).getDate();
   const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  const {data,error} = await sb.from('entry')
-    .select('entry_date, entry_line(debit,credit,accounts(code,name,type))')
-    .gte('entry_date',d1).lte('entry_date',d2);
+  const {data,error}=await sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').gte('entry_date',d1).lte('entry_date',d2);
   if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
-
-  let income=0, expense=0; const expByCat={}, turnover={};
+  let income=0,expense=0; const expByCat={},turnover={};
   (data||[]).forEach(e=>{ (e.entry_line||[]).forEach(l=>{
-    const a=l.accounts; if(!a) return;
-    const deb=Number(l.debit)||0, cred=Number(l.credit)||0;
-    const t=turnover[a.code]||(turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0});
-    t.deb+=deb; t.cred+=cred;
+    const a=l.accounts; if(!a) return; const deb=Number(l.debit)||0,cred=Number(l.credit)||0;
+    const t=turnover[a.code]||(turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0}); t.deb+=deb; t.cred+=cred;
     if(a.type==='daromad') income+=(cred-deb);
     if(a.type==='xarajat'){ const v=deb-cred; expense+=v; expByCat[a.name]=(expByCat[a.name]||0)+v; }
   }); });
-
   const foyda=income-expense; const fEl=$('foyda');
-  fEl.textContent=(foyda<0?'−':'')+money(Math.abs(foyda));
-  fEl.className='big '+(foyda<0?'neg':'pos');
-  $('daromad').textContent='+'+money(income);
-  $('xarajat').textContent='−'+money(expense);
-
+  fEl.textContent=(foyda<0?'−':'')+money(Math.abs(foyda)); fEl.className='big '+(foyda<0?'neg':'pos');
+  $('daromad').textContent='+'+money(income); $('xarajat').textContent='−'+money(expense);
   const cats=Object.entries(expByCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  $('expList').innerHTML=cats.length?cats.map(([name,v])=>{
-    const pct=expense>0?Math.round(v/expense*100):0;
-    return `<div class="exp"><div class="l"><span>${name}</span><span class="a">${money(v)} <span style="color:var(--muted);font-weight:400">${pct}%</span></span></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
-  }).join(''):'<div class="empty">Bu oyda xarajat yoq</div>';
-
+  $('expList').innerHTML=cats.length?cats.map(([name,v])=>{ const pct=expense>0?Math.round(v/expense*100):0;
+    return `<div class="exp"><div class="l"><span>${name}</span><span class="a">${money(v)}<span class="p">${pct}%</span></span></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+  }).join(''):'<div class="empty">Bu oyda xarajat yo\'q</div>';
   const rows=Object.values(turnover).sort((a,b)=>a.code.localeCompare(b.code));
-  $('tb').innerHTML=rows.length?rows.map(r=>`<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">Bu oyda yozuv yoq</td></tr>';
-
+  $('tb').innerHTML=rows.length?rows.map(r=>`<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">Bu oyda yozuv yo\'q</td></tr>';
   loadKassalar();
 }
-
 function init(){ fillSelectors(); load(); }
 </script>
 </body>
