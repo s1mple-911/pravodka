@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aros Sozlamalar</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#ffffff; --card2:#f7f7fa; --text:#1c1c1e; --muted:#8e8e93;
+    --line:#e5e5ea; --accent:#0a84ff; --green:#34c759; --red:#ff3b30;
+  }
+  [data-theme="dark"]{
+    --bg:#000000; --card:#1c1c1e; --card2:#2c2c2e; --text:#f2f2f7; --muted:#8e8e93;
+    --line:#38383a; --accent:#0a84ff; --green:#30d158; --red:#ff453a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 40px}
+  .wrap{max-width:480px;margin:0 auto;padding:16px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 14px}
+  .top h1{font-size:22px;margin:0;font-weight:700}
+  .top .r{display:flex;gap:8px}
+  .top a,.iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px;text-decoration:none}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px}
+  h2.sec{font-size:15px;color:var(--muted);margin:0 0 12px 2px;font-weight:600}
+  .seg{display:flex;background:var(--card2);border-radius:12px;padding:4px;margin-bottom:14px}
+  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;padding:9px 0;border-radius:9px}
+  .seg button.on{background:var(--accent);color:#fff}
+  .addrow{display:flex;gap:10px}
+  .addrow input{flex:1;height:46px;border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;outline:none}
+  .addrow button{height:46px;padding:0 18px;border:none;border-radius:12px;background:var(--green);color:#fff;font-size:15px;font-weight:600;white-space:nowrap}
+  .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:none}
+  .item .mid{flex:1;min-width:0}
+  .item .mid .t{font-size:15px;font-weight:600}
+  .item .mid .c{font-size:12px;color:var(--muted);margin-top:2px}
+  .item.off .mid{opacity:.4}
+  .item .edit{background:none;border:none;color:var(--accent);font-size:16px;padding:4px 6px}
+  .sw{position:relative;width:44px;height:26px;flex:0 0 auto}
+  .sw input{opacity:0;width:0;height:0}
+  .sw span{position:absolute;inset:0;background:var(--line);border-radius:26px;transition:.2s;cursor:pointer}
+  .sw span:before{content:"";position:absolute;width:22px;height:22px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s}
+  .sw input:checked+span{background:var(--green)}
+  .sw input:checked+span:before{transform:translateX(18px)}
+  .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
+  .banner{background:#ffecec;color:#ff3b30;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:340px}
+  .authbox h1{font-size:26px;text-align:center;margin:0 0 22px;font-weight:700}
+  .authbox input{width:100%;height:48px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;outline:none}
+  .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  #app{display:none}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <div class="authbox">
+    <h1>Aros Sozlamalar</h1>
+    <input id="email" type="email" placeholder="Email" autocomplete="username">
+    <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+    <button onclick="doLogin()">Kirish</button>
+    <div id="authErr" class="autherr"></div>
+  </div>
+</div>
+
+<div id="app">
+<div class="wrap">
+  <div class="top">
+    <h1>Sozlamalar</h1>
+    <div class="r">
+      <a href="provodka.html">Kiritish</a>
+      <button class="iconbtn" onclick="toggleTheme()">◐</button>
+      <button class="iconbtn" onclick="logout()">⎋</button>
+    </div>
+  </div>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="card">
+    <h2 class="sec">Yangi qo'shish</h2>
+    <div class="seg">
+      <button id="tKassa"   class="on" onclick="setType('kassa')">Kassa</button>
+      <button id="tXarajat"           onclick="setType('xarajat')">Xarajat</button>
+      <button id="tDaromad"           onclick="setType('daromad')">Daromad</button>
+    </div>
+    <div class="addrow">
+      <input id="newName" placeholder="Nomi (masalan: Giyos kassa)">
+      <button onclick="addAcc()">Qo'shish</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">Kassalar</h2>
+    <div id="listKassa"></div>
+  </div>
+  <div class="card">
+    <h2 class="sec">Xarajat kategoriyalari</h2>
+    <div id="listXarajat"></div>
+  </div>
+  <div class="card">
+    <h2 class="sec">Daromad turlari</h2>
+    <div id="listDaromad"></div>
+  </div>
+  <div class="card">
+    <h2 class="sec">Boshqa hisoblar</h2>
+    <div id="listBoshqa"></div>
+  </div>
+</div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ===================== SHU YERGA YOZ (boshqa fayllardagi bilan bir xil) =====================
+const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+// ===========================================================================================
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = id => document.getElementById(id);
+let accounts = [];
+let curType = 'kassa';
+
+function toggleTheme(){
+  const d = document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', d?'light':'dark');
+  localStorage.setItem('prov-theme', d?'light':'dark');
+}
+window.toggleTheme = toggleTheme;
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+
+// ---------- AUTH ----------
+window.doLogin = async () => {
+  const email = $('email').value.trim(), password = $('password').value;
+  $('authErr').textContent = '';
+  if(SUPABASE_URL.includes('SENING')){ $('authErr').textContent='Supabase URL/key yozilmagan.'; return; }
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ $('authErr').textContent = 'Kirish xato: ' + error.message; return; }
+  enterApp();
+};
+window.logout = async () => { await sb.auth.signOut(); location.reload(); };
+$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
+function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
+async function boot(){ const {data:{session}} = await sb.auth.getSession(); if(session) enterApp(); }
+boot();
+
+// ---------- APP ----------
+window.setType = t => {
+  curType = t;
+  $('tKassa').className   = t==='kassa'   ? 'on':'';
+  $('tXarajat').className = t==='xarajat' ? 'on':'';
+  $('tDaromad').className = t==='daromad' ? 'on':'';
+  $('newName').placeholder = t==='kassa' ? 'Nomi (masalan: Giyos kassa)'
+    : t==='xarajat' ? 'Nomi (masalan: Bonus)' : 'Nomi (masalan: Xizmat tushumi)';
+};
+
+function nextCode(prefix, start){
+  const nums = accounts.map(a=>parseInt(a.code,10)).filter(n=>!isNaN(n) && String(n).startsWith(prefix));
+  return String(nums.length ? Math.max(...nums)+1 : start);
+}
+
+window.addAcc = async () => {
+  const name = $('newName').value.trim();
+  if(!name){ alert('Nom kiriting'); return; }
+  let dbType, code;
+  if(curType==='kassa'){   dbType='aktiv';   code=nextCode('50',5011); }
+  if(curType==='xarajat'){ dbType='xarajat'; code=nextCode('94',9421); }
+  if(curType==='daromad'){ dbType='daromad'; code=nextCode('90',9011); }
+  const {error} = await sb.from('accounts').insert({code, name, type:dbType});
+  if(error){ alert(error.message); return; }
+  $('newName').value='';
+  await load();
+};
+
+window.renameAcc = async id => {
+  const a = accounts.find(x=>x.id===id); if(!a) return;
+  const name = prompt('Yangi nom:', a.name);
+  if(!name || name.trim()===a.name) return;
+  const {error} = await sb.from('accounts').update({name:name.trim()}).eq('id',id);
+  if(error){ alert(error.message); return; }
+  await load();
+};
+
+window.toggleAcc = async id => {
+  const a = accounts.find(x=>x.id===id); if(!a) return;
+  const {error} = await sb.from('accounts').update({is_active: !a.is_active}).eq('id',id);
+  if(error){ alert(error.message); await load(); return; }
+  await load();
+};
+
+function renderList(elId, arr){
+  const el = $(elId);
+  el.innerHTML = arr.length ? arr.map(a=>`
+    <div class="item ${a.is_active?'':'off'}">
+      <div class="mid"><div class="t">${a.name}</div><div class="c">${a.code}</div></div>
+      <button class="edit" onclick="renameAcc('${a.id}')">✎</button>
+      <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
+    </div>`).join('') : '<div class="empty">—</div>';
+}
+
+async function load(){
+  const {data,error} = await sb.from('accounts').select('*').order('code');
+  if(error){ showErr(error.message); return; }
+  accounts = data||[];
+  renderList('listKassa',   accounts.filter(a=>a.type==='aktiv' && a.code.startsWith('5')));
+  renderList('listXarajat', accounts.filter(a=>a.type==='xarajat'));
+  renderList('listDaromad', accounts.filter(a=>a.type==='daromad'));
+  renderList('listBoshqa',  accounts.filter(a=>!(a.type==='aktiv' && a.code.startsWith('5')) && a.type!=='xarajat' && a.type!=='daromad'));
+}
+
+function showErr(m){ const b=$('banner'); b.style.display='block';
+  b.textContent = SUPABASE_URL.includes('SENING') ? 'Supabase URL va anon key yozilmagan.' : ('Xato: '+m); }
+
+function init(){
+  if(SUPABASE_URL.includes('SENING')){ showErr(''); return; }
+  load();
+}
+</script>
+</body>
+</html>
