@@ -5,21 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Aros Hisobot</title>
 <style>
-  :root{
-    --bg:#f2f2f7; --card:#ffffff; --card2:#f7f7fa; --text:#1c1c1e; --muted:#8e8e93;
-    --line:#e5e5ea; --accent:#0a84ff; --green:#34c759; --red:#ff3b30; --bar:#0a84ff;
-  }
-  [data-theme="dark"]{
-    --bg:#000000; --card:#1c1c1e; --card2:#2c2c2e; --text:#f2f2f7; --muted:#8e8e93;
-    --line:#38383a; --accent:#0a84ff; --green:#30d158; --red:#ff453a; --bar:#0a84ff;
-  }
+  :root{--bg:#f2f2f7;--card:#fff;--card2:#f7f7fa;--text:#1c1c1e;--muted:#8e8e93;--line:#e5e5ea;--accent:#0a84ff;--green:#34c759;--red:#ff3b30;--bar:#0a84ff}
+  [data-theme="dark"]{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--text:#f2f2f7;--muted:#8e8e93;--line:#38383a;--accent:#0a84ff;--green:#30d158;--red:#ff453a;--bar:#0a84ff}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 40px}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 78px}
   .wrap{max-width:480px;margin:0 auto;padding:16px}
   .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 14px}
   .top h1{font-size:22px;margin:0;font-weight:700}
   .top .r{display:flex;gap:8px}
-  .top a,.iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px;text-decoration:none}
+  .iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px}
   .period{display:flex;gap:10px;margin-bottom:16px}
   .period select{flex:1;height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;-webkit-appearance:none;appearance:none}
   .hero{background:var(--card);border-radius:18px;padding:20px;margin-bottom:16px;text-align:center}
@@ -53,6 +47,10 @@
   .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
   .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
   #app{display:none}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:50;max-width:480px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:8px 0}
+  .bnav a .ic{font-size:17px}
+  .bnav a.active{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -72,7 +70,6 @@
   <div class="top">
     <h1>Hisobot</h1>
     <div class="r">
-      <a href="provodka.html">＋ Kiritish</a>
       <button class="iconbtn" onclick="toggleTheme()">◐</button>
       <button class="iconbtn" onclick="logout()">⎋</button>
     </div>
@@ -110,123 +107,97 @@
     </table>
   </div>
 </div>
+
+<nav class="bnav">
+  <a href="provodka.html"><span class="ic">＋</span>Kiritish</a>
+  <a href="professional.html"><span class="ic">≡</span>Pro</a>
+  <a href="hisobot.html" class="active"><span class="ic">▤</span>Hisobot</a>
+  <a href="qarzdor.html"><span class="ic">◔</span>Qarzdor</a>
+  <a href="sozlama.html"><span class="ic">⚙</span>Sozlama</a>
+</nav>
 </div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-// ===================== SHU YERGA YOZ (provodka.html'dagi bilan bir xil) =====================
 const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
-// ===========================================================================================
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const OYLAR = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const $ = id => document.getElementById(id);
 const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 
-function toggleTheme(){
-  const d = document.documentElement.getAttribute('data-theme')==='dark';
-  document.documentElement.setAttribute('data-theme', d?'light':'dark');
-  localStorage.setItem('prov-theme', d?'light':'dark');
-}
-window.toggleTheme = toggleTheme;
+function toggleTheme(){ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', d?'light':'dark'); localStorage.setItem('prov-theme', d?'light':'dark'); }
+window.toggleTheme=toggleTheme;
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 
-// ---------- AUTH ----------
 window.doLogin = async () => {
-  const email = $('email').value.trim(), password = $('password').value;
-  $('authErr').textContent = '';
-  if(SUPABASE_URL.includes('SENING')){ $('authErr').textContent='Supabase URL/key yozilmagan.'; return; }
-  const {error} = await sb.auth.signInWithPassword({email, password});
-  if(error){ $('authErr').textContent = 'Kirish xato: ' + error.message; return; }
-  enterApp();
+  const email=$('email').value.trim(), password=$('password').value; $('authErr').textContent='';
+  const {error} = await sb.auth.signInWithPassword({email,password});
+  if(error){ $('authErr').textContent='Kirish xato: '+error.message; return; } enterApp();
 };
 window.logout = async () => { await sb.auth.signOut(); location.reload(); };
 $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
-
 function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
-
-async function boot(){
-  const {data:{session}} = await sb.auth.getSession();
-  if(session) enterApp();
-}
+async function boot(){ const {data:{session}} = await sb.auth.getSession(); if(session) enterApp(); }
 boot();
 
-// ---------- APP ----------
 function fillSelectors(){
-  const now = new Date(Date.now()+5*3600*1000);
+  const now=new Date(Date.now()+5*3600*1000);
   const oySel=$('oy'), yilSel=$('yil');
   OYLAR.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; oySel.appendChild(o); });
   const y=now.getUTCFullYear();
   for(let yy=y-1; yy<=y+1; yy++){ const o=document.createElement('option'); o.value=yy; o.textContent=yy; yilSel.appendChild(o); }
-  oySel.value = now.getUTCMonth()+1;
-  yilSel.value = y;
-  oySel.onchange = load; yilSel.onchange = load;
+  oySel.value=now.getUTCMonth()+1; yilSel.value=y;
+  oySel.onchange=load; yilSel.onchange=load;
 }
 
 async function loadKassalar(){
   const {data,error} = await sb.from('v_kassa_qoldiq').select('*');
-  if(error){ return; }
-  $('kassalar').innerHTML = (data||[]).map(r=>
-    `<div class="kchip"><div class="n">${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('') || '<div class="empty">—</div>';
+  if(error) return;
+  $('kassalar').innerHTML = (data||[]).map(r=>`<div class="kchip"><div class="n">${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('') || '<div class="empty">—</div>';
 }
 
 async function load(){
-  const oy = Number($('oy').value), yil = Number($('yil').value);
-  const d1 = `${yil}-${String(oy).padStart(2,'0')}-01`;
-  const lastDay = new Date(yil, oy, 0).getDate();
-  const d2 = `${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-
+  const oy=Number($('oy').value), yil=Number($('yil').value);
+  const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
+  const lastDay=new Date(yil,oy,0).getDate();
+  const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
   const {data,error} = await sb.from('entry')
     .select('entry_date, entry_line(debit,credit,accounts(code,name,type))')
-    .gte('entry_date', d1).lte('entry_date', d2);
+    .gte('entry_date',d1).lte('entry_date',d2);
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
 
-  if(error){ showErr(error.message); return; }
+  let income=0, expense=0; const expByCat={}, turnover={};
+  (data||[]).forEach(e=>{ (e.entry_line||[]).forEach(l=>{
+    const a=l.accounts; if(!a) return;
+    const deb=Number(l.debit)||0, cred=Number(l.credit)||0;
+    const t=turnover[a.code]||(turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0});
+    t.deb+=deb; t.cred+=cred;
+    if(a.type==='daromad') income+=(cred-deb);
+    if(a.type==='xarajat'){ const v=deb-cred; expense+=v; expByCat[a.name]=(expByCat[a.name]||0)+v; }
+  }); });
 
-  let income=0, expense=0;
-  const expByCat={}, turnover={};
-  (data||[]).forEach(e=>{
-    (e.entry_line||[]).forEach(l=>{
-      const a=l.accounts; if(!a) return;
-      const deb=Number(l.debit)||0, cred=Number(l.credit)||0;
-      const t = turnover[a.code] || (turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0});
-      t.deb+=deb; t.cred+=cred;
-      if(a.type==='daromad') income += (cred-deb);
-      if(a.type==='xarajat'){ const v=deb-cred; expense+=v; expByCat[a.name]=(expByCat[a.name]||0)+v; }
-    });
-  });
+  const foyda=income-expense; const fEl=$('foyda');
+  fEl.textContent=(foyda<0?'−':'')+money(Math.abs(foyda));
+  fEl.className='big '+(foyda<0?'neg':'pos');
+  $('daromad').textContent='+'+money(income);
+  $('xarajat').textContent='−'+money(expense);
 
-  const foyda = income - expense;
-  const fEl=$('foyda');
-  fEl.textContent = (foyda<0?'−':'') + money(Math.abs(foyda));
-  fEl.className = 'big ' + (foyda<0?'neg':'pos');
-  $('daromad').textContent = '+' + money(income);
-  $('xarajat').textContent = '−' + money(expense);
+  const cats=Object.entries(expByCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  $('expList').innerHTML=cats.length?cats.map(([name,v])=>{
+    const pct=expense>0?Math.round(v/expense*100):0;
+    return `<div class="exp"><div class="l"><span>${name}</span><span class="a">${money(v)} <span style="color:var(--muted);font-weight:400">${pct}%</span></span></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+  }).join(''):'<div class="empty">Bu oyda xarajat yoq</div>';
 
-  const cats = Object.entries(expByCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  $('expList').innerHTML = cats.length ? cats.map(([name,v])=>{
-    const pct = expense>0 ? Math.round(v/expense*100) : 0;
-    return `<div class="exp"><div class="l"><span>${name}</span><span class="a">${money(v)} <span style="color:var(--muted);font-weight:400">${pct}%</span></span></div>
-      <div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
-  }).join('') : '<div class="empty">Bu oyda xarajat yoq</div>';
-
-  const rows = Object.values(turnover).sort((a,b)=>a.code.localeCompare(b.code));
-  $('tb').innerHTML = rows.length ? rows.map(r=>
-    `<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`
-  ).join('') : '<tr><td colspan="3" class="empty">Bu oyda yozuv yoq</td></tr>';
+  const rows=Object.values(turnover).sort((a,b)=>a.code.localeCompare(b.code));
+  $('tb').innerHTML=rows.length?rows.map(r=>`<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">Bu oyda yozuv yoq</td></tr>';
 
   loadKassalar();
 }
 
-function showErr(m){ const b=$('banner'); b.style.display='block';
-  b.textContent = SUPABASE_URL.includes('SENING') ? 'Supabase URL va anon key yozilmagan.' : ('Xato: '+m); }
-
-function init(){
-  fillSelectors();
-  if(SUPABASE_URL.includes('SENING')){ showErr(''); return; }
-  load();
-}
+function init(){ fillSelectors(); load(); }
 </script>
 </body>
 </html>

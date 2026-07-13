@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aros Qarzdorlar</title>
+<style>
+  :root{--bg:#f2f2f7;--card:#fff;--card2:#f7f7fa;--text:#1c1c1e;--muted:#8e8e93;--line:#e5e5ea;--accent:#0a84ff;--green:#34c759;--red:#ff3b30;--greenbg:#e7f9ec;--redbg:#ffecec}
+  [data-theme="dark"]{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--text:#f2f2f7;--muted:#8e8e93;--line:#38383a;--accent:#0a84ff;--green:#30d158;--red:#ff453a;--greenbg:#0f2e18;--redbg:#3a1210}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 78px}
+  .wrap{max-width:480px;margin:0 auto;padding:16px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 16px}
+  .top h1{font-size:22px;margin:0;font-weight:700}
+  .top .r{display:flex;gap:8px}
+  .iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px}
+  .two{display:flex;gap:12px;margin-bottom:16px}
+  .bcard{flex:1;background:var(--card);border-radius:16px;padding:16px}
+  .bcard .n{font-size:13px;color:var(--muted)}
+  .bcard .v{font-size:22px;font-weight:700;margin-top:6px}
+  .bcard.pos .v{color:var(--green)} .bcard.neg .v{color:var(--red)}
+  h2.sec{font-size:15px;color:var(--muted);margin:0 0 10px 4px;font-weight:600}
+  .je{background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+  .je .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+  .je .ic.up{background:var(--redbg);color:var(--red)}
+  .je .ic.down{background:var(--greenbg);color:var(--green)}
+  .je .mid{flex:1;min-width:0}
+  .je .mid .t{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .je .mid .s{font-size:12px;color:var(--muted);margin-top:2px}
+  .je .amt{font-size:16px;font-weight:600;white-space:nowrap}
+  .je .amt.up{color:var(--red)} .je .amt.down{color:var(--green)}
+  .note{font-size:12px;color:var(--muted);text-align:center;margin:6px 4px 16px;line-height:1.5}
+  .empty{color:var(--muted);text-align:center;padding:24px;font-size:14px}
+  .banner{background:#ffecec;color:#ff3b30;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:340px}
+  .authbox h1{font-size:26px;text-align:center;margin:0 0 22px;font-weight:700}
+  .authbox input{width:100%;height:48px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;outline:none}
+  .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  #app{display:none}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:50;max-width:480px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:8px 0}
+  .bnav a .ic{font-size:17px}
+  .bnav a.active{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <div class="authbox">
+    <h1>Aros Qarzdorlar</h1>
+    <input id="email" type="email" placeholder="Email" autocomplete="username">
+    <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+    <button onclick="doLogin()">Kirish</button>
+    <div id="authErr" class="autherr"></div>
+  </div>
+</div>
+
+<div id="app">
+<div class="wrap">
+  <div class="top">
+    <h1>Qarzdorlar</h1>
+    <div class="r">
+      <button class="iconbtn" onclick="toggleTheme()">◐</button>
+      <button class="iconbtn" onclick="logout()">⎋</button>
+    </div>
+  </div>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="two">
+    <div class="bcard pos"><div class="n">Bizga qarzdor</div><div class="v" id="recv">0</div></div>
+    <div class="bcard neg"><div class="n">Biz qarzdormiz</div><div class="v" id="pay">0</div></div>
+  </div>
+  <div class="note">Bizga qarzdor = Xaridorlar qarzi (4010) · Biz qarzdormiz = Yetkazib beruvchilar (6010).<br>Aniq mijoz bo'yicha ajratish keyingi qadamda qo'shiladi.</div>
+
+  <h2 class="sec">Harakatlar</h2>
+  <div id="hist"></div>
+</div>
+
+<nav class="bnav">
+  <a href="provodka.html"><span class="ic">＋</span>Kiritish</a>
+  <a href="professional.html"><span class="ic">≡</span>Pro</a>
+  <a href="hisobot.html"><span class="ic">▤</span>Hisobot</a>
+  <a href="qarzdor.html" class="active"><span class="ic">◔</span>Qarzdor</a>
+  <a href="sozlama.html"><span class="ic">⚙</span>Sozlama</a>
+</nav>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = id => document.getElementById(id);
+const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+
+function toggleTheme(){ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', d?'light':'dark'); localStorage.setItem('prov-theme', d?'light':'dark'); }
+window.toggleTheme=toggleTheme;
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+
+window.doLogin = async () => {
+  const email=$('email').value.trim(), password=$('password').value; $('authErr').textContent='';
+  const {error} = await sb.auth.signInWithPassword({email,password});
+  if(error){ $('authErr').textContent='Kirish xato: '+error.message; return; } enterApp();
+};
+window.logout = async () => { await sb.auth.signOut(); location.reload(); };
+$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
+function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
+async function boot(){ const {data:{session}} = await sb.auth.getSession(); if(session) enterApp(); }
+boot();
+
+async function init(){
+  // Balanslar
+  const {data:bal,error:be} = await sb.from('v_hisob_qoldiq').select('*').in('code',['4010','6010']);
+  if(be){ $('banner').style.display='block'; $('banner').textContent='Xato: '+be.message; return; }
+  const r4 = (bal||[]).find(x=>x.code==='4010');
+  const r6 = (bal||[]).find(x=>x.code==='6010');
+  $('recv').textContent = money(r4?r4.qoldiq:0);
+  $('pay').textContent  = money(r6?r6.qoldiq:0);
+
+  // Hisob id'lari
+  const {data:accs} = await sb.from('accounts').select('id,code,name').in('code',['4010','6010']);
+  const ids = (accs||[]).map(a=>a.id);
+  const nameByCode = {}; (accs||[]).forEach(a=>nameByCode[a.code]=a.name);
+  if(!ids.length){ $('hist').innerHTML='<div class="empty">—</div>'; return; }
+
+  // Harakatlar
+  const {data:rows,error:le} = await sb.from('entry_line')
+    .select('debit,credit,accounts!inner(code,name),entry!inner(entry_date,description,created_at)')
+    .in('account_id', ids);
+  if(le){ $('hist').innerHTML=`<div class="empty">${le.message}</div>`; return; }
+  const list = (rows||[]).sort((a,b)=> (b.entry?.created_at||'').localeCompare(a.entry?.created_at||'')).slice(0,80);
+  if(!list.length){ $('hist').innerHTML='<div class="empty">Hozircha harakat yoq</div>'; return; }
+
+  $('hist').innerHTML = list.map(r=>{
+    const code=r.accounts?.code, deb=Number(r.debit)||0, cred=Number(r.credit)||0, amt=deb||cred;
+    // 4010: Dt=qarz oshdi(+), Kt=qarz kamaydi(-) | 6010: Kt=qarz oshdi(+), Dt=kamaydi(-)
+    let up;
+    if(code==='4010') up = deb>0; else up = cred>0;
+    const label = code==='4010' ? (up?'Xaridor qarzi oshdi':'Xaridor to\'ladi') : (up?'Yetkazib beruvchiga qarz':'Yetkazib beruvchiga to\'landi');
+    const sub = (r.entry?.entry_date||'') + (r.entry?.description?' · '+r.entry.description:'');
+    return `<div class="je"><div class="ic ${up?'up':'down'}">${up?'↑':'↓'}</div>
+      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div></div>
+      <div class="amt ${up?'up':'down'}">${up?'+':'−'}${money(amt)}</div></div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

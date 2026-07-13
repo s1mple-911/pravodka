@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Aros Professional</title>
+<style>
+  :root{--bg:#f2f2f7;--card:#fff;--card2:#f7f7fa;--text:#1c1c1e;--muted:#8e8e93;--line:#e5e5ea;--accent:#0a84ff;--green:#34c759;--red:#ff3b30}
+  [data-theme="dark"]{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--text:#f2f2f7;--muted:#8e8e93;--line:#38383a;--accent:#0a84ff;--green:#30d158;--red:#ff453a}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 78px}
+  .wrap{max-width:480px;margin:0 auto;padding:16px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 16px}
+  .top h1{font-size:22px;margin:0;font-weight:700}
+  .top .r{display:flex;gap:8px}
+  .iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px}
+  label{font-size:13px;color:var(--muted);display:block;margin:0 0 6px 2px}
+  .txt{width:100%;height:46px;border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;outline:none;margin-bottom:14px}
+  .line{background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px}
+  .line .lr{display:flex;gap:8px;align-items:center}
+  .line select{flex:1;min-width:0;height:42px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:0 10px;font-size:15px;-webkit-appearance:none;appearance:none}
+  .line .rm{background:none;border:none;color:var(--red);font-size:18px;padding:4px 6px}
+  .line .lr2{display:flex;gap:8px;margin-top:10px}
+  .sideseg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .sideseg button{border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;padding:0 16px}
+  .sideseg button.on-dt{background:var(--accent);color:#fff}
+  .sideseg button.on-kt{background:var(--accent);color:#fff}
+  .line input.amt{flex:1;height:42px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:0 10px;font-size:15px;text-align:right;outline:none}
+  .addline{width:100%;height:44px;border:1px dashed var(--line);border-radius:12px;background:transparent;color:var(--accent);font-size:15px;font-weight:600;margin-bottom:14px}
+  .tot{display:flex;justify-content:space-between;font-size:14px;padding:6px 2px}
+  .tot .v{font-weight:600}
+  .tot.bal .v{color:var(--green)} .tot.bal.no .v{color:var(--red)}
+  .save{width:100%;height:50px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-size:17px;font-weight:600;margin-top:8px}
+  .save:disabled{opacity:.4}
+  .banner{background:#ffecec;color:#ff3b30;border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:340px}
+  .authbox h1{font-size:26px;text-align:center;margin:0 0 22px;font-weight:700}
+  .authbox input{width:100%;height:48px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;outline:none}
+  .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  #app{display:none}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:50;max-width:480px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:8px 0}
+  .bnav a .ic{font-size:17px}
+  .bnav a.active{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <div class="authbox">
+    <h1>Aros Professional</h1>
+    <input id="email" type="email" placeholder="Email" autocomplete="username">
+    <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+    <button onclick="doLogin()">Kirish</button>
+    <div id="authErr" class="autherr"></div>
+  </div>
+</div>
+
+<div id="app">
+<div class="wrap">
+  <div class="top">
+    <h1>Professional</h1>
+    <div class="r">
+      <button class="iconbtn" onclick="toggleTheme()">◐</button>
+      <button class="iconbtn" onclick="logout()">⎋</button>
+    </div>
+  </div>
+
+  <div id="banner" class="banner"></div>
+
+  <div class="card">
+    <label>Sana</label>
+    <input class="txt" id="sana" type="date">
+    <label>Izoh</label>
+    <input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
+
+    <div id="lines"></div>
+    <button class="addline" onclick="addLine()">＋ Satr qo'shish</button>
+
+    <div class="tot"><span>Jami Debet (Dt)</span><span class="v" id="sumDt">0</span></div>
+    <div class="tot"><span>Jami Kredit (Kt)</span><span class="v" id="sumKt">0</span></div>
+    <div class="tot bal" id="balRow"><span>Farq</span><span class="v" id="farq">0</span></div>
+
+    <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
+  </div>
+</div>
+
+<nav class="bnav">
+  <a href="provodka.html"><span class="ic">＋</span>Kiritish</a>
+  <a href="professional.html" class="active"><span class="ic">≡</span>Pro</a>
+  <a href="hisobot.html"><span class="ic">▤</span>Hisobot</a>
+  <a href="qarzdor.html"><span class="ic">◔</span>Qarzdor</a>
+  <a href="sozlama.html"><span class="ic">⚙</span>Sozlama</a>
+</nav>
+</div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = id => document.getElementById(id);
+const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+let accounts = [];
+let lines = [];
+
+function toggleTheme(){ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme', d?'light':'dark'); localStorage.setItem('prov-theme', d?'light':'dark'); }
+window.toggleTheme=toggleTheme;
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+
+window.doLogin = async () => {
+  const email=$('email').value.trim(), password=$('password').value; $('authErr').textContent='';
+  const {error} = await sb.auth.signInWithPassword({email,password});
+  if(error){ $('authErr').textContent='Kirish xato: '+error.message; return; } enterApp();
+};
+window.logout = async () => { await sb.auth.signOut(); location.reload(); };
+$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
+function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
+async function boot(){ const {data:{session}} = await sb.auth.getSession(); if(session) enterApp(); }
+boot();
+
+function accOptions(sel){
+  return accounts.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${a.code} · ${a.name}</option>`).join('');
+}
+
+function renderLines(){
+  $('lines').innerHTML = lines.map((ln,i)=>`
+    <div class="line">
+      <div class="lr">
+        <select onchange="setAcc(${i},this.value)">${accOptions(ln.account_id)}</select>
+        <button class="rm" onclick="rmLine(${i})">✕</button>
+      </div>
+      <div class="lr2">
+        <div class="sideseg">
+          <button class="${ln.side==='debit'?'on-dt':''}" onclick="setSide(${i},'debit')">Dt</button>
+          <button class="${ln.side==='credit'?'on-kt':''}" onclick="setSide(${i},'credit')">Kt</button>
+        </div>
+        <input class="amt" inputmode="numeric" placeholder="0" value="${ln.amount?money(ln.amount):''}" oninput="setAmt(${i},this)">
+      </div>
+    </div>`).join('');
+  updateTotals();
+}
+
+window.addLine = () => { lines.push({account_id: accounts[0]?.id||'', side:'debit', amount:0}); renderLines(); };
+window.rmLine = i => { lines.splice(i,1); renderLines(); };
+window.setAcc = (i,v) => { lines[i].account_id=v; };
+window.setSide = (i,s) => { lines[i].side=s; renderLines(); };
+window.setAmt = (i,el) => { const raw=el.value.replace(/\D/g,''); lines[i].amount=Number(raw)||0; el.value=raw?money(raw):''; updateTotals(); };
+
+function updateTotals(){
+  let dt=0,kt=0;
+  lines.forEach(l=>{ if(l.side==='debit') dt+=l.amount; else kt+=l.amount; });
+  $('sumDt').textContent=money(dt); $('sumKt').textContent=money(kt);
+  const farq=dt-kt; $('farq').textContent=money(Math.abs(farq));
+  const balanced = dt>0 && farq===0;
+  $('balRow').className = 'tot bal' + (balanced?'':' no');
+  $('saveBtn').disabled = !balanced;
+}
+
+window.save = async () => {
+  let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit') dt+=l.amount; else kt+=l.amount; });
+  if(dt<=0 || dt!==kt){ alert('Dt va Kt teng bolishi kerak'); return; }
+  if(lines.some(l=>!l.account_id || l.amount<=0)){ alert('Har satrda hisob va summa bolsin'); return; }
+  $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
+  const {data:ent,error:e1} = await sb.from('entry').insert({
+    entry_date:$('sana').value||null, description:$('izoh').value||null, source:'manual'
+  }).select('id').single();
+  if(e1){ alert(e1.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
+  const rows = lines.map(l=>({entry_id:ent.id, account_id:l.account_id,
+    debit: l.side==='debit'?l.amount:0, credit: l.side==='credit'?l.amount:0}));
+  const {error:e2} = await sb.from('entry_line').insert(rows);
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
+  lines=[]; $('izoh').value=''; addLine(); addLine();
+  $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
+};
+
+async function init(){
+  $('sana').value = new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+  const {data,error} = await sb.from('accounts').select('*').eq('is_active',true).order('code');
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
+  accounts=data||[];
+  lines=[]; addLine(); addLine();
+}
+</script>
+</body>
+</html>
