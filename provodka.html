@@ -18,7 +18,8 @@
   .wrap{max-width:480px;margin:0 auto;padding:16px}
   .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 16px}
   .top h1{font-size:22px;margin:0;font-weight:700}
-  .theme{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:16px}
+  .top .r{display:flex;gap:8px}
+  .top a,.iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px;text-decoration:none}
   .kassalar{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px}
   .kchip{flex:0 0 auto;background:var(--card);border-radius:14px;padding:12px 14px;min-width:120px}
   .kchip .n{font-size:12px;color:var(--muted)}
@@ -51,13 +52,37 @@
   .je .del{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 2px}
   .empty{color:var(--muted);text-align:center;padding:24px;font-size:14px}
   .banner{background:var(--redbg);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  /* Login gate */
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:340px}
+  .authbox h1{font-size:26px;text-align:center;margin:0 0 22px;font-weight:700}
+  .authbox input{width:100%;height:48px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;outline:none}
+  .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  #app{display:none}
 </style>
 </head>
 <body>
+
+<div id="gate" class="gate">
+  <div class="authbox">
+    <h1>Aros Provodka</h1>
+    <input id="email" type="email" placeholder="Email" autocomplete="username">
+    <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+    <button onclick="doLogin()">Kirish</button>
+    <div id="authErr" class="autherr"></div>
+  </div>
+</div>
+
+<div id="app">
 <div class="wrap">
   <div class="top">
     <h1>Provodka</h1>
-    <button class="theme" onclick="toggleTheme()">◐</button>
+    <div class="r">
+      <a href="hisobot.html">Hisobot</a>
+      <button class="iconbtn" onclick="toggleTheme()">◐</button>
+      <button class="iconbtn" onclick="logout()">⎋</button>
+    </div>
   </div>
 
   <div id="cfgbanner" class="banner"></div>
@@ -96,13 +121,14 @@
   <h2 class="sec">Jurnal</h2>
   <div id="journal"></div>
 </div>
+</div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 // ===================== SHU YERGA YOZ =====================
-const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4emVyY2NkcGNsdG16cnh1dGxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4Nzc5MjksImV4cCI6MjA5OTQ1MzkyOX0.SBt3j1ogdFoEsG1AEBQTZzVA2Mirp-6uR4JGxeo_KCo';
+const SUPABASE_URL      = 'https://SENING-PROJECTING.supabase.co';
+const SUPABASE_ANON_KEY = 'SENING-ANON-KEYING';
 // =========================================================
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -120,6 +146,27 @@ window.toggleTheme = () => {
 };
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 
+// ---------- AUTH ----------
+window.doLogin = async () => {
+  const email = $('email').value.trim(), password = $('password').value;
+  $('authErr').textContent = '';
+  if(SUPABASE_URL.includes('SENING')){ $('authErr').textContent='Supabase URL/key yozilmagan.'; return; }
+  const {error} = await sb.auth.signInWithPassword({email, password});
+  if(error){ $('authErr').textContent = 'Kirish xato: ' + error.message; return; }
+  enterApp();
+};
+window.logout = async () => { await sb.auth.signOut(); location.reload(); };
+$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
+
+function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
+
+async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(session) enterApp();
+}
+boot();
+
+// ---------- APP ----------
 window.fmtAmount = el => {
   const raw = el.value.replaceAll(' ','').replace(/\D/g,'');
   el.value = raw ? money(raw) : '';
@@ -184,7 +231,7 @@ async function loadJournal(){
     const ktLine = e.entry_line.find(l=>Number(l.credit)>0) || {};
     const amt = Number(dtLine.debit)||0;
     const dtIsKassa = (dtLine.accounts?.code||'').startsWith('5');
-    const inn = dtIsKassa; // pul kassaga tushdi = kirim
+    const inn = dtIsKassa;
     const label = inn ? (ktLine.accounts?.name||'') : (dtLine.accounts?.name||'');
     const kassaName = inn ? (dtLine.accounts?.name||'') : (ktLine.accounts?.name||'');
     return `<div class="je">
@@ -250,7 +297,6 @@ async function init(){
   await loadAccounts();
   await refresh();
 }
-init();
 </script>
 </body>
 </html>
