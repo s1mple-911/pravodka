@@ -2,69 +2,166 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Aros Provodka</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aros Provodka — Kiritish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
-  :root{--bg:#f2f2f7;--card:#fff;--card2:#f7f7fa;--text:#1c1c1e;--muted:#8e8e93;--line:#e5e5ea;--accent:#0a84ff;--green:#34c759;--red:#ff3b30;--greenbg:#e7f9ec;--redbg:#ffecec;--trbg:#e6f0ff}
-  [data-theme="dark"]{--bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--text:#f2f2f7;--muted:#8e8e93;--line:#38383a;--accent:#0a84ff;--green:#30d158;--red:#ff453a;--greenbg:#0f2e18;--redbg:#3a1210;--trbg:#0a2540}
+  :root{
+    --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f0f2f5; --ink:#101828; --muted:#667085;
+    --line:#e6e8ec; --primary:#2f5bea; --primary-hover:#2748c9; --primary-soft:#eaeffe; --on-primary:#fff;
+    --green:#12b76a; --green-soft:#e7f7ef; --red:#f04438; --red-soft:#feecea; --tr:#2f5bea; --tr-soft:#eaf0ff;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+    --shadow-hover:0 6px 16px rgba(16,24,40,.10);
+    --side:240px; --radius:14px;
+  }
+  [data-theme="dark"]{
+    --bg:#0b0e14; --surface:#151a22; --surface-2:#1e232d; --ink:#e6e9ef; --muted:#8a93a3;
+    --line:#252b36; --primary:#4f74ff; --primary-hover:#6484ff; --primary-soft:#172236; --on-primary:#fff;
+    --green:#2dd08a; --green-soft:#0f2a1e; --red:#ff5c50; --red-soft:#33150f; --tr:#4f74ff; --tr-soft:#16233b;
+    --shadow:0 1px 3px rgba(0,0,0,.45); --shadow-hover:0 8px 22px rgba(0,0,0,.55);
+  }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 0 78px}
-  .wrap{max-width:480px;margin:0 auto;padding:16px}
-  .top{display:flex;align-items:center;justify-content:space-between;margin:8px 0 16px}
-  .top h1{font-size:22px;margin:0;font-weight:700}
-  .top .r{display:flex;gap:8px}
-  .iconbtn{background:var(--card);border:none;border-radius:10px;padding:8px 12px;color:var(--text);font-size:15px}
-  .kassalar{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px}
-  .kchip{flex:0 0 auto;background:var(--card);border-radius:14px;padding:12px 14px;min-width:120px}
-  .kchip .n{font-size:12px;color:var(--muted)}
-  .kchip .v{font-size:17px;font-weight:600;margin-top:3px}
-  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:18px}
-  .seg{display:flex;background:var(--card2);border-radius:12px;padding:4px;margin-bottom:18px}
-  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;padding:9px 0;border-radius:9px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px;line-height:1.5}
+  .num,.amount,.kchip .v,.prov .r b,.je .amt{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  /* ---------- SHELL ---------- */
+  #app{display:none}
+  .shell{min-height:100vh}
+  .sidebar{display:none}
+  .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
+  @media(min-width:900px){
+    .sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);
+      background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}
+    .main{margin-left:var(--side);max-width:1160px}
+    .mobile-only{display:none!important}
+    .bnav{display:none!important}
+  }
+  @media(max-width:899px){ .desktop-only{display:none!important} }
+
+  /* ---------- SIDEBAR ---------- */
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px}
+  .brand-name{font-weight:700;font-size:16px;letter-spacing:-.01em}
+  .brand-name span{color:var(--muted);font-weight:500}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);
+    text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
+  .nav-item svg{width:19px;height:19px}
+  .nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+
+  /* ---------- BUTTONS / CONTROLS ---------- */
+  .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);
+    border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
+  .icon-btn svg{width:19px;height:19px}
+  .icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:4px}
+
+  .kassa-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;margin-bottom:24px;scrollbar-width:thin}
+  @media(min-width:900px){ .kassa-strip{flex-wrap:wrap;overflow:visible} }
+  .kchip{flex:0 0 auto;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;box-shadow:var(--shadow)}
+  .kchip .top{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:8px}
+  .kchip .top svg{width:15px;height:15px}
+  .kchip .v{font-size:19px;font-weight:700;letter-spacing:-.01em}
+
+  .content-grid{display:grid;grid-template-columns:1fr;gap:22px}
+  @media(min-width:900px){ .content-grid{grid-template-columns:minmax(340px,400px) 1fr;align-items:start} }
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+
+  .seg{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;margin-bottom:20px;gap:2px}
+  .seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:none;background:transparent;
+    color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 0;border-radius:9px;cursor:pointer;transition:background .13s,color .13s}
+  .seg button svg{width:16px;height:16px}
+  .seg button:hover{color:var(--ink)}
   .seg button.on-in{background:var(--green);color:#fff}
   .seg button.on-out{background:var(--red);color:#fff}
-  .seg button.on-tr{background:var(--accent);color:#fff}
-  label{font-size:13px;color:var(--muted);display:block;margin:0 0 6px 2px}
-  .amount{width:100%;border:none;background:transparent;color:var(--text);font-size:32px;font-weight:700;outline:none;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:16px}
-  select,.txt{width:100%;height:46px;border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;padding:0 12px;font-size:16px;outline:none;margin-bottom:14px;-webkit-appearance:none;appearance:none}
-  .prov{background:var(--card2);border-radius:12px;padding:11px 13px;margin-bottom:16px;font-size:13px}
-  .prov .h{font-size:11px;color:var(--muted);letter-spacing:.04em;margin-bottom:6px}
-  .prov .r{display:flex;justify-content:space-between;margin-bottom:3px}
-  .prov .r span:first-child{color:var(--muted)}
-  .save{width:100%;height:50px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-size:17px;font-weight:600}
-  .save:disabled{opacity:.5}
-  h2.sec{font-size:15px;color:var(--muted);margin:0 0 10px 4px;font-weight:600}
-  .je{background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
-  .je .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
-  .je .ic.in{background:var(--greenbg);color:var(--green)}
-  .je .ic.out{background:var(--redbg);color:var(--red)}
-  .je .ic.tr{background:var(--trbg);color:var(--accent)}
+  .seg button.on-tr{background:var(--primary);color:#fff}
+
+  label{font-size:13px;color:var(--muted);display:block;margin:0 0 7px 2px;font-weight:500}
+  .amount{width:100%;border:none;background:transparent;color:var(--ink);font-size:34px;font-weight:800;letter-spacing:-.02em;
+    outline:none;border-bottom:2px solid var(--line);padding-bottom:10px;margin-bottom:18px;transition:border-color .13s}
+  .amount:focus{border-color:var(--primary)}
+  select,.txt{width:100%;height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;
+    padding:0 13px;font-size:15px;font-family:inherit;outline:none;margin-bottom:15px;cursor:pointer;transition:border-color .13s,box-shadow .13s;
+    -webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 13px center}
+  .txt{cursor:text;background-image:none}
+  select:focus,.txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+
+  .prov{background:var(--surface-2);border-radius:12px;padding:13px 15px;margin-bottom:18px;border-left:3px solid var(--primary)}
+  .prov .h{font-size:10.5px;color:var(--muted);letter-spacing:.06em;font-weight:600;margin-bottom:9px}
+  .prov .r{display:flex;justify-content:space-between;margin-bottom:5px;font-size:13.5px;color:var(--muted)}
+  .prov .r b{color:var(--ink);font-weight:600}
+
+  .save{width:100%;height:50px;border:none;border-radius:13px;background:var(--primary);color:var(--on-primary);
+    font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:var(--shadow);
+    transition:background .13s,transform .12s,box-shadow .12s}
+  .save:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow-hover)}
+  .save:active{transform:translateY(0);box-shadow:var(--shadow)}
+  .save:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+  .sec{font-size:13px;color:var(--muted);margin:0 0 12px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .je{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px;
+    display:flex;align-items:center;gap:13px;transition:background .13s,border-color .13s}
+  .je:hover{background:var(--surface-2)}
+  .je .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .je .ic svg{width:19px;height:19px}
+  .je .ic.in{background:var(--green-soft);color:var(--green)}
+  .je .ic.out{background:var(--red-soft);color:var(--red)}
+  .je .ic.tr{background:var(--tr-soft);color:var(--tr)}
   .je .mid{flex:1;min-width:0}
-  .je .mid .t{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .je .mid .t{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .je .mid .s{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .je .amt{font-size:16px;font-weight:600;white-space:nowrap}
-  .je .amt.in{color:var(--green)} .je .amt.out{color:var(--red)} .je .amt.tr{color:var(--accent)}
-  .je .del{background:none;border:none;color:var(--muted);font-size:18px;padding:4px 2px}
-  .empty{color:var(--muted);text-align:center;padding:24px;font-size:14px}
-  .banner{background:var(--redbg);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .je .amt{font-size:15.5px;font-weight:700;white-space:nowrap}
+  .je .amt.in{color:var(--green)} .je .amt.out{color:var(--red)} .je .amt.tr{color:var(--tr)}
+  .je .del{background:transparent;border:none;color:var(--muted);border-radius:8px;padding:6px;display:flex;cursor:pointer;transition:background .13s,color .13s}
+  .je .del svg{width:16px;height:16px}
+  .je .del:hover{background:var(--red-soft);color:var(--red)}
+
+  .empty{color:var(--muted);text-align:center;padding:30px;font-size:14px;border:1px dashed var(--line);border-radius:13px}
+  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+
+  /* ---------- LOGIN ---------- */
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
-  .authbox{width:100%;max-width:340px}
-  .authbox h1{font-size:26px;text-align:center;margin:0 0 22px;font-weight:700}
-  .authbox input{width:100%;height:48px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;outline:none}
-  .authbox button{width:100%;height:48px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600}
+  .authbox{width:100%;max-width:360px}
+  .authbox .logo{width:48px;height:48px;border-radius:13px;font-size:24px;margin:0 auto 16px}
+  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800;letter-spacing:-.02em}
+  .authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
+  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;
+    padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);
+    font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
+  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
   .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
-  #app{display:none}
-  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:50;max-width:480px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
-  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:8px 0}
-  .bnav a .ic{font-size:17px}
-  .bnav a.active{color:var(--accent)}
+
+  /* ---------- BOTTOM NAV (mobile) ---------- */
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
+  .bnav a svg{width:20px;height:20px}
+  .bnav a.active{color:var(--primary)}
+  @media(max-width:899px){ body{padding-bottom:76px} }
 </style>
 </head>
 <body>
 
 <div id="gate" class="gate">
   <div class="authbox">
+    <div class="logo">A</div>
     <h1>Aros Provodka</h1>
+    <p>Hisobingizga kiring</p>
     <input id="email" type="email" placeholder="Email" autocomplete="username">
     <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
     <button onclick="doLogin()">Kirish</button>
@@ -72,61 +169,80 @@
   </div>
 </div>
 
-<div id="app">
-<div class="wrap">
-  <div class="top">
-    <h1>Kiritish</h1>
-    <div class="r">
-      <button class="iconbtn" onclick="toggleTheme()">◐</button>
-      <button class="iconbtn" onclick="logout()">⎋</button>
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">A</div><div class="brand-name">Aros <span>Provodka</span></div></div>
+    <nav class="side-nav">
+      <a class="nav-item active" href="provodka.html"><i data-lucide="circle-plus"></i><span>Kiritish</span></a>
+      <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+    </nav>
+    <div class="side-foot">
+      <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
+      <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
     </div>
-  </div>
+  </aside>
 
-  <div id="cfgbanner" class="banner"></div>
-  <div class="kassalar" id="kassalar"></div>
-
-  <div class="card">
-    <div class="seg">
-      <button id="btnIn"  class="on-in" onclick="setDir('kirim')">Kirim</button>
-      <button id="btnOut"               onclick="setDir('chiqim')">Chiqim</button>
-      <button id="btnTr"                onclick="setDir('transfer')">Transfer</button>
-    </div>
-
-    <label>Summa</label>
-    <input class="amount" id="amount" inputmode="numeric" placeholder="0" oninput="fmtAmount(this)">
-
-    <label id="kassaLbl">Qaysi kassaga</label>
-    <select id="kassa"></select>
-
-    <label id="counterLbl">Nimadan</label>
-    <select id="counter"></select>
-
-    <label>Izoh</label>
-    <input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
-
-    <label>Sana</label>
-    <input class="txt" id="sana" type="date">
-
-    <div class="prov">
-      <div class="h">ORQADA AVTOMATIK YOZILADI</div>
-      <div class="r"><span id="dtLbl">Dt · —</span><span id="dtAmt">0</span></div>
-      <div class="r"><span id="ktLbl">Kt · —</span><span id="ktAmt">0</span></div>
+  <main class="main">
+    <div class="page-head">
+      <h1>Kiritish</h1>
+      <div class="head-actions mobile-only">
+        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+      </div>
     </div>
 
-    <button class="save" id="saveBtn" onclick="save()">Saqlash</button>
-  </div>
+    <div id="cfgbanner" class="banner"></div>
+    <section class="kassa-strip" id="kassalar"></section>
 
-  <h2 class="sec">Jurnal</h2>
-  <div id="journal"></div>
-</div>
+    <div class="content-grid">
+      <div class="card">
+        <div class="seg">
+          <button id="btnIn"  class="on-in" onclick="setDir('kirim')"><i data-lucide="arrow-down-left"></i>Kirim</button>
+          <button id="btnOut"               onclick="setDir('chiqim')"><i data-lucide="arrow-up-right"></i>Chiqim</button>
+          <button id="btnTr"                onclick="setDir('transfer')"><i data-lucide="arrow-left-right"></i>Transfer</button>
+        </div>
 
-<nav class="bnav">
-  <a href="provodka.html" class="active"><span class="ic">＋</span>Kiritish</a>
-  <a href="professional.html"><span class="ic">≡</span>Pro</a>
-  <a href="hisobot.html"><span class="ic">▤</span>Hisobot</a>
-  <a href="qarzdor.html"><span class="ic">◔</span>Qarzdor</a>
-  <a href="sozlama.html"><span class="ic">⚙</span>Sozlama</a>
-</nav>
+        <label>Summa</label>
+        <input class="amount" id="amount" inputmode="numeric" placeholder="0" oninput="fmtAmount(this)">
+
+        <label id="kassaLbl">Qaysi kassaga</label>
+        <select id="kassa"></select>
+
+        <label id="counterLbl">Nimadan</label>
+        <select id="counter"></select>
+
+        <label>Izoh</label>
+        <input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
+
+        <label>Sana</label>
+        <input class="txt" id="sana" type="date">
+
+        <div class="prov">
+          <div class="h">ORQADA AVTOMATIK YOZILADI</div>
+          <div class="r"><span id="dtLbl">Dt · —</span><b id="dtAmt">0</b></div>
+          <div class="r"><span id="ktLbl">Kt · —</span><b id="ktAmt">0</b></div>
+        </div>
+
+        <button class="save" id="saveBtn" onclick="save()">Saqlash</button>
+      </div>
+
+      <div class="journal-col">
+        <div class="sec">Jurnal</div>
+        <div id="journal"></div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bnav mobile-only">
+    <a href="provodka.html" class="active"><i data-lucide="circle-plus"></i>Kiritish</a>
+    <a href="professional.html"><i data-lucide="list-plus"></i>Pro</a>
+    <a href="hisobot.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="qarzdor.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="sozlama.html"><i data-lucide="settings"></i>Sozlama</a>
+  </nav>
 </div>
 
 <script type="module">
@@ -135,43 +251,48 @@ const SUPABASE_URL      = 'https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-let dir = 'kirim';
-let accounts = [];
+let dir='kirim', accounts=[];
 const $ = id => document.getElementById(id);
 const money = n => Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const parseAmt = () => Number(($('amount').value||'').replaceAll(' ',''))||0;
+const icons = () => { if(window.lucide) lucide.createIcons(); };
 
+function syncThemeIcon(){
+  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"]').forEach(b=>{
+    const el=b.querySelector('svg,i'); if(el){ el.setAttribute('data-lucide', dark?'sun':'moon'); el.outerHTML=el.outerHTML; }
+  });
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide', dark?'sun':'moon'));
+  icons();
+}
 window.toggleTheme = () => {
-  const d = document.documentElement.getAttribute('data-theme')==='dark';
+  const d=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme', d?'light':'dark');
   localStorage.setItem('prov-theme', d?'light':'dark');
+  syncThemeIcon();
 };
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 
 window.doLogin = async () => {
-  const email=$('email').value.trim(), password=$('password').value;
-  $('authErr').textContent='';
-  const {error} = await sb.auth.signInWithPassword({email,password});
-  if(error){ $('authErr').textContent='Kirish xato: '+error.message; return; }
-  enterApp();
+  const email=$('email').value.trim(), password=$('password').value; $('authErr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){ $('authErr').textContent='Kirish xato: '+error.message; return; } enterApp();
 };
 window.logout = async () => { await sb.auth.signOut(); location.reload(); };
 $('password').addEventListener('keydown', e=>{ if(e.key==='Enter') window.doLogin(); });
-function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; init(); }
-async function boot(){ const {data:{session}} = await sb.auth.getSession(); if(session) enterApp(); }
+function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
 boot();
 
 window.fmtAmount = el => { const raw=el.value.replaceAll(' ','').replace(/\D/g,''); el.value=raw?money(raw):''; updateProv(); };
-
 function isKassa(a){ return a.type==='aktiv' && a.code.startsWith('5'); }
 function counterList(){
   if(dir==='chiqim')   return accounts.filter(a=>a.type==='xarajat');
   if(dir==='transfer') return accounts.filter(isKassa);
   return accounts.filter(a=> a.type==='daromad' || a.code==='4010' || a.code==='8000');
 }
-
 window.setDir = d => {
-  dir = d;
+  dir=d;
   $('btnIn').className  = d==='kirim'?'on-in':'';
   $('btnOut').className = d==='chiqim'?'on-out':'';
   $('btnTr').className  = d==='transfer'?'on-tr':'';
@@ -180,91 +301,75 @@ window.setDir = d => {
   else { $('kassaLbl').textContent='Qaysi kassadan'; $('counterLbl').textContent='Qaysi kassaga'; }
   const c=$('counter'); c.innerHTML='';
   counterList().forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=a.name; c.appendChild(o); });
-  updateProv();
+  icons(); updateProv();
 };
-
 function updateProv(){
   const amt=parseAmt();
   const kassa=accounts.find(a=>a.id===$('kassa').value);
   const counter=accounts.find(a=>a.id===$('counter').value);
-  let dt,kt;
-  if(dir==='kirim'){ dt=kassa; kt=counter; } else { dt=counter; kt=kassa; }
+  let dt,kt; if(dir==='kirim'){ dt=kassa; kt=counter; } else { dt=counter; kt=kassa; }
   $('dtLbl').textContent='Dt · '+(dt?dt.name:'—');
   $('ktLbl').textContent='Kt · '+(kt?kt.name:'—');
-  $('dtAmt').textContent=money(amt);
-  $('ktAmt').textContent=money(amt);
+  $('dtAmt').textContent=money(amt); $('ktAmt').textContent=money(amt);
 }
-
 async function loadAccounts(){
-  const {data,error} = await sb.from('accounts').select('*').eq('is_active',true).order('code');
-  if(error){ showCfgError(error.message); return; }
+  const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
+  if(error){ $('cfgbanner').style.display='block'; $('cfgbanner').textContent='Xato: '+error.message; return; }
   accounts=data;
   const k=$('kassa'); k.innerHTML='';
   accounts.filter(isKassa).forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=a.name; k.appendChild(o); });
-  k.onchange=updateProv; $('counter').onchange=updateProv;
-  setDir('kirim');
+  k.onchange=updateProv; $('counter').onchange=updateProv; setDir('kirim');
 }
-
 async function loadKassalar(){
-  const {data,error} = await sb.from('v_kassa_qoldiq').select('*');
+  const {data,error}=await sb.from('v_kassa_qoldiq').select('*');
   if(error) return;
-  $('kassalar').innerHTML = data.map(r=>`<div class="kchip"><div class="n">${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('');
+  $('kassalar').innerHTML=data.map(r=>`<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('');
+  icons();
 }
-
 async function loadJournal(){
-  const {data,error} = await sb.from('entry')
+  const {data,error}=await sb.from('entry')
     .select('id,entry_date,description,entry_line(debit,credit,accounts(code,name))')
     .order('created_at',{ascending:false}).limit(50);
   if(error){ $('journal').innerHTML=`<div class="empty">${error.message}</div>`; return; }
-  if(!data.length){ $('journal').innerHTML='<div class="empty">Hozircha yozuv yoq</div>'; return; }
-  $('journal').innerHTML = data.map(e=>{
+  if(!data.length){ $('journal').innerHTML='<div class="empty">Hozircha yozuv yo\'q. Birinchi kirim yoki chiqimni kiriting.</div>'; return; }
+  $('journal').innerHTML=data.map(e=>{
     const dtLine=e.entry_line.find(l=>Number(l.debit)>0)||{};
     const ktLine=e.entry_line.find(l=>Number(l.credit)>0)||{};
     const amt=Number(dtLine.debit)||0;
     const dtK=(dtLine.accounts?.code||'').startsWith('5');
     const ktK=(ktLine.accounts?.code||'').startsWith('5');
-    let cls,icon,label,sub,sign;
-    if(dtK&&ktK){ cls='tr'; icon='⇄'; label=(ktLine.accounts?.name||'')+' → '+(dtLine.accounts?.name||''); sub=e.entry_date+(e.description?' · '+e.description:''); sign=''; }
-    else if(dtK){ cls='in'; icon='↓'; label=ktLine.accounts?.name||''; sub=e.entry_date+' · '+(dtLine.accounts?.name||'')+(e.description?' · '+e.description:''); sign='+'; }
-    else { cls='out'; icon='↑'; label=dtLine.accounts?.name||''; sub=e.entry_date+' · '+(ktLine.accounts?.name||'')+(e.description?' · '+e.description:''); sign='−'; }
-    return `<div class="je"><div class="ic ${cls}">${icon}</div><div class="mid"><div class="t">${label}</div><div class="s">${sub}</div></div><div class="amt ${cls}">${sign}${money(amt)}</div><button class="del" onclick="delEntry('${e.id}')">✕</button></div>`;
+    let cls,ic,label,sub,sign;
+    if(dtK&&ktK){ cls='tr'; ic='arrow-left-right'; label=(ktLine.accounts?.name||'')+' → '+(dtLine.accounts?.name||''); sub=e.entry_date+(e.description?' · '+e.description:''); sign=''; }
+    else if(dtK){ cls='in'; ic='arrow-down-left'; label=ktLine.accounts?.name||''; sub=e.entry_date+' · '+(dtLine.accounts?.name||'')+(e.description?' · '+e.description:''); sign='+'; }
+    else { cls='out'; ic='arrow-up-right'; label=dtLine.accounts?.name||''; sub=e.entry_date+' · '+(ktLine.accounts?.name||'')+(e.description?' · '+e.description:''); sign='−'; }
+    return `<div class="je"><div class="ic ${cls}"><i data-lucide="${ic}"></i></div><div class="mid"><div class="t">${label}</div><div class="s">${sub}</div></div><div class="amt ${cls}">${sign}${money(amt)}</div><button class="del" onclick="delEntry('${e.id}')"><i data-lucide="trash-2"></i></button></div>`;
   }).join('');
+  icons();
 }
-
 window.delEntry = async id => {
-  if(!confirm('Ochirilsinmi?')) return;
-  const {error} = await sb.from('entry').delete().eq('id',id);
-  if(error){ alert(error.message); return; }
-  await refresh();
+  if(!confirm('Bu yozuv o\'chirilsinmi?')) return;
+  const {error}=await sb.from('entry').delete().eq('id',id);
+  if(error){ alert(error.message); return; } await refresh();
 };
-
 window.save = async () => {
-  const amt=parseAmt();
-  if(amt<=0){ alert('Summa kiriting'); return; }
+  const amt=parseAmt(); if(amt<=0){ alert('Summa kiriting'); return; }
   const kassa=$('kassa').value, counter=$('counter').value;
   if(!kassa||!counter){ alert('Kassa/kategoriya tanlang'); return; }
-  if(dir==='transfer' && kassa===counter){ alert('Bir xil kassa tanlab bolmaydi'); return; }
-  let dtAcc,ktAcc;
-  if(dir==='kirim'){ dtAcc=kassa; ktAcc=counter; } else { dtAcc=counter; ktAcc=kassa; }
-
+  if(dir==='transfer' && kassa===counter){ alert('Bir xil kassa tanlab bo\'lmaydi'); return; }
+  let dtAcc,ktAcc; if(dir==='kirim'){ dtAcc=kassa; ktAcc=counter; } else { dtAcc=counter; ktAcc=kassa; }
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
-  const {data:ent,error:e1} = await sb.from('entry').insert({
-    entry_date:$('sana').value||null, description:$('izoh').value||null, source:'manual'
-  }).select('id').single();
+  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null, description:$('izoh').value||null, source:'manual'}).select('id').single();
   if(e1){ alert(e1.message); reset(); return; }
-  const {error:e2} = await sb.from('entry_line').insert([
+  const {error:e2}=await sb.from('entry_line').insert([
     {entry_id:ent.id, account_id:dtAcc, debit:amt, credit:0},
-    {entry_id:ent.id, account_id:ktAcc, debit:0, credit:amt}
-  ]);
+    {entry_id:ent.id, account_id:ktAcc, debit:0, credit:amt}]);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); reset(); return; }
   $('amount').value=''; $('izoh').value=''; updateProv(); reset(); await refresh();
 };
-
 function reset(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Saqlash'; }
-function showCfgError(msg){ const b=$('cfgbanner'); b.style.display='block'; b.textContent='Xato: '+msg; }
 async function refresh(){ await Promise.all([loadKassalar(), loadJournal()]); }
 async function init(){
-  $('sana').value = new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+  $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
   await loadAccounts(); await refresh();
 }
 </script>
