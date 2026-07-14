@@ -122,6 +122,7 @@
         <div class="tot bal" id="balRow"><span id="balLbl">Farq</span><span class="v" id="farq">0</span></div>
       </div>
       <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
+      <div id="balHint" style="font-size:12.5px;color:var(--red);text-align:center;margin-top:10px;display:none">Saqlash uchun Debet (Dt) va Kredit (Kt) teng bo'lishi kerak</div>
     </div>
   </main>
 
@@ -189,6 +190,7 @@ function updateTotals(){
   if(balanced){ $('balLbl').textContent='Balans'; $('farq').textContent='To\u2018g\u2018ri \u2713'; }
   else { $('balLbl').textContent='Farq'; $('farq').textContent=money(Math.abs(farq)); }
   $('balRow').className='tot bal'+(balanced?'':' no'); $('saveBtn').disabled=!balanced;
+  { const h=document.getElementById('balHint'); if(h) h.style.display=(dt>0&&!balanced)?'block':'none'; }
 }
 window.save=async()=>{
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
