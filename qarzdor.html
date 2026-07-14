@@ -32,6 +32,13 @@
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
   .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
+  .kassa-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;margin-bottom:18px}
+  @media(min-width:900px){.kassa-strip{flex-wrap:wrap;overflow:visible}}
+  .kchip{flex:0 0 auto;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+  .kchip .top{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:8px}
+  .kchip .top svg{width:15px;height:15px}.kchip .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+  .bcard .cap{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;margin-top:8px}
+  .bcard .cap svg{width:14px;height:14px}.bcard.pos .cap{color:var(--green)}.bcard.neg .cap{color:var(--red)}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
   .bcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
   .bcard .top{display:flex;align-items:center;gap:9px;margin-bottom:12px}
@@ -99,9 +106,11 @@
     </div>
     <div id="banner" class="banner"></div>
 
+    <div class="kassa-strip" id="kassalar"></div>
+
     <div class="two">
-      <div class="bcard pos"><div class="top"><div class="ic"><i data-lucide="arrow-down-left"></i></div><div class="n">Bizga qarzdor</div></div><div class="v" id="recv">0</div></div>
-      <div class="bcard neg"><div class="top"><div class="ic"><i data-lucide="arrow-up-right"></i></div><div class="n">Biz qarzdormiz</div></div><div class="v" id="pay">0</div></div>
+      <div class="bcard pos"><div class="top"><div class="ic"><i data-lucide="arrow-down-left"></i></div><div class="n">Bizga qarzdor</div></div><div class="v" id="recv">0</div><div class="cap"><i data-lucide="arrow-down-left"></i>Kirim — kelishi kerak</div></div>
+      <div class="bcard neg"><div class="top"><div class="ic"><i data-lucide="arrow-up-right"></i></div><div class="n">Biz qarzdormiz</div></div><div class="v" id="pay">0</div><div class="cap"><i data-lucide="arrow-up-right"></i>Chiqim — chiqishi kerak</div></div>
     </div>
     <div class="note">Bizga qarzdor = Xaridorlar qarzi (4010) · Biz qarzdormiz = Yetkazib beruvchilar (6010). Aniq mijoz bo'yicha ajratish keyingi qadamda qo'shiladi.</div>
 
@@ -139,7 +148,11 @@ function enterApp(){ $('gate').style.display='none'; $('app').style.display='blo
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
 boot();
 
+async function loadKassalar(){ const {data,error}=await sb.from('v_kassa_qoldiq').select('*'); if(error) return;
+  const el=document.getElementById('kassalar'); if(!el) return;
+  el.innerHTML=(data||[]).map(r=>`<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join(''); icons(); }
 async function init(){
+  loadKassalar();
   const {data:bal,error:be}=await sb.from('v_hisob_qoldiq').select('*').in('code',['4010','6010']);
   if(be){ $('banner').style.display='block'; $('banner').textContent='Xato: '+be.message; return; }
   const r4=(bal||[]).find(x=>x.code==='4010'), r6=(bal||[]).find(x=>x.code==='6010');
@@ -148,9 +161,9 @@ async function init(){
   const ids=(accs||[]).map(a=>a.id);
   if(!ids.length){ $('hist').innerHTML='<div class="empty">—</div>'; return; }
   const {data:rows,error:le}=await sb.from('entry_line')
-    .select('debit,credit,accounts!inner(code,name),entry!inner(entry_date,description,created_at)').in('account_id',ids);
+    .select('debit,credit,accounts!inner(code,name),entry!inner(entry_date,description,created_at,is_deleted)').in('account_id',ids);
   if(le){ $('hist').innerHTML=`<div class="empty">${le.message}</div>`; return; }
-  const list=(rows||[]).sort((a,b)=>(b.entry?.created_at||'').localeCompare(a.entry?.created_at||'')).slice(0,80);
+  const list=(rows||[]).filter(r=>!r.entry?.is_deleted).sort((a,b)=>(b.entry?.created_at||'').localeCompare(a.entry?.created_at||'')).slice(0,80);
   if(!list.length){ $('hist').innerHTML='<div class="empty">Hozircha harakat yo\'q</div>'; return; }
   $('hist').innerHTML=list.map(r=>{
     const code=r.accounts?.code,deb=Number(r.debit)||0,cred=Number(r.credit)||0,amt=deb||cred;

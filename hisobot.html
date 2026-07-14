@@ -183,7 +183,7 @@ async function load(){
   const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
   const lastDay=new Date(yil,oy,0).getDate();
   const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  const {data,error}=await sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').gte('entry_date',d1).lte('entry_date',d2);
+  const {data,error}=await sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').eq('is_deleted',false).gte('entry_date',d1).lte('entry_date',d2);
   if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
   let income=0,expense=0; const expByCat={},turnover={};
   (data||[]).forEach(e=>{ (e.entry_line||[]).forEach(l=>{
