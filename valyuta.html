@@ -219,13 +219,14 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const AROS_CURRENCIES='https://n8n.arosmarket.com/webhook/aros-currencies';
+const AROS_RATE='https://n8n.arosmarket.com/webhook/aros-dollar-rate';
 const BUG_UID='1255605633';
 
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-let isAdmin=false, myName='', history=[];
+let isAdmin=false, myName='', history=[], arosCodes=[];
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -271,35 +272,50 @@ window.saveNew=async()=>{
 
 window.openAros=async()=>{
   $('mAros').classList.add('open'); $('aSub').textContent='Yuklanmoqda...'; $('aList').innerHTML=''; $('aRaw').innerHTML='';
+  const out=[];
+  // 1) Aros'da ishlatilayotgan dollar kursi
+  try{
+    const r=await fetch(`${AROS_RATE}?uid=${BUG_UID}&_=${Date.now()}`);
+    const j=await r.json(); const d=Array.isArray(j)?j[0]:j;
+    if(d && d.rate){
+      window.__arosRate={code:d.code||'USD', rate:Number(d.rate), date:(d.rate_at?String(d.rate_at).slice(0,10):null)};
+      out.push(`<div class="arow">
+        <div class="m"><div class="t">${d.code||'USD'} — Aros ishlatayotgan kurs</div>
+        <div class="s">${d.rate_at?fmtWhen(d.rate_at):'sanasiz'}${d.source_doc?' · '+d.source_doc:''}</div></div>
+        <div class="r">${money(d.rate)}</div>
+        <button class="mini" onclick="importArosRate()">Import</button></div>`);
+    } else {
+      out.push('<div class="arow"><div class="m"><div class="t">Dollar kursi topilmadi</div><div class="s">Aros hujjatlarida kurs yozilmagan</div></div></div>');
+    }
+  }catch(e){ out.push('<div class="arow"><div class="m"><div class="t">Kurs olinmadi</div><div class="s">'+e.message+'</div></div></div>'); }
+
+  // 2) Aros valyutalari (ma'lumot uchun)
   try{
     const r=await fetch(`${AROS_CURRENCIES}?uid=${BUG_UID}&_=${Date.now()}`);
-    if(!r.ok) throw new Error('API '+r.status);
     const j=await r.json(); const d=Array.isArray(j)?j[0]:j;
-    if(d && d.error) throw new Error(String(d.error));
     const list=(d && d.currencies)||[];
-    $('aSub').textContent=list.length+' ta kurs topildi — kerakligini import qiling';
-    const ok=list.filter(c=>c.rate);
-    if(ok.length){
-      $('aList').innerHTML=ok.map((c,i)=>`<div class="arow">
-        <div class="m"><div class="t">${c.code}</div><div class="s">${c.date?fmtWhen(c.date):'sanasiz'}</div></div>
-        <div class="r">${money(c.rate)}</div>
-        <button class="mini" onclick="importAros(${i})">Import</button></div>`).join('');
-      window.__aros=ok;
-    } else {
-      $('aSub').textContent='Kurs maydoni tanilmadi — quyidagi javobni menga yuboring';
-      $('aRaw').innerHTML='<pre class="raw">'+JSON.stringify(d && d.raw ? d.raw : d, null, 2).slice(0,4000)+'</pre>';
+    arosCodes=list.map(c=>String(c.code||'').toUpperCase()).filter(Boolean);
+    if(list.length){
+      out.push('<div style="margin-top:14px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em">AROS VALYUTALARI</div>');
+      out.push('<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+list.map(c=>
+        `<span class="badge ${c._raw&&c._raw.is_main?'manual':'aros'}">${c.code}${c._raw&&c._raw.is_main?' · asosiy':''}</span>`).join('')+'</div>');
+      fillCodes();
     }
-    icons();
-  }catch(e){ $('aSub').textContent='Xato: '+e.message; }
+  }catch(e){ /* ignore */ }
+
+  $('aSub').textContent='Aros kursi va valyutalari';
+  $('aList').innerHTML=out.join('');
+  icons();
 };
-window.closeAros=()=>$('mAros').classList.remove('open');
-window.importAros=async i=>{
-  const c=(window.__aros||[])[i]; if(!c) return;
-  const d=c.date?String(c.date).slice(0,10):new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+window.importArosRate=async()=>{
+  const c=window.__arosRate; if(!c) return;
+  const d=c.date||new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
   const {error}=await sb.from('currency_rate').insert({code:c.code,rate:c.rate,rate_date:d,source:'aros',created_by_name:myName});
   if(error){ alert(error.message); return; }
-  closeAros(); showInfo(c.code+' kursi import qilindi'); await load();
+  closeAros(); showInfo(c.code+' kursi Aros\'dan import qilindi'); await load();
 };
+window.closeAros=()=>$('mAros').classList.remove('open');
+
 
 window.delRate=async id=>{
   if(!isAdmin){ alert('Faqat admin o\'chira oladi'); return; }
@@ -329,6 +345,12 @@ async function load(){
   icons();
 }
 
+function fillCodes(){
+  if(!arosCodes.length) return;
+  const sel=$('nCode'); const cur=sel.value;
+  sel.innerHTML=arosCodes.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(arosCodes.indexOf(cur)!==-1) sel.value=cur;
+}
 async function init(){ await loadRole(); await load(); }
 </script>
 </body>
