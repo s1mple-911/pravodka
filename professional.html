@@ -201,7 +201,7 @@ window.save=async()=>{
   if(dt<=0||dt!==kt){ alert('Dt va Kt teng bo\'lishi kerak'); return; }
   if(lines.some(l=>!l.account_id||l.amount<=0)){ alert('Har satrda hisob va summa bo\'lsin'); return; }
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
-  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual'}).select('id').single();
+  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
   if(e1){ alert(e1.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   const rows=lines.map(l=>({entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?l.amount:0,credit:l.side==='credit'?l.amount:0}));
   const {error:e2}=await sb.from('entry_line').insert(rows);

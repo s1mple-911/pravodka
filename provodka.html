@@ -341,7 +341,7 @@ window.save=async()=>{
   if(dir==='transfer'&&kassa===counter){ alert('Bir xil kassa tanlab bo\'lmaydi'); return; }
   let dtAcc,ktAcc; if(dir==='kirim'){ dtAcc=kassa; ktAcc=counter; } else { dtAcc=counter; ktAcc=kassa; }
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
-  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual'}).select('id').single();
+  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
   if(e1){ alert(e1.message); reset(); return; }
   const {error:e2}=await sb.from('entry_line').insert([{entry_id:ent.id,account_id:dtAcc,debit:amt,credit:0},{entry_id:ent.id,account_id:ktAcc,debit:0,credit:amt}]);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); reset(); return; }
