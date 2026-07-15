@@ -35,6 +35,11 @@
   .btn svg{width:17px;height:17px}.btn:hover{background:var(--primary-hover);transform:translateY(-1px)}
   .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
   .btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{background:var(--surface-2)}
+  .hero{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .hero .k{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:500}
+  .hero .k svg{width:16px;height:16px}
+  .hero .v{font-size:42px;font-weight:800;letter-spacing:-.03em;margin:8px 0 2px;font-variant-numeric:tabular-nums;color:var(--primary)}
+  .hero .c{font-size:12.5px;color:var(--muted)}
   .sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px}
   @media(max-width:620px){.sum{grid-template-columns:1fr}}
   .sumcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px 16px;box-shadow:var(--shadow)}
@@ -134,19 +139,19 @@
     <div id="err" class="banner err"></div>
     <div id="info" class="banner info"></div>
 
-    <div class="sum">
-      <div class="sumcard"><div class="k"><i data-lucide="store"></i>Bugalter — filialda turgan</div><div class="v" id="sBug">—</div></div>
-      <div class="sumcard"><div class="k"><i data-lucide="book-open"></i>Provodka — filial kassalar</div><div class="v" id="sProv">—</div></div>
-      <div class="sumcard"><div class="k"><i data-lucide="scale"></i>Farq</div><div class="v" id="sDiff">—</div></div>
+    <div class="hero">
+      <div class="k"><i data-lucide="wallet"></i>Filiallarda turgan jami pul</div>
+      <div class="v" id="sBug">—</div>
+      <div class="c" id="sCnt"></div>
     </div>
 
     <div class="card">
       <table>
-        <thead><tr><th>Filial</th><th>Bugalter</th><th>Provodka</th><th>Farq</th><th></th></tr></thead>
-        <tbody id="tb"><tr><td colspan="5" class="empty">"Bugalter'dan yangilash" tugmasini bosing</td></tr></tbody>
+        <thead><tr><th>Filial</th><th>Turgan pul</th></tr></thead>
+        <tbody id="tb"><tr><td colspan="2" class="empty">"Bugalter'dan yangilash" tugmasini bosing</td></tr></tbody>
       </table>
     </div>
-    <div class="note">Bugalter = filialda turgan (jo'natilmagan) pul. Farqni tenglashtirsangiz, Provodka'ga yozuv tushadi va filial kassasi bugalter bilan bir xil bo'ladi. Toshkent va Qashqadaryo markaziy kassalari bu yerga kirmaydi.</div>
+    <div class="note">Bugalter'dagi "filialda turgan pul" — hali markazga jo'natilmagan summa. Toshkent va Qashqadaryo markaziy kassalari bu yerga kirmaydi.</div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -158,24 +163,6 @@
     <a href="sozlama.html"><i data-lucide="settings"></i>Sozlama</a>
   </nav>
 
-  <div class="modal" id="mdl"><div class="sheet">
-    <h3 id="mTitle">Tenglashtirish</h3>
-    <div class="sub" id="mSub"></div>
-    <label>Farq summasi</label>
-    <div class="big" id="mBig">0</div>
-    <label id="mLbl">Qarshi hisob</label>
-    <select id="mAcc"></select>
-    <label>Izoh</label>
-    <input class="txt" id="mIzoh">
-    <label>Sana</label>
-    <input class="txt" id="mSana" type="date">
-    <div class="prov">
-      <div class="h">ORQADA YOZILADI</div>
-      <div class="r"><span id="mDt">Dt · —</span><b id="mDtA">0</b></div>
-      <div class="r"><span id="mKt">Kt · —</span><b id="mKtA">0</b></div>
-    </div>
-    <div class="mrow"><button onclick="closeM()">Bekor</button><button class="primary" id="mSave" onclick="saveM()">Saqlash</button></div>
-  </div></div>
 </div>
 
 <script type="module">
@@ -216,12 +203,6 @@ async function loadRole(){
   $('roleBadge').textContent=(isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
 
-async function loadAccounts(){
-  const {data,error}=await sb.from('accounts').select('*').order('code');
-  if(error){ showErr('Hisoblar: '+error.message); return; }
-  accounts=data||[];
-}
-
 async function fetchBugalter(){
   const r=await fetch(`${BUGALTER_API}?uid=${BUG_UID}&_=${Date.now()}`);
   if(!r.ok) throw new Error('Bugalter API '+r.status);
@@ -232,130 +213,32 @@ async function fetchBugalter(){
   return list;
 }
 
-function nextFilialCode(){
-  const used=accounts.map(a=>parseInt(a.code,10)).filter(n=>!isNaN(n)&&n>=5200&&n<5300);
-  return String(used.length?Math.max(...used)+1:5201);
-}
-
-async function ensureAccounts(filials){
-  const byRef={}; accounts.forEach(a=>{ if(a.filial_ref) byRef[String(a.filial_ref)]=a; });
-  const toAdd=[];
-  for(const f of filials){
-    const ref=String(f.id ?? f.warehouse_id ?? f.title);
-    if(byRef[ref]) continue;
-    const name=(f.warehouse_name||f.title||'Filial')+' kassa';
-    toAdd.push({ref,name});
-  }
-  for(const t of toAdd){
-    const code=nextFilialCode();
-    const {data,error}=await sb.from('accounts').insert({code,name:t.name,type:'aktiv',filial_ref:t.ref}).select().single();
-    if(error){ showErr('Hisob ochishda: '+error.message); return false; }
-    accounts.push(data);
-  }
-  if(toAdd.length) showInfo(toAdd.length+' ta yangi filial kassasi ochildi');
-  return true;
-}
-
-async function loadBalances(){
-  const {data,error}=await sb.from('v_hisob_qoldiq').select('code,qoldiq');
-  if(error){ showErr('Qoldiq: '+error.message); return {}; }
-  const m={}; (data||[]).forEach(r=>m[r.code]=Number(r.qoldiq)||0); return m;
-}
-
 window.syncNow=async()=>{
-  $('syncBtn').disabled=true; showErr(''); $('err').style.display='none'; showInfo('');
+  $('syncBtn').disabled=true; $('err').style.display='none'; showInfo('');
   try{
     const filials=await fetchBugalter();
-    await loadAccounts();
-    if(!await ensureAccounts(filials)){ $('syncBtn').disabled=false; return; }
-    await loadAccounts();
-    const bal=await loadBalances();
-    const byRef={}; accounts.forEach(a=>{ if(a.filial_ref) byRef[String(a.filial_ref)]=a; });
-    rows=filials.map(f=>{
-      const ref=String(f.id ?? f.warehouse_id ?? f.title);
-      const acc=byRef[ref];
-      const bug=Number(f.unsent_total_amount)||0;
-      const prov=acc?(bal[acc.code]||0):0;
-      return {ref,acc,name:(f.warehouse_name||f.title||'Filial'),bug,prov,diff:bug-prov};
-    }).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff)||b.bug-a.bug);
+    rows=filials.map(f=>({
+      name:(f.warehouse_name||f.title||'Filial'),
+      bug:Number(f.unsent_total_amount)||0
+    })).sort((a,b)=>b.bug-a.bug);
     render();
   }catch(e){ showErr('Xato: '+e.message); }
   $('syncBtn').disabled=false;
 };
 
 function render(){
-  const tBug=rows.reduce((s,r)=>s+r.bug,0), tProv=rows.reduce((s,r)=>s+r.prov,0);
-  $('sBug').textContent=money(tBug); $('sProv').textContent=money(tProv);
-  const d=tBug-tProv; $('sDiff').textContent=(d>0?'+':d<0?'−':'')+money(Math.abs(d));
-  $('sDiff').style.color=d===0?'var(--muted)':(d>0?'var(--green)':'var(--red)');
-  if(!rows.length){ $('tb').innerHTML='<tr><td colspan="5" class="empty">Filial topilmadi</td></tr>'; return; }
-  $('tb').innerHTML=rows.map((r,i)=>{
-    const cls=r.diff>0?'pos':r.diff<0?'neg':'zero';
-    const sign=r.diff>0?'+':r.diff<0?'−':'';
-    const act=r.diff===0
-      ? '<span class="ok"><i data-lucide="check"></i>Teng</span>'
-      : (isAdmin||true ? `<button class="mini" onclick="openM(${i})">Tenglashtir</button>` : '');
-    return `<tr>
-      <td class="f">${r.name}<div class="c">${r.acc?r.acc.code:'—'}</div></td>
-      <td class="n">${money(r.bug)}</td>
-      <td class="n">${money(r.prov)}</td>
-      <td class="n ${cls}">${sign}${money(Math.abs(r.diff))}</td>
-      <td class="act">${act}</td></tr>`;
-  }).join('');
+  const t=rows.reduce((s,r)=>s+r.bug,0);
+  $('sBug').textContent=money(t);
+  const bor=rows.filter(r=>r.bug>0).length;
+  $('sCnt').textContent=rows.length+' ta filial · '+bor+' tasida pul bor';
+  if(!rows.length){ $('tb').innerHTML='<tr><td colspan="2" class="empty">Filial topilmadi</td></tr>'; return; }
+  $('tb').innerHTML=rows.map(r=>`<tr>
+      <td class="f">${r.name}</td>
+      <td class="n ${r.bug>0?'pos':'zero'}">${money(r.bug)}</td></tr>`).join('');
   icons();
 }
 
-function accOptions(sel){
-  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${a.code} · ${a.name}</option>`).join('')+'</optgroup>':'';
-  const kassa=accounts.filter(a=>a.type==='aktiv'&&a.code.startsWith('5')&&!a.filial_ref);
-  return g('Markaziy kassalar',kassa)+g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
-       +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
-       +g('Boshqa',accounts.filter(a=>a.type==='passiv'||a.type==='kapital'||(a.type==='aktiv'&&!a.code.startsWith('5'))));
-}
-
-window.openM=i=>{
-  cur=rows[i]; if(!cur||!cur.acc) return;
-  const up=cur.diff>0;
-  $('mTitle').textContent=cur.name;
-  $('mSub').textContent=up?'Filialda pul ko\'paygan — qayerdan kelgani':'Filialdan pul kamaygan — qayerga ketgani';
-  $('mBig').textContent=(up?'+':'−')+money(Math.abs(cur.diff));
-  $('mBig').className='big '+(up?'pos':'neg');
-  $('mLbl').textContent=up?'Qayerdan kelgan':'Qayerga ketgan';
-  const def=accounts.find(a=>a.code===(up?SALES_CODE:CENTRAL_CODE));
-  $('mAcc').innerHTML=accOptions(def?def.id:null);
-  $('mIzoh').value=(up?'Filial tushumi: ':'Filialdan chiqdi: ')+cur.name;
-  $('mSana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
-  $('mAcc').onchange=prev; prev();
-  $('mdl').classList.add('open'); icons();
-};
-function prev(){
-  const up=cur.diff>0, amt=Math.abs(cur.diff);
-  const other=accounts.find(a=>a.id===$('mAcc').value);
-  const dt=up?cur.acc:other, kt=up?other:cur.acc;
-  $('mDt').textContent='Dt · '+(dt?dt.name:'—'); $('mKt').textContent='Kt · '+(kt?kt.name:'—');
-  $('mDtA').textContent=money(amt); $('mKtA').textContent=money(amt);
-}
-window.closeM=()=>{ $('mdl').classList.remove('open'); cur=null; };
-window.saveM=async()=>{
-  if(!cur) return;
-  const up=cur.diff>0, amt=Math.abs(cur.diff);
-  const other=accounts.find(a=>a.id===$('mAcc').value);
-  if(!other||amt<=0){ alert('Hisob tanlang'); return; }
-  const dtId=up?cur.acc.id:other.id, ktId=up?other.id:cur.acc.id;
-  $('mSave').disabled=true; $('mSave').textContent='Saqlanmoqda...';
-  const {data:ent,error:e1}=await sb.from('entry').insert({
-    entry_date:$('mSana').value||null, description:$('mIzoh').value||null, source:'aros_auto'
-  }).select('id').single();
-  if(e1){ alert(e1.message); $('mSave').disabled=false; $('mSave').textContent='Saqlash'; return; }
-  const {error:e2}=await sb.from('entry_line').insert([
-    {entry_id:ent.id, account_id:dtId, debit:amt, credit:0},
-    {entry_id:ent.id, account_id:ktId, debit:0, credit:amt}]);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); $('mSave').disabled=false; $('mSave').textContent='Saqlash'; return; }
-  $('mSave').disabled=false; $('mSave').textContent='Saqlash';
-  closeM(); await syncNow();
-};
-
-async function init(){ await loadRole(); await loadAccounts(); }
+async function init(){ await loadRole(); syncNow(); }
 </script>
 </body>
 </html>
