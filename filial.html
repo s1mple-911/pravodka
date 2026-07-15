@@ -128,7 +128,7 @@
     <div class="page-head">
       <h1>Filiallar</h1>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn" id="syncBtn" onclick="syncNow()"><i data-lucide="refresh-cw"></i>Bugalter'dan yangilash</button>
+        <button class="btn" id="syncBtn" onclick="syncNow()"><i data-lucide="refresh-cw"></i>Yangilash</button>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
           <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -149,10 +149,10 @@
     <div class="card">
       <table>
         <thead><tr><th>Filial</th><th>Turgan pul</th></tr></thead>
-        <tbody id="tb"><tr><td colspan="2" class="empty">"Bugalter'dan yangilash" tugmasini bosing</td></tr></tbody>
+        <tbody id="tb"><tr><td colspan="2" class="empty">"Yangilash" tugmasini bosing</td></tr></tbody>
       </table>
     </div>
-    <div class="note">Bugalter'dagi "filialda turgan pul" — hali markazga jo'natilmagan summa. Toshkent va Qashqadaryo markaziy kassalari bu yerga kirmaydi.</div>
+    <div class="note">Har filial kassasidagi jonli qoldiq — naqd + Click + Payme + dollar (kursda). To'g'ridan-to'g'ri Aros'dan olinadi, cache emas. Toshkent va Qashqadaryo markaziy kassalari bu yerga kirmaydi.</div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -170,7 +170,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
-const BUGALTER_API='https://n8n.arosmarket.com/webhook/aros-bugalter-dashboard';
+const FILIAL_LIVE='https://n8n.arosmarket.com/webhook/aros-filial-live';
 const BUG_UID='1255605633';
 const CENTRAL_CODE='5011';   // Toshkent kassa — default transfer manzili
 const SALES_CODE='9010';     // Savdo tushumi — default daromad manbasi
@@ -204,12 +204,13 @@ async function loadRole(){
   $('roleBadge').textContent=(isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
 
-async function fetchBugalter(){
-  const r=await fetch(`${BUGALTER_API}?uid=${BUG_UID}&_=${Date.now()}`);
-  if(!r.ok) throw new Error('Bugalter API '+r.status);
+async function fetchLive(){
+  const r=await fetch(`${FILIAL_LIVE}?uid=${BUG_UID}&_=${Date.now()}`);
+  if(!r.ok) throw new Error('API '+r.status+(r.status===500?' (n8n: kredit ulanmagan yoki publish qilinmagan?)':''));
   const j=await r.json();
   const d=Array.isArray(j)?j[0]:j;
-  const list=d?.filiallar||d?.data?.filiallar;
+  if(d && d.error) throw new Error(String(d.error));
+  const list=d && d.filiallar;
   if(!Array.isArray(list)) throw new Error('filiallar[] topilmadi — javob shakli boshqacha');
   return list;
 }
@@ -219,7 +220,7 @@ async function loadSnapshot(){
   if(error){ showErr('Snapshot: '+error.message); return; }
   if(!data){
     $('sBug').textContent='—'; $('sCnt').textContent=''; $('sMeta').textContent='';
-    $('tb').innerHTML='<tr><td colspan="2" class="empty">Hali yuklanmagan — "Bugalter\'dan yangilash" tugmasini bosing</td></tr>';
+    $('tb').innerHTML='<tr><td colspan="2" class="empty">Hali yuklanmagan — "Yangilash" tugmasini bosing</td></tr>';
     return;
   }
   rows=Array.isArray(data.data)?data.data:[];
@@ -227,12 +228,13 @@ async function loadSnapshot(){
 }
 
 window.syncNow=async()=>{
-  $('syncBtn').disabled=true; $('err').style.display='none'; showInfo('');
+  const btn=$('syncBtn'); const old=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='Olinmoqda...'; $('err').style.display='none'; showInfo('');
   try{
-    const filials=await fetchBugalter();
+    const filials=await fetchLive();
     rows=filials.map(f=>({
       name:(f.warehouse_name||f.title||'Filial'),
-      bug:Number(f.unsent_total_amount)||0
+      bug:Number(f.total)||0
     })).sort((a,b)=>b.bug-a.bug);
     const total=rows.reduce((x,r)=>x+r.bug,0);
     const now=new Date().toISOString();
@@ -241,7 +243,7 @@ window.syncNow=async()=>{
     if(error) showErr('Saqlashda: '+error.message);
     render({synced_at:now, synced_by_name:myName});
   }catch(e){ showErr('Xato: '+e.message); }
-  $('syncBtn').disabled=false;
+  btn.disabled=false; btn.innerHTML=old; icons();
 };
 
 function fmtWhen(x){
