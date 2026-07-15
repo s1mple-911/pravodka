@@ -16,7 +16,9 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 |------|--------|
 | `provodka.html` | Kiritish: Kirim / Chiqim / Transfer + jurnal |
 | `professional.html` | Qo'lda ko'p satrli Dt/Kt yozuv |
-| `hisobot.html` | Foyda-zarar, xarajat taqsimoti, aylanma-saldo |
+| `hisobot.html` | P&L zinapoyasi (`pnl()`), xarajat taqsimoti, aylanma-saldo |
+| `balans.html` | Balans sanaga: Aktiv \| Passiv+Kapital (`balans()`) |
+| `cashflow.html` | Pul oqimi davrga: boshi/oxiri + Kirim/Chiqim (`cashflow()`, `pul_qoldiq()`) |
 | `qarzdor.html` | Debitor (4010) / kreditor (6010) |
 | `filial.html` | Filiallarda turgan jonli pul |
 | `valyuta.html` | Valyuta kurslari (juftlik: from → to) |
@@ -24,6 +26,18 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 
 Har fayl mustaqil: o'z login gate'i, sidebar/bnav navigatsiyasi, Supabase klienti bor.
 Dizayn tizimi hamma faylda takrorlanadi (CSS o'zgaruvchilari bir xil).
+
+Navigatsiya 9 faylda ham bir xil bo'lishi shart: **sidebar 9 ta**, **bnav 6 ta + "Ko'proq"**.
+Faqat `active` klassi farq qiladi.
+
+**Sidebar `min-width:900px` da ko'rinadi — mobil'da u umuman yo'q.** Shuning uchun bnav'ga
+sig'magan sahifalar (Professional, Valyuta, Sozlamalar) `#moreModal` sheet'iga tushadi
+("Ko'proq" tugmasi, `openMore()`/`closeMore()`). Bnav'dan sahifa olib tashlansa, u sheet'ga
+qo'shilishi **shart** — aks holda telefonda umuman ochilmaydi. Joriy sahifa sheet ichida
+bo'lsa, "Ko'proq" o'zi `active` bo'ladi.
+
+Sheet CSS'i ataylab `.mmodal`/`.msheet` deb nomlangan — `provodka.html`/`valyuta.html`dagi
+mavjud `.modal`/`.sheet` bilan to'qnashmasligi uchun.
 
 ## Baza modeli
 
@@ -50,6 +64,18 @@ Viewlar: `v_hisob_qoldiq`, `v_kassa_qoldiq` (filiallarni chiqarib tashlaydi),
 `v_current_rate` (har juftlik uchun eng oxirgisi), `v_aylanma_saldo`.
 
 RPC: `sync_filial_balances(jsonb)`, `sync_received_transfers(jsonb)`, `acc_balance(uuid)`.
+
+Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
+- `balans(p_date)` → `bolim` ('AKTIV'|'PASSIV'|'KAPITAL'), `section`, `code`, `name`, `amount`.
+  AKTIV = debit−kredit (amortizatsiya **manfiy** — kontr-aktiv). PASSIV/KAPITAL = kredit−debit, musbat.
+  `8710 Yigilgan sof foyda` — sintetik qator. sum(AKTIV) = sum(PASSIV)+sum(KAPITAL) matematik kafolat.
+- `pnl(p_from,p_to)` → `bolim` ('TUSHUM'|'TANNARX'|'OPERATSION'|'SOLIQ'|'BOSHQA'), `section`, `code`, `name`, `amount`.
+  **Xarajatlar musbat keladi.** **Subtotal qaytarmaydi** — faqat barg qatorlar, zinapoya klientda yig'iladi:
+  Yalpi = TUSHUM−TANNARX; Operatsion foyda = Yalpi−OPERATSION; Sof = Operatsion foyda−SOLIQ−BOSHQA.
+- `cashflow(p_from,p_to)` → `yonalish` ('KIRIM'|'CHIQIM'), `section`, `code`, `name`, `amount`.
+  **Ikkalasi ham musbat.** Kassalararo transfer chiqib ketadi (net=0).
+- `pul_qoldiq(p_date)` → numeric. Davr boshi = `pul_qoldiq(p_from − 1 kun)`, `p_from` emas.
+  Tekshiruv: `pul_qoldiq(p_to) − pul_qoldiq(p_from−1)` = sum(KIRIM) − sum(CHIQIM).
 
 ## Qat'iy qoidalar
 

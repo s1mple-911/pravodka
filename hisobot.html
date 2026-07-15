@@ -13,7 +13,7 @@
   [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
-  .num,.hero .big,.hero .v,.kchip .v,.exp .a,td{font-variant-numeric:tabular-nums}
+  .num,.lrow .a,.kchip .v,.exp .a,td{font-variant-numeric:tabular-nums}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   #app{display:none}.sidebar{display:none}
@@ -37,14 +37,18 @@
   .period select{height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14px;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;transition:border-color .13s}
   .period select:focus{outline:none;border-color:var(--primary)}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
-  .hero{text-align:left}
-  .hero .lbl{font-size:13px;color:var(--muted);font-weight:500}
-  .hero .big{font-size:44px;font-weight:800;letter-spacing:-.03em;margin:8px 0 4px}
-  .hero .big.pos{color:var(--green)}.hero .big.neg{color:var(--red)}
-  .hero .rows{display:flex;gap:28px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-  .hero .rows .it .k{font-size:12.5px;color:var(--muted)}
-  .hero .rows .it .v{font-size:18px;font-weight:700;margin-top:2px}
-  .hero .rows .it .v.in{color:var(--green)}.hero .rows .it .v.out{color:var(--red)}
+  .lg{margin-bottom:4px}
+  .lrow{display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:14.5px}
+  .lrow .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lrow .a{white-space:nowrap;font-weight:600}
+  .lrow.head{font-weight:700;border-bottom:1px solid var(--line)}
+  .lrow.leaf{font-size:13.5px;color:var(--muted);padding:5px 0 5px 12px;border-left:2px solid var(--line);margin-left:2px}
+  .lrow.leaf .a{color:var(--ink)}
+  .lrow.leaf .code{color:var(--muted);font-size:12px;margin-right:6px}
+  .lrow.sub{font-weight:800;border-top:1px solid var(--line);margin-top:6px}
+  .lrow.sub .a.pos{color:var(--green)}.lrow.sub .a.neg{color:var(--red)}
+  .lrow.sub.final{border-top:2px solid var(--line);font-size:19px;padding-top:14px;margin-top:10px;letter-spacing:-.02em}
+  .lrow.sub.final .a{font-weight:800}
   .grid2{display:grid;grid-template-columns:1fr;gap:18px}
   @media(min-width:900px){.grid2{grid-template-columns:1fr 1fr;align-items:start}}
   .sec{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
@@ -77,6 +81,19 @@
   .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
   .bnav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
   .bnav a svg{width:18px;height:18px}.bnav a.active{color:var(--primary)}
+  /* more-sheet */
+  .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .mmodal.open{display:flex}
+  .msheet{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+  .msheet h3{margin:0 0 14px;font-size:17px;font-weight:800}
+  .msheet a{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;cursor:pointer;transition:background .13s}
+  .msheet a svg{width:19px;height:19px;color:var(--muted)}
+  .msheet a:hover{background:var(--surface-2)}
+  .msheet a.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .msheet a.active svg{color:var(--primary)}
+  .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
+  .msheet .close:hover{background:var(--line)}
+  /* /more-sheet */
 </style>
 </head>
 <body>
@@ -94,6 +111,8 @@
       <a class="nav-item" href="provodka.html"><i data-lucide="circle-plus"></i><span>Kiritish</span></a>
       <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
       <a class="nav-item active" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
@@ -120,13 +139,9 @@
 
     <div class="kassa-strip" id="kassalar"></div>
 
-    <div class="card hero">
-      <div class="lbl">Sof foyda / zarar</div>
-      <div class="big" id="foyda">0</div>
-      <div class="rows">
-        <div class="it"><div class="k">Daromad</div><div class="v in" id="daromad">0</div></div>
-        <div class="it"><div class="k">Xarajat</div><div class="v out" id="xarajat">0</div></div>
-      </div>
+    <div class="card">
+      <div class="sec">Foyda va zarar</div>
+      <div id="ladder"><div class="empty">—</div></div>
     </div>
 
     <div class="grid2">
@@ -139,13 +154,25 @@
 
   <nav class="bnav mobile-only">
     <a href="provodka.html"><i data-lucide="circle-plus"></i>Kiritish</a>
-    <a href="professional.html"><i data-lucide="list-plus"></i>Pro</a>
     <a href="hisobot.html" class="active"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow.html"><i data-lucide="waves"></i>Cashflow</a>
     <a href="qarzdor.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
     <a href="filial.html"><i data-lucide="store"></i>Filial</a>
-    <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
-    <a href="sozlama.html"><i data-lucide="settings"></i>Sozlama</a>
+    <a onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
   </nav>
+
+  <!-- more-sheet -->
+  <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
+    <div class="msheet">
+      <h3>Ko'proq</h3>
+      <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <button class="close" onclick="closeMore()">Yopish</button>
+    </div>
+  </div>
+  <!-- /more-sheet -->
 </div>
 
 <script type="module">
@@ -155,8 +182,10 @@ const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const OYLAR=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const $=id=>document.getElementById(id);
-const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+const PNL_LBL={TUSHUM:'Tushum',TANNARX:'Tannarx',OPERATSION:'Operatsion xarajatlar',SOLIQ:'Soliq',BOSHQA:'Boshqa'};
+const PNL_BOLIM=['TUSHUM','TANNARX','OPERATSION','SOLIQ','BOSHQA'];
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -165,6 +194,10 @@ if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttr
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
   const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} enterApp(); };
 window.logout=async()=>{ await sb.auth.signOut(); location.reload(); };
+// more-sheet
+window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
+window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
@@ -182,23 +215,50 @@ async function loadKassalar(){
   $('kassalar').innerHTML=(data||[]).map(r=>`<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join('')||'<div class="empty">—</div>';
   icons();
 }
+// pnl() faqat barg qatorlarni qaytaradi — zinapoya shu yerda yig'iladi.
+const sumOf=(rows,b)=>rows.filter(r=>r.bolim===b).reduce((a,r)=>a+(Number(r.amount)||0),0);
+function pnlGroup(rows,bolim,sign){
+  const list=rows.filter(r=>r.bolim===bolim); if(!list.length) return '';
+  const t=list.reduce((a,r)=>a+(Number(r.amount)||0),0);
+  return `<div class="lg"><div class="lrow head"><span>${PNL_LBL[bolim]||bolim}</span><span class="a">${sign}${money(t)}</span></div>`
+    +list.map(r=>`<div class="lrow leaf"><span class="n"><span class="code">${r.code||''}</span>${r.name||''}</span><span class="a">${money(Number(r.amount)||0)}</span></div>`).join('')
+    +'</div>';
+}
+const subRow=(lbl,v,fin)=>`<div class="lrow sub${fin?' final':''}"><span>${lbl}</span><span class="a ${v<0?'neg':'pos'}">${money(v)}</span></div>`;
+function renderLadder(rows){
+  if(!rows.length){ $('ladder').innerHTML='<div class="empty">Bu oyda yozuv yo\'q</div>'; return; }
+  const tushum=sumOf(rows,'TUSHUM'),tannarx=sumOf(rows,'TANNARX'),oper=sumOf(rows,'OPERATSION'),soliq=sumOf(rows,'SOLIQ'),boshqa=sumOf(rows,'BOSHQA');
+  const yalpi=tushum-tannarx, opFoyda=yalpi-oper, sof=opFoyda-soliq-boshqa;
+  $('ladder').innerHTML=pnlGroup(rows,'TUSHUM','+')+pnlGroup(rows,'TANNARX','−')
+    +subRow('Yalpi foyda',yalpi)
+    +pnlGroup(rows,'OPERATSION','−')
+    +subRow('Operatsion foyda',opFoyda)
+    +pnlGroup(rows,'BOSHQA','−')+pnlGroup(rows,'SOLIQ','−')
+    +subRow('Sof foyda',sof,true);
+}
 async function load(){
   const oy=Number($('oy').value),yil=Number($('yil').value);
   const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
   const lastDay=new Date(yil,oy,0).getDate();
   const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  const {data,error}=await sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').eq('status','posted').eq('is_deleted',false).gte('entry_date',d1).lte('entry_date',d2);
+  $('banner').style.display='none';
+  const [pnlQ,entQ]=await Promise.all([
+    sb.rpc('pnl',{p_from:d1,p_to:d2}),
+    sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').eq('status','posted').eq('is_deleted',false).gte('entry_date',d1).lte('entry_date',d2)
+  ]);
+  if(pnlQ.error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+pnlQ.error.message; return; }
+  const prows=pnlQ.data||[];
+  renderLadder(prows);
+  const noma=[...new Set(prows.map(r=>r.bolim).filter(b=>!PNL_BOLIM.includes(b)))];
+  if(noma.length){ $('banner').style.display='block'; $('banner').textContent="Diqqat: noma'lum bo'lim — "+noma.join(', ')+" — zinapoyaga kirmadi"; }
+  const {data,error}=entQ;
   if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
-  let income=0,expense=0; const expByCat={},turnover={};
+  let expense=0; const expByCat={},turnover={};
   (data||[]).forEach(e=>{ (e.entry_line||[]).forEach(l=>{
     const a=l.accounts; if(!a) return; const deb=Number(l.debit)||0,cred=Number(l.credit)||0;
     const t=turnover[a.code]||(turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0}); t.deb+=deb; t.cred+=cred;
-    if(a.type==='daromad') income+=(cred-deb);
     if(a.type==='xarajat'){ const v=deb-cred; expense+=v; expByCat[a.name]=(expByCat[a.name]||0)+v; }
   }); });
-  const foyda=income-expense; const fEl=$('foyda');
-  fEl.textContent=(foyda<0?'−':'')+money(Math.abs(foyda)); fEl.className='big '+(foyda<0?'neg':'pos');
-  $('daromad').textContent='+'+money(income); $('xarajat').textContent='−'+money(expense);
   const cats=Object.entries(expByCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   $('expList').innerHTML=cats.length?cats.map(([name,v])=>{ const pct=expense>0?Math.round(v/expense*100):0;
     return `<div class="exp"><div class="l"><span>${name}</span><span class="a">${money(v)}<span class="p">${pct}%</span></span></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;

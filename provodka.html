@@ -94,6 +94,19 @@
   .mrow button{flex:1;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-weight:600;font-family:inherit;font-size:15px;cursor:pointer;transition:background .13s}
   .mrow button:hover{background:var(--line)}
   .mrow button.primary{background:var(--primary);color:#fff;border:none}.mrow button.primary:hover{background:var(--primary-hover)}
+  /* more-sheet */
+  .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .mmodal.open{display:flex}
+  .msheet{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+  .msheet h3{margin:0 0 14px;font-size:17px;font-weight:800}
+  .msheet a{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;cursor:pointer;transition:background .13s}
+  .msheet a svg{width:19px;height:19px;color:var(--muted)}
+  .msheet a:hover{background:var(--surface-2)}
+  .msheet a.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .msheet a.active svg{color:var(--primary)}
+  .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
+  .msheet .close:hover{background:var(--line)}
+  /* /more-sheet */
 </style>
 </head>
 <body>
@@ -112,6 +125,8 @@
       <a class="nav-item active" href="provodka.html"><i data-lucide="circle-plus"></i><span>Kiritish</span></a>
       <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
       <a class="nav-item" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
@@ -164,13 +179,25 @@
 
   <nav class="bnav mobile-only">
     <a href="provodka.html" class="active"><i data-lucide="circle-plus"></i>Kiritish</a>
-    <a href="professional.html"><i data-lucide="list-plus"></i>Pro</a>
     <a href="hisobot.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow.html"><i data-lucide="waves"></i>Cashflow</a>
     <a href="qarzdor.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
     <a href="filial.html"><i data-lucide="store"></i>Filial</a>
-    <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
-    <a href="sozlama.html"><i data-lucide="settings"></i>Sozlama</a>
+    <a onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
   </nav>
+
+  <!-- more-sheet -->
+  <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
+    <div class="msheet">
+      <h3>Ko'proq</h3>
+      <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <button class="close" onclick="closeMore()">Yopish</button>
+    </div>
+  </div>
+  <!-- /more-sheet -->
 
   <div class="modal" id="editModal"><div class="sheet">
     <h3>Yozuvni tahrirlash</h3>
@@ -207,6 +234,10 @@ if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttr
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
   const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} enterApp(); };
 window.logout=async()=>{ await sb.auth.signOut(); location.reload(); };
+// more-sheet
+window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
+window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
