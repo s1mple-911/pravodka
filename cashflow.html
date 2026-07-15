@@ -33,9 +33,17 @@
   .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
   .head-actions{display:flex;gap:4px;align-items:center}
-  .period{display:flex;gap:8px}
-  .period select{height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14px;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;transition:border-color .13s}
-  .period select:focus{outline:none;border-color:var(--primary)}
+  .filters{padding:16px 18px}
+  .frow{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:700px){.frow{grid-template-columns:auto auto 1fr;align-items:end}}
+  .frow label{font-size:12.5px;color:var(--muted);display:block;margin:0 0 6px 2px;font-weight:500}
+  .frow input[type=date],.frow select{width:100%;height:42px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14.5px;font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
+  .frow select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:32px}
+  .frow input[type=date]:focus,.frow select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .quick{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+  .quick button{height:34px;padding:0 13px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
+  .quick button:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .quick button.on{background:var(--primary);border-color:var(--primary);color:#fff}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
   .flow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .flow .it{flex:1;min-width:130px}
@@ -123,15 +131,26 @@
   <main class="main">
     <div class="page-head">
       <h1>Cashflow</h1>
-      <div class="head-actions">
-        <div class="period"><select id="oy"></select><select id="yil"></select></div>
-        <div class="mobile-only" style="display:flex;gap:2px">
-          <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
-          <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
-        </div>
+      <div class="head-actions mobile-only">
+        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
       </div>
     </div>
     <div id="banner" class="banner"></div>
+
+    <div class="card filters">
+      <div class="frow">
+        <div><label for="dan">Dan</label><input type="date" id="dan"></div>
+        <div><label for="gacha">Gacha</label><input type="date" id="gacha"></div>
+        <div><label for="kassa">Kassa</label><select id="kassa"></select></div>
+      </div>
+      <div class="quick">
+        <button data-r="bugun" onclick="setRange('bugun')">Bugun</button>
+        <button data-r="hafta" onclick="setRange('hafta')">Shu hafta</button>
+        <button data-r="oy" onclick="setRange('oy')">Shu oy</button>
+        <button data-r="otgan" onclick="setRange('otgan')">O'tgan oy</button>
+      </div>
+    </div>
 
     <div class="card">
       <div class="flow">
@@ -157,7 +176,7 @@
     </div>
 
     <div class="chk ok" id="chk"><i data-lucide="check"></i><span id="chkTxt">—</span></div>
-    <div class="note">Davr boshi = oldingi kunning oxirgi pul qoldig'i. Kassalar orasidagi transfer bu yerga kirmaydi (net=0 — pul kompaniyadan chiqmaydi). Shuning uchun "Davr oxiri − Davr boshi" har doim "Kirim − Chiqim" ga teng bo'lishi kerak.</div>
+    <div class="note" id="note"></div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -188,7 +207,6 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-const OYLAR=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const $=id=>document.getElementById(id);
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
@@ -212,15 +230,44 @@ function enterApp(){ $('gate').style.display='none'; $('app').style.display='blo
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
 boot();
 
-function fillSelectors(){
-  const now=new Date(Date.now()+5*3600*1000); const oySel=$('oy'),yilSel=$('yil');
-  OYLAR.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; oySel.appendChild(o); });
-  const y=now.getUTCFullYear();
-  for(let yy=y-1;yy<=y+1;yy++){ const o=document.createElement('option'); o.value=yy; o.textContent=yy; yilSel.appendChild(o); }
-  oySel.value=now.getUTCMonth()+1; yilSel.value=y; oySel.onchange=load; yilSel.onchange=load;
-}
+// UZB (UTC+5) — UTC maydonlari o'zbek kalendar sanasini beradi
+const nowUz=()=>new Date(Date.now()+5*3600*1000);
+const iso=d=>d.toISOString().slice(0,10);
+const addDays=(d,n)=>{ const t=new Date(d); t.setUTCDate(t.getUTCDate()+n); return t; };
 // davr boshi = p_from dan bir kun oldingi qoldiq
-function prevDay(d){ const t=new Date(d+'T00:00:00Z'); t.setUTCDate(t.getUTCDate()-1); return t.toISOString().slice(0,10); }
+function prevDay(d){ return iso(addDays(new Date(d+'T00:00:00Z'),-1)); }
+
+window.setRange=r=>{
+  const n=nowUz(); let a,b;
+  if(r==='bugun'){ a=n; b=n; }
+  else if(r==='hafta'){ a=addDays(n,-((n.getUTCDay()+6)%7)); b=n; }           // dushanbadan bugungacha
+  else if(r==='oy'){ a=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)); b=n; }
+  else if(r==='otgan'){ a=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()-1,1));
+                        b=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),0)); }
+  else return;
+  $('dan').value=iso(a); $('gacha').value=iso(b);
+  markQuick(r); load();
+};
+function markQuick(r){ document.querySelectorAll('.quick button').forEach(b=>b.className=b.dataset.r===r?'on':''); }
+// Sana qo'lda o'zgarsa tez-tanlash belgisi olib tashlanadi
+function whichRange(){
+  const n=nowUz(), a=$('dan').value, b=$('gacha').value;
+  if(a===iso(n)&&b===iso(n)) return 'bugun';
+  if(a===iso(addDays(n,-((n.getUTCDay()+6)%7)))&&b===iso(n)) return 'hafta';
+  if(a===iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)))&&b===iso(n)) return 'oy';
+  if(a===iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()-1,1)))&&b===iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),0)))) return 'otgan';
+  return '';
+}
+async function fillKassalar(){
+  const {data,error}=await sb.from('v_pul_hisoblar').select('*').order('code');
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Kassalar: '+error.message; return; }
+  const list=data||[];
+  const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}</option>`;
+  const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';
+  $('kassa').innerHTML='<option value="">Hamma kassalar</option>'
+    +grp('Markaziy kassalar',list.filter(r=>!r.is_filial))
+    +grp('Filial kassalari',list.filter(r=>r.is_filial));
+}
 function group(rows,yonalish){
   const bySec={};
   rows.filter(r=>r.yonalish===yonalish).forEach(r=>{ const s=r.section||''; (bySec[s]||(bySec[s]=[])).push(r); });
@@ -238,16 +285,18 @@ function renderCol(elId,groups){
   return groups.reduce((a,g)=>a+g.sum,0);
 }
 async function load(){
-  const oy=Number($('oy').value),yil=Number($('yil').value);
-  const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
-  const lastDay=new Date(yil,oy,0).getDate();
-  const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  const d0=prevDay(d1);
+  const d1=$('dan').value, d2=$('gacha').value;
   $('banner').style.display='none';
+  if(!d1||!d2) return;
+  if(d1>d2){ $('banner').style.display='block'; $('banner').textContent="\"Dan\" sanasi \"Gacha\"dan keyin bo'lmasin"; return; }
+  const d0=prevDay(d1);
+  markQuick(whichRange());
+  // null = hamma kassalar. Uchala chaqiruvga ham bir xil uzatiladi.
+  const acc=$('kassa').value||null;
   const [flow,bQ,oQ]=await Promise.all([
-    sb.rpc('cashflow',{p_from:d1,p_to:d2}),
-    sb.rpc('pul_qoldiq',{p_date:d0}),
-    sb.rpc('pul_qoldiq',{p_date:d2})
+    sb.rpc('cashflow',{p_from:d1,p_to:d2,p_account:acc}),
+    sb.rpc('pul_qoldiq',{p_date:d0,p_account:acc}),
+    sb.rpc('pul_qoldiq',{p_date:d2,p_account:acc})
   ]);
   const err=flow.error||bQ.error||oQ.error;
   if(err){ $('banner').style.display='block'; $('banner').textContent='Xato: '+err.message; return; }
@@ -267,9 +316,22 @@ async function load(){
   $('chkTxt').innerHTML=ok
     ? `Tekshiruv to'g'ri: ${money(oxiri)} − ${money(boshi)} = <span class="v">${money(ozgarish)}</span>`
     : `Mos kelmadi — qoldiqlar farqi <span class="v">${money(oxiri-boshi)}</span>, kirim−chiqim <span class="v">${money(ozgarish)}</span> (farq ${money(farq)})`;
+  setNote(acc);
   icons();
 }
-function init(){ fillSelectors(); load(); }
+// Izoh tanlangan kassaga qarab o'zgaradi — transfer semantikasi ikki holatda boshqacha.
+function setNote(acc){
+  const base="Davr boshi = \"Dan\" sanasidan bir kun oldingi pul qoldig'i. Tekshiruv: davr oxiri − davr boshi = kirim − chiqim.";
+  const nomi=acc?($('kassa').selectedOptions[0]?.textContent||'tanlangan kassa'):'';
+  $('note').textContent = acc
+    ? `${nomi} bo'yicha. Bu kassadan markaziy kassaga jo'natilgan pul CHIQIM bo'lib ko'rinadi — bu to'g'ri, xato emas: pul shu kassadan chiqqan. Kompaniya bo'yicha umumiy holatni ko'rish uchun "Hamma kassalar"ni tanlang. ${base}`
+    : `Hamma kassalar bo'yicha. Kassalar orasidagi transfer bu yerga kirmaydi (ichki harakat, net=0 — pul kompaniyadan chiqmagan). ${base}`;
+}
+async function init(){
+  await fillKassalar();
+  $('kassa').onchange=load; $('dan').onchange=load; $('gacha').onchange=load;
+  setRange('oy');   // default: joriy oyning 1-sanasi → bugun
+}
 </script>
 </body>
 </html>

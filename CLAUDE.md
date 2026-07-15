@@ -61,7 +61,8 @@ mavjud `.modal`/`.sheet` bilan to'qnashmasligi uchun.
   `synced_at`. `filial.html` shu yerdan o'qiydi va "Yangilash"da upsert qiladi.
 
 Viewlar: `v_hisob_qoldiq`, `v_kassa_qoldiq` (filiallarni chiqarib tashlaydi),
-`v_current_rate` (har juftlik uchun eng oxirgisi), `v_aylanma_saldo`.
+`v_current_rate` (har juftlik uchun eng oxirgisi), `v_aylanma_saldo`,
+`v_pul_hisoblar` (`{id, code, name, is_filial}` — kassa filtri uchun; markaziy = 5011/5012/5110, filial = 52xx).
 
 RPC: `sync_filial_balances(jsonb)`, `sync_received_transfers(jsonb)`, `acc_balance(uuid)`.
 
@@ -72,10 +73,16 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
 - `pnl(p_from,p_to)` → `bolim` ('TUSHUM'|'TANNARX'|'OPERATSION'|'SOLIQ'|'BOSHQA'), `section`, `code`, `name`, `amount`.
   **Xarajatlar musbat keladi.** **Subtotal qaytarmaydi** — faqat barg qatorlar, zinapoya klientda yig'iladi:
   Yalpi = TUSHUM−TANNARX; Operatsion foyda = Yalpi−OPERATSION; Sof = Operatsion foyda−SOLIQ−BOSHQA.
-- `cashflow(p_from,p_to)` → `yonalish` ('KIRIM'|'CHIQIM'), `section`, `code`, `name`, `amount`.
-  **Ikkalasi ham musbat.** Kassalararo transfer chiqib ketadi (net=0).
-- `pul_qoldiq(p_date)` → numeric. Davr boshi = `pul_qoldiq(p_from − 1 kun)`, `p_from` emas.
-  Tekshiruv: `pul_qoldiq(p_to) − pul_qoldiq(p_from−1)` = sum(KIRIM) − sum(CHIQIM).
+- `cashflow(p_from, p_to, p_account uuid default null)` → `yonalish` ('KIRIM'|'CHIQIM'), `section`,
+  `code`, `name`, `amount`. **Ikkalasi ham musbat.**
+- `pul_qoldiq(p_date, p_account uuid default null)` → numeric. Davr boshi = `pul_qoldiq(p_from − 1 kun)`,
+  `p_from` emas. Tekshiruv: `pul_qoldiq(p_to) − pul_qoldiq(p_from−1)` = sum(KIRIM) − sum(CHIQIM).
+  **`p_account` uchala chaqiruvga ham bir xil berilishi shart**, aks holda tekshiruv mos kelmaydi.
+
+`p_account` semantikasi (ikki xil, ikkalasi ham to'g'ri):
+- **null = hamma kassalar** → kassalararo transfer chiqib ketadi (ichki harakat, net=0).
+- **bitta kassa** → markazga jo'natilgan pul o'sha kassa uchun CHIQIM bo'lib ko'rinadi. Bu **xato emas**:
+  pul shu kassadan chiqqan. `cashflow.html` izohi shunga qarab o'zgaradi (`setNote()`).
 
 ## Qat'iy qoidalar
 
