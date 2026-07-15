@@ -143,6 +143,7 @@
       <div class="k"><i data-lucide="wallet"></i>Filiallarda turgan jami pul</div>
       <div class="v" id="sBug">—</div>
       <div class="c" id="sCnt"></div>
+      <div class="c" id="sMeta" style="margin-top:6px"></div>
     </div>
 
     <div class="card">
@@ -213,6 +214,18 @@ async function fetchBugalter(){
   return list;
 }
 
+async function loadSnapshot(){
+  const {data,error}=await sb.from('filial_snapshot').select('*').eq('id',1).maybeSingle();
+  if(error){ showErr('Snapshot: '+error.message); return; }
+  if(!data){
+    $('sBug').textContent='—'; $('sCnt').textContent=''; $('sMeta').textContent='';
+    $('tb').innerHTML='<tr><td colspan="2" class="empty">Hali yuklanmagan — "Bugalter\'dan yangilash" tugmasini bosing</td></tr>';
+    return;
+  }
+  rows=Array.isArray(data.data)?data.data:[];
+  render({synced_at:data.synced_at, synced_by_name:data.synced_by_name});
+}
+
 window.syncNow=async()=>{
   $('syncBtn').disabled=true; $('err').style.display='none'; showInfo('');
   try{
@@ -221,16 +234,29 @@ window.syncNow=async()=>{
       name:(f.warehouse_name||f.title||'Filial'),
       bug:Number(f.unsent_total_amount)||0
     })).sort((a,b)=>b.bug-a.bug);
-    render();
+    const total=rows.reduce((x,r)=>x+r.bug,0);
+    const now=new Date().toISOString();
+    const {error}=await sb.from('filial_snapshot')
+      .upsert({id:1,data:rows,total,synced_by_name:myName,synced_at:now},{onConflict:'id'});
+    if(error) showErr('Saqlashda: '+error.message);
+    render({synced_at:now, synced_by_name:myName});
   }catch(e){ showErr('Xato: '+e.message); }
   $('syncBtn').disabled=false;
 };
 
-function render(){
+function fmtWhen(x){
+  if(!x) return '';
+  try{ return new Date(x).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
+}
+
+function render(meta){
   const t=rows.reduce((s,r)=>s+r.bug,0);
   $('sBug').textContent=money(t);
   const bor=rows.filter(r=>r.bug>0).length;
   $('sCnt').textContent=rows.length+' ta filial · '+bor+' tasida pul bor';
+  $('sMeta').textContent = meta&&meta.synced_at
+    ? 'Yangilandi: '+fmtWhen(meta.synced_at)+(meta.synced_by_name?' · '+meta.synced_by_name:'') : '';
   if(!rows.length){ $('tb').innerHTML='<tr><td colspan="2" class="empty">Filial topilmadi</td></tr>'; return; }
   $('tb').innerHTML=rows.map(r=>`<tr>
       <td class="f">${r.name}</td>
@@ -238,7 +264,7 @@ function render(){
   icons();
 }
 
-async function init(){ await loadRole(); syncNow(); }
+async function init(){ await loadRole(); await loadSnapshot(); }
 </script>
 </body>
 </html>
