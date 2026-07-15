@@ -160,7 +160,7 @@
     <div class="page-head">
       <h1>Valyuta</h1>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn ghost" id="arosBtn" onclick="openAros()"><i data-lucide="download"></i>Aros'dan</button>
+        <button class="btn ghost" onclick="openAros()"><i data-lucide="download"></i>Aros'dan</button>
         <button class="btn" onclick="openNew()"><i data-lucide="plus"></i>Yangi kurs</button>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
@@ -172,16 +172,18 @@
     <div id="err" class="banner err"></div>
     <div id="info" class="banner info"></div>
 
-    <div class="k" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:500;margin:0 2px 10px"><i data-lucide="banknote"></i>Joriy kurslar — hisob-kitoblarda shular ishlatiladi</div>
+    <div class="k" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:500;margin:0 2px 10px">
+      <i data-lucide="banknote"></i>Joriy kurslar — har juftlikning eng oxirgisi, hisob-kitoblarda shular ishlatiladi
+    </div>
     <div class="rate-strip" id="rateStrip"></div>
 
     <div class="card">
       <table>
-        <thead><tr><th>Sana</th><th>Valyuta</th><th>Kurs</th><th>Manba</th><th></th></tr></thead>
-        <tbody id="tb"><tr><td colspan="5" class="empty">Yuklanmoqda...</td></tr></tbody>
+        <thead><tr><th>Sana</th><th>Valyutadan</th><th>Valyutaga</th><th>Kurs</th><th>Manba</th><th></th></tr></thead>
+        <tbody id="tb"><tr><td colspan="6" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table>
     </div>
-    <div class="note">Har valyuta bo'yicha eng oxirgi sanadagi kurs avtomatik joriy hisoblanadi. Aros'da faqat dollar kursi saqlanadi — qolganlarini shu yerda qo'lda kiritasiz. Bu kurslar faqat Provodka uchun, Aros tizimiga ta'sir qilmaydi.</div>
+    <div class="note">Har juftlik (Valyutadan → Valyutaga) bo'yicha eng oxirgi sanadagi kurs avtomatik joriy hisoblanadi. Bu kurslar faqat Provodka uchun — Aros tizimiga ta'sir qilmaydi.</div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -196,11 +198,13 @@
 
   <div class="modal" id="mNew"><div class="sheet">
     <h3>Yangi kurs</h3>
-    <div class="sub">Provodka uchun kurs. Aros'ga ta'sir qilmaydi.</div>
-    <label>Valyuta</label>
-    <select id="nCode"><option value="USD">USD — dollar</option><option value="EUR">EUR — yevro</option><option value="RUB">RUB — rubl</option></select>
-    <label>Kurs (1 birlik = necha so'm)</label>
-    <input class="txt" id="nRate" inputmode="numeric" placeholder="12100" oninput="fmtRate(this)">
+    <div class="sub">Provodka uchun. Aros'ga ta'sir qilmaydi.</div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label>Valyutadan</label><select id="nFrom"></select></div>
+      <div style="flex:1"><label>Valyutaga</label><select id="nTo"></select></div>
+    </div>
+    <label>Kurs (1 birlik = necha)</label>
+    <input class="txt" id="nRate" inputmode="decimal" placeholder="12100">
     <label>Sana</label>
     <input class="txt" id="nDate" type="date">
     <label>Izoh</label>
@@ -212,8 +216,10 @@
     <h3>Aros kurslari</h3>
     <div class="sub" id="aSub">Yuklanmoqda...</div>
     <div id="aList"></div>
-    <div id="aRaw"></div>
-    <div class="mrow"><button onclick="closeAros()">Yopish</button></div>
+    <div class="mrow" style="margin-top:14px">
+      <button onclick="closeAros()">Yopish</button>
+      <button class="primary" id="aAll" onclick="importAll()" style="display:none">Hammasini import</button>
+    </div>
   </div></div>
 </div>
 
@@ -221,15 +227,16 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const AROS_RATES='https://n8n.arosmarket.com/webhook/aros-currency-rates';
 const AROS_CURRENCIES='https://n8n.arosmarket.com/webhook/aros-currencies';
-const AROS_RATE='https://n8n.arosmarket.com/webhook/aros-dollar-rate';
 const BUG_UID='1255605633';
 
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
-const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-let isAdmin=false, myName='', history=[], arosCodes=[];
+const money=n=>{ const v=Number(n)||0; return (v%1===0? Math.round(v).toLocaleString('en-US') : v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})).replaceAll(',',' '); };
+function fmtWhen(x){ if(!x) return ''; try{ return new Date(x).toLocaleDateString('ru-RU'); }catch(e){ return ''; } }
+let isAdmin=false, myName='', codes=['USD','UZS','CHY','AED'], arosPairs=[];
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -246,7 +253,6 @@ boot();
 
 function showErr(m){ $('err').style.display='block'; $('err').textContent=m; }
 function showInfo(m){ $('info').style.display=m?'block':'none'; $('info').textContent=m||''; }
-function fmtWhen(x){ if(!x) return ''; try{ return new Date(x).toLocaleDateString('ru-RU'); }catch(e){ return ''; } }
 
 async function loadRole(){
   const {data:{user}}=await sb.auth.getUser(); myName=user?.email||'foydalanuvchi';
@@ -255,70 +261,71 @@ async function loadRole(){
   $('roleBadge').textContent=(isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
 
-window.fmtRate=el=>{ const raw=el.value.replaceAll(' ','').replace(/[^\d.]/g,''); el.value=raw; };
+function fillCodes(){
+  const opts=codes.map(c=>`<option value="${c}">${c}</option>`).join('');
+  $('nFrom').innerHTML=opts; $('nTo').innerHTML=opts;
+  $('nFrom').value='USD'; $('nTo').value='UZS';
+}
 
 window.openNew=()=>{
-  $('nRate').value=''; $('nNote').value='';
+  fillCodes(); $('nRate').value=''; $('nNote').value='';
   $('nDate').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
   $('mNew').classList.add('open');
 };
 window.closeNew=()=>$('mNew').classList.remove('open');
 window.saveNew=async()=>{
-  const code=$('nCode').value, rate=parseFloat($('nRate').value)||0, d=$('nDate').value;
+  const from=$('nFrom').value, to=$('nTo').value;
+  const rate=parseFloat(String($('nRate').value).replace(/\s/g,''))||0, d=$('nDate').value;
   if(rate<=0||!d){ alert('Kurs va sanani to\'ldiring'); return; }
+  if(from===to){ alert('Valyutalar bir xil bo\'lmasin'); return; }
   $('nSave').disabled=true; $('nSave').textContent='Saqlanmoqda...';
-  const {error}=await sb.from('currency_rate').insert({code,rate,rate_date:d,source:'manual',note:$('nNote').value||null,created_by_name:myName});
+  const {error}=await sb.from('currency_rate').insert({
+    from_code:from, to_code:to, rate, rate_date:d, rate_at:new Date(d+'T12:00:00').toISOString(),
+    source:'manual', note:$('nNote').value||null, created_by_name:myName
+  });
   $('nSave').disabled=false; $('nSave').textContent='Saqlash';
   if(error){ alert(error.message); return; }
   closeNew(); await load();
 };
 
 window.openAros=async()=>{
-  $('mAros').classList.add('open'); $('aSub').textContent='Yuklanmoqda...'; $('aList').innerHTML=''; $('aRaw').innerHTML='';
-  const out=[];
-  // 1) Aros'da ishlatilayotgan dollar kursi
+  $('mAros').classList.add('open'); $('aSub').textContent='Yuklanmoqda...'; $('aList').innerHTML=''; $('aAll').style.display='none';
   try{
-    const r=await fetch(`${AROS_RATE}?uid=${BUG_UID}&_=${Date.now()}`);
+    const r=await fetch(`${AROS_RATES}?uid=${BUG_UID}&_=${Date.now()}`);
+    if(!r.ok) throw new Error('API '+r.status+(r.status===500?' (kredit ulanmagan / publish qilinmagan?)':''));
     const j=await r.json(); const d=Array.isArray(j)?j[0]:j;
-    if(d && d.rate){
-      window.__arosRate={code:d.code||'USD', rate:Number(d.rate), date:(d.rate_at?String(d.rate_at).slice(0,10):null)};
-      out.push(`<div class="arow">
-        <div class="m"><div class="t">${d.code||'USD'} — Aros ishlatayotgan kurs</div>
-        <div class="s">${d.rate_at?fmtWhen(d.rate_at):'sanasiz'}${d.source_doc?' · '+d.source_doc:''}</div></div>
-        <div class="r">${money(d.rate)}</div>
-        <button class="mini" onclick="importArosRate()">Import</button></div>`);
-    } else {
-      out.push('<div class="arow"><div class="m"><div class="t">Dollar kursi topilmadi</div><div class="s">Aros hujjatlarida kurs yozilmagan</div></div></div>');
-    }
-  }catch(e){ out.push('<div class="arow"><div class="m"><div class="t">Kurs olinmadi</div><div class="s">'+e.message+'</div></div></div>'); }
-
-  // 2) Aros valyutalari (ma'lumot uchun)
-  try{
-    const r=await fetch(`${AROS_CURRENCIES}?uid=${BUG_UID}&_=${Date.now()}`);
-    const j=await r.json(); const d=Array.isArray(j)?j[0]:j;
-    const list=(d && d.currencies)||[];
-    arosCodes=list.map(c=>String(c.code||'').toUpperCase()).filter(Boolean);
-    if(list.length){
-      out.push('<div style="margin-top:14px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em">AROS VALYUTALARI</div>');
-      out.push('<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+list.map(c=>
-        `<span class="badge ${c._raw&&c._raw.is_main?'manual':'aros'}">${c.code}${c._raw&&c._raw.is_main?' · asosiy':''}</span>`).join('')+'</div>');
-      fillCodes();
-    }
-  }catch(e){ /* ignore */ }
-
-  $('aSub').textContent='Aros kursi va valyutalari';
-  $('aList').innerHTML=out.join('');
-  icons();
-};
-window.importArosRate=async()=>{
-  const c=window.__arosRate; if(!c) return;
-  const d=c.date||new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
-  const {error}=await sb.from('currency_rate').insert({code:c.code,rate:c.rate,rate_date:d,source:'aros',created_by_name:myName});
-  if(error){ alert(error.message); return; }
-  closeAros(); showInfo(c.code+' kursi Aros\'dan import qilindi'); await load();
+    if(d && d.error) throw new Error(String(d.error));
+    arosPairs=(d && d.pairs)||[];
+    if(!arosPairs.length){ $('aSub').textContent='Kurs topilmadi'; return; }
+    $('aSub').textContent=arosPairs.length+' ta juftlik · har birining eng oxirgisi';
+    $('aList').innerHTML=arosPairs.map((c,i)=>`<div class="arow">
+      <div class="m"><div class="t">${c.from} → ${c.to}</div><div class="s">${c.at?fmtWhen(c.at):'sanasiz'}</div></div>
+      <div class="r">${money(c.rate)}</div>
+      <button class="mini" onclick="importPair(${i})">Import</button></div>`).join('');
+    $('aAll').style.display='block';
+    icons();
+  }catch(e){ $('aSub').textContent='Xato: '+e.message; }
 };
 window.closeAros=()=>$('mAros').classList.remove('open');
 
+function rowOf(c){
+  const at=c.at?new Date(c.at).toISOString():new Date().toISOString();
+  return { from_code:c.from, to_code:c.to, rate:c.rate, rate_date:at.slice(0,10), rate_at:at, source:'aros', created_by_name:myName };
+}
+window.importPair=async i=>{
+  const c=arosPairs[i]; if(!c) return;
+  const {error}=await sb.from('currency_rate').insert(rowOf(c));
+  if(error){ alert(error.message); return; }
+  closeAros(); showInfo(c.from+' → '+c.to+' import qilindi'); await load();
+};
+window.importAll=async()=>{
+  if(!arosPairs.length) return;
+  $('aAll').disabled=true; $('aAll').textContent='Import...';
+  const {error}=await sb.from('currency_rate').insert(arosPairs.map(rowOf));
+  $('aAll').disabled=false; $('aAll').textContent='Hammasini import';
+  if(error){ alert(error.message); return; }
+  closeAros(); showInfo(arosPairs.length+' ta kurs import qilindi'); await load();
+};
 
 window.delRate=async id=>{
   if(!isAdmin){ alert('Faqat admin o\'chira oladi'); return; }
@@ -327,40 +334,46 @@ window.delRate=async id=>{
   if(error){ alert(error.message); return; } await load();
 };
 
+async function loadCodes(){
+  try{
+    const r=await fetch(`${AROS_CURRENCIES}?uid=${BUG_UID}&_=${Date.now()}`);
+    const j=await r.json(); const d=Array.isArray(j)?j[0]:j;
+    const list=(d && d.currencies)||[];
+    const cs=list.map(c=>String(c.code||'').toUpperCase()).filter(Boolean);
+    if(cs.length) codes=cs;
+  }catch(e){ /* default codes */ }
+}
+
 async function load(){
   const {data:curs}=await sb.from('v_current_rate').select('*');
   const list=(curs||[]).slice().sort(function(a,b){
-    if(a.code==='USD') return -1; if(b.code==='USD') return 1;
-    return String(a.code).localeCompare(String(b.code));
+    if(a.from_code==='USD'&&b.from_code!=='USD') return -1;
+    if(b.from_code==='USD'&&a.from_code!=='USD') return 1;
+    return (a.from_code+a.to_code).localeCompare(b.from_code+b.to_code);
   });
   $('rateStrip').innerHTML = list.length ? list.map(function(c){
-    return '<div class="rcard"><div class="top"><span class="code">'+c.code+'</span>'
+    return '<div class="rcard"><div class="top"><span class="code">'+c.from_code+' → '+c.to_code+'</span>'
       + '<span class="badge '+c.source+'">'+(c.source==='aros'?'Aros':"Qo'lda")+'</span></div>'
       + '<div class="v">'+money(c.rate)+'</div>'
-      + '<div class="c">1 '+c.code+' = '+money(c.rate)+" so'm · "+fmtWhen(c.rate_date)
-      + (c.created_by_name?' · '+c.created_by_name:'')+'</div></div>';
-  }).join('') : '<div class="empty" style="grid-column:1/-1">Hali kurs kiritilmagan — "Yangi kurs" bilan qo\'shing</div>';
+      + '<div class="c">'+fmtWhen(c.rate_at||c.rate_date)+(c.created_by_name?' · '+c.created_by_name:'')+'</div></div>';
+  }).join('') : '<div class="empty" style="grid-column:1/-1">Hali kurs yo\'q — "Aros\'dan" yoki "Yangi kurs" bilan qo\'shing</div>';
 
-  const {data,error}=await sb.from('currency_rate').select('*').order('rate_date',{ascending:false}).order('created_at',{ascending:false}).limit(60);
+  const {data,error}=await sb.from('currency_rate').select('*')
+    .order('rate_at',{ascending:false}).order('created_at',{ascending:false}).limit(80);
   if(error){ showErr('Xato: '+error.message); return; }
-  history=data||[];
-  if(!history.length){ $('tb').innerHTML='<tr><td colspan="5" class="empty">Hali kurs yo\'q — "Yangi kurs" bilan qo\'shing</td></tr>'; return; }
-  $('tb').innerHTML=history.map(r=>`<tr>
-    <td class="f">${fmtWhen(r.rate_date)}</td>
-    <td>${r.code}</td>
+  const h=data||[];
+  if(!h.length){ $('tb').innerHTML='<tr><td colspan="6" class="empty">Hali kurs yo\'q</td></tr>'; return; }
+  $('tb').innerHTML=h.map(r=>`<tr>
+    <td class="f">${fmtWhen(r.rate_at||r.rate_date)}</td>
+    <td>${r.from_code}</td>
+    <td>${r.to_code}</td>
     <td class="n">${money(r.rate)}</td>
     <td><span class="badge ${r.source}">${r.source==='aros'?'Aros':"Qo'lda"}</span></td>
     <td class="act">${isAdmin?`<button class="mini" onclick="delRate('${r.id}')">O'chirish</button>`:''}</td></tr>`).join('');
   icons();
 }
 
-function fillCodes(){
-  if(!arosCodes.length) return;
-  const sel=$('nCode'); const cur=sel.value;
-  sel.innerHTML=arosCodes.map(c=>`<option value="${c}">${c}</option>`).join('');
-  if(arosCodes.indexOf(cur)!==-1) sel.value=cur;
-}
-async function init(){ await loadRole(); await load(); }
+async function init(){ await loadRole(); loadCodes(); await load(); }
 </script>
 </body>
 </html>
