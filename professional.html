@@ -86,6 +86,13 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* kassa-chips */
+  .kgrp{margin-bottom:14px}
+  .kgh{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px}
+  .kchip .sub{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .kchip.usd{border-color:var(--primary)}
+  .kchip.usd .v{color:var(--primary)}
+  /* /kassa-chips */
 </style>
 </head>
 <body>
@@ -108,6 +115,7 @@
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
     </nav>
     <div class="side-foot">
@@ -126,7 +134,7 @@
     </div>
     <div id="banner" class="banner"></div>
 
-    <div class="kassa-strip" id="kassalar"></div>
+    <div id="kassalar"></div>
 
     <div class="card">
       <label>Sana</label><input class="txt" id="sana" type="date">
@@ -159,6 +167,7 @@
       <h3>Ko'proq</h3>
       <a href="professional.html" class="active"><i data-lucide="list-plus"></i>Professional</a>
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
@@ -240,9 +249,31 @@ window.save=async()=>{
   lines=[]; $('izoh').value=''; addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
 };
-async function loadKassalar(){ const {data,error}=await sb.from('v_kassa_qoldiq').select('*'); if(error) return;
+// kassa-chips
+const KT_LBL={markaziy:'Markaziy kassalar',filial:'Filial kassalari',xarajat:'Xarajat kassalar'};
+const KT_ORD=['markaziy','xarajat'];
+const ktLbl=t=>KT_LBL[t]||(t?String(t).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'Boshqa');
+async function loadKassalar(){
   const el=document.getElementById('kassalar'); if(!el) return;
-  el.innerHTML=(data||[]).map(r=>`<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.qoldiq)}</div></div>`).join(''); icons(); }
+  const {data,error}=await sb.from('v_kassa_toliq').select('*').order('code');
+  if(error){ el.innerHTML=''; return; }
+  // Filial kassalari chiplarda emas, faqat dropdownda ko'rinadi.
+  const list=(data||[]).filter(r=>r.kassa_turi!=='filial');
+  if(!list.length){ el.innerHTML=''; return; }
+  const ord=t=>{ const i=KT_ORD.indexOf(t); return i<0?99:i; };
+  const turlar=[...new Set(list.map(r=>r.kassa_turi))].sort((a,b)=>ord(a)-ord(b)||String(a).localeCompare(String(b)));
+  el.innerHTML=turlar.map(t=>{
+    const chips=list.filter(r=>r.kassa_turi===t).map(r=>{
+      const usd=r.currency==='USD';
+      // uzs — daftar qoldig'i (tarixiy kursda), joriy kursda emas
+      const sub=usd?`<div class="sub">≈ ${money(r.uzs)} so'm</div>`:'';
+      return `<div class="kchip${usd?' usd':''}"><div class="top"><i data-lucide="${usd?'banknote':'wallet'}"></i>${r.name}</div><div class="v">${usd?money(r.usd)+' $':money(r.uzs)}</div>${sub}</div>`;
+    }).join('');
+    return `<div class="kgrp"><div class="kgh">${ktLbl(t)}</div><div class="kassa-strip">${chips}</div></div>`;
+  }).join('');
+  icons();
+}
+// /kassa-chips
 async function init(){
   $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
   await loadKassalar();

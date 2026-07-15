@@ -3,20 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aros Provodka — Sozlamalar</title>
+<title>Aros Provodka — Konvert</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest"></script>
 <style>
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
+  .num,.rq .amt,.rq .kv b,.rq .usd{font-variant-numeric:tabular-nums}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   #app{display:none}.sidebar{display:none}
-  .main{padding:22px 26px 40px;max-width:720px;margin:0 auto}
+  .main{padding:22px 26px 40px;max-width:900px;margin:0 auto}
   @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
   .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
@@ -26,33 +27,41 @@
   .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
   .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
   .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .role-badge{font-size:11px;color:var(--muted);padding:4px 12px 8px;font-weight:500}
   .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
-  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
-  .sec{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
-  .seg{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;margin-bottom:14px;gap:2px}
-  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 0;border-radius:9px;cursor:pointer;transition:background .13s,color .13s}
-  .seg button:hover{color:var(--ink)}.seg button.on{background:var(--primary);color:#fff}
-  .addrow{display:flex;gap:10px}
-  .addrow input{flex:1;height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:0 13px;font-size:15px;font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
-  .addrow input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .addrow button{height:46px;padding:0 20px;border:none;border-radius:11px;background:var(--primary);color:#fff;font-size:15px;font-weight:600;font-family:inherit;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .13s,transform .12s}
-  .addrow button svg{width:17px;height:17px}.addrow button:hover{background:var(--primary-hover);transform:translateY(-1px)}
-  .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
-  .item:last-child{border-bottom:none}
-  .item .mid{flex:1;min-width:0}.item .mid .t{font-size:15px;font-weight:600}.item .mid .c{font-size:12px;color:var(--muted);margin-top:2px}
-  .item.off .mid{opacity:.4}
-  .item .edit{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:7px;display:flex;cursor:pointer;transition:background .13s,color .13s}
-  .item .edit svg{width:16px;height:16px}.item .edit:hover{background:var(--primary-soft);color:var(--primary)}
-  .sw{position:relative;width:44px;height:26px;flex:0 0 auto}
-  .sw input{opacity:0;width:0;height:0}
-  .sw span{position:absolute;inset:0;background:var(--line);border-radius:26px;transition:.2s;cursor:pointer}
-  .sw span:before{content:"";position:absolute;width:22px;height:22px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-  .sw input:checked+span{background:var(--green)}.sw input:checked+span:before{transform:translateX(18px)}
-  .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:4px;align-items:center}
+  .sec{font-size:13px;color:var(--muted);margin:0 0 12px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .rq{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .rq.pending{border-left:3px solid var(--amber)}
+  .rq.done{border-left:3px solid var(--green)}
+  .rq.rejected{border-left:3px solid var(--red)}
+  .rq .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .rq .amt{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .rq .usd{font-size:13.5px;color:var(--muted);font-weight:600;margin-left:7px}
+  .st{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 11px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .st svg{width:12px;height:12px}
+  .st.pending{background:var(--amber-soft);color:var(--amber)}
+  .st.done{background:var(--green-soft);color:var(--green)}
+  .st.rejected{background:var(--red-soft);color:var(--red)}
+  .rq .grid{display:grid;grid-template-columns:1fr;gap:7px;font-size:13.5px}
+  @media(min-width:640px){.rq .grid{grid-template-columns:1fr 1fr}}
+  .rq .kv{display:flex;justify-content:space-between;gap:10px;color:var(--muted)}
+  .rq .kv b{color:var(--ink);font-weight:600;text-align:right}
+  .rq .kv b.warn{color:var(--amber)}
+  .rq .note{font-size:13px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--line);line-height:1.5}
+  .rq .acts{display:flex;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+  .rq .acts button{flex:1;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .13s,color .13s,border-color .13s}
+  .rq .acts button svg{width:16px;height:16px}
+  .rq .acts button:disabled{opacity:.5;cursor:not-allowed}
+  .rq .acts .ok{background:var(--primary);border-color:var(--primary);color:#fff}
+  .rq .acts .ok:hover:not(:disabled){background:var(--primary-hover)}
+  .rq .acts .no:hover:not(:disabled){background:var(--red-soft);border-color:var(--red);color:var(--red)}
+  .empty{color:var(--muted);text-align:center;padding:30px;font-size:14px;border:1px dashed var(--line);border-radius:13px}
+  .note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.55}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
@@ -100,9 +109,10 @@
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
-      <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
-      <a class="nav-item active" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item active" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
     </nav>
+    <div class="role-badge" id="roleBadge"></div>
     <div class="side-foot">
       <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
       <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
@@ -111,7 +121,7 @@
 
   <main class="main">
     <div class="page-head">
-      <h1>Sozlamalar</h1>
+      <h1>Konvert</h1>
       <div class="head-actions mobile-only">
         <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
         <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -119,23 +129,13 @@
     </div>
     <div id="banner" class="banner"></div>
 
-    <div class="card">
-      <div class="sec">Yangi qo'shish</div>
-      <div class="seg">
-        <button id="tKassa" class="on" onclick="setType('kassa')">Kassa</button>
-        <button id="tXarajat" onclick="setType('xarajat')">Xarajat</button>
-        <button id="tDaromad" onclick="setType('daromad')">Daromad</button>
-      </div>
-      <div class="addrow">
-        <input id="newName" placeholder="Nomi (masalan: Giyos kassa)">
-        <button onclick="addAcc()"><i data-lucide="plus"></i>Qo'shish</button>
-      </div>
+    <div id="pendWrap" style="display:none">
+      <div class="sec">Tasdiq kutmoqda</div>
+      <div id="pend"></div>
     </div>
-
-    <div class="card"><div class="sec">Kassalar</div><div id="listKassa"></div></div>
-    <div class="card"><div class="sec">Xarajat kategoriyalari</div><div id="listXarajat"></div></div>
-    <div class="card"><div class="sec">Daromad turlari</div><div id="listDaromad"></div></div>
-    <div class="card"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
+    <div class="sec" id="histSec">Tarix</div>
+    <div id="hist"></div>
+    <div class="note" id="foot"></div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -154,8 +154,8 @@
       <h3>Ko'proq</h3>
       <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
-      <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
-      <a href="sozlama.html" class="active"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="konvert.html" class="active"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -169,7 +169,14 @@ const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-let accounts=[], curType='kassa';
+const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
+const usdFmt=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+' $';
+const fmtWhen=x=>{ if(!x) return ''; try{ return new Date(x).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
+const ST_LBL={pending:'Kutilmoqda',done:'Bajarildi',rejected:'Rad etildi',approved:'Tasdiqlandi'};
+const ST_IC={pending:'clock',done:'check',rejected:'x',approved:'check'};
+const stLbl=s=>ST_LBL[s]||(s?String(s).replace(/_/g,' '):'—');
+let isAdmin=false, myName='', accById={};
+
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -187,48 +194,82 @@ function enterApp(){ $('gate').style.display='none'; $('app').style.display='blo
 async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
 boot();
 
-window.setType=t=>{ curType=t;
-  $('tKassa').className=t==='kassa'?'on':''; $('tXarajat').className=t==='xarajat'?'on':''; $('tDaromad').className=t==='daromad'?'on':'';
-  $('newName').placeholder=t==='kassa'?'Nomi (masalan: Giyos kassa)':t==='xarajat'?'Nomi (masalan: Bonus)':'Nomi (masalan: Xizmat tushumi)';
-};
-function nextCode(prefix,start){ const nums=accounts.map(a=>parseInt(a.code,10)).filter(n=>!isNaN(n)&&String(n).startsWith(prefix));
-  return String(nums.length?Math.max(...nums)+1:start); }
-window.addAcc=async()=>{
-  const name=$('newName').value.trim(); if(!name){ alert('Nom kiriting'); return; }
-  // section yozilmasa NULL qoladi → balans/hisobotdan tushib qoladi
-  let dbType,code,section;
-  if(curType==='kassa'){ dbType='aktiv'; code=nextCode('50',5011); section='pul'; }
-  if(curType==='xarajat'){ dbType='xarajat'; code=nextCode('94',9421); section='operatsion'; }
-  if(curType==='daromad'){ dbType='daromad'; code=nextCode('90',9011); section='tushum'; }
-  const {error}=await sb.from('accounts').insert({code,name,type:dbType,section});
-  if(error){ alert(error.message); return; } $('newName').value=''; await load();
-};
-window.renameAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
-  const name=prompt('Yangi nom:',a.name); if(!name||name.trim()===a.name) return;
-  const {error}=await sb.from('accounts').update({name:name.trim()}).eq('id',id); if(error){ alert(error.message); return; } await load();
-};
-window.toggleAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
-  const {error}=await sb.from('accounts').update({is_active:!a.is_active}).eq('id',id); if(error){ alert(error.message); } await load();
-};
-function renderList(elId,arr){
-  $(elId).innerHTML=arr.length?arr.map(a=>`
-    <div class="item ${a.is_active?'':'off'}">
-      <div class="mid"><div class="t">${a.name}</div><div class="c">${a.code}</div></div>
-      <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
-      <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
-    </div>`).join(''):'<div class="empty">—</div>';
+async function loadRole(){
+  const {data:{user}}=await sb.auth.getUser(); myName=user?.email||'foydalanuvchi';
+  const {data:p}=await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle();
+  if(p){ isAdmin=(p.role==='admin'); if(p.full_name) myName=p.full_name; }
+  $('roleBadge').textContent=(isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
+const accName=id=>accById[id]?accById[id].name:'—';
+// Farq foizi so'rov paytidagi Aros kursidan hisoblanadi
+function farqPct(r){
+  const a=Number(r.aros_rate)||0, k=Number(r.rate)||0;
+  if(!a||!k) return null;
+  return (k-a)/a*100;
+}
+function card(r){
+  const st=String(r.status||'');
+  const pct=farqPct(r);
+  const pctTxt=pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%';
+  const chiqib=pct!==null&&Math.abs(pct)>2;
+  const acts=(isAdmin&&st==='pending')?`<div class="acts">
+      <button class="ok" onclick="approve('${r.id}')"><i data-lucide="check"></i>Tasdiqlash</button>
+      <button class="no" onclick="reject('${r.id}')"><i data-lucide="x"></i>Rad etish</button>
+    </div>`:'';
+  const decided=(st!=='pending'&&r.decided_by_name)?`<div class="note">${stLbl(st)}: ${r.decided_by_name} · ${fmtWhen(r.decided_at)}</div>`:'';
+  const note=r.note?`<div class="note">${r.note}</div>`:'';
+  return `<div class="rq ${st}">
+    <div class="hd">
+      <div><span class="amt">${money(r.amount)}</span><span class="usd">→ ${usdFmt(r.fc_amount)}</span></div>
+      <span class="st ${st}"><i data-lucide="${ST_IC[st]||'circle'}"></i>${stLbl(st)}</span>
+    </div>
+    <div class="grid">
+      <div class="kv"><span>Kimdan</span><b>${accName(r.from_account)}</b></div>
+      <div class="kv"><span>Kimga</span><b>${accName(r.to_account)}</b></div>
+      <div class="kv"><span>Kurs</span><b>${money(r.rate)}</b></div>
+      <div class="kv"><span>Aros kursi</span><b>${r.aros_rate?money(r.aros_rate):'—'}</b></div>
+      <div class="kv"><span>Farq</span><b class="${chiqib?'warn':''}">${pctTxt}</b></div>
+      <div class="kv"><span>So'radi</span><b>${r.requested_by_name||'—'} · ${fmtWhen(r.requested_at)}</b></div>
+    </div>${note}${decided}${acts}</div>`;
+}
+window.approve=async id=>{
+  if(!confirm('Bu konvert tasdiqlansinmi? Pul harakat qiladi.')) return;
+  const {data,error}=await sb.rpc('convert_approve',{p_id:id});
+  if(error){ showErr(error.message); return; }
+  if(data&&data.ok===false){ showErr(data.error||'Tasdiqlab bo\'lmadi'); return; }
+  await load();
+};
+window.reject=async id=>{
+  const note=prompt('Rad etish sababi:'); if(note===null) return;
+  const {data,error}=await sb.rpc('convert_reject',{p_id:id,p_note:note||null});
+  if(error){ showErr(error.message); return; }
+  if(data&&data.ok===false){ showErr(data.error||'Rad etib bo\'lmadi'); return; }
+  await load();
+};
+function showErr(m){ $('banner').style.display='block'; $('banner').textContent='Xato: '+m; }
 async function load(){
-  const {data,error}=await sb.from('accounts').select('*').order('code');
-  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
-  accounts=data||[];
-  renderList('listKassa',accounts.filter(a=>a.type==='aktiv'&&a.code.startsWith('5')));
-  renderList('listXarajat',accounts.filter(a=>a.type==='xarajat'));
-  renderList('listDaromad',accounts.filter(a=>a.type==='daromad'));
-  renderList('listBoshqa',accounts.filter(a=>!(a.type==='aktiv'&&a.code.startsWith('5'))&&a.type!=='xarajat'&&a.type!=='daromad'));
+  $('banner').style.display='none';
+  // RLS hal qiladi: admin hammasini, oddiy user faqat o'zinikini ko'radi
+  const {data,error}=await sb.from('convert_request').select('*').order('requested_at',{ascending:false}).limit(100);
+  if(error){ showErr(error.message); return; }
+  const rows=data||[];
+  const pend=rows.filter(r=>r.status==='pending');
+  const rest=rows.filter(r=>r.status!=='pending');
+  $('pendWrap').style.display=pend.length?'block':'none';
+  $('pend').innerHTML=pend.map(card).join('');
+  $('hist').innerHTML=rest.length?rest.map(card).join('')
+    :`<div class="empty">${rows.length?'Boshqa so\'rov yo\'q':'Hali konvert so\'rovi yo\'q'}</div>`;
+  $('foot').textContent=isAdmin
+    ? "Kurs Aros kursidan ±2% dan ko'p farq qilsa so'rov tasdiqqa tushadi. Tasdiqlangunicha pul harakat qilmaydi."
+    : "Bu yerda o'z so'rovlaringiz holati ko'rinadi. Tasdiqlashni admin bajaradi.";
   icons();
 }
-function init(){ load(); }
+async function init(){
+  await loadRole();
+  const {data:accs}=await sb.from('v_kassa_toliq').select('id,name');
+  accById={}; (accs||[]).forEach(a=>{ accById[a.id]=a; });
+  await load();
+}
 </script>
 </body>
 </html>

@@ -22,6 +22,7 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 | `qarzdor.html` | Debitor (4010) / kreditor (6010) |
 | `filial.html` | Filiallarda turgan jonli pul |
 | `valyuta.html` | Valyuta kurslari (juftlik: from → to) |
+| `konvert.html` | Konvert so'rovlari: pending + tarix, admin tasdiqlaydi/rad etadi |
 | `sozlama.html` | Hisob rejasi boshqaruvi |
 
 Har fayl mustaqil: o'z login gate'i, sidebar/bnav navigatsiyasi, Supabase klienti bor.
@@ -78,6 +79,25 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
 - `pul_qoldiq(p_date, p_account uuid default null)` → numeric. Davr boshi = `pul_qoldiq(p_from − 1 kun)`,
   `p_from` emas. Tekshiruv: `pul_qoldiq(p_to) − pul_qoldiq(p_from−1)` = sum(KIRIM) − sum(CHIQIM).
   **`p_account` uchala chaqiruvga ham bir xil berilishi shart**, aks holda tekshiruv mos kelmaydi.
+
+Konvert RPC'lari:
+- `aros_usd_rate()` → **oddiy numeric** (koridor emas). Koridor frontendda: `lo=rate*0.98`, `hi=rate*1.02`.
+  **null bo'lishi mumkin** (Valyuta bo'limida "Aros'dan" import qilinmagan bo'lsa) — UI shuni ko'tarishi kerak.
+- `convert_start(p_from, p_to, p_amount, p_rate, p_note)` → json:
+  `{ok:true, status:'done'}` — bajarildi; `{ok:false, status:'pending', request_id, aros_rate, lo, hi}` — tasdiq
+  kutilmoqda, **pul harakat qilmagan**; `{ok:false, error}` — xato. Kurs koridordan chiqsa UI **bloklamaydi**,
+  faqat sariq qiladi — qarorni server qabul qiladi.
+- `convert_approve(p_id)`, `convert_reject(p_id, p_note)` — faqat admin.
+
+`convert_request`: `id, from_account, to_account, amount (so'm), rate (1$ necha so'm), fc_amount (dollar),
+aros_rate (so'rov paytidagi — farq foizi shundan), status, note, requested_by_name, requested_at,
+decided_by_name, decided_at, entry_id`.
+
+`v_kassa_toliq`: `id, code, name, currency, kassa_turi, parent_id, uzs, usd`.
+- `uzs` — daftar qoldig'i so'mda. Dollar kassasi uchun ham shu maydon so'm ekvivalenti, lekin **tarixiy
+  kursda** (sotib olingan paytdagi), joriy kursda emas — kursga qayta ko'paytirma.
+- `usd` — dollar miqdori, so'm kassalarida `null`. `parent_id` — dollar kassasini so'm kassasiga bog'laydi.
+- **Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi** (`kassa_turi<>'filial'`).
 
 `p_account` semantikasi (ikki xil, ikkalasi ham to'g'ri):
 - **null = hamma kassalar** → kassalararo transfer chiqib ketadi (ichki harakat, net=0).
@@ -144,5 +164,12 @@ Boshqa workflowlar: `aros-filial-live` + `aros-currencies` (`lco21f7pUcKPpNVU`),
   sed -n '/<script type="module">/,/<\/script>/p' fayl.html | sed '1d;$d' > /tmp/x.mjs
   node --check /tmp/x.mjs
   ```
+  **Diqqat:** bu `sed` faqat BIRINCHI `</script>` gacha o'qiydi — undan keyingi buzilgan qismni
+  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **har faylda aniq 2 ta**
+  (lucide CDN + module). 2 dan ko'p bo'lsa fayl buzilgan.
+- **Skript bilan ommaviy tahrir qilganda `str.replace(re, string)` ISHLATMA — `replace(re, () => string)`
+  ishlat.** String almashtirishda `$'` "moslikdan keyingi hamma narsa", `$&` "moslikning o'zi",
+  `$1` guruh degani. Kodimizda `+' $':money(...)` bor — ya'ni `$'` — va u jimgina faylning butun
+  qolgan qismini shablon o'rtasiga qistiradi. `node --check` buni sezmaydi (yuqoridagi sabab).
 - Dizaynni bir faylda o'zgartirsang, qolgan 6 tasiga ham tushir (aks holda ular ajralib qoladi).
 - SQL DDL'ni Asilbek o'zi RUN qiladi — SQL yozib ber, o'zing bajarma.
