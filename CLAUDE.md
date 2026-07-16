@@ -14,7 +14,8 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 
 | Fayl | Vazifa |
 |------|--------|
-| `provodka.html` | Kiritish: Kirim / Chiqim / Transfer + jurnal |
+| `jurnal.html` | Jurnal: sana/hisob/tur/qidiruv filtri + tahrir/o'chirish (`jurnal()`) |
+| `provodka.html` | Kiritish: Kirim / Chiqim / Transfer + jurnal — **navigatsiyadan yashirilgan** |
 | `professional.html` | Qo'lda ko'p satrli Dt/Kt yozuv |
 | `kassa.html` | Hamma kassa qoldig'i guruh-guruh + **Konvert** tugmasi |
 | `hisobot.html` | P&L zinapoyasi (`pnl()`), xarajat taqsimoti, aylanma-saldo |
@@ -29,8 +30,13 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 Har fayl mustaqil: o'z login gate'i, sidebar/bnav navigatsiyasi, Supabase klienti bor.
 Dizayn tizimi hamma faylda takrorlanadi (CSS o'zgaruvchilari bir xil).
 
-Navigatsiya 11 faylda ham bir xil bo'lishi shart: **sidebar 11 ta**, **bnav 6 ta + "Ko'proq"**,
+Navigatsiya 12 faylda ham bir xil bo'lishi shart: **sidebar 11 ta**, **bnav 6 ta + "Ko'proq"**,
 **sheet 5 ta**. Faqat `active` klassi farq qiladi.
+
+**`provodka.html` navigatsiyada yo'q** — fayl turibdi va ishlaydi, faqat unga hech qayerdan
+havola yo'q (to'g'ridan-to'g'ri URL bilan ochiladi). O'zida ham `active` element yo'q — normal.
+Uni qaytarganda: sidebar+bnav'ga "Kiritish" (`circle-plus`) qo'shiladi va sanoq 12/7 bo'ladi.
+Sidebar/bnav'dagi 1-o'rin hozir "Jurnal" (`scroll-text`).
 
 **Sidebar `min-width:900px` da ko'rinadi — mobil'da u umuman yo'q.** Shuning uchun bnav'ga
 sig'magan sahifalar (Professional, Kassa, Valyuta, Konvert, Sozlamalar) `#moreModal` sheet'iga tushadi
@@ -72,7 +78,23 @@ Viewlar: `v_hisob_qoldiq`, `v_kassa_qoldiq` (filiallarni chiqarib tashlaydi),
 Kartada katta raqam = `jami`; taqsimot satri (`uzs` so'm · `usd` $) faqat `usd > 0` bo'lsa chiqadi.
 Tanlash (dropdown/konvert) uchun **`v_kassa_toliq`** kerak — u har hisobni alohida qator qilib beradi.
 
+`v_hisob_royxat` — `jurnal.html`dagi hisob filtri (optgroup). Guruhlash tartibi muhim,
+**birinchi moslik yutadi**: `kassa_turi` ('markaziy'|'filial'|'xarajat') → `section='tovar'` (Omborlar)
+→ `type` ('daromad'|'xarajat') → Boshqa. `kassa_turi='xarajat'` (Xarajat **kassalar**) va
+`type='xarajat'` (Xarajat **moddasi**) — ikki xil guruh, birinchisi oldin tekshiriladi.
+
 RPC: `sync_filial_balances(jsonb)`, `sync_received_transfers(jsonb)`, `acc_balance(uuid)`.
+
+Jurnal RPC'lari (`jurnal.html`):
+- `jurnal(p_from date, p_to date, p_account uuid default null, p_limit int default 100,
+  p_offset int default 0)` → **jsonb massiv**. Har element: `{id, entry_date, description, source,
+  is_deleted, deleted_by_name, deleted_at, edited_at, edited_by_name, created_at, lines:[...]}`.
+  `lines` element: `{id, account_id, code, name, section, currency, debit, credit, fc_amount}`.
+  **`lines` ichida Dt birinchi keladi.**
+- `jurnal_count(p_from, p_to, p_account)` → int. Sahifalash uchun jami son (`p_limit`/`p_offset`siz).
+- **Tur va qidiruv filtri klientda** — server faqat sana + hisob bo'yicha filtrlaydi. Shuning uchun
+  ular faqat **yuklangan** qatorlarga ta'sir qiladi; `jurnal_count` esa serverdagi to'liq sonni beradi.
+  Sanoq satri shuni ochiq yozadi ("N ta ko'rsatilmoqda · yuklangan M / jami K").
 
 Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
 - `balans(p_date)` → `bolim` ('AKTIV'|'PASSIV'|'KAPITAL'), `section`, `code`, `name`, `amount`.
@@ -125,6 +147,26 @@ decided_by_name, decided_at, entry_id`.
   aks holda yetim sarlavha qolib ketadi.
 - **Tahrir faqat 2 satrli yozuvga.** Qalam tugmasi `entry_line.length===2` bo'lsagina chiqadi.
   `professional.html`dagi ko'p satrli yozuvni o'chirish mumkin, tahrirlash mumkin emas.
+  `jurnal.html`da yana bitta shart bor: **kamida bir tomon pul bo'lsin** (`isPul(dt)||isPul(kt)`).
+  Tahrir modali faqat Kirim/Chiqim/Transfer shaklini biladi — 4-holatni (ombor → tannarx) u
+  ifodalay olmaydi va saqlansa yozuvni kassa yozuviga aylantirib yuboradi. Shuning uchun
+  neytral yozuvda faqat 🗑 chiqadi.
+
+### Jurnal tasnifi — 4 holat
+
+Yozuv turi **`section='pul'`** bo'yicha aniqlanadi, **kod prefiksi (`5xxx`) bilan EMAS**
+(`jurnal.html` → `klass()`). Kod prefiksi eski usul — yangi kodda ishlatma.
+
+| Dt | Kt | Tur | Ko'rinish | Ishora |
+|----|----|-----|-----------|--------|
+| pul | pul | Transfer | ko'k ⇄ | yo'q |
+| pul | pul emas | Kirim | yashil ↙ | `+` |
+| pul emas | pul | Chiqim | qizil ↗ | `−` |
+| pul emas | pul emas | Neytral | kulrang → | yo'q |
+
+Neytral sarlavha = `<Kt nomi> → <Dt nomi>` (masalan "Chilonzor ombori → Tovar tannarxi").
+Transfer sarlavhasi ham shu shaklda. **Ikkitadan ko'p satrli** yozuv (Professional'dan) — satrlari
+ro'yxat qilib ko'rsatiladi, ishorasiz, "Boshqa" turiga kiradi.
 
 ## Avtomatik sinxron (n8n)
 
