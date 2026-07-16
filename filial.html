@@ -60,6 +60,27 @@
   .ok{display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:12.5px;font-weight:600}
   .ok svg{width:14px;height:14px}
   .empty{color:var(--muted);text-align:center;padding:34px;font-size:14px}
+  /* tab + foyda */
+  .seg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-bottom:18px}
+  .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
+  .seg button:hover{color:var(--ink)}
+  .seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .pane{display:none}.pane.on{display:block}
+  .filters{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow);margin-bottom:18px}
+  .filters label{margin:0 0 7px 2px}
+  .dates{display:flex;gap:8px;align-items:center}
+  .dates .txt{width:auto;flex:1;min-width:0;margin-bottom:0}
+  .dash{color:var(--muted);flex:0 0 auto}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .quick button{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
+  .quick button:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .scroll{overflow-x:auto}
+  .scroll table{min-width:720px}
+  tr.tot td{font-weight:800;border-bottom:2px solid var(--line)}
+  tr.unalloc td{color:var(--muted)}tr.unalloc td.f{font-weight:600}
+  .badge{display:inline-block;padding:2px 8px;border-radius:7px;background:var(--surface-2);color:var(--muted);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .badge.pos{background:var(--green-soft);color:var(--green)}.badge.neg{background:var(--red-soft);color:var(--red)}
+  /* /tab + foyda */
   .banner{border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .banner.err{background:var(--red-soft);color:var(--red)}
   .banner.info{background:var(--amber-soft);color:var(--amber)}
@@ -154,9 +175,15 @@
       </div>
     </div>
 
+    <div class="seg" id="tabSeg">
+      <button class="on" onclick="setTab('live',this)">Jonli pul</button>
+      <button onclick="setTab('pnl',this)">Filial foydasi</button>
+    </div>
+
     <div id="err" class="banner err"></div>
     <div id="info" class="banner info"></div>
 
+    <div class="pane on" id="paneLive">
     <div class="hero">
       <div class="k"><i data-lucide="wallet"></i>Filiallarda turgan jami pul</div>
       <div class="v" id="sBug">—</div>
@@ -171,6 +198,29 @@
       </table>
     </div>
     <div class="note">Har filial kassasidagi jonli qoldiq — naqd + Click + Payme + dollar. Dollar Provodka'dagi joriy kurs bo'yicha hisoblanadi (Valyuta bo'limi). To'g'ridan-to'g'ri Aros'dan olinadi, cache emas. Toshkent va Qashqadaryo markaziy kassalari bu yerga kirmaydi.</div>
+    </div>
+
+    <div class="pane" id="panePnl">
+      <div class="filters">
+        <label>Sana oralig'i</label>
+        <div class="dates"><input class="txt" id="pFrom" type="date"><span class="dash">—</span><input class="txt" id="pTo" type="date"></div>
+        <div class="quick">
+          <button onclick="setRange('bugun')">Bugun</button>
+          <button onclick="setRange('hafta')">Shu hafta</button>
+          <button onclick="setRange('oy')">Shu oy</button>
+          <button onclick="setRange('otgan')">O'tgan oy</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="scroll"><table>
+          <thead><tr><th>Filial</th><th>Tushum</th><th>Tannarx</th><th>Yalpi foyda</th><th>Yalpi %</th><th>Xarajat</th><th>Sof foyda</th></tr></thead>
+          <tbody id="ptb"><tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr></tbody>
+        </table></div>
+      </div>
+      <div class="note">Sof foyda = Tushum − Tannarx − Xarajat. Sof foyda bo'yicha saralangan.
+        <b>Taqsimlanmagan</b> — hech qaysi filialga bog'lanmagan xarajatlar (ofis ijarasi, markaziy oylik kabi);
+        ular jamiga kiradi, lekin filial foydasidan chegirilmagan.</div>
+    </div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -210,7 +260,8 @@ const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-let rows=[], isAdmin=false, myName='', usedRate=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let rows=[], isAdmin=false, myName='', usedRate=null, tab='live', pnlLoaded=false;
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -314,7 +365,76 @@ function render(meta){
   icons();
 }
 
-async function init(){ await loadRole(); await loadSnapshot(); }
+/* ---- Filial foydasi ---- */
+window.setTab=(k,btn)=>{ tab=k;
+  [...$('tabSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  $('paneLive').classList.toggle('on',k==='live'); $('panePnl').classList.toggle('on',k==='pnl');
+  $('syncBtn').style.display=k==='live'?'inline-flex':'none';
+  if(k==='pnl'&&!pnlLoaded){ pnlLoaded=true; loadPnl(); }
+};
+
+// sana — UZB (UTC+5)
+const nowUz=()=>new Date(Date.now()+5*3600*1000);
+const iso=d=>d.toISOString().slice(0,10);
+window.setRange=k=>{
+  const n=nowUz(); let f,t=iso(n);
+  if(k==='bugun') f=t;
+  else if(k==='hafta'){ const d=new Date(n.getTime()); const dow=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-dow); f=iso(d); }
+  else if(k==='oy') f=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
+  else { f=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()-1,1)));
+         t=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),0))); }
+  $('pFrom').value=f; $('pTo').value=t; loadPnl();
+};
+
+// tushum 0 bo'lsa foiz ma'nosiz — SQL bergan qiymatni olamiz, bo'lmasa o'zimiz hisoblaymiz
+function foizOf(r,yal,tush){
+  if(!(tush>0)) return null;
+  const v=Number(r.yalpi_foiz);
+  return (r.yalpi_foiz===null||r.yalpi_foiz===undefined||!isFinite(v)) ? yal/tush*100 : v;
+}
+function cls(v){ return v>0?'pos':(v<0?'neg':'zero'); }
+function pnlRow(r,opts){
+  const o=opts||{};
+  const tush=Number(r.tushum)||0, tan=Number(r.tannarx)||0, yal=Number(r.yalpi)||0,
+        xar=Number(r.xarajat)||0, sof=Number(r.sof)||0;
+  const fp=foizOf(r,yal,tush);
+  const badge=fp===null?'<span class="badge">—</span>':`<span class="badge ${o.plain?'':cls(fp)}">${fp.toFixed(1)}%</span>`;
+  const c=v=>o.plain?'':cls(v);
+  return `<tr class="${o.rowCls||''}">
+    <td class="f">${esc(r.filial||'—')}${o.sub?`<div class="c">${esc(o.sub)}</div>`:''}</td>
+    <td class="n">${money(tush)}</td><td class="n">${money(tan)}</td>
+    <td class="n ${c(yal)}">${money(yal)}</td><td class="n">${badge}</td>
+    <td class="n">${money(xar)}</td><td class="n ${c(sof)}">${money(sof)}</td></tr>`;
+}
+
+async function loadPnl(){
+  const from=$('pFrom').value, to=$('pTo').value;
+  if(!from||!to) return;
+  $('ptb').innerHTML='<tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr>';
+  const {data,error}=await sb.rpc('filial_pnl',{p_from:from,p_to:to});
+  if(error){ $('ptb').innerHTML=`<tr><td colspan="7" class="empty">${esc(error.message)}</td></tr>`; return; }
+  const list=data||[];
+  if(!list.length){ $('ptb').innerHTML='<tr><td colspan="7" class="empty">Bu davrda ma\'lumot yo\'q</td></tr>'; return; }
+  // SQL sof bo'yicha saralaydi — tartibni saqlaymiz, faqat taqsimlanmaganni oxiriga suramiz
+  const fil=list.filter(r=>r.warehouse_id!==null&&r.warehouse_id!==undefined);
+  const un=list.filter(r=>r.warehouse_id===null||r.warehouse_id===undefined);
+  const add=(a,k)=>a.reduce((s,r)=>s+(Number(r[k])||0),0);
+  const jami={filial:'JAMI',tushum:add(list,'tushum'),tannarx:add(list,'tannarx'),
+              yalpi:add(list,'yalpi'),xarajat:add(list,'xarajat'),sof:add(list,'sof')};
+  $('ptb').innerHTML=pnlRow(jami,{rowCls:'tot'})
+    + fil.map(r=>pnlRow(r,{})).join('')
+    + un.map(r=>pnlRow({...r,filial:r.filial||'Taqsimlanmagan'},
+        {rowCls:'unalloc',plain:true,sub:'hech qaysi filialga tegishli emas'})).join('');
+  icons();
+}
+
+async function init(){
+  const n=nowUz();
+  $('pFrom').value=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
+  $('pTo').value=iso(n);
+  $('pFrom').onchange=loadPnl; $('pTo').onchange=loadPnl;
+  await loadRole(); await loadSnapshot();
+}
 </script>
 </body>
 </html>

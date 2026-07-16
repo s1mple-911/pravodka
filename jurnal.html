@@ -40,7 +40,8 @@
   /* filtrlar */
   .filters{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow);margin-bottom:18px}
   .frow{display:grid;grid-template-columns:1fr;gap:12px}
-  @media(min-width:900px){.frow{grid-template-columns:auto 1fr 1fr;align-items:end}}
+  @media(min-width:900px){.frow{grid-template-columns:auto 1fr 1fr 1fr;align-items:end}}
+  .fnote{font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:9px;padding:8px 11px;margin-top:12px;display:none;line-height:1.5}
   .fld{min-width:0}
   .dates{display:flex;gap:8px;align-items:center}
   .dates .txt{width:auto;flex:1;min-width:0}
@@ -183,6 +184,10 @@
           </div>
         </div>
         <div class="fld">
+          <label>Filial</label>
+          <select id="fil"><option value="">Barcha filiallar</option></select>
+        </div>
+        <div class="fld">
           <label>Hisob</label>
           <select id="acc"><option value="">Barcha hisoblar</option></select>
         </div>
@@ -191,6 +196,7 @@
           <input class="txt" id="q" placeholder="izoh bo'yicha qidirish" oninput="render()">
         </div>
       </div>
+      <div class="fnote" id="filNote"></div>
       <div class="quick">
         <button onclick="setRange('bugun')">Bugun</button>
         <button onclick="setRange('hafta')">Shu hafta</button>
@@ -258,6 +264,7 @@ const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const LIMIT=100;
 let rows=[], offset=0, total=0, tur='all', accounts=[], isAdmin=false, myName='', edir='kirim', editId=null;
+let accList=[], filAllow=null;
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
@@ -316,11 +323,11 @@ const GRP=[
   {lbl:'Xarajat',          f:a=>a.type==='xarajat'},
 ];
 const optOf=a=>`<option value="${a.id}">${esc(a.code)} · ${esc(a.name)}</option>`;
-async function loadAccSel(){
-  const {data,error}=await sb.from('v_hisob_royxat').select('*').order('code');
-  if(error){ $('banner').style.display='block'; $('banner').textContent='Hisob ro\'yxati: '+error.message; return; }
-  const list=data||[], used=new Set();
-  let html='<option value="">Barcha hisoblar</option>';
+// filAllow=null → hamma hisob; Set → faqat tanlangan filialning hisoblari ("Barcha hisoblar"siz)
+function buildAccSel(){
+  const list=filAllow?accList.filter(a=>filAllow.has(a.id)):accList, used=new Set();
+  // Bo'sh qiymat doim birinchi: filial tanlangan bo'lsa "Butun filial" (p_accounts), aks holda "Barcha hisoblar"
+  let html=`<option value="">${filAllow?'Butun filial':'Barcha hisoblar'}</option>`;
   for(const g of GRP){
     const rs=list.filter(a=>!used.has(a.id)&&g.f(a));
     rs.forEach(a=>used.add(a.id));
@@ -328,8 +335,37 @@ async function loadAccSel(){
   }
   const boshqa=list.filter(a=>!used.has(a.id));
   if(boshqa.length) html+='<optgroup label="Boshqa">'+boshqa.map(optOf).join('')+'</optgroup>';
-  $('acc').innerHTML=html;
+  $('acc').innerHTML=html||'<option value="">— hisob yo\'q —</option>';
+}
+async function loadAccSel(){
+  const {data,error}=await sb.from('v_hisob_royxat').select('*').order('code');
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Hisob ro\'yxati: '+error.message; return; }
+  accList=data||[];
+  buildAccSel();
   $('acc').onchange=load;
+}
+// Filial ro'yxati. View hali yo'q bo'lsa filtrni butunlay yashiramiz.
+async function loadFilSel(){
+  const {data,error}=await sb.from('v_filial_royxat').select('*').order('filial');
+  if(error||!data){ $('fil').closest('.fld').style.display='none'; return; }
+  $('fil').innerHTML='<option value="">Barcha filiallar</option>'
+    +data.map(f=>`<option value="${esc(f.warehouse_id)}">${esc(f.filial)}</option>`).join('');
+  $('fil').onchange=onFil;
+}
+function note(m){ const n=$('filNote'); n.style.display=m?'block':'none'; n.textContent=m||''; }
+async function onFil(){
+  const w=$('fil').value;
+  if(!w){ filAllow=null; note(''); buildAccSel(); await load(); return; }
+  const {data,error}=await sb.from('v_filial_hisob').select('*').eq('warehouse_id',w);
+  if(error){ note('Filial hisoblari: '+error.message); return; }
+  const ids=[...new Set((data||[]).map(r=>r.account_id).filter(Boolean))];
+  filAllow=new Set(ids); buildAccSel();
+  if(!ids.length){
+    note('Bu filialga hisob bog\'lanmagan — Sozlamalar → "Filiallarni bog\'lash".');
+    rows=[]; offset=0; total=0; render(); return;
+  }
+  note('');
+  await load();
 }
 
 // TASNIF — section='pul' bo'yicha, kod prefiksi bilan EMAS.
@@ -393,7 +429,12 @@ function render(){
 }
 window.render=render;
 
-function args(){ return {p_from:$('from').value,p_to:$('to').value,p_account:$('acc').value||null}; }
+// Hisob tanlansa u ustun (p_account). Aks holda filial hisoblari massiv sifatida (p_accounts).
+function args(){
+  const acc=$('acc').value||null;
+  const accs=(!acc && filAllow) ? [...filAllow] : null;
+  return {p_from:$('from').value,p_to:$('to').value,p_account:acc,p_accounts:accs};
+}
 async function load(){
   offset=0; rows=[];
   const a=args();
@@ -477,6 +518,7 @@ async function init(){
   const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
   accounts=accs||[];
   await loadAccSel();
+  await loadFilSel();
   await load();
 }
 </script>

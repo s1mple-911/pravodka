@@ -86,13 +86,18 @@ Tanlash (dropdown/konvert) uchun **`v_kassa_toliq`** kerak — u har hisobni alo
 RPC: `sync_filial_balances(jsonb)`, `sync_received_transfers(jsonb)`, `acc_balance(uuid)`.
 
 Jurnal RPC'lari (`jurnal.html`):
-- `jurnal(p_from date, p_to date, p_account uuid default null, p_limit int default 100,
-  p_offset int default 0)` → **jsonb massiv**. Har element: `{id, entry_date, description, source,
-  is_deleted, deleted_by_name, deleted_at, edited_at, edited_by_name, created_at, lines:[...]}`.
+- `jurnal(p_from date, p_to date, p_account uuid default null, p_accounts uuid[] default null,
+  p_limit int default 100, p_offset int default 0)` → **jsonb massiv**. Har element: `{id, entry_date,
+  description, source, is_deleted, deleted_by_name, deleted_at, edited_at, edited_by_name, created_at, lines:[...]}`.
   `lines` element: `{id, account_id, code, name, section, currency, debit, credit, fc_amount}`.
   **`lines` ichida Dt birinchi keladi.**
-- `jurnal_count(p_from, p_to, p_account)` → int. Sahifalash uchun jami son (`p_limit`/`p_offset`siz).
-- **Tur va qidiruv filtri klientda** — server faqat sana + hisob bo'yicha filtrlaydi. Shuning uchun
+- `jurnal_count(p_from, p_to, p_account uuid default null, p_accounts uuid[] default null)` → int.
+  Sahifalash uchun jami son (`p_limit`/`p_offset`siz).
+- **`p_account` (bitta hisob) va `p_accounts` (hisoblar massivi — filial filtri uchun).** Klientda:
+  hisob tanlansa `p_account` ustun bo'ladi, aks holda tanlangan filialning barcha `account_id`lari
+  (`v_filial_hisob`) `p_accounts` sifatida ketadi. `p_limit`/`p_offset` **nomlangan argument** —
+  pozitsiyaga tayanma (massiv parametri o'rtaga qo'shildi).
+- **Tur va qidiruv filtri klientda** — server faqat sana + hisob(lar) bo'yicha filtrlaydi. Shuning uchun
   ular faqat **yuklangan** qatorlarga ta'sir qiladi; `jurnal_count` esa serverdagi to'liq sonni beradi.
   Sanoq satri shuni ochiq yozadi ("N ta ko'rsatilmoqda · yuklangan M / jami K").
 
