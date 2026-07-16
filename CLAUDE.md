@@ -10,6 +10,35 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 - Aros bilan bog'lanish: n8n webhooklar (`n8n.arosmarket.com`), Aros API `api.aros.uz`.
 - Til: interfeys o'zbekcha (lotin). Kod izohlari ham o'zbekcha.
 
+## Kutubxonalar — `vendor/` (repoda, CDN emas)
+
+Tezlik uchun hamma tashqi resurs repoga ko'chirilgan — GitHub Pages'dan bitta domendan
+keladi (DNS/TLS yo'q, brauzer keshlaydi). CDN (`jsdelivr`/`unpkg`/Google Fonts) **ishlatilmaydi**.
+
+- `vendor/supabase-2.110.6.js` — Supabase UMD (bitta fayl). Global: `window.supabase.createClient(url,key)`.
+  **`import ... +esm` YO'Q.** Versiya yangilansa fayl nomini o'zgartir (kesh) va 12 faylda `<script src>`ni yangila.
+- `vendor/lucide-1.24.0.js` — Lucide UMD. Global: `window.lucide.createIcons()` (avvalgidek `icons()`).
+- `vendor/inter.woff2` — Inter variable font (100–900). `@font-face` har faylning `<style>` boshida.
+
+Head tartibi (hamma faylda): `<link rel=icon>` → supabase `preconnect` → 10-11 ta `prefetch`
+(qolgan sahifalar) → `<script src="vendor/lucide...defer">` → `<script src="vendor/supabase...defer">` → `<style>`.
+Vendor skriptlar `defer`, module skript ham defer (implicit) — shuning uchun module ishga tushganda
+`window.supabase`/`window.lucide` tayyor bo'ladi. **Endi har faylda aniq 3 ta `</script>`**
+(lucide + supabase + module) — avvalgi 2 emas. 3 dan farq bo'lsa fayl buzilgan.
+
+### Tezlik naqshlari (hamma faylda bir xil)
+
+- **Auth gate darrov:** `boot()` `localStorage`'da `sb-kxzerccdpcltmzrxutlo-auth-token` borligini
+  **sinxron** tekshiradi → bo'lsa app'ni DARROV ko'rsatadi (`enterApp`, `appShown` guard bilan bir marta),
+  sessiyani fonda `getSession()` bilan tekshiradi; yaroqsiz bo'lsa `signOut()`+`reload()`. Ekran miltillamaydi.
+- **stale-while-revalidate:** module boshida `swrGet(n,maxAge=300000)`/`swrSet(n,v)` yordamchilari
+  (`sessionStorage`, kalit `prov-swr:<sahifa>:<n>`, 5 daqiqa TTL). Sahifaning **asosiy o'qishi** shu bilan
+  o'ralgan: kesh bo'lsa DARROV ko'rsatiladi (skeleton emas — haqiqiy raqam), fonda yangi olinadi, jimgina
+  almashtiriladi; kesh bo'lmasa "Yuklanmoqda…" placeholder; xato bo'lsa mavjud keshni saqlaydi.
+  **Yozuvdan keyin (add/edit/delete/sync/import) asosiy o'qish `fresh` rejimda** — keshdan bermaydi,
+  yangi olib `swrSet` qiladi. Kalitga filtr/davr parametrlari kiradi (masalan `pnl:{from,to}`).
+- **Parallel init:** `init()` dagi mustaqil `await`lar `Promise.all([...])`ga yig'ilgan (loadRole + hisoblar + asosiy o'qish).
+
 ## Fayllar
 
 | Fayl | Vazifa |
@@ -219,8 +248,8 @@ Boshqa workflowlar: `aros-filial-live` + `aros-currencies` (`lco21f7pUcKPpNVU`),
   node --check /tmp/x.mjs
   ```
   **Diqqat:** bu `sed` faqat BIRINCHI `</script>` gacha o'qiydi — undan keyingi buzilgan qismni
-  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **har faylda aniq 2 ta**
-  (lucide CDN + module). 2 dan ko'p bo'lsa fayl buzilgan.
+  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **har faylda aniq 3 ta**
+  (`vendor/lucide` + `vendor/supabase` + module). 3 dan farq bo'lsa fayl buzilgan.
 - **Skript bilan ommaviy tahrir qilganda `str.replace(re, string)` ISHLATMA — `replace(re, () => string)`
   ishlat.** String almashtirishda `$'` "moslikdan keyingi hamma narsa", `$&` "moslikning o'zi",
   `$1` guruh degani. Kodimizda `+' $':money(...)` bor — ya'ni `$'` — va u jimgina faylning butun

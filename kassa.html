@@ -4,10 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aros Provodka — Kassa</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal.html">
+<link rel="prefetch" href="professional.html">
+<link rel="prefetch" href="hisobot.html">
+<link rel="prefetch" href="balans.html">
+<link rel="prefetch" href="cashflow.html">
+<link rel="prefetch" href="qarzdor.html">
+<link rel="prefetch" href="filial.html">
+<link rel="prefetch" href="valyuta.html">
+<link rel="prefetch" href="konvert.html">
+<link rel="prefetch" href="sozlama.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
 <style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
   [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -201,10 +212,15 @@
 </div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
-const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
+const PAGE=location.pathname.split('/').pop()||'index';
+const swrKey=n=>`prov-swr:${PAGE}:${n}`;
+function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
+  const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
+function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
 let isAdmin=false, myName='';
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
@@ -222,8 +238,21 @@ window.openMore=()=>{ document.getElementById('moreModal').classList.add('open')
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
-function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
-async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
+let appShown=false;
+function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
 boot();
 
 async function loadRole(){
@@ -252,10 +281,7 @@ function kgroup(lbl,rows){
   return `<div class="kgrp"><div class="kgh"><span class="n">${lbl}</span><span class="t">${money(jamiOf(rows))}</span></div>`
     +`<div class="kgrid">${rows.map(kcard).join('')}</div></div>`;
 }
-async function loadKassalar(){
-  const {data,error}=await sb.from('v_kassa_card').select('*').order('code');
-  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
-  const list=data||[];
+function renderKassalar(list){
   $('jami').textContent=money(jamiOf(list));
   if(!list.length){ $('kassalar').innerHTML='<div class="empty">Kassa yo\'q</div>'; return; }
   const known=KT_GRP.map(g=>g.key);
@@ -264,6 +290,17 @@ async function loadKassalar(){
   $('kassalar').innerHTML=KT_GRP.map(g=>kgroup(g.lbl,list.filter(r=>r.kassa_turi===g.key))).join('')
     +kgroup('Boshqa',boshqa);
   icons();
+}
+async function loadKassalar(){
+  // SWR: keshdagi qatorlarni darrov ko'rsat, aks holda "Yuklanmoqda…" placeholder
+  const cached=swrGet('cards');
+  if(cached) renderKassalar(cached);
+  else $('kassalar').innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  const {data,error}=await sb.from('v_kassa_card').select('*').order('code');
+  if(error){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; } return; }
+  const list=data||[];
+  swrSet('cards',list);
+  renderKassalar(list);
 }
 // /kassa-kartalar
 
@@ -339,7 +376,7 @@ window.convSave=async()=>{
 // /konvert
 
 async function init(){
-  await loadRole(); await loadKassalar();
+  await Promise.all([loadRole(), loadKassalar()]);
 }
 </script>
 </body>

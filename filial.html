@@ -5,9 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aros Provodka — Filiallar</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal.html">
+<link rel="prefetch" href="professional.html">
+<link rel="prefetch" href="kassa.html">
+<link rel="prefetch" href="hisobot.html">
+<link rel="prefetch" href="balans.html">
+<link rel="prefetch" href="cashflow.html">
+<link rel="prefetch" href="qarzdor.html">
+<link rel="prefetch" href="valyuta.html">
+<link rel="prefetch" href="konvert.html">
+<link rel="prefetch" href="sozlama.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
 <style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px}
   [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -250,13 +262,18 @@
 </div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const FILIAL_LIVE='https://n8n.arosmarket.com/webhook/aros-filial-live';
 const BUG_UID='1255605633';
 
-const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
+const PAGE=location.pathname.split('/').pop()||'index';
+const swrKey=n=>`prov-swr:${PAGE}:${n}`;
+function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
+  const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
+function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
@@ -276,8 +293,21 @@ window.openMore=()=>{ document.getElementById('moreModal').classList.add('open')
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
-function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
-async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
+let appShown=false;
+function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
 boot();
 
 function showErr(m){ $('err').style.display='block'; $('err').textContent=m; }
@@ -302,9 +332,16 @@ async function fetchLive(){
 }
 
 async function loadSnapshot(){
+  const cached=swrGet('snapshot');
+  if(cached){
+    rows=Array.isArray(cached.rows)?cached.rows:[];
+    usedRate=(cached.usedRate!==undefined)?cached.usedRate:null;
+    render({synced_at:cached.synced_at, synced_by_name:cached.synced_by_name});
+  }
   const {data,error}=await sb.from('filial_snapshot').select('*').eq('id',1).maybeSingle();
-  if(error){ showErr('Snapshot: '+error.message); return; }
+  if(error){ if(!cached) showErr('Snapshot: '+error.message); return; }
   if(!data){
+    if(cached) return;
     $('sBug').textContent='—'; $('sCnt').textContent=''; $('sMeta').textContent='';
     $('tb').innerHTML='<tr><td colspan="2" class="empty">Hali yuklanmagan — "Yangilash" tugmasini bosing</td></tr>';
     return;
@@ -312,6 +349,7 @@ async function loadSnapshot(){
   const d=data.data;
   rows=Array.isArray(d)?d:((d&&Array.isArray(d.rows))?d.rows:[]);
   usedRate=(d&&d.rate!==undefined)?d.rate:null;
+  swrSet('snapshot',{rows, usedRate, synced_at:data.synced_at, synced_by_name:data.synced_by_name});
   render({synced_at:data.synced_at, synced_by_name:data.synced_by_name});
 }
 
@@ -339,6 +377,7 @@ window.syncNow=async()=>{
     const {error}=await sb.from('filial_snapshot')
       .upsert({id:1,data:{rows:rows,rate:rate},total,synced_by_name:myName,synced_at:now},{onConflict:'id'});
     if(error) showErr('Saqlashda: '+error.message);
+    swrSet('snapshot',{rows, usedRate, synced_at:now, synced_by_name:myName});
     render({synced_at:now, synced_by_name:myName});
   }catch(e){ showErr('Xato: '+e.message); }
   btn.disabled=false; btn.innerHTML=old; icons();
@@ -407,13 +446,7 @@ function pnlRow(r,opts){
     <td class="n">${money(xar)}</td><td class="n ${c(sof)}">${money(sof)}</td></tr>`;
 }
 
-async function loadPnl(){
-  const from=$('pFrom').value, to=$('pTo').value;
-  if(!from||!to) return;
-  $('ptb').innerHTML='<tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr>';
-  const {data,error}=await sb.rpc('filial_pnl',{p_from:from,p_to:to});
-  if(error){ $('ptb').innerHTML=`<tr><td colspan="7" class="empty">${esc(error.message)}</td></tr>`; return; }
-  const list=data||[];
+function renderPnl(list){
   if(!list.length){ $('ptb').innerHTML='<tr><td colspan="7" class="empty">Bu davrda ma\'lumot yo\'q</td></tr>'; return; }
   // SQL sof bo'yicha saralaydi — tartibni saqlaymiz, faqat taqsimlanmaganni oxiriga suramiz
   const fil=list.filter(r=>r.warehouse_id!==null&&r.warehouse_id!==undefined);
@@ -428,12 +461,26 @@ async function loadPnl(){
   icons();
 }
 
+async function loadPnl(){
+  const from=$('pFrom').value, to=$('pTo').value;
+  if(!from||!to) return;
+  const ck='pnl:'+JSON.stringify({from,to});
+  const cached=swrGet(ck);
+  if(cached) renderPnl(cached);
+  else $('ptb').innerHTML='<tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr>';
+  const {data,error}=await sb.rpc('filial_pnl',{p_from:from,p_to:to});
+  if(error){ if(!cached) $('ptb').innerHTML=`<tr><td colspan="7" class="empty">${esc(error.message)}</td></tr>`; return; }
+  const list=data||[];
+  swrSet(ck,list);
+  renderPnl(list);
+}
+
 async function init(){
   const n=nowUz();
   $('pFrom').value=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
   $('pTo').value=iso(n);
   $('pFrom').onchange=loadPnl; $('pTo').onchange=loadPnl;
-  await loadRole(); await loadSnapshot();
+  await Promise.all([loadRole(), loadSnapshot()]);
 }
 </script>
 </body>

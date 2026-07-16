@@ -5,10 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aros Provodka — Hisobot</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal.html">
+<link rel="prefetch" href="professional.html">
+<link rel="prefetch" href="kassa.html">
+<link rel="prefetch" href="balans.html">
+<link rel="prefetch" href="cashflow.html">
+<link rel="prefetch" href="qarzdor.html">
+<link rel="prefetch" href="filial.html">
+<link rel="prefetch" href="valyuta.html">
+<link rel="prefetch" href="konvert.html">
+<link rel="prefetch" href="sozlama.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
 <style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
   [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -183,10 +194,15 @@
 </div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
-const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
+const PAGE=location.pathname.split('/').pop()||'index';
+const swrKey=n=>`prov-swr:${PAGE}:${n}`;
+function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
+  const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
+function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
 const OYLAR=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const $=id=>document.getElementById(id);
 const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
@@ -206,8 +222,22 @@ window.openMore=()=>{ document.getElementById('moreModal').classList.add('open')
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
-function enterApp(){ $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
-async function boot(){ const {data:{session}}=await sb.auth.getSession(); if(session) enterApp(); else syncThemeIcon(); }
+let appShown=false;
+function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+// Auth gate — localStorage'da token bo'lsa DARROV app'ni ko'rsat, sessiyani fonda tekshir (miltillamaydi)
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
 boot();
 
 function fillSelectors(){
@@ -255,25 +285,13 @@ function renderLadder(rows){
     +pnlGroup(rows,'BOSHQA','−')+pnlGroup(rows,'SOLIQ','−')
     +subRow('Sof foyda',sof,true);
 }
-async function load(){
-  const oy=Number($('oy').value),yil=Number($('yil').value);
-  const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
-  const lastDay=new Date(yil,oy,0).getDate();
-  const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-  $('banner').style.display='none';
-  const [pnlQ,entQ]=await Promise.all([
-    sb.rpc('pnl',{p_from:d1,p_to:d2}),
-    sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').eq('status','posted').eq('is_deleted',false).gte('entry_date',d1).lte('entry_date',d2)
-  ]);
-  if(pnlQ.error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+pnlQ.error.message; return; }
-  const prows=pnlQ.data||[];
+// pnl + entry datasetlaridan hamma panellarni chizadi (kesh va tarmoq bir xil yo'ldan)
+function renderReport(prows,entData){
   renderLadder(prows);
   const noma=[...new Set(prows.map(r=>r.bolim).filter(b=>!PNL_BOLIM.includes(b)))];
   if(noma.length){ $('banner').style.display='block'; $('banner').textContent="Diqqat: noma'lum bo'lim — "+noma.join(', ')+" — zinapoyaga kirmadi"; }
-  const {data,error}=entQ;
-  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
   let expense=0; const expByCat={},turnover={};
-  (data||[]).forEach(e=>{ (e.entry_line||[]).forEach(l=>{
+  (entData||[]).forEach(e=>{ (e.entry_line||[]).forEach(l=>{
     const a=l.accounts; if(!a) return; const deb=Number(l.debit)||0,cred=Number(l.credit)||0;
     const t=turnover[a.code]||(turnover[a.code]={code:a.code,name:a.name,deb:0,cred:0}); t.deb+=deb; t.cred+=cred;
     if(a.type==='xarajat'){ const v=deb-cred; expense+=v; expByCat[a.name]=(expByCat[a.name]||0)+v; }
@@ -284,7 +302,30 @@ async function load(){
   }).join(''):'<div class="empty">Bu oyda xarajat yo\'q</div>';
   const rows=Object.values(turnover).sort((a,b)=>a.code.localeCompare(b.code));
   $('tb').innerHTML=rows.length?rows.map(r=>`<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">Bu oyda yozuv yo\'q</td></tr>';
-  loadKassalar();
+}
+async function load(){
+  const oy=Number($('oy').value),yil=Number($('yil').value);
+  const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
+  const lastDay=new Date(yil,oy,0).getDate();
+  const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  $('banner').style.display='none';
+  // SWR: davr bo'yicha keshlangan bo'lsa darrov chiz, aks holda "Yuklanmoqda…"
+  const ck='pnl:'+JSON.stringify({from:d1,to:d2});
+  const cached=swrGet(ck);
+  if(cached){ renderReport(cached.prows||[],cached.ent||[]); }
+  else { $('ladder').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
+  // Mustaqil so'rovlar parallel: pnl, entry, kassa kartalari
+  const [pnlQ,entQ]=await Promise.all([
+    sb.rpc('pnl',{p_from:d1,p_to:d2}),
+    sb.from('entry').select('entry_date, entry_line(debit,credit,accounts(code,name,type))').eq('status','posted').eq('is_deleted',false).gte('entry_date',d1).lte('entry_date',d2),
+    loadKassalar()
+  ]);
+  if(pnlQ.error){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+pnlQ.error.message; } return; }
+  const {data,error}=entQ;
+  if(error){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; } return; }
+  const prows=pnlQ.data||[], entData=data||[];
+  swrSet(ck,{prows,ent:entData});
+  renderReport(prows,entData);
 }
 function init(){ fillSelectors(); load(); }
 </script>
