@@ -34,7 +34,7 @@
   .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
   .head-actions{display:flex;gap:4px}
-  .kassa-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;margin-bottom:18px}@media(min-width:900px){.kassa-strip{flex-wrap:wrap;overflow:visible}}.kchip{flex:0 0 auto;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}.kchip .top{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:8px}.kchip .top svg{width:15px;height:15px}.kchip .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}.statuschip{font-weight:700}
+  .statuschip{font-weight:700}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
   label{font-size:13px;color:var(--muted);display:block;margin:0 0 7px 2px;font-weight:500}
   .txt{width:100%;height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:0 13px;font-size:15px;font-family:inherit;outline:none;margin-bottom:15px;transition:border-color .13s,box-shadow .13s}
@@ -86,13 +86,6 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
-  /* kassa-chips */
-  .kgrp{margin-bottom:14px}
-  .kgh{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px}
-  .kchip .sub{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
-  .kchip.usd{border-color:var(--primary)}
-  .kchip.usd .v{color:var(--primary)}
-  /* /kassa-chips */
 </style>
 </head>
 <body>
@@ -109,6 +102,7 @@
     <nav class="side-nav">
       <a class="nav-item" href="provodka.html"><i data-lucide="circle-plus"></i><span>Kiritish</span></a>
       <a class="nav-item active" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
       <a class="nav-item" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
       <a class="nav-item" href="balans.html"><i data-lucide="scale"></i><span>Balans</span></a>
       <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
@@ -133,8 +127,6 @@
       </div>
     </div>
     <div id="banner" class="banner"></div>
-
-    <div id="kassalar"></div>
 
     <div class="card">
       <label>Sana</label><input class="txt" id="sana" type="date">
@@ -166,6 +158,7 @@
     <div class="msheet">
       <h3>Ko'proq</h3>
       <a href="professional.html" class="active"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa.html"><i data-lucide="wallet"></i>Kassa</a>
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
@@ -249,34 +242,8 @@ window.save=async()=>{
   lines=[]; $('izoh').value=''; addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
 };
-// kassa-chips
-const KT_LBL={markaziy:'Markaziy kassalar',filial:'Filial kassalari',xarajat:'Xarajat kassalar'};
-const KT_ORD=['markaziy','xarajat'];
-const ktLbl=t=>KT_LBL[t]||(t?String(t).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'Boshqa');
-async function loadKassalar(){
-  const el=document.getElementById('kassalar'); if(!el) return;
-  const {data,error}=await sb.from('v_kassa_toliq').select('*').order('code');
-  if(error){ el.innerHTML=''; return; }
-  // Filial kassalari chiplarda emas, faqat dropdownda ko'rinadi.
-  const list=(data||[]).filter(r=>r.kassa_turi!=='filial');
-  if(!list.length){ el.innerHTML=''; return; }
-  const ord=t=>{ const i=KT_ORD.indexOf(t); return i<0?99:i; };
-  const turlar=[...new Set(list.map(r=>r.kassa_turi))].sort((a,b)=>ord(a)-ord(b)||String(a).localeCompare(String(b)));
-  el.innerHTML=turlar.map(t=>{
-    const chips=list.filter(r=>r.kassa_turi===t).map(r=>{
-      const usd=r.currency==='USD';
-      // uzs — daftar qoldig'i (tarixiy kursda), joriy kursda emas
-      const sub=usd?`<div class="sub">≈ ${money(r.uzs)} so'm</div>`:'';
-      return `<div class="kchip${usd?' usd':''}"><div class="top"><i data-lucide="${usd?'banknote':'wallet'}"></i>${r.name}</div><div class="v">${usd?money(r.usd)+' $':money(r.uzs)}</div>${sub}</div>`;
-    }).join('');
-    return `<div class="kgrp"><div class="kgh">${ktLbl(t)}</div><div class="kassa-strip">${chips}</div></div>`;
-  }).join('');
-  icons();
-}
-// /kassa-chips
 async function init(){
   $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
-  await loadKassalar();
   const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
   if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
   accounts=data||[]; lines=[]; addLine(); addLine();

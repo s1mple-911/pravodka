@@ -95,11 +95,7 @@
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
   /* kassa-chips */
-  .kgrp{margin-bottom:14px}
-  .kgh{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px}
   .kchip .sub{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
-  .kchip.usd{border-color:var(--primary)}
-  .kchip.usd .v{color:var(--primary)}
   /* /kassa-chips */
 </style>
 </head>
@@ -117,6 +113,7 @@
     <nav class="side-nav">
       <a class="nav-item" href="provodka.html"><i data-lucide="circle-plus"></i><span>Kiritish</span></a>
       <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
       <a class="nav-item active" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
       <a class="nav-item" href="balans.html"><i data-lucide="scale"></i><span>Balans</span></a>
       <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
@@ -175,6 +172,7 @@
     <div class="msheet">
       <h3>Ko'proq</h3>
       <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa.html"><i data-lucide="wallet"></i>Kassa</a>
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
@@ -220,27 +218,19 @@ function fillSelectors(){
   oySel.value=now.getUTCMonth()+1; yilSel.value=y; oySel.onchange=load; yilSel.onchange=load;
 }
 // kassa-chips
-const KT_LBL={markaziy:'Markaziy kassalar',filial:'Filial kassalari',xarajat:'Xarajat kassalar'};
-const KT_ORD=['markaziy','xarajat'];
-const ktLbl=t=>KT_LBL[t]||(t?String(t).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'Boshqa');
+// Faqat markaziy kassalar — hammasi kassa.html'da.
 async function loadKassalar(){
   const el=document.getElementById('kassalar'); if(!el) return;
-  const {data,error}=await sb.from('v_kassa_toliq').select('*').order('code');
+  const {data,error}=await sb.from('v_kassa_card').select('*').eq('kassa_turi','markaziy').order('code');
   if(error){ el.innerHTML=''; return; }
-  // Filial kassalari chiplarda emas, faqat dropdownda ko'rinadi.
-  const list=(data||[]).filter(r=>r.kassa_turi!=='filial');
+  const list=data||[];
   if(!list.length){ el.innerHTML=''; return; }
-  const ord=t=>{ const i=KT_ORD.indexOf(t); return i<0?99:i; };
-  const turlar=[...new Set(list.map(r=>r.kassa_turi))].sort((a,b)=>ord(a)-ord(b)||String(a).localeCompare(String(b)));
-  el.innerHTML=turlar.map(t=>{
-    const chips=list.filter(r=>r.kassa_turi===t).map(r=>{
-      const usd=r.currency==='USD';
-      // uzs — daftar qoldig'i (tarixiy kursda), joriy kursda emas
-      const sub=usd?`<div class="sub">≈ ${money(r.uzs)} so'm</div>`:'';
-      return `<div class="kchip${usd?' usd':''}"><div class="top"><i data-lucide="${usd?'banknote':'wallet'}"></i>${r.name}</div><div class="v">${usd?money(r.usd)+' $':money(r.uzs)}</div>${sub}</div>`;
-    }).join('');
-    return `<div class="kgrp"><div class="kgh">${ktLbl(t)}</div><div class="kassa-strip">${chips}</div></div>`;
-  }).join('');
+  el.innerHTML='<div class="kassa-strip">'+list.map(r=>{
+    const usd=Number(r.usd)||0;
+    // Dollar yo'q bo'lsa taqsimot satri umuman chiqmaydi — faqat jami.
+    const sub=usd>0?`<div class="sub">${money(r.uzs)} so'm · ${money(usd)} $</div>`:'';
+    return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.jami)}</div>${sub}</div>`;
+  }).join('')+'</div>';
   icons();
 }
 // /kassa-chips

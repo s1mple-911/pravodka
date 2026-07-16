@@ -16,6 +16,7 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 |------|--------|
 | `provodka.html` | Kiritish: Kirim / Chiqim / Transfer + jurnal |
 | `professional.html` | Qo'lda ko'p satrli Dt/Kt yozuv |
+| `kassa.html` | Hamma kassa qoldig'i guruh-guruh + **Konvert** tugmasi |
 | `hisobot.html` | P&L zinapoyasi (`pnl()`), xarajat taqsimoti, aylanma-saldo |
 | `balans.html` | Balans sanaga: Aktiv \| Passiv+Kapital (`balans()`) |
 | `cashflow.html` | Pul oqimi davrga: boshi/oxiri + Kirim/Chiqim (`cashflow()`, `pul_qoldiq()`) |
@@ -28,11 +29,11 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 Har fayl mustaqil: o'z login gate'i, sidebar/bnav navigatsiyasi, Supabase klienti bor.
 Dizayn tizimi hamma faylda takrorlanadi (CSS o'zgaruvchilari bir xil).
 
-Navigatsiya 9 faylda ham bir xil bo'lishi shart: **sidebar 9 ta**, **bnav 6 ta + "Ko'proq"**.
-Faqat `active` klassi farq qiladi.
+Navigatsiya 11 faylda ham bir xil bo'lishi shart: **sidebar 11 ta**, **bnav 6 ta + "Ko'proq"**,
+**sheet 5 ta**. Faqat `active` klassi farq qiladi.
 
 **Sidebar `min-width:900px` da ko'rinadi — mobil'da u umuman yo'q.** Shuning uchun bnav'ga
-sig'magan sahifalar (Professional, Valyuta, Sozlamalar) `#moreModal` sheet'iga tushadi
+sig'magan sahifalar (Professional, Kassa, Valyuta, Konvert, Sozlamalar) `#moreModal` sheet'iga tushadi
 ("Ko'proq" tugmasi, `openMore()`/`closeMore()`). Bnav'dan sahifa olib tashlansa, u sheet'ga
 qo'shilishi **shart** — aks holda telefonda umuman ochilmaydi. Joriy sahifa sheet ichida
 bo'lsa, "Ko'proq" o'zi `active` bo'ladi.
@@ -44,14 +45,15 @@ mavjud `.modal`/`.sheet` bilan to'qnashmasligi uchun.
 
 - `accounts` — hisob rejasi. `code`, `name`, `type` (aktiv/passiv/kapital/daromad/xarajat).
   - `5xxx` = pul hisoblari (kassalar). `52xx` = filial kassalari.
-  - `filial_ref` — Aros cachier id (filiallar uchun). Bu hisoblar kassa chiplarida ko'rinmaydi, faqat dropdownda.
+  - `filial_ref` — Aros cachier id (filiallar uchun). Bu hisoblar `provodka.html`/`hisobot.html`
+    chiplarida ko'rinmaydi (u yerda faqat markaziy) — `kassa.html`da "Filial kassalari" guruhida chiqadi.
   - `aros_title` — markaziy kassalar Aros nomiga bog'langan ('Toshkent Kassa', 'Qashqadaryo Kassa').
   - Muhim kodlar: `4010` xaridorlar qarzi, `6010` yetkazib beruvchilar, `5011` Toshkent markaziy kassa,
     `9010` savdo tushumi, `8000` — `provodka.html`da kirim manbasi sifatida tanlanadi.
   - Yangi kod `sozlama.html`da avtomatik beriladi: kassa `50xx` (5011dan), xarajat `94xx` (9421dan),
     daromad `90xx` (9011dan) — diapazondagi eng kattasi + 1.
   - Klientda kassa = `type==='aktiv' && code.startsWith('5')` (`isKassa()`) — filial kassalari ham kiradi,
-    shuning uchun ular dropdownda ko'rinadi. Chiplar esa `v_kassa_qoldiq`dan keladi, u filiallarni chiqarib tashlaydi.
+    shuning uchun ular dropdownda ko'rinadi. Chiplar esa `v_kassa_card`dan keladi.
 - `entry` — provodka sarlavhasi. `is_deleted` (soft-delete), `edited_at`/`edited_by_name`, `ext_ref` (unique — takrorlanishni to'sadi).
 - `entry_line` — satrlar. **Cheklov:** `debit`/`credit` manfiy bo'lolmaydi; bir satrda faqat bittasi > 0.
 - `currency_rate` — `from_code` → `to_code` juftligi, `rate`, `rate_at`.
@@ -64,6 +66,11 @@ mavjud `.modal`/`.sheet` bilan to'qnashmasligi uchun.
 Viewlar: `v_hisob_qoldiq`, `v_kassa_qoldiq` (filiallarni chiqarib tashlaydi),
 `v_current_rate` (har juftlik uchun eng oxirgisi), `v_aylanma_saldo`,
 `v_pul_hisoblar` (`{id, code, name, is_filial}` — kassa filtri uchun; markaziy = 5011/5012/5110, filial = 52xx).
+
+`v_kassa_card` — **kartalar uchun**: har kassa BITTA qator, dollar juftligi ichiga yig'ilgan.
+`id, code, name, kassa_turi, parent_id, uzs, usd, usd_uzs, jami (= uzs + usd_uzs), has_usd, usd_account_id`.
+Kartada katta raqam = `jami`; taqsimot satri (`uzs` so'm · `usd` $) faqat `usd > 0` bo'lsa chiqadi.
+Tanlash (dropdown/konvert) uchun **`v_kassa_toliq`** kerak — u har hisobni alohida qator qilib beradi.
 
 RPC: `sync_filial_balances(jsonb)`, `sync_received_transfers(jsonb)`, `acc_balance(uuid)`.
 
@@ -80,7 +87,7 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   `p_from` emas. Tekshiruv: `pul_qoldiq(p_to) − pul_qoldiq(p_from−1)` = sum(KIRIM) − sum(CHIQIM).
   **`p_account` uchala chaqiruvga ham bir xil berilishi shart**, aks holda tekshiruv mos kelmaydi.
 
-Konvert RPC'lari:
+Konvert RPC'lari (tugma + modal `kassa.html`da — `openConv()`/`convSave()`):
 - `aros_usd_rate()` → **oddiy numeric** (koridor emas). Koridor frontendda: `lo=rate*0.98`, `hi=rate*1.02`.
   **null bo'lishi mumkin** (Valyuta bo'limida "Aros'dan" import qilinmagan bo'lsa) — UI shuni ko'tarishi kerak.
 - `convert_start(p_from, p_to, p_amount, p_rate, p_note)` → json:
