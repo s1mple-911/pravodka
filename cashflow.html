@@ -296,7 +296,8 @@ async function fillKassalar(){
   if(error){ $('banner').style.display='block'; $('banner').textContent='Kassalar: '+error.message; return; }
   // 'xarajat_guruh' (5400) — konteyner, tanlanmaydi. View bu ustunni bermasa filtr shunchaki o'tkazib yuboradi.
   const list=(data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh');
-  const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}</option>`;
+  // Hodim kassasining nomi = ism — "Filial · Lavozim" subtitle yonida turadi
+  const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}${r.subtitle?' · '+r.subtitle:''}</option>`;
   const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';
   const xarajat=list.filter(r=>r.kassa_turi==='xarajat');
   const xId=new Set(xarajat.map(r=>r.id));

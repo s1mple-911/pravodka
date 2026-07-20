@@ -216,9 +216,20 @@ async function boot(){
   }
 }
 
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
+const accLbl=a=>a.code+' · '+a.name+(a.subtitle?' · '+a.subtitle:'');
+const isKassa=a=>a.type==='aktiv'&&a.code.startsWith('5');
 function accOptions(sel){
-  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${a.code} · ${a.name}</option>`).join('')+'</optgroup>':'';
-  return g('Kassalar',accounts.filter(a=>a.type==='aktiv'&&a.code.startsWith('5')))+g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))+g('Daromadlar',accounts.filter(a=>a.type==='daromad'))+g('Boshqa',accounts.filter(a=>!(a.type==='aktiv'&&a.code.startsWith('5'))&&a.type!=='xarajat'&&a.type!=='daromad'));
+  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
+  // Hodim kassalari (54xx, kassa_turi='xarajat') — oddiy kassa, faqat alohida guruhda ko'rinadi
+  const xk=accounts.filter(a=>isKassa(a)&&a.kassa_turi==='xarajat');
+  const xkId=new Set(xk.map(a=>a.id));
+  return g('Kassalar',accounts.filter(a=>isKassa(a)&&!xkId.has(a.id)))
+    +g('Xarajat kassalar',xk)
+    +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
+    +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
+    +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
 function renderLines(){
   $('lines').innerHTML=lines.map((ln,i)=>`

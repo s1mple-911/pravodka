@@ -282,6 +282,8 @@ const KT_GRP=[
 // ostiga parent_id shu guruhga qaragan hodim kassalari ro'yxat bo'lib chiziladi.
 const KT_GURUH='xarajat_guruh';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
+const accLbl=a=>a.name+(a.subtitle?' · '+a.subtitle:'');
 const jamiOf=rows=>rows.reduce((a,r)=>a+(Number(r.jami)||0),0);
 function kcard(r){
   const usd=Number(r.usd)||0;
@@ -381,7 +383,7 @@ window.openConv=async()=>{
   // Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi.
   // Guruh (5400) — konteyner, unga to'g'ridan pul yozilmaydi, tanlanmaydi.
   const from=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH);
-  $('cvFrom').innerHTML=from.length?from.map(r=>`<option value="${r.id}">${r.name}</option>`).join(''):'<option value="">Mos kassa yo\'q</option>';
+  $('cvFrom').innerHTML=from.length?from.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join(''):'<option value="">Mos kassa yo\'q</option>';
   $('cvFrom').onchange=cvFillTo; cvFillTo();
   const {data:rate}=await sb.rpc('aros_usd_rate');
   cvArosRate=(rate===null||rate===undefined)?null:Number(rate);
