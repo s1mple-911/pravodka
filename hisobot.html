@@ -255,9 +255,11 @@ async function loadKassalar(){
   const list=data||[];
   if(!list.length){ el.innerHTML=''; return; }
   el.innerHTML='<div class="kassa-strip">'+list.map(r=>{
-    const usd=Number(r.usd)||0;
-    // Dollar yo'q bo'lsa taqsimot satri umuman chiqmaydi — faqat jami.
-    const sub=usd>0?`<div class="sub">${money(r.uzs)} so'm · ${money(usd)} $</div>`:'';
+    const usd=Number(r.usd)||0, vn=Number(r.valyuta_soni)||0;
+    // Valyuta bolasi yo'q bo'lsa taqsimot satri umuman chiqmaydi — faqat jami.
+    // USD alohida ko'rsatiladi, qolgan valyutalar sanoq bilan (to'liq ro'yxat — kassa.html'da).
+    const qolgan=vn-(usd>0?1:0);
+    const sub=vn?`<div class="sub">${money(r.uzs)} so'm${usd>0?' · '+money(usd)+' $':''}${qolgan>0?' · +'+qolgan+' valyuta':''}</div>`:'';
     return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i>${r.name}</div><div class="v">${money(r.jami)}</div>${sub}</div>`;
   }).join('')+'</div>';
   icons();
