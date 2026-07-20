@@ -215,7 +215,6 @@ async function boot(){
     if(session) enterApp();
   }
 }
-boot();
 
 function accOptions(sel){
   const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${a.code} · ${a.name}</option>`).join('')+'</optgroup>':'';
@@ -273,6 +272,11 @@ async function init(){
   accounts=(data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh');
   lines=[]; addLine(); addLine();
 }
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
 </script>
 </body>
 </html>

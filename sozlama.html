@@ -229,7 +229,6 @@ async function boot(){
     if(session) enterApp();
   }
 }
-boot();
 
 window.setType=t=>{ curType=t;
   $('tKassa').className=t==='kassa'?'on':''; $('tXarajat').className=t==='xarajat'?'on':''; $('tDaromad').className=t==='daromad'?'on':'';
@@ -311,6 +310,11 @@ window.linkFilial=async()=>{
 };
 
 async function init(){ await Promise.all([loadRole(), load()]); }
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
 </script>
 </body>
 </html>

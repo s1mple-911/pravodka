@@ -262,7 +262,6 @@ async function boot(){
     if(session) enterApp();
   }
 }
-boot();
 
 // UZB (UTC+5) — UTC maydonlari o'zbek kalendar sanasini beradi
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
@@ -381,6 +380,11 @@ async function init(){
   await fillKassalar();   // kassa dropdowniga qat'iy bog'liq — setRange'dan oldin
   setRange('oy');   // default: joriy oyning 1-sanasi → bugun
 }
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
 </script>
 </body>
 </html>

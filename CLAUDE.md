@@ -38,6 +38,11 @@ Vendor skriptlar `defer`, module skript ham defer (implicit) — shuning uchun m
   **Yozuvdan keyin (add/edit/delete/sync/import) asosiy o'qish `fresh` rejimda** — keshdan bermaydi,
   yangi olib `swrSet` qiladi. Kalitga filtr/davr parametrlari kiradi (masalan `pnl:{from,to}`).
 - **Parallel init:** `init()` dagi mustaqil `await`lar `Promise.all([...])`ga yig'ilgan (loadRole + hisoblar + asosiy o'qish).
+- **`boot();` chaqiruvi modulning ENG OXIRIDA turishi shart** (12 faylning hammasida). Sababi:
+  keshli holatda `boot()` → `enterApp()` → `init()` → `loadKassalar()` → `renderKassalar(cached)`
+  zanjiri **birinchi `await`gacha butunlay sinxron** ishlaydi. `boot()` yuqorida chaqirilsa, pastdagi
+  `const`/`let`lar hali initsializatsiya bo'lmagan bo'ladi → TDZ: *"Cannot access 'X' before
+  initialization"* → sahifa bo'sh qoladi. Yangi top-level chaqiruv qo'shma; qo'shsang — oxiriga.
 
 ## Fayllar
 
