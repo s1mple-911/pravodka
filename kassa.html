@@ -17,6 +17,7 @@
 <link rel="prefetch" href="sozlama.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
@@ -176,7 +177,7 @@
     <div class="page-head">
       <h1>Kassa</h1>
       <div class="head-actions">
-        <button class="kbtn" onclick="openConv()"><i data-lucide="arrow-right-left"></i>Konvert</button>
+        <button class="kbtn" id="convBtn" onclick="openConv()"><i data-lucide="arrow-right-left"></i>Konvert</button>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
           <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -263,15 +264,23 @@ window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-the
   document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
-  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} enterApp(); };
-window.logout=async()=>{ await sb.auth.signOut(); location.reload(); };
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
 // more-sheet
 window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 let appShown=false;
-function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()) return;
+  await window.permLoad(sb);
+  if(!window.permGate()) return;
+  init(); }
 const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
 const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
 async function boot(){
@@ -348,6 +357,14 @@ function renderKassalar(list){
   // Noma'lum kassa_turi yoki bitta buzuq qator butun sahifani yiqitmasin.
   try{
     list=(Array.isArray(list)?list:[]).filter(r=>r&&r.is_active!==false);
+    // Ruxsat: kassa_scope='list' bo'lsa faqat ko'rishga ruxsat etilgan kassalar.
+    // Guruh qatori (5400) konteyner — ruxsat bolalariga qarab beriladi, ko'rinadigan
+    // bolasi qolmasa guruh ham chiqmaydi. Jami summalar shu ro'yxatdan hisoblanadi.
+    if(window.permScope&&window.permScope()==='list'){
+      const ok=list.filter(r=>r.kassa_turi===KT_GURUH||window.permViewOk(r));
+      const bor=new Set(ok.filter(r=>r.kassa_turi!==KT_GURUH).map(r=>r.parent_id));
+      list=ok.filter(r=>r.kassa_turi!==KT_GURUH||bor.has(r.id));
+    }
     const guruhlar=list.filter(r=>r.kassa_turi===KT_GURUH);
     // Diagnostika: guruh qatori render ro'yxatiga yetib keldimi?
     if(!guruhlar.length) console.log('[kassa] xarajat_guruh qatori yo\'q. Kelgan turlar:',
@@ -486,7 +503,8 @@ window.openConv=async()=>{
   cvFoiz=Number(foiz)||5;
   // Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi.
   // Guruh (5400) — konteyner, unga to'g'ridan pul yozilmaydi, tanlanmaydi.
-  const from=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH);
+  // Ruxsat: faqat amaliyot qilishga ruxsat etilgan kassalar tanlanadi (server ham tekshiradi)
+  const from=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH&&window.permOpOk(r));
   $('cvFrom').innerHTML=from.length?from.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join(''):'<option value="">Mos kassa yo\'q</option>';
   $('cvFrom').onchange=cvFillTo; $('cvTo').onchange=cvValyutaChanged;
   await cvFillTo(); icons();
@@ -567,6 +585,8 @@ window.convSave=async()=>{
 // /konvert
 
 async function init(){
+  // Konvert ruxsati yo'q bo'lsa tugma ko'rinmaydi (server ham to'sadi — perm_can_convert)
+  if(!window.permConvert()){ const b=$('convBtn'); if(b) b.style.display='none'; }
   await Promise.all([loadRole(), loadKassalar()]);
 }
 

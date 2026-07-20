@@ -21,10 +21,14 @@ keladi (DNS/TLS yo'q, brauzer keshlaydi). CDN (`jsdelivr`/`unpkg`/Google Fonts) 
 - `vendor/inter.woff2` — Inter variable font (100–900). `@font-face` har faylning `<style>` boshida.
 
 Head tartibi (hamma faylda): `<link rel=icon>` → supabase `preconnect` → 10-11 ta `prefetch`
-(qolgan sahifalar) → `<script src="vendor/lucide...defer">` → `<script src="vendor/supabase...defer">` → `<style>`.
+(qolgan sahifalar) → `<script src="vendor/lucide...defer">` → `<script src="vendor/supabase...defer">`
+→ `<script src="perms.js" defer>` → `<style>`.
 Vendor skriptlar `defer`, module skript ham defer (implicit) — shuning uchun module ishga tushganda
-`window.supabase`/`window.lucide` tayyor bo'ladi. **Endi har faylda aniq 3 ta `</script>`**
-(lucide + supabase + module) — avvalgi 2 emas. 3 dan farq bo'lsa fayl buzilgan.
+`window.supabase`/`window.lucide`/`window.perm*` tayyor bo'ladi. **Endi har faylda aniq 4 ta `</script>`**
+(lucide + supabase + perms + module) — avvalgi 3 emas. 4 dan farq bo'lsa fayl buzilgan.
+
+`perms.js` — repodagi yagona **umumiy** klient fayli (vendor emas, o'zimizniki). Ruxsat tizimi
+xavfsizlikka tegishli, shuning uchun u 12 marta ko'chirilmaydi: bitta joyda tuzatiladi.
 
 ### Tezlik naqshlari (hamma faylda bir xil)
 
@@ -225,6 +229,43 @@ decided_by_name, decided_at, entry_id`.
 - **bitta kassa** → markazga jo'natilgan pul o'sha kassa uchun CHIQIM bo'lib ko'rinadi. Bu **xato emas**:
   pul shu kassadan chiqqan. `cashflow.html` izohi shunga qarab o'zgaradi (`setNote()`).
 
+## Foydalanuvchi ruxsatlari (rol tizimi) — `PROVODKA_PERMS.sql` + `perms.js`
+
+Har foydalanuvchiga alohida: qaysi kassalarni **ko'radi**, qaysilarida **amaliyot** qiladi,
+**konvert** ruxsati bormi, qaysi **sahifalar** ochiq. Sozlash Provodka'da emas —
+`admin-dev.html` → n8n webhook → `admin_set_provodka_perms()`.
+
+`user_perms(user_id, allowed_pages text[], kassa_scope, view_kassa_ids uuid[], op_kassa_ids uuid[],
+can_convert, updated_at, updated_by)`. **Bo'sh `allowed_pages` = hamma sahifa**, `kassa_scope='all'`
+= hamma kassa. Qatori yo'q foydalanuvchi va **admin** — cheklanmagan.
+RLS: o'qish o'zi yoki admin; **yozish policy'si umuman yo'q** — faqat RPC (service_role) yozadi.
+
+- `my_perms()` → jsonb, `authenticated` uchun. Admin/qatorsizga to'liq-ochiq default qaytaradi.
+- `admin_set_provodka_perms(p_data jsonb)` — **service_role ONLY** (n8n). `op ⊆ view` majburlaydi,
+  noma'lum sahifa kalitini tashlaydi, `role='admin'` userga cheklov yozmaydi (qatorini o'chiradi).
+- `perm_check_accounts(uuid[])`, `perm_can_convert()`, `perm_op_key(uuid)`, `perm_pages()`.
+
+**SERVER GUARD — `entry_line` ustidagi trigger `trg_perm_guard_entry_line`.** Provodka yozuvlari
+RPC orqali emas, klientdan to'g'ridan `entry`+`entry_line` insert bilan yoziladi — shuning uchun
+yagona ishonchli to'siq shu trigger: kirim/chiqim/transfer/professional/tahrir/konvert — hammasi
+bir joyda. `auth.uid()` null (service_role, n8n sinxroni) va admin o'tadi. **UI yashirish
+hech qachon yetarli emas — yangi yozuv yo'li qo'shsang trigger uni avtomat qamrab oladi, buzma.**
+
+Konvert ruxsati `convert_start_v2` ichida: `to_regprocedure('perm_can_convert()')` bo'lsa chaqiradi.
+Shu naqsh tufayli ikki SQL fayl bir-birining ishga tushirilish **tartibiga bog'lanmaydi**.
+
+**`perm_op_key`** — valyuta bola-hisobi (56xx USD…) ruxsatni **parent kassadan** oladi; hodim
+kassalari esa o'z id'si bilan. Ikkalasini ajratuvchi shart: `currency <> 'UZS'`
+(`parent_id` ikki ma'noli — yuqoridagi ogohlantirishga qara).
+
+Klient (`perms.js`, hamma sahifada bir xil): `permGate()` (nav yashirish + "Ruxsat yo'q" ekrani,
+faqat `main` ichini almashtiradi — nav joyida qoladi), `permLoad(sb)` (kesh-birinchi, fonda
+yangilanadi), `permViewOk/permOpOk/permFilterView/permFilterOp`, `permConvert()`, `permErr(e)`
+(42501 xatosini odam tiliga o'giradi), `permClear()`.
+`enterApp()` **async**: keshdan gate → `await permLoad` → qayta gate → `init()`.
+`permClear()` login va logoutda **majburiy** — `sessionStorage` reload'dan keyin ham qoladi,
+aks holda yangi foydalanuvchi eskisining ruxsatlari bilan ochiladi.
+
 ## Qat'iy qoidalar
 
 - **Dt = Kt** har doim. Trigger `check_entry_balanced` teng bo'lmasa saqlatmaydi.
@@ -306,8 +347,8 @@ Boshqa workflowlar: `aros-filial-live` + `aros-currencies` (`lco21f7pUcKPpNVU`),
   node --check /tmp/x.mjs
   ```
   **Diqqat:** bu `sed` faqat BIRINCHI `</script>` gacha o'qiydi — undan keyingi buzilgan qismni
-  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **har faylda aniq 3 ta**
-  (`vendor/lucide` + `vendor/supabase` + module). 3 dan farq bo'lsa fayl buzilgan.
+  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **har faylda aniq 4 ta**
+  (`vendor/lucide` + `vendor/supabase` + `perms.js` + module). 4 dan farq bo'lsa fayl buzilgan.
 - **Skript bilan ommaviy tahrir qilganda `str.replace(re, string)` ISHLATMA — `replace(re, () => string)`
   ishlat.** String almashtirishda `$'` "moslikdan keyingi hamma narsa", `$&` "moslikning o'zi",
   `$1` guruh degani. Kodimizda `+' $':money(...)` bor — ya'ni `$'` — va u jimgina faylning butun

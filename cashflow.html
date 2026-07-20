@@ -18,6 +18,7 @@
 <link rel="prefetch" href="sozlama.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
@@ -239,15 +240,23 @@ window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-the
   document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
-  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} enterApp(); };
-window.logout=async()=>{ await sb.auth.signOut(); location.reload(); };
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
 // more-sheet
 window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 let appShown=false;
-function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()) return;
+  await window.permLoad(sb);
+  if(!window.permGate()) return;
+  init(); }
 // Auth gate — localStorage'da token bo'lsa DARROV app'ni ko'rsat, sessiyani fonda tekshir (miltillamaydi)
 const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
 const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
@@ -295,7 +304,8 @@ async function fillKassalar(){
   const {data,error}=await sb.from('v_pul_hisoblar').select('*').order('code');
   if(error){ $('banner').style.display='block'; $('banner').textContent='Kassalar: '+error.message; return; }
   // 'xarajat_guruh' (5400) — konteyner, tanlanmaydi. View bu ustunni bermasa filtr shunchaki o'tkazib yuboradi.
-  const list=(data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh');
+  // Ruxsat: ko'rishga ruxsat etilmagan kassa filtrda chiqmaydi (view_kassa_ids)
+  const list=window.permFilterView((data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh'));
   // Hodim kassasining nomi = ism — "Filial · Lavozim" subtitle yonida turadi
   const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}${r.subtitle?' · '+r.subtitle:''}</option>`;
   const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';

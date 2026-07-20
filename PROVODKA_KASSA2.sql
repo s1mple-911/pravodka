@@ -463,10 +463,22 @@ declare
   v_bal numeric; v_entry uuid; v_req uuid;
   f accounts%rowtype; t accounts%rowtype;
   v_fcur text; v_tcur text;
+  v_ruxsat boolean;
 begin
   if auth.uid() is null then
     return jsonb_build_object('ok', false, 'error', 'Avtorizatsiya kerak');
   end if;
+
+  -- Konvert ruxsati (PROVODKA_PERMS.sql). Ruxsat tizimi hali o'rnatilmagan
+  -- bo'lsa — funksiya yo'q, chaqirilmaydi va hamma konvert qila oladi (eski holat).
+  -- to_regprocedure orqali: ikki SQL fayl bir-birining tartibiga bog'lanib qolmaydi.
+  if to_regprocedure('public.perm_can_convert()') is not null then
+    execute 'select perm_can_convert()' into v_ruxsat;
+    if not coalesce(v_ruxsat, true) then
+      return jsonb_build_object('ok', false, 'error', 'Konvert ruxsati yoq');
+    end if;
+  end if;
+
   select coalesce(full_name, 'foydalanuvchi') into v_who from profiles where id = auth.uid();
 
   if p_amount is null or p_amount <= 0 then

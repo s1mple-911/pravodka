@@ -18,6 +18,7 @@
 <link rel="prefetch" href="sozlama.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--nt:#667085;--nt-soft:#eef0f3;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
@@ -292,15 +293,23 @@ window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-the
   document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
-  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} enterApp(); };
-window.logout=async()=>{ await sb.auth.signOut(); location.reload(); };
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
 // more-sheet
 window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 let appShown=false;
-function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon(); init(); }
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()) return;
+  await window.permLoad(sb);
+  if(!window.permGate()) return;
+  init(); }
 // Auth gate — localStorage'da token bo'lsa DARROV app'ni ko'rsat, sessiyani fonda tekshir (miltillamaydi)
 const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
 const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
@@ -355,7 +364,8 @@ const optOf=a=>`<option value="${a.id}">${esc(a.code)} · ${esc(a.name)}</option
 // filAllow=null → hamma hisob; Set → faqat tanlangan filialning hisoblari ("Barcha hisoblar"siz)
 function buildAccSel(){
   // 'xarajat_guruh' (5400) — konteyner, unga yozuv tushmaydi → filtrda ham ko'rsatilmaydi
-  const base=accList.filter(a=>a.kassa_turi!=='xarajat_guruh');
+  // Ruxsat: ko'rishga ruxsat etilmagan kassa filtrda ham chiqmaydi (view_kassa_ids)
+  const base=window.permFilterView(accList.filter(a=>a.kassa_turi!=='xarajat_guruh'));
   const list=filAllow?base.filter(a=>filAllow.has(a.id)):base, used=new Set();
   // Bo'sh qiymat doim birinchi: filial tanlangan bo'lsa "Butun filial" (p_accounts), aks holda "Barcha hisoblar"
   let html=`<option value="">${filAllow?'Butun filial':'Barcha hisoblar'}</option>`;
@@ -504,7 +514,7 @@ window.softDelete=async id=>{
 // 'xarajat_guruh' (5400) — konteyner, tahrir modalida tanlanmaydi. Hodim kassalari (5401+) tanlanadi.
 function isKassa(a){ return a.type==='aktiv' && a.code.startsWith('5') && a.kassa_turi!=='xarajat_guruh'; }
 function listFor(d){ if(d==='chiqim') return accounts.filter(a=>a.type==='xarajat');
-  if(d==='transfer') return accounts.filter(isKassa);
+  if(d==='transfer') return accounts.filter(a=>isKassa(a)&&window.permOpOk(a));
   return accounts.filter(a=> a.type==='daromad' || a.code==='4010' || a.code==='8000'); }
 // Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
 const accLbl=a=>a.name+(a.subtitle?' · '+a.subtitle:'');
@@ -544,7 +554,7 @@ window.eSetDir=(d,dtAcc,ktAcc)=>{ edir=d;
   $('eCounterLbl').textContent=d==='kirim'?'Nimadan':(d==='transfer'?'Qaysi kassaga':'Nimaga');
   let kassaVal,counterVal;
   if(dtAcc&&ktAcc){ if(d==='kirim'){ kassaVal=dtAcc.id; counterVal=ktAcc.id; } else { kassaVal=ktAcc.id; counterVal=dtAcc.id; } }
-  fillKassaSel($('eKassa'), accounts.filter(isKassa), kassaVal);
+  fillKassaSel($('eKassa'), accounts.filter(a=>isKassa(a)&&window.permOpOk(a)), kassaVal);
   if(d==='transfer') fillKassaSel($('eCounter'), listFor(d), counterVal); else fillSel($('eCounter'), listFor(d), counterVal);
   icons();
 };
