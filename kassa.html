@@ -127,6 +127,7 @@
   .krow .v{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .krow .l{min-width:0}
   .krow .nm,.krow .st{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .krow.kempty{color:var(--muted);font-size:13px;justify-content:flex-start;padding:14px}
   /* /kassa-kartalar */
 </style>
 </head>
@@ -298,27 +299,36 @@ function krow(r){
   const st=r.subtitle?`<div class="st">${esc(r.subtitle)}</div>`:'';
   return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}</div><div class="v">${money(r.jami)}</div></div>`;
 }
+// Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
 function kgroupList(lbl,rows){
-  if(!rows.length) return '';
+  const ichi=rows.length ? rows.map(krow).join('')
+    : '<div class="krow kempty">Hozircha hodim kassasi yo\'q</div>';
   return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
-    +`<div class="klist">${rows.map(krow).join('')}</div></div>`;
+    +`<div class="klist">${ichi}</div></div>`;
 }
 function renderKassalar(list){
   // Noma'lum kassa_turi yoki bitta buzuq qator butun sahifani yiqitmasin.
   try{
     list=(Array.isArray(list)?list:[]).filter(r=>r&&r.is_active!==false);
     const guruhlar=list.filter(r=>r.kassa_turi===KT_GURUH);
+    // Diagnostika: guruh qatori render ro'yxatiga yetib keldimi?
+    if(!guruhlar.length) console.log('[kassa] xarajat_guruh qatori yo\'q. Kelgan turlar:',
+      [...new Set(list.map(r=>r.kassa_turi))].join(', '),'| jami qator:',list.length);
     const gIds=new Set(guruhlar.map(g=>g.id));
     // Guruh konteyner — o'z summasi yo'q, umumiy jamiga qo'shilmaydi (bolalari alohida sanaladi).
     $('jami').textContent=money(jamiOf(list.filter(r=>!gIds.has(r.id))));
     if(!list.length){ $('kassalar').innerHTML='<div class="empty">Kassa yo\'q</div>'; return; }
     const used=new Set();
     let html='';
-    // 1) Guruhlar: sarlavha = guruh nomi, ostida parent_id shu guruhga qaragan hodim kassalari
+    // 1) Guruhlar: sarlavha = guruh nomi, ostida parent_id shu guruhga qaragan hodim kassalari.
+    //    View parent_id bermasa (yoki null bo'lsa) — bitta guruh bo'lgan holatda hamma 'xarajat'
+    //    kassalari shu guruhning bolasi deb olinadi (eski 53xx/56xx allaqachon is_active=false).
     for(const g of guruhlar){
       used.add(g.id);
-      const bolalar=list.filter(r=>r.parent_id===g.id&&r.id!==g.id);
+      let bolalar=list.filter(r=>r.parent_id===g.id&&r.id!==g.id);
+      if(!bolalar.length&&guruhlar.length===1) bolalar=list.filter(r=>r.kassa_turi==='xarajat');
       bolalar.forEach(r=>used.add(r.id));
+      console.log('[kassa] guruh',g.code,g.name,'bolalar:',bolalar.length);
       html+=kgroupList(g.name||'Guruh',bolalar);
     }
     // 2) Odatdagi turlar
