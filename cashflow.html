@@ -295,12 +295,16 @@ function whichRange(){
 async function fillKassalar(){
   const {data,error}=await sb.from('v_pul_hisoblar').select('*').order('code');
   if(error){ $('banner').style.display='block'; $('banner').textContent='Kassalar: '+error.message; return; }
-  const list=data||[];
+  // 'xarajat_guruh' (5400) — konteyner, tanlanmaydi. View bu ustunni bermasa filtr shunchaki o'tkazib yuboradi.
+  const list=(data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh');
   const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}</option>`;
   const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';
+  const xarajat=list.filter(r=>r.kassa_turi==='xarajat');
+  const xId=new Set(xarajat.map(r=>r.id));
   $('kassa').innerHTML='<option value="">Hamma kassalar</option>'
-    +grp('Markaziy kassalar',list.filter(r=>!r.is_filial))
-    +grp('Filial kassalari',list.filter(r=>r.is_filial));
+    +grp('Markaziy kassalar',list.filter(r=>!r.is_filial&&!xId.has(r.id)))
+    +grp('Filial kassalari',list.filter(r=>r.is_filial&&!xId.has(r.id)))
+    +grp('Xarajat kassalar',xarajat);
 }
 function group(rows,yonalish){
   const bySec={};

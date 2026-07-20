@@ -269,7 +269,9 @@ async function init(){
   $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
   const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
   if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
-  accounts=data||[]; lines=[]; addLine(); addLine();
+  // kassa_turi='xarajat_guruh' (5400) — konteyner hisob, unga to'g'ridan yozuv yozilmaydi
+  accounts=(data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh');
+  lines=[]; addLine(); addLine();
 }
 </script>
 </body>

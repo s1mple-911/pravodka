@@ -107,6 +107,26 @@ Viewlar: `v_hisob_qoldiq`, `v_kassa_qoldiq` (filiallarni chiqarib tashlaydi),
 Kartada katta raqam = `jami`; taqsimot satri (`uzs` so'm · `usd` $) faqat `usd > 0` bo'lsa chiqadi.
 Tanlash (dropdown/konvert) uchun **`v_kassa_toliq`** kerak — u har hisobni alohida qator qilib beradi.
 
+### `kassa_turi='xarajat_guruh'` — hodim xarajat kassalari
+
+`5400 "Hodim xarajat kassalari"` — **konteyner hisob**, unga to'g'ridan pul yozilmaydi.
+Ostidagi hodim kassalari: kod `5401+`, `parent_id` = 5400, `kassa_turi='xarajat'`,
+`name` = hodim ismi, `subtitle` = "Filial · Lavozim", `taskfix_user_id`. Ularni TaskFix RPC orqali yaratadi.
+Eski filial-xarajat kassalar (53xx, 56xx) `is_active=false`.
+
+Klient qoidalari (hamma faylda bir xil):
+- `kassa.html` — `xarajat_guruh` qatori **karta emas, guruh sarlavhasi**; ostiga `parent_id` shu guruhga
+  qaragan bolalar `.klist`/`.krow` ro'yxati (nom + kulrang `subtitle`) bo'lib chiziladi. Guruhning o'z
+  summasi umumiy `jami`ga qo'shilmaydi (bolalari alohida sanaladi).
+- **Konteyner hech qayerda tanlanmaydi:** `isKassa()` (`provodka.html`, `jurnal.html`),
+  `professional.html` account yuklashi, `cashflow.html` kassa filtri, `kassa.html` konvert —
+  hammasi `kassa_turi!=='xarajat_guruh'` bilan filtrlaydi. Hodim kassalari (5401+) esa **ko'rinadi**.
+- **`renderKassalar()` `try/catch` ichida** va noma'lum `kassa_turi` "Boshqa" guruhiga tushadi —
+  yangi tur qo'shilganda sahifa hech qachon butunlay bo'sh qolmasligi kerak.
+- `v_kassa_card`/`v_kassa_toliq`da `parent_id` **ikki ma'noli**: dollar juftligi ham, guruh a'zoligi ham.
+  Dollar juftligini izlagan SQL/JS `currency='USD'` shartini ham qo'yishi shart — aks holda 5400'ning
+  62 ta bolasi bitta-qator subquery'ni portlatadi va **butun view xato beradi** (kassa sahifasi bo'shab qoladi).
+
 `v_hisob_royxat` — `jurnal.html`dagi hisob filtri (optgroup). Guruhlash tartibi muhim,
 **birinchi moslik yutadi**: `kassa_turi` ('markaziy'|'filial'|'xarajat') → `section='tovar'` (Omborlar)
 → `type` ('daromad'|'xarajat') → Boshqa. `kassa_turi='xarajat'` (Xarajat **kassalar**) va
