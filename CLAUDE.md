@@ -183,6 +183,24 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   `p_from` emas. Tekshiruv: `pul_qoldiq(p_to) − pul_qoldiq(p_from−1)` = sum(KIRIM) − sum(CHIQIM).
   **`p_account` uchala chaqiruvga ham bir xil berilishi shart**, aks holda tekshiruv mos kelmaydi.
 
+### Konvert v2 — Sotib olish / Sotish
+
+- `convert_start_v2(p_from, p_to, p_amount, p_rate, p_note)` — **yo'nalish `from`/`to` valyutasidan**:
+  `UZS→X` sotib olish (`p_amount` **so'mda**), `X→UZS` sotish (`p_amount` **valyutada**).
+  `p_rate` har doim *1 birlik valyuta necha so'm*. `X→Y` rad etiladi ("avval so'mga soting").
+  Qaytishi eskisidek + `yonalish`, `currency`, `amount`, `foiz`.
+- `do_convert_v2(...)` — `fc_amount` **har doim valyuta-hisob satriga** (Dt yoki Kt — farqi yo'q).
+  `v_hisob_bal` (`debit>0 ? +fc : −fc`) buni to'g'ri hisoblaydi.
+- **Eski `convert_start` va `do_convert` imzolari saqlanadi** — ichi v2'ga delegat. Buzma:
+  eski pending so'rovlar `convert_approve` orqali shu imzo bilan bajariladi.
+- `conv_koridor_foiz()` → **5** (avval 2% edi). Koridorning yagona manbasi — UI ham shundan o'qiydi.
+- `conv_baza_kurs(p_cur)` — USD uchun `aros_usd_rate()`, boshqasi `currency_rate`dagi oxirgisi
+  (teskari juftlik bo'lsa `1/rate`). **null bo'lishi mumkin** → koridor yo'q, to'g'ridan pending.
+- `acc_fc_balance(p_id)` — valyuta qoldig'i. Sotishda va sotish approve'ida tekshiriladi.
+- `convert_approve` koridorni **qayta tekshirmaydi** (ataylab, eski xatti-harakat).
+- `convert_request`ga ustun qo'shilmagan — yo'nalish `from`/`to` hisob valyutasidan tiklanadi
+  (`konvert.html` → `yonalish()`).
+
 Konvert RPC'lari (tugma + modal `kassa.html`da — `openConv()`/`convSave()`):
 - `aros_usd_rate()` → **oddiy numeric** (koridor emas). Koridor frontendda: `lo=rate*0.98`, `hi=rate*1.02`.
   **null bo'lishi mumkin** (Valyuta bo'limida "Aros'dan" import qilinmagan bo'lsa) — UI shuni ko'tarishi kerak.

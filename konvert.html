@@ -188,12 +188,15 @@ function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Da
 const $=id=>document.getElementById(id);
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
-const usdFmt=n=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+' $';
+// Valyuta miqdori — 2 kasr. Kod berilmasa (eski so'rovlar) $ deb ko'rsatiladi.
+const usdFmt=(n,cur)=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+' '+(cur||'$');
 const fmtWhen=x=>{ if(!x) return ''; try{ return new Date(x).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
 const ST_LBL={pending:'Kutilmoqda',done:'Bajarildi',rejected:'Rad etildi',approved:'Tasdiqlandi'};
 const ST_IC={pending:'clock',done:'check',rejected:'x',approved:'check'};
 const stLbl=s=>ST_LBL[s]||(s?String(s).replace(/_/g,' '):'—');
 let isAdmin=false, myName='', accById={};
+// Koridor foizi serverdan (conv_koridor_foiz). Kelmasa 5% — SQL'dagi joriy qiymat.
+let cvFoiz=5;
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -237,11 +240,24 @@ function farqPct(r){
   if(!a||!k) return null;
   return (k-a)/a*100;
 }
+// Yo'nalish so'rovdan tiklanadi — convert_request'da alohida ustun yo'q.
+// Beruvchi so'mda bo'lsa sotib olish, aks holda sotish.
+function yonalish(r){
+  const f=accById[r.from_account], t=accById[r.to_account];
+  const fcur=(f&&f.currency)||'UZS', tcur=(t&&t.currency)||'UZS';
+  const sotish=fcur!=='UZS';
+  return {sotish, cur:(sotish?fcur:tcur)};
+}
 function card(r){
   const st=String(r.status||'');
   const pct=farqPct(r);
   const pctTxt=pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%';
-  const chiqib=pct!==null&&Math.abs(pct)>2;
+  const chiqib=pct!==null&&Math.abs(pct)>cvFoiz;
+  const y=yonalish(r);
+  // Sotib olish: so'm → valyuta. Sotish: valyuta → so'm.
+  const bosh=y.sotish
+    ? `<span class="amt">${usdFmt(r.fc_amount,y.cur)}</span><span class="usd">→ ${money(r.amount)} so'm</span>`
+    : `<span class="amt">${money(r.amount)}</span><span class="usd">→ ${usdFmt(r.fc_amount,y.cur)}</span>`;
   const acts=(isAdmin&&st==='pending')?`<div class="acts">
       <button class="ok" onclick="approve('${r.id}')"><i data-lucide="check"></i>Tasdiqlash</button>
       <button class="no" onclick="reject('${r.id}')"><i data-lucide="x"></i>Rad etish</button>
@@ -250,14 +266,15 @@ function card(r){
   const note=r.note?`<div class="note">${r.note}</div>`:'';
   return `<div class="rq ${st}">
     <div class="hd">
-      <div><span class="amt">${money(r.amount)}</span><span class="usd">→ ${usdFmt(r.fc_amount)}</span></div>
+      <div>${bosh}</div>
       <span class="st ${st}"><i data-lucide="${ST_IC[st]||'circle'}"></i>${stLbl(st)}</span>
     </div>
     <div class="grid">
       <div class="kv"><span>Kimdan</span><b>${accName(r.from_account)}</b></div>
       <div class="kv"><span>Kimga</span><b>${accName(r.to_account)}</b></div>
+      <div class="kv"><span>Yo'nalish</span><b>${y.sotish?'Sotish':'Sotib olish'} · ${y.cur||'—'}</b></div>
       <div class="kv"><span>Kurs</span><b>${money(r.rate)}</b></div>
-      <div class="kv"><span>Aros kursi</span><b>${r.aros_rate?money(r.aros_rate):'—'}</b></div>
+      <div class="kv"><span>Tayanch kurs</span><b>${r.aros_rate?money(r.aros_rate):'—'}</b></div>
       <div class="kv"><span>Farq</span><b class="${chiqib?'warn':''}">${pctTxt}</b></div>
       <div class="kv"><span>So'radi</span><b>${r.requested_by_name||'—'} · ${fmtWhen(r.requested_at)}</b></div>
     </div>${note}${decided}${acts}</div>`;
@@ -306,7 +323,10 @@ async function init(){
   // Mustaqil so'rovlar parallel ketadi — ketma-ket kutish yo'q
   await Promise.all([
     loadRole(),
-    (async()=>{ const {data:accs}=await sb.from('v_kassa_toliq').select('id,name'); accById={}; (accs||[]).forEach(a=>{ accById[a.id]=a; }); })(),
+    // currency — yo'nalishni (sotib olish/sotish) tiklash uchun kerak
+    (async()=>{ const {data:accs}=await sb.from('v_kassa_toliq').select('id,name,currency'); accById={}; (accs||[]).forEach(a=>{ accById[a.id]=a; }); })(),
+    // Koridor foizi bitta manbadan — "farq" ustuni shunga qarab sariq bo'ladi
+    (async()=>{ const {data:f}=await sb.rpc('conv_koridor_foiz'); if(f!==null&&f!==undefined) cvFoiz=Number(f)||cvFoiz; })(),
   ]);
   // Kartalar nom (accById) va isAdmin'ga bog'liq — shuning uchun load yuqoridagilardan keyin
   await load(true);

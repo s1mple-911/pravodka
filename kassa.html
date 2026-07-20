@@ -87,6 +87,9 @@
   .kbtn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 15px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,border-color .13s,color .13s}
   .kbtn svg{width:17px;height:17px}
   .kbtn:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .cvseg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-bottom:16px}
+  .cvseg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
+  .cvseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
   .cv-rate{background:var(--surface-2);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin:-8px 0 15px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
   .cv-rate svg{width:14px;height:14px;flex:0 0 auto}
   .cv-rate b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -216,12 +219,16 @@
   <div class="modal" id="convModal"><div class="sheet">
     <h3>Valyuta konverti</h3>
     <div id="cvMsg" class="cv-msg"></div>
-    <label>Qaysi kassadan (so'm)</label><select id="cvFrom"></select>
-    <label>Qaysi kassaga (dollar)</label><select id="cvTo"></select>
-    <label>Summa (so'm)</label><input class="txt" id="cvAmount" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
-    <label>Kurs (1 $ necha so'm)</label><input class="txt" id="cvRate" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
+    <div class="cvseg" id="cvSeg">
+      <button class="on" id="cvBuy" onclick="cvSetYon('sotib_olish',this)">Sotib olish</button>
+      <button id="cvSell" onclick="cvSetYon('sotish',this)">Sotish</button>
+    </div>
+    <label>Kassa</label><select id="cvFrom"></select>
+    <label>Valyuta</label><select id="cvTo"></select>
+    <label id="cvAmountLbl">Summa (so'm)</label><input class="txt" id="cvAmount" inputmode="decimal" placeholder="0" oninput="cvFmt(this)">
+    <label id="cvRateLbl">Kurs (1 birlik necha so'm)</label><input class="txt" id="cvRate" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
     <div class="cv-rate" id="cvArosBox"><i data-lucide="info"></i><span id="cvAros">—</span></div>
-    <div class="cv-out"><span class="k">Olinadigan dollar</span><span class="v" id="cvUsd">0 $</span></div>
+    <div class="cv-out"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
     <label>Izoh</label><input class="txt" id="cvNote" placeholder="ixtiyoriy izoh">
     <div class="mrow"><button onclick="closeConv()">Bekor</button><button class="primary" id="cvSave" onclick="convSave()">Konvert qilish</button></div>
   </div></div>
@@ -442,70 +449,115 @@ window.valSave=async()=>{
 };
 // /valyuta qo'shish
 
-// konvert
-let cvKassa=[], cvArosRate=null;
-const cvNum=id=>Number(($(id).value||'').replaceAll(' ',''))||0;
-window.cvFmt=el=>{ const raw=el.value.replaceAll(' ','').replace(/\D/g,''); el.value=raw?money(raw):''; cvCalc(); };
+// konvert — ikki rejim: Sotib olish (so'm → valyuta), Sotish (valyuta → so'm)
+let cvKassa=[], cvBaza=null, cvFoiz=5, cvYon='sotib_olish';
+// Summa sotishda kasrli bo'lishi mumkin, kurs esa butun
+const cvNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
+window.cvFmt=el=>{
+  const kasr=(el.id==='cvAmount'&&cvYon==='sotish');
+  let raw=el.value.replaceAll(' ','').replace(',','.').replace(kasr?/[^0-9.]/g:/\D/g,'');
+  if(kasr){
+    const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+    const [b,k]=raw.split('.');
+    el.value=b?money(b)+(k!==undefined?'.'+k:''):'';
+  }else{
+    el.value=raw?money(raw):'';
+  }
+  cvCalc();
+};
+window.cvSetYon=(y,btn)=>{
+  cvYon=y;
+  [...$('cvSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  $('cvAmount').value='';
+  cvFillTo();
+};
 window.openConv=async()=>{
   $('cvAmount').value=''; $('cvRate').value=''; $('cvNote').value='';
   $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
   $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
   $('convModal').classList.add('open');
   // v_kassa_toliq — har hisob alohida qator, tanlash uchun shu kerak (v_kassa_card juftlikni yig'ib yuboradi)
-  const {data,error}=await sb.from('v_kassa_toliq').select('*').order('code');
+  const [{data,error},{data:foiz}]=await Promise.all([
+    sb.from('v_kassa_toliq').select('*').order('code'),
+    sb.rpc('conv_koridor_foiz'),
+  ]);
   if(error){ cvErr(error.message); return; }
   cvKassa=data||[];
+  cvFoiz=Number(foiz)||5;
   // Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi.
   // Guruh (5400) — konteyner, unga to'g'ridan pul yozilmaydi, tanlanmaydi.
   const from=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH);
   $('cvFrom').innerHTML=from.length?from.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join(''):'<option value="">Mos kassa yo\'q</option>';
-  $('cvFrom').onchange=cvFillTo; cvFillTo();
-  const {data:rate}=await sb.rpc('aros_usd_rate');
-  cvArosRate=(rate===null||rate===undefined)?null:Number(rate);
-  cvCalc(); icons();
+  $('cvFrom').onchange=cvFillTo; $('cvTo').onchange=cvValyutaChanged;
+  await cvFillTo(); icons();
 };
 window.closeConv=()=>$('convModal').classList.remove('open');
 function cvErr(m){ $('cvMsg').className='cv-msg err'; $('cvMsg').textContent=m; }
-// Dollar kassa — o'sha so'm kassasining parent_id bo'yicha juftligi
-function cvFillTo(){
+// Tanlangan kassaning valyuta bolalari. Yo'nalish shu ro'yxatdan aniqlanadi:
+// sotib olish → Dt bola, Kt kassa; sotish → teskari.
+const cvCur=()=>{ const t=cvKassa.find(r=>r.id===$('cvTo').value); return t?t.currency:null; };
+async function cvFillTo(){
   const p=$('cvFrom').value;
-  const to=cvKassa.filter(r=>r.currency==='USD'&&r.parent_id===p);
-  $('cvTo').innerHTML=to.length?to.map(r=>`<option value="${r.id}">${r.name}</option>`).join(''):'<option value="">Bu kassaning dollar juftligi yo\'q</option>';
+  const to=cvKassa.filter(r=>r.currency!=='UZS'&&r.parent_id===p);
+  $('cvTo').innerHTML=to.length?to.map(r=>`<option value="${r.id}">${esc(r.currency)} — ${esc(r.name)}</option>`).join('')
+    :'<option value="">Bu kassada valyuta hisobi yo\'q — "Valyuta qo\'shish"</option>';
+  await cvValyutaChanged();
+}
+async function cvValyutaChanged(){
+  const cur=cvCur();
+  $('cvAmountLbl').textContent=cvYon==='sotish'?('Summa ('+(cur||'valyuta')+')'):'Summa (so\'m)';
+  $('cvRateLbl').textContent='Kurs (1 '+(cur||'birlik')+' necha so\'m)';
+  $('cvOutLbl').textContent=cvYon==='sotish'?'Olinadigan so\'m':('Olinadigan '+(cur||'valyuta'));
+  $('cvAmount').setAttribute('inputmode',cvYon==='sotish'?'decimal':'numeric');
+  cvBaza=null;
+  if(cur){
+    // Tayanch kurs: USD → aros_usd_rate(), boshqasi → currency_rate'dagi oxirgisi
+    const {data}=await sb.rpc('conv_baza_kurs',{p_cur:cur});
+    cvBaza=(data===null||data===undefined)?null:Number(data);
+  }
   cvCalc();
 }
 function cvCalc(){
-  const amt=cvNum('cvAmount'), rate=cvNum('cvRate');
-  $('cvUsd').textContent=(rate>0?(amt/rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '):'0')+' $';
+  const amt=cvNum('cvAmount'), rate=cvNum('cvRate'), cur=cvCur()||'';
+  // sotib olish: so'm / kurs = valyuta; sotish: valyuta * kurs = so'm
+  $('cvUsd').textContent = cvYon==='sotish'
+    ? money(rate>0?amt*rate:0)+" so'm"
+    : (rate>0?(amt/rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '):'0')+' '+cur;
   const box=$('cvArosBox'), el=$('cvRate');
-  if(cvArosRate===null){
+  if(cvBaza===null){
     box.className='cv-rate';
-    $('cvAros').textContent="Aros kursi yo'q — Valyuta bo'limida \"Aros'dan\" import qiling. Kursni baribir server tekshiradi.";
+    $('cvAros').textContent=cur
+      ? 'Bu juftlik uchun kurs tarixi yo\'q — admin tasdig\'i kerak bo\'ladi.'
+      : 'Avval valyutani tanlang.';
     el.classList.remove('warn'); return;
   }
-  const lo=cvArosRate*0.98, hi=cvArosRate*1.02;
+  const lo=cvBaza*(1-cvFoiz/100), hi=cvBaza*(1+cvFoiz/100);
   const out=rate>0&&(rate<lo||rate>hi);
   box.className='cv-rate'+(out?' warn':'');
-  $('cvAros').innerHTML='Aros: <b>'+money(cvArosRate)+'</b> · ruxsat <b>'+money(lo)+'</b> – <b>'+money(hi)+'</b>'
+  $('cvAros').innerHTML='Tayanch: <b>'+money(cvBaza)+'</b> · ruxsat <b>'+money(lo)+'</b> – <b>'+money(hi)+'</b> (±'+cvFoiz+'%)'
     +(out?" · koridordan tashqarida — admin tasdig'i kerak bo'ladi":'');
   el.classList.toggle('warn',out);   // ogohlantiradi, bloklamaydi — server hal qiladi
 }
 window.convSave=async()=>{
-  const p_from=$('cvFrom').value, p_to=$('cvTo').value;
+  const kassa=$('cvFrom').value, valyuta=$('cvTo').value;
+  // p_amount HAR DOIM beruvchi hisobning o'z valyutasida
+  const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
   const p_amount=cvNum('cvAmount'), p_rate=cvNum('cvRate');
   $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
-  if(!p_from||!p_to){ cvErr('Kassalarni tanlang'); return; }
+  if(!kassa||!valyuta){ cvErr('Kassa va valyutani tanlang'); return; }
   if(p_amount<=0){ cvErr('Summa kiriting'); return; }
   if(p_rate<=0){ cvErr('Kurs kiriting'); return; }
   $('cvSave').disabled=true; $('cvSave').textContent='Yuborilmoqda...';
-  const {data,error}=await sb.rpc('convert_start',{p_from,p_to,p_amount,p_rate,p_note:$('cvNote').value||null});
+  const {data,error}=await sb.rpc('convert_start_v2',{p_from,p_to,p_amount,p_rate,p_note:$('cvNote').value||null});
   $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
   if(error){ cvErr('Xato: '+error.message); return; }
   const r=data||{};
-  if(r.ok&&r.status==='done'){ closeConv(); await loadKassalar(); return; }
+  // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
+  if(r.ok&&r.status==='done'){ closeConv(); swrSet('cards',null); swrSet('valyutalar',null); await loadKassalar(); return; }
   if(!r.ok&&r.status==='pending'){
     $('cvMsg').className='cv-msg pend';
     const kor=(r.aros_rate!==undefined&&r.aros_rate!==null)
-      ? '<br>Aros kursi: '+money(r.aros_rate)+' · ruxsat '+money(r.lo)+' – '+money(r.hi) : '';
+      ? '<br>Tayanch kurs: '+money(r.aros_rate)+' · ruxsat '+money(r.lo)+' – '+money(r.hi) : '';
     $('cvMsg').innerHTML="Admin tasdig'i kutilmoqda — pul hali harakat qilmadi."+kor+'<br>So\'rov "Konvert" bo\'limida ko\'rinadi.';
     $('cvSave').disabled=true;
     return;
