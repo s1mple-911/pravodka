@@ -132,6 +132,21 @@ Klient qoidalari (hamma faylda bir xil):
   Dollar juftligini izlagan SQL/JS `currency='USD'` shartini ham qo'yishi shart — aks holda 5400'ning
   62 ta bolasi bitta-qator subquery'ni portlatadi va **butun view xato beradi** (kassa sahifasi bo'shab qoladi).
 
+### Ko'p-valyuta (v2)
+
+Naqsh: **parent UZS kassa + har valyuta uchun bola-hisob** (`parent_id`, `currency`).
+Qaysi valyutada bola bo'lsa — o'sha ko'rinadi, yo'g'i ko'rinmaydi.
+
+- `v_hisob_bal(account_id, uzs, fc)` — umumiy qoldiq yordamchisi (posted + o'chirilmagan).
+  `fc` = hisobning **o'z** valyutasidagi qoldiq (`fc_amount` yig'indisi; bitta hisob = bitta valyuta).
+- `v_kassa_valyutalar(parent_id, account_id, code, name, currency, uzs, fc_qoldiq)` — parentning
+  barcha valyuta bolalari. `uzs` — **tarixiy kursdagi** so'm ekvivalenti, joriy kursga qayta ko'paytirilmaydi.
+- `v_kassa_card` — `usd`/`usd_uzs`/`has_usd`/`usd_account_id` **faqat USD bolasidan** (eski UI sinmasin),
+  `jami` esa parentning o'zi + **hamma** valyuta bolalari. Yangi: `valyuta_soni`.
+- `create_valyuta_child(p_parent uuid, p_currency text)` → uuid. Admin, idempotent, SECURITY DEFINER.
+  Kod `valyuta_kod_blok` jadvalidan: USD=56xx, CNY=57xx, keyingilari 58/59. Bloklar tugasa xato beradi.
+- `v_valyuta_royxat` — tanlash uchun valyuta kodlari (`accounts` + `currency_rate` + bloklardan).
+
 `v_hisob_royxat` — `jurnal.html`dagi hisob filtri (optgroup). Guruhlash tartibi muhim,
 **birinchi moslik yutadi**: `kassa_turi` ('markaziy'|'filial'|'xarajat') → `section='tovar'` (Omborlar)
 → `type` ('daromad'|'xarajat') → Boshqa. `kassa_turi='xarajat'` (Xarajat **kassalar**) va

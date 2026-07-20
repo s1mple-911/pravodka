@@ -128,6 +128,12 @@
   .krow .l{min-width:0}
   .krow .nm,.krow .st{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .krow.kempty{color:var(--muted);font-size:13px;justify-content:flex-start;padding:14px}
+  /* "Valyuta qo'shish" — faqat adminda ko'rinadi (body.is-admin) */
+  .kchip .top{position:relative}
+  .kadd{display:none;margin-left:auto;flex:0 0 auto;width:24px;height:24px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted);cursor:pointer;padding:0}
+  .kadd svg{width:13px;height:13px}
+  .kadd:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  body.is-admin .kadd{display:inline-flex}
   /* /kassa-kartalar */
 </style>
 </head>
@@ -219,6 +225,15 @@
     <label>Izoh</label><input class="txt" id="cvNote" placeholder="ixtiyoriy izoh">
     <div class="mrow"><button onclick="closeConv()">Bekor</button><button class="primary" id="cvSave" onclick="convSave()">Konvert qilish</button></div>
   </div></div>
+
+  <div class="modal" id="valModal"><div class="sheet">
+    <h3>Valyuta qo'shish</h3>
+    <div id="vlMsg" class="cv-msg"></div>
+    <div class="cv-rate"><i data-lucide="info"></i><span id="vlKassa">—</span></div>
+    <label>Valyuta</label><select id="vlCur"></select>
+    <label>Yoki yangi valyuta kodi (masalan CNY)</label><input class="txt" id="vlYangi" placeholder="ixtiyoriy" maxlength="8">
+    <div class="mrow"><button onclick="closeVal()">Bekor</button><button class="primary" id="vlSave" onclick="valSave()">Qo'shish</button></div>
+  </div></div>
 </div>
 
 <script type="module">
@@ -269,6 +284,8 @@ async function loadRole(){
   myName = user?.email || 'foydalanuvchi';
   const {data:p}=await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle();
   if(p){ isAdmin=(p.role==='admin'); if(p.full_name) myName=p.full_name; }
+  // "Valyuta qo'shish" tugmalari CSS orqali ochiladi — kartalarni qayta chizish shart emas
+  document.body.classList.toggle('is-admin',isAdmin);
   $('roleBadge').textContent = (isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
 
@@ -285,11 +302,17 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 // Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
 const accLbl=a=>a.name+(a.subtitle?' · '+a.subtitle:'');
 const jamiOf=rows=>rows.reduce((a,r)=>a+(Number(r.jami)||0),0);
+// Valyuta qoldig'i — 2 kasr, probel bilan (money() butun son uchun)
+const fc=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ');
 function kcard(r){
-  const usd=Number(r.usd)||0;
-  // Dollar yo'q bo'lsa taqsimot satri umuman chiqmaydi — faqat jami.
-  const sub=usd>0?`<div class="sub">${money(r.uzs)} so'm · ${money(usd)} $</div>`:'';
-  return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${r.name}</span></div><div class="v">${money(r.jami)}</div>${sub}</div>`;
+  // Qaysi valyutada bola-hisob bo'lsa — o'sha ko'rinadi. Bolasi yo'q bo'lsa taqsimot satri chiqmaydi.
+  const vals=(kval[r.id]||[]);
+  const sub=vals.length
+    ? `<div class="sub">${[money(r.uzs)+" so'm"].concat(vals.map(v=>fc(v.fc_qoldiq)+' '+esc(v.currency))).join(' · ')}</div>`
+    : '';
+  const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
+  return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
+    +`<div class="v">${money(r.jami)}</div>${sub}</div>`;
 }
 function kgroup(lbl,rows){
   if(!rows.length) return '';
@@ -298,8 +321,14 @@ function kgroup(lbl,rows){
 }
 // Guruh qatori (5400) + uning bolalari: karta emas, nom + kichik kulrang subtitle ro'yxati.
 function krow(r){
-  const st=r.subtitle?`<div class="st">${esc(r.subtitle)}</div>`:'';
-  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}</div><div class="v">${money(r.jami)}</div></div>`;
+  const vals=(kval[r.id]||[]);
+  // Hodim kassasida ham valyuta bolasi bo'lishi mumkin — subtitle yoniga qo'shiladi
+  const qism=vals.map(v=>fc(v.fc_qoldiq)+' '+esc(v.currency)).join(' · ');
+  const pastki=[r.subtitle?esc(r.subtitle):'',qism].filter(Boolean).join(' · ');
+  const st=pastki?`<div class="st">${pastki}</div>`:'';
+  const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
+  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}</div>`
+    +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
 function kgroupList(lbl,rows){
@@ -348,12 +377,23 @@ function renderKassalar(list){
     $('banner').style.display='block'; $('banner').textContent='Ko\'rsatishda xato: '+(e&&e.message||e);
   }
 }
+// parent_id -> valyuta satrlari (v_kassa_valyutalar). Kartalar shu ro'yxatdan chiziladi.
+let kval={};
+const kvalIndex=rows=>{ const m={}; (rows||[]).forEach(v=>{ (m[v.parent_id]||(m[v.parent_id]=[])).push(v); }); return m; };
 async function loadKassalar(){
   // SWR: keshdagi qatorlarni darrov ko'rsat, aks holda "Yuklanmoqda…" placeholder
+  const cachedVal=swrGet('valyutalar'); if(cachedVal) kval=kvalIndex(cachedVal);
   const cached=swrGet('cards');
   if(cached) renderKassalar(cached);
   else $('kassalar').innerHTML='<div class="empty">Yuklanmoqda…</div>';
-  const {data,error}=await sb.from('v_kassa_card').select('*').order('code');
+  // Ikkalasi parallel — lekin render ikkovi kelgach bo'ladi, aks holda karta
+  // valyutasiz chizilib, keyin sassiz eskirib qoladi. View hali yaratilmagan
+  // bo'lsa xato yutiladi va karta eski ko'rinishda (faqat jami) chiziladi.
+  const [{data,error},{data:vs,error:ve}]=await Promise.all([
+    sb.from('v_kassa_card').select('*').order('code'),
+    sb.from('v_kassa_valyutalar').select('*').order('code'),
+  ]);
+  if(!ve&&vs){ swrSet('valyutalar',vs); kval=kvalIndex(vs); }
   // Xato bo'lsa har doim ko'rsat — keshdagi eski raqam jimgina qolib ketmasin
   if(error){
     $('banner').style.display='block';
@@ -366,6 +406,41 @@ async function loadKassalar(){
   renderKassalar(list);
 }
 // /kassa-kartalar
+
+// valyuta qo'shish (admin) — kassaga bola-hisob ochadi
+let vlParent=null;
+window.openVal=async id=>{
+  if(!isAdmin){ alert('Faqat admin valyuta qo\'sha oladi'); return; }
+  vlParent=id;
+  const k=(swrGet('cards')||[]).find(r=>r.id===id);
+  $('vlKassa').textContent=k?(k.code+' · '+k.name):'Kassa';
+  $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
+  $('vlYangi').value=''; $('vlSave').disabled=false; $('vlSave').textContent='Qo\'shish';
+  $('valModal').classList.add('open'); icons();
+  // Mavjud valyutalar ro'yxati; shu kassada allaqachon bor bo'lganlari chiqarib tashlanadi
+  const bor=new Set((kval[id]||[]).map(v=>v.currency));
+  const {data,error}=await sb.from('v_valyuta_royxat').select('*').order('currency');
+  const list=(error?[]:(data||[])).map(r=>r.currency).filter(c=>!bor.has(c));
+  $('vlCur').innerHTML=list.length?list.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')
+    :'<option value="">— ro\'yxat bo\'sh, kodni qo\'lda yozing —</option>';
+};
+window.closeVal=()=>{ $('valModal').classList.remove('open'); vlParent=null; };
+window.valSave=async()=>{
+  const cur=($('vlYangi').value||$('vlCur').value||'').trim().toUpperCase();
+  $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
+  if(!vlParent){ return; }
+  if(!cur){ $('vlMsg').className='cv-msg err'; $('vlMsg').textContent='Valyuta tanlang yoki kodini yozing'; return; }
+  if(cur==='UZS'){ $('vlMsg').className='cv-msg err'; $('vlMsg').textContent='So\'m asosiy valyuta — bola-hisob kerak emas'; return; }
+  $('vlSave').disabled=true; $('vlSave').textContent='Qo\'shilmoqda...';
+  const {error}=await sb.rpc('create_valyuta_child',{p_parent:vlParent,p_currency:cur});
+  $('vlSave').disabled=false; $('vlSave').textContent='Qo\'shish';
+  if(error){ $('vlMsg').className='cv-msg err'; $('vlMsg').textContent='Xato: '+error.message; return; }
+  closeVal();
+  // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
+  swrSet('cards',null); swrSet('valyutalar',null);
+  await loadKassalar();
+};
+// /valyuta qo'shish
 
 // konvert
 let cvKassa=[], cvArosRate=null;
