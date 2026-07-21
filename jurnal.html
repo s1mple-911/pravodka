@@ -282,6 +282,10 @@ function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Da
 const LIMIT=100;
 let rows=[], offset=0, total=0, tur='all', accounts=[], isAdmin=false, myName='', edir='kirim', editId=null;
 let accList=[], filAllow=null;
+// Ruxsat (scope='list'): ko'rishga ruxsat etilgan pul-hisob id'lari (valyuta bolalari + hodim
+// kassalari ham). null = cheklovsiz (admin yoki scope='all'). Jurnal so'roviga p_accounts sifatida
+// ketadi — server faqat shu kassalar qatnashgan yozuvlarni qaytaradi (entrylar ham, jurnal_count ham).
+let permAccIds=null;
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
@@ -471,14 +475,27 @@ function render(){
 window.render=render;
 
 // Hisob tanlansa u ustun (p_account). Aks holda filial hisoblari massiv sifatida (p_accounts).
+// Ruxsat (permAccIds): hech narsa tanlanmagan bo'lsa ham list-scope userga faqat o'z kassalari
+// qatnashgan yozuvlar ketadi; filial tanlangan bo'lsa u bilan kesishtiriladi.
 function args(){
   const acc=$('acc').value||null;
-  const accs=(!acc && filAllow) ? [...filAllow] : null;
+  let accs=null;
+  if(!acc){
+    if(filAllow){
+      accs=[...filAllow];
+      if(permAccIds){ const ok=new Set(permAccIds); accs=accs.filter(id=>ok.has(id)); }
+    } else if(permAccIds){
+      accs=permAccIds.slice();
+    }
+  }
   return {p_from:$('from').value,p_to:$('to').value,p_account:acc,p_accounts:accs};
 }
 async function load(){
   offset=0; rows=[];
   const a=args();
+  // Ruxsat: list-scope va ko'rish mumkin bo'lgan kassa yo'q → bo'sh massivni serverga yubormaymiz
+  // (bo'sh p_accounts "filtr yo'q" deb talqin qilinib hammani ochib yuborishi mumkin).
+  if(a.p_accounts && a.p_accounts.length===0){ total=0; render(); return; }
   const ck='load:'+JSON.stringify(a);
   const cached=swrGet(ck);
   if(cached){ rows=cached.rows||[]; offset=rows.length; total=cached.total||rows.length; render(); }
@@ -494,8 +511,10 @@ async function load(){
   render();
 }
 window.loadMore=async()=>{
+  const a=args();
+  if(a.p_accounts && a.p_accounts.length===0) return;
   const b=$('moreBtn'); b.disabled=true;
-  const {data,error}=await sb.rpc('jurnal',{...args(),p_limit:LIMIT,p_offset:offset});
+  const {data,error}=await sb.rpc('jurnal',{...a,p_limit:LIMIT,p_offset:offset});
   b.disabled=false;
   if(error){ $('banner').style.display='block'; $('banner').textContent=error.message; return; }
   rows=rows.concat(data||[]); offset=rows.length; render();
@@ -513,6 +532,13 @@ window.softDelete=async id=>{
 // tahrir — provodka.html'dagi mantiq
 // 'xarajat_guruh' (5400) — konteyner, tahrir modalida tanlanmaydi. Hodim kassalari (5401+) tanlanadi.
 function isKassa(a){ return a.type==='aktiv' && a.code.startsWith('5') && a.kassa_turi!=='xarajat_guruh'; }
+// scope='list' bo'lsa — accounts jadvalidan ruxsat etilgan kassa id'larini yig'ib qo'yadi.
+// permViewOk keyOf orqali valyuta bolasini (56xx…) parent kassaga bog'laydi, shuning uchun
+// ruxsat berilgan kassaning USD/CNY bolalari ham avtomat kiradi.
+function buildPermAccIds(){
+  if(!window.permScope || window.permScope()!=='list'){ permAccIds=null; return; }
+  permAccIds=(accounts||[]).filter(a=>isKassa(a)&&window.permViewOk(a)).map(a=>a.id);
+}
 function listFor(d){ if(d==='chiqim') return accounts.filter(a=>a.type==='xarajat');
   if(d==='transfer') return accounts.filter(a=>isKassa(a)&&window.permOpOk(a));
   return accounts.filter(a=> a.type==='daromad' || a.code==='4010' || a.code==='8000'); }
@@ -581,14 +607,15 @@ async function init(){
   $('from').value=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
   $('to').value=iso(n);
   $('from').onchange=load; $('to').onchange=load;
-  // Mustaqil so'rovlar parallel ketadi — ketma-ket kutish yo'q
-  await Promise.all([
-    loadRole(),
-    (async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; })(),
-    loadAccSel(),
-    loadFilSel(),
-    load(),
-  ]);
+  const loadAccounts=async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; buildPermAccIds(); };
+  // list-scope: ruxsat filtri accounts'ga tayanadi — load()'dan OLDIN yuklab, permAccIds'ni tayyorlaymiz,
+  // aks holda birinchi so'rov filtrsiz (hamma kassa) ketardi. Cheklovsiz userda esa parallel qoladi.
+  if(window.permScope && window.permScope()==='list'){
+    await loadAccounts();
+    await Promise.all([ loadRole(), loadAccSel(), loadFilSel(), load() ]);
+  } else {
+    await Promise.all([ loadRole(), loadAccounts(), loadAccSel(), loadFilSel(), load() ]);
+  }
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
