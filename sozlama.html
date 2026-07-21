@@ -64,6 +64,11 @@
   .sw span{position:absolute;inset:0;background:var(--line);border-radius:26px;transition:.2s;cursor:pointer}
   .sw span:before{content:"";position:absolute;width:22px;height:22px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
   .sw input:checked+span{background:var(--green)}.sw input:checked+span:before{transform:translateX(18px)}
+  /* Chek majburiy checkbox (Xarajat ro'yxati) */
+  .chekopt{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;
+    border:1px solid var(--line);border-radius:9px;padding:6px 9px;transition:border-color .13s,color .13s,background .13s}
+  .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
+  .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 14px;line-height:1.6}
   .res{font-size:14px;font-weight:600;margin-top:12px;min-height:20px}
@@ -148,9 +153,8 @@
       </div>
     </div>
 
-    <div class="card"><div class="sec">Kassalar</div><div id="listKassa"></div></div>
-    <div class="card"><div class="sec">Xarajat kategoriyalari</div><div id="listXarajat"></div></div>
-    <div class="card"><div class="sec">Daromad turlari</div><div id="listDaromad"></div></div>
+    <!-- Ro'yxat tanlangan tabga (Kassa/Xarajat/Daromad) qarab filtrlanadi -->
+    <div class="card"><div class="sec" id="listTitle">KASSALAR</div><div id="list"></div></div>
     <div class="card"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
 
     <div class="card" id="linkCard" style="display:none">
@@ -242,7 +246,20 @@ async function boot(){
 window.setType=t=>{ curType=t;
   $('tKassa').className=t==='kassa'?'on':''; $('tXarajat').className=t==='xarajat'?'on':''; $('tDaromad').className=t==='daromad'?'on':'';
   $('newName').placeholder=t==='kassa'?'Nomi (masalan: Giyos kassa)':t==='xarajat'?'Nomi (masalan: Bonus)':'Nomi (masalan: Xizmat tushumi)';
+  renderCur(); icons();   // tab ro'yxatni ham filtrlaydi
 };
+// Tab → ro'yxat filtri + sarlavha. Xarajat tabида hodim qo'shgan turlar (type='xarajat')
+// ham chiqadi — admin ularni tahrir/o'chira (toggle) oladi.
+const TABS={
+  kassa:   {title:'KASSALAR',   f:a=>(a.section==='pul'||(a.type==='aktiv'&&String(a.code).startsWith('5')))&&a.kassa_turi!=='xarajat_guruh'},
+  xarajat: {title:'XARAJATLAR', f:a=>a.type==='xarajat'},
+  daromad: {title:'DAROMADLAR', f:a=>a.type==='daromad'},
+};
+function renderCur(){
+  const t=TABS[curType]||TABS.kassa;
+  $('listTitle').textContent=t.title;
+  renderList('list', accounts.filter(t.f), curType==='xarajat');  // Xarajat tabида "Chek" checkbox
+}
 function nextCode(prefix,start){ const nums=accounts.map(a=>parseInt(a.code,10)).filter(n=>!isNaN(n)&&String(n).startsWith(prefix));
   return String(nums.length?Math.max(...nums)+1:start); }
 window.addAcc=async()=>{
@@ -262,18 +279,25 @@ window.renameAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
 window.toggleAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
   const {error}=await sb.from('accounts').update({is_active:!a.is_active}).eq('id',id); if(error){ alert(error.message); } await load();
 };
-function renderList(elId,arr){
+function renderList(elId,arr,showChek){
+  // showChek → Xarajat ro'yxatida "Chek" checkbox (admin chek majburiyligini boshqaradi)
   $(elId).innerHTML=arr.length?arr.map(a=>`
     <div class="item ${a.is_active?'':'off'}">
       <div class="mid"><div class="t">${a.name}</div><div class="c">${a.code}${a.subtitle?' · '+a.subtitle:''}</div></div>
+      ${showChek?`<label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setChek('${a.id}',this.checked)">Chek</label>`:''}
       <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
       <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
     </div>`).join(''):'<div class="empty">—</div>';
 }
+// Chek majburiyligini o'zgartiradi (admin only — RPC). Xato bo'lsa ro'yxat qayta chiziladi (revert).
+window.setChek=async(id,val)=>{
+  const {error}=await sb.rpc('set_chek_majburiy',{p_account:id,p_majburiy:val});
+  if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }
+  const a=accounts.find(x=>x.id===id); if(a) a.chek_majburiy=val;
+  swrSet('accounts',accounts); renderCur(); icons();
+};
 function renderAll(){
-  renderList('listKassa',accounts.filter(a=>a.type==='aktiv'&&a.code.startsWith('5')));
-  renderList('listXarajat',accounts.filter(a=>a.type==='xarajat'));
-  renderList('listDaromad',accounts.filter(a=>a.type==='daromad'));
+  renderCur();   // joriy tab (Kassa/Xarajat/Daromad)
   renderList('listBoshqa',accounts.filter(a=>!(a.type==='aktiv'&&a.code.startsWith('5'))&&a.type!=='xarajat'&&a.type!=='daromad'));
   icons();
 }

@@ -99,6 +99,29 @@
   .trow .tm .ts{font-size:12.5px;color:var(--muted)}
   .trow .ta{font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap}
   .today-empty{color:var(--muted);font-size:13.5px;padding:6px 2px}
+  .trow .chekpin{flex:none;border:none;background:transparent;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px}
+  .trow .chekpin svg{width:16px;height:16px}
+  .trow .chekpin:hover{color:var(--primary);background:var(--surface-2)}
+  /* 5-band: bu oy jami */
+  .month{font-size:13px;color:var(--muted);margin:6px 0 0 2px}
+  .month b{color:var(--ink);font-weight:700}
+  /* 4-band: tez summa */
+  .quickrow{display:flex;gap:8px;margin-top:12px}
+  .qbtn{flex:1;height:44px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;
+    font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;font-variant-numeric:tabular-nums;transition:border-color .13s,background .13s}
+  .qbtn:hover{border-color:var(--primary)}
+  .qbtn.add{color:var(--primary);border-style:dashed}
+  /* 3-band: chek surati */
+  .chekbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border:1.5px dashed var(--line);
+    border-radius:13px;background:transparent;color:var(--primary);font-size:14.5px;font-weight:600;cursor:pointer;transition:background .13s,border-color .13s}
+  .chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}
+  .chekbtn svg{width:18px;height:18px}
+  .chekprev{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  .chekrm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--red);
+    border-radius:10px;padding:8px 12px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer}
+  .chekrm svg{width:15px;height:15px}
+  .chekreq{color:var(--red);font-size:13px;font-weight:600;margin-top:8px}
   /* toast */
   .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);
     background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-size:14.5px;font-weight:600;
@@ -144,6 +167,7 @@
       <div class="lbl">Kassa</div>
       <div id="kassaChips" class="chips"></div>
       <div id="bal" class="bal" style="display:none"></div>
+      <div id="month" class="month" style="display:none"></div>
     </div>
 
     <div class="sect">
@@ -152,6 +176,12 @@
         <span class="amtcur">so'm</span>
         <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off">
       </div>
+      <div class="quickrow">
+        <button type="button" class="qbtn" onclick="setSumma(10000)">10 000</button>
+        <button type="button" class="qbtn" onclick="setSumma(50000)">50 000</button>
+        <button type="button" class="qbtn" onclick="setSumma(100000)">100 000</button>
+        <button type="button" class="qbtn add" onclick="addSumma(100000)">+100k</button>
+      </div>
       <div id="amtWarn" class="amtwarn" style="display:none"></div>
     </div>
 
@@ -159,6 +189,16 @@
       <div class="lbl">Nimaga (modda)</div>
       <select class="txt" id="modda" onchange="onModdaChange(this.value)"><option value="">— tanlang —</option></select>
       <button type="button" class="addturi" onclick="openTuri()"><i data-lucide="plus"></i>Yangi tur qo'shish</button>
+    </div>
+
+    <div class="sect" id="chekSect">
+      <div class="lbl" id="chekLbl">📷 Chek (ixtiyoriy)</div>
+      <label class="chekbtn">
+        <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
+        <i data-lucide="camera"></i><span>Chek suratini olish</span>
+      </label>
+      <div id="chekPrev" class="chekprev" style="display:none"></div>
+      <div id="chekReq" class="chekreq" style="display:none">Bu xarajat uchun chek shart</div>
     </div>
 
     <div class="sect">
@@ -202,6 +242,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
+let chekBlob=null;          // 3-band: tanlangan chek surati (siqilgan JPEG blob)
+let chekSet=new Set();      // shu kassada chek biriktirilgan entry_id'lar (📎 uchun)
 
 // --- tema ---
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -273,7 +315,7 @@ function renderChips(){
         +`<span class="chip-code">${esc(k.code)}</span>`
         +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
     : '<div class="chips-empty">Sizga kassa biriktirilmagan — administratorga murojaat qiling.</div>';
-  updateSave(); showBalance(); loadToday();
+  updateSave(); showBalance(); loadToday(); loadMonth();
 }
 window.pickKassa=id=>{ selKassa=id; renderChips(); };
 
@@ -284,7 +326,57 @@ function renderModda(){
   $('modda').innerHTML=`<option value="">— tanlang —</option>`+ms.map(opt).join('');
   updateSave();
 }
-window.onModdaChange=v=>{ selModda=v||null; updateSave(); };
+window.onModdaChange=v=>{ selModda=v||null; updateChekUI(); updateSave(); };
+
+// --- 4-band: tez summa tugmalari ---
+window.setSumma=v=>{ $('summa').value=money(v); updateSave(); };        // o'rnatadi
+window.addSumma=v=>{ $('summa').value=money(amtVal()+v); updateSave(); }; // qo'shadi (+100k)
+
+// --- 3-band: chek surati ---
+function moddaObj(){ return accounts.find(a=>a.id===selModda); }
+function chekRequired(){ const m=moddaObj(); return !!(m && m.chek_majburiy); }  // ustun yo'q bo'lsa undefined → false
+function updateChekUI(){
+  const req=chekRequired();
+  $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
+  $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
+}
+// Kanvas bilan siqish — uzun tomon ~1200px, JPEG 0.8.
+function compressImage(file, maxDim, quality){
+  maxDim=maxDim||1200; quality=quality||0.8;
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      if(w>=h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
+      else if(h>w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(b=>{ b?resolve(b):reject(new Error('siqib bo\'lmadi')); },'image/jpeg',quality);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('rasm o\'qilmadi')); };
+    img.src=url;
+  });
+}
+window.onChekFile=async(el)=>{
+  const f=el.files&&el.files[0]; el.value=''; if(!f) return;
+  try{
+    chekBlob=await compressImage(f);
+    const url=URL.createObjectURL(chekBlob);
+    $('chekPrev').innerHTML=`<img src="${url}" alt="chek"><button type="button" class="chekrm" onclick="removeChek()"><i data-lucide="x"></i>O'chirish</button>`;
+    $('chekPrev').style.display='flex'; icons();
+    updateChekUI(); updateSave();
+  }catch(e){ toast('Rasm yuklanmadi: '+e.message,true); }
+};
+window.removeChek=()=>{ chekBlob=null; $('chekPrev').style.display='none'; $('chekPrev').innerHTML=''; updateChekUI(); updateSave(); };
+// 📎 bosilса — signed URL ochiladi (private bucket).
+window.openChek=async(kassaId,entryId)=>{
+  try{
+    const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kassaId}/${entryId}.jpg`,300);
+    if(error||!data){ toast('Chek topilmadi',true); return; }
+    window.open(data.signedUrl,'_blank');
+  }catch(e){ toast('Chek ochilmadi',true); }
+};
 
 // Kassa qoldig'i — ixtiyoriy, best-effort. Ruxsat/RLS bermasa jimgina yashiriladi (hech narsa buzilmaydi).
 // acc_balance(p_account uuid) — imzo tasdiqlangan.
@@ -314,7 +406,8 @@ function updateSave(){
     if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(curBal)} so'm`; }
     else w.style.display='none';
   }
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over);
+  const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek);
 }
 
 window.saveHodim=async()=>{
@@ -324,6 +417,7 @@ window.saveHodim=async()=>{
   if(!kassa){ toast('Kassa tanlang',true); return; }
   if(!modda){ toast('Modda tanlang',true); return; }
   if(amt<=0){ toast('Summa kiriting',true); return; }
+  if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; icons();
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
   // professional.html oddiy rejim insert mantig'i: entry → 2 entry_line, satr xatosida entry o'chiriladi.
@@ -333,12 +427,20 @@ window.saveHodim=async()=>{
   const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt}];
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); return; }
+  // 3-band: chek surati — entry_id olingach yuklanadi. Xato bo'lsa YOZUV QOLADI, faqat ogohlantiramiz.
+  let chekWarn=false;
+  if(chekBlob){
+    try{
+      const {error:eu}=await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${ent.id}.jpg`, chekBlob, {contentType:'image/jpeg',upsert:true});
+      if(eu) chekWarn=true;
+    }catch(e){ chekWarn=true; }
+  }
   // Muvaffaqiyat: forma tozalanadi, kassa qoladi (ketma-ket yozish oson)
-  $('summa').value=''; $('izoh').value=''; selModda=null; renderModda(); updateSave();
+  $('summa').value=''; $('izoh').value=''; selModda=null; removeChek(); renderModda(); updateChekUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
-  toast('Saqlandi ✓');
+  toast(chekWarn?'Xarajat saqlandi, lekin chek yuklanmadi':'Saqlandi ✓', chekWarn);
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
-  showBalance(); loadToday();
+  showBalance(); loadToday(); loadMonth();
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
 
@@ -355,10 +457,22 @@ function toast(msg,err){
 
 // Bugungi xarajatlarim — jurnal RPC orqali (RLS-xavfsiz, cheklangan user ham o'qiy oladi).
 // Faqat tanlangan kassadan chiqqan (Kt=kassa) yozuvlar ko'rsatiladi, o'chirmasdan — faqat ko'rish.
+// Shu kassada chek biriktirilgan entry_id'lar (storage'dan). RLS/bucket yo'q bo'lsa — bo'sh (jimgina).
+async function loadChekSet(){
+  chekSet=new Set();
+  if(!selKassa) return;
+  const want=selKassa;
+  try{
+    const {data,error}=await sb.storage.from('xarajat-cheklari').list(want,{limit:200});
+    if(error||!data||selKassa!==want) return;
+    data.forEach(f=>{ const id=String(f.name||'').replace(/\.jpg$/i,''); if(id) chekSet.add(id); });
+  }catch(e){}
+}
 async function loadToday(){
   const sect=$('todaySect'), box=$('todayList');
   if(!selKassa){ sect.style.display='none'; return; }
   const day=isoDay(nowUz());
+  await loadChekSet();
   const {data,error}=await sb.rpc('jurnal',{p_from:day,p_to:day,p_account:selKassa,p_limit:10,p_offset:0});
   if(error){ sect.style.display='none'; return; }
   const mine=(data||[]).filter(e=>!e.is_deleted && (e.lines||[]).some(l=>l.account_id===selKassa && Number(l.credit)>0));
@@ -369,11 +483,26 @@ async function loadToday(){
     const amt=(e.lines||[]).reduce((s,l)=>s+(Number(l.debit)||0),0);
     let t=''; try{ t=new Date(new Date(e.created_at).getTime()+5*3600*1000).toISOString().slice(11,16); }catch(x){}
     const izoh=e.description?' · '+esc(e.description):'';
+    const chek=chekSet.has(e.id)?`<button type="button" class="chekpin" title="Chekni ochish" onclick="openChek('${selKassa}','${e.id}')"><i data-lucide="paperclip"></i></button>`:'';
     return `<div class="trow"><div class="tic"><i data-lucide="arrow-up-right"></i></div>`
       +`<div class="tm"><div class="tt">${esc(dt.name||'Xarajat')}</div><div class="ts">${t}${izoh}</div></div>`
-      +`<div class="ta">− ${money(amt)}</div></div>`;
+      +chek+`<div class="ta">− ${money(amt)}</div></div>`;
   }).join('');
   icons();
+}
+// 5-band: bu oy sarflangan jami (hodim_oy_jami RPC). RPC yo'q bo'lsa jimgina yashiriladi.
+async function loadMonth(){
+  const el=$('month'); el.style.display='none';
+  if(!selKassa) return;
+  const n=nowUz();
+  const from=isoDay(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1))), to=isoDay(n);
+  const want=selKassa;
+  try{
+    const {data,error}=await sb.rpc('hodim_oy_jami',{p_account:want,p_from:from,p_to:to});
+    if(error||data==null||selKassa!==want) return;
+    el.innerHTML=`Bu oy sarflandi: <b>${money(data)} so'm</b>`;
+    el.style.display='block';
+  }catch(e){}
 }
 
 // Hisoblarni (qayta) yuklaydi — yangi xarajat turi qo'shilgach ham chaqiriladi.
@@ -408,7 +537,7 @@ async function init(){
   if(!await loadAccounts()) return;
   $('summa').addEventListener('input',e=>{ const raw=e.target.value.replace(/\D/g,''); e.target.value=raw?money(raw):''; updateSave(); });
   $('turiName').addEventListener('keydown',e=>{ if(e.key==='Enter') window.saveTuri(); });
-  renderChips(); renderModda();
+  renderChips(); renderModda(); updateChekUI();
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);
 }
