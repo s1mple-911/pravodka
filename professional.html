@@ -73,6 +73,20 @@
   .save{width:100%;height:50px;border:none;border-radius:13px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:var(--shadow);transition:background .13s,transform .12s,box-shadow .12s}
   .save:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow-hover)}
   .save:active{transform:translateY(0)}.save:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+  /* soddalashtirilgan rejim */
+  .modeseg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:18px;gap:3px}
+  .modeseg button{border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:8px 16px;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
+  .modeseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
+  .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:118px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 14px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .13s,background .13s,box-shadow .13s}
+  .chip:hover{border-color:var(--primary)}
+  .chip.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
+  .chip-code{font-size:12px;font-weight:700;color:var(--muted)}
+  .chip.on .chip-code{color:var(--primary)}
+  .chip-name{font-size:14px;font-weight:600}
+  .chips-empty{color:var(--muted);font-size:14px;padding:10px 0}
+  .dirhint{font-size:13px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:none}
+  .dirhint b{color:var(--ink)}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
@@ -143,15 +157,36 @@
     <div class="card">
       <label>Sana</label><input class="txt" id="sana" type="date">
       <label>Izoh</label><input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
-      <div id="lines"></div>
-      <button class="addline" onclick="addLine()"><i data-lucide="plus"></i>Satr qo'shish</button>
-      <div class="totbox">
-        <div class="tot"><span>Jami Debet (Dt)</span><span class="v" id="sumDt">0</span></div>
-        <div class="tot"><span>Jami Kredit (Kt)</span><span class="v" id="sumKt">0</span></div>
-        <div class="tot bal" id="balRow"><span id="balLbl">Farq</span><span class="v" id="farq">0</span></div>
+
+      <div class="modeseg" id="modeSeg">
+        <button class="on" id="mSimple" onclick="setMode('simple')">Oddiy</button>
+        <button id="mAdv" onclick="setMode('adv')">Kengaytirilgan</button>
       </div>
-      <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
-      <div id="balHint" style="font-size:12.5px;color:var(--red);text-align:center;margin-top:10px;display:none">Saqlash uchun Debet (Dt) va Kredit (Kt) teng bo'lishi kerak</div>
+
+      <!-- ODDIY: kassa (chip) + modda + summa; Dt/Kt modda turidan avtomatik -->
+      <div id="simpleBox">
+        <label>Kassa</label>
+        <div id="kassaChips" class="chips"></div>
+        <label>Modda</label>
+        <select class="txt" id="modda" onchange="updateSimple()"><option value="">— modda tanlang —</option></select>
+        <label>Summa</label>
+        <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
+        <div id="dirHint" class="dirhint"></div>
+        <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
+      </div>
+
+      <!-- KENGAYTIRILGAN: qo'lda ko'p satrli Dt/Kt (mavjud rejim) -->
+      <div id="advBox" style="display:none">
+        <div id="lines"></div>
+        <button class="addline" onclick="addLine()"><i data-lucide="plus"></i>Satr qo'shish</button>
+        <div class="totbox">
+          <div class="tot"><span>Jami Debet (Dt)</span><span class="v" id="sumDt">0</span></div>
+          <div class="tot"><span>Jami Kredit (Kt)</span><span class="v" id="sumKt">0</span></div>
+          <div class="tot bal" id="balRow"><span id="balLbl">Farq</span><span class="v" id="farq">0</span></div>
+        </div>
+        <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
+        <div id="balHint" style="font-size:12.5px;color:var(--red);text-align:center;margin-top:10px;display:none">Saqlash uchun Debet (Dt) va Kredit (Kt) teng bo'lishi kerak</div>
+      </div>
     </div>
   </main>
 
@@ -187,7 +222,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-let accounts=[], lines=[];
+let accounts=[], lines=[], selKassa=null;
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -271,6 +306,77 @@ function updateTotals(){
   $('balRow').className='tot bal'+(balanced?'':' no'); $('saveBtn').disabled=!balanced;
   { const h=document.getElementById('balHint'); if(h) h.style.display=(dt>0&&!balanced)?'block':'none'; }
 }
+// ---- ODDIY rejim -----------------------------------------------------
+// Rejim almashtirish: oddiy (kassa chip + modda + summa) yoki kengaytirilgan (mavjud ko'p satrli).
+window.setMode=m=>{
+  const simple=m!=='adv';
+  $('mSimple').className=simple?'on':''; $('mAdv').className=simple?'':'on';
+  $('simpleBox').style.display=simple?'block':'none';
+  $('advBox').style.display=simple?'none':'block';
+};
+// Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
+// hisoblari (op_kassa_ids; scope='all'→hammasi). 5400 konteyner init'da chiqarib tashlangan.
+function kassaList(){ return accounts.filter(a=>isKassa(a)); }
+function renderChips(){
+  const ks=kassaList();
+  if(ks.length===1) selKassa=ks[0].id;                       // bitta bo'lsa — avtomat tanlangan
+  if(selKassa && !ks.some(k=>k.id===selKassa)) selKassa=null; // tanlangani ro'yxatdan chiqib ketgan bo'lsa
+  $('kassaChips').innerHTML = ks.length
+    ? ks.map(k=>`<button type="button" class="chip${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')">`
+        +`<span class="chip-code">${esc(k.code)}</span>`
+        +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
+    : '<div class="chips-empty">Sizga biror kassada amaliyot ruxsati berilmagan.</div>';
+  updateSimple();
+}
+window.pickKassa=id=>{ selKassa=id; renderChips(); };
+// Modda tanlagichi — kassalar chiqmaydi (kassa chip orqali tanlanadi), qolgan optgrouplar avvalgidek.
+function moddaOptions(){
+  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}">${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
+  return `<option value="">— modda tanlang —</option>`
+    +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
+    +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
+    +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
+}
+window.fmtSumma=el=>{ const raw=el.value.replace(/\D/g,''); el.value=raw?money(raw):''; updateSimple(); };
+// Yo'nalish modda turidan: daromad → pul kiradi (Dt=kassa), aks holda → pul chiqadi (Kt=kassa).
+function simpleDir(){
+  const modda=accounts.find(a=>a.id===$('modda').value);
+  const kassa=accounts.find(a=>a.id===selKassa);
+  const income=!!modda && modda.type==='daromad';
+  return {modda,kassa,income};
+}
+window.updateSimple=()=>{
+  const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const {modda,kassa,income}=simpleDir();
+  const h=$('dirHint');
+  if(modda&&kassa){
+    h.style.display='block';
+    h.innerHTML=income
+      ? `Pul <b>kiradi</b> · Dt ${esc(kassa.name)} / Kt ${esc(modda.name)}`
+      : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
+  } else h.style.display='none';
+  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0);
+};
+window.saveSimple=async()=>{
+  const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const {modda,kassa,income}=simpleDir();
+  if(!kassa){ alert('Kassa tanlang'); return; }
+  if(!modda){ alert('Modda tanlang'); return; }
+  if(amt<=0){ alert('Summa kiriting'); return; }
+  // Dt/Kt avtomatik: daromad → Dt=kassa/Kt=modda; xarajat/aktiv/boshqa → Dt=modda/Kt=kassa.
+  const dtId=income?kassa.id:modda.id, ktId=income?modda.id:kassa.id;
+  const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
+  // Mavjud insert yo'li: entry → entry_line. Server guard trigger (op_kassa_ids) avtomat tekshiradi.
+  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
+  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
+  const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
+  const {error:e2}=await sb.from('entry_line').insert(rows);
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
+  $('summa').value=''; $('izoh').value='';                    // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  updateSimple();
+  btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
+};
+
 window.save=async()=>{
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
   if(dt<=0||dt!==kt){ alert('Dt va Kt teng bo\'lishi kerak'); return; }
@@ -292,6 +398,11 @@ async function init(){
   // Ruxsat: kassa_scope='list' bo'lsa faqat amaliyot kassalari tanlanadi.
   // Xarajat/daromad moddalari cheklanmaydi (permFilterOp faqat 5xxx pul hisoblariga tegadi).
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
+  // Oddiy rejim: modda ro'yxati + kassa chiplari
+  $('modda').innerHTML=moddaOptions();
+  renderChips();
+  window.setMode('simple');
+  // Kengaytirilgan rejim (mavjud)
   lines=[]; addLine(); addLine();
 }
 
