@@ -77,10 +77,6 @@
   .pickitem .pc{font-size:12px;color:var(--muted);font-weight:700}
   .pickitem.on .pc{color:var(--primary)}
   .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:16px}
-  /* yangi tur qo'shish */
-  .addturi{margin-top:10px;width:100%;height:44px;border:1.5px dashed var(--line);border-radius:12px;background:transparent;
-    color:var(--primary);font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .13s,border-color .13s}
-  .addturi svg{width:16px;height:16px}.addturi:hover{background:var(--primary-soft);border-color:var(--primary)}
   /* modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:120}
   .modal.open{display:flex}
@@ -119,12 +115,20 @@
   /* 5-band: bu oy jami */
   .month{font-size:13px;color:var(--muted);margin:6px 0 0 2px}
   .month b{color:var(--ink);font-weight:700}
-  /* 4-band: tez summa */
-  .quickrow{display:flex;gap:8px;margin-top:12px}
-  .qbtn{flex:1;height:44px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;
-    font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;font-variant-numeric:tabular-nums;transition:border-color .13s,background .13s}
-  .qbtn:hover{border-color:var(--primary)}
-  .qbtn.add{color:var(--primary);border-style:dashed}
+  /* xarajat tarixi (davr chip + kategoriya) */
+  .histhd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .histhd h2{margin:0}
+  .chips2{display:flex;gap:6px}
+  .pchip{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:7px 13px;
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,color .13s,background .13s}
+  .pchip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  .histcat{margin-bottom:16px}
+  .hcat{margin-bottom:11px}
+  .hcat .hcl{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
+  .hcat .hcl .a{font-weight:700;font-variant-numeric:tabular-nums}.hcat .hcl .a .p{color:var(--muted);font-weight:400;margin-left:4px}
+  .hcat.total{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}.hcat.total .hcl{font-weight:800}
+  .htrack{height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+  .htrack .hfill{height:100%;background:var(--primary);border-radius:5px;transition:width .4s ease}
   /* 3-band: chek surati */
   .chekbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border:1.5px dashed var(--line);
     border-radius:13px;background:transparent;color:var(--primary);font-size:14.5px;font-weight:600;cursor:pointer;transition:background .13s,border-color .13s}
@@ -190,19 +194,12 @@
         <span class="amtcur">so'm</span>
         <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off">
       </div>
-      <div class="quickrow">
-        <button type="button" class="qbtn" onclick="setSumma(10000)">10 000</button>
-        <button type="button" class="qbtn" onclick="setSumma(50000)">50 000</button>
-        <button type="button" class="qbtn" onclick="setSumma(100000)">100 000</button>
-        <button type="button" class="qbtn add" onclick="addSumma(100000)">+100k</button>
-      </div>
       <div id="amtWarn" class="amtwarn" style="display:none"></div>
     </div>
 
     <div class="sect">
       <div class="lbl">Nimaga (modda)</div>
       <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()"><span id="moddaFieldTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
-      <button type="button" class="addturi" onclick="openTuri()"><i data-lucide="plus"></i>Yangi tur qo'shish</button>
     </div>
 
     <div class="sect" id="chekSect">
@@ -220,9 +217,17 @@
       <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
     </div>
 
-    <div class="today sect" id="todaySect" style="display:none">
-      <h2>Bugungi xarajatlarim</h2>
-      <div id="todayList"></div>
+    <div class="today sect" id="histSect">
+      <div class="histhd">
+        <h2>Xarajatlarim</h2>
+        <div class="chips2">
+          <button type="button" class="pchip on" data-p="bugun" onclick="setHistPeriod('bugun')">Bugun</button>
+          <button type="button" class="pchip" data-p="hafta" onclick="setHistPeriod('hafta')">Bu hafta</button>
+          <button type="button" class="pchip" data-p="oy" onclick="setHistPeriod('oy')">Bu oy</button>
+        </div>
+      </div>
+      <div id="histCat" class="histcat"></div>
+      <div id="histList"></div>
     </div>
   </main>
 
@@ -236,18 +241,6 @@
     <h3>Xarajat moddasi</h3>
     <input class="txt" id="moddaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderModdaList()">
     <div id="moddaList" class="picklist"></div>
-  </div>
-</div>
-
-<div class="modal" id="turiModal" onclick="if(event.target===this)closeTuri()">
-  <div class="modalbox">
-    <h3>Yangi xarajat turi</h3>
-    <input class="txt" id="turiName" placeholder="masalan: Bonus" autocomplete="off">
-    <div id="turiErr" style="color:var(--red);font-size:13px;margin-top:8px;min-height:16px"></div>
-    <div class="row">
-      <button class="btn" onclick="closeTuri()">Bekor</button>
-      <button class="btn primary" id="turiSave" onclick="saveTuri()">Qo'shish</button>
-    </div>
   </div>
 </div>
 
@@ -265,7 +258,7 @@ const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
 let chekBlob=null;          // 3-band: tanlangan chek surati (siqilgan JPEG blob)
-let chekSet=new Set();      // shu kassada chek biriktirilgan entry_id'lar (📎 uchun)
+let histPeriod='bugun', histRows=[], histChek=new Set();  // o'z tarixi (davr + ro'yxat + chek 📎)
 
 // --- tema ---
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -337,7 +330,7 @@ function renderChips(){
         +`<span class="chip-code">${esc(k.code)}</span>`
         +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
     : '<div class="chips-empty">Sizga kassa biriktirilmagan — administratorga murojaat qiling.</div>';
-  updateSave(); showBalance(); loadToday(); loadMonth();
+  updateSave(); showBalance(); loadMonth();
 }
 window.pickKassa=id=>{ selKassa=id; renderChips(); };
 
@@ -360,10 +353,6 @@ window.renderModdaList=()=>{
     : '<div class="pickempty">Topilmadi</div>';
 };
 window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateChekUI(); updateSave(); };
-
-// --- 4-band: tez summa tugmalari ---
-window.setSumma=v=>{ $('summa').value=money(v); updateSave(); };        // o'rnatadi
-window.addSumma=v=>{ $('summa').value=money(amtVal()+v); updateSave(); }; // qo'shadi (+100k)
 
 // --- 3-band: chek surati ---
 function moddaObj(){ return accounts.find(a=>a.id===selModda); }
@@ -482,7 +471,7 @@ window.saveHodim=async()=>{
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast(chekWarn?'Xarajat saqlandi, lekin chek yuklanmadi':'Saqlandi ✓', chekWarn);
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
-  showBalance(); loadToday(); loadMonth();
+  showBalance(); loadHist(); loadMonth();
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
 
@@ -497,37 +486,59 @@ function toast(msg,err){
   toastTimer=setTimeout(()=>t.classList.remove('show'), err?2600:1600);
 }
 
-// Bugungi xarajatlarim — jurnal RPC orqali (RLS-xavfsiz, cheklangan user ham o'qiy oladi).
-// Faqat tanlangan kassadan chiqqan (Kt=kassa) yozuvlar ko'rsatiladi, o'chirmasdan — faqat ko'rish.
-// Shu kassada chek biriktirilgan entry_id'lar (storage'dan). RLS/bucket yo'q bo'lsa — bo'sh (jimgina).
-async function loadChekSet(){
-  chekSet=new Set();
-  if(!selKassa) return;
-  const want=selKassa;
-  try{
-    const {data,error}=await sb.storage.from('xarajat-cheklari').list(want,{limit:200});
-    if(error||!data||selKassa!==want) return;
-    data.forEach(f=>{ const id=String(f.name||'').replace(/\.jpg$/i,''); if(id) chekSet.add(id); });
-  }catch(e){}
+// --- 2-band (V5): hodim o'z tarixi (davr chip + kategoriya xulosa + ro'yxat) ---
+// Manba: hodim_oz_tarix(from,to) — o'z kassalari bo'yicha (server auth.uid()'дан aniqlaydi).
+window.setHistPeriod=k=>{ histPeriod=k;
+  document.querySelectorAll('#histSect .pchip').forEach(b=>b.classList.toggle('on', b.dataset.p===k));
+  loadHist();
+};
+function histRange(){
+  const n=nowUz(), to=isoDay(n); let from;
+  if(histPeriod==='bugun') from=to;
+  else if(histPeriod==='hafta'){ const d=new Date(n.getTime()); const dow=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-dow); from=isoDay(d); }
+  else from=isoDay(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
+  return {from,to};
 }
-async function loadToday(){
-  const sect=$('todaySect'), box=$('todayList');
-  if(!selKassa){ sect.style.display='none'; return; }
-  const day=isoDay(nowUz());
-  await loadChekSet();
-  const {data,error}=await sb.rpc('jurnal',{p_from:day,p_to:day,p_account:selKassa,p_limit:10,p_offset:0});
-  if(error){ sect.style.display='none'; return; }
-  const mine=(data||[]).filter(e=>!e.is_deleted && (e.lines||[]).some(l=>l.account_id===selKassa && Number(l.credit)>0));
-  sect.style.display='block';
-  if(!mine.length){ box.innerHTML='<div class="today-empty">Bugun hali xarajat yozilmagan.</div>'; icons(); return; }
-  box.innerHTML=mine.map(e=>{
-    const dt=(e.lines||[]).find(l=>Number(l.debit)>0)||{};
-    const amt=(e.lines||[]).reduce((s,l)=>s+(Number(l.debit)||0),0);
-    let t=''; try{ t=new Date(new Date(e.created_at).getTime()+5*3600*1000).toISOString().slice(11,16); }catch(x){}
-    const izoh=e.description?' · '+esc(e.description):'';
-    const chek=chekSet.has(e.id)?`<button type="button" class="chekpin" title="Chekni ochish" onclick="openChek('${selKassa}','${e.id}')"><i data-lucide="paperclip"></i></button>`:'';
+// Ro'yxatdagi kassalar papkalarini ro'yxatlab, chek bor yozuvlarni belgilaydi ("kassaId/entryId").
+async function loadHistChek(){
+  histChek=new Set();
+  const ids=[...new Set(histRows.map(r=>r.kassa_id).filter(Boolean))];
+  await Promise.all(ids.map(async kid=>{
+    try{
+      const {data,error}=await sb.storage.from('xarajat-cheklari').list(kid,{limit:1000});
+      if(error||!data) return;
+      data.forEach(f=>{ const eid=String(f.name||'').replace(/\.jpg$/i,''); if(eid) histChek.add(kid+'/'+eid); });
+    }catch(e){}
+  }));
+}
+async function loadHist(){
+  const {from,to}=histRange();
+  const {data,error}=await sb.rpc('hodim_oz_tarix',{p_from:from,p_to:to});
+  if(error){ histRows=[]; renderHistCat([]); $('histList').innerHTML='<div class="today-empty">Tarix yuklanmadi.</div>'; icons(); return; }
+  histRows=(data&&data.royxat)||[];
+  await loadHistChek();
+  renderHistCat((data&&data.kategoriya)||[]);
+  renderHistList();
+}
+function renderHistCat(cat){
+  const box=$('histCat');
+  if(!cat||!cat.length){ box.innerHTML=''; return; }
+  const total=cat.reduce((a,r)=>a+(Number(r.jami)||0),0);
+  box.innerHTML=cat.map(r=>{ const v=Number(r.jami)||0, pct=total>0?Math.round(v/total*100):0;
+    return `<div class="hcat"><div class="hcl"><span>${esc(r.name)}</span><span class="a">${money(v)}<span class="p">${pct}%</span></span></div>`
+      +`<div class="htrack"><div class="hfill" style="width:${pct}%"></div></div></div>`;
+  }).join('')+`<div class="hcat total"><div class="hcl"><span>Jami</span><span class="a">${money(total)}</span></div></div>`;
+}
+function renderHistList(){
+  const box=$('histList');
+  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q.</div>'; icons(); return; }
+  box.innerHTML=histRows.map(r=>{
+    const amt=Number(r.summa)||0;
+    let t=''; try{ t=new Date(new Date(r.created_at).getTime()+5*3600*1000).toISOString().slice(5,16).replace('T',' '); }catch(x){}
+    const izoh=r.izoh?' · '+esc(r.izoh):'';
+    const chek=(r.kassa_id&&histChek.has(r.kassa_id+'/'+r.entry_id))?`<button type="button" class="chekpin" title="Chekni ochish" onclick="openChek('${r.kassa_id}','${r.entry_id}')"><i data-lucide="paperclip"></i></button>`:'';
     return `<div class="trow"><div class="tic"><i data-lucide="arrow-up-right"></i></div>`
-      +`<div class="tm"><div class="tt">${esc(dt.name||'Xarajat')}</div><div class="ts">${t}${izoh}</div></div>`
+      +`<div class="tm"><div class="tt">${esc(r.modda_name||'Xarajat')}</div><div class="ts">${t}${izoh}</div></div>`
       +chek+`<div class="ta">− ${money(amt)}</div></div>`;
   }).join('');
   icons();
@@ -547,29 +558,14 @@ async function loadMonth(){
   }catch(e){}
 }
 
-// Hisoblarni (qayta) yuklaydi — yangi xarajat turi qo'shilgach ham chaqiriladi.
-// permFilterOp faqat pul kassalarni op_kassa_ids bo'yicha cheklaydi; moddalar (xarajat) doim qoladi.
+// Hisoblarni yuklaydi. permFilterOp faqat pul kassalarni op_kassa_ids bo'yicha cheklaydi;
+// moddalar (xarajat) doim qoladi. Yangi xarajat turini FAQAT admin sozlama.html'da qo'shadi.
 async function loadAccounts(){
   const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
   if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return false; }
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh')); // 5400 konteyner chiqariladi
   return true;
 }
-
-// --- 2-band: yangi xarajat turi ---
-window.openTuri=()=>{ $('turiName').value=''; $('turiErr').textContent=''; $('turiModal').classList.add('open'); setTimeout(()=>{ try{ $('turiName').focus(); }catch(e){} },50); };
-window.closeTuri=()=>{ $('turiModal').classList.remove('open'); };
-window.saveTuri=async()=>{
-  const name=$('turiName').value.trim(); $('turiErr').textContent='';
-  if(!name){ $('turiErr').textContent='Nom kiriting'; return; }
-  const b=$('turiSave'); b.disabled=true; b.textContent='Qo‘shilmoqda…';
-  const {data,error}=await sb.rpc('add_xarajat_turi',{p_name:name});
-  b.disabled=false; b.textContent='Qo‘shish';
-  if(error){ $('turiErr').textContent=window.permErr?window.permErr(error):error.message; return; }
-  await loadAccounts();      // yangi modda umumiy accounts'da — hamma userда ko'rinadi
-  selModda=data; renderModda(); // yangi tur tanlangan bo'ladi
-  closeTuri(); toast('Yangi tur qo‘shildi'); updateSave();
-};
 
 async function init(){
   const {data:{user}}=await sb.auth.getUser();
@@ -578,8 +574,7 @@ async function init(){
   $('who').textContent=myName?('· '+myName):'';
   if(!await loadAccounts()) return;
   $('summa').addEventListener('input',e=>{ const raw=e.target.value.replace(/\D/g,''); e.target.value=raw?money(raw):''; updateSave(); });
-  $('turiName').addEventListener('keydown',e=>{ if(e.key==='Enter') window.saveTuri(); });
-  renderChips(); renderModda(); updateChekUI();
+  renderChips(); renderModda(); updateChekUI(); loadHist();
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);
 }
