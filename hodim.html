@@ -53,20 +53,29 @@
     letter-spacing:-.02em;text-align:right;outline:none;padding:0}
   .amtbig::placeholder{color:var(--line)}
   .amtcur{position:absolute;left:18px;bottom:20px;font-size:14px;font-weight:600;color:var(--muted)}
-  /* modda buttons */
-  .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .mbtn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:60px;justify-content:center;
-    border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:12px 14px;
-    cursor:pointer;font-family:inherit;text-align:left;transition:border-color .13s,background .13s,box-shadow .13s}
-  .mbtn:hover{border-color:var(--primary)}
-  .mbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
-  .mbtn .mn{font-size:15px;font-weight:600;line-height:1.25}
-  .mbtn .mc{font-size:11.5px;font-weight:700;color:var(--muted)}
-  .mbtn.on .mc{color:var(--primary)}
   /* izoh */
   .txt{width:100%;height:48px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:13px;
     padding:0 14px;font-size:15px;font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
   .txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  select.txt{-webkit-appearance:none;appearance:none;cursor:pointer;padding-right:38px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+  /* qoldiq limiti (1-band) */
+  .amtwrap.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
+  .amtwrap.over .amtbig{color:var(--red)}
+  .amtwarn{color:var(--red);font-size:13px;font-weight:600;margin:9px 2px 0;text-align:right}
+  /* yangi tur qo'shish */
+  .addturi{margin-top:10px;width:100%;height:44px;border:1.5px dashed var(--line);border-radius:12px;background:transparent;
+    color:var(--primary);font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .13s,border-color .13s}
+  .addturi svg{width:16px;height:16px}.addturi:hover{background:var(--primary-soft);border-color:var(--primary)}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:120}
+  .modal.open{display:flex}
+  .modalbox{background:var(--surface);width:100%;max-width:360px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
+  .modalbox h3{margin:0 0 14px;font-size:18px;font-weight:800}
+  .modalbox .row{display:flex;gap:9px;margin-top:14px}
+  .modalbox .btn{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .modalbox .btn.primary{border:none;background:var(--primary);color:#fff}
+  .modalbox .btn:disabled{opacity:.5;cursor:not-allowed}
   /* sticky save */
   .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
     background:linear-gradient(to top,var(--bg) 62%,transparent);max-width:520px;margin:0 auto}
@@ -139,15 +148,17 @@
 
     <div class="sect">
       <div class="lbl">Summa</div>
-      <div class="amtwrap">
+      <div class="amtwrap" id="amtwrap">
         <span class="amtcur">so'm</span>
         <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off">
       </div>
+      <div id="amtWarn" class="amtwarn" style="display:none"></div>
     </div>
 
     <div class="sect">
       <div class="lbl">Nimaga (modda)</div>
-      <div id="moddaGrid" class="mgrid"></div>
+      <select class="txt" id="modda" onchange="onModdaChange(this.value)"><option value="">— tanlang —</option></select>
+      <button type="button" class="addturi" onclick="openTuri()"><i data-lucide="plus"></i>Yangi tur qo'shish</button>
     </div>
 
     <div class="sect">
@@ -166,6 +177,18 @@
   </div>
 </div>
 
+<div class="modal" id="turiModal" onclick="if(event.target===this)closeTuri()">
+  <div class="modalbox">
+    <h3>Yangi xarajat turi</h3>
+    <input class="txt" id="turiName" placeholder="masalan: Bonus" autocomplete="off">
+    <div id="turiErr" style="color:var(--red);font-size:13px;margin-top:8px;min-height:16px"></div>
+    <div class="row">
+      <button class="btn" onclick="closeTuri()">Bekor</button>
+      <button class="btn primary" id="turiSave" onclick="saveTuri()">Qo'shish</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><span id="toastIc"></span><span id="toastMsg">Saqlandi</span></div>
 
 <script type="module">
@@ -178,7 +201,7 @@ const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
-let accounts=[], selKassa=null, selModda=null, myName='';
+let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
 
 // --- tema ---
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -256,31 +279,43 @@ window.pickKassa=id=>{ selKassa=id; renderChips(); };
 
 function renderModda(){
   const ms=moddaList();
-  $('moddaGrid').innerHTML = ms.length
-    ? ms.map(m=>`<button type="button" class="mbtn${m.id===selModda?' on':''}" onclick="pickModda('${m.id}')">`
-        +`<span class="mn">${esc(m.name)}</span><span class="mc">${esc(m.code)}</span></button>`).join('')
-    : '<div class="chips-empty" style="grid-column:1/-1">Xarajat moddalari topilmadi.</div>';
+  if(selModda && !ms.some(m=>m.id===selModda)) selModda=null;
+  const opt=m=>`<option value="${m.id}"${m.id===selModda?' selected':''}>${esc(m.name)} · ${esc(m.code)}</option>`;
+  $('modda').innerHTML=`<option value="">— tanlang —</option>`+ms.map(opt).join('');
   updateSave();
 }
-window.pickModda=id=>{ selModda=(selModda===id?null:id); renderModda(); };
+window.onModdaChange=v=>{ selModda=v||null; updateSave(); };
 
 // Kassa qoldig'i — ixtiyoriy, best-effort. Ruxsat/RLS bermasa jimgina yashiriladi (hech narsa buzilmaydi).
 // acc_balance(p_account uuid) — imzo tasdiqlangan.
 async function showBalance(){
-  const el=$('bal'); el.style.display='none';
+  const el=$('bal'); el.style.display='none'; curBal=null; updateSave();
   if(!selKassa) return;
   const want=selKassa;
   try{
     const {data,error}=await sb.rpc('acc_balance',{p_account:want});
     if(error||data==null||selKassa!==want) return;   // javob kelguncha boshqa kassa tanlansa — tashla
+    curBal=Number(data)||0;                            // 1-band: limit shu qoldiqdan
     const k=accounts.find(a=>a.id===want);
-    el.innerHTML=`Sizda: <b>${money(data)} so'm</b>`+(k?` · ${esc(k.name)}`:'');
+    el.innerHTML=`Sizda: <b>${money(curBal)} so'm</b>`+(k?` · ${esc(k.name)}`:'');
     el.style.display='block';
+    updateSave();
   }catch(e){}
 }
 
 function amtVal(){ return Number(($('summa').value||'').replace(/\D/g,''))||0; }
-function updateSave(){ $('saveBtn').disabled=!(selKassa&&selModda&&amtVal()>0); }
+// 1-band: summa qoldiqdan oshsa — input qizil, ogohlantirish, Saqlash disabled (server ham rad etadi).
+function updateSave(){
+  const amt=amtVal();
+  const over = curBal!=null && amt>curBal;
+  const w=$('amtWarn'), aw=$('amtwrap');
+  if(aw){ aw.classList.toggle('over',over); }
+  if(w){
+    if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(curBal)} so'm`; }
+    else w.style.display='none';
+  }
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over);
+}
 
 window.saveHodim=async()=>{
   const amt=amtVal();
@@ -341,16 +376,38 @@ async function loadToday(){
   icons();
 }
 
+// Hisoblarni (qayta) yuklaydi — yangi xarajat turi qo'shilgach ham chaqiriladi.
+// permFilterOp faqat pul kassalarni op_kassa_ids bo'yicha cheklaydi; moddalar (xarajat) doim qoladi.
+async function loadAccounts(){
+  const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return false; }
+  accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh')); // 5400 konteyner chiqariladi
+  return true;
+}
+
+// --- 2-band: yangi xarajat turi ---
+window.openTuri=()=>{ $('turiName').value=''; $('turiErr').textContent=''; $('turiModal').classList.add('open'); setTimeout(()=>{ try{ $('turiName').focus(); }catch(e){} },50); };
+window.closeTuri=()=>{ $('turiModal').classList.remove('open'); };
+window.saveTuri=async()=>{
+  const name=$('turiName').value.trim(); $('turiErr').textContent='';
+  if(!name){ $('turiErr').textContent='Nom kiriting'; return; }
+  const b=$('turiSave'); b.disabled=true; b.textContent='Qo‘shilmoqda…';
+  const {data,error}=await sb.rpc('add_xarajat_turi',{p_name:name});
+  b.disabled=false; b.textContent='Qo‘shish';
+  if(error){ $('turiErr').textContent=window.permErr?window.permErr(error):error.message; return; }
+  await loadAccounts();      // yangi modda umumiy accounts'da — hamma userда ko'rinadi
+  selModda=data; renderModda(); // yangi tur tanlangan bo'ladi
+  closeTuri(); toast('Yangi tur qo‘shildi'); updateSave();
+};
+
 async function init(){
   const {data:{user}}=await sb.auth.getUser();
   myName=user?.email||'';
   try{ const {data:p}=await sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle(); if(p&&p.full_name) myName=p.full_name; }catch(e){}
   $('who').textContent=myName?('· '+myName):'';
-  const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
-  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
-  // 5400 konteyner (kassa_turi='xarajat_guruh') chiqariladi; kassalar op_kassa_ids bo'yicha cheklanadi.
-  accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
+  if(!await loadAccounts()) return;
   $('summa').addEventListener('input',e=>{ const raw=e.target.value.replace(/\D/g,''); e.target.value=raw?money(raw):''; updateSave(); });
+  $('turiName').addEventListener('keydown',e=>{ if(e.key==='Enter') window.saveTuri(); });
   renderChips(); renderModda();
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);

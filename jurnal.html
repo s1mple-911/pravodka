@@ -200,6 +200,10 @@
           <select id="fil"><option value="">Barcha filiallar</option></select>
         </div>
         <div class="fld">
+          <label>Hodim</label>
+          <select id="hodim"><option value="">Barcha hodimlar</option></select>
+        </div>
+        <div class="fld">
           <label>Hisob</label>
           <select id="acc"><option value="">Barcha hisoblar</option></select>
         </div>
@@ -387,8 +391,19 @@ async function loadAccSel(){
   if(error){ $('banner').style.display='block'; $('banner').textContent='Hisob ro\'yxati: '+error.message; return; }
   accList=data||[];
   buildAccSel();
-  $('acc').onchange=load;
+  $('acc').onchange=onAcc;
 }
+// Hodim filtri — kassa_turi='xarajat' kassalar (name=ism, subtitle='Filial · Lavozim').
+// permFilterView: cheklangan user faqat o'z hodim kassa(lar)ini ko'radi.
+function buildHodimSel(){
+  const hs=window.permFilterView((accounts||[]).filter(a=>a.kassa_turi==='xarajat'));
+  $('hodim').innerHTML='<option value="">Barcha hodimlar</option>'
+    +hs.map(a=>`<option value="${a.id}">${esc(a.name)}${a.subtitle?' · '+esc(a.subtitle):''}</option>`).join('');
+  $('hodim').onchange=onHodim;
+}
+// Hodim va Hisob filtrlari o'zaro istisno — biri tanlansa ikkinchisi tozalanadi (chalkashmasin).
+function onHodim(){ if($('hodim').value) $('acc').value=''; load(); }
+function onAcc(){ if($('acc').value) $('hodim').value=''; load(); }
 // Filial ro'yxati. View hali yo'q bo'lsa filtrni butunlay yashiramiz.
 async function loadFilSel(){
   const {data,error}=await sb.from('v_filial_royxat').select('*').order('filial');
@@ -425,6 +440,10 @@ function klass(e){
   return        {kind:'nt', ic:'arrow-right',     sign:'', dt,kt};   // ikkalasi ham pul emas
 }
 const sumDt=e=>(e.lines||[]).reduce((a,l)=>a+(Number(l.debit)||0),0);
+// "Kim/qayerda" — kassa satriga hisobning subtitle'ini (Filial · Lavozim) qo'shadi.
+// subtitle accounts jadvalidan (jurnal RPC uni qaytarmaydi) — id bo'yicha izlanadi.
+const accSub=id=>{ const a=accounts.find(x=>x.id===id); return a&&a.subtitle?a.subtitle:''; };
+function withSub(line){ if(!line) return ''; const s=accSub(line.account_id); return esc(line.name||'')+(s?' · '+esc(s):''); }
 
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
@@ -452,8 +471,8 @@ function render(){
     const multi=(e.lines||[]).length>2;
     let label,sub;
     if(multi){ label=esc(e.description||'Ko\'p satrli yozuv'); sub=e.entry_date+' · '+e.lines.length+' satr'; }
-    else if(k.kind==='in'){ label=esc(k.kt?.name||''); sub=e.entry_date+' · '+esc(k.dt?.name||'')+izoh; }
-    else if(k.kind==='out'){ label=esc(k.dt?.name||''); sub=e.entry_date+' · '+esc(k.kt?.name||'')+izoh; }
+    else if(k.kind==='in'){ label=esc(k.kt?.name||''); sub=e.entry_date+' · '+withSub(k.dt)+izoh; }
+    else if(k.kind==='out'){ label=esc(k.dt?.name||''); sub=e.entry_date+' · '+withSub(k.kt)+izoh; }
     else { label=esc(k.kt?.name||'')+' → '+esc(k.dt?.name||''); sub=e.entry_date+izoh; }
     const lines=multi?`<div class="jlines">${e.lines.map(lineRow).join('')}</div>`:'';
     if(e.is_deleted){
@@ -478,7 +497,7 @@ window.render=render;
 // Ruxsat (permAccIds): hech narsa tanlanmagan bo'lsa ham list-scope userga faqat o'z kassalari
 // qatnashgan yozuvlar ketadi; filial tanlangan bo'lsa u bilan kesishtiriladi.
 function args(){
-  const acc=$('acc').value||null;
+  const acc=($('hodim').value)||($('acc').value)||null;   // Hodim filtri ustun (o'sha hodim kassasi)
   let accs=null;
   if(!acc){
     if(filAllow){
@@ -607,7 +626,7 @@ async function init(){
   $('from').value=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
   $('to').value=iso(n);
   $('from').onchange=load; $('to').onchange=load;
-  const loadAccounts=async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; buildPermAccIds(); };
+  const loadAccounts=async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; buildPermAccIds(); buildHodimSel(); };
   // list-scope: ruxsat filtri accounts'ga tayanadi — load()'dan OLDIN yuklab, permAccIds'ni tayyorlaymiz,
   // aks holda birinchi so'rov filtrsiz (hamma kassa) ketardi. Cheklovsiz userda esa parallel qoladi.
   if(window.permScope && window.permScope()==='list'){
