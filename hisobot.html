@@ -69,6 +69,17 @@
   .exp .l .a{font-weight:600}.exp .l .a .p{color:var(--muted);font-weight:400;margin-left:4px}
   .track{height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
   .track .fill{height:100%;background:var(--primary);border-radius:5px;transition:width .4s ease}
+  /* CEO kategoriya hisobot + eksport */
+  .sechd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .sechd .sec{margin:0}
+  .xbtns{display:flex;gap:6px}
+  .xbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,color .13s}
+  .xbtn svg{width:15px;height:15px}
+  .xbtn:hover{border-color:var(--primary);color:var(--primary)}
+  .exp.total{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .exp.total .l{font-weight:800}
+  .subhd{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 12px}
   .kassa-strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;margin-bottom:18px}
   @media(min-width:900px){.kassa-strip{flex-wrap:wrap;overflow:visible}}
   .kchip{flex:0 0 auto;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
@@ -167,6 +178,21 @@
         <table><thead><tr><th>Hisob</th><th>Debet</th><th>Kredit</th></tr></thead><tbody id="tb"></tbody></table>
       </div>
     </div>
+
+    <!-- CEO: kategoriya bo'yicha xarajat + Excel eksport (faqat admin) -->
+    <div class="card" id="ceoCard" style="display:none">
+      <div class="sechd">
+        <div class="sec">Xarajat hisoboti (CEO)</div>
+        <div class="xbtns">
+          <button class="xbtn" onclick="exportXulosa()"><i data-lucide="download"></i>Xulosa</button>
+          <button class="xbtn" onclick="exportToliq()"><i data-lucide="file-down"></i>To'liq ro'yxat</button>
+        </div>
+      </div>
+      <div class="subhd">Kategoriya bo'yicha</div>
+      <div id="catList"><div class="empty">—</div></div>
+      <div class="subhd">Kassa bo'yicha (kim ko'p sarfladi)</div>
+      <div id="kassaRep"><div class="empty">—</div></div>
+    </div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -208,6 +234,8 @@ const OYLAR=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sent
 const $=id=>document.getElementById(id);
 const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let isAdmin=false, curFrom='', curTo='', catRows=[];   // CEO hisobot (band 3-4)
 const PNL_LBL={TUSHUM:'Tushum',TANNARX:'Tannarx',OPERATSION:'Operatsion xarajatlar',SOLIQ:'Soliq',BOSHQA:'Boshqa'};
 const PNL_BOLIM=['TUSHUM','TANNARX','OPERATSION','SOLIQ','BOSHQA'];
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -314,11 +342,75 @@ function renderReport(prows,entData){
   const rows=Object.values(turnover).sort((a,b)=>a.code.localeCompare(b.code));
   $('tb').innerHTML=rows.length?rows.map(r=>`<tr><td><span class="code">${r.code}</span>${r.name}</td><td>${r.deb?money(r.deb):'—'}</td><td>${r.cred?money(r.cred):'—'}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">Bu oyda yozuv yo\'q</td></tr>';
 }
+// --- CEO: kategoriya/kassa hisobot + Excel eksport (faqat admin) ---
+async function loadRole(){
+  try{
+    const {data:{user}}=await sb.auth.getUser(); if(!user) return;
+    const {data:p}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
+    isAdmin=!!(p&&p.role==='admin');
+  }catch(e){}
+}
+function catRow(r,total,cls){
+  const v=Number(r.jami)||0, pct=total>0?Math.round(v/total*100):0;
+  const nm=r.subtitle?`${esc(r.name)} <span style="color:var(--muted)">· ${esc(r.subtitle)}</span>`:esc(r.name);
+  return `<div class="exp${cls||''}"><div class="l"><span><span class="code">${esc(r.code||'')}</span>${nm}</span>`
+    +`<span class="a">${money(v)}<span class="p">${pct}%</span></span></div>`
+    +`<div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+}
+function renderRep(elId,rows){
+  const total=(rows||[]).reduce((a,r)=>a+(Number(r.jami)||0),0);
+  $(elId).innerHTML=(rows&&rows.length)
+    ? rows.map(r=>catRow(r,total)).join('')
+      +`<div class="exp total"><div class="l"><span>Jami</span><span class="a">${money(total)}</span></div></div>`
+    : '<div class="empty">Bu davrda xarajat yo\'q</div>';
+  icons();
+}
+async function loadCeo(){
+  if(!isAdmin){ $('ceoCard').style.display='none'; return; }
+  const [catQ,kassaQ]=await Promise.all([
+    sb.rpc('hodim_kategoriya_hisobot',{p_from:curFrom,p_to:curTo}),
+    sb.rpc('hodim_kassa_hisobot',{p_from:curFrom,p_to:curTo}),
+  ]);
+  if(catQ.error){ $('ceoCard').style.display='none'; return; }   // admin emas / RPC yo'q → yashir
+  catRows=catQ.data||[];
+  $('ceoCard').style.display='block';
+  renderRep('catList',catRows);
+  renderRep('kassaRep',kassaQ.error?[]:(kassaQ.data||[]));
+}
+// CSV — UTF-8 BOM, ';' ajratgich (Excel kirillcha to'g'ri, ustunlar ajraladi). Summa xom son.
+const CSV_SEP=';';
+function csvCell(v){ v=String(v==null?'':v); return (v.indexOf(CSV_SEP)>=0||v.indexOf('"')>=0||v.indexOf('\n')>=0)?'"'+v.replace(/"/g,'""')+'"':v; }
+function downloadCSV(filename,rows){
+  const body=rows.map(r=>r.map(csvCell).join(CSV_SEP)).join('\r\n');
+  const blob=new Blob(['﻿'+body],{type:'text/csv;charset=utf-8;'});   // UTF-8 BOM — Excel kirillcha to'g'ri
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+}
+const perStr=()=>`${$('yil').value}-${String($('oy').value).padStart(2,'0')}`;
+window.exportXulosa=()=>{
+  if(!catRows.length){ alert('Ma\'lumot yo\'q'); return; }
+  const rows=[['Kod','Nomi','Summa']]; let total=0;
+  catRows.forEach(r=>{ const v=Math.round(Number(r.jami)||0); total+=v; rows.push([r.code,r.name,v]); });
+  rows.push(['','JAMI',total]);
+  downloadCSV(`xarajat-xulosa-${perStr()}.csv`,rows);
+};
+window.exportToliq=async()=>{
+  const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
+  if(error){ alert('Xato: '+error.message); return; }
+  const rows=[['Sana','Kassa kodi','Kassa','Lavozim','Modda kodi','Modda','Summa','Izoh','Kim']];
+  (data||[]).forEach(r=>rows.push([r.entry_date,r.kassa_code,r.kassa_name,r.kassa_subtitle||'',
+    r.modda_code,r.modda_name,Math.round(Number(r.summa)||0),r.izoh||'',r.kim||'']));
+  if(rows.length===1){ alert('Bu davrda xarajat yo\'q'); return; }
+  downloadCSV(`xarajat-toliq-${perStr()}.csv`,rows);
+};
+
 async function load(){
   const oy=Number($('oy').value),yil=Number($('yil').value);
   const d1=`${yil}-${String(oy).padStart(2,'0')}-01`;
   const lastDay=new Date(yil,oy,0).getDate();
   const d2=`${yil}-${String(oy).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  curFrom=d1; curTo=d2; loadCeo();   // CEO hisobot (admin) — davr o'zgarsa yangilanadi
   $('banner').style.display='none';
   // SWR: davr bo'yicha keshlangan bo'lsa darrov chiz, aks holda "Yuklanmoqda…"
   const ck='pnl:'+JSON.stringify({from:d1,to:d2});
@@ -338,7 +430,7 @@ async function load(){
   swrSet(ck,{prows,ent:entData});
   renderReport(prows,entData);
 }
-function init(){ fillSelectors(); load(); }
+async function init(){ fillSelectors(); await loadRole(); load(); }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

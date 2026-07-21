@@ -85,6 +85,19 @@
   .je.del-row{opacity:.7}.je.del-row .mid .t{text-decoration:line-through}.je.del-row .amt{text-decoration:line-through}
   .je .meta{font-size:11px;color:var(--red);margin-top:4px;display:flex;align-items:center;gap:4px}.je .meta svg{width:12px;height:12px}
   .je .edited{font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:4px}.je .edited svg{width:12px;height:12px}
+  /* chek belgisi + modal */
+  .je .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
+  .je .chekpin svg{width:13px;height:13px}
+  .je .chekpin:hover{color:var(--primary);border-color:var(--primary)}
+  .chekov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:200}
+  .chekov.open{display:flex}
+  .chekbox{background:var(--surface);border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-hover)}
+  .chekhd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700}
+  .chekhd button{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;display:flex}
+  .chekhd button svg{width:20px;height:20px}
+  .chekimg{padding:12px;overflow:auto;display:flex;justify-content:center;align-items:center;min-height:120px}
+  .chekimg img{max-width:100%;height:auto;border-radius:8px}
   /* ko'p satrli yozuv */
   .je.multi{align-items:flex-start}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
@@ -256,6 +269,15 @@
     </div>
   </div>
   <!-- /more-sheet -->
+
+  <!-- chek rasm modali -->
+  <div class="chekov" id="chekModal" onclick="if(event.target===this)closeChek()">
+    <div class="chekbox">
+      <div class="chekhd"><span>Chek surati</span><button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+      <div class="chekimg" id="chekImg"></div>
+    </div>
+  </div>
+  <!-- /chek -->
 
   <div class="modal" id="editModal"><div class="sheet">
     <h3>Yozuvni tahrirlash</h3>
@@ -445,6 +467,35 @@ const sumDt=e=>(e.lines||[]).reduce((a,l)=>a+(Number(l.debit)||0),0);
 const accSub=id=>{ const a=accounts.find(x=>x.id===id); return a&&a.subtitle?a.subtitle:''; };
 function withSub(line){ if(!line) return ''; const s=accSub(line.account_id); return esc(line.name||'')+(s?' · '+esc(s):''); }
 
+// --- Chek rasmi (xarajat-cheklari/{kassa_id}/{entry_id}.jpg) ---
+// Yozuvning pul kassasi (Kt tomon, section='pul') — chek shu kassa papkasida.
+let chekKeys=new Set();  // "kassaId/entryId" — chek bor bo'lgan yozuvlar
+function kassaOf(e){ const l=(e.lines||[]).find(x=>x.section==='pul'&&Number(x.credit)>0); return l?l.account_id:null; }
+// Yuklangan qatorlardagi kassalar papkalarini bir marta ro'yxatlab, chek bor yozuvlarni belgilaydi.
+// Perms: cheklangan user faqat o'z kassalari qatnashgan qatorlarni ko'radi (jurnal filtri) → o'z cheklari.
+async function refreshCheks(){
+  const ids=[...new Set(rows.map(kassaOf).filter(Boolean))];
+  const next=new Set();
+  await Promise.all(ids.map(async kid=>{
+    try{
+      const {data,error}=await sb.storage.from('xarajat-cheklari').list(kid,{limit:1000});
+      if(error||!data) return;
+      data.forEach(f=>{ const eid=String(f.name||'').replace(/\.jpg$/i,''); if(eid) next.add(kid+'/'+eid); });
+    }catch(e){}
+  }));
+  chekKeys=next; render();
+}
+window.openChek=async(kassaId,entryId)=>{
+  const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
+  $('chekModal').classList.add('open');
+  try{
+    const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kassaId}/${entryId}.jpg`,300);
+    if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Chek topilmadi</div>'; return; }
+    box.innerHTML=`<img src="${esc(data.signedUrl)}" alt="chek">`;
+  }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+};
+window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; };
+
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
   const fc=(l.currency&&l.currency!=='UZS'&&l.fc_amount)?`<span class="fc">(${money(l.fc_amount)} ${esc(l.currency)})</span>`:'';
@@ -469,6 +520,8 @@ function render(){
     const k=klass(e), amt=sumDt(e);
     const izoh=e.description?' · '+esc(e.description):'';
     const multi=(e.lines||[]).length>2;
+    const kid=kassaOf(e);
+    const chek=(kid&&chekKeys.has(kid+'/'+e.id))?`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>Chek</button>`:'';
     let label,sub;
     if(multi){ label=esc(e.description||'Ko\'p satrli yozuv'); sub=e.entry_date+' · '+e.lines.length+' satr'; }
     else if(k.kind==='in'){ label=esc(k.kt?.name||''); sub=e.entry_date+' · '+withSub(k.dt)+izoh; }
@@ -478,7 +531,7 @@ function render(){
     if(e.is_deleted){
       return `<div class="je del-row${multi?' multi':''}"><div class="ic ${k.kind}"><i data-lucide="${k.ic}"></i></div>
         <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div>
-          <div class="meta"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>${lines}</div>
+          <div class="meta"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>${chek}${lines}</div>
         <div class="amt ${k.kind}">${k.sign}${money(amt)}</div></div>`;
     }
     // Tahrir faqat 2 satrli va kassa qatnashgan yozuvga — modal boshqasini ifodalay olmaydi.
@@ -486,7 +539,7 @@ function render(){
     const acts=isAdmin?`<div class="acts">${editable?`<button class="act edit" onclick="openEdit('${e.id}')"><i data-lucide="pencil"></i></button>`:''}<button class="act del" onclick="softDelete('${e.id}')"><i data-lucide="trash-2"></i></button></div>`:'';
     const edited=e.edited_at?`<div class="edited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`:'';
     return `<div class="je${multi?' multi':''}"><div class="ic ${k.kind}"><i data-lucide="${k.ic}"></i></div>
-      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div>${edited}${lines}</div>
+      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div>${edited}${chek}${lines}</div>
       <div class="amt ${k.kind}">${k.sign}${money(amt)}</div>${acts}</div>`;
   }).join('');
   icons();
@@ -528,6 +581,7 @@ async function load(){
   rows=data||[]; offset=rows.length; total=Number(c)||rows.length;
   swrSet(ck,{rows,total});
   render();
+  refreshCheks();   // chek 📎 belgilarini fonda yuklaydi
 }
 window.loadMore=async()=>{
   const a=args();
@@ -537,6 +591,7 @@ window.loadMore=async()=>{
   b.disabled=false;
   if(error){ $('banner').style.display='block'; $('banner').textContent=error.message; return; }
   rows=rows.concat(data||[]); offset=rows.length; render();
+  refreshCheks();
 };
 
 window.softDelete=async id=>{
