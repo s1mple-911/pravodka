@@ -468,6 +468,15 @@ window.saveHodim=async()=>{
       if(eu) chekWarn=true;
     }catch(e){ chekWarn=true; }
   }
+  // Katta xarajat (>= 500 000) → n8n alert. Fire-and-forget (keepalive) — saqlashni BLOKLAMAYDI,
+  // xato bo'lsa jimgina o'tadi. izoh tozalashdan OLDIN o'qiladi.
+  if(amt>=500000){
+    try{
+      const payload={summa:amt, hodim:(kassa.name||myName||''), modda:(modda.name||''), kassa:(kassa.subtitle||''), izoh:($('izoh').value||'')};
+      const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload));
+      fetch(url,{keepalive:true}).catch(()=>{});
+    }catch(e){}
+  }
   // Muvaffaqiyat: forma tozalanadi, kassa qoladi (ketma-ket yozish oson)
   $('summa').value=''; $('izoh').value=''; selModda=null; removeChek(); renderModda(); updateChekUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
