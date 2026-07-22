@@ -85,6 +85,10 @@
   .je.del-row{opacity:.7}.je.del-row .mid .t{text-decoration:line-through}.je.del-row .amt{text-decoration:line-through}
   .je .meta{font-size:11px;color:var(--red);margin-top:4px;display:flex;align-items:center;gap:4px}.je .meta svg{width:12px;height:12px}
   .je .edited{font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:4px}.je .edited svg{width:12px;height:12px}
+  /* V6: filial + davr teglari (metadata) */
+  .je .ftag{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+  .je .ftag .tg{display:inline-flex;align-items:center;gap:4px;background:var(--primary-soft);color:var(--primary);border-radius:7px;padding:2px 8px;font-size:11px;font-weight:600}
+  .je .ftag .tg svg{width:12px;height:12px}
   /* chek belgisi + modal */
   .je .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
@@ -496,6 +500,32 @@ window.openChek=async(kassaId,entryId)=>{
 };
 window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; };
 
+// --- V6: filial + davr metadata (entry.filial_ids, davr_start/end) ---
+// jurnal() RPC bu ustunlarni qaytarmaydi — yuklangan yozuvlar uchun alohida o'qiladi.
+// RLS bermasa (cheklangan user) jimgina bo'sh qoladi — teg ko'rinmaydi, boshqa narsa buzilmaydi.
+let metaMap={};   // entry.id → {filial_ids, davr_start, davr_end}
+async function refreshMeta(){
+  const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
+  if(!ids.length){ metaMap={}; return; }
+  try{
+    const {data,error}=await sb.from('entry').select('id,filial_ids,davr_start,davr_end').in('id',ids);
+    if(error||!data) return;
+    const m={}; data.forEach(r=>{ m[r.id]=r; }); metaMap=m; render();
+  }catch(e){}
+}
+const filName=id=>{ const a=accounts.find(x=>x.id===id); return a?a.name:null; };
+function metaTags(e){
+  const meta=metaMap[e.id]; if(!meta) return '';
+  const tags=[];
+  const fnames=(meta.filial_ids||[]).map(filName).filter(Boolean);
+  if(fnames.length) tags.push(`<span class="tg"><i data-lucide="store"></i>${fnames.map(esc).join(', ')}</span>`);
+  if(meta.davr_start||meta.davr_end){
+    const d=(meta.davr_start&&meta.davr_end)?`${fmtDate(meta.davr_start)}–${fmtDate(meta.davr_end)}`:fmtDate(meta.davr_start||meta.davr_end);
+    tags.push(`<span class="tg"><i data-lucide="calendar"></i>${esc(d)}</span>`);
+  }
+  return tags.length?`<div class="ftag">${tags.join('')}</div>`:'';
+}
+
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
   const fc=(l.currency&&l.currency!=='UZS'&&l.fc_amount)?`<span class="fc">(${money(l.fc_amount)} ${esc(l.currency)})</span>`:'';
@@ -522,6 +552,7 @@ function render(){
     const multi=(e.lines||[]).length>2;
     const kid=kassaOf(e);
     const chek=(kid&&chekKeys.has(kid+'/'+e.id))?`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>Chek</button>`:'';
+    const ftag=metaTags(e);   // V6: filial + davr teglari
     let label,sub;
     if(multi){ label=esc(e.description||'Ko\'p satrli yozuv'); sub=e.entry_date+' · '+e.lines.length+' satr'; }
     else if(k.kind==='in'){ label=esc(k.kt?.name||''); sub=e.entry_date+' · '+withSub(k.dt)+izoh; }
@@ -531,7 +562,7 @@ function render(){
     if(e.is_deleted){
       return `<div class="je del-row${multi?' multi':''}"><div class="ic ${k.kind}"><i data-lucide="${k.ic}"></i></div>
         <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div>
-          <div class="meta"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>${chek}${lines}</div>
+          <div class="meta"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>${chek}${ftag}${lines}</div>
         <div class="amt ${k.kind}">${k.sign}${money(amt)}</div></div>`;
     }
     // Tahrir faqat 2 satrli va kassa qatnashgan yozuvga — modal boshqasini ifodalay olmaydi.
@@ -539,7 +570,7 @@ function render(){
     const acts=isAdmin?`<div class="acts">${editable?`<button class="act edit" onclick="openEdit('${e.id}')"><i data-lucide="pencil"></i></button>`:''}<button class="act del" onclick="softDelete('${e.id}')"><i data-lucide="trash-2"></i></button></div>`:'';
     const edited=e.edited_at?`<div class="edited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`:'';
     return `<div class="je${multi?' multi':''}"><div class="ic ${k.kind}"><i data-lucide="${k.ic}"></i></div>
-      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div>${edited}${chek}${lines}</div>
+      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div>${edited}${chek}${ftag}${lines}</div>
       <div class="amt ${k.kind}">${k.sign}${money(amt)}</div>${acts}</div>`;
   }).join('');
   icons();
@@ -582,6 +613,7 @@ async function load(){
   swrSet(ck,{rows,total});
   render();
   refreshCheks();   // chek 📎 belgilarini fonda yuklaydi
+  refreshMeta();    // V6: filial + davr teglarini fonda yuklaydi
 }
 window.loadMore=async()=>{
   const a=args();
@@ -592,6 +624,7 @@ window.loadMore=async()=>{
   if(error){ $('banner').style.display='block'; $('banner').textContent=error.message; return; }
   rows=rows.concat(data||[]); offset=rows.length; render();
   refreshCheks();
+  refreshMeta();
 };
 
 window.softDelete=async id=>{

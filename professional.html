@@ -87,6 +87,13 @@
   .chips-empty{color:var(--muted);font-size:14px;padding:10px 0}
   .dirhint{font-size:13px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:none}
   .dirhint b{color:var(--ink)}
+  /* V6: filial multiselect (Aros brend rang) + davr */
+  .fchips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
+  .fchip:hover{border-color:var(--primary)}
+  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .davrrow{display:flex;gap:10px}
+  .davrrow .txt{flex:1;min-width:0;margin-bottom:0}
   .txt.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
   .simplewarn{color:var(--red);font-size:13px;font-weight:600;text-align:right;margin:-8px 0 14px 2px}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
@@ -159,6 +166,7 @@
     <div class="card">
       <label>Sana</label><input class="txt" id="sana" type="date">
       <label>Izoh</label><input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
+      <div id="izohReq" class="simplewarn" style="display:none;text-align:left;margin:-8px 0 14px 2px">Bu modda uchun izoh majburiy</div>
 
       <div class="modeseg" id="modeSeg">
         <button class="on" id="mSimple" onclick="setMode('simple')">Oddiy</button>
@@ -175,6 +183,13 @@
         <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
+        <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
+        <div id="filialChips" class="fchips"></div>
+        <div id="davrSect" style="display:none;margin-bottom:16px">
+          <label id="davrLbl">📅 Davr (majburiy)</label>
+          <div class="davrrow"><input type="date" class="txt" id="davrStart" aria-label="Boshi"><input type="date" class="txt" id="davrEnd" aria-label="Oxiri"></div>
+          <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini tanlang</div>
+        </div>
         <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
       </div>
 
@@ -226,6 +241,7 @@ const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 let accounts=[], lines=[], selKassa=null, simpleBal=null; // simpleBal: oddiy rejim tanlangan kassa qoldig'i
+let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -316,7 +332,27 @@ window.setMode=m=>{
   $('mSimple').className=simple?'on':''; $('mAdv').className=simple?'':'on';
   $('simpleBox').style.display=simple?'block':'none';
   $('advBox').style.display=simple?'none':'block';
+  if(!simple) $('izohReq').style.display='none';   // izoh maydoni umumiy — adv rejimda majburiylik yo'q
+  else updateSimple();
 };
+// --- V6: filial multiselect + modda flaglariga qarab shartli izoh/davr ---
+function moddaObj(){ return accounts.find(a=>a.id===$('modda').value); }
+function izohRequired(){ const m=moddaObj(); return !!(m&&m.izoh_majburiy); }
+function davrRequired(){ const m=moddaObj(); return !!(m&&m.davr_majburiy); }
+function davrVals(){ return {s:$('davrStart').value||null,e:$('davrEnd').value||null}; }
+function davrOk(){ if(!davrRequired()) return true; const {s,e}=davrVals(); return !!(s&&e&&s<=e); }
+function updateDavrUI(){ const req=davrRequired();
+  $('davrSect').style.display=req?'block':'none';
+  if(!req){ $('davrStart').value=''; $('davrEnd').value=''; }
+  $('davrReq').style.display=(req&&!davrOk())?'block':'none';
+}
+function renderFilials(){ const box=$('filialChips');
+  box.innerHTML=filials.length
+    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
+    : '<div class="chips-empty">Filiallar topilmadi</div>';
+}
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); };
+async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=data; }catch(e){} }
 // Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
 // hisoblari (op_kassa_ids; scope='all'→hammasi). 5400 konteyner init'da chiqarib tashlangan.
 function kassaList(){ return accounts.filter(a=>isKassa(a)); }
@@ -365,13 +401,17 @@ window.updateSimple=()=>{
       ? `Pul <b>kiradi</b> · Dt ${esc(kassa.name)} / Kt ${esc(modda.name)}`
       : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
   } else h.style.display='none';
+  updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
+  $('izohReq').style.display=izohRequired()?'block':'none';
+  const needIzoh=izohRequired() && !$('izoh').value.trim();
+  const needDavr=!davrOk();
   // Qoldiq limiti — faqat pul chiqishida (Kt=kassa, ya'ni income emas). Kirimда tekshirilmaydi.
   const over = !income && simpleBal!=null && amt>simpleBal;
   const inp=$('summa'), w=$('simpleWarn');
   inp.classList.toggle('over',over);
   if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} so'm`; }
   else w.style.display='none';
-  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over);
+  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr);
 };
 window.saveSimple=async()=>{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
@@ -379,12 +419,17 @@ window.saveSimple=async()=>{
   if(!kassa){ alert('Kassa tanlang'); return; }
   if(!modda){ alert('Modda tanlang'); return; }
   if(amt<=0){ alert('Summa kiriting'); return; }
+  if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
+  if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
   if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' so\'m'); return; }
   // Dt/Kt avtomatik: daromad → Dt=kassa/Kt=modda; xarajat/aktiv/boshqa → Dt=modda/Kt=kassa.
   const dtId=income?kassa.id:modda.id, ktId=income?modda.id:kassa.id;
   const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
   // Mavjud insert yo'li: entry → entry_line. Server guard trigger (op_kassa_ids) avtomat tekshiradi.
-  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
+  // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
+  const entryPayload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
+  if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
   const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
   const {error:e2}=await sb.from('entry_line').insert(rows);
@@ -415,8 +460,12 @@ async function init(){
   // Ruxsat: kassa_scope='list' bo'lsa faqat amaliyot kassalari tanlanadi.
   // Xarajat/daromad moddalari cheklanmaydi (permFilterOp faqat 5xxx pul hisoblariga tegadi).
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
-  // Oddiy rejim: modda ro'yxati + kassa chiplari
+  // Oddiy rejim: modda ro'yxati + kassa chiplari + filial multiselect
   $('modda').innerHTML=moddaOptions();
+  await loadFilials(); renderFilials();
+  $('izoh').addEventListener('input',updateSimple);
+  $('davrStart').addEventListener('change',updateSimple);
+  $('davrEnd').addEventListener('change',updateSimple);
   renderChips(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   window.setMode('simple');
   // Kengaytirilgan rejim (mavjud)

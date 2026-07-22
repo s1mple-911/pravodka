@@ -46,6 +46,16 @@
   .chips-empty{color:var(--muted);font-size:14px;padding:14px;background:var(--surface-2);border-radius:12px;text-align:center}
   .bal{font-size:13px;color:var(--muted);margin:10px 0 0 2px}
   .bal b{color:var(--ink);font-weight:700}
+  /* filial multiselect (Aros brend rang = --primary) */
+  .fchips{display:flex;flex-wrap:wrap;gap:8px}
+  .fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;
+    font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
+  .fchip:hover{border-color:var(--primary)}
+  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .fchips-empty{color:var(--muted);font-size:13.5px;padding:10px;background:var(--surface-2);border-radius:12px;text-align:center}
+  /* davr (sana oralig'i) */
+  .davrrow{display:flex;gap:10px}
+  .davrrow .txt{flex:1;min-width:0}
   /* summa */
   .amtwrap{position:relative;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 18px;transition:border-color .13s,box-shadow .13s}
   .amtwrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
@@ -202,6 +212,20 @@
       <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()"><span id="moddaFieldTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
     </div>
 
+    <div class="sect">
+      <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta tanlash mumkin)</span></div>
+      <div id="filialChips" class="fchips"></div>
+    </div>
+
+    <div class="sect" id="davrSect" style="display:none">
+      <div class="lbl" id="davrLbl">📅 Davr (majburiy)</div>
+      <div class="davrrow">
+        <input type="date" class="txt" id="davrStart" aria-label="Boshi">
+        <input type="date" class="txt" id="davrEnd" aria-label="Oxiri">
+      </div>
+      <div id="davrReq" class="chekreq" style="display:none">Sana oralig'ini (boshi–oxiri) tanlang</div>
+    </div>
+
     <div class="sect" id="chekSect">
       <div class="lbl" id="chekLbl">📷 Chek (ixtiyoriy)</div>
       <label class="chekbtn">
@@ -213,7 +237,7 @@
     </div>
 
     <div class="sect">
-      <div class="lbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></div>
+      <div class="lbl" id="izohLbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></div>
       <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
     </div>
 
@@ -257,6 +281,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
+let filials=[], selFilials=new Set();  // V6: filial multiselect (entry.filial_ids — faqat metadata)
 let chekBlob=null;          // 3-band: tanlangan chek surati (siqilgan JPEG blob)
 let histPeriod='bugun', histRows=[], histChek=new Set();  // o'z tarixi (davr + ro'yxat + chek 📎)
 
@@ -352,15 +377,50 @@ window.renderModdaList=()=>{
     ? ms.map(m=>`<button type="button" class="pickitem${m.id===selModda?' on':''}" onclick="pickModda('${m.id}')"><span class="pn">${esc(m.name)}</span><span class="pc">${esc(m.code)}</span></button>`).join('')
     : '<div class="pickempty">Topilmadi</div>';
 };
-window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateChekUI(); updateSave(); };
+window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI(); updateSave(); };
 
-// --- 3-band: chek surati ---
+// --- V6: filial multiselect (metadata tag) ---
+// Filiallar accounts'dan EMAS (u permFilterOp bilan cheklangan) — alohida v_filial_tanlov'dan.
+function renderFilials(){
+  const box=$('filialChips');
+  box.innerHTML = filials.length
+    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
+    : '<div class="fchips-empty">Filiallar topilmadi</div>';
+}
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); };
+async function loadFilials(){
+  try{
+    const {data,error}=await sb.from('v_filial_tanlov').select('*');  // id, code, name, subtitle
+    if(error||!data) return;
+    filials=data;
+  }catch(e){}
+}
+
+// --- V6: modda flaglariga qarab shartli UI (chek / izoh / davr) ---
 function moddaObj(){ return accounts.find(a=>a.id===selModda); }
 function chekRequired(){ const m=moddaObj(); return !!(m && m.chek_majburiy); }  // ustun yo'q bo'lsa undefined → false
+function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
+function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
+function davrVals(){ return {s:$('davrStart').value||null, e:$('davrEnd').value||null}; }
+function davrOk(){ if(!davrRequired()) return true; const {s,e}=davrVals(); return !!(s&&e&&s<=e); }  // ISO sana leksik solishtiriladi
+// Modda tanlangach hamma shartli bo'limlarni yangilaydi
+function updateModdaUI(){ updateChekUI(); updateIzohUI(); updateDavrUI(); }
 function updateChekUI(){
   const req=chekRequired();
   $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
   $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
+}
+function updateIzohUI(){
+  const req=izohRequired();
+  $('izohLbl').innerHTML = req
+    ? 'Izoh <span style="color:var(--red);font-weight:600">(majburiy)</span>'
+    : 'Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
+}
+function updateDavrUI(){
+  const req=davrRequired();
+  $('davrSect').style.display = req ? 'block' : 'none';
+  if(!req){ $('davrStart').value=''; $('davrEnd').value=''; }
+  $('davrReq').style.display = (req && !davrOk()) ? 'block' : 'none';
 }
 // Kanvas bilan siqish — uzun tomon ~1200px, JPEG 0.8.
 function compressImage(file, maxDim, quality){
@@ -429,7 +489,10 @@ function updateSave(){
     else w.style.display='none';
   }
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek);
+  const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
+  const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq
+  $('davrReq').style.display = (davrRequired() && !davrOk()) ? 'block' : 'none';
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr);
 }
 
 window.saveHodim=async()=>{
@@ -440,11 +503,16 @@ window.saveHodim=async()=>{
   if(!modda){ toast('Modda tanlang',true); return; }
   if(amt<=0){ toast('Summa kiriting',true); return; }
   if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
+  if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
+  if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; icons();
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
   // professional.html oddiy rejim insert mantig'i: entry → 2 entry_line, satr xatosida entry o'chiriladi.
   // Server guard trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
-  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:isoDay(nowUz()),description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
+  // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
+  const entryPayload={entry_date:isoDay(nowUz()),description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
+  if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); return; }
   const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt}];
   const {error:e2}=await sb.from('entry_line').insert(rows);
@@ -467,7 +535,9 @@ window.saveHodim=async()=>{
     }catch(e){}
   }
   // Muvaffaqiyat: forma tozalanadi, kassa qoladi (ketma-ket yozish oson)
-  $('summa').value=''; $('izoh').value=''; selModda=null; removeChek(); renderModda(); updateChekUI(); updateSave();
+  $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear();
+  $('davrStart').value=''; $('davrEnd').value='';
+  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast(chekWarn?'Xarajat saqlandi, lekin chek yuklanmadi':'Saqlandi ✓', chekWarn);
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
@@ -573,8 +643,12 @@ async function init(){
   try{ const {data:p}=await sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle(); if(p&&p.full_name) myName=p.full_name; }catch(e){}
   $('who').textContent=myName?('· '+myName):'';
   if(!await loadAccounts()) return;
+  await loadFilials();
   $('summa').addEventListener('input',e=>{ const raw=e.target.value.replace(/\D/g,''); e.target.value=raw?money(raw):''; updateSave(); });
-  renderChips(); renderModda(); updateChekUI(); loadHist();
+  $('izoh').addEventListener('input',updateSave);
+  $('davrStart').addEventListener('change',()=>{ updateDavrUI(); updateSave(); });
+  $('davrEnd').addEventListener('change',()=>{ updateDavrUI(); updateSave(); });
+  renderChips(); renderModda(); renderFilials(); updateModdaUI(); loadHist();
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);
 }

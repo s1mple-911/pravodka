@@ -284,16 +284,20 @@ function renderList(elId,arr,showChek){
   $(elId).innerHTML=arr.length?arr.map(a=>`
     <div class="item ${a.is_active?'':'off'}">
       <div class="mid"><div class="t">${a.name}</div><div class="c">${a.code}${a.subtitle?' · '+a.subtitle:''}</div></div>
-      ${showChek?`<label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setChek('${a.id}',this.checked)">Chek</label>`:''}
+      ${showChek?`<label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
+      <label class="chekopt ${a.izoh_majburiy?'on':''}" title="Izoh majburiy"><input type="checkbox" ${a.izoh_majburiy?'checked':''} onchange="setFlag('${a.id}','izoh',this.checked)">Izoh</label>
+      <label class="chekopt ${a.davr_majburiy?'on':''}" title="Davr (sana) majburiy"><input type="checkbox" ${a.davr_majburiy?'checked':''} onchange="setFlag('${a.id}','davr',this.checked)">Sana</label>`:''}
       <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
       <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
     </div>`).join(''):'<div class="empty">—</div>';
 }
-// Chek majburiyligini o'zgartiradi (admin only — RPC). Xato bo'lsa ro'yxat qayta chiziladi (revert).
-window.setChek=async(id,val)=>{
-  const {error}=await sb.rpc('set_chek_majburiy',{p_account:id,p_majburiy:val});
+// Modda bayrog'ini (chek|izoh|davr) o'zgartiradi (admin only — RPC).
+// Xato bo'lsa ro'yxat qayta chiziladi (revert). Bitta umumiy set_modda_flag RPC.
+const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy'};
+window.setFlag=async(id,flag,val)=>{
+  const {error}=await sb.rpc('set_modda_flag',{p_account:id,p_flag:flag,p_bool:val});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }
-  const a=accounts.find(x=>x.id===id); if(a) a.chek_majburiy=val;
+  const a=accounts.find(x=>x.id===id); if(a) a[FLAG_COL[flag]]=val;
   swrSet('accounts',accounts); renderCur(); icons();
 };
 function renderAll(){
