@@ -121,6 +121,17 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* Ko'p-valyuta segmenti (kassa ostida) */
+  .curseg{display:flex;gap:6px;margin:-6px 0 16px}
+  .curbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:9px;padding:7px 15px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
+  .curbtn.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  /* Modal: xarajat vs tanlangan yuklar summasi */
+  .yuksum{background:var(--surface-2);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:13.5px}
+  .ysrow{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+  .ysrow span{color:var(--muted)}.ysrow b{font-variant-numeric:tabular-nums}
+  .ysrow.ysmatch{justify-content:flex-end;padding-top:6px}
+  .ymatch{font-weight:700;font-size:13px}
+  .ymatch.ok{color:var(--green)}.ymatch.no{color:var(--red)}
   /* Yuk bog'lash (9110 Tovar tannarxi) */
   .ychips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
   .ychip{display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
@@ -208,6 +219,7 @@
       <div id="simpleBox">
         <label>Kassa</label>
         <div id="kassaChips" class="chips"></div>
+        <div id="curSeg" class="curseg" style="display:none"></div>
         <label>Modda</label>
         <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
         <label>Summa</label>
@@ -220,11 +232,6 @@
           <label id="davrLbl">📅 Davr (majburiy)</label>
           <div class="davrrow"><input type="date" class="txt" id="davrStart" aria-label="Boshi"><input type="date" class="txt" id="davrEnd" aria-label="Oxiri"></div>
           <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini tanlang</div>
-        </div>
-        <div id="yukSect" style="display:none;margin-bottom:16px">
-          <label>📦 Yuk <span style="font-weight:400">(Tovar tannarxi — ixtiyoriy)</span></label>
-          <div id="yukChips" class="ychips"></div>
-          <button type="button" class="yukadd" onclick="openYuk()"><i data-lucide="plus"></i> Yuk tanlash</button>
         </div>
         <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
       </div>
@@ -273,6 +280,7 @@
 <div class="ymodal" id="yukModal" onclick="if(event.target===this)closeYuk()">
   <div class="ymbox">
     <h3>Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi)</span></h3>
+    <div id="yukSum" class="yuksum"></div>
     <div class="yukfilt">
       <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
       <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
@@ -280,8 +288,8 @@
     </div>
     <div id="yukList" class="yuklist"></div>
     <div class="yukacts">
-      <button type="button" class="ybtn" onclick="closeYuk()">Bekor</button>
-      <button type="button" class="ybtn primary" onclick="applyYuk()">Tanlash (<span id="yukSel">0</span>)</button>
+      <button type="button" class="ybtn" onclick="skipYukSave()">Yuksiz saqlash</button>
+      <button type="button" class="ybtn primary" onclick="confirmYukSave()">Saqlash (<span id="yukSel">0</span>)</button>
     </div>
   </div>
 </div>
@@ -293,7 +301,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-let accounts=[], lines=[], selKassa=null, simpleBal=null; // simpleBal: oddiy rejim tanlangan kassa qoldig'i
+let accounts=[], lines=[], selKassa=null, selCur='UZS', simpleBal=null; // selKassa=parent kassa, selCur=tanlangan valyuta
 let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -410,25 +418,44 @@ window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else sel
 async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=window.permFilterFilials?window.permFilterFilials(data):data; }catch(e){} }
 // Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
 // hisoblari (op_kassa_ids; scope='all'→hammasi). 5400 konteyner init'da chiqarib tashlangan.
-function kassaList(){ return accounts.filter(a=>isKassa(a)); }
+// Ko'p-valyutali kassa: parent (UZS) + valyuta bola-hisoblari (parent_id, currency<>UZS).
+// Chipda FAQAT parent ko'rinadi (bitta kassa) — valyuta alohida segment bilan tanlanadi.
+const isCurChild=a=>!!(a.parent_id && a.currency && a.currency!=='UZS');
+const curChildren=pid=>accounts.filter(a=>a.parent_id===pid && isKassa(a) && a.currency && a.currency!=='UZS');
+function effKassa(){ const p=accounts.find(a=>a.id===selKassa); if(!p) return null;
+  if(selCur==='UZS') return p;
+  return accounts.find(a=>a.parent_id===selKassa && a.currency===selCur) || p; }
+function kassaList(){ return accounts.filter(a=>isKassa(a) && !isCurChild(a)); }   // faqat parentlar
 function renderChips(){
   const ks=kassaList();
   if(ks.length===1) selKassa=ks[0].id;                       // bitta bo'lsa — avtomat tanlangan
-  if(selKassa && !ks.some(k=>k.id===selKassa)) selKassa=null; // tanlangani ro'yxatdan chiqib ketgan bo'lsa
+  if(selKassa && !ks.some(k=>k.id===selKassa)){ selKassa=null; selCur='UZS'; }
   $('kassaChips').innerHTML = ks.length
     ? ks.map(k=>`<button type="button" class="chip${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')">`
         +`<span class="chip-code">${esc(k.code)}</span>`
         +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
     : '<div class="chips-empty">Sizga biror kassada amaliyot ruxsati berilmagan.</div>';
+  renderCurSeg();
   updateSimple();
 }
-window.pickKassa=id=>{ selKassa=id; renderChips(); fetchSimpleBal(); };
-// 1-band: tanlangan kassa qoldig'i (acc_balance). Pul chiqishida limit shu qoldiqdan.
+// Valyuta segmenti — faqat tanlangan kassada valyuta bolasi bo'lsa ko'rinadi (UZS + har valyuta).
+function renderCurSeg(){
+  const box=$('curSeg'); if(!box) return;
+  const kids=selKassa?curChildren(selKassa):[];
+  if(!selKassa || !kids.length){ box.style.display='none'; box.innerHTML=''; selCur='UZS'; return; }
+  const curs=['UZS'].concat(kids.map(k=>k.currency));
+  if(curs.indexOf(selCur)<0) selCur='UZS';
+  box.style.display='flex';
+  box.innerHTML=curs.map(c=>`<button type="button" class="curbtn${c===selCur?' on':''}" onclick="pickCur('${esc(c)}')">${esc(c)}</button>`).join('');
+}
+window.pickCur=c=>{ selCur=c; renderCurSeg(); fetchSimpleBal(); updateSimple(); };
+window.pickKassa=id=>{ selKassa=id; selCur='UZS'; renderChips(); fetchSimpleBal(); };
+// Tanlangan kassa (valyuta) qoldig'i (acc_balance). Pul chiqishida limit shu qoldiqdan.
 async function fetchSimpleBal(){
   simpleBal=null; updateSimple();
-  if(!selKassa) return;
-  const want=selKassa;
-  try{ const {data,error}=await sb.rpc('acc_balance',{p_account:want}); if(error||data==null||selKassa!==want) return; simpleBal=Number(data)||0; updateSimple(); }catch(e){}
+  const k=effKassa(); if(!k) return;
+  const want=k.id;
+  try{ const {data,error}=await sb.rpc('acc_balance',{p_account:want}); if(error||data==null||(effKassa()&&effKassa().id!==want)) return; simpleBal=Number(data)||0; updateSimple(); }catch(e){}
 }
 // Modda tanlagichi — kassalar chiqmaydi (kassa chip orqali tanlanadi), qolgan optgrouplar avvalgidek.
 function moddaOptions(){
@@ -442,7 +469,7 @@ window.fmtSumma=el=>{ const raw=el.value.replace(/\D/g,''); el.value=raw?money(r
 // Yo'nalish modda turidan: daromad → pul kiradi (Dt=kassa), aks holda → pul chiqadi (Kt=kassa).
 function simpleDir(){
   const modda=accounts.find(a=>a.id===$('modda').value);
-  const kassa=accounts.find(a=>a.id===selKassa);
+  const kassa=effKassa();                              // ko'p-valyuta: tanlangan valyuta hisobi
   const income=!!modda && modda.type==='daromad';
   return {modda,kassa,income};
 }
@@ -457,9 +484,6 @@ window.updateSimple=()=>{
       : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
   } else h.style.display='none';
   updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
-  const m9=moddaObj(), is9110=!!(m9&&m9.code==='9110');   // Yuk bog'lash faqat 9110 Tovar tannarxi
-  $('yukSect').style.display=is9110?'block':'none';
-  if(!is9110 && selYuk.size){ selYuk.clear(); renderYukChips(); }
   $('izohReq').style.display=izohRequired()?'block':'none';
   const needIzoh=izohRequired() && !$('izoh').value.trim();
   const needDavr=!davrOk();
@@ -479,15 +503,32 @@ function ydF(s){ if(!s) return '—'; try{ return new Date(s).toISOString().slic
 function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; if(!isFinite(v)) return esc(String(n??'—'))+c;
   return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+c; }
 function yukPaid(y){ const s=yukStatus[y.id]; return !!(s&&s.tolangan); }
-// modda select o'zgarganda: updateSimple + 9110 bo'lsa modalni avtomatik ochish (eslatma)
-window.onModda=()=>{ updateSimple(); const m=moddaObj(); if(m&&m.code==='9110') openYuk(); };
-window.openYuk=()=>{ $('yukModal').classList.add('open'); loadYukList(); };
+// 9110 modali endi SAQLASHDA ochiladi (tanlaganda emas). onModda faqat UI yangilaydi.
+window.onModda=()=>{ updateSimple(); };
+let yukSaveCb=null, yukSaveAmt=0, yukSaveCur='UZS';   // saqlash-shlyuzi holati
+// Saqlash-shlyuzi: modda 9110 bo'lsa saqlashdan oldin shu modal ochiladi (yuklar tanlanadi).
+function openYukSave(amount,cur,cb){ yukSaveAmt=Number(amount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; selYuk.clear(); $('yukModal').classList.add('open'); loadYukList(); }
+window.confirmYukSave=()=>{ const cb=yukSaveCb; yukSaveCb=null; closeYuk(); if(cb) cb(); };
+window.skipYukSave=()=>{ selYuk.clear(); const cb=yukSaveCb; yukSaveCb=null; closeYuk(); if(cb) cb(); };
 window.closeYuk=()=>{ $('yukModal').classList.remove('open'); };
 window.reloadYuk=()=>{ yukLoaded=false; loadYukList(); };
 window.setYukFilt=k=>{ yukFilt=k; document.querySelectorAll('#yukModal [data-yf]').forEach(b=>b.classList.toggle('on',b.dataset.yf===k)); renderYukList(); };
-window.applyYuk=()=>{ closeYuk(); renderYukChips(); };
 window.toggleYuk=id=>{ id=Number(id); if(selYuk.has(id)) selYuk.delete(id); else selYuk.add(id); renderYukList(); };
-window.rmYuk=id=>{ selYuk.delete(Number(id)); renderYukChips(); if($('yukModal').classList.contains('open')) renderYukList(); };
+// Tanlangan yuklar summasini (valyuta bo'yicha) hisoblab, xarajat summasi bilan solishtiradi.
+function updateYukSum(){
+  const byC={};
+  yukList.forEach(y=>{ if(selYuk.has(Number(y.id))){ const c=y.valyuta||'?'; byC[c]=(byC[c]||0)+(Number(y.narx)||0); } });
+  const parts=Object.keys(byC).map(c=>yPriceF(byC[c],c));
+  const selTxt=parts.length?parts.join(' + '):'—';
+  let match='';
+  if(byC[yukSaveCur]!=null){ const diff=Math.round((byC[yukSaveCur]-yukSaveAmt)*100)/100;
+    match = diff===0 ? '<span class="ymatch ok">✓ summa mos</span>' : '<span class="ymatch no">Farq: '+yPriceF(Math.abs(diff),yukSaveCur)+'</span>'; }
+  const box=$('yukSum'); if(box) box.innerHTML=
+    '<div class="ysrow"><span>Xarajat summasi</span><b>'+yPriceF(yukSaveAmt,yukSaveCur)+'</b></div>'
+    +'<div class="ysrow"><span>Tanlangan yuklar ('+selYuk.size+')</span><b>'+selTxt+'</b></div>'
+    +(match?'<div class="ysrow ysmatch">'+match+'</div>':'');
+  const sel=$('yukSel'); if(sel) sel.textContent=selYuk.size;
+}
 async function loadYukList(){
   if(yukLoaded){ renderYukList(); return; }
   $('yukList').innerHTML='<div class="yukempty">Yuklanmoqda…</div>';
@@ -510,7 +551,7 @@ window.renderYukList=()=>{
   if(yukFilt==='unpaid') rows=rows.filter(y=>!yukPaid(y));
   if(q) rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')).toLowerCase().includes(q));
   rows.sort((a,b)=>(yukPaid(a)-yukPaid(b))||String(b.sana||'').localeCompare(String(a.sana||'')));
-  $('yukSel').textContent=selYuk.size;
+  updateYukSum();
   $('yukList').innerHTML= rows.length ? rows.map(y=>{
     const on=selYuk.has(Number(y.id)), paid=yukPaid(y);
     return '<button type="button" class="yrow'+(on?' on':'')+'" onclick="toggleYuk('+Number(y.id)+')">'
@@ -520,13 +561,6 @@ window.renderYukList=()=>{
       +'<span class="ynarx">'+yPriceF(y.narx,y.valyuta)+'</span></button>';
   }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
 };
-function renderYukChips(){
-  const box=$('yukChips'); if(!box) return;
-  box.innerHTML = selYuk.size
-    ? [...selYuk].map(id=>'<span class="ychip">#'+id+'<button type="button" onclick="rmYuk('+id+')">×</button></span>').join('')
-    : '<div class="yukhint">Yuk tanlanmagan (ixtiyoriy)</div>';
-}
-
 window.saveSimple=async()=>{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
@@ -535,38 +569,60 @@ window.saveSimple=async()=>{
   if(amt<=0){ alert('Summa kiriting'); return; }
   if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
-  if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' so\'m'); return; }
-  // Dt/Kt avtomatik: daromad → Dt=kassa/Kt=modda; xarajat/aktiv/boshqa → Dt=modda/Kt=kassa.
+  if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+(kassa.currency||'so\'m')); return; }
+  // 9110 Tovar tannarxi → avval yuk modali; tanlagach doSaveSimple() davom etadi.
+  if(modda.code==='9110'){ openYukSave(amt, kassa.currency||'UZS', doSaveSimple); return; }
+  doSaveSimple();
+};
+async function doSaveSimple(){
+  const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const {modda,kassa,income}=simpleDir();
+  if(!kassa||!modda||amt<=0) return;
   const dtId=income?kassa.id:modda.id, ktId=income?modda.id:kassa.id;
   const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
-  // Mavjud insert yo'li: entry → entry_line. Server guard trigger (op_kassa_ids) avtomat tekshiradi.
-  // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
+  // entry → entry_line. Server guard trigger (op_kassa_ids) avtomat tekshiradi.
+  // V6: filial_ids + davr metadata; Yuklar: yuk_ids (9110). entry_line struktura o'zgarmaydi.
   const entryPayload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
-  if(selYuk.size) entryPayload.yuk_ids=[...selYuk];   // Yuklar: 9110 uchun tanlangan Aros yuk id'lari
+  if(selYuk.size) entryPayload.yuk_ids=[...selYuk];
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
   const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
+  // Ko'p-valyuta: kassa hisobi UZS bo'lmasa fc_amount = kiritilgan miqdor (valyuta soni).
+  if(kassa.currency && kassa.currency!=='UZS'){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=amt; }); }
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  $('summa').value=''; $('izoh').value=''; selYuk.clear(); renderYukChips();   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
-  updateSimple(); fetchSimpleBal();                            // qoldiq kamaydi — yangilaymiz
+  $('summa').value=''; $('izoh').value=''; selYuk.clear();     // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  updateSimple(); fetchSimpleBal();
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
-};
+}
 
+const acc9110=l=>{ const a=accounts.find(x=>x.id===l.account_id); return !!(a&&a.code==='9110'); };
 window.save=async()=>{
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
   if(dt<=0||dt!==kt){ alert('Dt va Kt teng bo\'lishi kerak'); return; }
   if(lines.some(l=>!l.account_id||l.amount<=0)){ alert('Har satrda hisob va summa bo\'lsin'); return; }
+  // 9110 Tovar tannarxi biror satrda bo'lsa → SAQLASHDA yuk modali (Dt summasi bo'yicha).
+  if(lines.some(acc9110)){
+    const amt9=lines.filter(acc9110).reduce((s,l)=>s+(l.side==='debit'?l.amount:0),0);
+    openYukSave(amt9, 'UZS', doSaveAdv); return;
+  }
+  doSaveAdv();
+};
+async function doSaveAdv(){
+  let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
+  if(dt<=0||dt!==kt) return;
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
-  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
+  const payload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'};
+  if(selYuk.size) payload.yuk_ids=[...selYuk];
+  const {data:ent,error:e1}=await sb.from('entry').insert(payload).select('id').single();
   if(e1){ alert(e1.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   const rows=lines.map(l=>({entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?l.amount:0,credit:l.side==='credit'?l.amount:0}));
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
-  lines=[]; $('izoh').value=''; addLine(); addLine();
+  lines=[]; $('izoh').value=''; selYuk.clear(); addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
-};
+}
 async function init(){
   $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
   const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
