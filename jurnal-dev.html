@@ -528,14 +528,20 @@ window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').inn
 // --- V6: filial + davr metadata (entry.filial_ids, davr_start/end) ---
 // jurnal() RPC bu ustunlarni qaytarmaydi — yuklangan yozuvlar uchun alohida o'qiladi.
 // RLS bermasa (cheklangan user) jimgina bo'sh qoladi — teg ko'rinmaydi, boshqa narsa buzilmaydi.
-let metaMap={};   // entry.id → {filial_ids, davr_start, davr_end}
+let metaMap={};   // entry.id → {filial_ids, davr_start, davr_end, yuk_ids}
+let eyMap={};     // entry.id → [{yuk_id, summa_uzs}] (qisman to'lov taqsimoti)
 async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
-  if(!ids.length){ metaMap={}; return; }
+  if(!ids.length){ metaMap={}; eyMap={}; return; }
   try{
-    const {data,error}=await sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids').in('id',ids);
-    if(error||!data) return;
-    const m={}; data.forEach(r=>{ m[r.id]=r; }); metaMap=m; render();
+    const [mRes, eyRes]=await Promise.all([
+      sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids').in('id',ids),
+      sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids)
+    ]);
+    if(mRes.error||!mRes.data) return;
+    const m={}; mRes.data.forEach(r=>{ m[r.id]=r; }); metaMap=m;
+    eyMap={}; (eyRes.data||[]).forEach(r=>{ (eyMap[r.entry_id]||(eyMap[r.entry_id]=[])).push(r); });
+    render();
   }catch(e){}
 }
 const filName=id=>{ const a=accounts.find(x=>x.id===id); return a?a.name:null; };
@@ -548,8 +554,14 @@ function metaTags(e){
     const d=(meta.davr_start&&meta.davr_end)?`${fmtDate(meta.davr_start)}–${fmtDate(meta.davr_end)}`:fmtDate(meta.davr_start||meta.davr_end);
     tags.push(`<span class="tg"><i data-lucide="calendar"></i>${esc(d)}</span>`);
   }
-  const yids=(meta.yuk_ids||[]).filter(x=>x!=null);   // 📦 yuk teglari (bosilsa qisqa ma'lumot)
-  if(yids.length) tags.push(`<span class="tg tgc" onclick="showYuk('${yids.join(',')}')"><i data-lucide="package"></i>${yids.map(i=>'#'+i).join(', ')}</span>`);
+  // 📦 yuk teglari: yangi yozuvda har yuk yonida summa (entry_yuk), eskisida oddiy #id.
+  const ey=eyMap[e.id];
+  if(ey&&ey.length){
+    tags.push(`<span class="tg tgc" onclick="showYuk('${ey.map(r=>r.yuk_id).join(',')}')"><i data-lucide="package"></i>${ey.map(r=>'#'+r.yuk_id+' ('+money(r.summa_uzs)+')').join(' · ')}</span>`);
+  } else {
+    const yids=(meta.yuk_ids||[]).filter(x=>x!=null);
+    if(yids.length) tags.push(`<span class="tg tgc" onclick="showYuk('${yids.join(',')}')"><i data-lucide="package"></i>${yids.map(i=>'#'+i).join(', ')}</span>`);
+  }
   return tags.length?`<div class="ftag">${tags.join('')}</div>`:'';
 }
 

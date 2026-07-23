@@ -124,6 +124,8 @@
   .pill.gray{background:var(--surface-2);color:var(--muted)}
   .pill.r{background:var(--red-soft);color:var(--red)}
   .pill.b{background:var(--primary-soft);color:var(--primary)}
+  .pill.y{background:#fdf3d6;color:#a9791b}
+  [data-theme="dark"] .pill.y{background:#3a2f14;color:#e6b84a}
   .paidlink{cursor:pointer;text-decoration:none;color:inherit;display:inline-block}
   .paidsub{font-size:11px;color:var(--muted);margin-top:2px}
   .errbox{text-align:center;padding:44px 20px;color:var(--muted)}
@@ -218,8 +220,9 @@
     <div class="filtbar">
       <div class="chips">
         <button type="button" class="fchip on" data-f="all" onclick="setFilt('all')">Hammasi <span id="cAll"></span></button>
-        <button type="button" class="fchip" data-f="tolangan" onclick="setFilt('tolangan')">To'langan <span id="cPaid"></span></button>
         <button type="button" class="fchip" data-f="tolanmagan" onclick="setFilt('tolanmagan')">To'lanmagan <span id="cUnpaid"></span></button>
+        <button type="button" class="fchip" data-f="qisman" onclick="setFilt('qisman')">Qisman <span id="cPart"></span></button>
+        <button type="button" class="fchip" data-f="tolangan" onclick="setFilt('tolangan')">To'langan <span id="cPaid"></span></button>
       </div>
       <select class="datepick" id="omborFilt" onchange="renderYuklar()"><option value="">Barcha omborlar</option></select>
     </div>
@@ -314,7 +317,7 @@ const isoDay=d=>d.toISOString().slice(0,10);
 const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
 const ST_LBL={posted:'Nashr qilingan',created:'Yaratilgan'};
 const DS_LBL={accepted:'Qabul qilingan',on_way:"Yo'lda"};
-let yuklar=[], statusMap={}, filt='all';
+let yuklar=[], paidMap={}, rateMap={}, filt='all';
 
 // document_price ko'p valyutali — kasr saqlanadi (masalan "1 373.79 USD").
 function priceF(n,cur){ const v=Number(n); const c=cur?(' '+esc(cur)):'';
@@ -322,7 +325,14 @@ function priceF(n,cur){ const v=Number(n); const c=cur?(' '+esc(cur)):'';
   return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+c; }
 function dF(s){ if(!s) return '—'; try{ return new Date(s).toISOString().slice(0,10); }catch(e){ return '—'; } }
 function dtF(s){ if(!s) return '—'; try{ const d=new Date(s); return d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,16); }catch(e){ return '—'; } }
-function isPaid(y){ const s=statusMap[y.id]; return !!(s&&s.tolangan); }
+// Qisman to'lov: kurs → UZS, foiz = tolangan_uzs / narx_uzs.
+function curRate(cur){ if(!cur||String(cur).toUpperCase()==='UZS') return 1; const r=rateMap[cur]; return (r==null?null:Number(r)); }
+function narxUzs(y){ const r=curRate(y.valyuta); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
+function tolangan(y){ const s=paidMap[y.id]; return s?Number(s.tolangan_uzs)||0:0; }
+function pct(y){ const n=narxUzs(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
+function qoldiq(y){ const n=narxUzs(y); if(n==null) return null; return Math.max(0,n-tolangan(y)); }
+function expLines(s){ if(!s||!Array.isArray(s.entrylar)||!s.entrylar.length) return '';
+  return '<div class="paidsub">'+s.entrylar.map(e=>dF(e.entry_date)+': '+money(e.summa_uzs)).join(' · ')+'</div>'; }
 
 window.setFilt=k=>{ filt=k; document.querySelectorAll('.fchip').forEach(b=>b.classList.toggle('on',b.dataset.f===k)); renderYuklar(); };
 
@@ -347,12 +357,12 @@ async function loadYuklar(){
     arr=j.yuklar;
   }catch(e){ renderError(e.message||String(e)); return; }
   yuklar=arr;
-  // To'lov holati — yuk_tolov_holati RPC (endpoint bo'lmasa bu bosqichga yetib kelmaydi).
-  statusMap={};
+  // Qisman to'lov holati + valyuta kurslari (UZS'ga o'girish uchun).
+  paidMap={}; rateMap={};
   const ids=yuklar.map(y=>Number(y.id)).filter(x=>Number.isFinite(x));
-  if(ids.length){
-    try{ const {data:st}=await sb.rpc('yuk_tolov_holati',{p_ids:ids}); (st||[]).forEach(s=>{ statusMap[s.yuk_id]=s; }); }catch(e){}
-  }
+  const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
+  if(curs.length){ try{ const {data:kr}=await sb.rpc('yuk_kurslar',{p_curs:curs}); rateMap=kr||{}; }catch(e){} }
+  if(ids.length){ try{ const {data:st}=await sb.rpc('yuk_tolangan_summa',{p_ids:ids}); (st||[]).forEach(s=>{ paidMap[s.yuk_id]=s; }); }catch(e){} }
   fillOmbor();
   renderYuklar();
 }
@@ -363,26 +373,30 @@ function fillOmbor(){
 }
 function renderYuklar(){
   const omb=$('omborFilt').value;
-  let rows=yuklar.slice();
-  const nAll=rows.length, nPaid=rows.filter(isPaid).length;
-  $('cAll').textContent=nAll; $('cPaid').textContent=nPaid; $('cUnpaid').textContent=nAll-nPaid;
-  if(filt==='tolangan') rows=rows.filter(isPaid);
-  else if(filt==='tolanmagan') rows=rows.filter(y=>!isPaid(y));
+  const all=yuklar.slice();
+  const nAll=all.length, nUnpaid=all.filter(y=>pct(y)===0).length, nPart=all.filter(y=>{const p=pct(y);return p>0&&p<100;}).length, nPaid=all.filter(y=>pct(y)>=100).length;
+  $('cAll').textContent=nAll; $('cUnpaid').textContent=nUnpaid; $('cPart').textContent=nPart; $('cPaid').textContent=nPaid;
+  let rows=all;
+  if(filt==='tolanmagan') rows=rows.filter(y=>pct(y)===0);
+  else if(filt==='qisman') rows=rows.filter(y=>{const p=pct(y);return p>0&&p<100;});
+  else if(filt==='tolangan') rows=rows.filter(y=>pct(y)>=100);
   if(omb) rows=rows.filter(y=>y.ombor===omb);
   if(!rows.length){ $('yukBody').innerHTML='<div class="empty">Bu shartlarga mos yuk yo\'q.</div>'; return; }
   const body=rows.map(y=>{
-    const paid=isPaid(y), s=statusMap[y.id];
     const stcls=y.status==='posted'?'b':'gray', stlbl=ST_LBL[y.status]||y.status||'—';
     const dscls=y.delivery_status==='accepted'?'g':'gray', dslbl=DS_LBL[y.delivery_status]||y.delivery_status||'—';
-    const tol = paid
-      ? '<a class="paidlink" href="jurnal-dev.html" title="Jurnaldagi yozuvga o\'tish"><span class="pill g">To\'langan</span><div class="paidsub">'+dF(s.entry_date)+' · '+money(s.summa)+'</div></a>'
-      : '<span class="pill gray">To\'lanmagan</span>';
+    const s=paidMap[y.id], p=pct(y), n=narxUzs(y), tolg=tolangan(y), qol=qoldiq(y);
+    let tol;
+    if(n==null) tol='<span class="pill gray">kurs yo\'q</span>';
+    else if(p>=100) tol='<span class="pill g">To\'langan</span>'+expLines(s);
+    else if(p>0) tol='<span class="pill y">Qisman '+p+'%</span><div class="paidsub">'+money(tolg)+' / '+money(n)+' · qoldi '+money(qol)+'</div>'+expLines(s);
+    else tol='<span class="pill gray">To\'lanmagan</span>';
     return '<tr>'
       +'<td class="yid" data-l="ID">#'+esc(y.id)+'</td>'
       +'<td data-l="Sana">'+dF(y.sana||y.created_datetime)+'</td>'
       +'<td data-l="Ombor">'+esc(y.ombor||'—')+'</td>'
       +'<td class="prov" data-l="Yetkazuvchi">'+esc(y.yetkazuvchi||'—')+'</td>'
-      +'<td class="num" data-l="Narx">'+priceF(y.narx,y.valyuta)+'</td>'
+      +'<td class="num" data-l="Narx">'+priceF(y.narx,y.valyuta)+(y.valyuta&&String(y.valyuta).toUpperCase()!=='UZS'&&n!=null?'<div class="paidsub">≈ '+money(n)+' so\'m</div>':'')+'</td>'
       +'<td data-l="Status"><span class="pill '+stcls+'">'+esc(stlbl)+'</span></td>'
       +'<td data-l="Yetkazish"><span class="pill '+dscls+'">'+esc(dslbl)+'</span></td>'
       +'<td data-l="Nashr vaqti">'+dtF(y.post_at)+'</td>'
