@@ -74,26 +74,6 @@
   .brow .a.neg{color:var(--red)}
   .bfoot{display:flex;justify-content:space-between;gap:10px;border-top:2px solid var(--line);padding-top:13px;margin-top:6px;font-size:15px;font-weight:800}
   .empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
-  /* Omborlar kartasi: kassa + tovar yonma-yon jadval (222.png naqshi) */
-  .ombor-head{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:16px}
-  .ombor-head .t{font-size:19px;font-weight:800;letter-spacing:-.01em}
-  .ombor-head .v{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .ombor-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .otbl{min-width:440px}
-  .otr{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,150px) minmax(120px,150px);
-    gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
-  .otr:last-child{border-bottom:none}
-  .otr.head{padding:0 0 11px}
-  .otr.head span{font-size:12.5px;color:var(--muted);font-weight:600}
-  .otr.head span:not(:first-child){text-align:right}
-  .otr .oc-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .otr .oc-name .code{color:var(--muted);font-size:12.5px;margin-right:9px;font-weight:600}
-  .otr .oc-name .nm{font-weight:700}
-  .otr .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
-  .otr .num.neg{color:var(--red)}
-  .otr .num.zero{color:var(--muted)}
-  .otr.foot{border-top:2px solid var(--line);border-bottom:none;padding-top:13px;margin-top:5px;font-weight:800}
-  .otr.foot span,.otr.foot .num{font-weight:800}
   .note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.55}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
@@ -171,11 +151,6 @@
         <div class="it"><div class="k">Passiv + Kapital</div><div class="v" id="tPassiv">0</div></div>
         <div class="vstat ok" id="vstat"><i data-lucide="check"></i><span id="vstatTxt">—</span></div>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="ombor-head"><span class="t">Omborlar</span><span class="v" id="omTotal">0</span></div>
-      <div class="ombor-scroll"><div class="otbl" id="omTable"></div></div>
     </div>
 
     <div class="card">
@@ -299,39 +274,8 @@ function paint(rows){
   $('vstatTxt').textContent=ok?'Aktiv = Passiv':('Farq: '+money(farq));
   icons();
 }
-// --- Omborlar kartasi (kassa + tovar) — ombor_balans(p_date) RPC ---
-function numCell(v){
-  if(v==null) return '<span class="num zero">—</span>';
-  const n=Math.round(Number(v)||0);
-  if(n===0) return '<span class="num zero">—</span>';
-  return `<span class="num${n<0?' neg':''}">${money(n)}</span>`;
-}
-function renderOmbor(rows){
-  const box=$('omTable');
-  if(!rows||!rows.length){ box.innerHTML='<div class="empty">Ombor yo\'q</div>'; $('omTotal').textContent=money(0); return; }
-  let tk=0, tt=0;
-  const body=rows.map(r=>{
-    const k=(r.kassa==null)?null:Number(r.kassa)||0, t=Number(r.tovar)||0;
-    if(k!=null) tk+=k; tt+=t;
-    return `<div class="otr"><span class="oc-name"><span class="code">${r.code||''}</span><span class="nm">${r.name||''}</span></span>${numCell(k)}${numCell(t)}</div>`;
-  }).join('');
-  box.innerHTML=`<div class="otr head"><span>Ombor</span><span>Kassa</span><span>Tovarlar</span></div>`
-    +body
-    +`<div class="otr foot"><span>Jami</span>${numCell(tk)}${numCell(tt)}</div>`;
-  $('omTotal').textContent=money(tt);
-}
-async function loadOmbor(d){
-  const ck='ombor:'+d;
-  const cached=swrGet(ck);
-  if(cached) renderOmbor(cached);
-  else $('omTable').innerHTML='<div class="empty">Yuklanmoqda…</div>';
-  const {data,error}=await sb.rpc('ombor_balans',{p_date:d});
-  if(error){ if(!cached) $('omTable').innerHTML='<div class="empty">Yuklanmadi: '+error.message+'</div>'; return; }
-  swrSet(ck,data||[]); renderOmbor(data||[]);
-}
 async function load(){
   const d=$('sana').value; if(!d) return;
-  loadOmbor(d);
   $('banner').style.display='none';
   const ck='balans:'+JSON.stringify({date:d});
   const cached=swrGet(ck);
