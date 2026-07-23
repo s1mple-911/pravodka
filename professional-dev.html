@@ -157,6 +157,25 @@
   .yrow .yl2{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .yrow .ynarx{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .pill.g{background:var(--green-soft);color:var(--green);border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
+  .pill.y{background:#fdf3d6;color:#a9791b;border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
+  [data-theme="dark"] .pill.y{background:#3a2f14;color:#e6b84a}
+  .ysc{color:var(--muted);font-weight:500}
+  /* Qisman taqsimlash qatorlari */
+  .yrow2{border-bottom:1px solid var(--line);padding:10px 6px;cursor:pointer;border-radius:10px}
+  .yrow2:hover{background:var(--surface-2)}
+  .yrow2.on{background:var(--primary-soft)}
+  .yrow2.dis{opacity:.5;cursor:not-allowed}
+  .yrhead{display:flex;align-items:center;gap:11px}
+  .yrow2 .ycheck{width:22px;height:22px;flex:none;border-radius:7px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800}
+  .yrow2.on .ycheck{background:var(--primary);border-color:var(--primary)}
+  .yrow2 .ymain{flex:1;min-width:0}
+  .yrow2 .yl1{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .yrow2 .yl2{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+  .yrem{color:var(--primary);font-weight:600}
+  .yerr{color:var(--red);font-weight:600}
+  .yalloc{display:flex;align-items:center;gap:10px;margin:9px 0 2px 33px}
+  .yalloc span{font-size:12px;color:var(--muted)}
+  .yalloc input{flex:1;height:40px;border:1px solid var(--primary);background:var(--surface);color:var(--ink);border-radius:9px;padding:0 12px;font-size:15px;font-family:inherit;text-align:right;outline:none;font-variant-numeric:tabular-nums}
   .yukacts{display:flex;gap:9px;margin-top:12px}
   .ybtn{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
   .ybtn.primary{border:none;background:var(--primary);color:#fff}
@@ -277,19 +296,20 @@
   <!-- /more-sheet -->
 </div>
 
-<div class="ymodal" id="yukModal" onclick="if(event.target===this)closeYuk()">
+<div class="ymodal" id="yukModal" onclick="if(event.target===this)cancelYuk()">
   <div class="ymbox">
-    <h3>Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi)</span></h3>
+    <h3>Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi — majburiy)</span></h3>
     <div id="yukSum" class="yuksum"></div>
     <div class="yukfilt">
       <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
+      <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman</button>
       <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
       <input class="txt" id="yukSearch" placeholder="Qidirish (ombor / yetkazuvchi)" autocomplete="off" oninput="renderYukList()">
     </div>
     <div id="yukList" class="yuklist"></div>
     <div class="yukacts">
-      <button type="button" class="ybtn" onclick="skipYukSave()">Yuksiz saqlash</button>
-      <button type="button" class="ybtn primary" onclick="confirmYukSave()">Saqlash (<span id="yukSel">0</span>)</button>
+      <button type="button" class="ybtn" onclick="cancelYuk()">Bekor</button>
+      <button type="button" class="ybtn primary" id="yukSaveBtn" onclick="confirmYukSave()" disabled>Saqlash</button>
     </div>
   </div>
 </div>
@@ -495,42 +515,81 @@ window.updateSimple=()=>{
   else w.style.display='none';
   $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr);
 };
-// ---- Yuklar: 9110 "Tovar tannarxi" tanlanganda yuk bog'lash modali ----
+// ---- Yuklar: 9110 "Tovar tannarxi" — QISMAN TO'LOV taqsimlash modali (majburiy) ----
 const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
-let yukList=[], yukStatus={}, selYuk=new Set(), yukFilt='unpaid', yukLoaded=false;
+let yukList=[], yukPaidMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='unpaid', yukLoaded=false;
+let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0;
 const _isoY=d=>d.toISOString().slice(0,10);
-function ydF(s){ if(!s) return '—'; try{ return new Date(s).toISOString().slice(0,10); }catch(e){ return '—'; } }
-function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; if(!isFinite(v)) return esc(String(n??'—'))+c;
-  return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+c; }
-function yukPaid(y){ const s=yukStatus[y.id]; return !!(s&&s.tolangan); }
-// 9110 modali endi SAQLASHDA ochiladi (tanlaganda emas). onModda faqat UI yangilaydi.
+function money2(n){ const v=Number(n)||0; return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '); }
+function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; return isFinite(v)?money2(v)+c:esc(String(n??'—'))+c; }
+// Kurs: valyuta → UZS (1 birlik necha so'm). UZS=1, topilmasa null (CHY=CNY mapping serverda).
+function curRate(cur){ if(!cur||String(cur).toUpperCase()==='UZS') return 1; const r=rateMap[cur]; return (r==null?null:Number(r)); }
+function yukNarxUzs(y){ const r=curRate(y.valyuta); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
+function yukTolangan(id){ const s=yukPaidMap[id]; return s?Number(s.tolangan_uzs)||0:0; }
+function yukQoldiq(y){ const n=yukNarxUzs(y); if(n==null) return null; return Math.max(0, n - yukTolangan(y.id)); }  // qolgan qarz (UZS)
+function yukPct(y){ const n=yukNarxUzs(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
+function yukSelectable(y){ const q=yukQoldiq(y); return q!=null && q>0; }   // kurs bor va qarzi bor
+
 window.onModda=()=>{ updateSimple(); };
-let yukSaveCb=null, yukSaveAmt=0, yukSaveCur='UZS';   // saqlash-shlyuzi holati
-// Saqlash-shlyuzi: modda 9110 bo'lsa saqlashdan oldin shu modal ochiladi (yuklar tanlanadi).
-function openYukSave(amount,cur,cb){ yukSaveAmt=Number(amount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; selYuk.clear(); $('yukModal').classList.add('open'); loadYukList(); }
-window.confirmYukSave=()=>{ const cb=yukSaveCb; yukSaveCb=null; closeYuk(); if(cb) cb(); };
-window.skipYukSave=()=>{ selYuk.clear(); const cb=yukSaveCb; yukSaveCb=null; closeYuk(); if(cb) cb(); };
+
+function openYukSave(rawAmount, cur, cb){
+  yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb;
+  selYuk.clear(); alloc={};
+  $('yukModal').classList.add('open'); loadYukList();
+}
+// Bekor: 9110 majburiy — modal yuksiz yopilsa modda tanlovi bekor qilinadi (band 1).
+window.cancelYuk=()=>{ closeYuk(); yukSaveCb=null; if($('modda')) $('modda').value=''; updateSimple(); };
 window.closeYuk=()=>{ $('yukModal').classList.remove('open'); };
 window.reloadYuk=()=>{ yukLoaded=false; loadYukList(); };
 window.setYukFilt=k=>{ yukFilt=k; document.querySelectorAll('#yukModal [data-yf]').forEach(b=>b.classList.toggle('on',b.dataset.yf===k)); renderYukList(); };
-window.toggleYuk=id=>{ id=Number(id); if(selYuk.has(id)) selYuk.delete(id); else selYuk.add(id); renderYukList(); };
-// Tanlangan yuklar summasini (valyuta bo'yicha) hisoblab, xarajat summasi bilan solishtiradi.
-function updateYukSum(){
-  const byC={};
-  yukList.forEach(y=>{ if(selYuk.has(Number(y.id))){ const c=y.valyuta||'?'; byC[c]=(byC[c]||0)+(Number(y.narx)||0); } });
-  const parts=Object.keys(byC).map(c=>yPriceF(byC[c],c));
-  const selTxt=parts.length?parts.join(' + '):'—';
-  let match='';
-  if(byC[yukSaveCur]!=null){ const diff=Math.round((byC[yukSaveCur]-yukSaveAmt)*100)/100;
-    match = diff===0 ? '<span class="ymatch ok">✓ summa mos</span>' : '<span class="ymatch no">Farq: '+yPriceF(Math.abs(diff),yukSaveCur)+'</span>'; }
-  const box=$('yukSum'); if(box) box.innerHTML=
-    '<div class="ysrow"><span>Xarajat summasi</span><b>'+yPriceF(yukSaveAmt,yukSaveCur)+'</b></div>'
-    +'<div class="ysrow"><span>Tanlangan yuklar ('+selYuk.size+')</span><b>'+selTxt+'</b></div>'
-    +(match?'<div class="ysrow ysmatch">'+match+'</div>':'');
-  const sel=$('yukSel'); if(sel) sel.textContent=selYuk.size;
+window.confirmYukSave=()=>{ if(!allocOk().ok) return; const cb=yukSaveCb; yukSaveCb=null; closeYuk(); if(cb) cb(); };
+
+// Tanlash/bekor — tanlangach qolgan qarz bo'yicha avtomatik proporsional taqsimlanadi.
+window.toggleYuk=id=>{ id=Number(id);
+  const y=yukList.find(x=>Number(x.id)===id); if(!y) return;
+  if(selYuk.has(id)){ selYuk.delete(id); delete alloc[id]; }
+  else { if(!yukSelectable(y)) return; selYuk.add(id); }
+  autoAlloc(); renderYukList();
+};
+function autoAlloc(){
+  const ids=[...selYuk];
+  if(!ids.length){ alloc={}; return; }
+  const rem={}; let totRem=0;
+  ids.forEach(id=>{ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukQoldiq(y)||0):0; rem[id]=q; totRem+=q; });
+  let left=Math.round(yukSaveUzs);
+  ids.forEach((id,i)=>{
+    let a = (i===ids.length-1) ? left : (totRem>0?Math.round(yukSaveUzs*rem[id]/totRem):0);
+    a=Math.min(Math.max(a,0), rem[id]); alloc[id]=a; left-=a;
+  });
 }
+window.setAlloc=(id,el)=>{ id=Number(id); const raw=el.value.replace(/\D/g,''); alloc[id]=Number(raw)||0; el.value=raw?money(raw):''; renderYukSum(); updateYukSaveBtn(); };
+function allocSum(){ return [...selYuk].reduce((s,id)=>s+(Number(alloc[id])||0),0); }
+function allocOk(){
+  if(!selYuk.size) return {ok:false,msg:'Kamida bitta yuk tanlang'};
+  if(curRate(yukSaveCur)==null) return {ok:false,msg:yukSaveCur+' kursi yo\'q'};
+  for(const id of selYuk){ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukQoldiq(y)||0):0;
+    if((Number(alloc[id])||0)<=0) return {ok:false,msg:'Har yukka summa yozing'};
+    if((Number(alloc[id])||0)>q) return {ok:false,msg:'#'+id+' uchun faqat '+money(q)+' qoldi'}; }
+  const diff=allocSum()-Math.round(yukSaveUzs);
+  if(diff!==0) return {ok:false,msg:diff<0?('Taqsimlanmagan: '+money(-diff)):('Ortiqcha: '+money(diff))};
+  return {ok:true};
+}
+function renderYukSum(){
+  const box=$('yukSum'); if(!box) return;
+  const rateErr=curRate(yukSaveCur)==null, s=allocSum(), diff=s-Math.round(yukSaveUzs);
+  let l3='';
+  if(rateErr) l3='<div class="ysrow ysmatch"><span class="ymatch no">'+esc(yukSaveCur)+' kursi kiritilmagan — Valyuta bo\'limida qo\'shing</span></div>';
+  else if(!selYuk.size) l3='';
+  else if(diff<0) l3='<div class="ysrow ysmatch"><span class="ymatch no">Taqsimlanmagan qoldi: '+money(-diff)+' so\'m</span></div>';
+  else if(diff>0) l3='<div class="ysrow ysmatch"><span class="ymatch no">Ortiqcha: '+money(diff)+' so\'m</span></div>';
+  else l3='<div class="ysrow ysmatch"><span class="ymatch ok">✓ to\'liq taqsimlandi</span></div>';
+  box.innerHTML=
+    '<div class="ysrow"><span>Xarajat summasi</span><b>'+money(Math.round(yukSaveUzs))+' so\'m'+(yukSaveCur!=='UZS'?' <span class="ysc">('+yPriceF(yukSaveRaw,yukSaveCur)+')</span>':'')+'</b></div>'
+    +'<div class="ysrow"><span>Taqsimlangan ('+selYuk.size+')</span><b>'+money(s)+' so\'m</b></div>'+l3;
+}
+function updateYukSaveBtn(){ const st=allocOk(), b=$('yukSaveBtn'); if(b){ b.disabled=!st.ok; b.textContent=st.ok?'Saqlash':(st.msg||'Saqlash'); } const sel=$('yukSel'); if(sel) sel.textContent=selYuk.size; }
 async function loadYukList(){
-  if(yukLoaded){ renderYukList(); return; }
+  if(yukLoaded){ afterYukLoad(); return; }
   $('yukList').innerHTML='<div class="yukempty">Yuklanmoqda…</div>';
   const t=new Date(Date.now()+5*3600*1000), from=new Date(t.getTime()-30*86400000);
   try{
@@ -540,25 +599,35 @@ async function loadYukList(){
     if(!j||j.ok===false||!Array.isArray(j.yuklar)) throw new Error('javob kutilmagan');
     yukList=j.yuklar; yukLoaded=true;
     const ids=yukList.map(y=>Number(y.id)).filter(Number.isFinite);
-    if(ids.length){ try{ const {data:st}=await sb.rpc('yuk_tolov_holati',{p_ids:ids}); yukStatus={}; (st||[]).forEach(s=>{ yukStatus[s.yuk_id]=s; }); }catch(e){} }
+    const curs=[...new Set(yukList.map(y=>y.valyuta).filter(Boolean).concat([yukSaveCur]))];
+    try{ const {data:kr}=await sb.rpc('yuk_kurslar',{p_curs:curs}); rateMap=kr||{}; }catch(e){ rateMap={}; }
+    if(ids.length){ try{ const {data:st}=await sb.rpc('yuk_tolangan_summa',{p_ids:ids}); yukPaidMap={}; (st||[]).forEach(s=>{ yukPaidMap[s.yuk_id]=s; }); }catch(e){ yukPaidMap={}; } }
   }catch(e){ $('yukList').innerHTML='<div class="yukempty">Yuklar ulanmadi: '+esc(e.message||'')+'<br><button class="ylink" onclick="reloadYuk()">Qaytadan urinish</button></div>'; return; }
-  renderYukList();
+  afterYukLoad();
 }
+function afterYukLoad(){ const r=curRate(yukSaveCur); yukSaveUzs=(r==null)?0:Math.round(yukSaveRaw*r); autoAlloc(); renderYukList(); }
 window.renderYukList=()=>{
   if(!yukLoaded) return;
   const q=($('yukSearch').value||'').trim().toLowerCase();
-  let rows=yukList.slice();
-  if(yukFilt==='unpaid') rows=rows.filter(y=>!yukPaid(y));
+  let rows=yukList.filter(y=>{ const pct=yukPct(y);
+    if(yukFilt==='unpaid') return pct===0;
+    if(yukFilt==='qisman') return pct>0&&pct<100;
+    if(yukFilt==='tolangan') return pct>=100;
+    return true; });
   if(q) rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')).toLowerCase().includes(q));
-  rows.sort((a,b)=>(yukPaid(a)-yukPaid(b))||String(b.sana||'').localeCompare(String(a.sana||'')));
-  updateYukSum();
+  rows.sort((a,b)=>(yukSelectable(b)-yukSelectable(a))||String(b.sana||'').localeCompare(String(a.sana||'')));
+  renderYukSum(); updateYukSaveBtn();
   $('yukList').innerHTML= rows.length ? rows.map(y=>{
-    const on=selYuk.has(Number(y.id)), paid=yukPaid(y);
-    return '<button type="button" class="yrow'+(on?' on':'')+'" onclick="toggleYuk('+Number(y.id)+')">'
-      +'<span class="ycheck">'+(on?'✓':'')+'</span>'
-      +'<span class="ymain"><span class="yl1">#'+esc(y.id)+' · '+esc(y.ombor||'—')+(paid?' <span class="pill g">to\'langan</span>':'')+'</span>'
-      +'<span class="yl2">'+esc(y.yetkazuvchi||'—')+' · '+ydF(y.sana)+' · '+esc(y.status||'')+'</span></span>'
-      +'<span class="ynarx">'+yPriceF(y.narx,y.valyuta)+'</span></button>';
+    const id=Number(y.id), on=selYuk.has(id), nUzs=yukNarxUzs(y), q2=yukQoldiq(y), pct=yukPct(y), rateErr=nUzs==null;
+    const uzsTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':(y.valyuta&&y.valyuta!=='UZS'?'≈ '+money(nUzs)+' so\'m':money(nUzs)+' so\'m');
+    const badge=rateErr?'':(pct>=100?'<span class="pill g">to\'langan</span>':(pct>0?'<span class="pill y">qisman '+pct+'%</span>':''));
+    const rem=rateErr?'':(q2>0?'<span class="yrem">qoldi '+money(q2)+'</span>':'');
+    const dis=(!yukSelectable(y)&&!on)?' dis':'';
+    const inp=on?'<div class="yalloc" onclick="event.stopPropagation()"><span>summa (so\'m)</span><input inputmode="numeric" value="'+(alloc[id]?money(alloc[id]):'')+'" oninput="setAlloc('+id+',this)"></div>':'';
+    return '<div class="yrow2'+(on?' on':'')+dis+'" onclick="toggleYuk('+id+')">'
+      +'<div class="yrhead"><span class="ycheck">'+(on?'✓':'')+'</span>'
+      +'<span class="ymain"><span class="yl1">#'+esc(y.id)+' · '+esc(y.ombor||'—')+' '+badge+'</span>'
+      +'<span class="yl2">'+yPriceF(y.narx,y.valyuta)+' · '+uzsTxt+' '+rem+'</span></span></div>'+inp+'</div>';
   }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
 };
 window.saveSimple=async()=>{
@@ -592,7 +661,11 @@ async function doSaveSimple(){
   if(kassa.currency && kassa.currency!=='UZS'){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=amt; }); }
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  $('summa').value=''; $('izoh').value=''; selYuk.clear();     // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk (kompensatsiya: xatoda entry o'chadi)
+  const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
+    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e3):e3.message); btn.textContent='Saqlash'; updateSimple(); return; } }
+  $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   updateSimple(); fetchSimpleBal();
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
 }
@@ -620,7 +693,10 @@ async function doSaveAdv(){
   const rows=lines.map(l=>({entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?l.amount:0,credit:l.side==='credit'?l.amount:0}));
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
-  lines=[]; $('izoh').value=''; selYuk.clear(); addLine(); addLine();
+  const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
+    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(e3.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
+  lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
 }
 async function init(){
