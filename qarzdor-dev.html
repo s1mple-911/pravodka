@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aros Provodka — Qarzdorlar</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal-dev.html">
+<link rel="prefetch" href="professional-dev.html">
+<link rel="prefetch" href="kassa-dev.html">
+<link rel="prefetch" href="hisobot-dev.html">
+<link rel="prefetch" href="balans-dev.html">
+<link rel="prefetch" href="cashflow-dev.html">
+<link rel="prefetch" href="filial-dev.html">
+<link rel="prefetch" href="valyuta-dev.html">
+<link rel="prefetch" href="konvert-dev.html">
+<link rel="prefetch" href="sozlama-dev.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
+<style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
+  .num,.bcard .v,.je .amt{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  #app{display:none}.sidebar{display:none}
+  .main{padding:22px 26px 40px;max-width:900px;margin:0 auto}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
+  .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
+  .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
+  .bcard .cap{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;margin-top:8px}
+  .bcard .cap svg{width:14px;height:14px}.bcard.pos .cap{color:var(--green)}.bcard.neg .cap{color:var(--red)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .bcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+  .bcard .top{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+  .bcard .ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .bcard .ic svg{width:18px;height:18px}
+  .bcard.pos .ic{background:var(--green-soft);color:var(--green)}.bcard.neg .ic{background:var(--red-soft);color:var(--red)}
+  .bcard .n{font-size:13px;color:var(--muted);font-weight:500}
+  .bcard .v{font-size:24px;font-weight:800;letter-spacing:-.02em}
+  .bcard.pos .v{color:var(--green)}.bcard.neg .v{color:var(--red)}
+  .note{font-size:12.5px;color:var(--muted);margin:0 4px 22px;line-height:1.6}
+  .sec{font-size:13px;color:var(--muted);margin:0 0 12px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .je{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:13px;transition:background .13s}
+  .je:hover{background:var(--surface-2)}
+  .je .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .je .ic svg{width:19px;height:19px}
+  .je .ic.up{background:var(--red-soft);color:var(--red)}.je .ic.down{background:var(--green-soft);color:var(--green)}
+  .je .mid{flex:1;min-width:0}.je .mid .t{font-size:14.5px;font-weight:600}.je .mid .s{font-size:12px;color:var(--muted);margin-top:2px}
+  .je .amt{font-size:15.5px;font-weight:700;white-space:nowrap}.je .amt.up{color:var(--red)}.je .amt.down{color:var(--green)}
+  .empty{color:var(--muted);text-align:center;padding:26px;font-size:14px;border:1px dashed var(--line);border-radius:13px}
+  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
+  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
+  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
+  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
+  .bnav a svg{width:18px;height:18px}.bnav a.active{color:var(--primary)}
+  /* more-sheet */
+  .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .mmodal.open{display:flex}
+  .msheet{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+  .msheet h3{margin:0 0 14px;font-size:17px;font-weight:800}
+  .msheet a{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;cursor:pointer;transition:background .13s}
+  .msheet a svg{width:19px;height:19px;color:var(--muted)}
+  .msheet a:hover{background:var(--surface-2)}
+  .msheet a.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .msheet a.active svg{color:var(--primary)}
+  .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
+  .msheet .close:hover{background:var(--line)}
+  /* /more-sheet */
+</style>
+</head>
+<body>
+<div id="gate" class="gate"><div class="authbox">
+  <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
+  <input id="email" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+</div></div>
+
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <nav class="side-nav">
+      <a class="nav-item" href="jurnal-dev.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
+      <a class="nav-item" href="professional-dev.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa-dev.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
+      <a class="nav-item" href="hisobot-dev.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans-dev.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item" href="cashflow-dev.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
+      <a class="nav-item active" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+    </nav>
+    <div class="side-foot">
+      <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
+      <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <h1>Qarzdorlar</h1>
+      <div class="head-actions mobile-only">
+        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+      </div>
+    </div>
+    <div id="banner" class="banner"></div>
+
+    <div class="two">
+      <div class="bcard pos"><div class="top"><div class="ic"><i data-lucide="arrow-down-left"></i></div><div class="n">Bizga qarzdor</div></div><div class="v" id="recv">0</div><div class="cap"><i data-lucide="arrow-down-left"></i>Kirim — kelishi kerak</div></div>
+      <div class="bcard neg"><div class="top"><div class="ic"><i data-lucide="arrow-up-right"></i></div><div class="n">Biz qarzdormiz</div></div><div class="v" id="pay">0</div><div class="cap"><i data-lucide="arrow-up-right"></i>Chiqim — chiqishi kerak</div></div>
+    </div>
+    <div class="note">Bizga qarzdor = Xaridorlar qarzi (4010) · Biz qarzdormiz = Yetkazib beruvchilar (6010). Aniq mijoz bo'yicha ajratish keyingi qadamda qo'shiladi.</div>
+
+    <div class="sec">Harakatlar</div>
+    <div id="hist"></div>
+  </main>
+
+  <nav class="bnav mobile-only">
+    <a href="jurnal-dev.html"><i data-lucide="scroll-text"></i>Jurnal</a>
+    <a href="hisobot-dev.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans-dev.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow-dev.html"><i data-lucide="waves"></i>Cashflow</a>
+    <a href="qarzdor-dev.html" class="active"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="filial-dev.html"><i data-lucide="store"></i>Filial</a>
+    <a onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
+  </nav>
+
+  <!-- more-sheet -->
+  <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
+    <div class="msheet">
+      <h3>Ko'proq</h3>
+      <a href="professional-dev.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa-dev.html"><i data-lucide="wallet"></i>Kassa</a>
+      <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <button class="close" onclick="closeMore()">Yopish</button>
+    </div>
+  </div>
+  <!-- /more-sheet -->
+</div>
+
+<script type="module">
+const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
+const PAGE=location.pathname.split('/').pop()||'index';
+const swrKey=n=>`prov-swr:${PAGE}:${n}`;
+function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
+  const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
+function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
+const $=id=>document.getElementById(id);
+const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
+window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+// more-sheet
+window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
+window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// /more-sheet
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
+let appShown=false;
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()) return;
+  await window.permLoad(sb);
+  if(!window.permGate()) return;
+  init(); }
+// Auth gate — localStorage'da token bo'lsa DARROV app'ni ko'rsat, sessiyani fonda tekshir (miltillamaydi)
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
+
+function renderData(d){
+  $('recv').textContent=money(d.recv); $('pay').textContent=money(d.pay);
+  const list=d.list||[];
+  if(!list.length){ $('hist').innerHTML='<div class="empty">Hozircha harakat yo\'q</div>'; return; }
+  $('hist').innerHTML=list.map(r=>{
+    const code=r.accounts?.code,deb=Number(r.debit)||0,cred=Number(r.credit)||0,amt=deb||cred;
+    let up; if(code==='4010') up=deb>0; else up=cred>0;
+    const label=code==='4010'?(up?'Xaridor qarzi oshdi':'Xaridor to\'ladi'):(up?'Yetkazib beruvchiga qarz':'Yetkazib beruvchiga to\'landi');
+    const sub=(r.entry?.entry_date||'')+(r.entry?.description?' · '+r.entry.description:'');
+    return `<div class="je"><div class="ic ${up?'up':'down'}"><i data-lucide="${up?'arrow-up-right':'arrow-down-left'}"></i></div>
+      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div></div>
+      <div class="amt ${up?'up':'down'}">${up?'+':'−'}${money(amt)}</div></div>`;
+  }).join('');
+  icons();
+}
+
+async function init(){
+  const cached=swrGet('main');
+  if(cached){ renderData(cached); }
+  else { $('hist').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
+  // Mustaqil so'rovlar parallel ketadi — ketma-ket kutish yo'q
+  const [{data:bal,error:be},{data:accs}]=await Promise.all([
+    sb.from('v_hisob_qoldiq').select('*').in('code',['4010','6010']),
+    sb.from('accounts').select('id,code,name').in('code',['4010','6010']),
+  ]);
+  if(be){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+be.message; } return; }
+  const r4=(bal||[]).find(x=>x.code==='4010'), r6=(bal||[]).find(x=>x.code==='6010');
+  const recv=r4?r4.qoldiq:0, pay=r6?r6.qoldiq:0;
+  const ids=(accs||[]).map(a=>a.id);
+  if(!ids.length){ const d={recv,pay,list:[]}; swrSet('main',d); renderData(d); return; }
+  const {data:rows,error:le}=await sb.from('entry_line')
+    .select('debit,credit,accounts!inner(code,name),entry!inner(entry_date,description,created_at,is_deleted)').in('account_id',ids);
+  if(le){ if(!cached){ $('hist').innerHTML=`<div class="empty">${le.message}</div>`; } return; }
+  const list=(rows||[]).filter(r=>!r.entry?.is_deleted).sort((a,b)=>(b.entry?.created_at||'').localeCompare(a.entry?.created_at||'')).slice(0,80);
+  const d={recv,pay,list};
+  swrSet('main',d);
+  renderData(d);
+}
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
+</script>
+</body>
+</html>

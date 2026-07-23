@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aros Provodka — Professional</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal-dev.html">
+<link rel="prefetch" href="kassa-dev.html">
+<link rel="prefetch" href="hisobot-dev.html">
+<link rel="prefetch" href="balans-dev.html">
+<link rel="prefetch" href="cashflow-dev.html">
+<link rel="prefetch" href="qarzdor-dev.html">
+<link rel="prefetch" href="filial-dev.html">
+<link rel="prefetch" href="valyuta-dev.html">
+<link rel="prefetch" href="konvert-dev.html">
+<link rel="prefetch" href="sozlama-dev.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
+<style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
+  .num,.tot .v,.line input.amt{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  #app{display:none}
+  .sidebar{display:none}
+  .main{padding:22px 26px 40px;max-width:720px;margin:0 auto}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
+  .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
+  .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:4px}
+  .statuschip{font-weight:700}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+  label{font-size:13px;color:var(--muted);display:block;margin:0 0 7px 2px;font-weight:500}
+  .txt{width:100%;height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:0 13px;font-size:15px;font-family:inherit;outline:none;margin-bottom:15px;transition:border-color .13s,box-shadow .13s}
+  .txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .line{background:var(--surface-2);border-radius:13px;padding:13px;margin-bottom:12px}
+  .line .lr{display:flex;gap:9px;align-items:center}
+  .line select{flex:1;min-width:0;height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 11px;font-size:14.5px;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;transition:border-color .13s}
+  .line select:focus{outline:none;border-color:var(--primary)}
+  .line .rm{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:8px;display:flex;cursor:pointer;transition:background .13s,color .13s}
+  .line .rm svg{width:18px;height:18px}.line .rm:hover{background:var(--red-soft);color:var(--red)}
+  .line .lr2{display:flex;gap:9px;margin-top:10px}
+  .sideseg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .sideseg button{border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:0 17px;cursor:pointer;transition:background .13s,color .13s}
+  .sideseg button:hover{color:var(--ink)}
+  .sideseg button.on{background:var(--primary);color:#fff}
+  .line input.amt{flex:1;height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:15px;font-family:inherit;text-align:right;outline:none;transition:border-color .13s,box-shadow .13s}
+  .line input.amt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .addline{width:100%;height:46px;border:1.5px dashed var(--line);border-radius:12px;background:transparent;color:var(--primary);font-size:15px;font-weight:600;font-family:inherit;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .13s,border-color .13s}
+  .addline svg{width:17px;height:17px}.addline:hover{background:var(--primary-soft);border-color:var(--primary)}
+  .totbox{background:var(--surface-2);border-radius:12px;padding:6px 14px;margin-bottom:16px}
+  .tot{display:flex;justify-content:space-between;font-size:14px;padding:7px 0;color:var(--muted)}
+  .tot .v{font-weight:700;color:var(--ink)}
+  .tot.bal{border-top:1px solid var(--line)}.tot.bal .v{color:var(--green)}.tot.bal.no .v{color:var(--red)}
+  .save{width:100%;height:50px;border:none;border-radius:13px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;box-shadow:var(--shadow);transition:background .13s,transform .12s,box-shadow .12s}
+  .save:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow-hover)}
+  .save:active{transform:translateY(0)}.save:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+  /* soddalashtirilgan rejim */
+  .modeseg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:18px;gap:3px}
+  .modeseg button{border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:8px 16px;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
+  .modeseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
+  .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:118px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 14px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .13s,background .13s,box-shadow .13s}
+  .chip:hover{border-color:var(--primary)}
+  .chip.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
+  .chip-code{font-size:12px;font-weight:700;color:var(--muted)}
+  .chip.on .chip-code{color:var(--primary)}
+  .chip-name{font-size:14px;font-weight:600}
+  .chips-empty{color:var(--muted);font-size:14px;padding:10px 0}
+  .dirhint{font-size:13px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:none}
+  .dirhint b{color:var(--ink)}
+  /* V6: filial multiselect (Aros brend rang) + davr */
+  .fchips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
+  .fchip:hover{border-color:var(--primary)}
+  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .davrrow{display:flex;gap:10px}
+  .davrrow .txt{flex:1;min-width:0;margin-bottom:0}
+  .txt.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
+  .simplewarn{color:var(--red);font-size:13px;font-weight:600;text-align:right;margin:-8px 0 14px 2px}
+  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
+  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
+  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
+  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
+  .bnav a svg{width:18px;height:18px}.bnav a.active{color:var(--primary)}
+  /* more-sheet */
+  .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .mmodal.open{display:flex}
+  .msheet{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+  .msheet h3{margin:0 0 14px;font-size:17px;font-weight:800}
+  .msheet a{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;cursor:pointer;transition:background .13s}
+  .msheet a svg{width:19px;height:19px;color:var(--muted)}
+  .msheet a:hover{background:var(--surface-2)}
+  .msheet a.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .msheet a.active svg{color:var(--primary)}
+  .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
+  .msheet .close:hover{background:var(--line)}
+  /* /more-sheet */
+</style>
+</head>
+<body>
+<div id="gate" class="gate"><div class="authbox">
+  <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
+  <input id="email" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+</div></div>
+
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <nav class="side-nav">
+      <a class="nav-item" href="jurnal-dev.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
+      <a class="nav-item active" href="professional-dev.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa-dev.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
+      <a class="nav-item" href="hisobot-dev.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans-dev.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item" href="cashflow-dev.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
+      <a class="nav-item" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+    </nav>
+    <div class="side-foot">
+      <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
+      <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <h1>Professional</h1>
+      <div class="head-actions mobile-only">
+        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+      </div>
+    </div>
+    <div id="banner" class="banner"></div>
+
+    <div class="card">
+      <label>Sana</label><input class="txt" id="sana" type="date">
+      <label>Izoh</label><input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
+      <div id="izohReq" class="simplewarn" style="display:none;text-align:left;margin:-8px 0 14px 2px">Bu modda uchun izoh majburiy</div>
+
+      <div class="modeseg" id="modeSeg">
+        <button class="on" id="mSimple" onclick="setMode('simple')">Oddiy</button>
+        <button id="mAdv" onclick="setMode('adv')">Kengaytirilgan</button>
+      </div>
+
+      <!-- ODDIY: kassa (chip) + modda + summa; Dt/Kt modda turidan avtomatik -->
+      <div id="simpleBox">
+        <label>Kassa</label>
+        <div id="kassaChips" class="chips"></div>
+        <label>Modda</label>
+        <select class="txt" id="modda" onchange="updateSimple()"><option value="">— modda tanlang —</option></select>
+        <label>Summa</label>
+        <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
+        <div id="simpleWarn" class="simplewarn" style="display:none"></div>
+        <div id="dirHint" class="dirhint"></div>
+        <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
+        <div id="filialChips" class="fchips"></div>
+        <div id="davrSect" style="display:none;margin-bottom:16px">
+          <label id="davrLbl">📅 Davr (majburiy)</label>
+          <div class="davrrow"><input type="date" class="txt" id="davrStart" aria-label="Boshi"><input type="date" class="txt" id="davrEnd" aria-label="Oxiri"></div>
+          <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini tanlang</div>
+        </div>
+        <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
+      </div>
+
+      <!-- KENGAYTIRILGAN: qo'lda ko'p satrli Dt/Kt (mavjud rejim) -->
+      <div id="advBox" style="display:none">
+        <div id="lines"></div>
+        <button class="addline" onclick="addLine()"><i data-lucide="plus"></i>Satr qo'shish</button>
+        <div class="totbox">
+          <div class="tot"><span>Jami Debet (Dt)</span><span class="v" id="sumDt">0</span></div>
+          <div class="tot"><span>Jami Kredit (Kt)</span><span class="v" id="sumKt">0</span></div>
+          <div class="tot bal" id="balRow"><span id="balLbl">Farq</span><span class="v" id="farq">0</span></div>
+        </div>
+        <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
+        <div id="balHint" style="font-size:12.5px;color:var(--red);text-align:center;margin-top:10px;display:none">Saqlash uchun Debet (Dt) va Kredit (Kt) teng bo'lishi kerak</div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bnav mobile-only">
+    <a href="jurnal-dev.html"><i data-lucide="scroll-text"></i>Jurnal</a>
+    <a href="hisobot-dev.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans-dev.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow-dev.html"><i data-lucide="waves"></i>Cashflow</a>
+    <a href="qarzdor-dev.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="filial-dev.html"><i data-lucide="store"></i>Filial</a>
+    <a class="active" onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
+  </nav>
+
+  <!-- more-sheet -->
+  <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
+    <div class="msheet">
+      <h3>Ko'proq</h3>
+      <a href="professional-dev.html" class="active"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa-dev.html"><i data-lucide="wallet"></i>Kassa</a>
+      <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <button class="close" onclick="closeMore()">Yopish</button>
+    </div>
+  </div>
+  <!-- /more-sheet -->
+</div>
+
+<script type="module">
+const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=id=>document.getElementById(id);
+const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+let accounts=[], lines=[], selKassa=null, simpleBal=null; // simpleBal: oddiy rejim tanlangan kassa qoldig'i
+let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
+function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
+window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+// more-sheet
+window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
+window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// /more-sheet
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
+let appShown=false;
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()) return;
+  await window.permLoad(sb);
+  if(!window.permGate()) return;
+  init(); }
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
+
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
+const accLbl=a=>a.code+' · '+a.name+(a.subtitle?' · '+a.subtitle:'');
+const isKassa=a=>a.type==='aktiv'&&a.code.startsWith('5');
+function accOptions(sel){
+  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
+  // Hodim kassalari (54xx, kassa_turi='xarajat') — oddiy kassa, faqat alohida guruhda ko'rinadi
+  const xk=accounts.filter(a=>isKassa(a)&&a.kassa_turi==='xarajat');
+  const xkId=new Set(xk.map(a=>a.id));
+  return g('Kassalar',accounts.filter(a=>isKassa(a)&&!xkId.has(a.id)))
+    +g('Xarajat kassalar',xk)
+    +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
+    +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
+    +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
+}
+function renderLines(){
+  $('lines').innerHTML=lines.map((ln,i)=>`
+    <div class="line">
+      <div class="lr">
+        <select onchange="setAcc(${i},this.value)">${accOptions(ln.account_id)}</select>
+        <button class="rm" onclick="rmLine(${i})"><i data-lucide="x"></i></button>
+      </div>
+      <div class="lr2">
+        <div class="sideseg">
+          <button class="${ln.side==='debit'?'on':''}" onclick="setSide(${i},'debit')">Dt</button>
+          <button class="${ln.side==='credit'?'on':''}" onclick="setSide(${i},'credit')">Kt</button>
+        </div>
+        <input class="amt" inputmode="numeric" placeholder="0" value="${ln.amount?money(ln.amount):''}" oninput="setAmt(${i},this)">
+      </div>
+    </div>`).join('');
+  icons(); updateTotals();
+}
+window.addLine=()=>{ lines.push({account_id:accounts[0]?.id||'',side:'debit',amount:0}); renderLines(); };
+window.rmLine=i=>{ lines.splice(i,1); renderLines(); };
+window.setAcc=(i,v)=>{ lines[i].account_id=v; };
+window.setSide=(i,s)=>{ lines[i].side=s; renderLines(); };
+window.setAmt=(i,el)=>{ const raw=el.value.replace(/\D/g,''); lines[i].amount=Number(raw)||0; el.value=raw?money(raw):''; updateTotals(); };
+function updateTotals(){
+  let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
+  $('sumDt').textContent=money(dt); $('sumKt').textContent=money(kt);
+  const farq=dt-kt; const balanced=dt>0&&farq===0;
+  if(balanced){ $('balLbl').textContent='Balans'; $('farq').textContent='To\u2018g\u2018ri \u2713'; }
+  else { $('balLbl').textContent='Farq'; $('farq').textContent=money(Math.abs(farq)); }
+  $('balRow').className='tot bal'+(balanced?'':' no'); $('saveBtn').disabled=!balanced;
+  { const h=document.getElementById('balHint'); if(h) h.style.display=(dt>0&&!balanced)?'block':'none'; }
+}
+// ---- ODDIY rejim -----------------------------------------------------
+// Rejim almashtirish: oddiy (kassa chip + modda + summa) yoki kengaytirilgan (mavjud ko'p satrli).
+window.setMode=m=>{
+  const simple=m!=='adv';
+  $('mSimple').className=simple?'on':''; $('mAdv').className=simple?'':'on';
+  $('simpleBox').style.display=simple?'block':'none';
+  $('advBox').style.display=simple?'none':'block';
+  if(!simple) $('izohReq').style.display='none';   // izoh maydoni umumiy — adv rejimda majburiylik yo'q
+  else updateSimple();
+};
+// --- V6: filial multiselect + modda flaglariga qarab shartli izoh/davr ---
+function moddaObj(){ return accounts.find(a=>a.id===$('modda').value); }
+function izohRequired(){ const m=moddaObj(); return !!(m&&m.izoh_majburiy); }
+function davrRequired(){ const m=moddaObj(); return !!(m&&m.davr_majburiy); }
+function davrVals(){ return {s:$('davrStart').value||null,e:$('davrEnd').value||null}; }
+function davrOk(){ if(!davrRequired()) return true; const {s,e}=davrVals(); return !!(s&&e&&s<=e); }
+function updateDavrUI(){ const req=davrRequired();
+  $('davrSect').style.display=req?'block':'none';
+  if(!req){ $('davrStart').value=''; $('davrEnd').value=''; }
+  $('davrReq').style.display=(req&&!davrOk())?'block':'none';
+}
+function renderFilials(){ const box=$('filialChips');
+  const restricted=window.permFilialScope&&window.permFilialScope()==='list';
+  box.innerHTML=filials.length
+    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
+    : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
+}
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); };
+// Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
+async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=window.permFilterFilials?window.permFilterFilials(data):data; }catch(e){} }
+// Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
+// hisoblari (op_kassa_ids; scope='all'→hammasi). 5400 konteyner init'da chiqarib tashlangan.
+function kassaList(){ return accounts.filter(a=>isKassa(a)); }
+function renderChips(){
+  const ks=kassaList();
+  if(ks.length===1) selKassa=ks[0].id;                       // bitta bo'lsa — avtomat tanlangan
+  if(selKassa && !ks.some(k=>k.id===selKassa)) selKassa=null; // tanlangani ro'yxatdan chiqib ketgan bo'lsa
+  $('kassaChips').innerHTML = ks.length
+    ? ks.map(k=>`<button type="button" class="chip${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')">`
+        +`<span class="chip-code">${esc(k.code)}</span>`
+        +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
+    : '<div class="chips-empty">Sizga biror kassada amaliyot ruxsati berilmagan.</div>';
+  updateSimple();
+}
+window.pickKassa=id=>{ selKassa=id; renderChips(); fetchSimpleBal(); };
+// 1-band: tanlangan kassa qoldig'i (acc_balance). Pul chiqishida limit shu qoldiqdan.
+async function fetchSimpleBal(){
+  simpleBal=null; updateSimple();
+  if(!selKassa) return;
+  const want=selKassa;
+  try{ const {data,error}=await sb.rpc('acc_balance',{p_account:want}); if(error||data==null||selKassa!==want) return; simpleBal=Number(data)||0; updateSimple(); }catch(e){}
+}
+// Modda tanlagichi — kassalar chiqmaydi (kassa chip orqali tanlanadi), qolgan optgrouplar avvalgidek.
+function moddaOptions(){
+  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}">${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
+  return `<option value="">— modda tanlang —</option>`
+    +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
+    +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
+    +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
+}
+window.fmtSumma=el=>{ const raw=el.value.replace(/\D/g,''); el.value=raw?money(raw):''; updateSimple(); };
+// Yo'nalish modda turidan: daromad → pul kiradi (Dt=kassa), aks holda → pul chiqadi (Kt=kassa).
+function simpleDir(){
+  const modda=accounts.find(a=>a.id===$('modda').value);
+  const kassa=accounts.find(a=>a.id===selKassa);
+  const income=!!modda && modda.type==='daromad';
+  return {modda,kassa,income};
+}
+window.updateSimple=()=>{
+  const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const {modda,kassa,income}=simpleDir();
+  const h=$('dirHint');
+  if(modda&&kassa){
+    h.style.display='block';
+    h.innerHTML=income
+      ? `Pul <b>kiradi</b> · Dt ${esc(kassa.name)} / Kt ${esc(modda.name)}`
+      : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
+  } else h.style.display='none';
+  updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
+  $('izohReq').style.display=izohRequired()?'block':'none';
+  const needIzoh=izohRequired() && !$('izoh').value.trim();
+  const needDavr=!davrOk();
+  // Qoldiq limiti — faqat pul chiqishida (Kt=kassa, ya'ni income emas). Kirimда tekshirilmaydi.
+  const over = !income && simpleBal!=null && amt>simpleBal;
+  const inp=$('summa'), w=$('simpleWarn');
+  inp.classList.toggle('over',over);
+  if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} so'm`; }
+  else w.style.display='none';
+  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr);
+};
+window.saveSimple=async()=>{
+  const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const {modda,kassa,income}=simpleDir();
+  if(!kassa){ alert('Kassa tanlang'); return; }
+  if(!modda){ alert('Modda tanlang'); return; }
+  if(amt<=0){ alert('Summa kiriting'); return; }
+  if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
+  if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
+  if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' so\'m'); return; }
+  // Dt/Kt avtomatik: daromad → Dt=kassa/Kt=modda; xarajat/aktiv/boshqa → Dt=modda/Kt=kassa.
+  const dtId=income?kassa.id:modda.id, ktId=income?modda.id:kassa.id;
+  const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
+  // Mavjud insert yo'li: entry → entry_line. Server guard trigger (op_kassa_ids) avtomat tekshiradi.
+  // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
+  const entryPayload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
+  if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
+  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
+  const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
+  const {error:e2}=await sb.from('entry_line').insert(rows);
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
+  $('summa').value=''; $('izoh').value='';                    // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  updateSimple(); fetchSimpleBal();                            // qoldiq kamaydi — yangilaymiz
+  btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
+};
+
+window.save=async()=>{
+  let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
+  if(dt<=0||dt!==kt){ alert('Dt va Kt teng bo\'lishi kerak'); return; }
+  if(lines.some(l=>!l.account_id||l.amount<=0)){ alert('Har satrda hisob va summa bo\'lsin'); return; }
+  $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
+  const {data:ent,error:e1}=await sb.from('entry').insert({entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'}).select('id').single();
+  if(e1){ alert(e1.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
+  const rows=lines.map(l=>({entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?l.amount:0,credit:l.side==='credit'?l.amount:0}));
+  const {error:e2}=await sb.from('entry_line').insert(rows);
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
+  lines=[]; $('izoh').value=''; addLine(); addLine();
+  $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
+};
+async function init(){
+  $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+  const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; return; }
+  // kassa_turi='xarajat_guruh' (5400) — konteyner hisob, unga to'g'ridan yozuv yozilmaydi
+  // Ruxsat: kassa_scope='list' bo'lsa faqat amaliyot kassalari tanlanadi.
+  // Xarajat/daromad moddalari cheklanmaydi (permFilterOp faqat 5xxx pul hisoblariga tegadi).
+  accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
+  // Oddiy rejim: modda ro'yxati + kassa chiplari + filial multiselect
+  $('modda').innerHTML=moddaOptions();
+  await loadFilials(); renderFilials();
+  $('izoh').addEventListener('input',updateSimple);
+  $('davrStart').addEventListener('change',updateSimple);
+  $('davrEnd').addEventListener('change',updateSimple);
+  renderChips(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
+  window.setMode('simple');
+  // Kengaytirilgan rejim (mavjud)
+  lines=[]; addLine(); addLine();
+}
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
+</script>
+</body>
+</html>

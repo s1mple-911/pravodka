@@ -3,6 +3,25 @@
 Ikki tomonlama buxgalteriya (double-entry) web-app. Aros Market'ning ichki pul-hisobi.
 Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 
+## ⛔ DEV / PROD ish tartibi (MAJBURIY — hamma ishdan ustun)
+
+Provodka **haqiqiy foydalanuvchilarda** ishlab turibdi. Shuning uchun:
+
+1. **Yangi ish FAQAT `-dev.html` fayllarda.** Prod `.html` fayllarga (masalan `hodim.html`)
+   **TEGILMAYDI**. Har prod fayl uchun dev nusxa bor (`hodim-dev.html`, `kassa-dev.html`, …, 13 ta).
+   Dev fayl ichidagi **har** navigatsiya/sidebar/redirect/prefetch boshqa **dev** faylga ketadi
+   (`jurnal-dev.html`); prod dev'ga, dev prod'ga aralashmaydi — eng ko'p xato qilinadigan joy.
+   `perms.js` va `vendor/*` **ikkalasi uchun bitta** (nusxalanmaydi); dev'da perms o'zgarishi
+   kerak bo'lsagina `perms-dev.js` ochiladi.
+2. **dev → prod ko'chirish faqat `promote.sh`** bilan (qo'lda emas): `bash promote.sh` (hammasi)
+   yoki `bash promote.sh hodim kassa` (tanlab). U dev'ni prod'ga nusxalaydi va `-dev.html`
+   havolalarini `.html` ga qaytaradi. `perl` ishlatadi — CRLF/LF qator oxirlarini saqlaydi.
+   Ko'chirishdan oldin ogohlantir; Asilbek o'zi RUN qiladi.
+3. **Supabase BITTA — dev va prod bir xil DB.** Shuning uchun **SQL faqat ADDITIVE**:
+   `add column if not exists`, yangi funksiya/view, `create or replace` **eski imzoni saqlab**.
+   **Ustun/funksiya o'chirish yoki imzo (argument/tur) o'zgartirish — TAQIQ**: prod frontendni
+   sindiradi. Tozalash alohida bosqichda, dev prod'ga chiqqach. SQL'ni baribir Asilbek RUN qiladi.
+
 ## Stack
 
 - Frontend: statik HTML fayllar, GitHub Pages. Build yo'q, framework yo'q.
