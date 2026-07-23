@@ -123,8 +123,24 @@
   .trow .chekpin svg{width:16px;height:16px}
   .trow .chekpin:hover{color:var(--primary);background:var(--surface-2)}
   /* 5-band: bu oy jami */
-  .month{font-size:13px;color:var(--muted);margin:6px 0 0 2px}
+  .month{font-size:13px;color:var(--muted);margin:0 0 16px 2px}
   .month b{color:var(--ink);font-weight:700}
+  /* hero — umumiy qoldiq (hamma biriktirilgan kassalar) */
+  .hero{background:linear-gradient(135deg,var(--primary),var(--primary-hover));color:#fff;
+    border-radius:18px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .hero-lbl{font-size:12.5px;font-weight:600;letter-spacing:.01em;opacity:.85;margin-bottom:5px}
+  .hero-amt{display:flex;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
+  .hero-amt #totalBal{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .hero-cur{font-size:15px;font-weight:600;opacity:.85}
+  .hero-sub{font-size:13.5px;font-weight:500;opacity:.92;margin-top:7px;display:flex;align-items:center;gap:6px}
+  .hero-sub svg{width:15px;height:15px}
+  /* progressive reveal (modda tanlangach qadamlar ochiladi) */
+  .reveal{animation:reveal .26s cubic-bezier(.22,.61,.36,1)}
+  @keyframes reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  /* qadam eslatmasi (kutish holati) */
+  .stepnote{color:var(--muted);font-size:13px;background:var(--surface-2);border-radius:11px;
+    padding:11px 13px;display:flex;align-items:center;gap:8px}
+  .stepnote svg{width:16px;height:16px;flex:none}
   /* xarajat tarixi (davr chip + kategoriya) */
   .histhd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
   .histhd h2{margin:0}
@@ -191,11 +207,19 @@
   <main class="wrap">
     <div id="banner" class="banner"></div>
 
-    <div class="sect">
-      <div class="lbl">Kassa</div>
-      <div id="kassaChips" class="chips"></div>
-      <div id="bal" class="bal" style="display:none"></div>
-      <div id="month" class="month" style="display:none"></div>
+    <!-- Umumiy qoldiq: hamma biriktirilgan kassalar yig'indisi -->
+    <div class="hero">
+      <div class="hero-lbl">Umumiy qoldiq</div>
+      <div class="hero-amt"><span id="totalBal">—</span><span class="hero-cur">so'm</span></div>
+      <div class="hero-sub" id="heroSub"><i data-lucide="wallet"></i><span>—</span></div>
+    </div>
+    <div id="month" class="month" style="display:none"></div>
+
+    <!-- Kassa tanlagich: FAQAT bir nechta kassa bo'lsa ko'rinadi (bitta bo'lsa avtomat) -->
+    <div class="sect" id="kassaSect" style="display:none">
+      <div class="lbl">Qaysi kassadan</div>
+      <button type="button" class="txt moddafield" id="kassaField" onclick="openKassa()"><span id="kassaFieldTxt">— kassa tanlang —</span><i data-lucide="chevron-down"></i></button>
+      <div id="kassaBal" class="bal" style="display:none"></div>
     </div>
 
     <div class="sect">
@@ -212,33 +236,41 @@
       <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()"><span id="moddaFieldTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
     </div>
 
-    <div class="sect">
-      <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta tanlash mumkin)</span></div>
-      <div id="filialChips" class="fchips"></div>
-    </div>
+    <!-- Modda tanlangach ochiladigan qadamlar (ketma-ket flow) -->
+    <div id="afterModda" style="display:none">
 
-    <div class="sect" id="davrSect" style="display:none">
-      <div class="lbl" id="davrLbl">📅 Davr (majburiy)</div>
-      <div class="davrrow">
-        <input type="date" class="txt" id="davrStart" aria-label="Boshi">
-        <input type="date" class="txt" id="davrEnd" aria-label="Oxiri">
+      <div class="sect">
+        <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></div>
+        <div id="filialChips" class="fchips"></div>
       </div>
-      <div id="davrReq" class="chekreq" style="display:none">Sana oralig'ini (boshi–oxiri) tanlang</div>
-    </div>
 
-    <div class="sect" id="chekSect">
-      <div class="lbl" id="chekLbl">📷 Chek (ixtiyoriy)</div>
-      <label class="chekbtn">
-        <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
-        <i data-lucide="camera"></i><span>Chek suratini olish</span>
-      </label>
-      <div id="chekPrev" class="chekprev" style="display:none"></div>
-      <div id="chekReq" class="chekreq" style="display:none">Bu xarajat uchun chek shart</div>
-    </div>
+      <div class="sect" id="davrSect" style="display:none">
+        <div class="lbl" id="davrLbl">📅 Davr (majburiy)</div>
+        <div id="davrWait" class="stepnote" style="display:none"><i data-lucide="corner-down-right"></i><span>Avval filialni tanlang — so'ng davr chiqadi.</span></div>
+        <div id="davrPickWrap" style="display:none">
+          <div class="davrrow">
+            <input type="date" class="txt" id="davrStart" aria-label="Boshi">
+            <input type="date" class="txt" id="davrEnd" aria-label="Oxiri">
+          </div>
+          <div id="davrReq" class="chekreq" style="display:none">Sana oralig'ini (boshi–oxiri) tanlang</div>
+        </div>
+      </div>
 
-    <div class="sect">
-      <div class="lbl" id="izohLbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></div>
-      <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
+      <div class="sect" id="chekSect">
+        <div class="lbl" id="chekLbl">📷 Chek (ixtiyoriy)</div>
+        <label class="chekbtn">
+          <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
+          <i data-lucide="camera"></i><span>Chek suratini olish</span>
+        </label>
+        <div id="chekPrev" class="chekprev" style="display:none"></div>
+        <div id="chekReq" class="chekreq" style="display:none">Bu xarajat uchun chek shart</div>
+      </div>
+
+      <div class="sect">
+        <div class="lbl" id="izohLbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></div>
+        <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
+      </div>
+
     </div>
 
     <div class="today sect" id="histSect">
@@ -268,6 +300,14 @@
   </div>
 </div>
 
+<div class="modal" id="kassaModal" onclick="if(event.target===this)closeKassa()">
+  <div class="modalbox">
+    <h3>Kassa tanlang</h3>
+    <input class="txt" id="kassaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderKassaList()">
+    <div id="kassaList2" class="picklist"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><span id="toastIc"></span><span id="toastMsg">Saqlandi</span></div>
 
 <script type="module">
@@ -281,6 +321,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
+let balMap={};              // {kassa_id: qoldiq} — hero (umumiy) + kassa picker uchun, bir marta yuklanadi
+const BAL_MAX=8;            // shuncha kassagacha qoldiqlar yuklanadi (admin 60+ kassada og'ir bo'lmasin)
 let filials=[], selFilials=new Set();  // V6: filial multiselect (entry.filial_ids — faqat metadata)
 let chekBlob=null;          // 3-band: tanlangan chek surati (siqilgan JPEG blob)
 let histPeriod='bugun', histRows=[], histChek=new Set();  // o'z tarixi (davr + ro'yxat + chek 📎)
@@ -346,18 +388,62 @@ function moddaList(){
   return xs;
 }
 
-function renderChips(){
+// Kassa tanlagich. BITTA kassa bo'lsa — avtomat tanlanadi va tanlagich yashiriladi
+// (hero'da nomi + qoldig'i ko'rinadi). KO'P bo'lsa — "Qaysi kassadan" maydoni + sheet.
+function renderKassa(){
   const ks=kassaList();
   if(ks.length===1) selKassa=ks[0].id;                       // bitta → default tanlangan
   if(selKassa&&!ks.some(k=>k.id===selKassa)) selKassa=null;
-  $('kassaChips').innerHTML = ks.length
-    ? ks.map(k=>`<button type="button" class="chip${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')">`
-        +`<span class="chip-code">${esc(k.code)}</span>`
-        +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
-    : '<div class="chips-empty">Sizga kassa biriktirilmagan — administratorga murojaat qiling.</div>';
-  updateSave(); showBalance(); loadMonth();
+  const single=ks.length===1;
+  $('kassaSect').style.display=single?'none':'block';
+  const k=accounts.find(a=>a.id===selKassa);
+  $('kassaFieldTxt').textContent = k ? `${k.name}${k.subtitle?' · '+k.subtitle:''}`
+    : (ks.length ? '— kassa tanlang —' : 'Kassa biriktirilmagan');
+  renderHero(); renderKassaBal();
 }
-window.pickKassa=id=>{ selKassa=id; renderChips(); };
+// Umumiy qoldiq (hero) — barcha biriktirilgan kassalar yig'indisi.
+function renderHero(){
+  const ks=kassaList();
+  let total=0, known=false;
+  ks.forEach(k=>{ const v=balMap[k.id]; if(v!=null){ total+=v; known=true; } });
+  $('totalBal').textContent = known ? money(total) : '—';
+  const sub=$('heroSub').querySelector('span');
+  if(!ks.length) sub.textContent='Sizga kassa biriktirilmagan';
+  else if(ks.length===1) sub.textContent=ks[0].name+(ks[0].subtitle?' · '+ks[0].subtitle:'');
+  else sub.textContent=ks.length+' ta kassa';
+  icons();
+}
+// Tanlangan kassa qoldig'i (tanlagich ostida). curBal shu yerdan olinadi (limit tekshiruvi uchun).
+function renderKassaBal(){
+  const el=$('kassaBal');
+  const v = selKassa!=null ? balMap[selKassa] : undefined;
+  curBal = (v==null)?null:Number(v);
+  if(selKassa && v!=null){ el.style.display='block'; el.innerHTML=`Ushbu kassada: <b>${money(v)} so'm</b>`; }
+  else el.style.display='none';
+  updateSave();
+}
+// Qoldiqlarni bir marta yuklaydi (acc_balance har kassa uchun, parallel). Ko'p kassada (admin) o'tkazadi.
+async function loadBalances(){
+  const ks=kassaList(); balMap={};
+  if(ks.length && ks.length<=BAL_MAX){
+    const res=await Promise.all(ks.map(k=>sb.rpc('acc_balance',{p_account:k.id})
+      .then(r=>[k.id,(r.error||r.data==null)?null:Number(r.data)]).catch(()=>[k.id,null])));
+    res.forEach(([id,v])=>{ balMap[id]=v; });
+  }
+  renderHero(); renderKassaBal(); renderKassaList();
+}
+window.pickKassa=id=>{ selKassa=id; closeKassa(); renderKassa(); loadMonth(); };
+window.openKassa=()=>{ $('kassaSearch').value=''; renderKassaList(); $('kassaModal').classList.add('open'); setTimeout(()=>{ try{ $('kassaSearch').focus(); }catch(e){} },50); };
+window.closeKassa=()=>{ $('kassaModal').classList.remove('open'); };
+window.renderKassaList=()=>{
+  const q=$('kassaSearch').value.trim().toLowerCase();
+  const ks=kassaList().filter(k=>!q||String(k.name).toLowerCase().includes(q)||String(k.code).toLowerCase().includes(q)||String(k.subtitle||'').toLowerCase().includes(q));
+  $('kassaList2').innerHTML = ks.length ? ks.map(k=>{
+    const v=balMap[k.id];
+    const bal=v!=null?`<span class="pc">${money(v)} so'm</span>`:`<span class="pc">${esc(k.code)}</span>`;
+    return `<button type="button" class="pickitem${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')"><span class="pn">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span>${bal}</button>`;
+  }).join('') : '<div class="pickempty">Kassa yo\'q</div>';
+};
 
 // Modda maydoni matni (tanlangan modda). Ro'yxat qidiruvli modalда (renderModdaList).
 function renderModda(){
@@ -387,7 +473,7 @@ function renderFilials(){
     ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
     : '<div class="fchips-empty">Filiallar topilmadi</div>';
 }
-window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); };
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateDavrUI(); updateSave(); };
 async function loadFilials(){
   try{
     const {data,error}=await sb.from('v_filial_tanlov').select('*');  // id, code, name, subtitle
@@ -403,8 +489,14 @@ function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
 function davrVals(){ return {s:$('davrStart').value||null, e:$('davrEnd').value||null}; }
 function davrOk(){ if(!davrRequired()) return true; const {s,e}=davrVals(); return !!(s&&e&&s<=e); }  // ISO sana leksik solishtiriladi
-// Modda tanlangach hamma shartli bo'limlarni yangilaydi
-function updateModdaUI(){ updateChekUI(); updateIzohUI(); updateDavrUI(); }
+// Modda tanlangach qadamlar ochiladi (ketma-ket flow) va shartli bo'limlar yangilanadi.
+function updateModdaUI(){
+  const has=!!selModda;
+  const box=$('afterModda');
+  box.style.display = has ? 'block' : 'none';
+  box.classList.toggle('reveal', has);
+  updateChekUI(); updateIzohUI(); updateDavrUI();
+}
 function updateChekUI(){
   const req=chekRequired();
   $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
@@ -416,11 +508,18 @@ function updateIzohUI(){
     ? 'Izoh <span style="color:var(--red);font-weight:600">(majburiy)</span>'
     : 'Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
 }
+// Davr — modda majburiy qilsa ko'rinadi; foydalanuvchi so'roviga ko'ra kalendar
+// FILIAL tanlangach chiqadi (ketma-ketlik). Filial tanlanmaguncha kutish eslatmasi turadi.
 function updateDavrUI(){
   const req=davrRequired();
-  $('davrSect').style.display = req ? 'block' : 'none';
-  if(!req){ $('davrStart').value=''; $('davrEnd').value=''; }
-  $('davrReq').style.display = (req && !davrOk()) ? 'block' : 'none';
+  if(!req){ $('davrSect').style.display='none'; $('davrStart').value=''; $('davrEnd').value=''; $('davrReq').style.display='none'; icons(); return; }
+  const hasFilial=selFilials.size>0;
+  $('davrSect').style.display='block';
+  $('davrWait').style.display = hasFilial ? 'none' : 'flex';
+  $('davrPickWrap').style.display = hasFilial ? 'block' : 'none';
+  if(!hasFilial){ $('davrStart').value=''; $('davrEnd').value=''; }
+  $('davrReq').style.display = (hasFilial && !davrOk()) ? 'block' : 'none';
+  icons();
 }
 // Kanvas bilan siqish — uzun tomon ~1200px, JPEG 0.8.
 function compressImage(file, maxDim, quality){
@@ -460,23 +559,6 @@ window.openChek=async(kassaId,entryId)=>{
   }catch(e){ toast('Chek ochilmadi',true); }
 };
 
-// Kassa qoldig'i — ixtiyoriy, best-effort. Ruxsat/RLS bermasa jimgina yashiriladi (hech narsa buzilmaydi).
-// acc_balance(p_account uuid) — imzo tasdiqlangan.
-async function showBalance(){
-  const el=$('bal'); el.style.display='none'; curBal=null; updateSave();
-  if(!selKassa) return;
-  const want=selKassa;
-  try{
-    const {data,error}=await sb.rpc('acc_balance',{p_account:want});
-    if(error||data==null||selKassa!==want) return;   // javob kelguncha boshqa kassa tanlansa — tashla
-    curBal=Number(data)||0;                            // 1-band: limit shu qoldiqdan
-    const k=accounts.find(a=>a.id===want);
-    el.innerHTML=`Sizda: <b>${money(curBal)} so'm</b>`+(k?` · ${esc(k.name)}`:'');
-    el.style.display='block';
-    updateSave();
-  }catch(e){}
-}
-
 function amtVal(){ return Number(($('summa').value||'').replace(/\D/g,''))||0; }
 // 1-band: summa qoldiqdan oshsa — input qizil, ogohlantirish, Saqlash disabled (server ham rad etadi).
 function updateSave(){
@@ -490,8 +572,7 @@ function updateSave(){
   }
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
-  const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq
-  $('davrReq').style.display = (davrRequired() && !davrOk()) ? 'block' : 'none';
+  const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
   $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr);
 }
 
@@ -541,7 +622,7 @@ window.saveHodim=async()=>{
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast(chekWarn?'Xarajat saqlandi, lekin chek yuklanmadi':'Saqlandi ✓', chekWarn);
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
-  showBalance(); loadHist(); loadMonth();
+  loadBalances(); loadHist(); loadMonth();
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
 
@@ -584,7 +665,8 @@ async function loadHistChek(){
 async function loadHist(){
   const {from,to}=histRange();
   const {data,error}=await sb.rpc('hodim_oz_tarix',{p_from:from,p_to:to});
-  if(error){ histRows=[]; renderHistCat([]); $('histList').innerHTML='<div class="today-empty">Tarix yuklanmadi.</div>'; icons(); return; }
+  if(error){ histRows=[]; renderHistCat([]);
+    $('histList').innerHTML='<div class="today-empty">Tarix yuklanmadi: '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); return; }
   histRows=(data&&data.royxat)||[];
   await loadHistChek();
   renderHistCat((data&&data.kategoriya)||[]);
@@ -648,7 +730,8 @@ async function init(){
   $('izoh').addEventListener('input',updateSave);
   $('davrStart').addEventListener('change',()=>{ updateDavrUI(); updateSave(); });
   $('davrEnd').addEventListener('change',()=>{ updateDavrUI(); updateSave(); });
-  renderChips(); renderModda(); renderFilials(); updateModdaUI(); loadHist();
+  renderKassa(); renderModda(); renderFilials(); updateModdaUI(); loadHist();
+  loadBalances(); loadMonth();
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);
 }
