@@ -64,33 +64,26 @@ comment on column accounts.davr_majburiy is
 -- Admin only, SECURITY DEFINER (RLS'siz update). REVOKE anon.
 -- =====================================================================
 
+-- DIQQAT: dinamik `execute format(... %I ...)` ISHLATILMAYDI — static 3 ta UPDATE.
+-- Xabarlar ataylab SODDA (apostrof/`%` yo'q) — dashboard paste'i buzmasin.
 create or replace function set_modda_flag(p_account uuid, p_flag text, p_bool boolean)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_col text;
 begin
   if not is_admin() then
-    raise exception 'Faqat admin modda sozlamasini o''zgartira oladi' using errcode = '42501';
+    raise exception 'Faqat admin' using errcode = '42501';
   end if;
-
-  v_col := case p_flag
-             when 'chek' then 'chek_majburiy'
-             when 'izoh' then 'izoh_majburiy'
-             when 'davr' then 'davr_majburiy'
-             else null
-           end;
-  if v_col is null then
-    raise exception 'Noma''lum bayroq: %', p_flag using errcode = '22023';
-  end if;
-
-  execute format('update accounts set %I = coalesce($1, false) where id = $2', v_col)
-    using p_bool, p_account;
-  if not found then
-    raise exception 'Hisob topilmadi' using errcode = 'P0001';
+  if p_flag = 'chek' then
+    update accounts set chek_majburiy = coalesce(p_bool, false) where id = p_account;
+  elsif p_flag = 'izoh' then
+    update accounts set izoh_majburiy = coalesce(p_bool, false) where id = p_account;
+  elsif p_flag = 'davr' then
+    update accounts set davr_majburiy = coalesce(p_bool, false) where id = p_account;
+  else
+    raise exception 'Nomalum bayroq';
   end if;
 end $$;
 
@@ -98,7 +91,7 @@ revoke all on function set_modda_flag(uuid, text, boolean) from public, anon;
 grant execute on function set_modda_flag(uuid, text, boolean) to authenticated;
 
 comment on function set_modda_flag(uuid, text, boolean) is
-  'Admin: xarajat moddasi bayrog''ini (chek|izoh|davr) yoqadi/o''chiradi.';
+  'Admin: xarajat moddasi bayrogi (chek|izoh|davr) yoqadi yoki ochiradi.';
 
 
 -- =====================================================================
