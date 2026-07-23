@@ -121,6 +121,36 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* Yuk bog'lash (9110 Tovar tannarxi) */
+  .ychips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+  .ychip{display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}
+  .ychip button{border:none;background:transparent;color:var(--primary);cursor:pointer;font-size:16px;line-height:1;padding:0}
+  .yukhint{color:var(--muted);font-size:13px}
+  .yukadd{display:inline-flex;align-items:center;gap:7px;border:1.5px dashed var(--line);border-radius:12px;background:transparent;color:var(--primary);font-size:14px;font-weight:600;font-family:inherit;padding:10px 16px;cursor:pointer}
+  .yukadd svg{width:16px;height:16px}
+  .ymodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:200}
+  .ymodal.open{display:flex}
+  .ymbox{background:var(--surface);width:100%;max-width:520px;max-height:86vh;display:flex;flex-direction:column;border-radius:18px;padding:18px;box-shadow:var(--shadow-hover)}
+  .ymbox h3{margin:0 0 12px;font-size:17px;font-weight:800}
+  .ymbox h3 .ymuted{color:var(--muted);font-weight:500;font-size:13px}
+  .yukfilt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .yukfilt .txt{flex:1;min-width:150px;height:40px;margin:0}
+  .yuklist{overflow:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:130px}
+  .yrow{display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:none;background:transparent;border-radius:11px;padding:11px 8px;cursor:pointer;font-family:inherit;color:var(--ink);border-bottom:1px solid var(--line)}
+  .yrow:hover{background:var(--surface-2)}
+  .yrow.on{background:var(--primary-soft)}
+  .yrow .ycheck{width:22px;height:22px;flex:none;border-radius:7px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800}
+  .yrow.on .ycheck{background:var(--primary);border-color:var(--primary)}
+  .yrow .ymain{flex:1;min-width:0}
+  .yrow .yl1{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .yrow .yl2{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .yrow .ynarx{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pill.g{background:var(--green-soft);color:var(--green);border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
+  .yukacts{display:flex;gap:9px;margin-top:12px}
+  .ybtn{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .ybtn.primary{border:none;background:var(--primary);color:#fff}
+  .yukempty{padding:26px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
+  .ylink{border:none;background:transparent;color:var(--primary);font-weight:700;cursor:pointer;font-family:inherit}
 </style>
 </head>
 <body>
@@ -143,6 +173,7 @@
       <a class="nav-item" href="cashflow-dev.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar-dev.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
@@ -178,7 +209,7 @@
         <label>Kassa</label>
         <div id="kassaChips" class="chips"></div>
         <label>Modda</label>
-        <select class="txt" id="modda" onchange="updateSimple()"><option value="">— modda tanlang —</option></select>
+        <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
         <label>Summa</label>
         <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
@@ -189,6 +220,11 @@
           <label id="davrLbl">📅 Davr (majburiy)</label>
           <div class="davrrow"><input type="date" class="txt" id="davrStart" aria-label="Boshi"><input type="date" class="txt" id="davrEnd" aria-label="Oxiri"></div>
           <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini tanlang</div>
+        </div>
+        <div id="yukSect" style="display:none;margin-bottom:16px">
+          <label>📦 Yuk <span style="font-weight:400">(Tovar tannarxi — ixtiyoriy)</span></label>
+          <div id="yukChips" class="ychips"></div>
+          <button type="button" class="yukadd" onclick="openYuk()"><i data-lucide="plus"></i> Yuk tanlash</button>
         </div>
         <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
       </div>
@@ -227,10 +263,27 @@
       <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="yuklar-dev.html"><i data-lucide="package"></i>Yuklar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
   <!-- /more-sheet -->
+</div>
+
+<div class="ymodal" id="yukModal" onclick="if(event.target===this)closeYuk()">
+  <div class="ymbox">
+    <h3>Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi)</span></h3>
+    <div class="yukfilt">
+      <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
+      <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
+      <input class="txt" id="yukSearch" placeholder="Qidirish (ombor / yetkazuvchi)" autocomplete="off" oninput="renderYukList()">
+    </div>
+    <div id="yukList" class="yuklist"></div>
+    <div class="yukacts">
+      <button type="button" class="ybtn" onclick="closeYuk()">Bekor</button>
+      <button type="button" class="ybtn primary" onclick="applyYuk()">Tanlash (<span id="yukSel">0</span>)</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -404,6 +457,9 @@ window.updateSimple=()=>{
       : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
   } else h.style.display='none';
   updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
+  const m9=moddaObj(), is9110=!!(m9&&m9.code==='9110');   // Yuk bog'lash faqat 9110 Tovar tannarxi
+  $('yukSect').style.display=is9110?'block':'none';
+  if(!is9110 && selYuk.size){ selYuk.clear(); renderYukChips(); }
   $('izohReq').style.display=izohRequired()?'block':'none';
   const needIzoh=izohRequired() && !$('izoh').value.trim();
   const needDavr=!davrOk();
@@ -415,6 +471,62 @@ window.updateSimple=()=>{
   else w.style.display='none';
   $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr);
 };
+// ---- Yuklar: 9110 "Tovar tannarxi" tanlanganda yuk bog'lash modali ----
+const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+let yukList=[], yukStatus={}, selYuk=new Set(), yukFilt='unpaid', yukLoaded=false;
+const _isoY=d=>d.toISOString().slice(0,10);
+function ydF(s){ if(!s) return '—'; try{ return new Date(s).toISOString().slice(0,10); }catch(e){ return '—'; } }
+function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; if(!isFinite(v)) return esc(String(n??'—'))+c;
+  return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+c; }
+function yukPaid(y){ const s=yukStatus[y.id]; return !!(s&&s.tolangan); }
+// modda select o'zgarganda: updateSimple + 9110 bo'lsa modalni avtomatik ochish (eslatma)
+window.onModda=()=>{ updateSimple(); const m=moddaObj(); if(m&&m.code==='9110') openYuk(); };
+window.openYuk=()=>{ $('yukModal').classList.add('open'); loadYukList(); };
+window.closeYuk=()=>{ $('yukModal').classList.remove('open'); };
+window.reloadYuk=()=>{ yukLoaded=false; loadYukList(); };
+window.setYukFilt=k=>{ yukFilt=k; document.querySelectorAll('#yukModal [data-yf]').forEach(b=>b.classList.toggle('on',b.dataset.yf===k)); renderYukList(); };
+window.applyYuk=()=>{ closeYuk(); renderYukChips(); };
+window.toggleYuk=id=>{ id=Number(id); if(selYuk.has(id)) selYuk.delete(id); else selYuk.add(id); renderYukList(); };
+window.rmYuk=id=>{ selYuk.delete(Number(id)); renderYukChips(); if($('yukModal').classList.contains('open')) renderYukList(); };
+async function loadYukList(){
+  if(yukLoaded){ renderYukList(); return; }
+  $('yukList').innerHTML='<div class="yukempty">Yuklanmoqda…</div>';
+  const t=new Date(Date.now()+5*3600*1000), from=new Date(t.getTime()-30*86400000);
+  try{
+    const res=await fetch(N8N_YUK+'?date_from='+_isoY(from)+'&date_to='+_isoY(t),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j||j.ok===false||!Array.isArray(j.yuklar)) throw new Error('javob kutilmagan');
+    yukList=j.yuklar; yukLoaded=true;
+    const ids=yukList.map(y=>Number(y.id)).filter(Number.isFinite);
+    if(ids.length){ try{ const {data:st}=await sb.rpc('yuk_tolov_holati',{p_ids:ids}); yukStatus={}; (st||[]).forEach(s=>{ yukStatus[s.yuk_id]=s; }); }catch(e){} }
+  }catch(e){ $('yukList').innerHTML='<div class="yukempty">Yuklar ulanmadi: '+esc(e.message||'')+'<br><button class="ylink" onclick="reloadYuk()">Qaytadan urinish</button></div>'; return; }
+  renderYukList();
+}
+window.renderYukList=()=>{
+  if(!yukLoaded) return;
+  const q=($('yukSearch').value||'').trim().toLowerCase();
+  let rows=yukList.slice();
+  if(yukFilt==='unpaid') rows=rows.filter(y=>!yukPaid(y));
+  if(q) rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')).toLowerCase().includes(q));
+  rows.sort((a,b)=>(yukPaid(a)-yukPaid(b))||String(b.sana||'').localeCompare(String(a.sana||'')));
+  $('yukSel').textContent=selYuk.size;
+  $('yukList').innerHTML= rows.length ? rows.map(y=>{
+    const on=selYuk.has(Number(y.id)), paid=yukPaid(y);
+    return '<button type="button" class="yrow'+(on?' on':'')+'" onclick="toggleYuk('+Number(y.id)+')">'
+      +'<span class="ycheck">'+(on?'✓':'')+'</span>'
+      +'<span class="ymain"><span class="yl1">#'+esc(y.id)+' · '+esc(y.ombor||'—')+(paid?' <span class="pill g">to\'langan</span>':'')+'</span>'
+      +'<span class="yl2">'+esc(y.yetkazuvchi||'—')+' · '+ydF(y.sana)+' · '+esc(y.status||'')+'</span></span>'
+      +'<span class="ynarx">'+yPriceF(y.narx,y.valyuta)+'</span></button>';
+  }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
+};
+function renderYukChips(){
+  const box=$('yukChips'); if(!box) return;
+  box.innerHTML = selYuk.size
+    ? [...selYuk].map(id=>'<span class="ychip">#'+id+'<button type="button" onclick="rmYuk('+id+')">×</button></span>').join('')
+    : '<div class="yukhint">Yuk tanlanmagan (ixtiyoriy)</div>';
+}
+
 window.saveSimple=async()=>{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
@@ -431,12 +543,13 @@ window.saveSimple=async()=>{
   // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
   const entryPayload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  if(selYuk.size) entryPayload.yuk_ids=[...selYuk];   // Yuklar: 9110 uchun tanlangan Aros yuk id'lari
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
   const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  $('summa').value=''; $('izoh').value='';                    // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  $('summa').value=''; $('izoh').value=''; selYuk.clear(); renderYukChips();   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   updateSimple(); fetchSimpleBal();                            // qoldiq kamaydi — yangilaymiz
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
 };

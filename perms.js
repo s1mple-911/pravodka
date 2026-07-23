@@ -15,7 +15,7 @@
   var KEY = 'prov-perms';
   // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
-               'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka'];
+               'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar'];
   // Cheklanmagan holat: allowed_pages bo'sh = hamma sahifa, scope 'all' = hamma kassa,
   // filial_scope 'all' = hamma filial (xarajat metadata filtri).
   var OPEN = { allowed_pages: [], kassa_scope: 'all', view_kassa_ids: [],
