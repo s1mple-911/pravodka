@@ -74,6 +74,35 @@
   .brow .a.neg{color:var(--red)}
   .bfoot{display:flex;justify-content:space-between;gap:10px;border-top:2px solid var(--line);padding-top:13px;margin-top:6px;font-size:15px;font-weight:800}
   .empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
+  /* Filial jadvali: har filial bitta qatorda — Pul · Tovar · Jami (BRIEF_BALANS_ROW) */
+  .zerotog{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0}
+  .zerotog input{accent-color:var(--primary);width:15px;height:15px;cursor:pointer}
+  .fsec{margin-bottom:20px}
+  .fsec-h{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:10px}
+  .ftbl{width:100%}
+  .ftr{display:grid;grid-template-columns:minmax(0,1.7fr) 1fr 1fr 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+  .ftr:last-child{border-bottom:none}
+  .ftr.fthead{padding:0 0 10px}
+  .ftr.fthead span{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .ftr.fthead span:not(:first-child){text-align:right}
+  .ftr .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .ftr .fn .code{color:var(--muted);font-size:12px;margin-right:7px;font-weight:600}
+  .ftr .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+  .ftr .num.neg{color:var(--red)}
+  .ftr .num.zero{color:var(--muted)}
+  .ftr .num.jami{font-weight:800}
+  .fvbadge{color:var(--primary);font-size:10.5px;font-weight:700;margin-left:7px;vertical-align:middle}
+  .ftr.ftfoot{border-top:2px solid var(--line);border-bottom:none;padding-top:12px;margin-top:4px;font-weight:800}
+  .ftr.ftfoot .fn{font-weight:800}.ftr.ftfoot .num{font-weight:800}
+  /* mobil: har filial KARTA (nom tepada, Pul/Tovar/Jami ostida yorliqli) */
+  @media(max-width:640px){
+    .ftr.fthead{display:none}
+    .ftr{grid-template-columns:1fr;gap:5px;padding:13px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;background:var(--surface-2)}
+    .ftr.ftfoot{background:transparent;border:none;border-top:2px solid var(--line);border-radius:0;margin-top:4px}
+    .ftr .fn{white-space:normal;font-size:15px;margin-bottom:3px}
+    .ftr .num{display:flex;justify-content:space-between;text-align:left}
+    .ftr .num::before{content:attr(data-l);color:var(--muted);font-weight:500}
+  }
   .note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.55}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
@@ -154,8 +183,8 @@
     </div>
 
     <div class="card">
-      <div class="bcol-h"><span class="t">Aktiv</span><span class="v" id="hAktiv">0</span></div>
-      <div id="colAktiv" class="secgrid"></div>
+      <div class="bcol-h"><span class="t">Aktiv</span><span style="margin-left:auto;display:flex;align-items:center;gap:16px"><label class="zerotog"><input type="checkbox" id="showZero" onchange="repaint()"> Nollarni ko'rsatish</label><span class="v" id="hAktiv">0</span></span></div>
+      <div id="colAktiv"></div>
       <div class="bfoot"><span>Jami aktiv</span><span class="v" id="fAktiv">0</span></div>
     </div>
     <div class="card">
@@ -263,8 +292,76 @@ function renderCol(elId,groups){
   </div>`).join('');
   return groups.reduce((a,g)=>a+g.sum,0);
 }
+// accounts (linked_kassa_id juftligi uchun) — sanaga bog'liq emas, sessiyada bir marta olinadi.
+let accsCache=[], lastRows=[];
+// Bitta raqam katakchasi (mobil yorlig'i data-l bilan). Nol → "—".
+function numC(v,label,isJami){ const n=Math.round(Number(v)||0);
+  const cls='num'+(n<0?' neg':'')+(n===0?' zero':'')+(isJami?' jami':'');
+  return `<span class="${cls}" data-l="${label}">${n===0?'—':money(n)}</span>`;
+}
+// AKTIV ustunini QAYTA JOYLASHTIRIB chizadi (hisob o'zgarmaydi — faqat guruhlash).
+//   1) Filiallar jadvali: filial kassa + linked_kassa_id juft ombori bir qatorda (Pul·Tovar·Jami).
+//      Valyuta bola-hisoblari (56xx…) parent kassa Pul'iga qo'shiladi (+val belgisi).
+//   2) Markaziy kassalar / Boshqa omborlar / Hodim kassalari — alohida bloklar.
+//   3) Qolgan aktiv bo'limlari (debitor, asosiy vosita, amortizatsiya…) — o'z bloklarida.
+function renderAktivNew(aktivRows, accs){
+  const showZero=$('showZero') && $('showZero').checked;
+  const accByCode={}, accById={};
+  (accs||[]).forEach(a=>{ accByCode[a.code]=a; accById[a.id]=a; });
+  const amt={}; aktivRows.forEach(r=>{ amt[r.code]=(Number(amt[r.code])||0)+(Number(r.amount)||0); });
+  const consumed=new Set();
+  const omborByKassaId={};
+  (accs||[]).forEach(a=>{ if(a.section==='tovar' && a.linked_kassa_id) omborByKassaId[a.linked_kassa_id]=a; });
+  const filkassas=(accs||[]).filter(a=>a.kassa_turi==='filial' && a.section==='pul' && (a.currency||'UZS')==='UZS' && a.is_active!==false);
+  const frows=filkassas.map(k=>{
+    let pul=Number(amt[k.code]||0); consumed.add(k.code); let vcnt=0;
+    (accs||[]).forEach(c=>{ if(c.parent_id===k.id && c.section==='pul' && c.currency && c.currency!=='UZS'){ pul+=Number(amt[c.code]||0); consumed.add(c.code); if(amt[c.code]!=null) vcnt++; } });
+    const o=omborByKassaId[k.id]; let tovar=0; if(o){ tovar=Number(amt[o.code]||0); consumed.add(o.code); }
+    return {name:k.name, code:k.code, pul, tovar, jami:pul+tovar, vcnt};
+  }).sort((a,b)=>b.jami-a.jami);
+  // Qolgan aktiv qatorlarini bloklarga ajratamiz
+  const rest=aktivRows.filter(r=>!consumed.has(r.code));
+  const blocks={}, seen=[];
+  rest.forEach(r=>{
+    const a=accByCode[r.code]; let key,label;
+    if(a && a.section==='tovar'){ key='boshqa_ombor'; label='Boshqa omborlar'; }
+    else if(a && a.section==='pul'){
+      let kt=a.kassa_turi;
+      if(a.currency && a.currency!=='UZS' && a.parent_id && accById[a.parent_id]) kt=accById[a.parent_id].kassa_turi;
+      if(kt==='xarajat'){ key='hodim'; label='Hodim kassalari'; }
+      else { key='markaziy'; label='Markaziy kassalar'; }
+    } else { key='sec:'+(r.section||'boshqa'); label=secLbl(r.section); }
+    if(!blocks[key]){ blocks[key]={label,rows:[]}; seen.push(key); }
+    blocks[key].rows.push(r);
+  });
+  const order=['markaziy','boshqa_ombor','hodim','sec:debitor','sec:asosiy_vosita','sec:amortizatsiya','sec:boshqa_aktiv'];
+  const keys=order.filter(k=>blocks[k]).concat(seen.filter(k=>order.indexOf(k)<0));
+  let html='';
+  const visF=frows.filter(r=>showZero || Math.round(r.jami)!==0);
+  if(visF.length){
+    const sP=visF.reduce((a,r)=>a+r.pul,0), sT=visF.reduce((a,r)=>a+r.tovar,0), sJ=visF.reduce((a,r)=>a+r.jami,0);
+    html+=`<div class="fsec"><div class="fsec-h">Filiallar</div><div class="ftbl">`
+      +`<div class="ftr fthead"><span>Filial</span><span>Pul</span><span>Tovar</span><span>Jami</span></div>`
+      +visF.map(r=>`<div class="ftr"><span class="fn"><span class="code">${r.code}</span>${r.name||''}${r.vcnt?'<span class="fvbadge">+val</span>':''}</span>${numC(r.pul,'Pul')}${numC(r.tovar,'Tovar')}${numC(r.jami,'Jami',true)}</div>`).join('')
+      +`<div class="ftr ftfoot"><span class="fn">Jami (filiallar)</span>${numC(sP,'Pul')}${numC(sT,'Tovar')}${numC(sJ,'Jami',true)}</div>`
+      +`</div></div>`;
+  }
+  keys.forEach(k=>{
+    const b=blocks[k];
+    const sum=b.rows.reduce((a,r)=>a+(Number(r.amount)||0),0);
+    const vis=b.rows.filter(r=>showZero || Math.round(Number(r.amount)||0)!==0);
+    if(!vis.length) return;
+    html+=`<div class="sect"><div class="sh"><span>${b.label}</span><span class="sv">${money(sum)}</span></div>`
+      +vis.map(r=>{ const v=Number(r.amount)||0; return `<div class="brow"><span class="n"><span class="code">${r.code||''}</span>${r.name||''}</span><span class="a${v<0?' neg':''}">${money(v)}</span></div>`; }).join('')
+      +`</div>`;
+  });
+  $('colAktiv').innerHTML = html || '<div class="empty">Bu sanada yozuv yo\'q</div>';
+}
 function paint(rows){
-  const aktiv=renderCol('colAktiv',group(rows,'AKTIV'));
+  lastRows=rows;
+  const aktivRows=rows.filter(r=>r.bolim==='AKTIV');
+  const aktiv=aktivRows.reduce((a,r)=>a+(Number(r.amount)||0),0);   // JAMI AKTIV — o'zgarmaydi (hamma qator)
+  renderAktivNew(aktivRows, accsCache);
   const passiv=renderCol('colPassiv',group(rows,'PASSIV').concat(group(rows,'KAPITAL')));
   $('hAktiv').textContent=money(aktiv); $('fAktiv').textContent=money(aktiv); $('tAktiv').textContent=money(aktiv);
   $('hPassiv').textContent=money(passiv); $('fPassiv').textContent=money(passiv); $('tPassiv').textContent=money(passiv);
@@ -274,16 +371,23 @@ function paint(rows){
   $('vstatTxt').textContent=ok?'Aktiv = Passiv':('Farq: '+money(farq));
   icons();
 }
+// "Nollarni ko'rsatish" toggle — faqat AKTIV ko'rinishini qayta chizadi (qayta so'rov yo'q).
+window.repaint=()=>{ renderAktivNew(lastRows.filter(r=>r.bolim==='AKTIV'), accsCache); };
 async function load(){
   const d=$('sana').value; if(!d) return;
   $('banner').style.display='none';
   const ck='balans:'+JSON.stringify({date:d});
   const cached=swrGet(ck);
-  if(cached){ paint(cached); }
+  if(cached && accsCache.length){ paint(cached); }
   else { $('colAktiv').innerHTML='<div class="empty">Yuklanmoqda…</div>'; $('colPassiv').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
-  const {data,error}=await sb.rpc('balans',{p_date:d});
-  if(error){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+error.message; } return; }
-  const rows=data||[];
+  // balans + accounts (juftlik uchun) PARALLEL. accounts bir marta olinadi (keyingi sanalarda qayta ishlatiladi).
+  const [balRes, accRes]=await Promise.all([
+    sb.rpc('balans',{p_date:d}),
+    accsCache.length ? Promise.resolve({data:accsCache}) : sb.from('accounts').select('id,code,name,section,kassa_turi,parent_id,currency,linked_kassa_id,is_active')
+  ]);
+  if(accRes && accRes.data) accsCache=accRes.data;
+  if(balRes.error){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+balRes.error.message; } return; }
+  const rows=balRes.data||[];
   swrSet(ck,rows);
   paint(rows);
 }
