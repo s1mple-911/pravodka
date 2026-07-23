@@ -347,12 +347,14 @@ function updateDavrUI(){ const req=davrRequired();
   $('davrReq').style.display=(req&&!davrOk())?'block':'none';
 }
 function renderFilials(){ const box=$('filialChips');
+  const restricted=window.permFilialScope&&window.permFilialScope()==='list';
   box.innerHTML=filials.length
     ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
-    : '<div class="chips-empty">Filiallar topilmadi</div>';
+    : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); };
-async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=data; }catch(e){} }
+// Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
+async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=window.permFilterFilials?window.permFilterFilials(data):data; }catch(e){} }
 // Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
 // hisoblari (op_kassa_ids; scope='all'→hammasi). 5400 konteyner init'da chiqarib tashlangan.
 function kassaList(){ return accounts.filter(a=>isKassa(a)); }

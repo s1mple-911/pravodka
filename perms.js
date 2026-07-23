@@ -16,9 +16,11 @@
   // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka'];
-  // Cheklanmagan holat: allowed_pages bo'sh = hamma sahifa, scope 'all' = hamma kassa
+  // Cheklanmagan holat: allowed_pages bo'sh = hamma sahifa, scope 'all' = hamma kassa,
+  // filial_scope 'all' = hamma filial (xarajat metadata filtri).
   var OPEN = { allowed_pages: [], kassa_scope: 'all', view_kassa_ids: [],
-               op_kassa_ids: [], can_convert: true, is_admin: false };
+               op_kassa_ids: [], can_convert: true,
+               filial_scope: 'all', filial_ids: [], is_admin: false };
 
   var P = null;          // joriy ruxsatlar
   var applied = false;   // nav bir marta yashirilgan
@@ -33,6 +35,8 @@
       view_kassa_ids: arr(p.view_kassa_ids),
       op_kassa_ids:   arr(p.op_kassa_ids),
       can_convert:    p.can_convert !== false,
+      filial_scope:   p.filial_scope === 'list' ? 'list' : 'all',
+      filial_ids:     arr(p.filial_ids),
       is_admin:       !!p.is_admin
     };
   }
@@ -170,6 +174,18 @@
   function filterView(list) { return (list || []).filter(function (a) { return !isPulAcc(a) || viewOk(a); }); }
   function filterOp(list)   { return (list || []).filter(function (a) { return !isPulAcc(a) || opOk(a); }); }
 
+  // ---- filiallar (xarajat metadata) -----------------------------------
+  /* Filial multiselect ro'yxatini ruxsatga ko'ra filtrlaydi. Admin yoki
+     filial_scope='all' -> hammasi. 'list' -> faqat filial_ids. Filiallar
+     v_filial_tanlov'dan keladi (obyektda `id` bor). Server guard yo'q —
+     filial faqat metadata, pul harakati emas. */
+  function filterFilials(list) {
+    var p = get();
+    if (p.is_admin || p.filial_scope !== 'list') return list || [];
+    var ids = p.filial_ids;
+    return (list || []).filter(function (f) { return ids.indexOf(f.id) >= 0; });
+  }
+
   // ---- xato matni ------------------------------------------------------
   /* Server guard xatosini odam o'qiydigan matnga aylantiradi. */
   function errText(e) {
@@ -192,6 +208,9 @@
   window.permFilterOp  = filterOp;
   window.permConvert   = function () { return get().can_convert; };
   window.permScope     = function () { return get().kassa_scope; };
+  window.permFilialScope = function () { return get().filial_scope; };
+  window.permFilialIds = function () { return get().filial_ids; };
+  window.permFilterFilials = filterFilials;
   window.permErr       = errText;
   window.permClear     = clear;
 

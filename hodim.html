@@ -493,16 +493,18 @@ window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI()
 // Filiallar accounts'dan EMAS (u permFilterOp bilan cheklangan) — alohida v_filial_tanlov'dan.
 function renderFilials(){
   const box=$('filialChips');
+  const restricted = window.permFilialScope && window.permFilialScope()==='list';
   box.innerHTML = filials.length
     ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
-    : '<div class="fchips-empty">Filiallar topilmadi</div>';
+    : `<div class="fchips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateDavrUI(); updateSave(); };
 async function loadFilials(){
   try{
     const {data,error}=await sb.from('v_filial_tanlov').select('*');  // id, code, name, subtitle
     if(error||!data) return;
-    filials=data;
+    // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
+    filials=window.permFilterFilials?window.permFilterFilials(data):data;
   }catch(e){}
 }
 
@@ -584,7 +586,9 @@ function updateIzohUI(){
 function updateDavrUI(){
   const req=davrRequired();
   if(!req){ $('davrSect').style.display='none'; davrS=null; davrE=null; $('davrReq').style.display='none'; icons(); return; }
-  const hasFilial=selFilials.size>0;
+  // Filial tanlangach kalendar chiqadi. Ammo foydalanuvchiga filial biriktirilmagan
+  // bo'lsa (ruxsat cheklovi) — kutish deadlock bo'lmasin: kalendar darrov ko'rinadi.
+  const hasFilial = selFilials.size>0 || filials.length===0;
   $('davrSect').style.display='block';
   $('davrWait').style.display = hasFilial ? 'none' : 'flex';
   $('davrPickWrap').style.display = hasFilial ? 'block' : 'none';
