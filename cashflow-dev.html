@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aros Provodka — Cashflow</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal-dev.html">
+<link rel="prefetch" href="professional-dev.html">
+<link rel="prefetch" href="kassa-dev.html">
+<link rel="prefetch" href="hisobot-dev.html">
+<link rel="prefetch" href="balans-dev.html">
+<link rel="prefetch" href="qarzdor-dev.html">
+<link rel="prefetch" href="filial-dev.html">
+<link rel="prefetch" href="valyuta-dev.html">
+<link rel="prefetch" href="konvert-dev.html">
+<link rel="prefetch" href="sozlama-dev.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
+<style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
+  .num,.flow .v,.sect .sv,.brow .a,.bfoot .v,.chk .v{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  #app{display:none}.sidebar{display:none}
+  .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
+  .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
+  .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:4px;align-items:center}
+  .filters{padding:16px 18px}
+  .frow{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:700px){.frow{grid-template-columns:auto auto 1fr;align-items:end}}
+  .frow label{font-size:12.5px;color:var(--muted);display:block;margin:0 0 6px 2px;font-weight:500}
+  .frow input[type=date],.frow select{width:100%;height:42px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14.5px;font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
+  .frow select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:32px}
+  .frow input[type=date]:focus,.frow select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .quick{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+  .quick button{height:34px;padding:0 13px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
+  .quick button:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .quick button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+  .flow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .flow .it{flex:1;min-width:130px}
+  .flow .it .k{font-size:12.5px;color:var(--muted);font-weight:500}
+  .flow .it .v{font-size:26px;font-weight:800;letter-spacing:-.025em;margin-top:3px}
+  .flow .it .v.pos{color:var(--green)}.flow .it .v.neg{color:var(--red)}
+  .flow .ar{color:var(--muted);display:flex;align-items:center}.flow .ar svg{width:20px;height:20px}
+  .grid2{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:900px){.grid2{grid-template-columns:1fr 1fr;align-items:start}}
+  .bcol-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .bcol-h .t{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .bcol-h .t svg{width:15px;height:15px}
+  .bcol-h .v{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .bcol-h .v.in{color:var(--green)}.bcol-h .v.out{color:var(--red)}
+  .sect{margin-bottom:15px}
+  .sect .sh{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .sect .sh .sv{color:var(--ink);font-weight:700}
+  .brow{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:5px 0 5px 11px;border-left:2px solid var(--line)}
+  .brow .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .brow .code{color:var(--muted);font-size:12px;margin-right:6px}
+  .brow .a{font-weight:600;white-space:nowrap}
+  .bfoot{display:flex;justify-content:space-between;gap:10px;border-top:2px solid var(--line);padding-top:13px;margin-top:6px;font-size:15px;font-weight:800}
+  .chk{display:flex;align-items:center;gap:10px;border-radius:12px;padding:13px 15px;font-size:13.5px;font-weight:500;flex-wrap:wrap}
+  .chk svg{width:17px;height:17px;flex:0 0 auto}
+  .chk .v{font-weight:700}
+  .chk.ok{background:var(--green-soft);color:var(--green)}
+  .chk.no{background:var(--red-soft);color:var(--red)}
+  .empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}
+  .note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.55}
+  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
+  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
+  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
+  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
+  .bnav a svg{width:18px;height:18px}.bnav a.active{color:var(--primary)}
+  /* more-sheet */
+  .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .mmodal.open{display:flex}
+  .msheet{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+  .msheet h3{margin:0 0 14px;font-size:17px;font-weight:800}
+  .msheet a{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;cursor:pointer;transition:background .13s}
+  .msheet a svg{width:19px;height:19px;color:var(--muted)}
+  .msheet a:hover{background:var(--surface-2)}
+  .msheet a.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .msheet a.active svg{color:var(--primary)}
+  .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
+  .msheet .close:hover{background:var(--line)}
+  /* /more-sheet */
+</style>
+</head>
+<body>
+<div id="gate" class="gate"><div class="authbox">
+  <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
+  <input id="email" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+</div></div>
+
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <nav class="side-nav">
+      <a class="nav-item" href="jurnal-dev.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
+      <a class="nav-item" href="professional-dev.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa-dev.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
+      <a class="nav-item" href="hisobot-dev.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans-dev.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item active" href="cashflow-dev.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
+      <a class="nav-item" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+    </nav>
+    <div class="side-foot">
+      <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
+      <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <h1>Cashflow</h1>
+      <div class="head-actions mobile-only">
+        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+      </div>
+    </div>
+    <div id="banner" class="banner"></div>
+
+    <div class="card filters">
+      <div class="frow">
+        <div><label for="dan">Dan</label><input type="date" id="dan"></div>
+        <div><label for="gacha">Gacha</label><input type="date" id="gacha"></div>
+        <div><label for="kassa">Kassa</label><select id="kassa"></select></div>
+      </div>
+      <div class="quick">
+        <button data-r="bugun" onclick="setRange('bugun')">Bugun</button>
+        <button data-r="hafta" onclick="setRange('hafta')">Shu hafta</button>
+        <button data-r="oy" onclick="setRange('oy')">Shu oy</button>
+        <button data-r="otgan" onclick="setRange('otgan')">O'tgan oy</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flow">
+        <div class="it"><div class="k">Davr boshi</div><div class="v" id="boshi">0</div></div>
+        <div class="ar"><i data-lucide="arrow-right"></i></div>
+        <div class="it"><div class="k">O'zgarish</div><div class="v" id="ozgarish">0</div></div>
+        <div class="ar"><i data-lucide="arrow-right"></i></div>
+        <div class="it"><div class="k">Davr oxiri</div><div class="v" id="oxiri">0</div></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="bcol-h"><span class="t"><i data-lucide="arrow-down-left"></i>Kirim</span><span class="v in" id="hKirim">0</span></div>
+        <div id="colKirim"></div>
+        <div class="bfoot"><span>Jami kirim</span><span class="v" id="fKirim">0</span></div>
+      </div>
+      <div class="card">
+        <div class="bcol-h"><span class="t"><i data-lucide="arrow-up-right"></i>Chiqim</span><span class="v out" id="hChiqim">0</span></div>
+        <div id="colChiqim"></div>
+        <div class="bfoot"><span>Jami chiqim</span><span class="v" id="fChiqim">0</span></div>
+      </div>
+    </div>
+
+    <div class="chk ok" id="chk"><i data-lucide="check"></i><span id="chkTxt">—</span></div>
+    <div class="note" id="note"></div>
+  </main>
+
+  <nav class="bnav mobile-only">
+    <a href="jurnal-dev.html"><i data-lucide="scroll-text"></i>Jurnal</a>
+    <a href="hisobot-dev.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans-dev.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow-dev.html" class="active"><i data-lucide="waves"></i>Cashflow</a>
+    <a href="qarzdor-dev.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="filial-dev.html"><i data-lucide="store"></i>Filial</a>
+    <a onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
+  </nav>
+
+  <!-- more-sheet -->
+  <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
+    <div class="msheet">
+      <h3>Ko'proq</h3>
+      <a href="professional-dev.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa-dev.html"><i data-lucide="wallet"></i>Kassa</a>
+      <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <button class="close" onclick="closeMore()">Yopish</button>
+    </div>
+  </div>
+  <!-- /more-sheet -->
+</div>
+
+<script type="module">
+const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
+const PAGE=location.pathname.split('/').pop()||'index';
+const swrKey=n=>`prov-swr:${PAGE}:${n}`;
+function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
+  const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
+function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
+const $=id=>document.getElementById(id);
+const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
+const SEC_LBL={pul:"Pul mablag'lari",tushum:'Tushum',tannarx:'Tannarx',operatsion:'Operatsion',soliq:'Soliq',debitor:'Debitorlar',kreditor:'Kreditorlar',qarz:'Qarzlar',kapital:'Kapital',boshqa:'Boshqa'};
+const secLbl=s=>SEC_LBL[s]||(s?String(s).replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()):'Boshqa');
+
+function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
+window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+// more-sheet
+window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
+window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// /more-sheet
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
+let appShown=false;
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()) return;
+  await window.permLoad(sb);
+  if(!window.permGate()) return;
+  init(); }
+// Auth gate — localStorage'da token bo'lsa DARROV app'ni ko'rsat, sessiyani fonda tekshir (miltillamaydi)
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
+
+// UZB (UTC+5) — UTC maydonlari o'zbek kalendar sanasini beradi
+const nowUz=()=>new Date(Date.now()+5*3600*1000);
+const iso=d=>d.toISOString().slice(0,10);
+const addDays=(d,n)=>{ const t=new Date(d); t.setUTCDate(t.getUTCDate()+n); return t; };
+// davr boshi = p_from dan bir kun oldingi qoldiq
+function prevDay(d){ return iso(addDays(new Date(d+'T00:00:00Z'),-1)); }
+
+window.setRange=r=>{
+  const n=nowUz(); let a,b;
+  if(r==='bugun'){ a=n; b=n; }
+  else if(r==='hafta'){ a=addDays(n,-((n.getUTCDay()+6)%7)); b=n; }           // dushanbadan bugungacha
+  else if(r==='oy'){ a=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)); b=n; }
+  else if(r==='otgan'){ a=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()-1,1));
+                        b=new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),0)); }
+  else return;
+  $('dan').value=iso(a); $('gacha').value=iso(b);
+  markQuick(r); load();
+};
+function markQuick(r){ document.querySelectorAll('.quick button').forEach(b=>b.className=b.dataset.r===r?'on':''); }
+// Sana qo'lda o'zgarsa tez-tanlash belgisi olib tashlanadi
+function whichRange(){
+  const n=nowUz(), a=$('dan').value, b=$('gacha').value;
+  if(a===iso(n)&&b===iso(n)) return 'bugun';
+  if(a===iso(addDays(n,-((n.getUTCDay()+6)%7)))&&b===iso(n)) return 'hafta';
+  if(a===iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)))&&b===iso(n)) return 'oy';
+  if(a===iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()-1,1)))&&b===iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),0)))) return 'otgan';
+  return '';
+}
+async function fillKassalar(){
+  const {data,error}=await sb.from('v_pul_hisoblar').select('*').order('code');
+  if(error){ $('banner').style.display='block'; $('banner').textContent='Kassalar: '+error.message; return; }
+  // 'xarajat_guruh' (5400) — konteyner, tanlanmaydi. View bu ustunni bermasa filtr shunchaki o'tkazib yuboradi.
+  // Ruxsat: ko'rishga ruxsat etilmagan kassa filtrda chiqmaydi (view_kassa_ids)
+  const list=window.permFilterView((data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh'));
+  // Hodim kassasining nomi = ism — "Filial · Lavozim" subtitle yonida turadi
+  const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}${r.subtitle?' · '+r.subtitle:''}</option>`;
+  const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';
+  const xarajat=list.filter(r=>r.kassa_turi==='xarajat');
+  const xId=new Set(xarajat.map(r=>r.id));
+  $('kassa').innerHTML='<option value="">Hamma kassalar</option>'
+    +grp('Markaziy kassalar',list.filter(r=>!r.is_filial&&!xId.has(r.id)))
+    +grp('Filial kassalari',list.filter(r=>r.is_filial&&!xId.has(r.id)))
+    +grp('Xarajat kassalar',xarajat);
+}
+function group(rows,yonalish){
+  const bySec={};
+  rows.filter(r=>r.yonalish===yonalish).forEach(r=>{ const s=r.section||''; (bySec[s]||(bySec[s]=[])).push(r); });
+  return Object.keys(bySec).map(s=>({section:s,rows:bySec[s],sum:bySec[s].reduce((a,r)=>a+(Number(r.amount)||0),0)}))
+    .sort((a,b)=>b.sum-a.sum);
+}
+function renderCol(elId,groups){
+  if(!groups.length){ $(elId).innerHTML='<div class="empty">Bu davrda harakat yo\'q</div>'; return 0; }
+  $(elId).innerHTML=groups.map(g=>`<div class="sect">
+    <div class="sh"><span>${secLbl(g.section)}</span><span class="sv">${money(g.sum)}</span></div>
+    ${g.rows.map(r=>`<div class="brow">
+      <span class="n"><span class="code">${r.code||''}</span>${r.name||''}</span>
+      <span class="a">${money(Number(r.amount)||0)}</span></div>`).join('')}
+  </div>`).join('');
+  return groups.reduce((a,g)=>a+g.sum,0);
+}
+// Yig'ilgan natijani chizadi (keshdan ham, yangi so'rovdan ham bir xil yo'l bilan)
+function renderCF(rows,boshi,oxiri,acc){
+  const kirim=renderCol('colKirim',group(rows,'KIRIM'));
+  const chiqim=renderCol('colChiqim',group(rows,'CHIQIM'));
+  $('hKirim').textContent='+'+money(kirim); $('fKirim').textContent=money(kirim);
+  $('hChiqim').textContent='−'+money(chiqim); $('fChiqim').textContent=money(chiqim);
+  const ozgarish=kirim-chiqim;
+  $('boshi').textContent=money(boshi); $('oxiri').textContent=money(oxiri);
+  const oz=$('ozgarish'); oz.textContent=(ozgarish>0?'+':'')+money(ozgarish);
+  oz.className='v '+(ozgarish>0?'pos':(ozgarish<0?'neg':''));
+  const farq=Math.round(oxiri-boshi)-Math.round(ozgarish); const ok=farq===0;
+  $('chk').className='chk '+(ok?'ok':'no');
+  $('chk').querySelector('[data-lucide]').setAttribute('data-lucide',ok?'check':'triangle-alert');
+  $('chkTxt').innerHTML=ok
+    ? `Tekshiruv to'g'ri: ${money(oxiri)} − ${money(boshi)} = <span class="v">${money(ozgarish)}</span>`
+    : `Mos kelmadi — qoldiqlar farqi <span class="v">${money(oxiri-boshi)}</span>, kirim−chiqim <span class="v">${money(ozgarish)}</span> (farq ${money(farq)})`;
+  setNote(acc);
+  icons();
+}
+async function load(){
+  const d1=$('dan').value, d2=$('gacha').value;
+  $('banner').style.display='none';
+  if(!d1||!d2) return;
+  if(d1>d2){ $('banner').style.display='block'; $('banner').textContent="\"Dan\" sanasi \"Gacha\"dan keyin bo'lmasin"; return; }
+  const d0=prevDay(d1);
+  markQuick(whichRange());
+  // null = hamma kassalar. Uchala chaqiruvga ham bir xil uzatiladi.
+  const acc=$('kassa').value||null;
+  // stale-while-revalidate: butun davr natijasini bitta kalitga keshlab, darrov ko'rsatamiz
+  const ck='cf:'+JSON.stringify({d1,d2,acc});
+  const cached=swrGet(ck);
+  if(cached){ renderCF(cached.rows||[],cached.boshi||0,cached.oxiri||0,acc); }
+  else { $('colKirim').innerHTML='<div class="empty">Yuklanmoqda…</div>'; $('colChiqim').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
+  const [flow,bQ,oQ]=await Promise.all([
+    sb.rpc('cashflow',{p_from:d1,p_to:d2,p_account:acc}),
+    sb.rpc('pul_qoldiq',{p_date:d0,p_account:acc}),
+    sb.rpc('pul_qoldiq',{p_date:d2,p_account:acc})
+  ]);
+  const err=flow.error||bQ.error||oQ.error;
+  if(err){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+err.message; } return; }
+  const rows=flow.data||[];
+  const boshi=Number(bQ.data)||0, oxiri=Number(oQ.data)||0;
+  swrSet(ck,{rows,boshi,oxiri});
+  renderCF(rows,boshi,oxiri,acc);
+}
+// Izoh tanlangan kassaga qarab o'zgaradi — transfer semantikasi ikki holatda boshqacha.
+function setNote(acc){
+  const base="Davr boshi = \"Dan\" sanasidan bir kun oldingi pul qoldig'i. Tekshiruv: davr oxiri − davr boshi = kirim − chiqim.";
+  const nomi=acc?($('kassa').selectedOptions[0]?.textContent||'tanlangan kassa'):'';
+  $('note').textContent = acc
+    ? `${nomi} bo'yicha. Bu kassadan markaziy kassaga jo'natilgan pul CHIQIM bo'lib ko'rinadi — bu to'g'ri, xato emas: pul shu kassadan chiqqan. Kompaniya bo'yicha umumiy holatni ko'rish uchun "Hamma kassalar"ni tanlang. ${base}`
+    : `Hamma kassalar bo'yicha. Kassalar orasidagi transfer bu yerga kirmaydi (ichki harakat, net=0 — pul kompaniyadan chiqmagan). ${base}`;
+}
+async function init(){
+  // sinxron sozlash birinchi
+  $('kassa').onchange=load; $('dan').onchange=load; $('gacha').onchange=load;
+  await fillKassalar();   // kassa dropdowniga qat'iy bog'liq — setRange'dan oldin
+  setRange('oy');   // default: joriy oyning 1-sanasi → bugun
+}
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
+</script>
+</body>
+</html>
