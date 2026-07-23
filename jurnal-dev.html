@@ -89,6 +89,21 @@
   .je .ftag{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
   .je .ftag .tg{display:inline-flex;align-items:center;gap:4px;background:var(--primary-soft);color:var(--primary);border-radius:7px;padding:2px 8px;font-size:11px;font-weight:600}
   .je .ftag .tg svg{width:12px;height:12px}
+  .je .ftag .tg.tgc{cursor:pointer}
+  /* Yuk ma'lumoti modali */
+  .yimodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:220}
+  .yimodal.open{display:flex}
+  .yibox{background:var(--surface);width:100%;max-width:440px;max-height:82vh;overflow:auto;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
+  .yibox h3{margin:0 0 14px;font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .yibox h3 svg{width:19px;height:19px;color:var(--primary)}
+  .yirow{padding:11px 0;border-bottom:1px solid var(--line)}
+  .yirow:last-child{border-bottom:none}
+  .yirow .yl1{font-size:14.5px;font-weight:600}
+  .yirow .yl1 .yiprice{float:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .yirow .yl2{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .yiempty{padding:20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
+  .yiclose{width:100%;height:46px;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .ylink{border:none;background:transparent;color:var(--primary);font-weight:700;cursor:pointer;font-family:inherit}
   /* chek belgisi + modal */
   .je .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
@@ -181,6 +196,7 @@
       <a class="nav-item" href="cashflow-dev.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar-dev.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
@@ -269,6 +285,7 @@
       <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="yuklar-dev.html"><i data-lucide="package"></i>Yuklar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -297,6 +314,14 @@
     <label>Sana</label><input class="txt" id="eSana" type="date">
     <div class="mrow"><button onclick="closeEdit()">Bekor</button><button class="primary" onclick="saveEdit()">Saqlash</button></div>
   </div></div>
+</div>
+
+<div class="yimodal" id="yukInfoModal" onclick="if(event.target===this)closeYukInfo()">
+  <div class="yibox">
+    <h3><i data-lucide="package"></i>Yuk ma'lumoti</h3>
+    <div id="yukInfoBody"></div>
+    <button class="yiclose" onclick="closeYukInfo()">Yopish</button>
+  </div>
 </div>
 
 <script type="module">
@@ -508,7 +533,7 @@ async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
   if(!ids.length){ metaMap={}; return; }
   try{
-    const {data,error}=await sb.from('entry').select('id,filial_ids,davr_start,davr_end').in('id',ids);
+    const {data,error}=await sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids').in('id',ids);
     if(error||!data) return;
     const m={}; data.forEach(r=>{ m[r.id]=r; }); metaMap=m; render();
   }catch(e){}
@@ -523,8 +548,43 @@ function metaTags(e){
     const d=(meta.davr_start&&meta.davr_end)?`${fmtDate(meta.davr_start)}–${fmtDate(meta.davr_end)}`:fmtDate(meta.davr_start||meta.davr_end);
     tags.push(`<span class="tg"><i data-lucide="calendar"></i>${esc(d)}</span>`);
   }
+  const yids=(meta.yuk_ids||[]).filter(x=>x!=null);   // 📦 yuk teglari (bosilsa qisqa ma'lumot)
+  if(yids.length) tags.push(`<span class="tg tgc" onclick="showYuk('${yids.join(',')}')"><i data-lucide="package"></i>${yids.map(i=>'#'+i).join(', ')}</span>`);
   return tags.length?`<div class="ftag">${tags.join('')}</div>`:'';
 }
+
+// --- Yuk ma'lumoti (📦 teg bosilganda): n8n'dan keng oraliq keshi, id bo'yicha moslash ---
+let yukCache=null;   // {id: yuk} yoki null (ulanmagan → keyingi ochilishda qayta urinadi)
+async function ensureYukCache(){
+  if(yukCache) return yukCache;
+  const t=new Date(Date.now()+5*3600*1000), from=new Date(t.getTime()-180*86400000);
+  const iso=d=>d.toISOString().slice(0,10);
+  try{
+    const res=await fetch('https://n8n.arosmarket.com/webhook/aros-provodka-yuklar?date_from='+iso(from)+'&date_to='+iso(t),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(j&&Array.isArray(j.yuklar)){ const m={}; j.yuklar.forEach(y=>{ m[y.id]=y; }); yukCache=m; }
+    else yukCache={};
+  }catch(e){ yukCache=null; }
+  return yukCache;
+}
+window.closeYukInfo=()=>{ $('yukInfoModal').classList.remove('open'); };
+window.retryYuk=idsStr=>{ yukCache=null; showYuk(idsStr); };
+window.showYuk=async idsStr=>{
+  const ids=String(idsStr).split(',').map(s=>Number(s)).filter(Number.isFinite);
+  $('yukInfoBody').innerHTML='<div class="yiempty">Yuklanmoqda…</div>';
+  $('yukInfoModal').classList.add('open');
+  const cache=await ensureYukCache();
+  if(!cache){ $('yukInfoBody').innerHTML='<div class="yiempty">Yuklar maʼlumoti ulanmadi.<br><button class="ylink" onclick="retryYuk(\''+esc(idsStr)+'\')">Qaytadan urinish</button></div>'; icons(); return; }
+  const priceF=(n,cur)=>{ const v=Number(n),c=cur?(' '+esc(cur)):''; return isFinite(v)?v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+c:esc(String(n||'—'))+c; };
+  $('yukInfoBody').innerHTML=ids.map(id=>{
+    const y=cache[id];
+    if(!y) return '<div class="yirow"><div class="yl1">#'+id+'</div><div class="yl2">Maʼlumot topilmadi (oraliqdan tashqari yoki eski yuk)</div></div>';
+    return '<div class="yirow"><div class="yl1">#'+esc(y.id)+' · '+esc(y.ombor||'—')+'<span class="yiprice">'+priceF(y.narx,y.valyuta)+'</span></div>'
+      +'<div class="yl2">'+esc(y.yetkazuvchi||'—')+' · '+esc(y.status||'')+'</div></div>';
+  }).join('');
+  icons();
+};
 
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
