@@ -1,0 +1,675 @@
+-- =====================================================================
+-- PROVODKA V7 — 6 ta ish uchun SQL (bosqichlar izoh bilan ajratilgan)
+-- ---------------------------------------------------------------------
+-- Tartib (brief): 3 (bug) → 1 (yo'ldagi tovar) → 5 (kommunal) →
+--                 2 (filial taqsimoti) → 6 (jurnal — SQLsiz) → 4 (limitlar).
+--
+-- QOIDA (bitta DB, prod ishlab turibdi): SQL ADDITIVE.
+--   * add column if not exists / create table if not exists
+--   * yangi funksiya/view yoki `create or replace` ESKI IMZONI SAQLAB
+--   * ustun/funksiya O'CHIRISH yoki imzo (argument/tur) O'ZGARTIRISH — TAQIQ
+--   * yangi RPC: SECURITY DEFINER + set search_path=public + REVOKE public,anon
+--
+-- Asilbek qo'lda RUN qiladi. Har bosqichni alohida ham ishga tushirsa bo'ladi.
+-- =====================================================================
+
+
+-- #####################################################################
+-- ##  3-BOSQICH — BUG: hodim_oz_tarix(p_from, p_to) topilmadi         ##
+-- #####################################################################
+-- Frontend (hodim-dev.html) chaqiruvi:
+--     sb.rpc('hodim_oz_tarix', {p_from, p_to})
+-- Xato:
+--     Could not find the function public.hodim_oz_tarix(p_from, p_to)
+--     in the schema cache
+-- Sabab: PROVODKA_HODIM_V5.sql DB'da RUN qilinmagan (funksiya yo'q).
+-- Frontend imzoga (p_from date, p_to date) TO'LIQ mos — o'zgartirish shart emas,
+-- faqat funksiyani yaratish kerak. Quyida diagnostika + funksiya (V5 nusxasi).
+--
+-- ---------------------------------------------------------------------
+-- 3.0 DIAGNOSTIKA — funksiya bor-yo'qligini aniqlash (avval shuni ishga tushiring)
+-- ---------------------------------------------------------------------
+--   select p.oid::regprocedure
+--     from pg_proc p
+--     join pg_namespace n on n.oid = p.pronamespace
+--    where n.nspname = 'public' and p.proname = 'hodim_oz_tarix';
+--
+--   * 0 qator qaytsa  → funksiya YO'Q → quyidagi create ishga tushiriladi.
+--   * hodim_oz_tarix(date, date) qaytsa → imzo TO'G'RI, frontend ham mos →
+--     odatda "schema cache" eskirgan: `notify pgrst, 'reload schema';` yoki
+--     Supabase → API → "Reload schema" bosiladi.
+--   * boshqa imzo qaytsa (masalan (text, text)) → quyidagi create baribir
+--     (date,date) variantini qo'shadi; frontend (date) yuboradi, mos keladi.
+-- ---------------------------------------------------------------------
+
+create or replace function hodim_oz_tarix(p_from date, p_to date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  p     user_perms;
+  v_ids uuid[];
+  v_kat jsonb;
+  v_roy jsonb;
+begin
+  -- caller kassalari
+  select * into p from user_perms where user_id = auth.uid();
+  if found and p.kassa_scope = 'list' then
+    -- op kassalari (perm key = hodim kassasining o'z id'si; valyuta bolasi bo'lmaydi)
+    select array_agg(a.id) into v_ids
+      from accounts a
+     where a.type = 'aktiv' and a.code like '5%'
+       and a.kassa_turi <> 'xarajat_guruh'
+       and perm_op_key(a.id) = any(p.op_kassa_ids);
+  else
+    -- cheklovsiz / admin: barcha hodim (xarajat) kassalari
+    select array_agg(a.id) into v_ids
+      from accounts a
+     where a.kassa_turi = 'xarajat';
+  end if;
+
+  if v_ids is null or array_length(v_ids, 1) is null then
+    return jsonb_build_object('kategoriya', '[]'::jsonb, 'royxat', '[]'::jsonb);
+  end if;
+
+  -- Kategoriya: shu kassalardan chiqqan (Kt=kassa) xarajat modda (Dt) bo'yicha jami
+  select coalesce(jsonb_agg(to_jsonb(x) order by x.jami desc), '[]'::jsonb) into v_kat
+  from (
+    select ma.code, ma.name, sum(dl.debit)::numeric as jami
+      from entry e
+      join entry_line kl on kl.entry_id = e.id and kl.credit > 0 and kl.account_id = any(v_ids)
+      join entry_line dl on dl.entry_id = e.id and dl.debit > 0
+      join accounts ma on ma.id = dl.account_id and ma.type = 'xarajat'
+     where e.status = 'posted' and e.is_deleted = false
+       and e.entry_date >= p_from and e.entry_date <= p_to
+     group by ma.code, ma.name
+    having sum(dl.debit) > 0
+  ) x;
+
+  -- Ro'yxat: har xarajat yozuvi (eng yangi 200 ta)
+  select coalesce(jsonb_agg(to_jsonb(r) order by r.created_at desc), '[]'::jsonb) into v_roy
+  from (
+    select e.id as entry_id, e.entry_date, e.created_at,
+           kl.account_id as kassa_id,
+           ma.code as modda_code, ma.name as modda_name,
+           dl.debit::numeric as summa,
+           e.description as izoh
+      from entry e
+      join entry_line kl on kl.entry_id = e.id and kl.credit > 0 and kl.account_id = any(v_ids)
+      join entry_line dl on dl.entry_id = e.id and dl.debit > 0
+      join accounts ma on ma.id = dl.account_id and ma.type = 'xarajat'
+     where e.status = 'posted' and e.is_deleted = false
+       and e.entry_date >= p_from and e.entry_date <= p_to
+     order by e.created_at desc
+     limit 200
+  ) r;
+
+  return jsonb_build_object('kategoriya', v_kat, 'royxat', v_roy);
+end $$;
+
+revoke all on function hodim_oz_tarix(date, date) from public, anon;
+grant execute on function hodim_oz_tarix(date, date) to authenticated;
+
+comment on function hodim_oz_tarix(date, date) is
+  'Hodim o''z xarajat tarixi (kategoriya + ro''yxat) — auth.uid() ning o''z kassalari bo''yicha.';
+
+-- PostgREST schema cache'ni yangilash (funksiya darrov ko'rinsin)
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if to_regprocedure('public.hodim_oz_tarix(date,date)') is null then
+    raise exception '3-BOSQICH: hodim_oz_tarix(date,date) yaratilmadi';
+  end if;
+  raise notice '3-BOSQICH OK: hodim_oz_tarix(date,date) tayyor.';
+end $$;
+
+
+-- #####################################################################
+-- ##  1-BOSQICH — "Tovar tannarxi (yo'ldagi)" (kod 9110-1)           ##
+-- #####################################################################
+-- Naqdga tovar olinganda hujjat (Aros product-income) keyin keladi.
+-- Shu holat: Dt 9110-1 (yo'ldagi) / Kt kassa, entry.yuk_kutilmoqda=true.
+-- Hujjat kelgach yuk_boglash() Dt hisobini 9110-1 -> 9110 ga almashtiradi.
+--
+-- Kod matn: accounts.code TEXT -- '9110-1' muammosiz. (Agar raqam bo'lganda:
+-- alternativa '9111' yoki 'section' bilan ajratish bo'lardi; lekin TEXT.)
+
+-- 1.1 entry.yuk_kutilmoqda ustuni + qisman indeks
+alter table entry add column if not exists yuk_kutilmoqda boolean not null default false;
+create index if not exists entry_yuk_kutil_idx on entry(yuk_kutilmoqda) where yuk_kutilmoqda;
+comment on column entry.yuk_kutilmoqda is
+  'Yo''ldagi tovar: hujjat (Aros yuk) hali kelmadi. yuk_boglash() bog''lagach false bo''ladi.';
+
+-- 1.2 9110-1 hisobi — idempotent, atributlar 9110'dan ko'chiriladi (type/section izchil)
+do $$
+declare v_type text; v_section text;
+begin
+  if not exists (select 1 from accounts where code = '9110-1') then
+    select type, section into v_type, v_section from accounts where code = '9110' limit 1;
+    insert into accounts (code, name, type, section, is_active)
+    values ('9110-1', 'Tovar tannarxi (yo''ldagi)',
+            coalesce(v_type, 'xarajat'), coalesce(v_section, 'operatsion'), true);
+    raise notice '1-BOSQICH: 9110-1 hisobi yaratildi.';
+  else
+    raise notice '1-BOSQICH: 9110-1 allaqachon bor — o''tkazildi.';
+  end if;
+end $$;
+
+-- 1.3 yuk_boglash(p_entry, p_yuk_id, p_summa) — yo'ldagi to'lovni Aros yukiga bog'lash
+-- ---------------------------------------------------------------------
+-- Server tekshiradi: entry bor + o'chirilmagan + yuk_kutilmoqda=true, 9110-1 satri
+-- bor, summa musbat va <= yozuv summasi. (Yukning qolgan qarzi UZS'da n8n/Aros
+-- narxidan hisoblanadi — narx DB'da yo'q; shuning uchun "qolgan qarz" cheklovi
+-- UI tomonda majburlanadi, bu yerda faqat yozuv summasi cheklovi.)
+-- entry_yuk ga qator; Dt 9110-1 -> 9110; yuk_kutilmoqda=false; yuk_ids ga qo'shiladi;
+-- tahrir izi (edited_at/by + entry_history).
+create or replace function yuk_boglash(p_entry uuid, p_yuk_id integer, p_summa numeric)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_deleted   boolean;
+  v_kutil     boolean;
+  v_entry_sum numeric;
+  v_9110      uuid;
+  v_9110_1    uuid;
+  v_line_id   uuid;
+  v_name      text;
+  v_snap      jsonb;
+begin
+  if p_yuk_id is null then raise exception 'Yuk tanlanmadi' using errcode = '22000'; end if;
+  if p_summa is null or p_summa <= 0 then
+    raise exception 'Summa musbat bo''lishi kerak' using errcode = '22000';
+  end if;
+
+  -- 1) entry holati
+  select is_deleted, coalesce(yuk_kutilmoqda, false)
+    into v_deleted, v_kutil
+    from entry where id = p_entry;
+  if not found then raise exception 'Yozuv topilmadi' using errcode = '22000'; end if;
+  if v_deleted then raise exception 'O''chirilgan yozuvni bog''lab bo''lmaydi' using errcode = '22000'; end if;
+  if not v_kutil then
+    raise exception 'Bu yozuv hujjat kutmayapti (allaqachon bog''langan yoki oddiy yozuv)'
+      using errcode = '22000';
+  end if;
+
+  select id into v_9110_1 from accounts where code = '9110-1' limit 1;
+  select id into v_9110   from accounts where code = '9110'   limit 1;
+  if v_9110 is null then
+    raise exception '9110 "Tovar tannarxi" hisobi topilmadi' using errcode = '22000';
+  end if;
+
+  -- yozuv summasi (Dt yig'indisi) va 9110-1 satri
+  select coalesce(sum(debit), 0) into v_entry_sum from entry_line where entry_id = p_entry;
+  if p_summa > v_entry_sum then
+    raise exception 'Summa yozuv summasidan oshib ketdi (max % so''m)', v_entry_sum
+      using errcode = '22000';
+  end if;
+
+  select id into v_line_id from entry_line
+   where entry_id = p_entry and account_id = v_9110_1 and debit > 0
+   limit 1;
+  if v_line_id is null then
+    raise exception 'Bu yozuvda "yo''ldagi tovar" (9110-1) satri yo''q' using errcode = '22000';
+  end if;
+
+  -- 2) tahrir izi uchun eski holat
+  select to_jsonb(e) into v_snap from entry e where e.id = p_entry;
+  select coalesce(full_name, '') into v_name from profiles where id = auth.uid();
+
+  -- 3) entry_yuk (bir yukka takror bog'lansa summa qo'shiladi)
+  insert into entry_yuk (entry_id, yuk_id, summa_uzs)
+  values (p_entry, p_yuk_id, p_summa)
+  on conflict (entry_id, yuk_id) do update
+    set summa_uzs = entry_yuk.summa_uzs + excluded.summa_uzs;
+
+  -- 4) Dt satrini 9110-1 -> 9110 (perm guard 9110 pul hisobi emas -> o'tadi)
+  update entry_line set account_id = v_9110 where id = v_line_id;
+
+  -- 5) yuk_kutilmoqda=false + yuk_ids ga qo'sh + tahrir izi
+  update entry
+     set yuk_kutilmoqda = false,
+         yuk_ids = case when p_yuk_id = any(coalesce(yuk_ids, '{}'))
+                        then yuk_ids else coalesce(yuk_ids, '{}') || p_yuk_id end,
+         edited_at = now(),
+         edited_by_name = v_name
+   where id = p_entry;
+
+  -- 6) entry_history (mavjud naqsh) — "Yukka bog'landi"
+  insert into entry_history (entry_id, action, snapshot, changed_by_name)
+  values (p_entry, 'edit',
+          jsonb_build_object('note', 'Yukka bog''landi: #' || p_yuk_id,
+                             'summa_uzs', p_summa, 'old', v_snap),
+          v_name);
+
+  return jsonb_build_object('ok', true, 'entry_id', p_entry,
+                            'yuk_id', p_yuk_id, 'summa', p_summa);
+end $$;
+
+revoke all on function yuk_boglash(uuid, integer, numeric) from public, anon;
+grant execute on function yuk_boglash(uuid, integer, numeric) to authenticated;
+
+comment on function yuk_boglash(uuid, integer, numeric) is
+  'Yo''ldagi to''lovni (9110-1, yuk_kutilmoqda) Aros yukiga bog''laydi: entry_yuk + Dt 9110-1->9110 + yuk_ids.';
+
+-- 1.4 yuk_kutayotgan() — bog'lanmagan (yo'ldagi) to'lovlar ro'yxati
+-- ---------------------------------------------------------------------
+-- yuklar-dev.html "Bog'lanmagan to'lovlar" tabi + jurnal wait tegi uchun.
+create or replace function yuk_kutayotgan()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(jsonb_agg(to_jsonb(r) order by r.created_at desc), '[]'::jsonb)
+  from (
+    select e.id as entry_id, e.entry_date, e.created_at, e.description as izoh,
+           (select coalesce(sum(el.debit), 0) from entry_line el where el.entry_id = e.id) as summa,
+           ka.id as kassa_id, ka.code as kassa_code, ka.name as kassa_name, ka.subtitle as kassa_subtitle,
+           coalesce(pr.full_name, '') as kim
+      from entry e
+      left join lateral (
+        select el.account_id from entry_line el
+          join accounts a on a.id = el.account_id
+         where el.entry_id = e.id and el.credit > 0 and a.section = 'pul'
+         limit 1
+      ) kl on true
+      left join accounts ka on ka.id = kl.account_id
+      left join profiles pr on pr.id = e.created_by
+     where e.yuk_kutilmoqda = true and e.is_deleted = false and e.status = 'posted'
+  ) r;
+$$;
+
+revoke all on function yuk_kutayotgan() from public, anon;
+grant execute on function yuk_kutayotgan() to authenticated;
+
+comment on function yuk_kutayotgan() is
+  'Bog''lanmagan (yo''ldagi) to''lovlar: yuk_kutilmoqda=true entrylar (sana/summa/kassa/izoh/kim).';
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='entry' and column_name='yuk_kutilmoqda') then
+    raise exception '1-BOSQICH: entry.yuk_kutilmoqda ustuni yo''q';
+  end if;
+  if not exists (select 1 from accounts where code = '9110-1') then
+    raise exception '1-BOSQICH: 9110-1 hisobi yo''q';
+  end if;
+  if to_regprocedure('public.yuk_boglash(uuid,integer,numeric)') is null then
+    raise exception '1-BOSQICH: yuk_boglash yaratilmadi';
+  end if;
+  if to_regprocedure('public.yuk_kutayotgan()') is null then
+    raise exception '1-BOSQICH: yuk_kutayotgan yaratilmadi';
+  end if;
+  raise notice '1-BOSQICH OK: yo''ldagi tovar (9110-1) DB tayyor.';
+end $$;
+
+
+-- #####################################################################
+-- ##  5-BOSQICH — Kommunal to'lov turi (gaz | svet | musor)          ##
+-- #####################################################################
+-- Xarajat moddasi "Kommunal" (9413) tanlanganda: entry.kommunal_turi
+-- ('gaz'|'svet'|'musor'). Jurnalda teg, hisobotda ichki bo'linish uchun.
+-- Ro'yxat kelajakda kengayishi mumkin — check ni yangilash yetarli (additive).
+
+alter table entry add column if not exists kommunal_turi text
+  check (kommunal_turi is null or kommunal_turi in ('gaz','svet','musor'));
+
+comment on column entry.kommunal_turi is
+  'Kommunal xarajat (9413) turi: gaz|svet|musor. NULL — kommunal emas.';
+
+-- 5.1 kommunal_hisobot(p_from, p_to) — kommunal (9413) turi bo'yicha jami
+-- ---------------------------------------------------------------------
+-- hisobotda "Kommunal -> Gaz/Svet/Musor" ichki bo'linishi uchun (ixtiyoriy UI).
+create or replace function kommunal_hisobot(p_from date, p_to date)
+returns table(kommunal_turi text, jami numeric, soni integer)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(e.kommunal_turi, 'boshqa') as kommunal_turi,
+         sum(dl.debit)::numeric as jami,
+         count(distinct e.id)::int as soni
+    from entry e
+    join entry_line dl on dl.entry_id = e.id and dl.debit > 0
+    join accounts a on a.id = dl.account_id and a.code = '9413'
+   where e.status = 'posted' and e.is_deleted = false
+     and e.entry_date >= p_from and e.entry_date <= p_to
+   group by coalesce(e.kommunal_turi, 'boshqa')
+   order by sum(dl.debit) desc;
+$$;
+
+revoke all on function kommunal_hisobot(date, date) from public, anon;
+grant execute on function kommunal_hisobot(date, date) to authenticated;
+
+comment on function kommunal_hisobot(date, date) is
+  'Kommunal (9413) xarajatlari turi (gaz/svet/musor) bo''yicha davr jami.';
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='entry' and column_name='kommunal_turi') then
+    raise exception '5-BOSQICH: entry.kommunal_turi ustuni yo''q';
+  end if;
+  raise notice '5-BOSQICH OK: kommunal_turi tayyor.';
+end $$;
+
+
+-- #####################################################################
+-- ##  2-BOSQICH — Filial bo'yicha ALOHIDA provodka (atomik taqsim)   ##
+-- #####################################################################
+-- Bir necha filial tanlansa: har filial uchun ALOHIDA entry (o'z summasi,
+-- filial_ids=[bitta filial], bir xil modda/kassa/sana/izoh). Hammasi bitta
+-- tranzaksiyada — biri yiqilsa hammasi bekor (RPC ichida atomik).
+-- Bitta yoki 0 filialda bu RPC ishlatilmaydi (klient hozirgidek bitta entry yozadi).
+--
+-- p_data (jsonb):
+--   entry_date, description, source, status,
+--   davr_start, davr_end, kommunal_turi        -- ixtiyoriy metadata
+--   dt_account, kt_account                      -- Dt/Kt hisob id (yo'nalish klientda hal qilingan)
+--   kassa_account, kassa_currency               -- fc_amount uchun (valyuta kassasi bo'lsa)
+--   taqsim: [ {filial_id, summa}, ... ]         -- har filialga summa
+--
+-- entry_line 2 satrini BITTA insert bilan yozadi (balans trigger client bilan
+-- bir xil ishlashi uchun). perm guard trigger har satrga baribir ishlaydi.
+create or replace function xarajat_saqlash_taqsim(p_data jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  it       jsonb;
+  v_entry  uuid;
+  v_ids    uuid[] := '{}';
+  v_dt     uuid := nullif(p_data->>'dt_account','')::uuid;
+  v_kt     uuid := nullif(p_data->>'kt_account','')::uuid;
+  v_kassa  uuid := nullif(p_data->>'kassa_account','')::uuid;
+  v_cur    text := nullif(p_data->>'kassa_currency','');
+  v_summa  numeric;
+  v_filial uuid;
+  v_fc_dt  numeric;
+  v_fc_kt  numeric;
+begin
+  if v_dt is null or v_kt is null then
+    raise exception 'dt/kt hisob berilmadi' using errcode = '22000';
+  end if;
+  if p_data->'taqsim' is null or jsonb_typeof(p_data->'taqsim') <> 'array'
+     or jsonb_array_length(p_data->'taqsim') = 0 then
+    raise exception 'Taqsimot bo''sh' using errcode = '22000';
+  end if;
+
+  for it in select * from jsonb_array_elements(p_data->'taqsim') loop
+    v_summa  := (it->>'summa')::numeric;
+    v_filial := nullif(it->>'filial_id','')::uuid;
+    if v_summa is null or v_summa <= 0 then
+      raise exception 'Har filial summasi musbat bo''lishi kerak' using errcode = '22000';
+    end if;
+
+    insert into entry (entry_date, description, source, status, filial_ids,
+                       davr_start, davr_end, kommunal_turi)
+    values (
+      nullif(p_data->>'entry_date','')::date,
+      nullif(p_data->>'description',''),
+      coalesce(nullif(p_data->>'source',''), 'manual'),
+      coalesce(nullif(p_data->>'status',''), 'posted'),
+      case when v_filial is null then '{}'::uuid[] else array[v_filial] end,
+      nullif(p_data->>'davr_start','')::date,
+      nullif(p_data->>'davr_end','')::date,
+      nullif(p_data->>'kommunal_turi','')
+    )
+    returning id into v_entry;
+
+    -- fc_amount faqat valyuta kassasi satriga (client bilan bir xil mantiq)
+    v_fc_dt := case when v_cur is not null and v_cur <> 'UZS' and v_kassa = v_dt then v_summa else null end;
+    v_fc_kt := case when v_cur is not null and v_cur <> 'UZS' and v_kassa = v_kt then v_summa else null end;
+
+    insert into entry_line (entry_id, account_id, debit, credit, fc_amount)
+    values (v_entry, v_dt, v_summa, 0, v_fc_dt),
+           (v_entry, v_kt, 0, v_summa, v_fc_kt);
+
+    v_ids := v_ids || v_entry;
+  end loop;
+
+  return jsonb_build_object('ok', true,
+                            'count', coalesce(array_length(v_ids, 1), 0),
+                            'entry_ids', to_jsonb(v_ids));
+end $$;
+
+revoke all on function xarajat_saqlash_taqsim(jsonb) from public, anon;
+grant execute on function xarajat_saqlash_taqsim(jsonb) to authenticated;
+
+comment on function xarajat_saqlash_taqsim(jsonb) is
+  'Filial bo''yicha alohida provodka: har filialga bitta entry (atomik). perm guard har satrga ishlaydi.';
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if to_regprocedure('public.xarajat_saqlash_taqsim(jsonb)') is null then
+    raise exception '2-BOSQICH: xarajat_saqlash_taqsim yaratilmadi';
+  end if;
+  raise notice '2-BOSQICH OK: xarajat_saqlash_taqsim tayyor.';
+end $$;
+
+
+-- #####################################################################
+-- ##  4-BOSQICH — Standart xarajatlar (oylik limit tizimi)           ##
+-- #####################################################################
+-- Har filial + har xarajat modda uchun OYLIK limit. Limitdan oshiq yozib
+-- bo'lmaydi (UI + server guard). Limit yo'q bo'lsa cheklov yo'q (hozirgidek).
+-- filial_id = accounts(id) (filial kassa hisobi — entry.filial_ids qiymati bilan bir xil).
+-- Davr: oylik (har oy boshida sarflangan 0 dan boshlanadi — entry_date oyi bo'yicha).
+
+create table if not exists standart_xarajat (
+  id         uuid primary key default gen_random_uuid(),
+  filial_id  uuid not null references accounts(id),
+  modda_id   uuid not null references accounts(id),
+  limit_uzs  numeric not null check (limit_uzs > 0),
+  created_at timestamptz not null default now(),
+  updated_by text,
+  unique (filial_id, modda_id)
+);
+
+comment on table standart_xarajat is
+  'Filial + xarajat modda uchun oylik limit. Limitdan oshiq yozib bo''lmaydi (UI + trigger).';
+
+-- RLS: authenticated o'qiydi (sahifa + UI nazorati); yozish faqat RPC (definer) orqali.
+alter table standart_xarajat enable row level security;
+drop policy if exists std_sel on standart_xarajat;
+create policy std_sel on standart_xarajat for select to authenticated using (true);
+revoke all on standart_xarajat from public, anon;
+grant select on standart_xarajat to authenticated;
+
+-- 4.1 standart_holat(p_oy) — har limit uchun sarflangan/qoldi (berilgan oy)
+create or replace function standart_holat(p_oy date)
+returns table(
+  id uuid, filial_id uuid, filial_code text, filial_name text,
+  modda_id uuid, modda_code text, modda_name text,
+  limit_uzs numeric, sarflandi numeric, qoldi numeric
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with oy as (
+    select date_trunc('month', p_oy)::date as f,
+           (date_trunc('month', p_oy) + interval '1 month - 1 day')::date as t
+  )
+  select s.id, s.filial_id, fa.code, fa.name,
+         s.modda_id, ma.code, ma.name,
+         s.limit_uzs,
+         coalesce(sp.sarflandi, 0)                 as sarflandi,
+         s.limit_uzs - coalesce(sp.sarflandi, 0)   as qoldi
+    from standart_xarajat s
+    join accounts fa on fa.id = s.filial_id
+    join accounts ma on ma.id = s.modda_id
+    cross join oy
+    left join lateral (
+      select sum(el.debit) as sarflandi
+        from entry e
+        join entry_line el on el.entry_id = e.id and el.account_id = s.modda_id and el.debit > 0
+       where e.status = 'posted' and e.is_deleted = false
+         and e.entry_date >= oy.f and e.entry_date <= oy.t
+         and s.filial_id = any(e.filial_ids)
+    ) sp on true
+   order by fa.name, ma.name;
+$$;
+
+revoke all on function standart_holat(date) from public, anon;
+grant execute on function standart_holat(date) to authenticated;
+
+comment on function standart_holat(date) is
+  'Har limit uchun berilgan oyda sarflangan + qoldi (entry_date oyi, posted, o''chirilmagan).';
+
+-- 4.2 standart_limit_set / standart_limit_delete — ADMIN only (upsert / delete)
+create or replace function standart_limit_set(p_filial uuid, p_modda uuid, p_limit numeric)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_id uuid; v_by text;
+begin
+  if not is_admin() then raise exception 'Faqat admin limit qo''ya oladi' using errcode = '42501'; end if;
+  if p_filial is null or p_modda is null then raise exception 'Filial/modda tanlanmadi' using errcode = '22000'; end if;
+  if p_limit is null or p_limit <= 0 then raise exception 'Limit musbat bo''lishi kerak' using errcode = '22000'; end if;
+  select coalesce(full_name, '') into v_by from profiles where id = auth.uid();
+  insert into standart_xarajat (filial_id, modda_id, limit_uzs, updated_by)
+  values (p_filial, p_modda, p_limit, v_by)
+  on conflict (filial_id, modda_id) do update
+    set limit_uzs = excluded.limit_uzs, updated_by = excluded.updated_by
+  returning id into v_id;
+  return v_id;
+end $$;
+
+revoke all on function standart_limit_set(uuid, uuid, numeric) from public, anon;
+grant execute on function standart_limit_set(uuid, uuid, numeric) to authenticated;
+
+create or replace function standart_limit_delete(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_admin() then raise exception 'Faqat admin o''chira oladi' using errcode = '42501'; end if;
+  delete from standart_xarajat where id = p_id;
+end $$;
+
+revoke all on function standart_limit_delete(uuid) from public, anon;
+grant execute on function standart_limit_delete(uuid) to authenticated;
+
+comment on function standart_limit_set(uuid, uuid, numeric) is 'Limit qo''yish/yangilash (admin).';
+comment on function standart_limit_delete(uuid) is 'Limitni o''chirish (admin).';
+
+-- 4.3 SERVER GUARD — entry_line ustidagi AFTER trigger: oylik limitni tekshiradi
+-- ---------------------------------------------------------------------
+-- Xarajat satri (debit>0) yozilganda: entry.filial_ids dagi har filial uchun
+-- (filial, modda) limiti bo'lsa va shu oyda jami (yangi satr bilan) limitdan
+-- oshsa — YOZUV BEKOR (exception, tranzaksiya rollback). Mavjud perm guard
+-- (BEFORE) bilan to'qnashmaydi — bu alohida AFTER trigger. n8n/service_role
+-- (auth.uid() null) o'tadi.
+create or replace function limit_guard_entry_line()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_fids    uuid[];
+  v_date    date;
+  v_deleted boolean;
+  v_status  text;
+  f         uuid;
+  v_limit   numeric;
+  v_spent   numeric;
+  v_f       date;
+  v_t       date;
+  v_fname   text;
+  v_mname   text;
+begin
+  if new.debit is null or new.debit <= 0 then return new; end if;
+  if auth.uid() is null then return new; end if;   -- avtomat sinxron (n8n) o'tadi
+
+  select filial_ids, entry_date, is_deleted, status
+    into v_fids, v_date, v_deleted, v_status
+    from entry where id = new.entry_id;
+  if not found then return new; end if;
+  if v_deleted or coalesce(v_status, 'posted') <> 'posted' then return new; end if;
+  if v_fids is null or array_length(v_fids, 1) is null then return new; end if;
+
+  v_f := date_trunc('month', v_date)::date;
+  v_t := (date_trunc('month', v_date) + interval '1 month - 1 day')::date;
+
+  foreach f in array v_fids loop
+    select limit_uzs into v_limit
+      from standart_xarajat where filial_id = f and modda_id = new.account_id;
+    if v_limit is not null then
+      select coalesce(sum(el.debit), 0) into v_spent
+        from entry e
+        join entry_line el on el.entry_id = e.id and el.account_id = new.account_id and el.debit > 0
+       where e.status = 'posted' and e.is_deleted = false
+         and e.entry_date >= v_f and e.entry_date <= v_t
+         and f = any(e.filial_ids);
+      if v_spent > v_limit then
+        select name into v_fname from accounts where id = f;
+        select name into v_mname from accounts where id = new.account_id;
+        raise exception 'Limit oshib ketdi: "%" filialida "%" uchun oylik limit % so''m, bu oy jami % so''m bo''ladi',
+          coalesce(v_fname, '?'), coalesce(v_mname, '?'), v_limit, v_spent
+          using errcode = 'P0001';
+      end if;
+    end if;
+  end loop;
+  return new;
+end $$;
+
+revoke all on function limit_guard_entry_line() from public, anon;
+
+drop trigger if exists trg_limit_guard_entry_line on entry_line;
+create trigger trg_limit_guard_entry_line
+  after insert on entry_line
+  for each row execute function limit_guard_entry_line();
+
+comment on function limit_guard_entry_line() is
+  'standart_xarajat oylik limitini majburlaydi (filial+modda). service_role/n8n o''tadi.';
+
+-- 4.4 perm_pages() ga 'standart' qo'shiladi (additive — sahifa ruxsat kaliti)
+create or replace function perm_pages()
+returns text[]
+language sql
+immutable
+as $$
+  select array['kassa','jurnal','professional','hisobot','balans','cashflow',
+               'qarzdor','filial','valyuta','konvert','sozlama','provodka','yuklar','standart']::text[];
+$$;
+
+revoke all on function perm_pages() from public, anon;
+grant execute on function perm_pages() to authenticated, service_role;
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if to_regclass('public.standart_xarajat') is null then raise exception '4-BOSQICH: standart_xarajat yo''q'; end if;
+  if to_regprocedure('public.standart_holat(date)') is null then raise exception '4-BOSQICH: standart_holat yo''q'; end if;
+  if to_regprocedure('public.standart_limit_set(uuid,uuid,numeric)') is null then raise exception '4-BOSQICH: standart_limit_set yo''q'; end if;
+  if not exists (select 1 from pg_trigger where tgname='trg_limit_guard_entry_line') then
+    raise exception '4-BOSQICH: limit guard trigger yo''q';
+  end if;
+  if not ('standart' = any(perm_pages())) then raise exception '4-BOSQICH: perm_pages ichida standart yo''q'; end if;
+  raise notice '4-BOSQICH OK: standart limitlar DB tayyor.';
+end $$;

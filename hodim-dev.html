@@ -110,6 +110,43 @@
   .pickitem .pc{font-size:12px;color:var(--muted);font-weight:700}
   .pickitem.on .pc{color:var(--primary)}
   .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:16px}
+  /* Kommunal turi (9413) modal + chip */
+  .kmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:130}
+  .kmodal.open{display:flex}
+  .kbox{background:var(--surface);width:100%;max-width:380px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
+  .kbox h3{margin:0 0 16px;font-size:18px;font-weight:800}
+  .kbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .kbtn{display:flex;flex-direction:column;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 8px;cursor:pointer;font-family:inherit;transition:border-color .13s,background .13s,box-shadow .13s}
+  .kbtn:hover{border-color:var(--primary)}
+  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
+  .kbtn .kemo{font-size:30px;line-height:1}
+  .kbtn .klbl{font-size:14px;font-weight:700}
+  .kcancel{width:100%;height:46px;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .kommchip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+  .kommchip svg{width:15px;height:15px}
+  /* Filial taqsimoti modali (2+ filial) */
+  .tmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:130}
+  .tmodal.open{display:flex}
+  .tbox{background:var(--surface);width:100%;max-width:460px;max-height:88vh;display:flex;flex-direction:column;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
+  .tbox h3{margin:0 0 4px;font-size:18px;font-weight:800}
+  .thint{font-size:13px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .teq{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--primary);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;border-radius:8px;padding:6px 11px}
+  .teq:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .tlist{overflow:auto;-webkit-overflow-scrolling:touch}
+  .trow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .trow:last-child{border-bottom:none}
+  .trow .tfn{flex:1;min-width:0;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .trow input{width:150px;flex:none;height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:15px;font-family:inherit;text-align:right;outline:none;font-variant-numeric:tabular-nums;transition:border-color .13s,box-shadow .13s}
+  .trow input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .tsum{background:var(--surface-2);border-radius:12px;padding:11px 14px;margin-top:14px;font-size:13.5px}
+  .tsrow{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+  .tsrow span{color:var(--muted)}.tsrow b{font-variant-numeric:tabular-nums}
+  .tmsg{text-align:right;font-weight:700;font-size:13px;margin-top:8px;min-height:16px}
+  .tmsg.ok{color:var(--green)}.tmsg.no{color:var(--red)}
+  .tacts{display:flex;gap:9px;margin-top:14px}
+  .tacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .tacts button.primary{border:none;background:var(--primary);color:#fff}
+  .tacts button.primary:disabled{opacity:.5;cursor:not-allowed}
   /* modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:120}
   .modal.open{display:flex}
@@ -262,9 +299,15 @@
     <!-- Modda tanlangach ochiladigan qadamlar (ketma-ket flow) -->
     <div id="afterModda" style="display:none">
 
+      <div class="sect" id="kommSect" style="display:none">
+        <div class="lbl">Qaysi kommunal? <span style="color:var(--red);font-weight:700">(majburiy)</span></div>
+        <button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
+      </div>
+
       <div class="sect">
         <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></div>
         <div id="filialChips" class="fchips"></div>
+        <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px"></div>
       </div>
 
       <div class="sect" id="davrSect" style="display:none">
@@ -310,6 +353,28 @@
 
   <div class="savebar">
     <button class="save" id="saveBtn" onclick="saveHodim()" disabled><i data-lucide="check"></i>Saqlash</button>
+  </div>
+</div>
+
+<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()">
+  <div class="kbox">
+    <h3>Qaysi kommunal?</h3>
+    <div class="kbtns" id="kommBtns"></div>
+    <button type="button" class="kcancel" onclick="cancelKomm()">Bekor</button>
+  </div>
+</div>
+
+<div class="tmodal" id="taqsimModal" onclick="if(event.target===this)closeTaqsim()">
+  <div class="tbox">
+    <h3>Filiallar bo'yicha taqsimlash</h3>
+    <div class="thint">Har filial uchun alohida provodka yoziladi.<button type="button" class="teq" onclick="taqsimEqual()">Teng bo'lish</button></div>
+    <div class="tlist" id="taqsimRows"></div>
+    <div class="tsum" id="taqsimSum"></div>
+    <div class="tmsg" id="taqsimMsg"></div>
+    <div class="tacts">
+      <button type="button" onclick="closeTaqsim()">Bekor</button>
+      <button type="button" class="primary" id="taqsimSaveBtn" onclick="confirmTaqsim()" disabled>Saqlash</button>
+    </div>
   </div>
 </div>
 
@@ -409,7 +474,8 @@ function kassaList(){
 // (Kapital xarajat / aktiv moddalar hodim uchun kamdan-kam — chalkashmaslik uchun bu yerda
 //  chiqarilmaydi; ular kerak bo'lsa professional-dev.html orqali kiritiladi.)
 function moddaList(){
-  const xs=accounts.filter(a=>a.type==='xarajat').slice();
+  // 9110-1 (yo'ldagi tovar) — professional oqimi; hodimda ko'rinmaydi.
+  const xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
   xs.sort((a,b)=>{ const fa=FREQ.indexOf(a.code), fb=FREQ.indexOf(b.code);
     if(fa>=0||fb>=0){ if(fa<0) return 1; if(fb<0) return -1; return fa-fb; }
     return String(a.code).localeCompare(String(b.code)); });
@@ -491,7 +557,9 @@ window.renderModdaList=()=>{
     ? ms.map(m=>`<button type="button" class="pickitem${m.id===selModda?' on':''}" onclick="pickModda('${m.id}')"><span class="pn">${esc(m.name)}</span><span class="pc">${esc(m.code)}</span></button>`).join('')
     : '<div class="pickempty">Topilmadi</div>';
 };
-window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI(); updateSave(); };
+window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI();
+  if(isKomm()&&!kommTuri) openKomm();   // 9413 → kommunal turini so'raymiz
+  updateSave(); };
 
 // --- V6: filial multiselect (metadata tag) ---
 // Filiallar accounts'dan EMAS (u permFilterOp bilan cheklangan) — alohida v_filial_tanlov'dan.
@@ -514,6 +582,20 @@ async function loadFilials(){
 
 // --- V6: modda flaglariga qarab shartli UI (chek / izoh / davr) ---
 function moddaObj(){ return accounts.find(a=>a.id===selModda); }
+// --- Kommunal turi (9413): gaz | svet | musor (kelajakda kengayadi — massiv) ---
+const KOMMUNAL=[{k:'gaz',label:'Gaz',emo:'🔥'},{k:'svet',label:'Svet',emo:'💡'},{k:'musor',label:'Musor',emo:'🗑️'}];
+let kommTuri=null;
+const isKomm=()=>{ const m=moddaObj(); return !!(m&&m.code==='9413'); };
+function updateKommUI(){ const show=isKomm(); $('kommSect').style.display=show?'block':'none';
+  if(!show) kommTuri=null;
+  const x=KOMMUNAL.find(y=>y.k===kommTuri);
+  $('kommChipTxt').textContent=x?(x.emo+' '+x.label):'— tanlang —'; icons();
+}
+function renderKommBtns(){ $('kommBtns').innerHTML=KOMMUNAL.map(x=>
+  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo">${x.emo}</span><span class="klbl">${x.label}</span></button>`).join(''); }
+window.openKomm=()=>{ renderKommBtns(); $('kommModal').classList.add('open'); };
+window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); updateKommUI(); updateSave(); };
+window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
 function chekRequired(){ const m=moddaObj(); return !!(m && m.chek_majburiy); }  // ustun yo'q bo'lsa undefined → false
 function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
@@ -572,7 +654,7 @@ function updateModdaUI(){
   const box=$('afterModda');
   box.style.display = has ? 'block' : 'none';
   box.classList.toggle('reveal', has);
-  updateChekUI(); updateIzohUI(); updateDavrUI();
+  updateChekUI(); updateIzohUI(); updateDavrUI(); updateKommUI();
 }
 function updateChekUI(){
   const req=chekRequired();
@@ -653,7 +735,15 @@ function updateSave(){
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr);
+  const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
+  // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
+  let overLimit=false; const lw=$('limitWarn');
+  if(selFilials.size===1 && selModda){
+    const lm=limitFor([...selFilials][0], selModda);
+    if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
+    else lw.style.display='none';
+  } else lw.style.display='none';
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
 }
 
 window.saveHodim=async()=>{
@@ -667,6 +757,9 @@ window.saveHodim=async()=>{
   if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
+  if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
+  // Stage 2: 2+ filial → har filialga ALOHIDA provodka (taqsim modal → atomik RPC)
+  if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa); return; }
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; icons();
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
@@ -675,6 +768,7 @@ window.saveHodim=async()=>{
   const savedIzoh=$('izoh').value||'';
   const entryPayload={entry_date:isoDay(nowUz()),description:savedIzoh||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   // 2 ta insert (entry id kerak → entry_line). Qo'shimcha qayta-o'qish YO'Q (insert…returning).
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
@@ -714,6 +808,90 @@ window.saveHodim=async()=>{
   })();
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
+
+// ---- Stage 4: Standart limitlar (filial+modda oylik limit) ----
+let limitMap={};   // 'filialId|moddaId' → {limit, qoldi, sarflandi, modda_name}
+const limitFor=(fid,mid)=>limitMap[fid+'|'+mid]||null;
+async function loadLimits(){
+  try{ const oy=isoDay(nowUz()).slice(0,7)+'-01';
+    const {data}=await sb.rpc('standart_holat',{p_oy:oy});
+    limitMap={}; (data||[]).forEach(r=>{ limitMap[r.filial_id+'|'+r.modda_id]={limit:Number(r.limit_uzs)||0,qoldi:Number(r.qoldi)||0,sarflandi:Number(r.sarflandi)||0,modda_name:r.modda_name}; });
+    updateSave();
+  }catch(e){}
+}
+// ---- Stage 2: Filial taqsimoti (har filialga alohida entry, atomik RPC) ----
+const selFilialObjs=()=>[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
+let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
+function openTaqsim(amt, dtId, ktId, kassa){
+  taqsimFils=selFilialObjs();
+  if(taqsimFils.length<2) return;   // himoya (kondifsiya allaqachon tekshirgan)
+  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||''};
+  taqsimEqualCalc(); renderTaqsim();
+  $('taqsimModal').classList.add('open');
+}
+window.closeTaqsim=()=>{ $('taqsimModal').classList.remove('open'); };
+function taqsimEqualCalc(){
+  const n=taqsimFils.length, amt=Math.round(taqsimCtx.amt); taqsimAlloc={};
+  const base=Math.floor(amt/n); let left=amt;
+  taqsimFils.forEach((f,i)=>{ const v=(i===n-1)?left:base; taqsimAlloc[f.id]=v; left-=v; });
+}
+window.taqsimEqual=()=>{ taqsimEqualCalc(); renderTaqsim(); };
+function renderTaqsim(){
+  $('taqsimRows').innerHTML=taqsimFils.map(f=>
+    `<div class="trow"><span class="tfn">${esc(f.name)}</span>`
+    +`<input inputmode="numeric" value="${taqsimAlloc[f.id]?money(taqsimAlloc[f.id]):''}" oninput="setTaqsim('${f.id}',this)"></div>`).join('');
+  renderTaqsimSum();
+}
+window.setTaqsim=(id,el)=>{ const raw=el.value.replace(/\D/g,''); taqsimAlloc[id]=Number(raw)||0; el.value=raw?money(raw):''; renderTaqsimSum(); };
+function taqsimTotal(){ return taqsimFils.reduce((s,f)=>s+(Number(taqsimAlloc[f.id])||0),0); }
+function renderTaqsimSum(){
+  const amt=Math.round(taqsimCtx.amt), s=taqsimTotal(), diff=s-amt;
+  $('taqsimSum').innerHTML='<div class="tsrow"><span>Umumiy summa</span><b>'+money(amt)+' so\'m</b></div>'
+    +'<div class="tsrow"><span>Taqsimlangan ('+taqsimFils.length+' filial)</span><b>'+money(s)+' so\'m</b></div>';
+  const allPos=taqsimFils.every(f=>(Number(taqsimAlloc[f.id])||0)>0);
+  // Stage 4: har filial ulushi o'z limitidan oshmasin
+  let limErr='';
+  taqsimFils.forEach(f=>{ const lm=limitFor(f.id, selModda); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
+    if(a>lm.qoldi && !limErr) limErr=`${f.name}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
+  const msg=$('taqsimMsg'); let ok=false;
+  if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
+  else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }
+  else if(!allPos){ msg.textContent='Har filialga summa yozing'; msg.className='tmsg no'; }
+  else if(limErr){ msg.textContent=limErr; msg.className='tmsg no'; }
+  else { msg.textContent='✓ to\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
+  $('taqsimSaveBtn').disabled=!ok;
+}
+window.confirmTaqsim=async()=>{
+  const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
+  if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
+  const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  const {dtId,ktId,kassa,izoh,chek,mName}=taqsimCtx;
+  const p_data={
+    entry_date:isoDay(nowUz()), description:izoh||null, source:'manual', status:'posted',
+    dt_account:dtId, kt_account:ktId,
+    kassa_account:kassa.id, kassa_currency:kassa.currency||'UZS',
+    taqsim:taqsimFils.map(f=>({filial_id:f.id, summa:Number(taqsimAlloc[f.id])||0}))
+  };
+  if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
+  if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
+  const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
+  if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
+  const eids=(data&&data.entry_ids)||[];
+  const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
+  closeTaqsim();
+  // Optimistik qoldiq (butun summa chiqdi)
+  if(balMap[kassa.id]!=null){ balMap[kassa.id]=Number(balMap[kassa.id])-amt; renderHero(); renderKassaBal(); }
+  // Forma tozalanadi (kassa qoladi)
+  $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
+  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  toast('Saqlandi ✓ ('+nFil+' filial)');
+  // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
+  (async()=>{
+    if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
+    if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
+    loadBalances(); loadHist(); loadMonth();
+  })();
+};
 
 let toastTimer=null;
 function toast(msg,err){
@@ -839,7 +1017,7 @@ async function init(){
   if(user) sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
     .then(({data:p})=>{ if(p&&p.full_name){ myName=p.full_name; $('who').textContent='· '+myName; } }).catch(()=>{});
   updateModdaUI();
-  loadBalances(); loadMonth();              // qoldiq/oy — fon
+  loadBalances(); loadMonth(); loadLimits(); // qoldiq/oy/limitlar — fon
   console.timeEnd('hodim:ochilish');
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);
