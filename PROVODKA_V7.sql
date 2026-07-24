@@ -312,3 +312,56 @@ begin
   end if;
   raise notice '1-BOSQICH OK: yo''ldagi tovar (9110-1) DB tayyor.';
 end $$;
+
+
+-- #####################################################################
+-- ##  5-BOSQICH — Kommunal to'lov turi (gaz | svet | musor)          ##
+-- #####################################################################
+-- Xarajat moddasi "Kommunal" (9413) tanlanganda: entry.kommunal_turi
+-- ('gaz'|'svet'|'musor'). Jurnalda teg, hisobotda ichki bo'linish uchun.
+-- Ro'yxat kelajakda kengayishi mumkin — check ni yangilash yetarli (additive).
+
+alter table entry add column if not exists kommunal_turi text
+  check (kommunal_turi is null or kommunal_turi in ('gaz','svet','musor'));
+
+comment on column entry.kommunal_turi is
+  'Kommunal xarajat (9413) turi: gaz|svet|musor. NULL — kommunal emas.';
+
+-- 5.1 kommunal_hisobot(p_from, p_to) — kommunal (9413) turi bo'yicha jami
+-- ---------------------------------------------------------------------
+-- hisobotda "Kommunal -> Gaz/Svet/Musor" ichki bo'linishi uchun (ixtiyoriy UI).
+create or replace function kommunal_hisobot(p_from date, p_to date)
+returns table(kommunal_turi text, jami numeric, soni integer)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(e.kommunal_turi, 'boshqa') as kommunal_turi,
+         sum(dl.debit)::numeric as jami,
+         count(distinct e.id)::int as soni
+    from entry e
+    join entry_line dl on dl.entry_id = e.id and dl.debit > 0
+    join accounts a on a.id = dl.account_id and a.code = '9413'
+   where e.status = 'posted' and e.is_deleted = false
+     and e.entry_date >= p_from and e.entry_date <= p_to
+   group by coalesce(e.kommunal_turi, 'boshqa')
+   order by sum(dl.debit) desc;
+$$;
+
+revoke all on function kommunal_hisobot(date, date) from public, anon;
+grant execute on function kommunal_hisobot(date, date) to authenticated;
+
+comment on function kommunal_hisobot(date, date) is
+  'Kommunal (9413) xarajatlari turi (gaz/svet/musor) bo''yicha davr jami.';
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                  where table_schema='public' and table_name='entry' and column_name='kommunal_turi') then
+    raise exception '5-BOSQICH: entry.kommunal_turi ustuni yo''q';
+  end if;
+  raise notice '5-BOSQICH OK: kommunal_turi tayyor.';
+end $$;

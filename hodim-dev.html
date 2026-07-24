@@ -110,6 +110,20 @@
   .pickitem .pc{font-size:12px;color:var(--muted);font-weight:700}
   .pickitem.on .pc{color:var(--primary)}
   .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:16px}
+  /* Kommunal turi (9413) modal + chip */
+  .kmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:130}
+  .kmodal.open{display:flex}
+  .kbox{background:var(--surface);width:100%;max-width:380px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
+  .kbox h3{margin:0 0 16px;font-size:18px;font-weight:800}
+  .kbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .kbtn{display:flex;flex-direction:column;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 8px;cursor:pointer;font-family:inherit;transition:border-color .13s,background .13s,box-shadow .13s}
+  .kbtn:hover{border-color:var(--primary)}
+  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
+  .kbtn .kemo{font-size:30px;line-height:1}
+  .kbtn .klbl{font-size:14px;font-weight:700}
+  .kcancel{width:100%;height:46px;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .kommchip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+  .kommchip svg{width:15px;height:15px}
   /* modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:120}
   .modal.open{display:flex}
@@ -262,6 +276,11 @@
     <!-- Modda tanlangach ochiladigan qadamlar (ketma-ket flow) -->
     <div id="afterModda" style="display:none">
 
+      <div class="sect" id="kommSect" style="display:none">
+        <div class="lbl">Qaysi kommunal? <span style="color:var(--red);font-weight:700">(majburiy)</span></div>
+        <button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
+      </div>
+
       <div class="sect">
         <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></div>
         <div id="filialChips" class="fchips"></div>
@@ -310,6 +329,14 @@
 
   <div class="savebar">
     <button class="save" id="saveBtn" onclick="saveHodim()" disabled><i data-lucide="check"></i>Saqlash</button>
+  </div>
+</div>
+
+<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()">
+  <div class="kbox">
+    <h3>Qaysi kommunal?</h3>
+    <div class="kbtns" id="kommBtns"></div>
+    <button type="button" class="kcancel" onclick="cancelKomm()">Bekor</button>
   </div>
 </div>
 
@@ -492,7 +519,9 @@ window.renderModdaList=()=>{
     ? ms.map(m=>`<button type="button" class="pickitem${m.id===selModda?' on':''}" onclick="pickModda('${m.id}')"><span class="pn">${esc(m.name)}</span><span class="pc">${esc(m.code)}</span></button>`).join('')
     : '<div class="pickempty">Topilmadi</div>';
 };
-window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI(); updateSave(); };
+window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI();
+  if(isKomm()&&!kommTuri) openKomm();   // 9413 → kommunal turini so'raymiz
+  updateSave(); };
 
 // --- V6: filial multiselect (metadata tag) ---
 // Filiallar accounts'dan EMAS (u permFilterOp bilan cheklangan) — alohida v_filial_tanlov'dan.
@@ -515,6 +544,20 @@ async function loadFilials(){
 
 // --- V6: modda flaglariga qarab shartli UI (chek / izoh / davr) ---
 function moddaObj(){ return accounts.find(a=>a.id===selModda); }
+// --- Kommunal turi (9413): gaz | svet | musor (kelajakda kengayadi — massiv) ---
+const KOMMUNAL=[{k:'gaz',label:'Gaz',emo:'🔥'},{k:'svet',label:'Svet',emo:'💡'},{k:'musor',label:'Musor',emo:'🗑️'}];
+let kommTuri=null;
+const isKomm=()=>{ const m=moddaObj(); return !!(m&&m.code==='9413'); };
+function updateKommUI(){ const show=isKomm(); $('kommSect').style.display=show?'block':'none';
+  if(!show) kommTuri=null;
+  const x=KOMMUNAL.find(y=>y.k===kommTuri);
+  $('kommChipTxt').textContent=x?(x.emo+' '+x.label):'— tanlang —'; icons();
+}
+function renderKommBtns(){ $('kommBtns').innerHTML=KOMMUNAL.map(x=>
+  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo">${x.emo}</span><span class="klbl">${x.label}</span></button>`).join(''); }
+window.openKomm=()=>{ renderKommBtns(); $('kommModal').classList.add('open'); };
+window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); updateKommUI(); updateSave(); };
+window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
 function chekRequired(){ const m=moddaObj(); return !!(m && m.chek_majburiy); }  // ustun yo'q bo'lsa undefined → false
 function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
@@ -573,7 +616,7 @@ function updateModdaUI(){
   const box=$('afterModda');
   box.style.display = has ? 'block' : 'none';
   box.classList.toggle('reveal', has);
-  updateChekUI(); updateIzohUI(); updateDavrUI();
+  updateChekUI(); updateIzohUI(); updateDavrUI(); updateKommUI();
 }
 function updateChekUI(){
   const req=chekRequired();
@@ -654,7 +697,8 @@ function updateSave(){
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr);
+  const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr&&!needKomm);
 }
 
 window.saveHodim=async()=>{
@@ -668,6 +712,7 @@ window.saveHodim=async()=>{
   if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
+  if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; icons();
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
@@ -676,6 +721,7 @@ window.saveHodim=async()=>{
   const savedIzoh=$('izoh').value||'';
   const entryPayload={entry_date:isoDay(nowUz()),description:savedIzoh||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   // 2 ta insert (entry id kerak → entry_line). Qo'shimcha qayta-o'qish YO'Q (insert…returning).
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }

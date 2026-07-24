@@ -187,6 +187,20 @@
   .pendnote{background:#fdf3d6;color:#7a5a12;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:14px}
   .pendnote b{font-weight:800}
   [data-theme="dark"] .pendnote{background:#2e1e05;color:#e6b84a}
+  /* Kommunal turi (9413) modal + chip */
+  .kmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:210}
+  .kmodal.open{display:flex}
+  .kbox{background:var(--surface);width:100%;max-width:380px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
+  .kbox h3{margin:0 0 16px;font-size:18px;font-weight:800}
+  .kbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .kbtn{display:flex;flex-direction:column;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 8px;cursor:pointer;font-family:inherit;transition:border-color .13s,background .13s,box-shadow .13s}
+  .kbtn:hover{border-color:var(--primary)}
+  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
+  .kbtn .kemo{font-size:30px;line-height:1}
+  .kbtn .klbl{font-size:14px;font-weight:700}
+  .kcancel{width:100%;height:46px;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .kommchip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+  .kommchip svg{width:15px;height:15px}
 </style>
 </head>
 <body>
@@ -247,6 +261,7 @@
         <div id="curSeg" class="curseg" style="display:none"></div>
         <label>Modda</label>
         <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
+        <div id="kommChipWrap" style="display:none;margin:-6px 0 15px"><button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt"></span><i data-lucide="pencil"></i></button></div>
         <label>Summa</label>
         <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
@@ -300,6 +315,14 @@
     </div>
   </div>
   <!-- /more-sheet -->
+</div>
+
+<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()">
+  <div class="kbox">
+    <h3>Qaysi kommunal?</h3>
+    <div class="kbtns" id="kommBtns"></div>
+    <button type="button" class="kcancel" onclick="cancelKomm()">Bekor</button>
+  </div>
 </div>
 
 <div class="ymodal" id="yukModal" onclick="if(event.target===this)cancelYuk()">
@@ -538,7 +561,8 @@ window.updateSimple=()=>{
   inp.classList.toggle('over',over);
   if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} so'm`; }
   else w.style.display='none';
-  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr);
+  const needKomm=isKomm() && !kommTuri;   // Kommunal (9413): turi majburiy
+  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr && !needKomm);
 };
 // ---- Yuklar: 9110 "Tovar tannarxi" — QISMAN TO'LOV taqsimlash modali (majburiy) ----
 const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
@@ -555,7 +579,28 @@ function yukQoldiq(y){ const n=yukNarxUzs(y); if(n==null) return null; return Ma
 function yukPct(y){ const n=yukNarxUzs(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
 function yukSelectable(y){ const q=yukQoldiq(y); return q!=null && q>0; }   // kurs bor va qarzi bor
 
-window.onModda=()=>{ updateSimple(); };
+// --- Kommunal turi (9413): gaz | svet | musor (kelajakda kengayadi — massiv) ---
+const KOMMUNAL=[{k:'gaz',label:'Gaz',emo:'🔥'},{k:'svet',label:'Svet',emo:'💡'},{k:'musor',label:'Musor',emo:'🗑️'}];
+let kommTuri=null;
+const isKomm=()=>{ const m=moddaObj(); return !!(m&&m.code==='9413'); };
+function renderKommBtns(){ $('kommBtns').innerHTML=KOMMUNAL.map(x=>
+  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo">${x.emo}</span><span class="klbl">${x.label}</span></button>`).join(''); }
+function renderKommChip(){ const wrap=$('kommChipWrap');
+  if(isKomm()&&kommTuri){ const x=KOMMUNAL.find(y=>y.k===kommTuri);
+    $('kommChipTxt').textContent=(x?x.emo+' '+x.label:kommTuri); wrap.style.display='block'; }
+  else wrap.style.display='none';
+  icons();
+}
+window.openKomm=()=>{ renderKommBtns(); $('kommModal').classList.add('open'); };
+window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); renderKommChip(); updateSimple(); };
+// Bekor: kommunal majburiy — tanlanmasa modda tozalanadi (yuk oqimiga o'xshash).
+window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); if(!kommTuri){ $('modda').value=''; } renderKommChip(); updateSimple(); };
+window.onModda=()=>{
+  // Modda o'zgarsa kommunal holatini moslashtir: 9413 tanlansa modal, aks holda tozalanadi.
+  if(isKomm()){ if(!kommTuri){ openKomm(); } renderKommChip(); }
+  else { kommTuri=null; renderKommChip(); }
+  updateSimple();
+};
 
 function openYukSave(rawAmount, cur, cb, mode){
   yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; yukSaveMode=mode||'simple';
@@ -715,6 +760,7 @@ async function doSaveSimple(){
   const entryPayload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(selYuk.size) entryPayload.yuk_ids=[...selYuk];
+  if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
   const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
