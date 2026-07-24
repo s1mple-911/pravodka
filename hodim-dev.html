@@ -409,7 +409,8 @@ function kassaList(){
 // (Kapital xarajat / aktiv moddalar hodim uchun kamdan-kam — chalkashmaslik uchun bu yerda
 //  chiqarilmaydi; ular kerak bo'lsa professional-dev.html orqali kiritiladi.)
 function moddaList(){
-  const xs=accounts.filter(a=>a.type==='xarajat').slice();
+  // 9110-1 (yo'ldagi tovar) — professional oqimi; hodimda ko'rinmaydi.
+  const xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
   xs.sort((a,b)=>{ const fa=FREQ.indexOf(a.code), fb=FREQ.indexOf(b.code);
     if(fa>=0||fb>=0){ if(fa<0) return 1; if(fb<0) return -1; return fa-fb; }
     return String(a.code).localeCompare(String(b.code)); });

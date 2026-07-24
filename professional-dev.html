@@ -181,6 +181,12 @@
   .ybtn.primary{border:none;background:var(--primary);color:#fff}
   .yukempty{padding:26px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
   .ylink{border:none;background:transparent;color:var(--primary);font-weight:700;cursor:pointer;font-family:inherit}
+  /* Yo'ldagi tovar (9110-1): hujjat hali yo'q — pending panel */
+  .pendlink{width:100%;margin-top:12px;border:1.5px dashed var(--line);border-radius:12px;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:12px;cursor:pointer;transition:border-color .13s,color .13s,background .13s}
+  .pendlink:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  .pendnote{background:#fdf3d6;color:#7a5a12;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:14px}
+  .pendnote b{font-weight:800}
+  [data-theme="dark"] .pendnote{background:#2e1e05;color:#e6b84a}
 </style>
 </head>
 <body>
@@ -298,18 +304,33 @@
 
 <div class="ymodal" id="yukModal" onclick="if(event.target===this)cancelYuk()">
   <div class="ymbox">
-    <h3>Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi — majburiy)</span></h3>
-    <div id="yukSum" class="yuksum"></div>
-    <div class="yukfilt">
-      <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
-      <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman</button>
-      <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
-      <input class="txt" id="yukSearch" placeholder="Qidirish (ombor / yetkazuvchi)" autocomplete="off" oninput="renderYukList()">
+    <h3 id="yukModalTitle">Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi — majburiy)</span></h3>
+    <!-- Ekran 1: mavjud yukni tanlab bog'lash -->
+    <div id="yukPickScreen">
+      <div id="yukSum" class="yuksum"></div>
+      <div class="yukfilt">
+        <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
+        <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman</button>
+        <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
+        <input class="txt" id="yukSearch" placeholder="Qidirish (ombor / yetkazuvchi)" autocomplete="off" oninput="renderYukList()">
+      </div>
+      <div id="yukList" class="yuklist"></div>
+      <div class="yukacts">
+        <button type="button" class="ybtn" onclick="cancelYuk()">Bekor</button>
+        <button type="button" class="ybtn primary" id="yukSaveBtn" onclick="confirmYukSave()" disabled>Saqlash</button>
+      </div>
+      <!-- 2-yo'l: hujjat hali yo'q -->
+      <button type="button" class="pendlink" id="yukPendLink" onclick="yukPendOpen()">📄 Hujjat hali yo'q (yo'ldagi tovar)</button>
     </div>
-    <div id="yukList" class="yuklist"></div>
-    <div class="yukacts">
-      <button type="button" class="ybtn" onclick="cancelYuk()">Bekor</button>
-      <button type="button" class="ybtn primary" id="yukSaveBtn" onclick="confirmYukSave()" disabled>Saqlash</button>
+    <!-- Ekran 2: yo'ldagi tovar — hujjat keyin keladi -->
+    <div id="yukPendScreen" style="display:none">
+      <div class="pendnote">📄 Hujjat (Aros yuk) hali kelmadi. Bu to'lov <b>«Bog'lanmagan to'lovlar»</b> ro'yxatiga tushadi va hujjat kelgach yukka bog'lanadi. Hisob: <b>9110-1 · Tovar tannarxi (yo'ldagi)</b>.</div>
+      <label style="margin-top:2px">Izoh — kimdan / nima olindi <span style="color:var(--red);font-weight:700">(majburiy)</span></label>
+      <input class="txt" id="yukPendIzoh" placeholder="masalan: Akmal aka — 200 dona plitka" autocomplete="off" oninput="updateYukPendBtn()" style="margin-bottom:0">
+      <div class="yukacts">
+        <button type="button" class="ybtn" onclick="yukPendBack()">Orqaga</button>
+        <button type="button" class="ybtn primary" id="yukPendSaveBtn" onclick="confirmYukPending()" disabled>Saqlash</button>
+      </div>
     </div>
   </div>
 </div>
@@ -364,6 +385,10 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 // Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
 const accLbl=a=>a.code+' · '+a.name+(a.subtitle?' · '+a.subtitle:'');
 const isKassa=a=>a.type==='aktiv'&&a.code.startsWith('5');
+const accByCode=c=>accounts.find(a=>a.code===c);
+// 9110-1 (yo'ldagi tovar) tanlagichda ko'rinmaydi — u 9110 modalidagi "Hujjat hali yo'q"
+// tugmasi orqali dasturiy tanlanadi (yo'ldagi tovar oqimi).
+const modaShow=a=>a.type==='xarajat'&&a.code!=='9110-1';
 function accOptions(sel){
   const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
   // Hodim kassalari (54xx, kassa_turi='xarajat') — oddiy kassa, faqat alohida guruhda ko'rinadi
@@ -371,7 +396,7 @@ function accOptions(sel){
   const xkId=new Set(xk.map(a=>a.id));
   return g('Kassalar',accounts.filter(a=>isKassa(a)&&!xkId.has(a.id)))
     +g('Xarajat kassalar',xk)
-    +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
+    +g('Xarajatlar',accounts.filter(modaShow))
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
@@ -481,7 +506,7 @@ async function fetchSimpleBal(){
 function moddaOptions(){
   const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}">${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
   return `<option value="">— modda tanlang —</option>`
-    +g('Xarajatlar',accounts.filter(a=>a.type==='xarajat'))
+    +g('Xarajatlar',accounts.filter(modaShow))
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
@@ -518,7 +543,7 @@ window.updateSimple=()=>{
 // ---- Yuklar: 9110 "Tovar tannarxi" — QISMAN TO'LOV taqsimlash modali (majburiy) ----
 const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
 let yukList=[], yukPaidMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='unpaid', yukLoaded=false;
-let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0;
+let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0, yukSaveMode='simple';
 const _isoY=d=>d.toISOString().slice(0,10);
 function money2(n){ const v=Number(n)||0; return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '); }
 function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; return isFinite(v)?money2(v)+c:esc(String(n??'—'))+c; }
@@ -532,14 +557,29 @@ function yukSelectable(y){ const q=yukQoldiq(y); return q!=null && q>0; }   // k
 
 window.onModda=()=>{ updateSimple(); };
 
-function openYukSave(rawAmount, cur, cb){
-  yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb;
+function openYukSave(rawAmount, cur, cb, mode){
+  yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; yukSaveMode=mode||'simple';
   selYuk.clear(); alloc={};
+  // Ekran 1 (yuk tanlash) ko'rinadi; "Hujjat hali yo'q" faqat oddiy rejimda (bir 9110 satri).
+  $('yukPickScreen').style.display='block'; $('yukPendScreen').style.display='none';
+  $('yukModalTitle').innerHTML='Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi — majburiy)</span>';
+  $('yukPendLink').style.display = yukSaveMode==='simple' ? 'block' : 'none';
+  $('yukPendIzoh').value=($('izoh').value||'').trim();
   $('yukModal').classList.add('open'); loadYukList();
 }
 // Bekor: 9110 majburiy — modal yuksiz yopilsa modda tanlovi bekor qilinadi (band 1).
 window.cancelYuk=()=>{ closeYuk(); yukSaveCb=null; if($('modda')) $('modda').value=''; updateSimple(); };
 window.closeYuk=()=>{ $('yukModal').classList.remove('open'); };
+// --- Yo'ldagi tovar (hujjat hali yo'q) ---
+window.yukPendOpen=()=>{ $('yukPickScreen').style.display='none'; $('yukPendScreen').style.display='block';
+  $('yukModalTitle').innerHTML='Yo\'ldagi tovar <span class="ymuted">(hujjat keyin keladi)</span>';
+  $('yukPendIzoh').value=(($('izoh').value||'').trim())||$('yukPendIzoh').value; updateYukPendBtn();
+  setTimeout(()=>{ try{ $('yukPendIzoh').focus(); }catch(e){} },50); };
+window.yukPendBack=()=>{ $('yukPendScreen').style.display='none'; $('yukPickScreen').style.display='block';
+  $('yukModalTitle').innerHTML='Qaysi yuk uchun? <span class="ymuted">(Tovar tannarxi — majburiy)</span>'; };
+window.updateYukPendBtn=()=>{ const b=$('yukPendSaveBtn'); if(b) b.disabled=!$('yukPendIzoh').value.trim(); };
+window.confirmYukPending=()=>{ const izoh=($('yukPendIzoh').value||'').trim(); if(!izoh) return;
+  yukSaveCb=null; closeYuk(); doSavePending(izoh); };
 window.reloadYuk=()=>{ yukLoaded=false; loadYukList(); };
 window.setYukFilt=k=>{ yukFilt=k; document.querySelectorAll('#yukModal [data-yf]').forEach(b=>b.classList.toggle('on',b.dataset.yf===k)); renderYukList(); };
 window.confirmYukSave=()=>{ if(!allocOk().ok) return; const cb=yukSaveCb; yukSaveCb=null; closeYuk(); if(cb) cb(); };
@@ -639,10 +679,31 @@ window.saveSimple=async()=>{
   if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
   if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+(kassa.currency||'so\'m')); return; }
-  // 9110 Tovar tannarxi → avval yuk modali; tanlagach doSaveSimple() davom etadi.
-  if(modda.code==='9110'){ openYukSave(amt, kassa.currency||'UZS', doSaveSimple); return; }
+  // 9110 Tovar tannarxi → avval yuk modali (yoki "Hujjat hali yo'q" → yo'ldagi tovar).
+  if(modda.code==='9110'){ openYukSave(amt, kassa.currency||'UZS', doSaveSimple, 'simple'); return; }
   doSaveSimple();
 };
+// Yo'ldagi tovar: Dt 9110-1 / Kt kassa, entry.yuk_kutilmoqda=true, entry_yuk YO'Q.
+// Izoh majburiy (yuk modalidan keladi). Hujjat kelgach yuk_boglash() bog'laydi.
+async function doSavePending(izohP){
+  const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const kassa=effKassa();
+  const modda1=accByCode('9110-1');
+  if(!kassa||amt<=0) return;
+  if(!modda1){ alert('9110-1 hisobi topilmadi — PROVODKA_V7.sql RUN qilinganmi?'); $('modda').value=''; updateSimple(); return; }
+  const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
+  const entryPayload={entry_date:$('sana').value||null,description:izohP,source:'manual',status:'posted',filial_ids:[...selFilials],yuk_kutilmoqda:true};
+  if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
+  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
+  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
+  const rows=[{entry_id:ent.id,account_id:modda1.id,debit:amt,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt}];
+  if(kassa.currency && kassa.currency!=='UZS'){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=amt; }); }
+  const {error:e2}=await sb.from('entry_line').insert(rows);
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
+  $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
+  updateSimple(); fetchSimpleBal();
+  btn.textContent='Saqlandi ✓ (yo\'ldagi)'; setTimeout(()=>{ btn.textContent='Saqlash'; },1400);
+}
 async function doSaveSimple(){
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
@@ -678,7 +739,7 @@ window.save=async()=>{
   // 9110 Tovar tannarxi biror satrda bo'lsa → SAQLASHDA yuk modali (Dt summasi bo'yicha).
   if(lines.some(acc9110)){
     const amt9=lines.filter(acc9110).reduce((s,l)=>s+(l.side==='debit'?l.amount:0),0);
-    openYukSave(amt9, 'UZS', doSaveAdv); return;
+    openYukSave(amt9, 'UZS', doSaveAdv, 'adv'); return;
   }
   doSaveAdv();
 };
