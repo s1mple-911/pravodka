@@ -365,3 +365,101 @@ begin
   end if;
   raise notice '5-BOSQICH OK: kommunal_turi tayyor.';
 end $$;
+
+
+-- #####################################################################
+-- ##  2-BOSQICH — Filial bo'yicha ALOHIDA provodka (atomik taqsim)   ##
+-- #####################################################################
+-- Bir necha filial tanlansa: har filial uchun ALOHIDA entry (o'z summasi,
+-- filial_ids=[bitta filial], bir xil modda/kassa/sana/izoh). Hammasi bitta
+-- tranzaksiyada — biri yiqilsa hammasi bekor (RPC ichida atomik).
+-- Bitta yoki 0 filialda bu RPC ishlatilmaydi (klient hozirgidek bitta entry yozadi).
+--
+-- p_data (jsonb):
+--   entry_date, description, source, status,
+--   davr_start, davr_end, kommunal_turi        -- ixtiyoriy metadata
+--   dt_account, kt_account                      -- Dt/Kt hisob id (yo'nalish klientda hal qilingan)
+--   kassa_account, kassa_currency               -- fc_amount uchun (valyuta kassasi bo'lsa)
+--   taqsim: [ {filial_id, summa}, ... ]         -- har filialga summa
+--
+-- entry_line 2 satrini BITTA insert bilan yozadi (balans trigger client bilan
+-- bir xil ishlashi uchun). perm guard trigger har satrga baribir ishlaydi.
+create or replace function xarajat_saqlash_taqsim(p_data jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  it       jsonb;
+  v_entry  uuid;
+  v_ids    uuid[] := '{}';
+  v_dt     uuid := nullif(p_data->>'dt_account','')::uuid;
+  v_kt     uuid := nullif(p_data->>'kt_account','')::uuid;
+  v_kassa  uuid := nullif(p_data->>'kassa_account','')::uuid;
+  v_cur    text := nullif(p_data->>'kassa_currency','');
+  v_summa  numeric;
+  v_filial uuid;
+  v_fc_dt  numeric;
+  v_fc_kt  numeric;
+begin
+  if v_dt is null or v_kt is null then
+    raise exception 'dt/kt hisob berilmadi' using errcode = '22000';
+  end if;
+  if p_data->'taqsim' is null or jsonb_typeof(p_data->'taqsim') <> 'array'
+     or jsonb_array_length(p_data->'taqsim') = 0 then
+    raise exception 'Taqsimot bo''sh' using errcode = '22000';
+  end if;
+
+  for it in select * from jsonb_array_elements(p_data->'taqsim') loop
+    v_summa  := (it->>'summa')::numeric;
+    v_filial := nullif(it->>'filial_id','')::uuid;
+    if v_summa is null or v_summa <= 0 then
+      raise exception 'Har filial summasi musbat bo''lishi kerak' using errcode = '22000';
+    end if;
+
+    insert into entry (entry_date, description, source, status, filial_ids,
+                       davr_start, davr_end, kommunal_turi)
+    values (
+      nullif(p_data->>'entry_date','')::date,
+      nullif(p_data->>'description',''),
+      coalesce(nullif(p_data->>'source',''), 'manual'),
+      coalesce(nullif(p_data->>'status',''), 'posted'),
+      case when v_filial is null then '{}'::uuid[] else array[v_filial] end,
+      nullif(p_data->>'davr_start','')::date,
+      nullif(p_data->>'davr_end','')::date,
+      nullif(p_data->>'kommunal_turi','')
+    )
+    returning id into v_entry;
+
+    -- fc_amount faqat valyuta kassasi satriga (client bilan bir xil mantiq)
+    v_fc_dt := case when v_cur is not null and v_cur <> 'UZS' and v_kassa = v_dt then v_summa else null end;
+    v_fc_kt := case when v_cur is not null and v_cur <> 'UZS' and v_kassa = v_kt then v_summa else null end;
+
+    insert into entry_line (entry_id, account_id, debit, credit, fc_amount)
+    values (v_entry, v_dt, v_summa, 0, v_fc_dt),
+           (v_entry, v_kt, 0, v_summa, v_fc_kt);
+
+    v_ids := v_ids || v_entry;
+  end loop;
+
+  return jsonb_build_object('ok', true,
+                            'count', coalesce(array_length(v_ids, 1), 0),
+                            'entry_ids', to_jsonb(v_ids));
+end $$;
+
+revoke all on function xarajat_saqlash_taqsim(jsonb) from public, anon;
+grant execute on function xarajat_saqlash_taqsim(jsonb) to authenticated;
+
+comment on function xarajat_saqlash_taqsim(jsonb) is
+  'Filial bo''yicha alohida provodka: har filialga bitta entry (atomik). perm guard har satrga ishlaydi.';
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if to_regprocedure('public.xarajat_saqlash_taqsim(jsonb)') is null then
+    raise exception '2-BOSQICH: xarajat_saqlash_taqsim yaratilmadi';
+  end if;
+  raise notice '2-BOSQICH OK: xarajat_saqlash_taqsim tayyor.';
+end $$;
