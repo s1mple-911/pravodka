@@ -463,3 +463,213 @@ begin
   end if;
   raise notice '2-BOSQICH OK: xarajat_saqlash_taqsim tayyor.';
 end $$;
+
+
+-- #####################################################################
+-- ##  4-BOSQICH — Standart xarajatlar (oylik limit tizimi)           ##
+-- #####################################################################
+-- Har filial + har xarajat modda uchun OYLIK limit. Limitdan oshiq yozib
+-- bo'lmaydi (UI + server guard). Limit yo'q bo'lsa cheklov yo'q (hozirgidek).
+-- filial_id = accounts(id) (filial kassa hisobi — entry.filial_ids qiymati bilan bir xil).
+-- Davr: oylik (har oy boshida sarflangan 0 dan boshlanadi — entry_date oyi bo'yicha).
+
+create table if not exists standart_xarajat (
+  id         uuid primary key default gen_random_uuid(),
+  filial_id  uuid not null references accounts(id),
+  modda_id   uuid not null references accounts(id),
+  limit_uzs  numeric not null check (limit_uzs > 0),
+  created_at timestamptz not null default now(),
+  updated_by text,
+  unique (filial_id, modda_id)
+);
+
+comment on table standart_xarajat is
+  'Filial + xarajat modda uchun oylik limit. Limitdan oshiq yozib bo''lmaydi (UI + trigger).';
+
+-- RLS: authenticated o'qiydi (sahifa + UI nazorati); yozish faqat RPC (definer) orqali.
+alter table standart_xarajat enable row level security;
+drop policy if exists std_sel on standart_xarajat;
+create policy std_sel on standart_xarajat for select to authenticated using (true);
+revoke all on standart_xarajat from public, anon;
+grant select on standart_xarajat to authenticated;
+
+-- 4.1 standart_holat(p_oy) — har limit uchun sarflangan/qoldi (berilgan oy)
+create or replace function standart_holat(p_oy date)
+returns table(
+  id uuid, filial_id uuid, filial_code text, filial_name text,
+  modda_id uuid, modda_code text, modda_name text,
+  limit_uzs numeric, sarflandi numeric, qoldi numeric
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with oy as (
+    select date_trunc('month', p_oy)::date as f,
+           (date_trunc('month', p_oy) + interval '1 month - 1 day')::date as t
+  )
+  select s.id, s.filial_id, fa.code, fa.name,
+         s.modda_id, ma.code, ma.name,
+         s.limit_uzs,
+         coalesce(sp.sarflandi, 0)                 as sarflandi,
+         s.limit_uzs - coalesce(sp.sarflandi, 0)   as qoldi
+    from standart_xarajat s
+    join accounts fa on fa.id = s.filial_id
+    join accounts ma on ma.id = s.modda_id
+    cross join oy
+    left join lateral (
+      select sum(el.debit) as sarflandi
+        from entry e
+        join entry_line el on el.entry_id = e.id and el.account_id = s.modda_id and el.debit > 0
+       where e.status = 'posted' and e.is_deleted = false
+         and e.entry_date >= oy.f and e.entry_date <= oy.t
+         and s.filial_id = any(e.filial_ids)
+    ) sp on true
+   order by fa.name, ma.name;
+$$;
+
+revoke all on function standart_holat(date) from public, anon;
+grant execute on function standart_holat(date) to authenticated;
+
+comment on function standart_holat(date) is
+  'Har limit uchun berilgan oyda sarflangan + qoldi (entry_date oyi, posted, o''chirilmagan).';
+
+-- 4.2 standart_limit_set / standart_limit_delete — ADMIN only (upsert / delete)
+create or replace function standart_limit_set(p_filial uuid, p_modda uuid, p_limit numeric)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_id uuid; v_by text;
+begin
+  if not is_admin() then raise exception 'Faqat admin limit qo''ya oladi' using errcode = '42501'; end if;
+  if p_filial is null or p_modda is null then raise exception 'Filial/modda tanlanmadi' using errcode = '22000'; end if;
+  if p_limit is null or p_limit <= 0 then raise exception 'Limit musbat bo''lishi kerak' using errcode = '22000'; end if;
+  select coalesce(full_name, '') into v_by from profiles where id = auth.uid();
+  insert into standart_xarajat (filial_id, modda_id, limit_uzs, updated_by)
+  values (p_filial, p_modda, p_limit, v_by)
+  on conflict (filial_id, modda_id) do update
+    set limit_uzs = excluded.limit_uzs, updated_by = excluded.updated_by
+  returning id into v_id;
+  return v_id;
+end $$;
+
+revoke all on function standart_limit_set(uuid, uuid, numeric) from public, anon;
+grant execute on function standart_limit_set(uuid, uuid, numeric) to authenticated;
+
+create or replace function standart_limit_delete(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_admin() then raise exception 'Faqat admin o''chira oladi' using errcode = '42501'; end if;
+  delete from standart_xarajat where id = p_id;
+end $$;
+
+revoke all on function standart_limit_delete(uuid) from public, anon;
+grant execute on function standart_limit_delete(uuid) to authenticated;
+
+comment on function standart_limit_set(uuid, uuid, numeric) is 'Limit qo''yish/yangilash (admin).';
+comment on function standart_limit_delete(uuid) is 'Limitni o''chirish (admin).';
+
+-- 4.3 SERVER GUARD — entry_line ustidagi AFTER trigger: oylik limitni tekshiradi
+-- ---------------------------------------------------------------------
+-- Xarajat satri (debit>0) yozilganda: entry.filial_ids dagi har filial uchun
+-- (filial, modda) limiti bo'lsa va shu oyda jami (yangi satr bilan) limitdan
+-- oshsa — YOZUV BEKOR (exception, tranzaksiya rollback). Mavjud perm guard
+-- (BEFORE) bilan to'qnashmaydi — bu alohida AFTER trigger. n8n/service_role
+-- (auth.uid() null) o'tadi.
+create or replace function limit_guard_entry_line()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_fids    uuid[];
+  v_date    date;
+  v_deleted boolean;
+  v_status  text;
+  f         uuid;
+  v_limit   numeric;
+  v_spent   numeric;
+  v_f       date;
+  v_t       date;
+  v_fname   text;
+  v_mname   text;
+begin
+  if new.debit is null or new.debit <= 0 then return new; end if;
+  if auth.uid() is null then return new; end if;   -- avtomat sinxron (n8n) o'tadi
+
+  select filial_ids, entry_date, is_deleted, status
+    into v_fids, v_date, v_deleted, v_status
+    from entry where id = new.entry_id;
+  if not found then return new; end if;
+  if v_deleted or coalesce(v_status, 'posted') <> 'posted' then return new; end if;
+  if v_fids is null or array_length(v_fids, 1) is null then return new; end if;
+
+  v_f := date_trunc('month', v_date)::date;
+  v_t := (date_trunc('month', v_date) + interval '1 month - 1 day')::date;
+
+  foreach f in array v_fids loop
+    select limit_uzs into v_limit
+      from standart_xarajat where filial_id = f and modda_id = new.account_id;
+    if v_limit is not null then
+      select coalesce(sum(el.debit), 0) into v_spent
+        from entry e
+        join entry_line el on el.entry_id = e.id and el.account_id = new.account_id and el.debit > 0
+       where e.status = 'posted' and e.is_deleted = false
+         and e.entry_date >= v_f and e.entry_date <= v_t
+         and f = any(e.filial_ids);
+      if v_spent > v_limit then
+        select name into v_fname from accounts where id = f;
+        select name into v_mname from accounts where id = new.account_id;
+        raise exception 'Limit oshib ketdi: "%" filialida "%" uchun oylik limit % so''m, bu oy jami % so''m bo''ladi',
+          coalesce(v_fname, '?'), coalesce(v_mname, '?'), v_limit, v_spent
+          using errcode = 'P0001';
+      end if;
+    end if;
+  end loop;
+  return new;
+end $$;
+
+revoke all on function limit_guard_entry_line() from public, anon;
+
+drop trigger if exists trg_limit_guard_entry_line on entry_line;
+create trigger trg_limit_guard_entry_line
+  after insert on entry_line
+  for each row execute function limit_guard_entry_line();
+
+comment on function limit_guard_entry_line() is
+  'standart_xarajat oylik limitini majburlaydi (filial+modda). service_role/n8n o''tadi.';
+
+-- 4.4 perm_pages() ga 'standart' qo'shiladi (additive — sahifa ruxsat kaliti)
+create or replace function perm_pages()
+returns text[]
+language sql
+immutable
+as $$
+  select array['kassa','jurnal','professional','hisobot','balans','cashflow',
+               'qarzdor','filial','valyuta','konvert','sozlama','provodka','yuklar','standart']::text[];
+$$;
+
+revoke all on function perm_pages() from public, anon;
+grant execute on function perm_pages() to authenticated, service_role;
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if to_regclass('public.standart_xarajat') is null then raise exception '4-BOSQICH: standart_xarajat yo''q'; end if;
+  if to_regprocedure('public.standart_holat(date)') is null then raise exception '4-BOSQICH: standart_holat yo''q'; end if;
+  if to_regprocedure('public.standart_limit_set(uuid,uuid,numeric)') is null then raise exception '4-BOSQICH: standart_limit_set yo''q'; end if;
+  if not exists (select 1 from pg_trigger where tgname='trg_limit_guard_entry_line') then
+    raise exception '4-BOSQICH: limit guard trigger yo''q';
+  end if;
+  if not ('standart' = any(perm_pages())) then raise exception '4-BOSQICH: perm_pages ichida standart yo''q'; end if;
+  raise notice '4-BOSQICH OK: standart limitlar DB tayyor.';
+end $$;

@@ -250,6 +250,7 @@
       <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item" href="standart-dev.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
     </nav>
     <div class="side-foot">
       <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
@@ -291,6 +292,7 @@
         <div id="dirHint" class="dirhint"></div>
         <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
         <div id="filialChips" class="fchips"></div>
+        <div id="limitWarn" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
         <div id="davrSect" style="display:none;margin-bottom:16px">
           <label id="davrLbl">📅 Davr (majburiy)</label>
           <div class="davrrow"><input type="date" class="txt" id="davrStart" aria-label="Boshi"><input type="date" class="txt" id="davrEnd" aria-label="Oxiri"></div>
@@ -333,6 +335,7 @@
       <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="standart-dev.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <a href="yuklar-dev.html"><i data-lucide="package"></i>Yuklar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
@@ -599,7 +602,14 @@ window.updateSimple=()=>{
   if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} so'm`; }
   else w.style.display='none';
   const needKomm=isKomm() && !kommTuri;   // Kommunal (9413): turi majburiy
-  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr && !needKomm);
+  // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
+  let overLimit=false; const lw=$('limitWarn');
+  if(selFilials.size===1 && $('modda').value){
+    const lm=limitFor([...selFilials][0], $('modda').value);
+    if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
+    else lw.style.display='none';
+  } else lw.style.display='none';
+  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr && !needKomm && !overLimit);
 };
 // ---- Yuklar: 9110 "Tovar tannarxi" — QISMAN TO'LOV taqsimlash modali (majburiy) ----
 const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
@@ -816,10 +826,21 @@ async function doSaveSimple(){
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
 }
 
+// ---- Stage 4: Standart limitlar (filial+modda oylik limit) ----
+let limitMap={};   // 'filialId|moddaId' → {limit, qoldi, sarflandi, modda_name}
+const limitFor=(fid,mid)=>limitMap[fid+'|'+mid]||null;
+async function loadLimits(){
+  try{ const oy=new Date(Date.now()+5*3600*1000).toISOString().slice(0,7)+'-01';
+    const {data}=await sb.rpc('standart_holat',{p_oy:oy});
+    limitMap={}; (data||[]).forEach(r=>{ limitMap[r.filial_id+'|'+r.modda_id]={limit:Number(r.limit_uzs)||0,qoldi:Number(r.qoldi)||0,sarflandi:Number(r.sarflandi)||0,modda_name:r.modda_name}; });
+    updateSimple();
+  }catch(e){}
+}
 // ---- Stage 2: Filial taqsimoti modali (har filialga alohida entry, atomik RPC) ----
 let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
 function openTaqsim(amt, dtId, ktId, kassa){
-  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa};
+  const moddaId=(dtId===kassa.id)?ktId:dtId;   // kassa bo'lmagan tomon = modda (limit shu bo'yicha)
+  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId};
   taqsimFils=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
   if(taqsimFils.length<2){ doSaveSimpleForce(); return; }   // himoya (filial ro'yxati kelmasa)
   taqsimEqualCalc(); renderTaqsim();
@@ -845,10 +866,15 @@ function renderTaqsimSum(){
   $('taqsimSum').innerHTML='<div class="tsrow"><span>Umumiy summa</span><b>'+money(amt)+' so\'m</b></div>'
     +'<div class="tsrow"><span>Taqsimlangan ('+taqsimFils.length+' filial)</span><b>'+money(s)+' so\'m</b></div>';
   const allPos=taqsimFils.every(f=>(Number(taqsimAlloc[f.id])||0)>0);
+  // Stage 4: har filial ulushi o'z limitidan oshmasin
+  let limErr='';
+  taqsimFils.forEach(f=>{ const lm=limitFor(f.id, taqsimCtx.moddaId); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
+    if(a>lm.qoldi && !limErr) limErr=`${f.name}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
   else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }
   else if(!allPos){ msg.textContent='Har filialga summa yozing'; msg.className='tmsg no'; }
+  else if(limErr){ msg.textContent=limErr; msg.className='tmsg no'; }
   else { msg.textContent='✓ to\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
   $('taqsimSaveBtn').disabled=!ok;
 }
@@ -920,6 +946,7 @@ async function init(){
   $('davrStart').addEventListener('change',updateSimple);
   $('davrEnd').addEventListener('change',updateSimple);
   renderChips(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
+  loadLimits();                      // Stage 4: standart limitlar (fon)
   window.setMode('simple');
   // Kengaytirilgan rejim (mavjud)
   lines=[]; addLine(); addLine();

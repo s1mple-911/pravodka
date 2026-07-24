@@ -307,6 +307,7 @@
       <div class="sect">
         <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></div>
         <div id="filialChips" class="fchips"></div>
+        <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px"></div>
       </div>
 
       <div class="sect" id="davrSect" style="display:none">
@@ -735,7 +736,14 @@ function updateSave(){
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
   const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr&&!needKomm);
+  // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
+  let overLimit=false; const lw=$('limitWarn');
+  if(selFilials.size===1 && selModda){
+    const lm=limitFor([...selFilials][0], selModda);
+    if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
+    else lw.style.display='none';
+  } else lw.style.display='none';
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
 }
 
 window.saveHodim=async()=>{
@@ -801,6 +809,16 @@ window.saveHodim=async()=>{
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
 
+// ---- Stage 4: Standart limitlar (filial+modda oylik limit) ----
+let limitMap={};   // 'filialId|moddaId' → {limit, qoldi, sarflandi, modda_name}
+const limitFor=(fid,mid)=>limitMap[fid+'|'+mid]||null;
+async function loadLimits(){
+  try{ const oy=isoDay(nowUz()).slice(0,7)+'-01';
+    const {data}=await sb.rpc('standart_holat',{p_oy:oy});
+    limitMap={}; (data||[]).forEach(r=>{ limitMap[r.filial_id+'|'+r.modda_id]={limit:Number(r.limit_uzs)||0,qoldi:Number(r.qoldi)||0,sarflandi:Number(r.sarflandi)||0,modda_name:r.modda_name}; });
+    updateSave();
+  }catch(e){}
+}
 // ---- Stage 2: Filial taqsimoti (har filialga alohida entry, atomik RPC) ----
 const selFilialObjs=()=>[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
 let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
@@ -831,10 +849,15 @@ function renderTaqsimSum(){
   $('taqsimSum').innerHTML='<div class="tsrow"><span>Umumiy summa</span><b>'+money(amt)+' so\'m</b></div>'
     +'<div class="tsrow"><span>Taqsimlangan ('+taqsimFils.length+' filial)</span><b>'+money(s)+' so\'m</b></div>';
   const allPos=taqsimFils.every(f=>(Number(taqsimAlloc[f.id])||0)>0);
+  // Stage 4: har filial ulushi o'z limitidan oshmasin
+  let limErr='';
+  taqsimFils.forEach(f=>{ const lm=limitFor(f.id, selModda); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
+    if(a>lm.qoldi && !limErr) limErr=`${f.name}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
   else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }
   else if(!allPos){ msg.textContent='Har filialga summa yozing'; msg.className='tmsg no'; }
+  else if(limErr){ msg.textContent=limErr; msg.className='tmsg no'; }
   else { msg.textContent='✓ to\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
   $('taqsimSaveBtn').disabled=!ok;
 }
@@ -994,7 +1017,7 @@ async function init(){
   if(user) sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
     .then(({data:p})=>{ if(p&&p.full_name){ myName=p.full_name; $('who').textContent='· '+myName; } }).catch(()=>{});
   updateModdaUI();
-  loadBalances(); loadMonth();              // qoldiq/oy — fon
+  loadBalances(); loadMonth(); loadLimits(); // qoldiq/oy/limitlar — fon
   console.timeEnd('hodim:ochilish');
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);
