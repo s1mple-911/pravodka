@@ -266,3 +266,115 @@ do $$
 begin
   raise notice '6-BOSQICH OK: SQL o''zgarishi yo''q — koridor UI''dan yashirildi (kassa-dev, konvert-dev).';
 end $$;
+
+
+-- #####################################################################
+-- ##  7-BOSQICH — Konvert koridori foizi SOZLAMADAN (admin), 5% → 0.7%##
+-- #####################################################################
+-- Hozir conv_koridor_foiz() qattiq 5 qaytaradi. Endi u kichik config
+-- jadvalidan o'qiydi; admin sozlama-dev.html'dan o'zgartira oladi.
+--
+-- ⚠️ 0.7% JUDA TOR: 1$ ≈ 12 800 so'm bo'lsa oraliq ≈ 12 710 – 12 890.
+-- Ya'ni konvertlarning ancha ko'pi admin tasdig'iga (pending) tushadi.
+-- Asilbek shuni xohlaydi. Foizni istalgan payt sozlamadan ko'tarish mumkin.
+--
+-- IMZO O'ZGARMAYDI: conv_koridor_foiz() → numeric (argumentsiz), oldingidek.
+-- convert_start_v2 ichidagi chaqiruv tegilmaydi.
+
+-- 7.1 provodka_config — umumiy kalit/qiymat sozlamalari (kelajakda kengayadi)
+create table if not exists provodka_config (
+  key        text primary key,
+  val        text not null,
+  updated_by text,
+  updated_at timestamptz default now()
+);
+
+comment on table provodka_config is
+  'Provodka umumiy sozlamalari (kalit/qiymat). Yozish faqat RPC orqali (admin).';
+
+insert into provodka_config(key, val)
+values ('konvert_koridor_foiz', '0.7')
+on conflict (key) do nothing;
+
+-- Mavjud DB'da qator allaqachon bo'lsa (masalan eski 5 bilan) — brief 0.7 ni
+-- talab qiladi, shuning uchun aniq shu kalitni majburan 0.7 ga tushiramiz.
+-- Keyinchalik admin sozlamadan o'zgartirsa, bu skript qayta ishga tushirilmaydi.
+update provodka_config
+   set val = '0.7', updated_by = 'PROVODKA_V8.sql', updated_at = now()
+ where key = 'konvert_koridor_foiz' and val <> '0.7';
+
+-- RLS: o'qish authenticated (admin UI joriy qiymatni ko'rsatadi),
+-- yozish policy'si UMUMAN YO'Q — faqat SECURITY DEFINER RPC yozadi.
+alter table provodka_config enable row level security;
+drop policy if exists cfg_sel on provodka_config;
+create policy cfg_sel on provodka_config for select to authenticated using (true);
+revoke all on provodka_config from public, anon;
+grant select on provodka_config to authenticated;
+
+-- 7.2 conv_koridor_foiz() — endi config'dan o'qiydi (topilmasa 0.7)
+-- ESKI IMZO SAQLANADI: () -> numeric. convert_start_v2 shuni chaqiradi.
+create or replace function conv_koridor_foiz()
+returns numeric
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+           (select nullif(val, '')::numeric from provodka_config where key = 'konvert_koridor_foiz'),
+           0.7);
+$$;
+
+revoke all on function conv_koridor_foiz() from public, anon;
+grant execute on function conv_koridor_foiz() to authenticated, service_role;
+
+comment on function conv_koridor_foiz() is
+  'Konvert koridori foizi (provodka_config.konvert_koridor_foiz; default 0.7). Yagona manba.';
+
+-- 7.3 set_koridor_foiz(p_foiz) — ADMIN only
+create or replace function set_koridor_foiz(p_foiz numeric)
+returns numeric
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_by text;
+begin
+  if not is_admin() then
+    raise exception 'Faqat admin koridor foizini o''zgartira oladi' using errcode = '42501';
+  end if;
+  if p_foiz is null or p_foiz <= 0 or p_foiz > 100 then
+    raise exception 'Foiz 0 dan katta va 100 dan kichik bo''lishi kerak' using errcode = '22000';
+  end if;
+  select coalesce(full_name, '') into v_by from profiles where id = auth.uid();
+  insert into provodka_config(key, val, updated_by, updated_at)
+  values ('konvert_koridor_foiz', p_foiz::text, v_by, now())
+  on conflict (key) do update
+    set val = excluded.val, updated_by = excluded.updated_by, updated_at = excluded.updated_at;
+  return p_foiz;
+end $$;
+
+revoke all on function set_koridor_foiz(numeric) from public, anon;
+grant execute on function set_koridor_foiz(numeric) to authenticated;
+
+comment on function set_koridor_foiz(numeric) is
+  'Konvert koridori foizini o''zgartiradi (admin only). sozlama-dev.html shuni chaqiradi.';
+
+notify pgrst, 'reload schema';
+
+do $$
+declare v numeric;
+begin
+  if to_regclass('public.provodka_config') is null then
+    raise exception '7-BOSQICH: provodka_config jadvali yaratilmadi';
+  end if;
+  if to_regprocedure('public.set_koridor_foiz(numeric)') is null then
+    raise exception '7-BOSQICH: set_koridor_foiz(numeric) yaratilmadi';
+  end if;
+  select conv_koridor_foiz() into v;
+  if v is null then raise exception '7-BOSQICH: conv_koridor_foiz() null qaytardi'; end if;
+  if v <> 0.7 then
+    raise notice '7-BOSQICH ⚠️  conv_koridor_foiz() = % (0.7 emas) — config qatorini tekshiring.', v;
+  end if;
+  raise notice '7-BOSQICH OK: koridor foizi sozlanadigan bo''ldi, joriy qiymat = %', v;
+end $$;

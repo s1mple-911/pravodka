@@ -72,6 +72,14 @@
   .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 14px;line-height:1.6}
   .res{font-size:14px;font-weight:600;margin-top:12px;min-height:20px}
+  /* V8: konvert koridori — kiritilgan foizning real ma'nosi (1$ uchun so'm oralig'i) */
+  .korscale{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:13px;color:var(--muted)}
+  .korscale .kq{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 11px;
+    font-size:12.5px;font-weight:600;color:var(--muted);font-family:inherit;cursor:pointer;transition:border-color .13s,color .13s}
+  .korscale .kq:hover{border-color:var(--primary);color:var(--primary)}
+  .korscale .kq.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .korscale .kinfo{width:100%;line-height:1.6}
+  .korscale .kinfo b{color:var(--ink);font-variant-numeric:tabular-nums}
   .res.ok{color:var(--green)}.res.err{color:var(--red)}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
@@ -159,6 +167,20 @@
     <div class="card"><div class="sec" id="listTitle">KASSALAR</div><div id="list"></div></div>
     <div class="card"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
 
+    <!-- V8 (7-ish): konvert koridori — admin sozlaydi (provodka_config.konvert_koridor_foiz) -->
+    <div class="card" id="korCard" style="display:none">
+      <div class="sec">Konvert koridori</div>
+      <div class="hint">Konvert kursi tayanch kursdan shu foizdan ko'p farq qilsa — so'rov <b>admin tasdig'iga</b> tushadi
+        va pul harakat qilmaydi. Kichik foiz = qattiqroq nazorat (ko'proq so'rov tasdiqqa tushadi).
+        <b>Foydalanuvchilar bu oraliqni ko'rmaydi.</b></div>
+      <div class="addrow">
+        <input id="korFoiz" inputmode="decimal" placeholder="masalan: 0.7" autocomplete="off" oninput="onKorInput()">
+        <button id="korBtn" onclick="saveKor()" disabled><i data-lucide="save"></i>Saqlash</button>
+      </div>
+      <div class="korscale" id="korScale"></div>
+      <div id="korRes" class="res"></div>
+    </div>
+
     <div class="card" id="linkCard" style="display:none">
       <div class="sec">Filiallarni bog'lash</div>
       <div class="hint">Aros'dagi filiallarni Provodka hisoblariga bog'laydi — filial bo'yicha foyda shundan hisoblanadi.
@@ -209,6 +231,7 @@ function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n))
 function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
 const $=id=>document.getElementById(id);
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 let accounts=[], curType='kassa', isAdmin=false;
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -324,7 +347,63 @@ async function loadRole(){
   const {data:p}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
   isAdmin=(p&&p.role==='admin');
   $('linkCard').style.display=isAdmin?'block':'none';
+  $('korCard').style.display=isAdmin?'block':'none';
+  if(isAdmin) loadKoridor();
 }
+
+// ===== V8 (7-ish): Konvert koridori (%) — provodka_config.konvert_koridor_foiz =====
+// Serverdagi yagona manba conv_koridor_foiz(); u endi provodka_config'dan o'qiydi.
+// Yozish faqat set_koridor_foiz(p_foiz) RPC orqali (admin only, SECURITY DEFINER).
+const KOR_QUICK=[0.3,0.5,0.7,1,2,5];
+let korCur=null, korBaza=null;
+const korVal=()=>{ const v=($('korFoiz').value||'').replace(',','.').trim(); const n=Number(v); return isFinite(n)?n:NaN; };
+async function loadKoridor(){
+  // conv_baza_kurs faqat "shu foiz nechchi so'm oralig'i" izohini chizish uchun —
+  // yiqilsa koridor sozlamasi baribir ishlashi kerak, shuning uchun try/catch.
+  const [{data:f,error:e1},b]=await Promise.all([
+    sb.rpc('conv_koridor_foiz'),
+    (async()=>{ try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); return data; }catch(e){ return null; } })()
+  ]);
+  if(e1){ $('korRes').className='res err'; $('korRes').textContent='O\'qib bo\'lmadi: '+e1.message; return; }
+  korCur=(f===null||f===undefined)?null:Number(f);
+  korBaza=(b===null||b===undefined)?null:Number(b);
+  $('korFoiz').value=(korCur===null?'':String(korCur));
+  renderKorScale();
+}
+function renderKorScale(){
+  const v=korVal();
+  const chips=KOR_QUICK.map(q=>`<button type="button" class="kq${v===q?' on':''}" onclick="pickKor(${q})">${q}%</button>`).join('');
+  let info;
+  if(!isFinite(v)||v<=0) info='<div class="kinfo">Foizni kiriting (0 dan katta).</div>';
+  else if(korBaza===null||!isFinite(korBaza)||korBaza<=0)
+    info=`<div class="kinfo">Joriy: <b>${korCur===null?'—':korCur+'%'}</b> · USD tayanch kursi yo'q, oraliqni so'mda ko'rsatib bo'lmaydi.</div>`;
+  else{
+    const lo=korBaza*(1-v/100), hi=korBaza*(1+v/100);
+    info=`<div class="kinfo">Joriy: <b>${korCur===null?'—':korCur+'%'}</b> · USD tayanch kursi <b>${money(korBaza)}</b> bo'lganda `
+      +`ruxsat oralig'i <b>${money(lo)}</b> – <b>${money(hi)}</b> so'm (kengligi <b>${money(hi-lo)}</b> so'm).</div>`;
+  }
+  $('korScale').innerHTML=chips+info;
+}
+window.pickKor=q=>{ $('korFoiz').value=String(q); onKorInput(); };
+window.onKorInput=()=>{
+  const v=korVal();
+  $('korBtn').disabled=!(isFinite(v)&&v>0&&v<=100&&v!==korCur);
+  $('korRes').className='res'; $('korRes').textContent='';
+  renderKorScale();
+};
+window.saveKor=async()=>{
+  if(!isAdmin){ alert('Faqat admin'); return; }
+  const v=korVal();
+  if(!(isFinite(v)&&v>0&&v<=100)){ $('korRes').className='res err'; $('korRes').textContent='Foiz 0 dan katta, 100 dan kichik bo\'lsin'; return; }
+  const btn=$('korBtn'), old=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='Saqlanmoqda...';
+  const {error}=await sb.rpc('set_koridor_foiz',{p_foiz:v});
+  btn.innerHTML=old; icons();
+  if(error){ $('korRes').className='res err'; $('korRes').textContent='Xato: '+(window.permErr?window.permErr(error):error.message); btn.disabled=false; return; }
+  korCur=v;
+  $('korRes').className='res ok'; $('korRes').textContent=`Koridor ${v}% qilib saqlandi.`;
+  renderKorScale(); onKorInput();
+};
 
 // Aros filiallarini Provodka hisoblariga bog'laydi. Idempotent — qayta bosish zarar qilmaydi.
 window.linkFilial=async()=>{
