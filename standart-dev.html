@@ -50,6 +50,21 @@
   .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px}
   .monthpick{height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14px;font-family:inherit;outline:none}
   .monthpick:focus{border-color:var(--primary)}
+  /* V8: oy navigatsiyasi — limit har oy 0 dan boshlanadi, oyni almashtirish oson bo'lsin */
+  .mrow{display:flex;align-items:center;gap:6px}
+  .mnav{height:40px;width:34px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;
+    display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .13s,color .13s}
+  .mnav:hover{border-color:var(--primary);color:var(--primary)}
+  .mnav svg{width:17px;height:17px}
+  .mnow{height:40px;border:1px solid var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:10px;
+    padding:0 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+  /* Reset izohi — "sarflandi" qaysi oyники ekani hech qachon noaniq qolmasin */
+  .resetnote{display:flex;gap:9px;align-items:flex-start;background:var(--surface-2);border-radius:12px;
+    padding:11px 13px;font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 18px}
+  .resetnote svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--primary)}
+  .resetnote b{color:var(--ink);font-weight:600}
+  .oychip{display:inline-block;background:var(--primary-soft);color:var(--primary);border-radius:999px;
+    padding:3px 10px;font-size:12px;font-weight:700;margin-left:8px;vertical-align:middle}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   /* Filial ro'yxati (kartalar) */
   .fgrid{display:grid;grid-template-columns:1fr;gap:12px}
@@ -170,7 +185,12 @@
     <div class="page-head">
       <h1>Standart xarajatlar</h1>
       <div class="head-actions">
-        <input class="monthpick" id="oy" type="month" aria-label="Oy">
+        <div class="mrow">
+          <button class="mnav" onclick="oyMove(-1)" aria-label="Oldingi oy"><i data-lucide="chevron-left"></i></button>
+          <input class="monthpick" id="oy" type="month" aria-label="Oy">
+          <button class="mnav" onclick="oyMove(1)" aria-label="Keyingi oy"><i data-lucide="chevron-right"></i></button>
+          <button class="mnow" id="oyNow" onclick="oyNow()" style="display:none">Bu oy</button>
+        </div>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
           <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -178,6 +198,7 @@
       </div>
     </div>
     <p class="sub">Har filial + xarajat modda uchun <b>oylik limit</b>. Limitdan oshiq yozib bo'lmaydi.</p>
+    <div class="resetnote"><i data-lucide="rotate-ccw"></i><div>Limit <b>har oy 1-sanasida qaytadan boshlanadi</b>: limit summasi o'zgarmaydi, «Sarflandi» esa 0 dan sanaladi. Quyidagi raqamlar <b id="oyLbl">shu oy</b> uchun — sentabrda avgust xarajati hisobga olinmaydi (server ham shu oynani tekshiradi).</div></div>
     <div id="banner" class="banner"></div>
     <div id="content"><div class="empty">Yuklanmoqda…</div></div>
   </main>
@@ -271,6 +292,22 @@ async function boot(){
 let filials=[], moddas=[], holat=[], curFilial=null, isAdmin=false;
 const isAdminUser=()=>!!(window.PERMS && window.PERMS.is_admin) || isAdmin;
 const oyDate=()=>{ const v=$('oy').value; return v?(v+'-01'):null; };  // 'YYYY-MM' → 'YYYY-MM-01'
+// --- V8: oy navigatsiyasi ---------------------------------------------
+// standart_holat(p_oy) date_trunc('month') bilan ishlaydi va limit_guard trigger
+// ham xuddi shu oylik oynadan foydalanadi (entry_date oyi). Ya'ni "sarflandi"
+// har oy avtomat 0 dan boshlanadi — alohida reset ishi yoki cron KERAK EMAS.
+// limit_uzs (standart_xarajat) hech qachon o'zgarmaydi.
+const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+const oyNowStr=()=>nowUz().toISOString().slice(0,7);
+function oyUz(v){ if(!v) return ''; const [y,m]=v.split('-'); return UZ_MON[+m-1]+' '+y; }
+function syncOyUI(){
+  const v=$('oy').value, cur=oyNowStr();
+  $('oyLbl').textContent=v?(v===cur?oyUz(v)+' (shu oy)':oyUz(v)):'shu oy';
+  $('oyNow').style.display=(v&&v!==cur)?'inline-flex':'none';
+}
+window.oyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').map(Number);
+  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); loadHolat(); };
+window.oyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); loadHolat(); };
 // holat -> filial bo'yicha guruh
 function byFilial(fid){ return holat.filter(r=>r.filial_id===fid); }
 function filName(fid){ const f=filials.find(x=>x.id===fid); return f?f.name:'—'; }
@@ -293,7 +330,7 @@ function renderList(){
     const rows=byFilial(f.id), n=rows.length;
     const tot=rows.reduce((s,r)=>s+(Number(r.limit_uzs)||0),0);
     const spent=rows.reduce((s,r)=>s+(Number(r.sarflandi)||0),0);
-    const meta=n?`Jami limit: <b>${money(tot)}</b> · Sarflandi: <b>${money(spent)}</b>`:'Limit qo\'yilmagan';
+    const meta=n?`Jami limit: <b>${money(tot)}</b> · Sarflandi (${esc(oyUz($('oy').value))}): <b>${money(spent)}</b>`:'Limit qo\'yilmagan';
     return `<button type="button" class="fcard" onclick="openFilial('${f.id}')">`
       +`<div class="fc-top"><div><div class="fc-name">${esc(f.name)}</div>${f.subtitle?`<div class="fc-sub">${esc(f.subtitle)}</div>`:''}</div>`
       +`<span class="fc-cnt${n?'':' zero'}">${n} ta limit</span></div>`
@@ -330,7 +367,7 @@ function renderDetail(){
     }).join('');
   }
   box.innerHTML=`<button class="back" onclick="backToList()"><i data-lucide="arrow-left"></i>Barcha filiallar</button>`
-    +`<div class="det-head"><div><div class="dh-name">${esc(filName(fid))}</div>${filSub(fid)?`<div class="dh-sub">${esc(filSub(fid))}</div>`:''}</div>${rows.length?addBtn:''}</div>`
+    +`<div class="det-head"><div><div class="dh-name">${esc(filName(fid))}<span class="oychip">${esc(oyUz($('oy').value))}</span></div>${filSub(fid)?`<div class="dh-sub">${esc(filSub(fid))}</div>`:''}</div>${rows.length?addBtn:''}</div>`
     +ro+listHtml;
   icons();
 }
@@ -383,8 +420,9 @@ $('limModda').addEventListener('change',updateLimBtn);
 
 async function init(){
   // Oy — joriy oy (YYYY-MM)
-  const n=nowUz(); $('oy').value=n.toISOString().slice(0,7);
-  $('oy').onchange=loadHolat;
+  $('oy').value=oyNowStr();
+  $('oy').onchange=()=>{ syncOyUI(); loadHolat(); };
+  syncOyUI();
   // admin holati (perms.js dan; profiles bilan ham tasdiqlaymiz)
   isAdmin=isAdminUser();
   const [{data:fData,error:fErr},{data:aData}]=await Promise.all([

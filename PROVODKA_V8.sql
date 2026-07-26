@@ -147,3 +147,50 @@ begin
 end $$;
 
 notify pgrst, 'reload schema';
+
+
+-- #####################################################################
+-- ##  3-BOSQICH — Standart limit har oy reset (TEKSHIRUV — SQLsiz)    ##
+-- #####################################################################
+-- SQL O'ZGARTIRISH YO'Q. Savol: "limitlar har oy boshida 0 dan boshlanadimi?"
+-- JAVOB: HA — mexanizm allaqachon oylik va AVTOMAT. Alohida reset ishi,
+-- cron yoki "yangi oy" tugmasi KERAK EMAS. Tekshirilgan joylar:
+--
+--   1) standart_holat(p_oy)  (PROVODKA_V7.sql, 4.1)
+--      with oy as (select date_trunc('month', p_oy) ... )
+--      sarflandi = shu oy oynasidagi (entry_date >= oy.f and <= oy.t)
+--      posted + o'chirilmagan Dt yig'indisi. Ya'ni "sarflandi" HISOBLANADI,
+--      hech qayerda SAQLANMAYDI → nolga tushirish uchun yozuv kerak emas.
+--
+--   2) limit_guard_entry_line() trigger (PROVODKA_V7.sql, 4.3)
+--      v_f := date_trunc('month', v_date)  /  v_t := oy oxiri
+--      Bu yerda v_date = YANGI yozuvning entry_date'i. Ya'ni sentabr
+--      yozuvini tekshirganda faqat sentabr xarajatlari sanaladi —
+--      avgustники umuman qo'shilmaydi. TASDIQLANDI.
+--
+--   3) standart_xarajat.limit_uzs — hech qachon o'zgarmaydi (faqat admin
+--      standart_limit_set bilan). Oy almashishi unga tegmaydi. TASDIQLANDI.
+--
+-- Frontend (standart-dev.html) shu bosqichda tekshirildi va yaxshilandi:
+--   * <input type="month" id="oy"> default JORIY oy (init: oyNowStr()) — TO'G'RI edi
+--   * qo'shildi: ◀ / ▶ oy tugmalari + "Bu oy" qaytish tugmasi
+--   * qo'shildi: "limit har oy 1-sanasida qaytadan boshlanadi" izohi
+--   * qo'shildi: karta/detal sarlavhasida oy nomi — "Sarflandi" qaysi oyники
+--     ekani hech qachon noaniq qolmaydi
+--
+-- Qo'lda tekshirish (o'zgartirmaydi) — bir limit bo'yicha 3 oy yonma-yon:
+--   select 'o''tgan oy' as oy, * from standart_holat((date_trunc('month', now()) - interval '1 month')::date)
+--   union all select 'shu oy',   * from standart_holat(date_trunc('month', now())::date)
+--   union all select 'keyingi',  * from standart_holat((date_trunc('month', now()) + interval '1 month')::date);
+--   -- limit_uzs uchala qatorda BIR XIL, sarflandi esa har oy boshqacha bo'ladi.
+
+do $$
+begin
+  if to_regprocedure('public.standart_holat(date)') is null then
+    raise exception '3-BOSQICH: standart_holat(date) yo''q — PROVODKA_V7.sql RUN qilinmagan';
+  end if;
+  if not exists (select 1 from pg_trigger where tgname = 'trg_limit_guard_entry_line') then
+    raise exception '3-BOSQICH: limit guard trigger yo''q — PROVODKA_V7.sql RUN qilinmagan';
+  end if;
+  raise notice '3-BOSQICH OK: oylik reset mexanizmi joyida (standart_holat + limit_guard).';
+end $$;
