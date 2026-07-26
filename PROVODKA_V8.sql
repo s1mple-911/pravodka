@@ -194,3 +194,38 @@ begin
   end if;
   raise notice '3-BOSQICH OK: oylik reset mexanizmi joyida (standart_holat + limit_guard).';
 end $$;
+
+
+-- #####################################################################
+-- ##  4-BOSQICH — Kommunalga "Suv" qo'shish                           ##
+-- #####################################################################
+-- entry.kommunal_turi CHECK ro'yxati: gaz | svet | musor  →  + suv.
+-- Bu ADDITIVE: eski qiymatlar ('gaz','svet','musor') o'z holicha qoladi,
+-- faqat yangi qiymat ruxsat etiladi. Ustun O'CHIRILMAYDI, turi o'zgarmaydi.
+-- kommunal_hisobot(p_from,p_to) `group by turi` bo'lgani uchun 'suv'ni
+-- AVTOMAT qamrab oladi — funksiyani qayta yozish shart emas.
+--
+-- DIQQAT (tartib): avval constraint DROP, keyin ADD. Ikkalasi bitta
+-- tranzaksiyada — orada yaroqsiz qiymat kirib qololmaydi.
+
+alter table entry drop constraint if exists entry_kommunal_turi_check;
+alter table entry add constraint entry_kommunal_turi_check
+  check (kommunal_turi is null or kommunal_turi in ('gaz','svet','musor','suv'));
+
+comment on column entry.kommunal_turi is
+  'Kommunal xarajat (9413) turi: gaz|svet|musor|suv. NULL — kommunal emas.';
+
+notify pgrst, 'reload schema';
+
+do $$
+declare v_ok boolean;
+begin
+  -- constraint rostdan 'suv'ni qabul qiladimi — pg_get_constraintdef bilan tekshiramiz
+  select pg_get_constraintdef(oid) like '%suv%' into v_ok
+    from pg_constraint
+   where conrelid = 'public.entry'::regclass and conname = 'entry_kommunal_turi_check';
+  if not coalesce(v_ok, false) then
+    raise exception '4-BOSQICH: entry_kommunal_turi_check ichida ''suv'' yo''q';
+  end if;
+  raise notice '4-BOSQICH OK: kommunal turlari — gaz|svet|musor|suv.';
+end $$;
