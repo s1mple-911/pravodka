@@ -229,3 +229,40 @@ begin
   end if;
   raise notice '4-BOSQICH OK: kommunal turlari — gaz|svet|musor|suv.';
 end $$;
+
+
+-- #####################################################################
+-- ##  6-BOSQICH — Konvertdan koridor izohini olib tashlash            ##
+-- #####################################################################
+-- SQL O'ZGARTIRISH YO'Q — bu bosqich faqat frontend (ko'rinish).
+--
+-- Nima o'zgardi:
+--   * kassa-dev.html konvert modali: "Tayanch: X · ruxsat A – B (±N%)"
+--     matni va "koridordan tashqarida" sariq ogohlantirishi ODDIY
+--     FOYDALANUVCHIGA KO'RSATILMAYDI. O'rniga neytral izoh:
+--     "Kursni kiriting. Kurs odatdagidan sezilarli farq qilsa, so'rov
+--      admin tasdig'iga tushadi."
+--   * kassa-dev.html pending javobi: "Tayanch kurs ... ruxsat lo – hi"
+--     endi faqat adminga.
+--   * konvert-dev.html so'rov kartasi: "Tayanch kurs" va "Farq %"
+--     kataklari faqat adminga (u tasdiqlaydi — unga kerak).
+--   * konvert-dev.html oddiy foydalanuvchida conv_koridor_foiz() umuman
+--     CHAQIRILMAYDI.
+--
+-- HIMOYA YO'QOLMAYDI: koridor tekshiruvi convert_start_v2() ichida,
+-- serverda. Chetdan chiqqan kurs baribir pending bo'ladi va pul harakat
+-- qilmaydi. O'zgargani — foydalanuvchi chegarani OLDINDAN ko'rmaydi.
+--
+-- ⚠️ ESLATMA: conv_koridor_foiz() hamon `authenticated` uchun ochiq
+-- (7-bosqichda sozlama sahifasi va admin UI shuni o'qiydi). Ya'ni juda
+-- qiziquvchan foydalanuvchi RPC'ni to'g'ridan chaqirib foizni bilib
+-- olishi mumkin. Buni butunlay yopish kerak bo'lsa — alohida ish:
+--     revoke execute on function conv_koridor_foiz() from authenticated;
+--     grant  execute on function conv_koridor_foiz() to service_role;
+-- lekin unda admin sahifasi ham o'qiy olmaydi (admin-only wrapper kerak).
+-- Hozir brief talab qilgani — UI'dan olib tashlash — bajarildi.
+
+do $$
+begin
+  raise notice '6-BOSQICH OK: SQL o''zgarishi yo''q — koridor UI''dan yashirildi (kassa-dev, konvert-dev).';
+end $$;
