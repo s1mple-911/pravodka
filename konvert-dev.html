@@ -267,6 +267,13 @@ function card(r){
   const pctTxt=pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%';
   const chiqib=pct!==null&&Math.abs(pct)>cvFoiz;
   const y=yonalish(r);
+  // V8 (6-ish): koridor ma'lumoti (tayanch kurs + farq foizi) FAQAT ADMINGA.
+  // Oddiy foydalanuvchi chegarani bilmasligi kerak — aks holda har safar
+  // koridor chetiga yaqin kurs yozadi. Server tekshiruvi o'z joyida qoladi.
+  const korKv=isAdmin
+    ? `<div class="kv"><span>Tayanch kurs</span><b>${r.aros_rate?money(r.aros_rate):'—'}</b></div>
+      <div class="kv"><span>Farq</span><b class="${chiqib?'warn':''}">${pctTxt}</b></div>`
+    : '';
   // Sotib olish: so'm → valyuta. Sotish: valyuta → so'm.
   const bosh=y.sotish
     ? `<span class="amt">${usdFmt(r.fc_amount,y.cur)}</span><span class="usd">→ ${money(r.amount)} so'm</span>`
@@ -287,8 +294,7 @@ function card(r){
       <div class="kv"><span>Kimga</span><b>${accName(r.to_account)}</b></div>
       <div class="kv"><span>Yo'nalish</span><b>${y.sotish?'Sotish':'Sotib olish'} · ${y.cur||'—'}</b></div>
       <div class="kv"><span>Kurs</span><b>${money(r.rate)}</b></div>
-      <div class="kv"><span>Tayanch kurs</span><b>${r.aros_rate?money(r.aros_rate):'—'}</b></div>
-      <div class="kv"><span>Farq</span><b class="${chiqib?'warn':''}">${pctTxt}</b></div>
+      ${korKv}
       <div class="kv"><span>So'radi</span><b>${r.requested_by_name||'—'} · ${fmtWhen(r.requested_at)}</b></div>
     </div>${note}${decided}${acts}</div>`;
 }
@@ -338,9 +344,14 @@ async function init(){
     loadRole(),
     // currency — yo'nalishni (sotib olish/sotish) tiklash uchun kerak
     (async()=>{ const {data:accs}=await sb.from('v_kassa_toliq').select('id,name,currency'); accById={}; (accs||[]).forEach(a=>{ accById[a.id]=a; }); })(),
-    // Koridor foizi bitta manbadan — "farq" ustuni shunga qarab sariq bo'ladi
-    (async()=>{ const {data:f}=await sb.rpc('conv_koridor_foiz'); if(f!==null&&f!==undefined) cvFoiz=Number(f)||cvFoiz; })(),
+    // Koridor foizi bitta manbadan — "farq" ustuni shunga qarab sariq bo'ladi.
+    // V8 (6-ish): faqat admin kartasida ishlatiladi, shuning uchun loadRole()dan keyin
+    // (quyida) so'raladi — oddiy foydalanuvchiga umuman so'rov ketmaydi.
   ]);
+  if(isAdmin){
+    const {data:f}=await sb.rpc('conv_koridor_foiz');
+    if(f!==null&&f!==undefined) cvFoiz=Number(f)||cvFoiz;
+  }
   // Kartalar nom (accById) va isAdmin'ga bog'liq — shuning uchun load yuqoridagilardan keyin
   await load(true);
 }

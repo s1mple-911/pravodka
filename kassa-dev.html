@@ -553,6 +553,17 @@ function cvCalc(){
       : 'Avval valyutani tanlang.';
     el.classList.remove('warn'); return;
   }
+  // V8 (6-ish): KORIDOR FOYDALANUVCHIGA KO'RSATILMAYDI.
+  // Sabab — kirish nazorati: chegarani bilgan odam har safar chetiga yaqin kurs yozadi.
+  // Server baribir tekshiradi (convert_start_v2): koridordan chiqsa so'rov pending
+  // bo'ladi va pul harakat qilmaydi. Ya'ni himoya yo'qolmaydi, faqat ko'rinmaydi.
+  // Admin (tasdiqlovchi) uchun to'liq ma'lumot qoladi — u qaror qabul qiladi.
+  if(!isAdmin){
+    box.className='cv-rate';
+    $('cvAros').textContent="Kursni kiriting. Kurs odatdagidan sezilarli farq qilsa, so'rov admin tasdig'iga tushadi.";
+    el.classList.remove('warn');
+    return;
+  }
   const lo=cvBaza*(1-cvFoiz/100), hi=cvBaza*(1+cvFoiz/100);
   const out=rate>0&&(rate<lo||rate>hi);
   box.className='cv-rate'+(out?' warn':'');
@@ -578,7 +589,8 @@ window.convSave=async()=>{
   if(r.ok&&r.status==='done'){ closeConv(); swrSet('cards',null); swrSet('valyutalar',null); await loadKassalar(); return; }
   if(!r.ok&&r.status==='pending'){
     $('cvMsg').className='cv-msg pend';
-    const kor=(r.aros_rate!==undefined&&r.aros_rate!==null)
+    // V8 (6-ish): lo/hi faqat adminga. Oddiy foydalanuvchi chegarani ko'rmaydi.
+    const kor=(isAdmin&&r.aros_rate!==undefined&&r.aros_rate!==null)
       ? '<br>Tayanch kurs: '+money(r.aros_rate)+' · ruxsat '+money(r.lo)+' – '+money(r.hi) : '';
     $('cvMsg').innerHTML="Admin tasdig'i kutilmoqda — pul hali harakat qilmadi."+kor+'<br>So\'rov "Konvert" bo\'limida ko\'rinadi.';
     $('cvSave').disabled=true;
