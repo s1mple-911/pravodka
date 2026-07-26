@@ -92,8 +92,42 @@
   .fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
   .fchip:hover{border-color:var(--primary)}
   .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
-  .davrrow{display:flex;gap:10px}
-  .davrrow .txt{flex:1;min-width:0;margin-bottom:0}
+  /* V8: davr — hodim-dev.html bilan bir xil kalendar (ikki oy, uz nomlar).
+     Avval ikkita <input type=date> yonma-yon edi: mobil'da qisilib, native
+     picker tugmasi kesilib qolardi -> sana tanlab bo'lmasdi -> Saqlash abadiy
+     disabled (9411 "Ijara" bug). Endi o'z kalendarimiz. */
+  .davrsel{font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:11px;min-height:20px;font-variant-numeric:tabular-nums}
+  .davrsel .ph{color:var(--muted);font-weight:500}
+  .cal{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 15px}
+  .cal-months{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:560px){.cal-months{grid-template-columns:1fr 1fr;gap:24px}}
+  .cal-m{min-width:0}
+  .cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;height:28px}
+  .cal-title{font-weight:700;font-size:14.5px;letter-spacing:-.01em}
+  .cal-nav{border:none;background:transparent;color:var(--muted);cursor:pointer;padding:5px;border-radius:8px;display:inline-flex}
+  .cal-nav:hover{background:var(--surface-2);color:var(--ink)}
+  .cal-nav svg{width:18px;height:18px}
+  .cal-nav.hidden{visibility:hidden;pointer-events:none}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0}
+  .cal-wd{font-size:11.5px;font-weight:600;color:var(--muted);text-align:center;padding:3px 0 6px}
+  .cal-day{aspect-ratio:1;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:13.5px;
+    font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-variant-numeric:tabular-nums;border-radius:9px;transition:background .12s,color .12s}
+  .cal-day:hover{background:var(--surface-2)}
+  .cal-day.muted{color:var(--line);pointer-events:none;background:transparent!important}
+  .cal-day.inrange{background:var(--primary-soft);border-radius:0}
+  .cal-day.on{background:var(--primary);color:#fff}
+  .cal-day.on:hover{background:var(--primary-hover)}
+  .cal-day.on.s{border-radius:9px 0 0 9px}
+  .cal-day.on.e{border-radius:0 9px 9px 0}
+  .cal-day.on.single{border-radius:9px}
+  .calquick{display:flex;flex-wrap:wrap;gap:7px;margin:11px 0 0}
+  .calquick button{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;
+    padding:6px 12px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,color .13s}
+  .calquick button:hover{border-color:var(--primary);color:var(--primary)}
+  /* Saqlash nega yopiq — hech qachon jim disabled qolmasin */
+  .savewhy{display:none;font-size:12.5px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.5}
+  .savewhy b{color:var(--red);font-weight:600}
   .txt.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
   .simplewarn{color:var(--red);font-size:13px;font-weight:600;text-align:right;margin:-8px 0 14px 2px}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
@@ -295,10 +329,18 @@
         <div id="limitWarn" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
         <div id="davrSect" style="display:none;margin-bottom:16px">
           <label id="davrLbl">📅 Davr (majburiy)</label>
-          <div class="davrrow"><input type="date" class="txt" id="davrStart" aria-label="Boshi"><input type="date" class="txt" id="davrEnd" aria-label="Oxiri"></div>
-          <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini tanlang</div>
+          <div id="davrSel" class="davrsel"></div>
+          <div class="cal" id="calBox"></div>
+          <div class="calquick">
+            <button type="button" onclick="calQuick('shu')">Shu oy</button>
+            <button type="button" onclick="calQuick('otgan')">O'tgan oy</button>
+            <button type="button" onclick="calQuick('keyingi')">Keyingi oy</button>
+            <button type="button" onclick="calQuick('tozala')">Tozalash</button>
+          </div>
+          <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini (boshi–oxiri) tanlang</div>
         </div>
         <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
+        <div id="saveWhy" class="savewhy"></div>
       </div>
 
       <!-- KENGAYTIRILGAN: qo'lda ko'p satrli Dt/Kt (mavjud rejim) -->
@@ -508,12 +550,86 @@ window.setMode=m=>{
 function moddaObj(){ return accounts.find(a=>a.id===$('modda').value); }
 function izohRequired(){ const m=moddaObj(); return !!(m&&m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m&&m.davr_majburiy); }
-function davrVals(){ return {s:$('davrStart').value||null,e:$('davrEnd').value||null}; }
-function davrOk(){ if(!davrRequired()) return true; const {s,e}=davrVals(); return !!(s&&e&&s<=e); }
+function davrVals(){ return {s:davrS,e:davrE}; }
+function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
+// --- V8: davr kalendari (ikki oy, uz nomlar) — hodim-dev.html bilan bir xil ---
+// FARQ (ataylab): hodim'da kalendar filial tanlangach chiqadi. Professional'da
+// filial ixtiyoriy — gate qo'yilsa "davr majburiy + filial yo'q" deadlock bo'lardi
+// (aynan shu bug tuzatilyapti). Shuning uchun kalendar modda tanlangach darrov chiqadi.
+const nowUz=()=>new Date(Date.now()+5*3600*1000);
+const isoDay=d=>d.toISOString().slice(0,10);
+const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+const UZ_WD=['Du','Se','Cho','Pa','Ju','Sha','Ya'];   // Dushanbadan boshlanadi
+let calBase=null, davrS=null, davrE=null;
+const firstOfMonth=d=>new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1));
+const ymd=(y,m,d)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+function fmtUz(iso){ const [y,m,d]=iso.split('-'); return `${+d} ${UZ_MON[+m-1]} ${y}`; }
+// Bir oy uchun 42 katak (6 qator), dushanbadan; qo'shni oy kunlari muted (iso:null → bosilmaydi).
+function monthCells(y,m){
+  const startDow=(new Date(Date.UTC(y,m,1)).getUTCDay()+6)%7;   // Mon=0
+  const daysIn=new Date(Date.UTC(y,m+1,0)).getUTCDate();
+  const prevDays=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const cells=[];
+  for(let i=0;i<startDow;i++) cells.push({d:prevDays-startDow+1+i, iso:null});
+  for(let d=1;d<=daysIn;d++) cells.push({d, iso:ymd(y,m,d)});
+  let nd=1; while(cells.length<42) cells.push({d:nd++, iso:null});
+  return cells;
+}
+function renderMonth(y,m,navL,navR){
+  const wd=UZ_WD.map(w=>`<div class="cal-wd">${w}</div>`).join('');
+  const body=monthCells(y,m).map(c=>{
+    if(c.iso===null) return `<div class="cal-day muted">${c.d}</div>`;
+    const iso=c.iso, isS=davrS&&iso===davrS, isE=davrE&&iso===davrE;
+    const inR=davrS&&davrE&&iso>davrS&&iso<davrE;
+    let cls='cal-day';
+    if(inR) cls+=' inrange';
+    if(isS||isE){ cls+=' on'; if(davrS&&davrE&&davrS!==davrE){ if(isS)cls+=' s'; if(isE)cls+=' e'; } else cls+=' single'; }
+    return `<button type="button" class="${cls}" onclick="calPick('${iso}')">${c.d}</button>`;
+  }).join('');
+  const L=navL?`<button type="button" class="cal-nav" onclick="calMove(-1)" aria-label="Oldingi oy"><i data-lucide="chevron-left"></i></button>`:'<span class="cal-nav hidden"></span>';
+  const R=navR?`<button type="button" class="cal-nav" onclick="calMove(1)" aria-label="Keyingi oy"><i data-lucide="chevron-right"></i></button>`:'<span class="cal-nav hidden"></span>';
+  return `<div class="cal-m"><div class="cal-hd">${L}<div class="cal-title">${UZ_MON[m]} ${y}</div>${R}</div><div class="cal-grid">${wd}${body}</div></div>`;
+}
+// updateSimple() har harf bosilganda chaqiriladi — kalendarni faqat holat o'zgarsa qayta chizamiz.
+let calSig='';
+function renderCalIfNeeded(){
+  if(!calBase) calBase=firstOfMonth(nowUz());
+  const sig=isoDay(calBase)+'|'+davrS+'|'+davrE;
+  if(sig===calSig && $('calBox').innerHTML) return;
+  calSig=sig; renderCal();
+}
+function renderCal(){
+  if(!calBase) calBase=firstOfMonth(nowUz());
+  calSig=isoDay(calBase)+'|'+davrS+'|'+davrE;
+  const y=calBase.getUTCFullYear(), m=calBase.getUTCMonth();
+  const nxt=new Date(Date.UTC(y,m+1,1));
+  $('calBox').innerHTML=`<div class="cal-months">${renderMonth(y,m,true,false)}${renderMonth(nxt.getUTCFullYear(),nxt.getUTCMonth(),false,true)}</div>`;
+  $('davrSel').innerHTML = davrS
+    ? esc(fmtUz(davrS))+(davrE&&davrE!==davrS?' — '+esc(fmtUz(davrE)):(davrE?'':' <span class="ph">— oxirini tanlang</span>'))
+    : '<span class="ph">Boshlanish sanasini tanlang</span>';
+  icons();
+}
+window.calMove=dir=>{ calBase=new Date(Date.UTC(calBase.getUTCFullYear(),calBase.getUTCMonth()+dir,1)); renderCal(); };
+window.calPick=iso=>{
+  if(!davrS || (davrS&&davrE)){ davrS=iso; davrE=null; }        // yangi oraliq boshi
+  else if(iso>=davrS){ davrE=iso; }                              // oxiri
+  else { davrS=iso; davrE=null; }                                // boshidan oldin → qayta boshla
+  renderCal(); updateSimple();
+};
+// Tez tanlash — ijara/kommunal odatda butun oy uchun bo'ladi.
+window.calQuick=k=>{
+  if(k==='tozala'){ davrS=null; davrE=null; renderCal(); updateSimple(); return; }
+  const n=nowUz(); const off=k==='otgan'?-1:(k==='keyingi'?1:0);
+  const y=n.getUTCFullYear(), m=n.getUTCMonth()+off;
+  const f=new Date(Date.UTC(y,m,1)), t=new Date(Date.UTC(y,m+1,0));
+  davrS=isoDay(f); davrE=isoDay(t); calBase=firstOfMonth(f);
+  renderCal(); updateSimple();
+};
 function updateDavrUI(){ const req=davrRequired();
   $('davrSect').style.display=req?'block':'none';
-  if(!req){ $('davrStart').value=''; $('davrEnd').value=''; }
-  $('davrReq').style.display=(req&&!davrOk())?'block':'none';
+  if(!req){ davrS=null; davrE=null; $('davrReq').style.display='none'; return; }
+  renderCalIfNeeded();
+  $('davrReq').style.display=davrOk()?'none':'block';
 }
 function renderFilials(){ const box=$('filialChips');
   const restricted=window.permFilialScope&&window.permFilialScope()==='list';
@@ -521,7 +637,8 @@ function renderFilials(){ const box=$('filialChips');
     ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
     : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
-window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); };
+// updateSimple() shart: filial o'zgarsa limit ogohlantirishi ham qayta hisoblanadi.
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateSimple(); };
 // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
 async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=window.permFilterFilials?window.permFilterFilials(data):data; }catch(e){} }
 // Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
@@ -609,7 +726,23 @@ window.updateSimple=()=>{
     if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  $('saveSimpleBtn').disabled=!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr && !needKomm && !overLimit);
+  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr && !needKomm && !overLimit);
+  $('saveSimpleBtn').disabled=!ok;
+  // Saqlash hech qachon "sababsiz" yopiq turmasin — birinchi yetishmayotgan shartni yozamiz.
+  // (9411 "Ijara" bug'i aynan shu ko'rinmas holat edi: davr majburiy, lekin sana tanlab bo'lmasdi.)
+  const why=$('saveWhy');
+  if(why){
+    let msg='';
+    if(!selKassa) msg='Kassani tanlang';
+    else if(!$('modda').value) msg='Moddani tanlang';
+    else if(amt<=0) msg='Summani kiriting';
+    else if(needIzoh) msg='Bu modda uchun <b>izoh</b> majburiy';
+    else if(needDavr) msg='Bu modda uchun <b>davr</b> (boshi–oxiri) majburiy';
+    else if(needKomm) msg='Kommunal turini tanlang';
+    else if(over) msg='Summa kassa qoldig‘idan oshdi';
+    else if(overLimit) msg='Summa filial limitidan oshdi';
+    why.innerHTML=msg; why.style.display=msg?'block':'none';
+  }
 };
 // ---- Yuklar: 9110 "Tovar tannarxi" — QISMAN TO'LOV taqsimlash modali (majburiy) ----
 const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
@@ -943,8 +1076,6 @@ async function init(){
   $('modda').innerHTML=moddaOptions();
   await loadFilials(); renderFilials();
   $('izoh').addEventListener('input',updateSimple);
-  $('davrStart').addEventListener('change',updateSimple);
-  $('davrEnd').addEventListener('change',updateSimple);
   renderChips(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   loadLimits();                      // Stage 4: standart limitlar (fon)
   window.setMode('simple');
