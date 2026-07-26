@@ -378,3 +378,305 @@ begin
   end if;
   raise notice '7-BOSQICH OK: koridor foizi sozlanadigan bo''ldi, joriy qiymat = %', v;
 end $$;
+
+
+-- #####################################################################
+-- ##  1-BOSQICH — Hisobot sahifasi (filtrli jurnal + xarajat totallar)##
+-- #####################################################################
+-- hisobot-dev.html Aros hisobotiga o'xshash bo'ladi:
+--   filtr: sana oralig'i + kassa + tur (kirim/chiqim/xarajat/tushum/transfer)
+--   tepada: tanlangan xarajat turlari bo'yicha jami (filtrlarga bo'ysunadi)
+--   pastda: jurnal ko'rinishidagi ro'yxat (# / Sana / Kt / Dt / Summa / Maqsad)
+--
+-- TUR TASNIFI — jurnal.klass() bilan bir xil mantiq, lekin SERVERDA:
+--   n_lines > 2                        -> boshqa     (ko'p satrli, Professional)
+--   Dt pul  va Kt pul                  -> transfer
+--   Dt pul  va Kt daromad              -> tushum     ("kassa tushum")
+--   Dt pul                             -> kirim      (boshqa pul kirimi)
+--   Kt pul  va Dt xarajat              -> xarajat
+--   Kt pul                             -> chiqim     (boshqa pul chiqimi)
+--   aks holda                          -> boshqa     (neytral: ombor -> tannarx)
+-- Turlar O'ZARO KESISHMAYDI — shuning uchun turlar bo'yicha jami = umumiy jami.
+-- "boshqa" ataylab bor: aks holda neytral yozuvlar jimgina yo'qolib ketardi.
+--
+-- O'CHIRILGAN yozuvlar hisobotga KIRMAYDI (is_deleted=false) — jurnaldan farqi
+-- shu: jurnal ularni usti chizilgan holda ko'rsatadi, hisobot esa hisobot.
+--
+-- RUXSAT: RPC'lar SECURITY DEFINER, shuning uchun ruxsat SERVERDA majburlanadi
+-- (klient p_accounts'ni o'zgartirsa ham foyda bermaydi) — perm_view_pul_ids()
+-- bilan kesishtiriladi. Bu jurnal.html'dagi klient-filtridan KUCHLIROQ.
+
+-- 1.1 perm_view_pul_ids() — caller KO'RA oladigan pul hisoblari (null = cheklovsiz)
+create or replace function perm_view_pul_ids()
+returns uuid[]
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare p user_perms; v uuid[];
+begin
+  if auth.uid() is null then return null; end if;      -- service_role / n8n
+  if is_admin() then return null; end if;
+  select * into p from user_perms where user_id = auth.uid();
+  if not found or p.kassa_scope <> 'list' then return null; end if;
+  select array_agg(a.id) into v
+    from accounts a
+   where a.type = 'aktiv' and a.code like '5%'
+     and a.kassa_turi is distinct from 'xarajat_guruh'
+     and perm_op_key(a.id) = any(p.view_kassa_ids);
+  return coalesce(v, '{}'::uuid[]);                    -- bo'sh massiv = hech narsa ko'rmaydi
+end $fn$;
+
+revoke all on function perm_view_pul_ids() from public, anon;
+grant execute on function perm_view_pul_ids() to authenticated, service_role;
+
+comment on function perm_view_pul_ids() is
+  'Caller ko''ra oladigan pul hisoblari (view_kassa_ids). NULL = cheklovsiz (admin/qatorsiz).';
+
+-- 1.2 hisobot_acc(p_accounts) — ICHKI: ruxsat bilan kesishtirish
+create or replace function hisobot_acc(p_accounts uuid[])
+returns uuid[]
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare v_perm uuid[] := perm_view_pul_ids();
+begin
+  if v_perm is null then return p_accounts; end if;                  -- cheklovsiz
+  if p_accounts is null then return v_perm; end if;                  -- faqat o'z kassalari
+  return array(select unnest(p_accounts) intersect select unnest(v_perm));
+end $fn$;
+
+revoke all on function hisobot_acc(uuid[]) from public, anon, authenticated;
+
+comment on function hisobot_acc(uuid[]) is
+  'ICHKI: so''ralgan kassalarni caller ruxsati bilan kesishtiradi (server tomonda majburlash).';
+
+-- 1.3 hisobot_baza(...) — ICHKI: filtrlangan yozuvlar + tur tasnifi
+-- ---------------------------------------------------------------------
+-- Uchala ochiq RPC (royxat / xulosa / modda_total) SHU bitta manbadan oziqlanadi —
+-- ya'ni ro'yxatdagi qatorlar bilan yuqoridagi totallar hech qachon farq qilmaydi.
+-- Ruxsat bu yerda TEKSHIRILMAYDI (wrapper hisobot_acc() bilan kesishtirib beradi) —
+-- shuning uchun authenticated'ga execute BERILMAYDI.
+create or replace function hisobot_baza(
+  p_from date, p_to date, p_accounts uuid[], p_turlar text[])
+returns table(
+  id uuid, entry_date date, created_at timestamptz, description text,
+  edited_at timestamptz, edited_by_name text,
+  n_lines int, summa numeric, tur text,
+  dt_id uuid, dt_code text, dt_name text, dt_sub text, dt_sec text, dt_type text,
+  kt_id uuid, kt_code text, kt_name text, kt_sub text, kt_sec text, kt_type text,
+  filial_nomlari text[], davr_start date, davr_end date, kommunal_turi text, yuk_ids jsonb
+)
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  with e as (
+    select en.id, en.entry_date, en.created_at, en.description,
+           en.edited_at, en.edited_by_name,
+           en.filial_ids, en.davr_start, en.davr_end, en.kommunal_turi, en.yuk_ids
+      from entry en
+     where en.status = 'posted' and en.is_deleted = false
+       and en.entry_date >= p_from and en.entry_date <= p_to
+       and (p_accounts is null or exists (
+             select 1 from entry_line el
+              where el.entry_id = en.id and el.account_id = any(p_accounts)))
+  ),
+  c as (
+    select e.*,
+           (select count(*)::int from entry_line l where l.entry_id = e.id) as n_lines,
+           (select coalesce(sum(l.debit), 0)::numeric from entry_line l where l.entry_id = e.id) as summa,
+           d.account_id as dt_id, d.code as dt_code, d.name as dt_name,
+           d.subtitle  as dt_sub, d.section as dt_sec, d.type as dt_type,
+           k.account_id as kt_id, k.code as kt_code, k.name as kt_name,
+           k.subtitle  as kt_sub, k.section as kt_sec, k.type as kt_type
+      from e
+      left join lateral (
+        select l.account_id, a.code, a.name, a.subtitle, a.section, a.type
+          from entry_line l join accounts a on a.id = l.account_id
+         where l.entry_id = e.id and l.debit > 0
+         order by l.debit desc limit 1) d on true
+      left join lateral (
+        select l.account_id, a.code, a.name, a.subtitle, a.section, a.type
+          from entry_line l join accounts a on a.id = l.account_id
+         where l.entry_id = e.id and l.credit > 0
+         order by l.credit desc limit 1) k on true
+  ),
+  t as (
+    select c.*,
+           case
+             when c.n_lines > 2                              then 'boshqa'
+             when c.dt_sec = 'pul' and c.kt_sec = 'pul'      then 'transfer'
+             when c.dt_sec = 'pul' and c.kt_type = 'daromad' then 'tushum'
+             when c.dt_sec = 'pul'                           then 'kirim'
+             when c.kt_sec = 'pul' and c.dt_type = 'xarajat' then 'xarajat'
+             when c.kt_sec = 'pul'                           then 'chiqim'
+             else 'boshqa'
+           end as tur
+      from c
+  )
+  select t.id, t.entry_date, t.created_at, t.description,
+         t.edited_at, t.edited_by_name,
+         t.n_lines, t.summa, t.tur,
+         t.dt_id, t.dt_code, t.dt_name, t.dt_sub, t.dt_sec, t.dt_type,
+         t.kt_id, t.kt_code, t.kt_name, t.kt_sub, t.kt_sec, t.kt_type,
+         (select array_agg(a.name order by a.name) from accounts a where a.id = any(t.filial_ids)) as filial_nomlari,
+         t.davr_start, t.davr_end, t.kommunal_turi,
+         to_jsonb(coalesce(t.yuk_ids, '{}')) as yuk_ids
+    from t
+   where p_turlar is null or t.tur = any(p_turlar);
+$fn$;
+
+revoke all on function hisobot_baza(date, date, uuid[], text[]) from public, anon, authenticated;
+
+comment on function hisobot_baza(date, date, uuid[], text[]) is
+  'ICHKI: hisobot uchun filtrlangan yozuvlar + tur tasnifi. Faqat hisobot_* wrapperlari chaqiradi.';
+
+-- 1.4 hisobot_royxat(...) — jurnal ko'rinishidagi ro'yxat (sahifalangan)
+create or replace function hisobot_royxat(
+  p_from date, p_to date,
+  p_accounts uuid[] default null,
+  p_turlar   text[] default null,
+  p_limit    int    default 200,
+  p_offset   int    default 0)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare v_acc uuid[]; v_out jsonb;
+begin
+  if p_from is null or p_to is null then
+    raise exception 'Sana oraligi berilmadi' using errcode = '22000';
+  end if;
+  v_acc := hisobot_acc(p_accounts);
+
+  select coalesce(jsonb_agg(to_jsonb(r) order by r.entry_date desc, r.created_at desc), '[]'::jsonb)
+    into v_out
+    from (
+      select b.*,
+             -- satrlar faqat ko'p satrli yozuv uchun (javob yengil qolsin)
+             case when b.n_lines > 2 then (
+               select coalesce(jsonb_agg(jsonb_build_object(
+                        'code', a.code, 'name', a.name, 'section', a.section,
+                        'currency', a.currency, 'debit', l.debit, 'credit', l.credit,
+                        'fc_amount', l.fc_amount) order by l.debit desc), '[]'::jsonb)
+                 from entry_line l join accounts a on a.id = l.account_id
+                where l.entry_id = b.id)
+             else '[]'::jsonb end as lines
+        from hisobot_baza(p_from, p_to, v_acc, p_turlar) b
+       order by b.entry_date desc, b.created_at desc
+       limit  greatest(coalesce(p_limit, 200), 1)
+       offset greatest(coalesce(p_offset, 0), 0)
+    ) r;
+
+  return v_out;
+end $fn$;
+
+revoke all on function hisobot_royxat(date, date, uuid[], text[], int, int) from public, anon;
+grant execute on function hisobot_royxat(date, date, uuid[], text[], int, int) to authenticated;
+
+comment on function hisobot_royxat(date, date, uuid[], text[], int, int) is
+  'Hisobot royxati: filtrlangan yozuvlar (jurnal korinishi), sahifalangan.';
+
+-- 1.5 hisobot_xulosa(...) — tur bo'yicha soni/summa + umumiy jami
+-- `turlar` HAMMA turni qaytaradi (p_turlar'siz) — chiplarda sanoq korsatish uchun;
+-- jami_* esa tanlangan turlar bo'yicha.
+create or replace function hisobot_xulosa(
+  p_from date, p_to date,
+  p_accounts uuid[] default null,
+  p_turlar   text[] default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare v_acc uuid[]; v_turlar jsonb; v_soni int; v_summa numeric;
+begin
+  if p_from is null or p_to is null then
+    raise exception 'Sana oraligi berilmadi' using errcode = '22000';
+  end if;
+  v_acc := hisobot_acc(p_accounts);
+
+  select coalesce(jsonb_agg(to_jsonb(x) order by x.summa desc), '[]'::jsonb) into v_turlar
+    from (
+      select b.tur, count(*)::int as soni, coalesce(sum(b.summa), 0)::numeric as summa
+        from hisobot_baza(p_from, p_to, v_acc, null) b
+       group by b.tur
+    ) x;
+
+  select count(*)::int, coalesce(sum(b.summa), 0)::numeric
+    into v_soni, v_summa
+    from hisobot_baza(p_from, p_to, v_acc, p_turlar) b;
+
+  return jsonb_build_object('jami_soni', v_soni, 'jami_summa', v_summa, 'turlar', v_turlar);
+end $fn$;
+
+revoke all on function hisobot_xulosa(date, date, uuid[], text[]) from public, anon;
+grant execute on function hisobot_xulosa(date, date, uuid[], text[]) to authenticated;
+
+comment on function hisobot_xulosa(date, date, uuid[], text[]) is
+  'Hisobot xulosasi: tur boyicha soni/summa (hamma tur) + tanlangan turlar boyicha jami.';
+
+-- 1.6 hisobot_modda_total(...) — tanlangan xarajat moddalari bo'yicha jami
+-- Tepadagi "Ijara: 5 000 000" kartalari uchun YENGIL so'rov. Filtrlarga bo'ysunadi.
+create or replace function hisobot_modda_total(
+  p_from date, p_to date,
+  p_moddalar uuid[],
+  p_accounts uuid[] default null,
+  p_turlar   text[] default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare v_acc uuid[]; v_out jsonb;
+begin
+  if p_from is null or p_to is null then
+    raise exception 'Sana oraligi berilmadi' using errcode = '22000';
+  end if;
+  if p_moddalar is null or array_length(p_moddalar, 1) is null then
+    return '[]'::jsonb;
+  end if;
+  v_acc := hisobot_acc(p_accounts);
+
+  with b as (select * from hisobot_baza(p_from, p_to, v_acc, p_turlar))
+  select coalesce(jsonb_agg(to_jsonb(r) order by r.summa desc), '[]'::jsonb) into v_out
+    from (
+      select a.id as account_id, a.code, a.name,
+             coalesce((select sum(l.debit) from entry_line l join b on b.id = l.entry_id
+                        where l.account_id = a.id and l.debit > 0), 0)::numeric as summa,
+             coalesce((select count(distinct l.entry_id) from entry_line l join b on b.id = l.entry_id
+                        where l.account_id = a.id and l.debit > 0), 0)::int as soni
+        from accounts a
+       where a.id = any(p_moddalar)
+    ) r;
+
+  return v_out;
+end $fn$;
+
+revoke all on function hisobot_modda_total(date, date, uuid[], uuid[], text[]) from public, anon;
+grant execute on function hisobot_modda_total(date, date, uuid[], uuid[], text[]) to authenticated;
+
+comment on function hisobot_modda_total(date, date, uuid[], uuid[], text[]) is
+  'Tanlangan xarajat moddalari boyicha davr jami (hisobot filtrlariga boysunadi).';
+
+notify pgrst, 'reload schema';
+
+do $$
+begin
+  if to_regprocedure('public.perm_view_pul_ids()') is null then raise exception '1-BOSQICH: perm_view_pul_ids yoq'; end if;
+  if to_regprocedure('public.hisobot_acc(uuid[])') is null then raise exception '1-BOSQICH: hisobot_acc yoq'; end if;
+  if to_regprocedure('public.hisobot_baza(date,date,uuid[],text[])') is null then raise exception '1-BOSQICH: hisobot_baza yoq'; end if;
+  if to_regprocedure('public.hisobot_royxat(date,date,uuid[],text[],int,int)') is null then raise exception '1-BOSQICH: hisobot_royxat yoq'; end if;
+  if to_regprocedure('public.hisobot_xulosa(date,date,uuid[],text[])') is null then raise exception '1-BOSQICH: hisobot_xulosa yoq'; end if;
+  if to_regprocedure('public.hisobot_modda_total(date,date,uuid[],uuid[],text[])') is null then raise exception '1-BOSQICH: hisobot_modda_total yoq'; end if;
+  raise notice '1-BOSQICH OK: hisobot RPClari tayyor (royxat / xulosa / modda_total).';
+end $$;
