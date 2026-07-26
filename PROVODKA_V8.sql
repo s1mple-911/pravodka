@@ -680,3 +680,75 @@ begin
   if to_regprocedure('public.hisobot_modda_total(date,date,uuid[],uuid[],text[])') is null then raise exception '1-BOSQICH: hisobot_modda_total yoq'; end if;
   raise notice '1-BOSQICH OK: hisobot RPClari tayyor (royxat / xulosa / modda_total).';
 end $$;
+
+
+-- #####################################################################
+-- ##  8-BOSQICH — Qarzdorlar sahifasi (to'lanmagan yuklar)            ##
+-- #####################################################################
+-- YANGI SQL O'ZGARTIRISH YO'Q — sahifa mavjud RPC'lar ustiga qurildi:
+--
+--   yuk_tolangan_summa(integer[])  (PROVODKA_YUK_QISMAN.sql)
+--       har yuk uchun to'langan jami (UZS) + qaysi entrylardan.
+--   yuk_kurslar(text[])            (PROVODKA_YUK_QISMAN.sql)
+--       valyuta -> UZS kursi (conv_baza_kurs; Aros CHY = CNY).
+--   conv_baza_kurs('USD')          (PROVODKA_KASSA2.sql)
+--       jami qarzni USD'ga o'girish uchun tayanch kurs.
+--   n8n `aros-provodka-yuklar`     — yuk narxi/valyutasi (Aros product-incomes).
+--
+-- HISOB (frontend, qarzdor-dev.html):
+--   narx_uzs   = narx * kurs
+--   qoldiq_uzs = max(0, narx_uzs - tolangan_uzs)
+--   qoldiq_fc  = qoldiq_uzs / kurs           (yuk o'z valyutasida)
+--   jami_usd   = sum(qoldiq_uzs) / conv_baza_kurs('USD')
+--
+-- Kursi yo'q valyuta jamiga QO'SHILMAYDI, lekin JIMGINA YO'QOLMAYDI —
+-- sahifada sariq ogohlantirish chiqadi ("X uchun kurs kiritilmagan").
+--
+-- RUXSAT: bu sahifa kassa/pul hisoblariga tegmaydi (yuk narxi Aros'dan,
+-- to'langan summa entry_yuk'dan — RLS: authenticated o'qiydi). Shuning
+-- uchun alohida cheklov QO'YILMADI (brief: "aks holda hamma ko'radi").
+-- Agar keyinchalik cheklash kerak bo'lsa — perm_pages() ga 'qarzdor'
+-- allaqachon bor, admin panelidan sahifani yopish yetarli.
+
+do $$
+begin
+  if to_regprocedure('public.yuk_tolangan_summa(integer[])') is null then
+    raise exception '8-BOSQICH: yuk_tolangan_summa yoq — PROVODKA_YUK_QISMAN.sql RUN qilinmagan';
+  end if;
+  if to_regprocedure('public.yuk_kurslar(text[])') is null then
+    raise exception '8-BOSQICH: yuk_kurslar yoq — PROVODKA_YUK_QISMAN.sql RUN qilinmagan';
+  end if;
+  if to_regprocedure('public.conv_baza_kurs(text)') is null then
+    raise exception '8-BOSQICH: conv_baza_kurs yoq — PROVODKA_KASSA2.sql RUN qilinmagan';
+  end if;
+  if conv_baza_kurs('USD') is null then
+    raise notice '8-BOSQICH DIQQAT: USD tayanch kursi yoq — jami qarz USD da emas, somda korsatiladi. Valyuta bolimida kurs qoshing.';
+  end if;
+  raise notice '8-BOSQICH OK: qarzdorlar sahifasi uchun kerakli RPClar joyida (yangi SQL yoq).';
+end $$;
+
+
+-- =====================================================================
+-- YAKUNIY TEKSHIRUV — hamma bosqich birga
+-- =====================================================================
+do $$
+declare v_missing text := '';
+begin
+  if not exists (select 1 from pg_constraint
+                  where conrelid='public.entry'::regclass and conname='entry_kommunal_turi_check'
+                    and pg_get_constraintdef(oid) like '%suv%') then
+    v_missing := v_missing || ' [4: kommunal suv]';
+  end if;
+  if to_regclass('public.provodka_config') is null then v_missing := v_missing || ' [7: provodka_config]'; end if;
+  if to_regprocedure('public.set_koridor_foiz(numeric)') is null then v_missing := v_missing || ' [7: set_koridor_foiz]'; end if;
+  if to_regprocedure('public.hisobot_royxat(date,date,uuid[],text[],int,int)') is null then v_missing := v_missing || ' [1: hisobot_royxat]'; end if;
+  if to_regprocedure('public.hisobot_xulosa(date,date,uuid[],text[])') is null then v_missing := v_missing || ' [1: hisobot_xulosa]'; end if;
+  if to_regprocedure('public.hisobot_modda_total(date,date,uuid[],uuid[],text[])') is null then v_missing := v_missing || ' [1: hisobot_modda_total]'; end if;
+  if exists (select 1 from accounts where code in ('0130','0140','0150','0200','2910') and type <> 'xarajat')
+    then v_missing := v_missing || ' [5: hisob type]'; end if;
+
+  if v_missing <> '' then
+    raise exception 'PROVODKA_V8: bajarilmagan bosqichlar —%', v_missing;
+  end if;
+  raise notice 'PROVODKA_V8 TAYYOR: 8 ta bosqich tekshiruvdan otdi.';
+end $$;

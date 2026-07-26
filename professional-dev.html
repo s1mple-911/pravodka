@@ -131,6 +131,8 @@
   .txt.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
   .simplewarn{color:var(--red);font-size:13px;font-weight:600;text-align:right;margin:-8px 0 14px 2px}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  /* V8: qarzdor-dev.html'dan kelgan avto to'ldirish xabari (xato emas — yashil) */
+  .banner.ok{background:var(--primary-soft);color:var(--primary);line-height:1.55}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
   .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
@@ -746,6 +748,11 @@ window.updateSimple=()=>{
 };
 // ---- Yuklar: 9110 "Tovar tannarxi" — QISMAN TO'LOV taqsimlash modali (majburiy) ----
 const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+// V8: qarzdor-dev.html'dan "To'lov qilish" bosilganda kelinadi:
+//   professional-dev.html?yuk=<id>&summa=<qolgan UZS>&nom=<ombor · yetkazuvchi>
+// Modda 9110 ga qo'yiladi, summa to'ldiriladi; yuk modali ochilganda o'sha yuk
+// avtomat tanlanadi (afterYukLoad). Kassani foydalanuvchi tanlaydi (bitta bo'lsa avtomat).
+let preYuk=null;
 let yukList=[], yukPaidMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='unpaid', yukLoaded=false;
 let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0, yukSaveMode='simple';
 const _isoY=d=>d.toISOString().slice(0,10);
@@ -857,7 +864,10 @@ function updateYukSaveBtn(){ const st=allocOk(), b=$('yukSaveBtn'); if(b){ b.dis
 async function loadYukList(){
   if(yukLoaded){ afterYukLoad(); return; }
   $('yukList').innerHTML='<div class="yukempty">Yuklanmoqda…</div>';
-  const t=new Date(Date.now()+5*3600*1000), from=new Date(t.getTime()-30*86400000);
+  // Odatda oxirgi 30 kun yetadi. Qarzdorlar sahifasidan kelinganda (preYuk) esa
+  // hujjat ancha eski bo'lishi mumkin — oynani 2 yilga kengaytiramiz.
+  const DAYS=preYuk?730:30;
+  const t=new Date(Date.now()+5*3600*1000), from=new Date(t.getTime()-DAYS*86400000);
   try{
     const res=await fetch(N8N_YUK+'?date_from='+_isoY(from)+'&date_to='+_isoY(t),{headers:{'Accept':'application/json'}});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -871,7 +881,16 @@ async function loadYukList(){
   }catch(e){ $('yukList').innerHTML='<div class="yukempty">Yuklar ulanmadi: '+esc(e.message||'')+'<br><button class="ylink" onclick="reloadYuk()">Qaytadan urinish</button></div>'; return; }
   afterYukLoad();
 }
-function afterYukLoad(){ const r=curRate(yukSaveCur); yukSaveUzs=(r==null)?0:Math.round(yukSaveRaw*r); autoAlloc(); renderYukList(); }
+function afterYukLoad(){
+  const r=curRate(yukSaveCur); yukSaveUzs=(r==null)?0:Math.round(yukSaveRaw*r);
+  // V8: qarzdor-dev.html'dan kelgan yuk avtomat tanlanadi (bir marta).
+  if(preYuk && !selYuk.size){
+    const y=yukList.find(x=>Number(x.id)===preYuk);
+    if(y && yukSelectable(y)) selYuk.add(preYuk);
+    else $('yukList').innerHTML='';   // topilmasa quyida "Yuk topilmadi" chiqadi
+  }
+  autoAlloc(); renderYukList();
+}
 window.renderYukList=()=>{
   if(!yukLoaded) return;
   const q=($('yukSearch').value||'').trim().toLowerCase();
@@ -956,6 +975,7 @@ async function doSaveSimple(){
   if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
     if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e3):e3.message); btn.textContent='Saqlash'; updateSimple(); return; } }
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
   updateSimple(); fetchSimpleBal();
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
 }
@@ -1033,6 +1053,30 @@ window.confirmTaqsim=async()=>{
   updateSimple(); fetchSimpleBal();
   const sbtn=$('saveSimpleBtn'); sbtn.textContent='Saqlandi ✓ ('+taqsimFils.length+' filial)'; setTimeout(()=>{ sbtn.textContent='Saqlash'; },1600);
 };
+// V8: qarzdor-dev.html'dan avto to'ldirish (?yuk=&summa=&nom=)
+// 9110 hisobi topilmasa yoki param bo'lmasa — hech narsa qilmaydi (sahifa odatdagidek).
+function applyPrefill(){
+  let q; try{ q=new URLSearchParams(location.search); }catch(e){ return; }
+  const yid=Number(q.get('yuk')||0);
+  if(!Number.isFinite(yid)||yid<=0) return;
+  const a9110=accByCode('9110');
+  if(!a9110){ return; }
+  preYuk=yid;
+  window.setYukFilt('all');            // eski/qisman to'langan hujjat ham ro'yxatda chiqsin
+  $('modda').value=a9110.id;
+  const s=Math.round(Number(q.get('summa')||0));
+  if(s>0) $('summa').value=money(s);
+  const nom=(q.get('nom')||'').trim();
+  const b=$('banner');
+  b.className='banner ok'; b.style.display='block';
+  b.innerHTML=`Qarzdorlar sahifasidan: <b>yuk #${esc(String(yid))}</b>${nom?' · '+esc(nom):''}. `
+    +`Kassani tanlab <b>Saqlash</b> bosing — yuk modalida bu hujjat avtomat tanlangan bo'ladi.`;
+  window.onModda();
+  updateSimple();
+  // URL'ni tozalaymiz: sahifa yangilansa avto to'ldirish takrorlanmaydi
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+}
+
 // Filial ro'yxati kelmasa (himoya) — taqsimsiz bitta yozuv
 async function doSaveSimpleForce(){ const one=[...selFilials]; selFilials=new Set(one.slice(0,1)); await doSaveSimple(); }
 
@@ -1080,6 +1124,7 @@ async function init(){
   renderChips(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   loadLimits();                      // Stage 4: standart limitlar (fon)
   window.setMode('simple');
+  applyPrefill();                    // V8: qarzdor-dev.html'dan kelgan yuk/summa
   // Kengaytirilgan rejim (mavjud)
   lines=[]; addLine(); addLine();
 }
