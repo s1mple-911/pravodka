@@ -62,3 +62,88 @@ begin
   end if;
   raise notice '2-BOSQICH OK: SQL o''zgarishi yo''q — tuzatish frontendda (professional-dev.html).';
 end $$;
+
+
+-- #####################################################################
+-- ##  5-BOSQICH — 5 ta hisobni type='xarajat' ga o'tkazish            ##
+-- #####################################################################
+-- 0130 Mashina va uskunalar, 0140 Mebel va jihozlar, 0150 Transport
+-- vositalari, 0200 Amortizatsiya, 2910 Tovarlar — hozir 'aktiv' (yoki
+-- boshqa) turida. Ular xarajat modda tanlagichlarida (professional-dev,
+-- hodim-dev: `type==='xarajat'`) chiqishi kerak.
+--
+-- ⚠️ OQIBATLARI (Asilbek shuni xohlaydi — lekin bilib turing):
+--   1) BALANS: bu hisoblar AKTIV tomonidan CHIQIB KETADI. Aktiv jami
+--      shu hisoblar qoldig'i qadar KAMAYADI. Balans TENGLIGI buzilmaydi:
+--      `8710 Yigilgan sof foyda` sintetik qatori (daromad − xarajat)
+--      xuddi shu summaga kamayadi. Quyida buni MAJBURIY tekshiramiz —
+--      teng bo'lmasa butun bosqich ROLLBACK bo'ladi.
+--   2) P&L (hisobot): bu hisoblar endi xarajat qatori bo'lib chiqadi.
+--      Zinapoyada `section` bo'yicha guruhlanadi (odatda BOSHQA bo'limi).
+--      Ya'ni o'tgan davrlar foydasi ham qayta hisoblanadi — tarixiy
+--      hisobotlar bugungidan farq qiladi.
+--   3) ⚠️ 0200 AMORTIZATSIYA — KONTR-AKTIV, qoldig'i KREDITDA. Xarajatda
+--      summa = debit − kredit bo'lgani uchun u P&L'da MANFIY xarajat
+--      bo'lib chiqadi (xarajatni kamaytiradi). Bu buxgalteriya jihatdan
+--      noto'g'ri ko'rinadi. Quyida uning qoldig'i NOTICE bilan yoziladi —
+--      agar kreditda bo'lsa, 0200'ni alohida ko'rib chiqish kerak
+--      (masalan uni o'tkazmaslik yoki alohida section berish).
+--   4) v_hisob_royxat (jurnal filtri): 2910 `section='tovar'` bo'lsa
+--      "Omborlar" guruhida QOLADI (birinchi moslik yutadi). Qolgan 4 tasi
+--      "Boshqa"dan "Xarajat moddasi" guruhiga ko'chadi — kutilgan xatti-harakat.
+--   5) Kassa/pul mantig'iga TA'SIR YO'Q: isKassa() `type='aktiv' AND code
+--      like '5%'` — bu kodlarning hech biri 5xxx emas.
+
+do $$
+declare
+  v_codes   text[] := array['0130','0140','0150','0200','2910'];
+  c         text;
+  v_old     text;
+  v_bal     numeric;
+  v_a       numeric;
+  v_p       numeric;
+  v_k       numeric;
+  v_diff    numeric;
+  v_bugun   date := (now() at time zone 'Asia/Tashkent')::date;
+begin
+  -- 5.1 OLDIN: har hisobning hozirgi turi + qoldig'i (debit − kredit)
+  foreach c in array v_codes loop
+    select a.type,
+           coalesce((select sum(el.debit) - sum(el.credit)
+                       from entry_line el
+                       join entry e on e.id = el.entry_id
+                      where el.account_id = a.id
+                        and e.status = 'posted' and e.is_deleted = false), 0)
+      into v_old, v_bal
+      from accounts a where a.code = c limit 1;
+    if v_old is null then
+      raise notice '5-BOSQICH: % hisobi topilmadi — o''tkazildi.', c;
+    else
+      raise notice '5-BOSQICH OLDIN: % type=% qoldiq(Dt-Kt)=%', c, v_old, v_bal;
+      if c = '0200' and v_bal < 0 then
+        raise notice '5-BOSQICH ⚠️  0200 qoldig''i KREDITDA (%). P&L''da MANFIY xarajat bo''lib chiqadi.', v_bal;
+      end if;
+    end if;
+  end loop;
+
+  -- 5.2 O'ZGARTIRISH
+  update accounts set type = 'xarajat' where code = any(v_codes);
+  raise notice '5-BOSQICH: % ta hisob type=''xarajat'' qilindi.',
+    (select count(*) from accounts where code = any(v_codes) and type = 'xarajat');
+
+  -- 5.3 KEYIN: balans tengligini MAJBURIY tekshirish (buzilsa hamma narsa rollback)
+  select coalesce(sum(case when bolim = 'AKTIV'   then amount end), 0),
+         coalesce(sum(case when bolim = 'PASSIV'  then amount end), 0),
+         coalesce(sum(case when bolim = 'KAPITAL' then amount end), 0)
+    into v_a, v_p, v_k
+    from balans(v_bugun);
+  v_diff := v_a - (v_p + v_k);
+  raise notice '5-BOSQICH KEYIN: AKTIV=% PASSIV=% KAPITAL=% farq=%', v_a, v_p, v_k, v_diff;
+  if abs(v_diff) > 1 then
+    raise exception '5-BOSQICH: balans buzildi (farq %). Hammasi bekor qilindi — 0200/2910 turini qayta ko''rib chiqing.', v_diff;
+  end if;
+
+  raise notice '5-BOSQICH OK: 5 hisob xarajatga o''tdi, balans tengligi saqlandi.';
+end $$;
+
+notify pgrst, 'reload schema';
