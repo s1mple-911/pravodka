@@ -130,6 +130,16 @@
   .savewhy b{color:var(--red);font-weight:600}
   .txt.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
   .simplewarn{color:var(--red);font-size:13px;font-weight:600;text-align:right;margin:-8px 0 14px 2px}
+  /* Chek surati — hodim-dev.html bilan bir xil naqsh */
+  .chekbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border:1.5px dashed var(--line);
+           background:var(--surface-2);color:var(--muted);border-radius:12px;font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer}
+  .chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}
+  .chekbtn svg{width:18px;height:18px}
+  .chekprev{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  .chekrm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--red);
+          border-radius:10px;padding:7px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+  .chekrm svg{width:15px;height:15px}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   /* V8: qarzdor-dev.html'dan kelgan avto to'ldirish xabari (xato emas — yashil) */
   .banner.ok{background:var(--primary-soft);color:var(--primary);line-height:1.55}
@@ -306,8 +316,6 @@
 
     <div class="card">
       <label>Sana</label><input class="txt" id="sana" type="date">
-      <label>Izoh</label><input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
-      <div id="izohReq" class="simplewarn" style="display:none;text-align:left;margin:-8px 0 14px 2px">Bu modda uchun izoh majburiy</div>
 
       <div class="modeseg" id="modeSeg">
         <button class="on" id="mSimple" onclick="setMode('simple')">Oddiy</button>
@@ -341,12 +349,37 @@
           </div>
           <div id="davrReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Sana oralig'ini (boshi–oxiri) tanlang</div>
         </div>
+        <!-- Chek surati — modda chek_majburiy bo'lsa MAJBURIY. Avval professional'da
+             bu maydon umuman yo'q edi: chek majburiy modda tanlansa hech narsa
+             so'ralmasdi (hodim-dev.html'da so'raladi) — ikki sahifa bir xil bo'lsin. -->
+        <div id="chekSect" style="margin-bottom:16px">
+          <label id="chekLbl">📷 Chek (ixtiyoriy)</label>
+          <label class="chekbtn">
+            <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
+            <i data-lucide="camera"></i><span>Chek suratini olish</span>
+          </label>
+          <div id="chekPrev" class="chekprev" style="display:none"></div>
+          <div id="chekReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Bu modda uchun chek surati shart</div>
+        </div>
+
+        <!-- Izoh — HAR DOIM ko'rinadi, Saqlash tugmasining ustida. Avval bu maydon
+             sahifa boshida, rejim tanlagichdan ham yuqorida turardi: modda "izoh
+             majburiy" desa foydalanuvchi Saqlash yonida xabarni ko'rardi-yu, maydonni
+             topolmasdi (tupik). Belgi/placeholder izohRequired()ga qarab o'zgaradi. -->
+        <div id="izohSlotSimple">
+          <div id="izohWrap">
+            <label id="izohLbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></label>
+            <input class="txt" id="izoh" placeholder="ixtiyoriy izoh" autocomplete="off">
+            <div id="izohReq" class="simplewarn" style="display:none;text-align:left;margin:-8px 0 14px 2px">Bu modda uchun izoh majburiy — to'ldiring</div>
+          </div>
+        </div>
         <button class="save" id="saveSimpleBtn" onclick="saveSimple()" disabled>Saqlash</button>
         <div id="saveWhy" class="savewhy"></div>
       </div>
 
       <!-- KENGAYTIRILGAN: qo'lda ko'p satrli Dt/Kt (mavjud rejim) -->
       <div id="advBox" style="display:none">
+        <div id="izohSlotAdv"></div>   <!-- setMode('adv') izohWrap'ni shu yerga ko'chiradi -->
         <div id="lines"></div>
         <button class="addline" onclick="addLine()"><i data-lucide="plus"></i>Satr qo'shish</button>
         <div class="totbox">
@@ -545,13 +578,22 @@ window.setMode=m=>{
   $('mSimple').className=simple?'on':''; $('mAdv').className=simple?'':'on';
   $('simpleBox').style.display=simple?'block':'none';
   $('advBox').style.display=simple?'none':'block';
-  if(!simple) $('izohReq').style.display='none';   // izoh maydoni umumiy — adv rejimda majburiylik yo'q
+  // Izoh maydoni ikkala rejim uchun bitta (entry.description) — DOM'da ko'chiriladi,
+  // shunda u yashirilgan blok ichida qolib ketmaydi.
+  const slot=simple?$('izohSlotSimple'):$('izohSlotAdv'), wrap=$('izohWrap');
+  if(slot&&wrap&&wrap.parentNode!==slot) slot.appendChild(wrap);
+  if(!simple){                                     // adv rejimda modda yo'q — majburiylik ham yo'q
+    $('izohReq').style.display='none';
+    $('izohLbl').innerHTML='Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
+    $('izoh').placeholder='ixtiyoriy izoh';
+  }
   else updateSimple();
 };
 // --- V6: filial multiselect + modda flaglariga qarab shartli izoh/davr ---
 function moddaObj(){ return accounts.find(a=>a.id===$('modda').value); }
 function izohRequired(){ const m=moddaObj(); return !!(m&&m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m&&m.davr_majburiy); }
+function chekRequired(){ const m=moddaObj(); return !!(m&&m.chek_majburiy); }   // ustun yo'q bo'lsa undefined → false
 function davrVals(){ return {s:davrS,e:davrE}; }
 function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
 // --- V8: davr kalendari (ikki oy, uz nomlar) — hodim-dev.html bilan bir xil ---
@@ -627,6 +669,61 @@ window.calQuick=k=>{
   davrS=isoDay(f); davrE=isoDay(t); calBase=firstOfMonth(f);
   renderCal(); updateSimple();
 };
+// Izoh — hodim-dev.html'dagi naqsh: majburiy bo'lsa yorliqda qizil "(majburiy)",
+// placeholder ham o'zgaradi, ogohlantirish esa FAQAT maydon bo'sh bo'lsa chiqadi
+// (to'ldirilgach qizil matn qolib ketmasin).
+function updateIzohUI(){
+  const req=izohRequired(), bosh=!$('izoh').value.trim();
+  $('izohLbl').innerHTML = req
+    ? 'Izoh <span style="color:var(--red);font-weight:700">(majburiy)</span>'
+    : 'Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
+  $('izoh').placeholder = req ? 'Bu modda uchun izoh shart' : 'ixtiyoriy izoh';
+  $('izohReq').style.display = (req && bosh) ? 'block' : 'none';
+}
+// --- Chek surati (hodim-dev.html naqshi) ---
+let chekBlob=null;
+function updateChekUI(){
+  const req=chekRequired();
+  $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
+  $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
+}
+// Kanvas bilan siqish — uzun tomon ~1200px, JPEG 0.8 (hodim-dev.html bilan bir xil).
+function compressImage(file, maxDim, quality){
+  maxDim=maxDim||1200; quality=quality||0.8;
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      const sc=Math.min(1, maxDim/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      cv.toBlob(b=>b?resolve(b):reject(new Error('siqib bo\'lmadi')),'image/jpeg',quality);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('surat o\'qilmadi')); };
+    img.src=url;
+  });
+}
+window.onChekFile=async el=>{
+  const f=el.files&&el.files[0]; el.value='';
+  if(!f) return;
+  try{
+    chekBlob=await compressImage(f);
+    const url=URL.createObjectURL(chekBlob);
+    $('chekPrev').innerHTML=`<img src="${url}" alt="chek"><button type="button" class="chekrm" onclick="removeChek()"><i data-lucide="x"></i>O'chirish</button>`;
+    $('chekPrev').style.display='flex'; icons();
+  }catch(e){ alert('Suratni o\'qib bo\'lmadi'); }
+  updateSimple();
+};
+window.removeChek=()=>{ chekBlob=null; $('chekPrev').style.display='none'; $('chekPrev').innerHTML=''; updateSimple(); };
+// Chek YOZUVNI BLOKLAMAYDI: entry saqlangach fonda yuklanadi, xato bo'lsa faqat ogohlantiramiz.
+async function uploadChek(kassaId, entryId, blob){
+  if(!blob||!kassaId||!entryId) return;
+  try{
+    const {error}=await sb.storage.from('xarajat-cheklari').upload(`${kassaId}/${entryId}.jpg`, blob, {contentType:'image/jpeg',upsert:true});
+    if(error) alert('Yozuv saqlandi, lekin chek yuklanmadi: '+error.message);
+  }catch(e){ alert('Yozuv saqlandi, lekin chek yuklanmadi'); }
+}
 function updateDavrUI(){ const req=davrRequired();
   $('davrSect').style.display=req?'block':'none';
   if(!req){ davrS=null; davrE=null; $('davrReq').style.display='none'; return; }
@@ -711,8 +808,10 @@ window.updateSimple=()=>{
       : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
   } else h.style.display='none';
   updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
-  $('izohReq').style.display=izohRequired()?'block':'none';
+  updateIzohUI();                                    // V6: izoh majburiyligi — yorliq + ogohlantirish
+  updateChekUI();                                    // V6: chek majburiyligi
   const needIzoh=izohRequired() && !$('izoh').value.trim();
+  const needChek=chekRequired() && !chekBlob;
   const needDavr=!davrOk();
   // Qoldiq limiti — faqat pul chiqishida (Kt=kassa, ya'ni income emas). Kirimда tekshirilmaydi.
   const over = !income && simpleBal!=null && amt>simpleBal;
@@ -728,7 +827,7 @@ window.updateSimple=()=>{
     if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needDavr && !needKomm && !overLimit);
+  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needChek && !needDavr && !needKomm && !overLimit);
   $('saveSimpleBtn').disabled=!ok;
   // Saqlash hech qachon "sababsiz" yopiq turmasin — birinchi yetishmayotgan shartni yozamiz.
   // (9411 "Ijara" bug'i aynan shu ko'rinmas holat edi: davr majburiy, lekin sana tanlab bo'lmasdi.)
@@ -738,7 +837,8 @@ window.updateSimple=()=>{
     if(!selKassa) msg='Kassani tanlang';
     else if(!$('modda').value) msg='Moddani tanlang';
     else if(amt<=0) msg='Summani kiriting';
-    else if(needIzoh) msg='Bu modda uchun <b>izoh</b> majburiy';
+    else if(needIzoh) msg='Bu modda uchun <b>izoh</b> majburiy — yuqoridagi <b>Izoh</b> maydonini to‘ldiring';
+    else if(needChek) msg='Bu modda uchun <b>chek surati</b> majburiy — yuqoridagi <b>Chek</b> tugmasidan yuklang';
     else if(needDavr) msg='Bu modda uchun <b>davr</b> (boshi–oxiri) majburiy';
     else if(needKomm) msg='Kommunal turini tanlang';
     else if(over) msg='Summa kassa qoldig‘idan oshdi';
@@ -922,6 +1022,7 @@ window.saveSimple=async()=>{
   if(!modda){ alert('Modda tanlang'); return; }
   if(amt<=0){ alert('Summa kiriting'); return; }
   if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
+  if(chekRequired() && !chekBlob){ alert('Bu modda uchun chek surati majburiy'); return; }          // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
   if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+(kassa.currency||'so\'m')); return; }
   // 9110 Tovar tannarxi → avval yuk modali (yoki "Hujjat hali yo'q" → yo'ldagi tovar).
@@ -945,7 +1046,9 @@ async function doSavePending(izohP){
   if(kassa.currency && kassa.currency!=='UZS'){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=amt; }); }
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
+  if(chekBlob) uploadChek(kassa.id, ent.id, chekBlob);
   $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
+  window.removeChek();
   updateSimple(); fetchSimpleBal();
   btn.textContent='Saqlandi ✓ (yo\'ldagi)'; setTimeout(()=>{ btn.textContent='Saqlash'; },1400);
 }
@@ -974,7 +1077,10 @@ async function doSaveSimple(){
   const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
   if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
     if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e3):e3.message); btn.textContent='Saqlash'; updateSimple(); return; } }
+  // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
+  if(chekBlob){ const b=chekBlob; uploadChek(kassa.id, ent.id, b); }
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
+  window.removeChek();
   preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
   updateSimple(); fetchSimpleBal();
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
@@ -1046,10 +1152,13 @@ window.confirmTaqsim=async()=>{
   };
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
-  const {error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
+  const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
   if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
+  // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
+  if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChek(kassa.id, ids[0], chekBlob); }
   closeTaqsim();
   $('summa').value=''; $('izoh').value=''; selFilials.clear(); renderFilials();
+  window.removeChek();
   updateSimple(); fetchSimpleBal();
   const sbtn=$('saveSimpleBtn'); sbtn.textContent='Saqlandi ✓ ('+taqsimFils.length+' filial)'; setTimeout(()=>{ sbtn.textContent='Saqlash'; },1600);
 };

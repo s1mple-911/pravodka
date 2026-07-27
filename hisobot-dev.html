@@ -529,7 +529,11 @@ const PAGE_SIZE=200;
 const LS_MODDA='prov-hisobot-modda';
 
 let tab='ops';
-let selTur=new Set(TUR_ALL);
+// BO'SH to'plam = FILTR YO'Q (hamma tur ko'rinadi). Chip bosilsa — o'sha tur
+// to'plamga QO'SHILADI (musbat tanlash, multiselect). Avval teskari edi:
+// hammasi tanlangan holatda boshlanardi va chip bosilsa tur OLIB TASHLANARDI —
+// foydalanuvchi "filtrlamayapti" deb qabul qilardi.
+let selTur=new Set();
 let selKassa='';                 // '' = hammasi
 let pulHisoblar=[], accIndex={}; // v_pul_hisoblar + accounts (valyuta bolalari uchun)
 let xarajatModdalar=[];          // type='xarajat' hisoblar (modal ro'yxati)
@@ -541,8 +545,15 @@ function loadModdaSel(){ try{ const r=JSON.parse(localStorage.getItem(LS_MODDA)|
 function saveModdaSel(){ try{ localStorage.setItem(LS_MODDA,JSON.stringify(moddaSel)); }catch(e){} }
 
 // ---- Davr ------------------------------------------------------------
+// Sahifaga kirganda sana MAYDONLARI BO'SH — ya'ni davr filtri yo'q.
+// RPC null sana qabul qilmaydi, shuning uchun bo'sh maydon "hamma vaqt"
+// oralig'iga aylantiriladi (ALL_FROM … bugun).
+const ALL_FROM='2000-01-01';
 function setRange(f,t){ $('d1').value=f; $('d2').value=t; }
+const dFrom=()=>$('d1').value||ALL_FROM;
+const dTo=()=>$('d2').value||isoDay(nowUz());
 const QUICK=[
+  {k:'hammasi',label:'Hammasi'},
   {k:'bugun',  label:'Bugun'},
   {k:'hafta',  label:'Hafta'},
   {k:'oy',     label:'Shu oy'},
@@ -551,6 +562,7 @@ const QUICK=[
 ];
 function quickRange(k){
   const n=nowUz(), y=n.getUTCFullYear(), m=n.getUTCMonth();
+  if(k==='hammasi') return ['',''];          // bo'sh = davr filtri yo'q
   if(k==='bugun') return [isoDay(n),isoDay(n)];
   if(k==='hafta'){ const d=new Date(n.getTime()); const dow=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-dow); return [isoDay(d),isoDay(n)]; }
   if(k==='oy')    return [isoDay(new Date(Date.UTC(y,m,1))), isoDay(new Date(Date.UTC(y,m+1,0)))];
@@ -603,15 +615,16 @@ function renderTurChips(){
 }
 window.toggleTur=k=>{
   if(selTur.has(k)) selTur.delete(k); else selTur.add(k);
-  if(!selTur.size) selTur=new Set(TUR_ALL);   // hammasi o'chsa — hammasi yoqiladi (bo'sh ekran bo'lmasin)
-  renderTurChips(); load();
+  // Bo'sh to'plam — normal holat: "hech biri tanlanmagan = hammasi ko'rinadi".
+  renderTurChips(); renderFsum(); load();
 };
-const turParam=()=> (selTur.size===TUR_ALL.length) ? null : [...selTur];
+// null = server filtrlamaydi (hammasi). Hamma tur qo'lda tanlansa ham — bir xil natija.
+const turParam=()=> (!selTur.size || selTur.size===TUR_ALL.length) ? null : [...selTur];
 
 window.resetFilt=()=>{
-  const [f,t]=quickRange('oy'); setRange(f,t);
+  setRange('','');                            // davr filtri yo'q
   selKassa=''; $('kassaSel').value='';
-  selTur=new Set(TUR_ALL);
+  selTur.clear();
   renderQuick(); renderTurChips(); load();
 };
 window.toggleFilt=()=>{
@@ -620,8 +633,10 @@ window.toggleFilt=()=>{
 };
 function renderFsum(){
   const kn=selKassa?(pulHisoblar.find(r=>r.id===selKassa)||{}).name:'Barcha kassalar';
-  const tn=(selTur.size===TUR_ALL.length)?'barcha tur':`${selTur.size} tur`;
-  $('fsum').textContent=`${fmtUz($('d1').value)} – ${fmtUz($('d2').value)} · ${kn||'—'} · ${tn}`;
+  const tn=(!selTur.size||selTur.size===TUR_ALL.length)?'barcha tur':`${selTur.size} tur`;
+  const f=$('d1').value, t=$('d2').value;
+  const dn=(f||t)?`${f?fmtUz(f):'boshidan'} – ${t?fmtUz(t):'bugungacha'}`:'Barcha davr';
+  $('fsum').textContent=`${dn} · ${kn||'—'} · ${tn}`;
 }
 
 // ---- Tablar ----------------------------------------------------------
@@ -637,13 +652,12 @@ window.setTab=t=>{
 // =====================================================================
 //  OPERATSIYALAR — ro'yxat + totallar
 // =====================================================================
-function filtSig(){ return JSON.stringify({f:$('d1').value,t:$('d2').value,k:selKassa,tur:[...selTur].sort()}); }
+function filtSig(){ return JSON.stringify({f:dFrom(),t:dTo(),k:selKassa,tur:[...selTur].sort()}); }
 
 async function load(){
   const seq=++loadSeq;
   renderFsum();
-  curFrom=$('d1').value; curTo=$('d2').value;
-  if(!curFrom||!curTo) return;
+  curFrom=dFrom(); curTo=dTo();
   $('banner').style.display='none';
   const sig=filtSig(), ck='ops:'+sig;
   const cached=swrGet(ck);
@@ -691,7 +705,9 @@ window.loadMore=async()=>{
 function renderXulosa(x){
   const soni=Number(x&&x.jami_soni)||0, summa=Number(x&&x.jami_summa)||0;
   $('totV').textContent=money(summa)+" so'm";
-  $('totS').textContent=`${soni} ta yozuv · ${fmtUz(curFrom)} – ${fmtUz(curTo)}`;
+  const f=$('d1').value, t=$('d2').value;
+  const dn=(f||t)?`${fmtUz(curFrom)} – ${fmtUz(curTo)}`:'barcha davr';
+  $('totS').textContent=`${soni} ta yozuv · ${dn}`;
 }
 
 // ---- Xarajat turi totallari (tepada, [+] bilan qo'shiladi) ----
@@ -776,16 +792,21 @@ function maqsadHtml(e,multi){
 }
 function renderList(){
   const jami=Number((turSoni&&Object.values(turSoni).reduce((a,x)=>a+(x.soni||0),0))||0);
-  const tanlangan=[...selTur].reduce((a,k)=>a+((turSoni[k]||{}).soni||0),0);
-  $('jcount').innerHTML=`<span><b>${rows.length}</b> ta ko'rsatilmoqda${tanlangan>rows.length?` · tanlangan filtrda jami <b>${tanlangan}</b>`:''}</span>`
+  const tanlangan=selTur.size
+    ? [...selTur].reduce((a,k)=>a+((turSoni[k]||{}).soni||0),0)
+    : jami;
+  // Server p_turlar bilan filtrlaydi; bu yerdagi filtr — zaxira (keshdan kelgan
+  // eski qator yoki server filtri ishlamay qolsa ham ro'yxat tanlovga mos bo'lsin).
+  const view=selTur.size?rows.filter(e=>selTur.has(e.tur)):rows;
+  $('jcount').innerHTML=`<span><b>${view.length}</b> ta ko'rsatilmoqda${tanlangan>view.length?` · tanlangan filtrda jami <b>${tanlangan}</b>`:''}</span>`
     +`<span>Davrdagi barcha yozuvlar: <b>${jami}</b></span>`;
   $('moreBtn').style.display=(!loadedAll&&rows.length)?'flex':'none';
 
-  if(!rows.length){
+  if(!view.length){
     $('journal').innerHTML='<div class="empty">Bu shartlarga mos yozuv yo\'q. Davr yoki filtrlarni kengaytiring.</div>';
     icons(); return;
   }
-  const rowsHtml=rows.map((e,i)=>{
+  const rowsHtml=view.map((e,i)=>{
     const t=turDef(e.tur), multi=e.n_lines>2;
     const ktC=multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(e.kt_code,e.kt_name,e.kt_sub);
     const dtC=multi?`<span class="jmuted">${e.n_lines} satr</span>`:accCell(e.dt_code,e.dt_name,e.dt_sub);
@@ -803,7 +824,7 @@ function renderList(){
     +`<th>#</th><th>Sana</th><th>Qayerdan chiqadi (Kt)</th><th></th><th>Qayerga kiradi (Dt)</th>`
     +`<th class="ta-r">Summa</th><th>Maqsad</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
 
-  const cardsHtml=rows.map((e,i)=>{
+  const cardsHtml=view.map((e,i)=>{
     const t=turDef(e.tur), multi=e.n_lines>2;
     const flow=multi
       ? `<div class="jc-acc"><span class="acap">Ko'p satrli</span><span class="aname">${e.n_lines} satr</span></div>`
@@ -878,7 +899,7 @@ function renderReport(prows,entData){
 }
 let pnlSig='';
 async function loadPnl(){
-  const d1=$('d1').value, d2=$('d2').value; if(!d1||!d2) return;
+  const d1=dFrom(), d2=dTo();
   const sig=d1+'|'+d2; if(sig===pnlSig) return;   // davr o'zgarmasa qayta yuklamaymiz
   pnlSig=sig;
   const ck='pnl:'+sig, cached=swrGet(ck);
@@ -963,7 +984,9 @@ window.exportToliq=async()=>{
 
 // =====================================================================
 async function init(){
-  const [f,t]=quickRange('oy'); setRange(f,t);
+  // Kirganda HECH QANDAY filtr tanlanmaydi: sana bo'sh (= barcha davr),
+  // kassa "Barcha kassalar", tur chiplari — hech biri yoqilmagan.
+  setRange('','');
   renderQuick(); moddaSel=loadModdaSel(); renderTurChips(); renderModdaTots([]);
   // Ruxsat izohi — cheklangan foydalanuvchi nima ko'rayotganini bilsin
   const restricted=window.permScope&&window.permScope()==='list';
