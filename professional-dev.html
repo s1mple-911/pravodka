@@ -270,15 +270,6 @@
   .tacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
   .tacts button.primary{border:none;background:var(--primary);color:#fff}
   .tacts button.primary:disabled{opacity:.5;cursor:not-allowed}
-  /* "+000" — summa oxiriga minglikni bir bosishda qo'shadi. Majburiy emas: odam o'zi tahrirlashi mumkin. */
-  .k000row{display:flex;gap:8px;align-items:stretch;margin-bottom:15px}
-  .k000row>input{flex:1;min-width:0;margin-bottom:0}
-  .k000{flex:none;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-family:inherit;
-    font-size:12px;font-weight:800;letter-spacing:.02em;padding:0 11px;border-radius:11px;cursor:pointer;
-    font-variant-numeric:tabular-nums;transition:border-color .13s,color .13s,transform .08s}
-  .k000:hover{border-color:var(--primary);color:var(--primary)}
-  .k000:active{transform:scale(.94)}
-  .line .k000{border-radius:10px}
 </style>
 </head>
 <body>
@@ -340,7 +331,7 @@
         <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
         <div id="kommChipWrap" style="display:none;margin:-6px 0 15px"><button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt"></span><i data-lucide="pencil"></i></button></div>
         <label>Summa</label>
-        <div class="k000row"><input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)"><button type="button" class="k000" onclick="add000('summa')" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button></div>
+        <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
         <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
@@ -491,18 +482,34 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-// "+000" tugmasi: summa maydonining oxiriga uch nol qo'shadi. Bo'sh maydonga hech narsa qilmaydi —
-// majburlash yo'q, odam istagan raqamni o'zi yozadi/o'chiradi. 'input' hodisasi qayta yuboriladi,
-// shunda mavjud formatlash/validatsiya (minglik ajratgich, limit tekshiruvi) o'z ishini qiladi.
-window.add000=id=>{
-  const el=$(id); if(!el) return;
-  const raw=(el.value||'').replace(/\D/g,'');
-  if(raw && raw!=='0' && raw.length<=12){
-    el.value=money(raw+'000');
-    el.dispatchEvent(new Event('input',{bubbles:true}));
-  }
-  try{ el.focus(); }catch(e){}
-};
+/* Summa maydoni: minglik ajratgich + AVTOMAT "000".
+   Bo'sh maydonga birinchi raqam terilganda oxiriga o'zi "000" qo'shiladi, kursor esa
+   nollardan OLDINDA qoladi — odam "15" tersa "15 000" chiqadi, "150" tersa "150 000".
+   MAJBURLAMA: nollarni o'chirib 500 so'm ham yozish mumkin — bir marta qo'shilgach
+   qaytib qo'shilmaydi (dataset.a000 belgisi). Maydon bo'shatilsa belgi tushadi.
+   Qaytaradi: maydondagi tozalangan son. */
+function fmtAmt(el){
+  if(!el) return 0;
+  const pos=(el.selectionStart==null)?el.value.length:el.selectionStart;
+  const oldin=(el.value.slice(0,pos).match(/\d/g)||[]).length;   // kursordan oldingi raqamlar soni
+  let raw=(el.value||'').replace(/\D/g,'');
+  if(!raw){ el.value=''; el.dataset.a000=''; return 0; }
+  // raw.length===1 — faqat qo'lda terilgan birinchi raqam. Nusxa-joylashtirishda
+  // (bir necha raqam birdan tushadi) 000 qo'shilmaydi.
+  if(el.dataset.a000!=='1' && raw.length===1){ raw+='000'; el.dataset.a000='1'; }
+  el.value=money(raw);
+  // Probellar qo'shilgani uchun kursor surilib ketadi — o'sha raqamdan keyingi joyga qaytaramiz
+  let idx=0;
+  if(oldin>0){ idx=el.value.length; let k=0;
+    for(let i=0;i<el.value.length;i++){ const c=el.value.charCodeAt(i);
+      if(c>47&&c<58&&++k===oldin){ idx=i+1; break; } } }
+  try{ el.setSelectionRange(idx,idx); }catch(e){}
+  return Number(raw)||0;
+}
+// Maydon programma tomonidan bo'shatilsa (saqlagandan keyin) 'input' bo'lmaydi va belgi
+// qolib ketadi. Shuning uchun bo'sh maydonga fokus tushganda belgini tushiramiz.
+document.addEventListener('focusin',e=>{ const t=e.target;
+  if(t&&t.dataset&&t.dataset.a000==='1'&&!t.value) t.dataset.a000=''; });
 let accounts=[], lines=[], selKassa=null, selCur='UZS', simpleBal=null; // selKassa=parent kassa, selCur=tanlangan valyuta
 let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -574,7 +581,6 @@ function renderLines(){
           <button class="${ln.side==='credit'?'on':''}" onclick="setSide(${i},'credit')">Kt</button>
         </div>
         <input class="amt" inputmode="numeric" placeholder="0" value="${ln.amount?money(ln.amount):''}" oninput="setAmt(${i},this)">
-        <button type="button" class="k000" onclick="add000Line(${i})" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button>
       </div>
     </div>`).join('');
   icons(); updateTotals();
@@ -583,13 +589,7 @@ window.addLine=()=>{ lines.push({account_id:accounts[0]?.id||'',side:'debit',amo
 window.rmLine=i=>{ lines.splice(i,1); renderLines(); };
 window.setAcc=(i,v)=>{ lines[i].account_id=v; };
 window.setSide=(i,s)=>{ lines[i].side=s; renderLines(); };
-window.setAmt=(i,el)=>{ const raw=el.value.replace(/\D/g,''); lines[i].amount=Number(raw)||0; el.value=raw?money(raw):''; updateTotals(); };
-// Kengaytirilgan rejim satriga "+000": qiymatni 1000 ga ko'paytiradi (bo'sh satrda hech narsa qilmaydi)
-window.add000Line=i=>{
-  const a=lines[i]?.amount||0;
-  if(!a || a>1e12) return;
-  lines[i].amount=a*1000; renderLines();
-};
+window.setAmt=(i,el)=>{ lines[i].amount=fmtAmt(el); updateTotals(); };
 function updateTotals(){
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
   $('sumDt').textContent=money(dt); $('sumKt').textContent=money(kt);
@@ -817,7 +817,7 @@ function moddaOptions(){
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
-window.fmtSumma=el=>{ const raw=el.value.replace(/\D/g,''); el.value=raw?money(raw):''; updateSimple(); };
+window.fmtSumma=el=>{ fmtAmt(el); updateSimple(); };
 // Yo'nalish modda turidan: daromad → pul kiradi (Dt=kassa), aks holda → pul chiqadi (Kt=kassa).
 function simpleDir(){
   const modda=accounts.find(a=>a.id===$('modda').value);
