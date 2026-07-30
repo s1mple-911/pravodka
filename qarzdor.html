@@ -21,17 +21,17 @@
 <script src="perms.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
-  .num,.bcard .v,.je .amt{font-variant-numeric:tabular-nums}
+  .num{font-variant-numeric:tabular-nums}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   #app{display:none}.sidebar{display:none}
-  .main{padding:22px 26px 40px;max-width:900px;margin:0 auto}
-  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
-  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
+  .main{padding:22px 26px 40px;max-width:1000px;margin:0 auto}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1080px}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}.main{padding:18px 15px 40px}}
   .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
   .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
@@ -42,30 +42,115 @@
   .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
-  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
-  .bcard .cap{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;margin-top:8px}
-  .bcard .cap svg{width:14px;height:14px}.bcard.pos .cap{color:var(--green)}.bcard.neg .cap{color:var(--red)}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-  .bcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
-  .bcard .top{display:flex;align-items:center;gap:9px;margin-bottom:12px}
-  .bcard .ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center}
-  .bcard .ic svg{width:18px;height:18px}
-  .bcard.pos .ic{background:var(--green-soft);color:var(--green)}.bcard.neg .ic{background:var(--red-soft);color:var(--red)}
-  .bcard .n{font-size:13px;color:var(--muted);font-weight:500}
-  .bcard .v{font-size:24px;font-weight:800;letter-spacing:-.02em}
-  .bcard.pos .v{color:var(--green)}.bcard.neg .v{color:var(--red)}
-  .note{font-size:12.5px;color:var(--muted);margin:0 4px 22px;line-height:1.6}
-  .sec{font-size:13px;color:var(--muted);margin:0 0 12px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
-  .je{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:13px;transition:background .13s}
-  .je:hover{background:var(--surface-2)}
-  .je .ic{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .je .ic svg{width:19px;height:19px}
-  .je .ic.up{background:var(--red-soft);color:var(--red)}.je .ic.down{background:var(--green-soft);color:var(--green)}
-  .je .mid{flex:1;min-width:0}.je .mid .t{font-size:14.5px;font-weight:600}.je .mid .s{font-size:12px;color:var(--muted);margin-top:2px}
-  .je .amt{font-size:15.5px;font-weight:700;white-space:nowrap}.je .amt.up{color:var(--red)}.je .amt.down{color:var(--green)}
-  .empty{color:var(--muted);text-align:center;padding:26px;font-size:14px;border:1px dashed var(--line);border-radius:13px}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:8px;align-items:center}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .warnbox{display:flex;gap:9px;align-items:flex-start;background:var(--amber-soft);color:var(--amber);border-radius:12px;
+    padding:11px 13px;font-size:13px;line-height:1.55;margin-bottom:16px}
+  .warnbox svg{width:16px;height:16px;flex:none;margin-top:2px}
+
+  /* ---- filtrlar ---- */
+  .filt{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:18px}
+  .fsel{height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;
+    padding:0 32px 0 11px;font-size:13.5px;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;max-width:100%;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;transition:border-color .13s}
+  .fsel:focus{outline:none;border-color:var(--primary)}
+  .fchips{display:flex;gap:7px;flex-wrap:wrap}
+  .fchip{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:8px 14px;
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
+  .fchip:hover{border-color:var(--primary);color:var(--primary)}
+  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .rfr{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+    color:var(--muted);border-radius:11px;height:40px;padding:0 13px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
+  .rfr svg{width:15px;height:15px}
+  .rfr:hover{color:var(--primary);border-color:var(--primary)}
+
+  /* ---- 1-daraja: katta jami ---- */
+  .bigcard{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:20px;
+    padding:22px 24px;box-shadow:var(--shadow);font-family:inherit;color:var(--ink);cursor:pointer;margin-bottom:14px;
+    transition:border-color .13s,box-shadow .13s,transform .1s}
+  .bigcard:hover{border-color:var(--primary);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+  .bigcard .cap{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+  .bigcard .v{font-size:40px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
+  @media(max-width:520px){.bigcard .v{font-size:32px}}
+  .bigcard .v .cur{font-size:22px;color:var(--muted);font-weight:700;margin-left:6px}
+  .bigcard .s{font-size:13px;color:var(--muted);margin-top:8px}
+  .bigcard .more{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:13px;font-weight:600;color:var(--primary)}
+  .bigcard .more svg{width:15px;height:15px;transition:transform .16s}
+  .bigcard.open .more svg{transform:rotate(180deg)}
+  .bigcard.zero .v{color:var(--green)}
+
+  /* ---- 2-daraja: valyutalar ---- */
+  .curlist{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:18px}
+  @media(min-width:700px){.curlist{grid-template-columns:1fr 1fr}}
+  .currow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);
+    border-radius:15px;padding:15px 17px;box-shadow:var(--shadow);font-family:inherit;color:var(--ink);cursor:pointer;
+    transition:border-color .13s,box-shadow .13s,transform .1s}
+  .currow:hover{border-color:var(--primary);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+  .currow .badge{flex:none;width:46px;height:46px;border-radius:13px;background:var(--primary-soft);color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;letter-spacing:-.02em}
+  .currow.noRate .badge{background:var(--amber-soft);color:var(--amber)}
+  .currow .mid{flex:1;min-width:0}
+  .currow .m1{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .currow .m2{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .currow .go{flex:none;color:var(--muted);display:flex}
+  .currow .go svg{width:18px;height:18px}
+
+  /* ---- 3-daraja: dokumentlar ---- */
+  .crumb{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .crumb button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+    color:var(--muted);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
+  .crumb button svg{width:15px;height:15px}
+  .crumb button:hover{color:var(--primary);border-color:var(--primary)}
+  .crumb .now{font-size:14px;font-weight:700}
+  .doclist{display:flex;flex-direction:column;gap:10px}
+  .doc{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:15px;
+    padding:14px 16px;box-shadow:var(--shadow);font-family:inherit;color:var(--ink);cursor:pointer;
+    transition:border-color .13s,box-shadow .13s,transform .1s}
+  .doc:hover{border-color:var(--primary);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+  .doc .d1{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .doc .did{font-size:14.5px;font-weight:700}
+  .doc .dq{font-size:17px;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .doc .d2{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .doc .d3{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin-top:9px;font-variant-numeric:tabular-nums}
+  .doc .track{height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden;margin-top:6px}
+  .doc .fill{height:100%;background:var(--primary);border-radius:5px}
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-left:7px;vertical-align:middle}
+  .pill.y{background:var(--amber-soft);color:var(--amber)}
+  .pill.r{background:var(--red-soft);color:var(--red)}
+  .doc .pay{display:inline-flex;align-items:center;gap:6px;margin-top:11px;font-size:12.5px;font-weight:700;color:var(--primary)}
+  .doc .pay svg{width:14px;height:14px}
+
+  .empty{color:var(--muted);text-align:center;padding:26px;font-size:14px}
+  .okempty{background:var(--green-soft);color:var(--green);border-radius:16px;padding:26px;text-align:center;font-size:15px;font-weight:700}
+  .okempty .oi{display:block;font-size:26px;margin-bottom:6px}
+  .errbox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:26px;text-align:center;box-shadow:var(--shadow)}
+  .errbox svg{width:30px;height:30px;color:var(--muted)}
+  .errbox .et{font-size:15px;font-weight:700;margin:10px 0 5px}
+  .errbox .es{font-size:13px;color:var(--muted);line-height:1.6}
+  .errbox .retry{margin-top:14px;display:inline-flex;align-items:center;gap:7px;border:none;border-radius:11px;background:var(--primary);
+    color:#fff;padding:10px 18px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .errbox .retry svg{width:15px;height:15px;color:#fff}
+
+  /* ---- daftar qoldig'i (4010/6010) ---- */
+  .ledger{margin-top:26px;border-top:1px solid var(--line);padding-top:18px}
+  .ledger .lh{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border:none;
+    color:var(--ink);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:0}
+  .ledger .lh svg{width:17px;height:17px;color:var(--muted);transition:transform .16s}
+  .ledger .lh.open svg{transform:rotate(180deg)}
+  .ledger .lb{display:none;margin-top:14px}
+  .ledger .lb.open{display:block}
+  .two{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:640px){.two{grid-template-columns:1fr 1fr}}
+  .bcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow)}
+  .bcard .n{font-size:12.5px;color:var(--muted);font-weight:600}
+  .bcard .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:5px}
+  .bcard.pos .v{color:var(--green)}.bcard.neg .v{color:var(--red)}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:12px}
+
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
   .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
@@ -112,9 +197,11 @@
       <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item active" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
     </nav>
     <div class="side-foot">
       <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
@@ -130,16 +217,40 @@
         <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
       </div>
     </div>
+    <p class="sub">To'lanmagan yuklar (Aros hujjatlari). Qoldiq = yuk narxi − Provodka'da shu yukka to'langan summa.</p>
     <div id="banner" class="banner"></div>
+    <div id="rateWarn" class="warnbox" style="display:none"><i data-lucide="triangle-alert"></i><div id="rateWarnTxt"></div></div>
 
-    <div class="two">
-      <div class="bcard pos"><div class="top"><div class="ic"><i data-lucide="arrow-down-left"></i></div><div class="n">Bizga qarzdor</div></div><div class="v" id="recv">0</div><div class="cap"><i data-lucide="arrow-down-left"></i>Kirim — kelishi kerak</div></div>
-      <div class="bcard neg"><div class="top"><div class="ic"><i data-lucide="arrow-up-right"></i></div><div class="n">Biz qarzdormiz</div></div><div class="v" id="pay">0</div><div class="cap"><i data-lucide="arrow-up-right"></i>Chiqim — chiqishi kerak</div></div>
+    <div class="filt">
+      <select class="fsel" id="davr" onchange="load()" aria-label="Davr">
+        <option value="90">Oxirgi 3 oy</option>
+        <option value="180">Oxirgi 6 oy</option>
+        <option value="365" selected>Oxirgi 1 yil</option>
+        <option value="730">Oxirgi 2 yil</option>
+      </select>
+      <select class="fsel" id="provFilt" onchange="onFilt()" aria-label="Yetkazuvchi"><option value="">Barcha yetkazuvchilar</option></select>
+      <div class="fchips">
+        <button type="button" class="fchip on" data-h="all" onclick="setHolat('all')">Hammasi</button>
+        <button type="button" class="fchip" data-h="unpaid" onclick="setHolat('unpaid')">To'lanmagan</button>
+        <button type="button" class="fchip" data-h="qisman" onclick="setHolat('qisman')">Qisman</button>
+      </div>
+      <button type="button" class="rfr" onclick="load(true)"><i data-lucide="refresh-cw"></i>Yangilash</button>
     </div>
-    <div class="note">Bizga qarzdor = Xaridorlar qarzi (4010) · Biz qarzdormiz = Yetkazib beruvchilar (6010). Aniq mijoz bo'yicha ajratish keyingi qadamda qo'shiladi.</div>
 
-    <div class="sec">Harakatlar</div>
-    <div id="hist"></div>
+    <div id="body"><div class="empty">Yuklanmoqda…</div></div>
+
+    <div class="ledger">
+      <button type="button" class="lh" id="ledHead" onclick="toggleLed()">
+        <span>Daftar qoldig'i (4010 / 6010)</span><i data-lucide="chevron-down"></i>
+      </button>
+      <div class="lb" id="ledBody">
+        <div class="two">
+          <div class="bcard pos"><div class="n">Bizga qarzdor · 4010 Xaridorlar</div><div class="v" id="recv">—</div></div>
+          <div class="bcard neg"><div class="n">Biz qarzdormiz · 6010 Yetkazib beruvchilar</div><div class="v" id="pay">—</div></div>
+        </div>
+        <div class="note">Bu <b>daftar</b> raqamlari — buxgalteriya hisoblari qoldig'i. Yuqoridagi qarz esa <b>Aros yuk hujjatlari</b> bo'yicha hisoblanadi (narx − to'langan). Ikkalasi bir xil bo'lishi shart emas: yuk hujjati 6010 orqali o'tmasa yoki to'lov to'g'ridan kassadan qilinsa raqamlar farq qiladi.</div>
+      </div>
+    </div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -161,6 +272,8 @@
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
+      <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -179,7 +292,11 @@ function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n))
 function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+const money2=n=>{ const v=Number(n)||0; return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '); };
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nowUz=()=>new Date(Date.now()+5*3600*1000);
+const isoDay=d=>d.toISOString().slice(0,10);
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -218,43 +335,220 @@ async function boot(){
   }
 }
 
-function renderData(d){
-  $('recv').textContent=money(d.recv); $('pay').textContent=money(d.pay);
-  const list=d.list||[];
-  if(!list.length){ $('hist').innerHTML='<div class="empty">Hozircha harakat yo\'q</div>'; return; }
-  $('hist').innerHTML=list.map(r=>{
-    const code=r.accounts?.code,deb=Number(r.debit)||0,cred=Number(r.credit)||0,amt=deb||cred;
-    let up; if(code==='4010') up=deb>0; else up=cred>0;
-    const label=code==='4010'?(up?'Xaridor qarzi oshdi':'Xaridor to\'ladi'):(up?'Yetkazib beruvchiga qarz':'Yetkazib beruvchiga to\'landi');
-    const sub=(r.entry?.entry_date||'')+(r.entry?.description?' · '+r.entry.description:'');
-    return `<div class="je"><div class="ic ${up?'up':'down'}"><i data-lucide="${up?'arrow-up-right':'arrow-down-left'}"></i></div>
-      <div class="mid"><div class="t">${label}</div><div class="s">${sub}</div></div>
-      <div class="amt ${up?'up':'down'}">${up?'+':'−'}${money(amt)}</div></div>`;
-  }).join('');
+// =====================================================================
+//  QARZDORLAR — to'lanmagan yuklar (Aros) + Provodka to'lovlari
+// ---------------------------------------------------------------------
+//  Manba: n8n `aros-provodka-yuklar` (yuk narxi + valyuta) va
+//  Provodka `yuk_tolangan_summa` (entry_yuk — qancha to'langan, UZS'da).
+//  Hisob: narx_uzs = narx * kurs;  qoldiq_uzs = max(0, narx_uzs − tolangan_uzs)
+//         qoldiq_fc = qoldiq_uzs / kurs   (yuk o'z valyutasida)
+//  Kurs yo'q valyuta HISOBGA QO'SHILMAYDI — jimgina yo'qolmasligi uchun
+//  alohida ogohlantirish chiqadi (senior qoida: yashirin nol bo'lmasin).
+// =====================================================================
+const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+let yuklar=[], paidMap={}, rateMap={}, usdRate=null;
+let selCur=null, expanded=false, holat='all', prov='';
+
+const curOf=y=>String(y.valyuta||'UZS').toUpperCase();
+const curRate=cur=>{ if(!cur||cur==='UZS') return 1; const r=rateMap[cur]; return (r==null?null:Number(r)); };
+// rateMap kaliti n8n bergan yozuvda (masalan 'CHY'), shuning uchun asl qiymat bilan izlaymiz
+const rateOfYuk=y=>{ const raw=y.valyuta; if(!raw||String(raw).toUpperCase()==='UZS') return 1;
+  const r=(rateMap[raw]!=null)?rateMap[raw]:rateMap[String(raw).toUpperCase()];
+  return (r==null?null:Number(r)); };
+const tolangan=y=>{ const s=paidMap[y.id]; return s?Number(s.tolangan_uzs)||0:0; };
+function narxUzs(y){ const r=rateOfYuk(y); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
+function qoldiqUzs(y){ const n=narxUzs(y); if(n==null) return null; return Math.max(0,n-tolangan(y)); }
+function qoldiqFc(y){ const q=qoldiqUzs(y), r=rateOfYuk(y); if(q==null||!r) return null; return q/r; }
+function pct(y){ const n=narxUzs(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
+
+// Filtrlar (yetkazuvchi + holat) HAMMA darajaga ta'sir qiladi — jami ham, ro'yxat ham.
+function qarzList(){
+  return yuklar.filter(y=>{
+    const q=qoldiqUzs(y);
+    if(q===null) return true;              // kurs yo'q — alohida ogohlantiriladi, tashlab yuborilmaydi
+    if(q<=0) return false;                 // to'liq to'langan
+    const p=pct(y);
+    if(holat==='unpaid' && p>0) return false;
+    if(holat==='qisman' && !(p>0&&p<100)) return false;
+    if(prov && (y.yetkazuvchi||'')!==prov) return false;
+    return true;
+  });
+}
+// Valyuta bo'yicha guruh: {cur, fc, uzs, soni, kursYoq}
+function byCurrency(list){
+  const m={};
+  list.forEach(y=>{
+    const c=curOf(y), g=m[c]||(m[c]={cur:c,fc:0,uzs:0,soni:0,kursYoq:false});
+    const q=qoldiqUzs(y);
+    g.soni++;
+    if(q===null){ g.kursYoq=true; return; }
+    g.uzs+=q; g.fc+=(qoldiqFc(y)||0);
+  });
+  return Object.values(m).sort((a,b)=>b.uzs-a.uzs);
+}
+
+window.setHolat=k=>{ holat=k; document.querySelectorAll('.fchip').forEach(b=>b.classList.toggle('on',b.dataset.h===k)); render(); };
+window.onFilt=()=>{ prov=$('provFilt').value||''; render(); };
+window.toggleCur=()=>{ expanded=!expanded; render(); };
+window.openCur=c=>{ selCur=c; expanded=true; render(); window.scrollTo(0,0); };
+window.backToTot=()=>{ selCur=null; render(); };
+window.toggleLed=()=>{ const b=$('ledBody'),h=$('ledHead'); const o=b.classList.toggle('open'); h.classList.toggle('open',o); };
+
+// ---- Dokumentdan to'lovga o'tish: professional.html avto to'ldiriladi ----
+// Modda 9110 (Tovar tannarxi), yuk oldindan tanlanadi, summa = qolgan qarz (so'mda).
+// Kassa professional'da tanlanadi (bitta bo'lsa avtomat), kurs valyuta bo'limidan.
+window.toPay=id=>{
+  const y=yuklar.find(x=>String(x.id)===String(id)); if(!y) return;
+  const q=qoldiqUzs(y);
+  const nom=[y.ombor,y.yetkazuvchi].filter(Boolean).join(' · ');
+  const p=new URLSearchParams();
+  p.set('yuk',String(y.id));
+  if(q!=null&&q>0) p.set('summa',String(Math.round(q)));
+  if(nom) p.set('nom',nom);
+  location.href='professional.html?'+p.toString();
+};
+
+// =====================================================================
+function render(){
+  const box=$('body');
+  const list=qarzList();
+
+  // Kurs yo'q valyutalar — ogohlantirish (jami ularsiz hisoblanadi)
+  const noRate=[...new Set(list.filter(y=>qoldiqUzs(y)===null).map(curOf))];
+  if(noRate.length||usdRate==null){
+    const parts=[];
+    if(noRate.length) parts.push(`<b>${noRate.map(esc).join(', ')}</b> uchun kurs kiritilmagan — bu valyutalar umumiy jamiga qo'shilmadi. Valyuta bo'limida kurs qo'shing.`);
+    if(usdRate==null) parts.push('USD tayanch kursi yo\'q — jami USD\'da ko\'rsatilmaydi, so\'m bo\'yicha beriladi.');
+    $('rateWarnTxt').innerHTML=parts.join('<br>');
+    $('rateWarn').style.display='flex';
+  } else $('rateWarn').style.display='none';
+
+  const groups=byCurrency(list);
+  const totUzs=groups.reduce((a,g)=>a+g.uzs,0);
+  const soni=list.length;
+
+  if(!yuklar.length){ box.innerHTML='<div class="empty">Yuk topilmadi.</div>'; icons(); return; }
+  if(!soni){
+    box.innerHTML='<div class="okempty"><span class="oi">✓</span>Qarzdorlik yo\'q<div style="font-weight:500;font-size:13px;margin-top:6px;color:var(--muted)">Tanlangan davr va filtrlar bo\'yicha to\'lanmagan yuk qolmadi.</div></div>';
+    icons(); return;
+  }
+
+  // ---- 3-daraja: bitta valyutadagi dokumentlar ----
+  if(selCur){
+    const g=groups.find(x=>x.cur===selCur)||{cur:selCur,fc:0,uzs:0,soni:0};
+    const docs=list.filter(y=>curOf(y)===selCur)
+      .sort((a,b)=>(qoldiqUzs(b)||0)-(qoldiqUzs(a)||0));
+    const head=`<div class="crumb"><button type="button" onclick="backToTot()"><i data-lucide="arrow-left"></i>Barcha valyutalar</button>`
+      +`<span class="now">${esc(selCur)} · ${selCur==='UZS'?money(g.fc)+' so\'m':money2(g.fc)+' '+esc(selCur)}`
+      +` <span style="color:var(--muted);font-weight:500">· ${g.soni} ta hujjat</span></span></div>`;
+    box.innerHTML=head+`<div class="doclist">`+docs.map(y=>{
+      const q=qoldiqUzs(y), qf=qoldiqFc(y), p=pct(y), tol=tolangan(y);
+      const badge=q===null?'<span class="pill y">kurs yo\'q</span>':(p>0?`<span class="pill y">qisman ${p}%</span>`:'<span class="pill r">to\'lanmagan</span>');
+      const qTxt=q===null?'—':(selCur==='UZS'?money(qf)+' so\'m':money2(qf)+' '+esc(selCur));
+      const uzsTxt=(q===null||selCur==='UZS')?'':` · ≈ ${money(q)} so'm`;
+      return `<button type="button" class="doc" onclick="toPay('${esc(y.id)}')">`
+        +`<div class="d1"><span class="did">#${esc(y.id)} · ${esc(y.ombor||'—')}${badge}</span>`
+        +`<span class="dq">${qTxt}</span></div>`
+        +`<div class="d2">${esc(y.yetkazuvchi||'—')}${y.sana?' · '+esc(String(y.sana).slice(0,10)):''}</div>`
+        +`<div class="track"><div class="fill" style="width:${p}%"></div></div>`
+        +`<div class="d3"><span>Narx: ${money2(y.narx)} ${esc(curOf(y))}</span>`
+        +`<span>To'langan: ${money(tol)} so'm${uzsTxt}</span></div>`
+        +`<span class="pay"><i data-lucide="banknote"></i>To'lov qilish (Professional)</span>`
+      +`</button>`;
+    }).join('')+`</div>`;
+    icons(); return;
+  }
+
+  // ---- 1 + 2 daraja: katta jami + valyutalar ----
+  const usdTot=(usdRate&&usdRate>0)?(totUzs/usdRate):null;
+  const bigV=usdTot!=null
+    ? `${money2(usdTot)}<span class="cur">USD</span>`
+    : `${money(totUzs)}<span class="cur">so'm</span>`;
+  const sub=usdTot!=null
+    ? `${soni} ta to'lanmagan hujjat · ≈ ${money(totUzs)} so'm (1 USD = ${money(usdRate)} so'm)`
+    : `${soni} ta to'lanmagan hujjat`;
+  let html=`<button type="button" class="bigcard${expanded?' open':''}" onclick="toggleCur()">`
+    +`<div class="cap">Jami to'lanmagan qarz</div>`
+    +`<div class="v">${bigV}</div><div class="s">${sub}</div>`
+    +`<span class="more">${expanded?'Yashirish':'Valyutalar bo\'yicha ko\'rish'}<i data-lucide="chevron-down"></i></span>`
+    +`</button>`;
+  if(expanded){
+    html+=`<div class="curlist">`+groups.map(g=>{
+      const main=g.cur==='UZS'?money(g.fc)+" so'm":money2(g.fc)+' '+esc(g.cur);
+      const second=g.kursYoq?'kurs yo\'q — jamiga kirmadi':(g.cur==='UZS'?`${g.soni} ta hujjat`:`${g.soni} ta hujjat · ≈ ${money(g.uzs)} so'm`);
+      return `<button type="button" class="currow${g.kursYoq?' noRate':''}" onclick="openCur('${esc(g.cur)}')">`
+        +`<span class="badge">${esc(g.cur)}</span>`
+        +`<span class="mid"><span class="m1">${main}</span><span class="m2">${second}</span></span>`
+        +`<span class="go"><i data-lucide="chevron-right"></i></span></button>`;
+    }).join('')+`</div>`;
+  }
+  box.innerHTML=html;
   icons();
 }
 
-async function init(){
-  const cached=swrGet('main');
-  if(cached){ renderData(cached); }
-  else { $('hist').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
-  // Mustaqil so'rovlar parallel ketadi — ketma-ket kutish yo'q
-  const [{data:bal,error:be},{data:accs}]=await Promise.all([
-    sb.from('v_hisob_qoldiq').select('*').in('code',['4010','6010']),
-    sb.from('accounts').select('id,code,name').in('code',['4010','6010']),
+function fillProv(){
+  const sel=$('provFilt'), cur=sel.value;
+  const list=[...new Set(yuklar.map(y=>y.yetkazuvchi).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Barcha yetkazuvchilar</option>'+list.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.value=list.includes(cur)?cur:''; prov=sel.value;
+}
+
+function renderError(msg){
+  $('body').innerHTML='<div class="errbox"><i data-lucide="cloud-off"></i>'
+    +'<div class="et">Yuklar ulanmadi</div>'
+    +'<div class="es">n8n endpoint (aros-provodka-yuklar) javob bermadi.<br>'+esc(msg||'')+'</div>'
+    +'<button class="retry" onclick="load(true)"><i data-lucide="refresh-cw"></i>Qaytadan urinish</button></div>';
+  icons();
+}
+
+window.load=async(force)=>{
+  const kun=Number($('davr').value)||365;
+  const t=nowUz(), from=new Date(t.getTime()-kun*86400000);
+  const ck='qarz:'+kun;
+  const cached=force?null:swrGet(ck);
+  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; usdRate=cached.usdRate??null;
+    fillProv(); render(); }
+  else { $('body').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
+  $('banner').style.display='none';
+
+  let arr;
+  try{
+    const res=await fetch(N8N+'?date_from='+isoDay(from)+'&date_to='+isoDay(t),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j||j.ok===false||!Array.isArray(j.yuklar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
+    arr=j.yuklar;
+  }catch(e){ if(!cached) renderError(e.message||String(e)); return; }
+
+  yuklar=arr;
+  const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
+  const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
+  const [krQ,stQ,usdQ]=await Promise.all([
+    curs.length?sb.rpc('yuk_kurslar',{p_curs:curs}):Promise.resolve({data:{}}),
+    ids.length ?sb.rpc('yuk_tolangan_summa',{p_ids:ids}):Promise.resolve({data:[]}),
+    (async()=>{ try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); return data; }catch(e){ return null; } })()
   ]);
-  if(be){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+be.message; } return; }
-  const r4=(bal||[]).find(x=>x.code==='4010'), r6=(bal||[]).find(x=>x.code==='6010');
-  const recv=r4?r4.qoldiq:0, pay=r6?r6.qoldiq:0;
-  const ids=(accs||[]).map(a=>a.id);
-  if(!ids.length){ const d={recv,pay,list:[]}; swrSet('main',d); renderData(d); return; }
-  const {data:rows,error:le}=await sb.from('entry_line')
-    .select('debit,credit,accounts!inner(code,name),entry!inner(entry_date,description,created_at,is_deleted)').in('account_id',ids);
-  if(le){ if(!cached){ $('hist').innerHTML=`<div class="empty">${le.message}</div>`; } return; }
-  const list=(rows||[]).filter(r=>!r.entry?.is_deleted).sort((a,b)=>(b.entry?.created_at||'').localeCompare(a.entry?.created_at||'')).slice(0,80);
-  const d={recv,pay,list};
-  swrSet('main',d);
-  renderData(d);
+  rateMap=krQ.data||{};
+  paidMap={}; (stQ.data||[]).forEach(s=>{ paidMap[s.yuk_id]=s; });
+  usdRate=(usdQ===null||usdQ===undefined)?null:Number(usdQ);
+  if(!(usdRate>0)) usdRate=null;
+  swrSet(ck,{yuklar,paidMap,rateMap,usdRate});
+  fillProv(); render();
+};
+
+// ---- Daftar qoldig'i (4010/6010) — ikkinchi darajali ma'lumot, fonda ----
+async function loadLedger(){
+  try{
+    const {data,error}=await sb.from('v_hisob_qoldiq').select('*').in('code',['4010','6010']);
+    if(error||!data) return;
+    const r4=data.find(x=>x.code==='4010'), r6=data.find(x=>x.code==='6010');
+    $('recv').textContent=money(r4?r4.qoldiq:0)+" so'm";
+    $('pay').textContent=money(r6?r6.qoldiq:0)+" so'm";
+  }catch(e){}
+}
+
+async function init(){
+  await Promise.all([window.load(), loadLedger()]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.

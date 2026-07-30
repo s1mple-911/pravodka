@@ -146,9 +146,11 @@
       <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
     </nav>
     <div class="role-badge" id="roleBadge"></div>
     <div class="side-foot">
@@ -216,6 +218,8 @@
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
+      <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -252,6 +256,34 @@ const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const parseAmt=()=>Number(($('amount').value||'').replaceAll(' ',''))||0;
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+/* Summa maydoni: minglik ajratgich + AVTOMAT "000".
+   Bo'sh maydonga birinchi raqam terilganda oxiriga o'zi "000" qo'shiladi, kursor esa
+   nollardan OLDINDA qoladi — odam "15" tersa "15 000" chiqadi, "150" tersa "150 000".
+   MAJBURLAMA: nollarni o'chirib 500 so'm ham yozish mumkin — bir marta qo'shilgach
+   qaytib qo'shilmaydi (dataset.a000 belgisi). Maydon bo'shatilsa belgi tushadi.
+   Qaytaradi: maydondagi tozalangan son. */
+function fmtAmt(el){
+  if(!el) return 0;
+  const pos=(el.selectionStart==null)?el.value.length:el.selectionStart;
+  const oldin=(el.value.slice(0,pos).match(/\d/g)||[]).length;   // kursordan oldingi raqamlar soni
+  let raw=(el.value||'').replace(/\D/g,'');
+  if(!raw){ el.value=''; el.dataset.a000=''; return 0; }
+  // raw.length===1 — faqat qo'lda terilgan birinchi raqam. Nusxa-joylashtirishda
+  // (bir necha raqam birdan tushadi) 000 qo'shilmaydi.
+  if(el.dataset.a000!=='1' && raw.length===1){ raw+='000'; el.dataset.a000='1'; }
+  el.value=money(raw);
+  // Probellar qo'shilgani uchun kursor surilib ketadi — o'sha raqamdan keyingi joyga qaytaramiz
+  let idx=0;
+  if(oldin>0){ idx=el.value.length; let k=0;
+    for(let i=0;i<el.value.length;i++){ const c=el.value.charCodeAt(i);
+      if(c>47&&c<58&&++k===oldin){ idx=i+1; break; } } }
+  try{ el.setSelectionRange(idx,idx); }catch(e){}
+  return Number(raw)||0;
+}
+// Maydon programma tomonidan bo'shatilsa (saqlagandan keyin) 'input' bo'lmaydi va belgi
+// qolib ketadi. Shuning uchun bo'sh maydonga fokus tushganda belgini tushiramiz.
+document.addEventListener('focusin',e=>{ const t=e.target;
+  if(t&&t.dataset&&t.dataset.a000==='1'&&!t.value) t.dataset.a000=''; });
 const fmtDate=x=>{ if(!x) return ''; try{ return new Date(x).toLocaleDateString('ru-RU'); }catch(e){ return ''; } };
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -299,7 +331,7 @@ async function loadRole(){
   $('roleBadge').textContent = (isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
 
-window.fmtAmount=el=>{ const raw=el.value.replaceAll(' ','').replace(/\D/g,''); el.value=raw?money(raw):''; updateProv(); };
+window.fmtAmount=el=>{ fmtAmt(el); updateProv(); };
 // kassa_turi='xarajat_guruh' (5400) — konteyner hisob, unga to'g'ridan pul yozilmaydi → tanlanmaydi.
 // Ostidagi hodim kassalari (5401+) esa oddiy kassa — ro'yxatda ko'rinadi.
 function isKassa(a){ return a.type==='aktiv' && a.code.startsWith('5') && a.kassa_turi!=='xarajat_guruh'; }
@@ -417,8 +449,10 @@ window.softDelete=async id=>{
   if(!confirm('Bu yozuv o\'chirilsinmi? (jurnalda usti chizilib qoladi)')) return;
   const {data:e}=await sb.from('entry').select('*,entry_line(*)').eq('id',id).single();
   await sb.from('entry_history').insert({entry_id:id,action:'delete',snapshot:e,changed_by_name:myName});
-  const {error}=await sb.from('entry').update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by_name:myName}).eq('id',id);
-  if(error){ alert(error.message); return; } await refresh();
+  const {data:upd,error}=await sb.from('entry').update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by_name:myName}).eq('id',id).select('id');
+  if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
+  if(!upd||!upd.length){ alert('O\'chirilmadi: bu yozuvni o\'chirishga ruxsat yo\'q.'); return; }
+  await refresh();
 };
 
 window.openEdit=id=>{
@@ -435,7 +469,7 @@ window.openEdit=id=>{
   eSetDir(d, dtLine, ktLine, dtAcc, ktAcc);
   $('editModal').classList.add('open'); icons();
 };
-window.eFmt=el=>{ const raw=el.value.replaceAll(' ','').replace(/\D/g,''); el.value=raw?money(raw):''; };
+window.eFmt=el=>{ fmtAmt(el); };
 window.eSetDir=(d,dtLine,ktLine,dtAcc,ktAcc)=>{ edir=d;
   $('ebIn').className=d==='kirim'?'on-in':''; $('ebOut').className=d==='chiqim'?'on-out':''; $('ebTr').className=d==='transfer'?'on-tr':'';
   $('eKassaLbl').textContent=d==='kirim'?'Qaysi kassaga':'Qaysi kassadan';
@@ -455,14 +489,32 @@ window.saveEdit=async()=>{
   if(amt<=0||!kassa||!counter){ alert('Summa/kassa/kategoriya to\'ldiring'); return; }
   if(edir==='transfer'&&kassa===counter){ alert('Bir xil kassa'); return; }
   let dtAcc,ktAcc; if(edir==='kirim'){ dtAcc=kassa; ktAcc=counter; } else { dtAcc=counter; ktAcc=kassa; }
-  // snapshot old
-  const {data:old}=await sb.from('entry').select('*,entry_line(*)').eq('id',editId).single();
-  await sb.from('entry_history').insert({entry_id:editId,action:'edit',snapshot:old,changed_by_name:myName});
+  // Har qadamda {error} tekshiriladi. Sabab: entry_line'dagi ruxsat to'sig'i
+  // (trg_perm_guard_entry_line — "before update of account_id") 42501 beradi, RLS esa
+  // xatosiz 0 qator qaytaradi. Ikkalasi ham jimgina o'tib ketsa, foydalanuvchi
+  // tahrir saqlandi deb o'ylaydi — aslida yozuv o'zgarmagan.
+  const err=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+  const {data:old,error:e0}=await sb.from('entry').select('*,entry_line(*)').eq('id',editId).single();
+  if(e0||!old){ alert('Yozuvni o\'qib bo\'lmadi: '+err(e0)); return; }
   const dtId=old.entry_line.find(l=>Number(l.debit)>0)?.id;
   const ktId=old.entry_line.find(l=>Number(l.credit)>0)?.id;
-  await sb.from('entry').update({entry_date:$('eSana').value||null,description:$('eIzoh').value||null,edited_at:new Date().toISOString(),edited_by_name:myName}).eq('id',editId);
-  await sb.from('entry_line').update({account_id:dtAcc,debit:amt,credit:0}).eq('id',dtId);
-  await sb.from('entry_line').update({account_id:ktAcc,debit:0,credit:amt}).eq('id',ktId);
+  if(!dtId||!ktId){ alert('Bu yozuvni tahrirlab bo\'lmaydi — Dt/Kt satri topilmadi.'); return; }
+  const {error:eh}=await sb.from('entry_history').insert({entry_id:editId,action:'edit',snapshot:old,changed_by_name:myName});
+  if(eh) console.warn('entry_history yozilmadi:',eh.message);
+  // Satrlar birinchi: to'siq bo'lsa entry'ga "tahrirlandi" muhri yolg'ondan qo'yilmaydi.
+  // .select('id') — RLS 0 qator qaytarganini ham sezish uchun.
+  const {data:d1,error:e1}=await sb.from('entry_line').update({account_id:dtAcc,debit:amt,credit:0}).eq('id',dtId).select('id');
+  if(e1){ alert('Saqlanmadi: '+err(e1)); return; }
+  if(!d1||!d1.length){ alert('Saqlanmadi: Dt satrini o\'zgartirishga ruxsat yo\'q.'); return; }
+  const {data:d2,error:e2}=await sb.from('entry_line').update({account_id:ktAcc,debit:0,credit:amt}).eq('id',ktId).select('id');
+  if(e2||!d2||!d2.length){
+    alert('DIQQAT: yozuv yarim o\'zgardi — Dt satri yangilandi, Kt satri yangilanmadi.\n'
+      +(e2?err(e2):'Kt satrini o\'zgartirishga ruxsat yo\'q.')
+      +'\n\nJurnalda shu yozuvni tekshiring: kerak bo\'lsa o\'chirib qayta kiriting.');
+    await refresh(); return;
+  }
+  const {error:e3}=await sb.from('entry').update({entry_date:$('eSana').value||null,description:$('eIzoh').value||null,edited_at:new Date().toISOString(),edited_by_name:myName}).eq('id',editId);
+  if(e3){ alert('Summa va hisoblar saqlandi, lekin sana/izoh saqlanmadi: '+err(e3)); await refresh(); return; }
   closeEdit(); await refresh();
 };
 

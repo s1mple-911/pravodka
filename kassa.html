@@ -162,9 +162,11 @@
       <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
     </nav>
     <div class="role-badge" id="roleBadge"></div>
     <div class="side-foot">
@@ -212,6 +214,8 @@
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
+      <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -257,6 +261,34 @@ function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Da
 let isAdmin=false, myName='';
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+/* Summa maydoni: minglik ajratgich + AVTOMAT "000".
+   Bo'sh maydonga birinchi raqam terilganda oxiriga o'zi "000" qo'shiladi, kursor esa
+   nollardan OLDINDA qoladi — odam "15" tersa "15 000" chiqadi, "150" tersa "150 000".
+   MAJBURLAMA: nollarni o'chirib 500 so'm ham yozish mumkin — bir marta qo'shilgach
+   qaytib qo'shilmaydi (dataset.a000 belgisi). Maydon bo'shatilsa belgi tushadi.
+   Qaytaradi: maydondagi tozalangan son. */
+function fmtAmt(el){
+  if(!el) return 0;
+  const pos=(el.selectionStart==null)?el.value.length:el.selectionStart;
+  const oldin=(el.value.slice(0,pos).match(/\d/g)||[]).length;   // kursordan oldingi raqamlar soni
+  let raw=(el.value||'').replace(/\D/g,'');
+  if(!raw){ el.value=''; el.dataset.a000=''; return 0; }
+  // raw.length===1 — faqat qo'lda terilgan birinchi raqam. Nusxa-joylashtirishda
+  // (bir necha raqam birdan tushadi) 000 qo'shilmaydi.
+  if(el.dataset.a000!=='1' && raw.length===1){ raw+='000'; el.dataset.a000='1'; }
+  el.value=money(raw);
+  // Probellar qo'shilgani uchun kursor surilib ketadi — o'sha raqamdan keyingi joyga qaytaramiz
+  let idx=0;
+  if(oldin>0){ idx=el.value.length; let k=0;
+    for(let i=0;i<el.value.length;i++){ const c=el.value.charCodeAt(i);
+      if(c>47&&c<58&&++k===oldin){ idx=i+1; break; } } }
+  try{ el.setSelectionRange(idx,idx); }catch(e){}
+  return Number(raw)||0;
+}
+// Maydon programma tomonidan bo'shatilsa (saqlagandan keyin) 'input' bo'lmaydi va belgi
+// qolib ketadi. Shuning uchun bo'sh maydonga fokus tushganda belgini tushiramiz.
+document.addEventListener('focusin',e=>{ const t=e.target;
+  if(t&&t.dataset&&t.dataset.a000==='1'&&!t.value) t.dataset.a000=''; });
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -472,6 +504,9 @@ let cvKassa=[], cvBaza=null, cvFoiz=5, cvYon='sotib_olish';
 const cvNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
 window.cvFmt=el=>{
   const kasr=(el.id==='cvAmount'&&cvYon==='sotish');
+  // Avtomat "000" FAQAT so'm summasiga (Sotib olish). Kurs (cvRate) va sotishdagi
+  // summa (valyutada, kasrli) — avtomat nol qo'shilmaydi, aks holda 12 100 kursi buziladi.
+  if(el.id==='cvAmount'&&!kasr){ fmtAmt(el); cvCalc(); return; }
   let raw=el.value.replaceAll(' ','').replace(',','.').replace(kasr?/[^0-9.]/g:/\D/g,'');
   if(kasr){
     const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
@@ -549,6 +584,17 @@ function cvCalc(){
       : 'Avval valyutani tanlang.';
     el.classList.remove('warn'); return;
   }
+  // V8 (6-ish): KORIDOR FOYDALANUVCHIGA KO'RSATILMAYDI.
+  // Sabab — kirish nazorati: chegarani bilgan odam har safar chetiga yaqin kurs yozadi.
+  // Server baribir tekshiradi (convert_start_v2): koridordan chiqsa so'rov pending
+  // bo'ladi va pul harakat qilmaydi. Ya'ni himoya yo'qolmaydi, faqat ko'rinmaydi.
+  // Admin (tasdiqlovchi) uchun to'liq ma'lumot qoladi — u qaror qabul qiladi.
+  if(!isAdmin){
+    box.className='cv-rate';
+    $('cvAros').textContent="Kursni kiriting. Kurs odatdagidan sezilarli farq qilsa, so'rov admin tasdig'iga tushadi.";
+    el.classList.remove('warn');
+    return;
+  }
   const lo=cvBaza*(1-cvFoiz/100), hi=cvBaza*(1+cvFoiz/100);
   const out=rate>0&&(rate<lo||rate>hi);
   box.className='cv-rate'+(out?' warn':'');
@@ -574,7 +620,8 @@ window.convSave=async()=>{
   if(r.ok&&r.status==='done'){ closeConv(); swrSet('cards',null); swrSet('valyutalar',null); await loadKassalar(); return; }
   if(!r.ok&&r.status==='pending'){
     $('cvMsg').className='cv-msg pend';
-    const kor=(r.aros_rate!==undefined&&r.aros_rate!==null)
+    // V8 (6-ish): lo/hi faqat adminga. Oddiy foydalanuvchi chegarani ko'rmaydi.
+    const kor=(isAdmin&&r.aros_rate!==undefined&&r.aros_rate!==null)
       ? '<br>Tayanch kurs: '+money(r.aros_rate)+' · ruxsat '+money(r.lo)+' – '+money(r.hi) : '';
     $('cvMsg').innerHTML="Admin tasdig'i kutilmoqda — pul hali harakat qilmadi."+kor+'<br>So\'rov "Konvert" bo\'limida ko\'rinadi.';
     $('cvSave').disabled=true;
