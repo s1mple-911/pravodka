@@ -288,6 +288,16 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* "+000" — summa oxiriga minglikni bir bosishda qo'shadi. Majburiy emas: odam o'zi tahrirlashi mumkin. */
+  .k000row{display:flex;gap:10px;align-items:flex-end;margin-bottom:18px}
+  .k000row>.amount{flex:1;min-width:0;margin-bottom:0}
+  .k000{flex:none;height:32px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);
+    font-family:inherit;font-size:12px;font-weight:800;letter-spacing:.02em;padding:0 11px;border-radius:9px;cursor:pointer;
+    font-variant-numeric:tabular-nums;transition:border-color .13s,color .13s,transform .08s}
+  .k000row>.k000{margin-bottom:8px}
+  .k000:hover{border-color:var(--primary);color:var(--primary)}
+  .k000:active{transform:scale(.94)}
+  .lamt .k000{height:44px;border-radius:10px}
 </style>
 </head>
 <body>
@@ -424,7 +434,8 @@
       <button id="ebOut" onclick="eSetDir('chiqim')"><i data-lucide="arrow-up-right"></i>Chiqim</button>
       <button id="ebTr"  onclick="eSetDir('transfer')"><i data-lucide="arrow-left-right"></i>Transfer</button>
     </div>
-    <label>Summa</label><input class="amount" id="eAmount" inputmode="numeric" oninput="eFmt(this)">
+    <label>Summa</label>
+    <div class="k000row"><input class="amount" id="eAmount" inputmode="numeric" oninput="eFmt(this)"><button type="button" class="k000" onclick="add000('eAmount')" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button></div>
     <label id="eKassaLbl">Qaysi kassaga</label><select id="eKassa"></select>
     <label id="eCounterLbl">Nimadan</label><select id="eCounter"></select>
     <label>Izoh</label><input class="txt" id="eIzoh" placeholder="ixtiyoriy izoh">
@@ -456,6 +467,7 @@
     <div class="lamt" id="linkAmtRow" style="display:none">
       <label>Summa</label>
       <input id="linkAmt" inputmode="numeric" placeholder="0" oninput="onLinkAmt(this)">
+      <button type="button" class="k000" onclick="add000('linkAmt')" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button>
       <span class="cur">so'm</span>
     </div>
     <div class="lmsg" id="linkMsg"></div>
@@ -486,6 +498,18 @@ let permAccIds=null;
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+// "+000" tugmasi: summa maydonining oxiriga uch nol qo'shadi. Bo'sh maydonga hech narsa qilmaydi —
+// majburlash yo'q, odam istagan raqamni o'zi yozadi/o'chiradi. 'input' hodisasi qayta yuboriladi,
+// shunda mavjud formatlash/validatsiya (minglik ajratgich, bog'lash tekshiruvi) o'z ishini qiladi.
+window.add000=id=>{
+  const el=$(id); if(!el) return;
+  const raw=(el.value||'').replace(/\D/g,'');
+  if(raw && raw!=='0' && raw.length<=12){
+    el.value=money(raw+'000');
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  try{ el.focus(); }catch(e){}
+};
 const fmtDate=x=>{ if(!x) return ''; try{ return new Date(x).toLocaleDateString('ru-RU'); }catch(e){ return ''; } };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -994,8 +1018,10 @@ window.softDelete=async id=>{
   if(!confirm('Bu yozuv o\'chirilsinmi? (jurnalda usti chizilib qoladi)')) return;
   const {data:e}=await sb.from('entry').select('*,entry_line(*)').eq('id',id).single();
   await sb.from('entry_history').insert({entry_id:id,action:'delete',snapshot:e,changed_by_name:myName});
-  const {error}=await sb.from('entry').update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by_name:myName}).eq('id',id);
-  if(error){ alert(error.message); return; } await load();
+  const {data:upd,error}=await sb.from('entry').update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by_name:myName}).eq('id',id).select('id');
+  if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
+  if(!upd||!upd.length){ alert('O\'chirilmadi: bu yozuvni o\'chirishga ruxsat yo\'q.'); return; }
+  await load();
 };
 
 // tahrir — provodka-dev.html'dagi mantiq
@@ -1061,13 +1087,33 @@ window.saveEdit=async()=>{
   if(amt<=0||!kassa||!counter){ alert('Summa/kassa/kategoriya to\'ldiring'); return; }
   if(edir==='transfer'&&kassa===counter){ alert('Bir xil kassa'); return; }
   let dtAcc,ktAcc; if(edir==='kirim'){ dtAcc=kassa; ktAcc=counter; } else { dtAcc=counter; ktAcc=kassa; }
-  const {data:old}=await sb.from('entry').select('*,entry_line(*)').eq('id',editId).single();
-  await sb.from('entry_history').insert({entry_id:editId,action:'edit',snapshot:old,changed_by_name:myName});
+  // Har qadamda {error} tekshiriladi. Sabab: entry_line'dagi ruxsat to'sig'i
+  // (trg_perm_guard_entry_line — "before update of account_id") 42501 beradi, RLS esa
+  // xatosiz 0 qator qaytaradi. Ikkalasi ham jimgina o'tib ketsa, foydalanuvchi
+  // tahrir saqlandi deb o'ylaydi — aslida yozuv o'zgarmagan.
+  const err=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+  const {data:old,error:e0}=await sb.from('entry').select('*,entry_line(*)').eq('id',editId).single();
+  if(e0||!old){ alert('Yozuvni o\'qib bo\'lmadi: '+err(e0)); return; }
   const dtId=old.entry_line.find(l=>Number(l.debit)>0)?.id;
   const ktId=old.entry_line.find(l=>Number(l.credit)>0)?.id;
-  await sb.from('entry').update({entry_date:$('eSana').value||null,description:$('eIzoh').value||null,edited_at:new Date().toISOString(),edited_by_name:myName}).eq('id',editId);
-  await sb.from('entry_line').update({account_id:dtAcc,debit:amt,credit:0}).eq('id',dtId);
-  await sb.from('entry_line').update({account_id:ktAcc,debit:0,credit:amt}).eq('id',ktId);
+  if(!dtId||!ktId){ alert('Bu yozuvni tahrirlab bo\'lmaydi — Dt/Kt satri topilmadi.'); return; }
+  // Tarix nusxasi tahrirni to'sib qo'ymaydi, lekin jimgina yo'qolmasin
+  const {error:eh}=await sb.from('entry_history').insert({entry_id:editId,action:'edit',snapshot:old,changed_by_name:myName});
+  if(eh) console.warn('entry_history yozilmadi:',eh.message);
+  // Satrlar birinchi: to'siq bo'lsa entry'ga "tahrirlandi" muhri yolg'ondan qo'yilmaydi.
+  // .select('id') — RLS 0 qator qaytarganini ham sezish uchun (xato bo'lmaydi, data bo'sh keladi).
+  const {data:d1,error:e1}=await sb.from('entry_line').update({account_id:dtAcc,debit:amt,credit:0}).eq('id',dtId).select('id');
+  if(e1){ alert('Saqlanmadi: '+err(e1)); return; }
+  if(!d1||!d1.length){ alert('Saqlanmadi: Dt satrini o\'zgartirishga ruxsat yo\'q.'); return; }
+  const {data:d2,error:e2}=await sb.from('entry_line').update({account_id:ktAcc,debit:0,credit:amt}).eq('id',ktId).select('id');
+  if(e2||!d2||!d2.length){
+    alert('DIQQAT: yozuv yarim o\'zgardi — Dt satri yangilandi, Kt satri yangilanmadi.\n'
+      +(e2?err(e2):'Kt satrini o\'zgartirishga ruxsat yo\'q.')
+      +'\n\nJurnalda shu yozuvni tekshiring: kerak bo\'lsa o\'chirib qayta kiriting.');
+    await load(); return;
+  }
+  const {error:e3}=await sb.from('entry').update({entry_date:$('eSana').value||null,description:$('eIzoh').value||null,edited_at:new Date().toISOString(),edited_by_name:myName}).eq('id',editId);
+  if(e3){ alert('Summa va hisoblar saqlandi, lekin sana/izoh saqlanmadi: '+err(e3)); await load(); return; }
   closeEdit(); await load();
 };
 

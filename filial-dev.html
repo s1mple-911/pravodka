@@ -142,6 +142,12 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* filial breakdown: naqd / Click / Payme / dollar. Nol bo'lganlar ko'rsatilmaydi (ixchamlik uchun) */
+  td.f .bd{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .bchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--muted);
+    background:var(--surface-2);border-radius:7px;padding:3px 7px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .bchip b{font-weight:700;color:var(--ink)}
+  .bchip.usd b{color:var(--tr)}
 </style>
 </head>
 <body>
@@ -382,7 +388,9 @@ window.syncNow=async()=>{
     rows=filials.map(f=>{
       const cash=Number(f.cash)||0, click=Number(f.click)||0, payme=Number(f.payme)||0, usd=Number(f.dollar_usd)||0;
       const bug = rate!==null ? (cash+click+payme+usd*rate) : (Number(f.total)||0);
-      return { name:(f.warehouse_name||f.title||'Filial'), bug:Math.round(bug), usd:usd };
+      // Bo'linish ham snapshot'ga tushadi — kartada naqd/Click/Payme/dollar alohida ko'rinsin.
+      // Eski snapshot'larda bu maydonlar yo'q; render() ularsiz ham ishlaydi.
+      return { name:(f.warehouse_name||f.title||'Filial'), bug:Math.round(bug), usd:usd, cash:cash, click:click, payme:payme };
     }).sort((a,b)=>b.bug-a.bug);
     const total=rows.reduce((x,r)=>x+r.bug,0);
     const now=new Date().toISOString();
@@ -401,6 +409,24 @@ function fmtWhen(x){
   catch(e){ return ''; }
 }
 
+// Filial puli qanday turgani: naqd (sum) / Click / Payme / dollar — Aros javobidagi bo'linish.
+// Nol bo'lganlar chiqmaydi. Eski snapshot'da cash/click/payme yo'q (faqat usd bor) — o'shanda
+// mavjudini ko'rsatadi, yiqilmaydi. "Yangilash"dan keyin to'liq bo'linish paydo bo'ladi.
+function breakdown(r){
+  const chips=[];
+  const add=(ico,lbl,v)=>{ if(v>0) chips.push(`<span class="bchip">${ico} ${lbl} <b>${money(v)}</b></span>`); };
+  add('💵',"Naqd",Number(r.cash)||0);
+  add('💳','Click',Number(r.click)||0);
+  add('📱','Payme',Number(r.payme)||0);
+  const usd=Number(r.usd)||0;
+  if(usd>0){
+    // Kurs ma'lum bo'lsa — tooltipda so'm ekvivalenti
+    const t=(usedRate!==null&&usedRate!==undefined)?` title="≈ ${money(usd*usedRate)} so'm"`:'';
+    chips.push(`<span class="bchip usd"${t}>💲 Dollar <b>$${money(usd)}</b></span>`);
+  }
+  return chips.length?`<div class="bd">${chips.join('')}</div>`:'';
+}
+
 function render(meta){
   const t=rows.reduce((s,r)=>s+r.bug,0);
   $('sBug').textContent=money(t);
@@ -411,7 +437,7 @@ function render(meta){
     ? 'Yangilandi: '+fmtWhen(meta.synced_at)+(meta.synced_by_name?' · '+meta.synced_by_name:'')+rt : '';
   if(!rows.length){ $('tb').innerHTML='<tr><td colspan="2" class="empty">Filial topilmadi</td></tr>'; return; }
   $('tb').innerHTML=rows.map(r=>`<tr>
-      <td class="f">${r.name}</td>
+      <td class="f">${esc(r.name)}${breakdown(r)}</td>
       <td class="n ${r.bug>0?'pos':'zero'}">${money(r.bug)}</td></tr>`).join('');
   icons();
 }
