@@ -147,6 +147,14 @@
   .msheet a.active svg{color:var(--primary)}
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
+  /* "+000" — summa oxiriga minglikni bir bosishda qo'shadi. Majburiy emas: odam o'zi tahrirlashi mumkin. */
+  .k000row{display:flex;gap:8px;align-items:stretch;margin-bottom:15px}
+  .k000row>input{flex:1;min-width:0;margin-bottom:0}
+  .k000{flex:none;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-family:inherit;
+    font-size:12px;font-weight:800;letter-spacing:.02em;padding:0 11px;border-radius:11px;cursor:pointer;
+    font-variant-numeric:tabular-nums;transition:border-color .13s,color .13s,transform .08s}
+  .k000:hover{border-color:var(--primary);color:var(--primary)}
+  .k000:active{transform:scale(.94)}
 </style>
 </head>
 <body>
@@ -238,7 +246,7 @@
     <label>Xarajat modda</label>
     <select id="limModda"></select>
     <label>Oylik limit (so'm)</label>
-    <input id="limAmt" inputmode="numeric" placeholder="0" oninput="onLimAmt(this)">
+    <div class="k000row"><input id="limAmt" inputmode="numeric" placeholder="0" oninput="onLimAmt(this)"><button type="button" class="k000" onclick="add000('limAmt')" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button></div>
     <div class="mmsg" id="limMsg"></div>
     <div class="mrow">
       <button type="button" onclick="closeLim()">Bekor</button>
@@ -256,6 +264,18 @@ const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',','
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
+// "+000" tugmasi: summa maydonining oxiriga uch nol qo'shadi. Bo'sh maydonga hech narsa qilmaydi —
+// majburlash yo'q, odam istagan raqamni o'zi yozadi/o'chiradi. 'input' hodisasi qayta yuboriladi,
+// shunda mavjud formatlash (minglik ajratgich) va Saqlash tugmasi holati yangilanadi.
+window.add000=id=>{
+  const el=$(id); if(!el) return;
+  const raw=(el.value||'').replace(/\D/g,'');
+  if(raw && raw!=='0' && raw.length<=12){
+    el.value=money(raw+'000');
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  try{ el.focus(); }catch(e){}
+};
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }

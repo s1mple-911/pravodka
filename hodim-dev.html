@@ -242,6 +242,13 @@
   .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
   .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
   .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  /* "+000" — summa oxiriga minglikni bir bosishda qo'shadi. Majburiy emas: odam o'zi tahrirlashi mumkin. */
+  .k000{flex:none;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-family:inherit;
+    font-size:12px;font-weight:800;letter-spacing:.02em;height:30px;padding:0 11px;border-radius:9px;cursor:pointer;
+    font-variant-numeric:tabular-nums;transition:border-color .13s,color .13s,transform .08s}
+  .k000:hover{border-color:var(--primary);color:var(--primary)}
+  .k000:active{transform:scale(.94)}
+  .amthelp{display:flex;justify-content:flex-end;margin:9px 2px 0}
 </style>
 </head>
 <body>
@@ -288,6 +295,7 @@
         <span class="amtcur">so'm</span>
         <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off">
       </div>
+      <div class="amthelp"><button type="button" class="k000" onclick="add000('summa')" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button></div>
       <div id="amtWarn" class="amtwarn" style="display:none"></div>
     </div>
 
@@ -405,6 +413,18 @@ const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',','
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
+// "+000" tugmasi: summa maydonining oxiriga uch nol qo'shadi. Bo'sh maydonga hech narsa qilmaydi —
+// majburlash yo'q, odam istagan raqamni o'zi yozadi/o'chiradi. 'input' hodisasi qayta yuboriladi,
+// shunda mavjud formatlash/validatsiya (minglik ajratgich, qoldiq tekshiruvi) o'z ishini qiladi.
+window.add000=id=>{
+  const el=$(id); if(!el) return;
+  const raw=(el.value||'').replace(/\D/g,'');
+  if(raw && raw!=='0' && raw.length<=12){
+    el.value=money(raw+'000');
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  try{ el.focus(); }catch(e){}
+};
 const isoDay=d=>d.toISOString().slice(0,10);
 // stale-while-revalidate kesh (sessiya): accounts/filials sessiya davomida kam o'zgaradi —
 // qayta ochilganda keshdan DARROV ko'rsatiladi, fonda yangilanadi (5 daqiqa TTL).

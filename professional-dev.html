@@ -270,6 +270,15 @@
   .tacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
   .tacts button.primary{border:none;background:var(--primary);color:#fff}
   .tacts button.primary:disabled{opacity:.5;cursor:not-allowed}
+  /* "+000" — summa oxiriga minglikni bir bosishda qo'shadi. Majburiy emas: odam o'zi tahrirlashi mumkin. */
+  .k000row{display:flex;gap:8px;align-items:stretch;margin-bottom:15px}
+  .k000row>input{flex:1;min-width:0;margin-bottom:0}
+  .k000{flex:none;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-family:inherit;
+    font-size:12px;font-weight:800;letter-spacing:.02em;padding:0 11px;border-radius:11px;cursor:pointer;
+    font-variant-numeric:tabular-nums;transition:border-color .13s,color .13s,transform .08s}
+  .k000:hover{border-color:var(--primary);color:var(--primary)}
+  .k000:active{transform:scale(.94)}
+  .line .k000{border-radius:10px}
 </style>
 </head>
 <body>
@@ -331,7 +340,7 @@
         <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
         <div id="kommChipWrap" style="display:none;margin:-6px 0 15px"><button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt"></span><i data-lucide="pencil"></i></button></div>
         <label>Summa</label>
-        <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
+        <div class="k000row"><input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)"><button type="button" class="k000" onclick="add000('summa')" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button></div>
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
         <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
@@ -482,6 +491,18 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+// "+000" tugmasi: summa maydonining oxiriga uch nol qo'shadi. Bo'sh maydonga hech narsa qilmaydi —
+// majburlash yo'q, odam istagan raqamni o'zi yozadi/o'chiradi. 'input' hodisasi qayta yuboriladi,
+// shunda mavjud formatlash/validatsiya (minglik ajratgich, limit tekshiruvi) o'z ishini qiladi.
+window.add000=id=>{
+  const el=$(id); if(!el) return;
+  const raw=(el.value||'').replace(/\D/g,'');
+  if(raw && raw!=='0' && raw.length<=12){
+    el.value=money(raw+'000');
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  try{ el.focus(); }catch(e){}
+};
 let accounts=[], lines=[], selKassa=null, selCur='UZS', simpleBal=null; // selKassa=parent kassa, selCur=tanlangan valyuta
 let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
@@ -553,6 +574,7 @@ function renderLines(){
           <button class="${ln.side==='credit'?'on':''}" onclick="setSide(${i},'credit')">Kt</button>
         </div>
         <input class="amt" inputmode="numeric" placeholder="0" value="${ln.amount?money(ln.amount):''}" oninput="setAmt(${i},this)">
+        <button type="button" class="k000" onclick="add000Line(${i})" title="Oxiriga 000 qo'shadi" aria-label="Oxiriga 000 qo'shadi">+000</button>
       </div>
     </div>`).join('');
   icons(); updateTotals();
@@ -562,6 +584,12 @@ window.rmLine=i=>{ lines.splice(i,1); renderLines(); };
 window.setAcc=(i,v)=>{ lines[i].account_id=v; };
 window.setSide=(i,s)=>{ lines[i].side=s; renderLines(); };
 window.setAmt=(i,el)=>{ const raw=el.value.replace(/\D/g,''); lines[i].amount=Number(raw)||0; el.value=raw?money(raw):''; updateTotals(); };
+// Kengaytirilgan rejim satriga "+000": qiymatni 1000 ga ko'paytiradi (bo'sh satrda hech narsa qilmaydi)
+window.add000Line=i=>{
+  const a=lines[i]?.amount||0;
+  if(!a || a>1e12) return;
+  lines[i].amount=a*1000; renderLines();
+};
 function updateTotals(){
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
   $('sumDt').textContent=money(dt); $('sumKt').textContent=money(kt);
@@ -1208,13 +1236,15 @@ async function doSaveAdv(){
   const payload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'};
   if(selYuk.size) payload.yuk_ids=[...selYuk];
   const {data:ent,error:e1}=await sb.from('entry').insert(payload).select('id').single();
-  if(e1){ alert(e1.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
+  // permErr — server guard 42501'ni o'zbekcha matnga o'giradi (xom Postgres xatosi ko'rinmasin)
+  const perr=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+  if(e1){ alert(perr(e1)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   const rows=lines.map(l=>({entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?l.amount:0,credit:l.side==='credit'?l.amount:0}));
   const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(e2.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e2)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
   if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
-    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(e3.message); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
+    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e3)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
   lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
 }
