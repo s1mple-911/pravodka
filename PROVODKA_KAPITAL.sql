@@ -20,7 +20,9 @@
 --  IDEMPOTENT: hisob bor bo'lsa qayta yaratilmaydi, kod ham o'zgarmaydi.
 --  Bir necha marta RUN qilish xavfsiz.
 --
---  TALAB: PROVODKA_VALYUTA.sql (pul_turi, v_kassa_turlar) RUN qilingan bo'lsin.
+--  TALAB: accounts.pul_turi ustuni bo'lsin (PROVODKA_VALYUTA.sql).
+--         Mapping to'lishi uchun tur child'lari ham ochilgan bo'lsin
+--         (PROVODKA_VALYUTA_SEED.sql) — aks holda 6-bo'lim buni ko'rsatadi.
 -- =====================================================================
 
 
@@ -121,104 +123,152 @@ comment on function boshlangich_kapital_id() is
 
 
 -- ---------------------------------------------------------------------
--- 5. v_filial_sync_mapping — n8n uchun YAGONA jadval
+-- 5. v_filial_sync_mapping — n8n uchun YAGONA mapping
 -- ---------------------------------------------------------------------
--- Muammo: som turlari (naqd/click/payme) `pul_turi` bilan belgilangan, dollar
--- esa `pul_turi` EMAS — u valyuta child'i (currency='USD'). Ya'ni ular ikki xil
--- joyda. n8n ikkita so'rov qilib, ikki xil mantiq yozmasin — shu view ikkovini
--- birlashtirib, TO'G'RIDAN-TO'G'RI Aros javobidagi maydon nomi bilan beradi.
+-- FAQAT accounts ustunlaridan quriladi. Boshqa view'ga (v_kassa_turlar)
+-- bog'lanmaydi — bitta bog'liqlik kamaysa, bo'shab qolish sababi ham kamayadi
+-- va service_role uchun grant zanjiri kerak bo'lmaydi.
 --
--- n8n javobidagi filial obyekti:  { id, cash, click, payme, dollar_usd, ... }
--- Shu view:                        aros_maydon = 'cash'|'click'|'payme'|'dollar_usd'
--- Ya'ni sync shunchaki: har filial uchun aros_maydon bo'yicha account_id ni olib,
+-- Aros bog'lanishi accounts'dagi ikki ustunda:
+--   filial_ref   — Aros CACHIER id. Sync aynan shuni ishlatadi:
+--                  billing/cachiers/{filial_ref}/
+--   warehouse_id — Aros WAREHOUSE id. Solishtirish/tekshirish uchun beriladi,
+--                  join kaliti sifatida ishlatilmaydi.
+--
+-- Tur ikki xil joyda yashaydi va shu yerda birlashtiriladi:
+--   naqd/click/payme -> accounts.pul_turi   (currency = 'UZS')
+--   dollar           -> accounts.currency = 'USD'  (pul_turi NULL!)
+--
+-- Natija ustunlari to'g'ridan-to'g'ri Aros javobidagi maydon nomlariga mos:
+--   aros_maydon = 'cash' | 'click' | 'payme' | 'dollar_usd'
+-- Ya'ni sync: har filial obyektining har maydoni uchun account_id ni olib,
 --   Dt account_id / Kt boshlangich_kapital_id()  yozadi.
-create or replace view v_filial_sync_mapping as
--- (a) som turlari — pul_turi child'lari
-select p.filial_ref,
-       p.id                     as kassa_id,
-       p.code                   as kassa_code,
-       p.name                   as kassa_name,
-       case t.pul_turi
-         when 'naqd'  then 'cash'
-         when 'click' then 'click'
-         when 'payme' then 'payme'
-       end                      as aros_maydon,
-       t.pul_turi               as turi,
-       t.account_id,
-       t.code                   as hisob_code,
-       'UZS'::text              as currency
-  from accounts p
-  join v_kassa_turlar t on t.parent_id = p.id
- where p.kassa_turi = 'filial'
-   and p.filial_ref is not null
-   and p.is_active
-
-union all
-
--- (b) dollar — pul_turi EMAS, valyuta child'i (currency='USD')
-select p.filial_ref,
-       p.id,
-       p.code,
-       p.name,
-       'dollar_usd'::text       as aros_maydon,
-       'dollar'::text           as turi,
-       c.id                     as account_id,
-       c.code                   as hisob_code,
-       c.currency
-  from accounts p
-  join accounts c on c.parent_id = p.id and c.is_active and c.currency = 'USD'
- where p.kassa_turi = 'filial'
-   and p.filial_ref is not null
-   and p.is_active;
+--
+-- ⚠️ kassa_turi bo'yicha FILTRLAMAYDI. Avvalgi variantda `kassa_turi='filial'`
+--    sharti bor edi — agar o'sha ustunda boshqa qiymat tursa view jimgina
+--    bo'shab qolardi. Endi yagona shart: filial_ref to'ldirilgan bo'lsin,
+--    ya'ni "bu kassa Aros cachier'iga bog'langan".
+drop view if exists v_filial_sync_mapping;
+create view v_filial_sync_mapping as
+select
+  k.filial_ref,                                   -- Aros cachier id (join kaliti)
+  k.warehouse_id,                                 -- Aros warehouse id (ma'lumot uchun)
+  k.id                       as kassa_id,
+  k.code                     as kassa_code,
+  k.name                     as kassa_name,
+  k.kassa_turi,
+  case
+    when c.pul_turi = 'naqd'  then 'cash'
+    when c.pul_turi = 'click' then 'click'
+    when c.pul_turi = 'payme' then 'payme'
+    when c.currency = 'USD'   then 'dollar_usd'
+  end                        as aros_maydon,      -- Aros JSON maydoni
+  coalesce(c.pul_turi, 'dollar')                as turi,
+  c.id                       as account_id,       -- ⬅️ sync shu hisobga yozadi
+  c.code                     as hisob_code,
+  coalesce(c.currency, 'UZS')                   as currency
+from accounts k
+join accounts c
+  on  c.parent_id = k.id
+  and c.is_active
+  and c.section   = 'pul'
+  and (c.pul_turi in ('naqd','click','payme') or c.currency = 'USD')
+where k.section = 'pul'
+  and k.is_active
+  and k.parent_id is null          -- kassaning o'zi, bola-hisob emas
+  and coalesce(k.currency,'UZS') = 'UZS'
+  and k.filial_ref is not null;    -- Aros bilan bog'langan kassalar
 
 alter view v_filial_sync_mapping set (security_invoker = on);
 revoke all on v_filial_sync_mapping from public, anon;
 grant select on v_filial_sync_mapping to authenticated, service_role;
 
--- security_invoker=on: view ostidagi jadval/viewlar CHAQIRUVCHI huquqi bilan
--- o'qiladi. n8n service_role bilan keladi, shuning uchun ichkaridagilarga ham
--- aniq grant kerak (PROVODKA_VALYUTA.sql'da faqat authenticated berilgan edi).
-grant select on v_kassa_turlar to service_role;
-grant select on v_hisob_bal   to service_role;
+-- security_invoker=on: ostidagi jadval CHAQIRUVCHI huquqi bilan o'qiladi.
+-- n8n service_role bilan keladi.
+grant select on accounts to service_role;
 
 comment on view v_filial_sync_mapping is
-  'n8n Aros sync uchun: filial_ref + aros_maydon (cash|click|payme|dollar_usd) -> account_id. '
-  'Som turlari pul_turi child''laridan, dollar esa USD valyuta child''idan keladi.';
+  'n8n Aros sync: filial_ref (cachier id) + aros_maydon (cash|click|payme|dollar_usd) -> account_id. '
+  'Faqat accounts ustunlaridan quriladi. Som turlari pul_turi''dan, dollar currency=''USD'' dan.';
 
 
 -- ---------------------------------------------------------------------
--- 6. TEKSHIRUV
+-- 6. DIAGNOSTIKA — mapping BO'SH chiqsa, sababi shu yerda ko'rinadi
 -- ---------------------------------------------------------------------
+-- Voronka: yuqoridan pastga qarab qaysi qadamda 0 ga tushganini ko'rasiz.
+select '1. pul kassalari (parent, UZS, faol)' as qadam,
+       count(*) as soni
+  from accounts
+ where section='pul' and is_active and parent_id is null
+   and coalesce(currency,'UZS')='UZS'
+union all
+select '2. ...shundan filial_ref to''ldirilgan (Aros cachier)',
+       count(*)
+  from accounts
+ where section='pul' and is_active and parent_id is null
+   and coalesce(currency,'UZS')='UZS' and filial_ref is not null
+union all
+select '3. som turi child''lari (pul_turi: naqd/click/payme)',
+       count(*)
+  from accounts
+ where section='pul' and is_active and parent_id is not null
+   and pul_turi in ('naqd','click','payme')
+union all
+select '4. USD child''lari (currency=USD)',
+       count(*)
+  from accounts
+ where section='pul' and is_active and parent_id is not null and currency='USD'
+union all
+select '5. MAPPING QATORLARI (natija)',
+       count(*)
+  from v_filial_sync_mapping;
 
--- 6.1 Kapital hisobi balansda KAPITAL bo'limida ko'rinadimi.
---     (Hozir qoldig'i 0 — sync hali yozmagan. Muhimi: bolim = 'KAPITAL'.)
+-- Qadamlarni o'qish:
+--   2 = 0  -> kassalarda filial_ref to'ldirilmagan. Aros bog'lanishi yo'q:
+--             sozlama-dev.html "Filiallarni bog'lash" (aros-filial-map) ni ishlating.
+--   3 = 0  -> PROVODKA_VALYUTA_SEED.sql hali RUN qilinmagan (tur child'lari yo'q).
+--   4 = 0  -> USD child'lari yo'q: SEED'da p_usd=false bo'lgan yoki
+--             PROVODKA_KASSA_MODEL.sql B-QISM eski valyuta kassalarni bog'lamagan.
+--   5 = 0, lekin 2/3 > 0 -> tur child'lari filial_ref'i BOR kassalarga emas,
+--             boshqa kassalarga tegishli. 6.1 dagi so'rov buni ko'rsatadi.
+
+-- 6.1 Kassalar va ularning Aros bog'lanishi + nechta child'i bor
+select k.code, k.name, k.kassa_turi,
+       k.filial_ref, k.warehouse_id,
+       count(c.id) filter (where c.pul_turi is not null) as som_turi,
+       count(c.id) filter (where c.currency = 'USD')     as usd
+  from accounts k
+  left join accounts c on c.parent_id = k.id and c.is_active and c.section='pul'
+ where k.section='pul' and k.is_active and k.parent_id is null
+   and coalesce(k.currency,'UZS')='UZS'
+ group by k.code, k.name, k.kassa_turi, k.filial_ref, k.warehouse_id
+ order by k.code;
+
+-- 6.2 Kapital hisobi balansda KAPITAL bo'limida ko'rinadimi
+--     (qoldig'i 0 bo'lsa balans() uni ko'rsatmasligi mumkin — bu normal)
 select bolim, section, code, name, amount
   from balans(current_date)
  where code = (select code from accounts
                 where type = 'kapital'
                   and lower(btrim(name)) = 'boshlang''ich kapital');
--- Agar BU SO'ROV BO'SH qaytarsa — bu normal: balans() qoldig'i 0 bo'lgan
--- hisobni ko'rsatmasligi mumkin. Sync birinchi yozuvni yozgach paydo bo'ladi.
 
--- 6.2 Mapping to'ldimi — har filial uchun 4 qator bo'lishi kerak
---     (cash, click, payme, dollar_usd):
+-- 6.3 Har Aros-bog'langan kassada 4 qator bo'lishi kerak
 select kassa_code, kassa_name, filial_ref,
-       count(*)                                   as qatorlar,
+       count(*) as qatorlar,
        string_agg(aros_maydon, ', ' order by aros_maydon) as maydonlar
   from v_filial_sync_mapping
  group by kassa_code, kassa_name, filial_ref
  order by kassa_code;
 
--- 6.3 Yetishmayotgani bormi (4 tadan kam bo'lgan filiallar):
-select kassa_code, kassa_name, count(*) as bor
+-- 6.4 4 tadan kam bo'lganlar (bo'sh chiqishi kerak)
+select kassa_code, kassa_name, count(*) as bor,
+       string_agg(aros_maydon, ', ' order by aros_maydon) as bor_maydonlar
   from v_filial_sync_mapping
  group by kassa_code, kassa_name
 having count(*) < 4
  order by kassa_code;
--- Bo'sh chiqishi kerak. Chiqsa — PROVODKA_VALYUTA_SEED.sql RUN qilinmagan
--- yoki o'sha kassada USD child yo'q.
 
--- 6.4 To'liq mapping (n8n ga ko'chirish uchun):
-select filial_ref, kassa_code, aros_maydon, turi, hisob_code, account_id
+-- 6.5 ⬇️ TO'LIQ MAPPING — n8n ga shuni bering
+select filial_ref, warehouse_id, kassa_code, aros_maydon, turi, hisob_code, account_id
   from v_filial_sync_mapping
  order by kassa_code, aros_maydon;
