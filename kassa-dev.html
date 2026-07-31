@@ -366,8 +366,13 @@ function kcard(r){
   const oz=Number(r.uzs)||0;
   // Parentning o'z qoldig'i: turlar bo'lsa "turga ajratilmagan pul" degani — shunday belgilanadi
   if(oz||!turBor) qism.push(turBor?('◦ '+money(oz)+" so'm"):(money(oz)+" so'm"));
-  vals.forEach(v=>qism.push(fc(v.fc_qoldiq)+' '+esc(v.currency)));
-  const sub=(vals.length||turBor) ? `<div class="sub">${qism.join(' · ')}</div>` : '';
+  // Valyuta satrlari: nol qoldiqlisi ko'rsatilmaydi. Sabab — seed hamma kassaga USD
+  // hisobini oldindan ochadi (n8n tur bo'yicha sinxron qilishi uchun), aks holda har
+  // kartada foydasiz "0.00 USD" yozilib turardi. Hisob o'zi joyida: professional va
+  // konvertda baribir tanlanadi, pul tushishi bilan bu yerda ham paydo bo'ladi.
+  const valBor=vals.filter(v=>Number(v.fc_qoldiq)||0);
+  valBor.forEach(v=>qism.push(fc(v.fc_qoldiq)+' '+esc(v.currency)));
+  const sub=(valBor.length||turBor) ? `<div class="sub">${qism.join(' · ')}</div>` : '';
   const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
     +`<div class="v">${money(r.jami)}</div>${sub}</div>`;
@@ -512,7 +517,7 @@ window.valSave=async()=>{
 // cvFoiz (koridor foizi) bu yerda YO'Q: koridor ko'rsatilmaydi, shuning uchun uni
 // olib kelishning hojati ham yo'q. Koridorni server (convert_start_v2) hal qiladi;
 // admin uni "Konvert" va "Sozlamalar" bo'limlarida ko'radi.
-let cvKassa=[], cvBaza=null, cvYon='sotib_olish';
+let cvKassa=[], cvBaza=null, cvYon='sotib_olish', cvValyutalar=[];
 // Summa sotishda kasrli bo'lishi mumkin, kurs esa butun
 const cvNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
 window.cvFmt=el=>{
@@ -549,6 +554,10 @@ window.openConv=async()=>{
   if(error){ ({data,error}=await sb.from('v_kassa_toliq').select('*').order('code')); }
   if(error){ cvErr(error.message); return; }
   cvKassa=data||[];
+  // Ma'lum valyutalar — kassada hali hisobi yo'qlari ham tanlansin (child saqlashda ochiladi)
+  try{ const {data:vr}=await sb.from('v_valyuta_royxat').select('currency').order('currency');
+    cvValyutalar=(vr||[]).map(x=>x.currency).filter(c=>c&&c!=='UZS');
+  }catch(e){ cvValyutalar=[]; }
   // Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi.
   // Guruh (5400) — konteyner, unga to'g'ridan pul yozilmaydi, tanlanmaydi.
   // Ruxsat: faqat amaliyot qilishga ruxsat etilgan kassalar tanlanadi (server ham tekshiradi)
@@ -561,7 +570,13 @@ window.closeConv=()=>$('convModal').classList.remove('open');
 function cvErr(m){ $('cvMsg').className='cv-msg err'; $('cvMsg').textContent=m; }
 // Tanlangan kassaning valyuta bolalari. Yo'nalish shu ro'yxatdan aniqlanadi:
 // sotib olish → Dt bola, Kt kassa; sotish → teskari.
-const cvCur=()=>{ const t=cvKassa.find(r=>r.id===$('cvTo').value); return t?t.currency:null; };
+// cvTo qiymati IKKI xil bo'ladi:
+//   • mavjud hisob id'si            → o'sha valyuta child'i bor
+//   • "yangi:AED"                   → child hali yo'q, saqlashda avtomat ochiladi
+const YANGI='yangi:';
+const cvCur=()=>{ const v=$('cvTo').value||'';
+  if(v.startsWith(YANGI)) return v.slice(YANGI.length);
+  const t=cvKassa.find(r=>r.id===v); return t?t.currency:null; };
 // "Bu hisob qaysi KASSAGA tegishli" — serverdagi kassa_root() ning klient nusxasi.
 // Pul endi kassaning naqd/Click/Payme bolasida turishi mumkin; valyuta hisoblari esa
 // baribir ILDIZ kassaga bog'langan (USD ning parenti 5011, naqd bolasi 55xx emas).
@@ -573,8 +588,16 @@ async function cvFillTo(){
   const p=$('cvFrom').value;
   const ildiz=cvRoot(p);
   const to=cvKassa.filter(r=>r.currency!=='UZS'&&r.parent_id===ildiz);
-  $('cvTo').innerHTML=to.length?to.map(r=>`<option value="${r.id}">${esc(r.currency)} — ${esc(r.name)}</option>`).join('')
-    :'<option value="">Bu kassada valyuta hisobi yo\'q — "Valyuta qo\'shish"</option>';
+  const bor=new Set(to.map(r=>r.currency));
+  // Kassada hali yo'q valyutalar ham tanlanadi — hisob saqlashda o'zi ochiladi
+  // (ensure_valyuta_child). Avval admin qo'lda "Valyuta qo'shish" qilishi shart emas.
+  // FAQAT "Sotib olish"da: yo'q valyutani sotib bo'lmaydi (qoldig'i 0).
+  const yangilar=(cvYon==='sotish') ? []
+    : cvValyutalar.filter(c=>c&&c!=='UZS'&&!bor.has(c));
+  const opts=to.map(r=>`<option value="${r.id}">${esc(r.currency)} — ${esc(r.name)}</option>`)
+    .concat(yangilar.map(c=>`<option value="${YANGI}${esc(c)}">${esc(c)} — yangi hisob ochiladi</option>`));
+  $('cvTo').innerHTML=opts.length?opts.join('')
+    :'<option value="">Valyuta ro\'yxati bo\'sh — Valyuta bo\'limida kurs qo\'shing</option>';
   await cvValyutaChanged();
 }
 async function cvValyutaChanged(){
@@ -618,15 +641,31 @@ function cvCalc(){
   el.classList.remove('warn');   // sariq rang ham chegarani oshkor qiladi — qo'yilmaydi
 }
 window.convSave=async()=>{
-  const kassa=$('cvFrom').value, valyuta=$('cvTo').value;
-  // p_amount HAR DOIM beruvchi hisobning o'z valyutasida
-  const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
+  const kassa=$('cvFrom').value;
+  let valyuta=$('cvTo').value;
   const p_amount=cvNum('cvAmount'), p_rate=cvNum('cvRate');
   $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
   if(!kassa||!valyuta){ cvErr('Kassa va valyutani tanlang'); return; }
   if(p_amount<=0){ cvErr('Summa kiriting'); return; }
   if(p_rate<=0){ cvErr('Kurs kiriting'); return; }
   $('cvSave').disabled=true; $('cvSave').textContent='Yuborilmoqda...';
+  // Kassada bu valyuta hisobi hali yo'q bo'lsa — avval ochamiz (pul harakat qilmaydi).
+  // ensure_valyuta_child: konvert + amaliyot ruxsati yetadi, admin shart emas.
+  if(valyuta.startsWith(YANGI)){
+    const cur=valyuta.slice(YANGI.length);
+    const {data:yid,error:ye}=await sb.rpc('ensure_valyuta_child',{p_kassa:cvRoot(kassa),p_currency:cur});
+    if(ye||!yid){
+      $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+      cvErr(ye ? (window.permErr?window.permErr(ye):ye.message)
+               : (cur+' hisobini ochib bo\'lmadi'));
+      return;
+    }
+    valyuta=yid;
+    // Ro'yxatni yangilaymiz — keyingi konvertda "yangi" emas, oddiy hisob bo'lib chiqsin
+    swrSet('cards',null); swrSet('valyutalar',null);
+  }
+  // p_amount HAR DOIM beruvchi hisobning o'z valyutasida
+  const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
   const {data,error}=await sb.rpc('convert_start_v2',{p_from,p_to,p_amount,p_rate,p_note:$('cvNote').value||null});
   $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
   if(error){ cvErr('Xato: '+error.message); return; }
