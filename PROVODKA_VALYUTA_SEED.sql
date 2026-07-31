@@ -1,32 +1,27 @@
 -- =====================================================================
 --  PROVODKA_VALYUTA_SEED.sql — pul turi hisoblarini OMMAVIY ochish
 -- ---------------------------------------------------------------------
+--  Project: Provodka (kxzerccdpcltmzrxutlo).  TaskFix EMAS.
+--
 --  ⚠️ AVVAL `PROVODKA_VALYUTA.sql` RUN qilingan bo'lishi shart
 --     (accounts.pul_turi ustuni va pul_turi_kod_blok jadvali shundan keladi).
 --
---  NIMA QILADI: har MARKAZIY va FILIAL kassaga bola-hisoblarni ochadi:
+--  NIMA QILADI: har kassaga bola-hisoblarni ochadi:
 --        💵 Naqd   (pul_turi='naqd',  currency=UZS)
 --        💳 Click  (pul_turi='click', currency=UZS)
 --        📱 Payme  (pul_turi='payme', currency=UZS)
 --        💲 USD    (currency='USD',   pul_turi=NULL)  ← valyuta bolasi
 --
---  KIMGA OCHILMAYDI (ataylab):
---    • hodim xarajat kassalari (5401+, kassa_turi='xarajat') — ularga pul
---      naqd berib yuboriladi, Click/Payme tushmaydi. 62 ta kassa × 3 tur
---      kod bloklarini ham keraksiz to'ldirib yuborardi.
---    • 5400 konteyner guruh — unga to'g'ridan pul yozilmaydi.
---    • bola-hisoblarning o'zi (ikki qavat bo'lmasin).
+--  QAYSI KASSAGA — kassa_turi matniga TAYANMAYDI:
+--     tanlash sharti "mustaqil so'm kassasi": section='pul', currency='UZS',
+--     parent_id IS NULL, faol, va konteyner guruh (5400) emas.
+--     Bu markaziy va filial kassalarni oladi. Hodim kassalari (5401+) o'z-o'zidan
+--     chetda qoladi — ularning parent_id'si 5400, ya'ni mustaqil emas.
+--     ⚠️ Avvalgi variantda `kassa_turi in ('markaziy','filial')` sharti bor edi;
+--        o'sha ustunda boshqa qiymat tursa seed JIMGINA hech narsa yaratmasdi.
+--        Endi 0 kassa topilsa — xato beradi, jimgina o'tmaydi.
 --
---  NEGA HAMMA KASSAGA, faqat "Aros'da puli borlarga" emas:
---    Aros hozir 32 filialdan Click'ni 11 tasida, Payme'ni 4 tasida,
---    dollarni 10 tasida ko'rsatyapti. Lekin bugun 0 bo'lgan tur ertaga
---    ishlatiladi va n8n auto-sync tur bo'yicha yozganda hisob OLDINDAN
---    turishi kerak — bo'lmasa sinxron o'sha pulni yozolmay, jimgina
---    tashlab ketadi. Bo'sh hisob esa hech narsaga zarar qilmaydi:
---    qoldig'i 0, kartada ko'rinmaydi, hisobotga ta'sir qilmaydi.
---
---  IDEMPOTENT: bor bo'lgan tur qayta ochilmaydi. Qayta RUN qilish xavfsiz —
---  ikkinchi marta "0 ta ochildi, N ta bor edi" deydi.
+--  IDEMPOTENT: bor bo'lgan tur qayta ochilmaydi. Qayta RUN xavfsiz.
 --
 --  ⚠️ create_pul_turi_child() / create_valyuta_child() CHAQIRILMAYDI:
 --     ular auth.uid() orqali adminlikni tekshiradi, SQL editorda esa
@@ -38,46 +33,57 @@
 -- ---------------------------------------------------------------------
 -- 1-QADAM. OLDINDAN KO'RISH — RUN qilishdan oldin shuni o'qing
 -- ---------------------------------------------------------------------
--- Qaysi kassalarga ochiladi va nechta hisob kerak:
-select kassa_turi,
-       count(*)                                             as kassa_soni,
-       count(*) * 3                                         as kerak_som_turi,
-       count(*)                                             as kerak_usd
-  from accounts
- where section = 'pul' and is_active
-   and coalesce(currency,'UZS') = 'UZS'
-   and parent_id is null
-   and kassa_turi in ('markaziy','filial')
- group by kassa_turi
- order by kassa_turi;
 
--- Chetda qolayotgan pul hisoblari (ataylab — lekin ko'zdan kechiring):
-select code, name, kassa_turi,
-       case when kassa_turi = 'xarajat_guruh' then 'konteyner guruh'
-            when kassa_turi = 'xarajat'       then 'hodim kassasi'
-            when parent_id is not null        then 'bola-hisob'
-            else 'kassa_turi mos emas: ' || coalesce(kassa_turi,'(bo''sh)')
+-- 1.1 Qaysi kassalarga ochiladi (shu ro'yxat BO'SH bo'lmasligi kerak):
+select code, name, kassa_turi, filial_ref,
+       (select count(*) from accounts c
+         where c.parent_id = k.id and c.is_active and c.pul_turi is not null) as hozir_som_turi,
+       (select count(*) from accounts c
+         where c.parent_id = k.id and c.is_active and c.currency = 'USD')     as hozir_usd
+  from accounts k
+ where k.section = 'pul' and k.is_active
+   and coalesce(k.currency,'UZS') = 'UZS'
+   and k.parent_id is null
+   and coalesce(k.kassa_turi,'') <> 'xarajat_guruh'
+ order by k.code;
+
+-- 1.2 Chetda qolayotgan pul hisoblari (ataylab — lekin ko'zdan kechiring):
+select code, name, kassa_turi, currency, parent_id is not null as bola_hisob,
+       case when coalesce(kassa_turi,'') = 'xarajat_guruh' then 'konteyner guruh'
+            when parent_id is not null then 'bola-hisob (hodim kassasi yoki tur/valyuta child)'
+            when coalesce(currency,'UZS') <> 'UZS' then 'valyuta hisobi (mustaqil turibdi)'
+            else 'faol emas'
        end as sabab
   from accounts
- where section = 'pul' and is_active
-   and not (coalesce(currency,'UZS') = 'UZS' and parent_id is null
-            and kassa_turi in ('markaziy','filial'))
- order by kassa_turi, code;
+ where section = 'pul'
+   and not (is_active and coalesce(currency,'UZS') = 'UZS' and parent_id is null
+            and coalesce(kassa_turi,'') <> 'xarajat_guruh')
+ order by code;
 
--- Kod bloklarida qancha joy bor (yetmasa 2-qadam HECH NARSA yozmay to'xtaydi):
-select 'som turlari (' || b.prefix || 'xx)' as blok,
-       99 - coalesce(mx.n, 0)               as bosh_joy
-  from pul_turi_kod_blok b
-  left join lateral (
-    select max(substring(a.code from 3 for 2)::int) as n
-      from accounts a where a.code ~ ('^' || b.prefix || '[0-9]{2}$')
-  ) mx on true
- order by b.nav
-union all
-select 'USD (' || v.prefix || 'xx)',
-       99 - coalesce((select max(substring(a.code from 3 for 2)::int)
-                        from accounts a where a.code ~ ('^' || v.prefix || '[0-9]{2}$')), 0)
-  from valyuta_kod_blok v where v.currency = 'USD';
+-- 1.3 Kod bloklarida qancha joy bor.
+--     ⚠️ ORDER BY faqat UNION'dan KEYIN kelishi mumkin — shuning uchun
+--        saralash tashqi so'rovda (avvalgi versiyada shu yerda sintaksis xato bor edi).
+select s.blok, s.bosh_joy
+  from (
+    select 1 as guruh,
+           b.nav as tartib,
+           'som turlari (' || b.prefix || 'xx)' as blok,
+           99 - coalesce(mx.n, 0) as bosh_joy
+      from pul_turi_kod_blok b
+      left join lateral (
+        select max(substring(a.code from 3 for 2)::int) as n
+          from accounts a where a.code ~ ('^' || b.prefix || '[0-9]{2}$')
+      ) mx on true
+    union all
+    select 2 as guruh,
+           0 as tartib,
+           'USD (' || v.prefix || 'xx)' as blok,
+           99 - coalesce((select max(substring(a.code from 3 for 2)::int)
+                            from accounts a where a.code ~ ('^' || v.prefix || '[0-9]{2}$')), 0) as bosh_joy
+      from valyuta_kod_blok v
+     where v.currency = 'USD'
+  ) s
+ order by s.guruh, s.tartib;
 
 
 -- ---------------------------------------------------------------------
@@ -103,17 +109,34 @@ declare
   v_kerak    int;
   v_bosh     int;
 begin
-  -- ---- 2.1 Oldindan sig'im tekshiruvi -------------------------------
+  -- ---- 2.1 Nishon kassalar bormi -----------------------------------
+  select count(*) into n_kassa
+    from accounts k
+   where k.section = 'pul' and k.is_active
+     and coalesce(k.currency,'UZS') = 'UZS'
+     and k.parent_id is null
+     and coalesce(k.kassa_turi,'') <> 'xarajat_guruh';
+
+  if n_kassa = 0 then
+    raise exception 'TO''XTADI: birorta mustaqil so''m kassasi topilmadi. '
+                    'Shart: section=''pul'', currency=''UZS'', parent_id IS NULL, '
+                    'is_active, kassa_turi <> ''xarajat_guruh''. 1.1 so''rovini tekshiring.';
+  end if;
+  raise notice 'Nishon kassalar: % ta', n_kassa;
+  n_kassa := 0;
+
+  -- ---- 2.2 Oldindan sig'im tekshiruvi -------------------------------
   -- Yarim ochilib qolmasin: joy yetmasa hech narsa yozmasdan to'xtaymiz.
-  -- Aniq hisob: har kassada 3 turdan nechtasi YETISHMAYAPTI (yarim to'ldirilgani ham sanaladi)
   select coalesce(sum(3 - s.bor), 0) into v_kerak
     from (
-      select a.id, count(c.id) filter (where c.pul_turi is not null) as bor
-        from accounts a
-        left join accounts c on c.parent_id = a.id and c.is_active
-       where a.section = 'pul' and a.is_active and coalesce(a.currency,'UZS') = 'UZS'
-         and a.parent_id is null and a.kassa_turi in ('markaziy','filial')
-       group by a.id
+      select k.id, count(c.id) filter (where c.pul_turi is not null) as bor
+        from accounts k
+        left join accounts c on c.parent_id = k.id and c.is_active
+       where k.section = 'pul' and k.is_active
+         and coalesce(k.currency,'UZS') = 'UZS'
+         and k.parent_id is null
+         and coalesce(k.kassa_turi,'') <> 'xarajat_guruh'
+       group by k.id
     ) s;
 
   select coalesce(sum(99 - coalesce(mx.n, 0)), 0) into v_bosh
@@ -123,27 +146,31 @@ begin
         from accounts a where a.code ~ ('^' || b.prefix || '[0-9]{2}$')
     ) mx on true;
 
+  raise notice 'Kerak: % ta som-turi | Bo''sh kod: % ta', v_kerak, v_bosh;
+
   if v_bosh < v_kerak then
-    raise exception 'Kod bloklarida joy yetmaydi: kerak ~%, bo''sh %. '
+    raise exception 'Kod bloklarida joy yetmaydi: kerak %, bo''sh %. '
                     'pul_turi_kod_blok''ga yangi prefiks qo''shing '
                     '(masalan: insert into pul_turi_kod_blok(nav,prefix) values (4,''59''));',
                     v_kerak, v_bosh;
   end if;
 
-  select prefix into v_usd_pref from valyuta_kod_blok where currency = 'USD';
-  if p_usd and v_usd_pref is null then
-    raise exception 'valyuta_kod_blok''da USD prefiksi yo''q — PROVODKA_KASSA2.sql RUN qilinganmi?';
+  if p_usd then
+    select prefix into v_usd_pref from valyuta_kod_blok where currency = 'USD';
+    if v_usd_pref is null then
+      raise exception 'valyuta_kod_blok''da USD prefiksi yo''q — PROVODKA_KASSA2.sql RUN qilinganmi?';
+    end if;
   end if;
 
-  -- ---- 2.2 Kassalar bo'yicha aylanish -------------------------------
+  -- ---- 2.3 Kassalar bo'yicha aylanish -------------------------------
   for r in
-    select a.id, a.code, a.name, a.kassa_turi, a.subtitle
-      from accounts a
-     where a.section = 'pul' and a.is_active
-       and coalesce(a.currency,'UZS') = 'UZS'
-       and a.parent_id is null
-       and a.kassa_turi in ('markaziy','filial')
-     order by a.code
+    select k.id, k.code, k.name, k.kassa_turi, k.subtitle
+      from accounts k
+     where k.section = 'pul' and k.is_active
+       and coalesce(k.currency,'UZS') = 'UZS'
+       and k.parent_id is null
+       and coalesce(k.kassa_turi,'') <> 'xarajat_guruh'
+     order by k.code
   loop
     n_kassa := n_kassa + 1;
 
@@ -158,6 +185,7 @@ begin
 
       -- Bo'sh joyi bor birinchi blok. Har aylanishda qayta hisoblanadi —
       -- shu tranzaksiyada yangi qo'shilgan kodlar ham ko'rinadi.
+      v_prefix := null;
       select b.prefix, coalesce(mx.n, 0) + 1
         into v_prefix, v_next
         from pul_turi_kod_blok b
@@ -208,8 +236,12 @@ begin
     end if;
   end loop;
 
-  raise notice '--- SEED tugadi: % kassa ko''rildi | % som-turi ochildi | % USD ochildi | % ta allaqachon bor edi',
+  raise notice '--- SEED tugadi: % kassa | % som-turi ochildi | % USD ochildi | % ta allaqachon bor edi',
     n_kassa, n_turi, n_usd, n_bor;
+
+  if n_turi = 0 and n_usd = 0 and n_bor = 0 then
+    raise exception 'TO''XTADI: birorta hisob ochilmadi va bor ham emas — kutilmagan holat.';
+  end if;
 end
 $seed$;
 
@@ -217,41 +249,49 @@ $seed$;
 -- ---------------------------------------------------------------------
 -- 3-QADAM. TEKSHIRUV
 -- ---------------------------------------------------------------------
--- 3.1 Har kassada nechta tur bor (markaziy/filial uchun 3 bo'lishi kerak,
---     USD bilan birga valyuta_soni ham 1):
-select c.code, c.name, c.kassa_turi, c.turi_soni, c.valyuta_soni, c.jami
-  from v_kassa_card c
-  join accounts a on a.id = c.id
- where a.kassa_turi in ('markaziy','filial')
- order by a.kassa_turi, c.code;
 
--- 3.2 Turi yetishmayotgan kassa qoldimi (bo'sh chiqishi kerak):
-select a.code, a.name, a.kassa_turi,
+-- 3.1 Har kassada nechta tur bor (3 som-turi + 1 USD bo'lishi kerak):
+select k.code, k.name, k.kassa_turi,
+       count(c.id) filter (where c.pul_turi is not null) as som_turi,
+       count(c.id) filter (where c.currency = 'USD')     as usd
+  from accounts k
+  left join accounts c on c.parent_id = k.id and c.is_active and c.section = 'pul'
+ where k.section = 'pul' and k.is_active
+   and coalesce(k.currency,'UZS') = 'UZS'
+   and k.parent_id is null
+   and coalesce(k.kassa_turi,'') <> 'xarajat_guruh'
+ group by k.code, k.name, k.kassa_turi
+ order by k.code;
+
+-- 3.2 Turi yetishmayotgan kassa qoldimi (BO'SH chiqishi kerak):
+select k.code, k.name,
        3 - count(c.id) filter (where c.pul_turi is not null) as yetishmayotgan_tur
-  from accounts a
-  left join accounts c on c.parent_id = a.id and c.is_active
- where a.section = 'pul' and a.is_active and coalesce(a.currency,'UZS') = 'UZS'
-   and a.parent_id is null and a.kassa_turi in ('markaziy','filial')
- group by a.id, a.code, a.name, a.kassa_turi
+  from accounts k
+  left join accounts c on c.parent_id = k.id and c.is_active
+ where k.section = 'pul' and k.is_active
+   and coalesce(k.currency,'UZS') = 'UZS'
+   and k.parent_id is null
+   and coalesce(k.kassa_turi,'') <> 'xarajat_guruh'
+ group by k.id, k.code, k.name
 having 3 - count(c.id) filter (where c.pul_turi is not null) > 0
- order by a.code;
+ order by k.code;
 
--- 3.3 Ochilgan hisoblar ro'yxati (kod + tur):
+-- 3.3 Ochilgan hisoblar ro'yxati:
 select p.code as kassa, p.name as kassa_nomi,
        c.code, c.name, coalesce(c.pul_turi, c.currency) as turi
   from accounts c
   join accounts p on p.id = c.parent_id
  where c.section = 'pul' and c.is_active
-   and (c.pul_turi is not null or c.currency <> 'UZS')
-   and p.kassa_turi in ('markaziy','filial')
+   and (c.pul_turi is not null or coalesce(c.currency,'UZS') <> 'UZS')
  order by p.code, c.code;
 
 -- 3.4 Kassa qoldiqlari O'ZGARMAGANIGA ishonch:
---     yangi hisoblarda yozuv yo'q, ya'ni hammasi 0 — jami avvalgidek qolishi kerak.
+--     yangi hisoblarda yozuv yo'q, ya'ni hammasi 0.
 select coalesce(sum(qoldiq), 0) as yangi_hisoblardagi_pul_nol_bolishi_kerak
   from v_kassa_turlar;
 
--- 3.5 n8n uchun qidiruv jadvali to'ldimi (filial_ref + pul_turi -> account_id):
-select filial_ref, kassa_code, pul_turi, turi_code
-  from v_filial_turi_hisob
- order by kassa_code, pul_turi;
+-- 3.5 Kartalar to'g'ri chizilyaptimi (har kassa BITTA qator):
+select id, count(*) as nechta_qator
+  from v_kassa_card
+ group by id
+having count(*) > 1;
