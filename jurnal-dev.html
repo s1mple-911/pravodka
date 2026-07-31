@@ -874,10 +874,16 @@ window.confirmLink=async()=>{
   }catch(e){ $('linkMsg').textContent='Xato: '+(e.message||e); $('linkMsg').className='lmsg no'; btn.disabled=false; btn.textContent='Bog\'lash'; }
 };
 
+// Pul qaysi turdan chiqqani/kirgani: naqd/Click/Payme kassaning bola-hisobi, ya'ni
+// hisob NOMIDA allaqachon bor ("Toshkent Kassa · Click"). Ko'z bilan tez ajratish uchun
+// oldiga belgi qo'yamiz. jurnal() RPC pul_turi qaytarmaydi (imzosi o'zgarmaydi),
+// shuning uchun accounts'dan qaraladi; u hali yuklanmagan bo'lsa belgi chiqmaydi.
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱'};
+const turiIko=id=>{ const a=accounts.find(x=>x.id===id); return (a&&a.pul_turi&&TURI_IKO[a.pul_turi])?TURI_IKO[a.pul_turi]+' ':''; };
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
   const fc=(l.currency&&l.currency!=='UZS'&&l.fc_amount)?`<span class="fc">(${money(l.fc_amount)} ${esc(l.currency)})</span>`:'';
-  return `<div class="jline"><span class="n"><span class="code">${esc(l.code||'')}</span>${esc(l.name||'')}</span>`
+  return `<div class="jline"><span class="n"><span class="code">${esc(l.code||'')}</span>${turiIko(l.account_id)}${esc(l.name||'')}</span>`
     +`<span class="a ${dt>0?'dt':'kt'}">${dt>0?'Dt':'Kt'} ${money(dt>0?dt:kt)}${fc}</span></div>`;
 }
 
@@ -887,7 +893,7 @@ const kc=k=>'kc-'+k.kind;
 function accCell(line){
   if(!line) return '<span class="jmuted">—</span>';
   const s=accSub(line.account_id);
-  return `<span class="acode">${esc(line.code||'')}</span><span class="aname">${esc(line.name||'')}${s?' · '+esc(s):''}</span>`;
+  return `<span class="acode">${esc(line.code||'')}</span><span class="aname">${turiIko(line.account_id)}${esc(line.name||'')}${s?' · '+esc(s):''}</span>`;
 }
 // Maqsad ustuni: izoh + teglar (filial/davr/yuk/kommunal/⏳) + chek + tahrir/o'chirish izi + ko'p satr.
 function maqsadHtml(e,k,multi){

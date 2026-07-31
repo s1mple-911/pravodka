@@ -439,6 +439,10 @@ function render(meta){
   $('tb').innerHTML=rows.map(r=>`<tr>
       <td class="f">${esc(r.name)}${breakdown(r)}</td>
       <td class="n ${r.bug>0?'pos':'zero'}">${money(r.bug)}</td></tr>`).join('');
+  // Eski snapshot'da naqd/Click/Payme yo'q (faqat dollar saqlangan) — o'shanda chiplar
+  // to'liq chiqmaydi va "faqat Dollar ko'rinadi" degan chalkashlik bo'ladi. Aytib qo'yamiz.
+  const eski=rows.some(r=>r.cash===undefined&&r.click===undefined&&r.payme===undefined);
+  showInfo(eski?'Bo\'linish (naqd · Click · Payme) eski ma\'lumotda saqlanmagan — "Yangilash" bosing, shundan keyin har filial ostida to\'liq chiqadi.':'');
   icons();
 }
 
