@@ -288,6 +288,30 @@ begin
         continue;
       end if;
 
+      -- ---- TO'SIQ: topilgan hisob HAQIQATAN kassa tur child'imi ----------
+      -- v_acc faqat v_filial_sync_mapping'dan keladi, ya'ni nazariy jihatdan
+      -- boshqa narsa bo'lishi mumkin emas. Lekin bu PUL yozadigan funksiya:
+      -- view kelajakda o'zgarsa yoki kimdir uni qayta yozsa, xato jimgina
+      -- o'tib ketmasin. Shart: hisob section='pul' + biror kassaning bolasi +
+      -- (pul_turi to'ldirilgan yoki USD). Ombor (section='tovar'), mustaqil
+      -- hisob yoki boshqa har qanday narsa shu yerda to'xtaydi.
+      if not exists (
+            select 1
+              from accounts c
+              join accounts k on k.id = c.parent_id
+             where c.id = v_acc
+               and c.is_active and c.section = 'pul'
+               and (c.pul_turi in ('naqd','click','payme') or c.currency = 'USD')
+               and k.is_active and k.section = 'pul' and k.parent_id is null
+          ) then
+        n_otkaz := n_otkaz + 1;
+        v_ogoh := v_ogoh || jsonb_build_object(
+          'filial_ref', v_ref, 'aros_maydon', v_maydon, 'account_id', v_acc,
+          'sabab', 'XAVFSIZLIK: topilgan hisob kassa tur child''i EMAS — yozilmadi. '
+                   || 'v_filial_sync_mapping buzilgan bo''lishi mumkin.');
+        continue;
+      end if;
+
       -- Joriy qoldiq + yozuv bor-yo'qligi (bitta o'qishda)
       select coalesce(sum(l.debit - l.credit), 0),
              coalesce(sum(case when l.debit > 0 then coalesce(l.fc_amount, 0)
