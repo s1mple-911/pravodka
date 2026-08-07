@@ -37,6 +37,15 @@
 --     kursi (conv_baza_kurs('USD')). Ikkovi ham yo'q bo'lsa — o'sha tur
 --     o'tkazib yuboriladi va ogohlantirish qaytariladi.
 --
+--  JAVOB VORONKASI (2026-08-07 qo'shildi — imzo o'zgarmadi, faqat yangi kalit):
+--     filiallar × 4 tur = tegilmadi + ozgarmagan + yozuvlar + otkazildi
+--       tegilmadi  — JSON'da o'sha maydon yo'q/null (n8n yubormagan)
+--       ozgarmagan — maydon keldi, delta = 0 (daftar Aros'ga teng)
+--       ozgarmagan_royxat — dry_run'da o'sha qatorlar (joriy/aros yonma-yon)
+--     Avval ikkovi ham JIMGINA o'tkazilardi va javob bir xil ko'rinardi:
+--     "yozuvlar: 0, tafsilot: []" — sabab n8n'dami yoki daftar teng'mi,
+--     ajratib bo'lmasdi. Tekshiruv usuli: PROVODKA_SYNC_DIAG.sql.
+--
 --  ATOMIK: plpgsql funksiyasi chaqiruvchi tranzaksiyasida ishlaydi — biror
 --     joyda xato chiqsa HAMMASI orqaga qaytadi. Qo'shimcha: advisory lock —
 --     ikkita sync bir vaqtda ishlab, ikki marta yozib yuborishi mumkin emas.
@@ -128,6 +137,14 @@ declare
   n_filial    int := 0;
   n_yozuv     int := 0;
   n_otkaz     int := 0;
+  -- ⬇️ DIAGNOSTIKA: "yozuvlar: 0, tafsilot: []" ning UCH xil sababi bor edi va
+  --    javobda ular bir xil ko'rinardi. Endi ajratiladi:
+  --      n_tegilmadi  — JSON'da maydon yo'q/null (n8n yubormagan)   -> TEGILMADI
+  --      n_ozgarmagan — maydon keldi, lekin delta = 0               -> HAQIQATAN teng
+  --    Ikkovi 0 bo'lsa — filial umuman kelmagan (n_filial ga qara).
+  n_tegilmadi int := 0;
+  n_ozgarmagan int := 0;
+  v_nol       jsonb := '[]'::jsonb;   -- delta=0 qatorlar (faqat dry_run'da qaytadi)
   v_ogoh      jsonb := '[]'::jsonb;
   v_tafsil    jsonb := '[]'::jsonb;
 begin
@@ -256,7 +273,11 @@ begin
     foreach v_maydon in array array['cash','click','payme','dollar_usd']
     loop
       -- Aros qiymati. Maydon yo'q yoki null bo'lsa — TEGMAYMIZ (0 emas!)
+      -- ⚠️ Bu JIMGINA o'tkazish edi: n8n cash/click/payme ni umuman yubormasa
+      --    javob "yozuvlar: 0, tafsilot: []" bo'lardi — xuddi "hammasi teng"
+      --    kabi. Endi sanaladi va javobda alohida ko'rinadi.
       if (v_el -> v_maydon) is null or jsonb_typeof(v_el -> v_maydon) = 'null' then
+        n_tegilmadi := n_tegilmadi + 1;
         continue;
       end if;
       v_yangi := (v_el ->> v_maydon)::numeric;
@@ -329,7 +350,15 @@ begin
       -- Delta: dollar DOLLARDA, qolgani so'mda
       if v_maydon = 'dollar_usd' then
         v_delta_fc  := v_yangi - v_fc;
-        if v_delta_fc = 0 then continue; end if;
+        if v_delta_fc = 0 then
+          n_ozgarmagan := n_ozgarmagan + 1;
+          if p_dry_run then
+            v_nol := v_nol || jsonb_build_object(
+              'filial_ref', v_ref, 'kassa', v_kassa, 'tur', v_tur, 'hisob', v_acc_code,
+              'joriy', v_fc, 'aros', v_yangi, 'satrlar', v_cnt);
+          end if;
+          continue;
+        end if;
         if v_rate is null or v_rate <= 0 then
           n_otkaz := n_otkaz + 1;
           v_ogoh := v_ogoh || jsonb_build_object(
@@ -345,7 +374,15 @@ begin
         v_delta_fc  := null;
         v_delta_uzs := v_yangi - v_uzs;
         v_fc_line   := null;
-        if v_delta_uzs = 0 then continue; end if;
+        if v_delta_uzs = 0 then
+          n_ozgarmagan := n_ozgarmagan + 1;
+          if p_dry_run then
+            v_nol := v_nol || jsonb_build_object(
+              'filial_ref', v_ref, 'kassa', v_kassa, 'tur', v_tur, 'hisob', v_acc_code,
+              'joriy', v_uzs, 'aros', v_yangi, 'satrlar', v_cnt);
+          end if;
+          continue;
+        end if;
       end if;
 
       -- Yo'nalish va qarshi hisob
@@ -413,6 +450,13 @@ begin
     'filiallar', n_filial,
     'yozuvlar', n_yozuv,
     'otkazildi', n_otkaz,
+    -- Voronka: filiallar × 4 tur = tegilmadi + ozgarmagan + yozuvlar + otkazildi
+    --   tegilmadi  > 0  -> n8n o'sha maydonni YUBORMAGAN (Aros javobi/Build Payload)
+    --   ozgarmagan > 0  -> maydon keldi, daftar Aros'ga TENG (haqiqatan o'zgarish yo'q)
+    --   ikkovi ham 0    -> filial mapping'ga tushmagan yoki massiv bo'sh kelgan
+    'tegilmadi', n_tegilmadi,
+    'ozgarmagan', n_ozgarmagan,
+    'ozgarmagan_royxat', case when p_dry_run then v_nol else '[]'::jsonb end,
     'mapping_soni', v_map_soni,          -- RPC ICHIDA ko'ringan qatorlar
     'mavjud_reflar', v_reflar,           -- namuna: nima bilan solishtirildi
     'ogohlantirishlar', v_ogoh,
