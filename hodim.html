@@ -494,7 +494,11 @@ const FREQ=['9412','9411','9414','9416','9419'];
 // 5400 konteyner chiqarilgan. scope='all' (admin) da faqat hodim xarajat kassalari ko'rsatiladi —
 // list user'da esa aynan biriktirilgan kassa(lar) (permFilterOp cheklab bo'lgan).
 function kassaList(){
-  let ks=accounts.filter(a=>isKassa(a));
+  // Valyuta bola-hisobi (56xx USD…) chiqmaydi: bu forma faqat so'm yozadi
+  // (fc_amount'siz), tanlansa valyuta qoldig'i buzilardi. Hodim kassalarida
+  // bola-hisob yo'q — bu shart faqat scope='list' user boshqa kassaga
+  // biriktirilgan holat uchun.
+  let ks=accounts.filter(a=>isKassa(a)&&(a.currency||'UZS')==='UZS');
   if(window.permScope&&window.permScope()==='all') ks=ks.filter(a=>a.kassa_turi==='xarajat');
   return ks;
 }

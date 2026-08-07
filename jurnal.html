@@ -874,10 +874,16 @@ window.confirmLink=async()=>{
   }catch(e){ $('linkMsg').textContent='Xato: '+(e.message||e); $('linkMsg').className='lmsg no'; btn.disabled=false; btn.textContent='Bog\'lash'; }
 };
 
+// Pul qaysi turdan chiqqani/kirgani: naqd/Click/Payme kassaning bola-hisobi, ya'ni
+// hisob NOMIDA allaqachon bor ("Toshkent Kassa · Click"). Ko'z bilan tez ajratish uchun
+// oldiga belgi qo'yamiz. jurnal() RPC pul_turi qaytarmaydi (imzosi o'zgarmaydi),
+// shuning uchun accounts'dan qaraladi; u hali yuklanmagan bo'lsa belgi chiqmaydi.
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱'};
+const turiIko=id=>{ const a=accounts.find(x=>x.id===id); return (a&&a.pul_turi&&TURI_IKO[a.pul_turi])?TURI_IKO[a.pul_turi]+' ':''; };
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
   const fc=(l.currency&&l.currency!=='UZS'&&l.fc_amount)?`<span class="fc">(${money(l.fc_amount)} ${esc(l.currency)})</span>`:'';
-  return `<div class="jline"><span class="n"><span class="code">${esc(l.code||'')}</span>${esc(l.name||'')}</span>`
+  return `<div class="jline"><span class="n"><span class="code">${esc(l.code||'')}</span>${turiIko(l.account_id)}${esc(l.name||'')}</span>`
     +`<span class="a ${dt>0?'dt':'kt'}">${dt>0?'Dt':'Kt'} ${money(dt>0?dt:kt)}${fc}</span></div>`;
 }
 
@@ -887,7 +893,7 @@ const kc=k=>'kc-'+k.kind;
 function accCell(line){
   if(!line) return '<span class="jmuted">—</span>';
   const s=accSub(line.account_id);
-  return `<span class="acode">${esc(line.code||'')}</span><span class="aname">${esc(line.name||'')}${s?' · '+esc(s):''}</span>`;
+  return `<span class="acode">${esc(line.code||'')}</span><span class="aname">${turiIko(line.account_id)}${esc(line.name||'')}${s?' · '+esc(s):''}</span>`;
 }
 // Maqsad ustuni: izoh + teglar (filial/davr/yuk/kommunal/⏳) + chek + tahrir/o'chirish izi + ko'p satr.
 function maqsadHtml(e,k,multi){
@@ -1038,8 +1044,13 @@ function buildPermAccIds(){
   if(!window.permScope || window.permScope()!=='list'){ permAccIds=null; return; }
   permAccIds=(accounts||[]).filter(a=>isKassa(a)&&window.permViewOk(a)).map(a=>a.id);
 }
+// Tahrir modali FAQAT so'm yozadi (fc_amount'ga tegmaydi) — shuning uchun valyuta
+// bola-hisobi (56xx USD…) tanlagichlarda ko'rinmaydi. Tanlansa so'm ko'chib,
+// valyuta qoldig'i o'zgarmasdi va kassa kartasidagi "$" yolg'on bo'lib qolardi.
+// isKassa() esa TEGILMAYDI — u tasnif va ko'rish ruxsati uchun (permAccIds).
+const isSomKassa=a=>isKassa(a)&&(a.currency||'UZS')==='UZS'&&window.permOpOk(a);
 function listFor(d){ if(d==='chiqim') return accounts.filter(a=>a.type==='xarajat');
-  if(d==='transfer') return accounts.filter(a=>isKassa(a)&&window.permOpOk(a));
+  if(d==='transfer') return accounts.filter(isSomKassa);
   return accounts.filter(a=> a.type==='daromad' || a.code==='4010' || a.code==='8000'); }
 // Hodim kassasining nomi = ism, shuning uchun "Filial · Lavozim" subtitle yonida turadi
 const accLbl=a=>a.name+(a.subtitle?' · '+a.subtitle:'');
@@ -1079,7 +1090,7 @@ window.eSetDir=(d,dtAcc,ktAcc)=>{ edir=d;
   $('eCounterLbl').textContent=d==='kirim'?'Nimadan':(d==='transfer'?'Qaysi kassaga':'Nimaga');
   let kassaVal,counterVal;
   if(dtAcc&&ktAcc){ if(d==='kirim'){ kassaVal=dtAcc.id; counterVal=ktAcc.id; } else { kassaVal=ktAcc.id; counterVal=dtAcc.id; } }
-  fillKassaSel($('eKassa'), accounts.filter(a=>isKassa(a)&&window.permOpOk(a)), kassaVal);
+  fillKassaSel($('eKassa'), accounts.filter(isSomKassa), kassaVal);
   if(d==='transfer') fillKassaSel($('eCounter'), listFor(d), counterVal); else fillSel($('eCounter'), listFor(d), counterVal);
   icons();
 };
