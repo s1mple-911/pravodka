@@ -309,10 +309,16 @@ async function fillKassalar(){
   if(error){ $('banner').style.display='block'; $('banner').textContent='Kassalar: '+error.message; return; }
   // 'xarajat_guruh' (5400) — konteyner, tanlanmaydi. View bu ustunni bermasa filtr shunchaki o'tkazib yuboradi.
   // Ruxsat: ko'rishga ruxsat etilmagan kassa filtrda chiqmaydi (view_kassa_ids)
-  const list=window.permFilterView((data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh'));
+  const list0=window.permFilterView((data||[]).filter(r=>r.kassa_turi!=='xarajat_guruh'));
   // Hodim kassasining nomi = ism — "Filial · Lavozim" subtitle yonida turadi
   const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}${r.subtitle?' · '+r.subtitle:''}</option>`;
   const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';
+  // Tanlagichda faqat KASSANING O'ZI. Tur/valyuta bolalari alohida qator
+  // bo'lib chiqmaydi — ular parentning kassa_turi'sini meros qiladi, shuning
+  // uchun "Filial kassalari" guruhi 5 barobar shishib ketardi. Kassa
+  // tanlanganda bolalari cashflow_kassa() ichida baribir hisobga kiradi.
+  // Hodim kassalari (54xx) parent_id = 5400 konteyner — ular kassa, qoladi.
+  const list=list0.filter(r=>!r.parent_id||r.kassa_turi==='xarajat');
   const xarajat=list.filter(r=>r.kassa_turi==='xarajat');
   const xId=new Set(xarajat.map(r=>r.id));
   $('kassa').innerHTML='<option value="">Hamma kassalar</option>'
@@ -365,14 +371,23 @@ async function load(){
   // null = hamma kassalar. Uchala chaqiruvga ham bir xil uzatiladi.
   const acc=$('kassa').value||null;
   // stale-while-revalidate: butun davr natijasini bitta kalitga keshlab, darrov ko'rsatamiz
-  const ck='cf:'+JSON.stringify({d1,d2,acc});
+  // 'cf2:' — kalit ataylab o'zgartirildi: eski keshda kassa bo'yicha NOLLAR
+  // yotibdi (bolalar yig'ilmagan davrdan). Eski kalitda qolsa, tuzatishdan
+  // keyin ham 5 daqiqa davomida o'sha nollar ko'rinardi.
+  const ck='cf2:'+JSON.stringify({d1,d2,acc});
   const cached=swrGet(ck);
   if(cached){ renderCF(cached.rows||[],cached.boshi||0,cached.oxiri||0,acc); }
   else { $('colKirim').innerHTML='<div class="empty">Yuklanmoqda…</div>'; $('colChiqim').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
   const [flow,bQ,oQ]=await Promise.all([
-    sb.rpc('cashflow',{p_from:d1,p_to:d2,p_account:acc}),
-    sb.rpc('pul_qoldiq',{p_date:d0,p_account:acc}),
-    sb.rpc('pul_qoldiq',{p_date:d2,p_account:acc})
+    // ⚠️ _kassa variantlari: pul endi kassaning TUR BOLALARIDA turadi
+    // (naqd/click/payme + USD child), parentning o'z qoldig'i esa 0 —
+    // eski cashflow()/pul_qoldiq() bitta account_id ni ko'radi va kassa
+    // tanlanganda hammasi bo'sh chiqardi. Yangilari oilani yig'adi va
+    // oila ichidagi ko'chirishni (tur o'tkazish) chiqarib tashlaydi.
+    // p_kassa null bo'lsa ikkovi ham eskisiga delegat qiladi.
+    sb.rpc('cashflow_kassa',{p_from:d1,p_to:d2,p_kassa:acc}),
+    sb.rpc('pul_qoldiq_kassa',{p_date:d0,p_kassa:acc}),
+    sb.rpc('pul_qoldiq_kassa',{p_date:d2,p_kassa:acc})
   ]);
   const err=flow.error||bQ.error||oQ.error;
   if(err){ if(!cached){ $('banner').style.display='block'; $('banner').textContent='Xato: '+err.message; } return; }
@@ -386,7 +401,7 @@ function setNote(acc){
   const base="Davr boshi = \"Dan\" sanasidan bir kun oldingi pul qoldig'i. Tekshiruv: davr oxiri − davr boshi = kirim − chiqim.";
   const nomi=acc?($('kassa').selectedOptions[0]?.textContent||'tanlangan kassa'):'';
   $('note').textContent = acc
-    ? `${nomi} bo'yicha. Bu kassadan markaziy kassaga jo'natilgan pul CHIQIM bo'lib ko'rinadi — bu to'g'ri, xato emas: pul shu kassadan chiqqan. Kompaniya bo'yicha umumiy holatni ko'rish uchun "Hamma kassalar"ni tanlang. ${base}`
+    ? `${nomi} bo'yicha — naqd, Click, Payme va valyuta hisoblari birga. Kassa ichida turdan turga o'tkazilgan pul bu yerga kirmaydi (ichki harakat). Bu kassadan markaziy kassaga jo'natilgan pul esa CHIQIM bo'lib ko'rinadi — bu to'g'ri, xato emas: pul shu kassadan chiqqan. Kompaniya bo'yicha umumiy holatni ko'rish uchun "Hamma kassalar"ni tanlang. ${base}`
     : `Hamma kassalar bo'yicha. Kassalar orasidagi transfer bu yerga kirmaydi (ichki harakat, net=0 — pul kompaniyadan chiqmagan). ${base}`;
 }
 async function init(){
