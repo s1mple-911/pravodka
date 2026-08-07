@@ -35,6 +35,12 @@
 --     pul avvalgidek CHIQIM bo'lib ko'rinadi (bu to'g'ri — pul shu kassadan
 --     chiqqan; cashflow.html izohi ham shuni yozadi).
 --
+--  SECURITY INVOKER — ataylab, eski cashflow()/pul_qoldiq() bilan bir xil.
+--     DEFINER bo'lsa funksiya EGASI huquqi bilan o'qir edi va RLS chetlab
+--     o'tilardi: cheklangan foydalanuvchi o'ziga berilmagan kassaning
+--     oqimini ham ko'rib qolishi mumkin. Yangi funksiya eski xulqni
+--     o'zgartirmasligi kerak.
+--
 --  IMZOLAR: hech biri o'zgarmadi. Prod klienti eski cashflow()/pul_qoldiq()
 --     ni chaqiraverаdi va avvalgidek ishlaydi; cashflow-dev.html yangisiga
 --     o'tkazildi.
@@ -83,7 +89,7 @@ create or replace function kassa_oila(p_kassa uuid)
 returns uuid[]
 language sql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
   with ildiz as (
@@ -126,7 +132,7 @@ create or replace function pul_qoldiq_kassa(p_date date, p_kassa uuid default nu
 returns numeric
 language plpgsql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -172,7 +178,7 @@ create or replace function cashflow_kassa(p_from date, p_to date,
 returns table(yonalish text, section text, code text, name text, amount numeric)
 language plpgsql
 stable
-security definer
+security invoker
 set search_path = public
 as $$
 declare
