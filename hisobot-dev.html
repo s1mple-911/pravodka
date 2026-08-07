@@ -592,12 +592,22 @@ window.onDate=()=>{
 // dollar kassasidagi yozuvlar filtrga tushmay qolardi.
 function accsParam(){
   if(!selKassa) return null;
-  const kids=Object.values(accIndex).filter(a=>a.parent_id===selKassa && a.currency && a.currency!=='UZS').map(a=>a.id);
+  // ⚠️ HAMMA bola-hisob kirishi shart: valyuta (56xx USD…) VA pul turi
+  //    (naqd/click/payme). Avval faqat valyuta bolalari qo'shilardi — o'shanda
+  //    filial kassasi tanlansa naqd/click/payme yozuvlari filtrga TUSHMASDAN
+  //    qolardi va hisobot kam ko'rsatardi (pul endi asosan shu bolalarda).
+  const kids=Object.values(accIndex)
+    .filter(a=>a.parent_id===selKassa && ((a.currency&&a.currency!=='UZS')||a.pul_turi))
+    .map(a=>a.id);
   return [selKassa,...kids];
 }
 window.onKassa=()=>{ selKassa=$('kassaSel').value||''; load(); };
 function renderKassaSel(){
-  const mk=pulHisoblar.filter(r=>!r.is_filial), fl=pulHisoblar.filter(r=>r.is_filial);
+  // Tanlagichda faqat KASSANING O'ZI — tur/valyuta bolalari alohida qator
+  // bo'lib chiqmaydi (ular parentning kassa_turi'sini meros qiladi).
+  // Kassa tanlanganda bolalari accsParam() orqali baribir hisobga kiradi.
+  const kassalar=pulHisoblar.filter(r=>!r.parent_id||r.kassa_turi==='xarajat');
+  const mk=kassalar.filter(r=>!r.is_filial), fl=kassalar.filter(r=>r.is_filial);
   const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(r=>`<option value="${r.id}">${esc(r.code)} · ${esc(r.name)}</option>`).join('')+'</optgroup>':'';
   $('kassaSel').innerHTML='<option value="">Barcha kassalar</option>'+g('Markaziy',mk)+g('Filiallar',fl);
   $('kassaSel').value=selKassa;
@@ -994,7 +1004,7 @@ async function init(){
   // Kassa ro'yxati + xarajat moddalari — parallel
   const [pQ,aQ]=await Promise.all([
     sb.from('v_pul_hisoblar').select('*'),
-    sb.from('accounts').select('id,code,name,type,parent_id,currency,kassa_turi').eq('is_active',true).order('code'),
+    sb.from('accounts').select('id,code,name,type,parent_id,currency,kassa_turi,pul_turi').eq('is_active',true).order('code'),
     loadRole()
   ]);
   const accs=aQ.error?[]:(aQ.data||[]);
