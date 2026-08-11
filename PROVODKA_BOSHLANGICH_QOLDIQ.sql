@@ -47,6 +47,13 @@
 --    • PROVODKA_VALYUTA_SEED.sql RUN qilingan (5011/5012 bolalari uchun)
 --    • conv_baza_kurs('USD') null qaytarmasin (Valyuta bo'limida kurs bo'lsin)
 --
+--  ⛔⛔ BUTUN FAYLNI BIR MARTA RUN QILMANG — BO'LIM-BO'LIM RUN QILING.
+--     Sabab: 4-BO'LIMdagi `p_tasdiq := false` ATAYLAB xato beradi (tasdiqsiz
+--     yozib yubormaslik uchun). Supabase butun skriptni BITTA tranzaksiya
+--     qilib yuboradi — o'sha xato 1- va 2-BO'LIMni ham bekor qiladi (rollback),
+--     ya'ni reja jadvali ham, ochilgan bola-hisoblar ham yo'qoladi.
+--     Har bo'limni alohida belgilab (select qilib) RUN qiling.
+--
 --  TARTIB:
 --    1-BO'LIM RUN  -> reja jadvali; Abrorxo'ja kodi qidiruv bilan topiladi
 --    2-BO'LIM RUN  -> yetishmayotgan bola-hisoblar ochiladi (PUL YOZMAYDI)
@@ -502,9 +509,9 @@ begin
 
   -- Ikki marta yozib yuborilmasin (ext_ref bilan belgilaymiz)
   if exists (select 1 from entry where ext_ref like 'bq:%') then
-    raise exception E'TO''XTADI: `bq:%%` belgili yozuvlar allaqachon bor — '
-      E'bu skript avval RUN qilingan.\n'
-      'Qayta yozish kerak bo''lsa avval 6-BO''LIMdagi rollback''ni bajaring.';
+    raise exception E'TO''XTADI: `bq:%%` belgili yozuvlar allaqachon bor.\n'
+      'Bu skript avval RUN qilingan. Qayta yozish kerak bo''lsa '
+      'avval 6-BO''LIMdagi rollback''ni bajaring.';
   end if;
 
   -- ---- Kapital hisobi ------------------------------------------------
@@ -572,8 +579,8 @@ begin
       -- Bitta teskari satr bilan so'm ham, valyuta ham 0 ga tushishi uchun
       -- ikkovining ishorasi bir xil bo'lishi shart (3.2 tekshiruvi).
       if v_fc <> 0 and (v_uzs = 0 or sign(v_uzs) <> sign(v_fc)) then
-        raise exception '% (%) — so''m qoldig''i % , valyuta qoldig''i % : '
-          E'ishoralar mos emas, bitta satr bilan 0 ga tushirib bo''lmaydi.\n'
+        raise exception E'% (%) — so''m qoldig''i % , valyuta qoldig''i % :\n'
+          'ishoralar mos emas, bitta satr bilan 0 ga tushirib bo''lmaydi. '
           'Bu holatni qo''lda hal qilish kerak — 3.2 so''rovi natijasini yuboring.',
           r_hisob.code, r_hisob.name, v_uzs, v_fc;
       end if;
