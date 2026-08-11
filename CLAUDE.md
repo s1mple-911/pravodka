@@ -8,11 +8,12 @@ Aros'dan **faqat o'qiydi**, hech qachon yozmaydi.
 Provodka **haqiqiy foydalanuvchilarda** ishlab turibdi. Shuning uchun:
 
 1. **Yangi ish FAQAT `-dev.html` fayllarda.** Prod `.html` fayllarga (masalan `hodim.html`)
-   **TEGILMAYDI**. Har prod fayl uchun dev nusxa bor (`hodim-dev.html`, `kassa-dev.html`, …, 13 ta).
+   **TEGILMAYDI**. Har prod fayl uchun dev nusxa bor (`hodim-dev.html`, `kassa-dev.html`, …, 15 ta).
    Dev fayl ichidagi **har** navigatsiya/sidebar/redirect/prefetch boshqa **dev** faylga ketadi
    (`jurnal-dev.html`); prod dev'ga, dev prod'ga aralashmaydi — eng ko'p xato qilinadigan joy.
-   `perms.js` va `vendor/*` **ikkalasi uchun bitta** (nusxalanmaydi); dev'da perms o'zgarishi
-   kerak bo'lsagina `perms-dev.js` ochiladi.
+   `vendor/*` **ikkalasi uchun bitta** (nusxalanmaydi). `perms.js` ham shunday edi, lekin
+   ruxsat semantikasi o'zgargani uchun **`perms-dev.js` ochildi** — dev fayllar o'shanga
+   havola qiladi (pastda "Foydalanuvchi ruxsatlari" bo'limiga qara).
 2. **dev → prod ko'chirish faqat `promote.sh`** bilan (qo'lda emas): `bash promote.sh` (hammasi)
    yoki `bash promote.sh hodim kassa` (tanlab). U dev'ni prod'ga nusxalaydi va `-dev.html`
    havolalarini `.html` ga qaytaradi. `perl` ishlatadi — CRLF/LF qator oxirlarini saqlaydi.
@@ -35,19 +36,20 @@ Tezlik uchun hamma tashqi resurs repoga ko'chirilgan — GitHub Pages'dan bitta 
 keladi (DNS/TLS yo'q, brauzer keshlaydi). CDN (`jsdelivr`/`unpkg`/Google Fonts) **ishlatilmaydi**.
 
 - `vendor/supabase-2.110.6.js` — Supabase UMD (bitta fayl). Global: `window.supabase.createClient(url,key)`.
-  **`import ... +esm` YO'Q.** Versiya yangilansa fayl nomini o'zgartir (kesh) va 12 faylda `<script src>`ni yangila.
+  **`import ... +esm` YO'Q.** Versiya yangilansa fayl nomini o'zgartir (kesh) va 30 faylda (15 dev + 15 prod) `<script src>`ni yangila.
 - `vendor/lucide-1.24.0.js` — Lucide UMD. Global: `window.lucide.createIcons()` (avvalgidek `icons()`).
 - `vendor/inter.woff2` — Inter variable font (100–900). `@font-face` har faylning `<style>` boshida.
 
 Head tartibi (hamma faylda): `<link rel=icon>` → supabase `preconnect` → 10-11 ta `prefetch`
 (qolgan sahifalar) → `<script src="vendor/lucide...defer">` → `<script src="vendor/supabase...defer">`
-→ `<script src="perms.js" defer>` → `<style>`.
+→ `<script src="perms.js" defer>` (dev fayllarda **`perms-dev.js`**) → `<style>`.
 Vendor skriptlar `defer`, module skript ham defer (implicit) — shuning uchun module ishga tushganda
 `window.supabase`/`window.lucide`/`window.perm*` tayyor bo'ladi. **Endi har faylda aniq 4 ta `</script>`**
 (lucide + supabase + perms + module) — avvalgi 3 emas. 4 dan farq bo'lsa fayl buzilgan.
 
-`perms.js` — repodagi yagona **umumiy** klient fayli (vendor emas, o'zimizniki). Ruxsat tizimi
-xavfsizlikka tegishli, shuning uchun u 12 marta ko'chirilmaydi: bitta joyda tuzatiladi.
+`perms.js` (prod) / `perms-dev.js` (dev) — repodagi yagona **umumiy** klient fayli (vendor emas,
+o'zimizniki). Ruxsat tizimi xavfsizlikka tegishli, shuning uchun u 15 marta ko'chirilmaydi:
+bitta joyda tuzatiladi. Ikki nusxa vaqtinchalik — `promote.sh` dev'ni prod ustiga yozadi.
 
 ### Tezlik naqshlari (hamma faylda bir xil)
 
@@ -255,14 +257,32 @@ Har foydalanuvchiga alohida: qaysi kassalarni **ko'radi**, qaysilarida **amaliyo
 `admin-dev.html` → n8n webhook → `admin_set_provodka_perms()`.
 
 `user_perms(user_id, allowed_pages text[], kassa_scope, view_kassa_ids uuid[], op_kassa_ids uuid[],
-can_convert, updated_at, updated_by)`. **Bo'sh `allowed_pages` = hamma sahifa**, `kassa_scope='all'`
-= hamma kassa. Qatori yo'q foydalanuvchi va **admin** — cheklanmagan.
+can_convert, filial_scope, filial_ids uuid[], updated_at, updated_by)`. `kassa_scope='all'`
+= hamma kassa. **Admin** — hech qachon cheklanmaydi.
 RLS: o'qish o'zi yoki admin; **yozish policy'si umuman yo'q** — faqat RPC (service_role) yozadi.
 
-- `my_perms()` → jsonb, `authenticated` uchun. Admin/qatorsizga to'liq-ochiq default qaytaradi.
+**⚠️ `allowed_pages` semantikasi TESKARI aylandi** (`PROVODKA_PAGES_EMPTY.sql`, 2026-08-11):
+**bo'sh ro'yxat = HECH QAYSI sahifa ochiq emas** (avval "hammasi ochiq" edi). Sabab: userlarning
+~80% i faqat `hodim.html` ni ishlatadi, eski qoidada esa "hech qaysi sahifa" degan holat yo'q edi.
+`hodim.html` bu ro'yxatga **kirmaydi** va hech qachon cheklanmaydi — `perm_pages()` ichida
+`hodim` kaliti yo'q, `permGate()` ham ro'yxatdan tashqari kalitni erkin o'tkazadi.
+Migratsiya **ataylab qilinmadi** (Laziz qarori): eski userlar avtomatik yopildi, ruxsat
+admin-dev'dan qo'lda beriladi. Rollback — `PROVODKA_PAGES_EMPTY.sql` 8-bo'limida.
+
+- `perm_pages()` → **14 ta** kalit (12 emas): oldingi 12 + `yuklar`, `standart`.
+  `perms.js` dagi `PAGES` bilan **aynan** bir xil bo'lishi shart, aks holda
+  `admin_set_provodka_perms` o'sha kalitni "noma'lum" deb jimgina tashlab yuboradi.
+- `my_perms()` → jsonb, `authenticated` uchun. Qatorsiz userga `allowed_pages: []`
+  (= ruxsat yo'q) qaytadi, qolgan cheklovlar ochiq (`kassa_scope='all'`, `can_convert=true`).
+  Qo'shimcha bayroqlar: `is_admin`, **`has_provodka`** (= admin yoki ro'yxat bo'sh emas).
+- `perm_has_page(text)` — server tomonda sahifa tekshiruvi. **Hozircha hech qayerda
+  chaqirilmaydi** (sahifa ruxsati UI masalasi; pul guardi alohida va u tegilmagan).
 - `admin_set_provodka_perms(p_data jsonb)` — **service_role ONLY** (n8n). `op ⊆ view` majburlaydi,
   noma'lum sahifa kalitini tashlaydi, `role='admin'` userga cheklov yozmaydi (qatorini o'chiradi).
-- `perm_check_accounts(uuid[])`, `perm_can_convert()`, `perm_op_key(uuid)`, `perm_pages()`.
+  Bo'sh `allowed_pages` **shundayligicha** saqlanadi — eski "hammasi belgilangan → bo'sh saqla"
+  bloki olib tashlandi (yangi semantikada u aynan teskari natija berardi). Payload kontrakti
+  o'zgarmadi — n8n tomonda hech narsa qilinmaydi.
+- `perm_check_accounts(uuid[])`, `perm_can_convert()`, `perm_op_key(uuid)`.
 
 **SERVER GUARD — `entry_line` ustidagi trigger `trg_perm_guard_entry_line`.** Provodka yozuvlari
 RPC orqali emas, klientdan to'g'ridan `entry`+`entry_line` insert bilan yoziladi — shuning uchun
@@ -277,13 +297,39 @@ Shu naqsh tufayli ikki SQL fayl bir-birining ishga tushirilish **tartibiga bog'l
 kassalari esa o'z id'si bilan. Ikkalasini ajratuvchi shart: `currency <> 'UZS'`
 (`parent_id` ikki ma'noli — yuqoridagi ogohlantirishga qara).
 
-Klient (`perms.js`, hamma sahifada bir xil): `permGate()` (nav yashirish + "Ruxsat yo'q" ekrani,
-faqat `main` ichini almashtiradi — nav joyida qoladi), `permLoad(sb)` (kesh-birinchi, fonda
-yangilanadi), `permViewOk/permOpOk/permFilterView/permFilterOp`, `permConvert()`, `permErr(e)`
-(42501 xatosini odam tiliga o'giradi), `permClear()`.
+**`v_filial_tanlov`** — xarajat metadata uchun filial ro'yxati (`hodim`, `professional`,
+`standart` — hammasi `select('*')` qiladi, shakl `id, code, name, subtitle`). **Har filial
+BITTA qator.** `create_pul_turi_child()` bola-hisobga parentning `kassa_turi`'sini
+**nusxalaydi**, shuning uchun "Izza Showroom · Naqd/Click/Payme" hisoblari ham
+`kassa_turi='filial'` bo'lib ro'yxatga tushib qolardi — hodim bitta filialni uch marta
+ko'rardi. Filtr: `pul_turi is null and currency='UZS'`. **Nom bo'yicha DISTINCT qilma** —
+to'lov turi nomda emas, `pul_turi` ustunida. `filial_ids` kontrakti buzilmaydi: admin
+filialning hamma kassa id'sini yozadi, `permFilterFilials` esa faqat parent id'ni tekshiradi.
+
+Klient (`perms.js` prod / **`perms-dev.js` dev**, hamma sahifada bir xil): `permGate()`
+(nav yashirish + "Ruxsat yo'q" ekrani, faqat `main` ichini almashtiradi — nav joyida qoladi),
+`permLoad(sb)` (kesh-birinchi, fonda yangilanadi), `permViewOk/permOpOk/permFilterView/permFilterOp`,
+`permConvert()`, `permHasProvodka()`, `permErr(e)` (42501 xatosini odam tiliga o'giradi), `permClear()`.
 `enterApp()` **async**: keshdan gate → `await permLoad` → qayta gate → `init()`.
 `permClear()` login va logoutda **majburiy** — `sessionStorage` reload'dan keyin ham qoladi,
 aks holda yangi foydalanuvchi eskisining ruxsatlari bilan ochiladi.
+
+**`perms-dev.js` — semantika o'zgargani uchun ochilgan yagona dev nusxa.** 15 dev fayl unga
+havola qiladi, 15 prod fayl esa eski `perms.js` ga — ikkalasi bitta baza bilan yonma-yon ishlaydi
+(`my_perms()` javobi bir xil, farq faqat "bo'sh" ni o'qishda). `promote.sh` uni `perms.js`
+ustiga ko'chiradi va **o'sha daqiqada prod ham teskari semantikaga o'tadi** — tanlab bo'lmaydi.
+Fayl ichida birorta `NAME-dev.html` matni yo'q: havola qo'shimchasi `suf()` bilan joriy fayl
+nomidan olinadi (`-dev.html` yoki `.html`), shuning uchun dev va prod nusxasi **bayt-ma-bayt bir xil**.
+
+Uchta nozik joy (buzma):
+- **Sahifa kaliti `-dev` siz.** `page()` `.html` dan tashqari `-dev` ni ham kesadi, aks holda
+  dev nusxaning kaliti `kassa-dev` bo'lib qolardi va cheklangan user butun dev muhitidan quvilardi.
+- **Yuklanmaguncha ochiq.** `loaded=false` (RPC hali kelmagan yoki xato bergan) holatda hech narsa
+  to'silmaydi — bir martalik tarmoq nosozligi userni sahifadan quvib chiqarmasin. Pul harakati
+  baribir server guard bilan to'silgan.
+- **`has_provodka=false` → `hodim.html` ga redirect**, lekin faqat **bosh sahifada** (`jurnal`).
+  Boshqa sahifaga to'g'ridan URL bilan kirsa — "Ruxsat yo'q" ekrani + "Xarajat kiritish" tugmasi.
+  80% user redirect tufayli bu ekranni umuman ko'rmaydi.
 
 ## Qat'iy qoidalar
 
