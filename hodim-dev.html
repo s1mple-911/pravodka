@@ -11,307 +11,512 @@
 <script src="perms-dev.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  /* ================= DIZAYN TOKENLARI =================
+     BREND: Aros yashil #1ea83a. Kontrast uchun uch pog'ona (hammasi bir xil tus):
+       --primary        #1ea83a  brend to'ldirish: ramka, ikon, progress, tanlangan holat (3.1:1 → katta yuza/grafika uchun AA)
+       --primary-strong #17862f  OQ matnli CTA foni (4.7:1 → kichik matn uchun ham AA)
+       --primary-ink    #136a26  och fonda YASHIL MATN (6.0:1)
+     Boshqa yashil tus ishlatilmaydi — "muvaffaqiyat" rangi ham shu brend yashil.
+     Spacing 4/8 shkalasi: 4 8 12 16 20 24 32. Radius: 10 12 16 20 pill. */
+  :root{
+    --bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--surface-3:#e7eaef;
+    --ink:#101828;--ink-2:#344054;--muted:#667085;--line:#e6e8ec;
+    --primary:#1ea83a;--primary-hover:#17862f;--primary-strong:#17862f;--primary-press:#126a26;
+    --primary-ink:#136a26;--primary-soft:#e6f6ea;--primary-ring:rgba(30,168,58,.22);--on-primary:#fff;
+    --green:#1ea83a;--red:#d92d20;--red-soft:#fef3f2;--red-ink:#b42318;--red-line:rgba(217,45,32,.20);--on-red:#fff;
+    --hero-a:#17862f;--hero-b:#0f6023;--hero-ink:#fff;--hero-line:rgba(255,255,255,.20);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+    --shadow-hover:0 6px 16px rgba(16,24,40,.10);--shadow-lg:0 16px 40px rgba(16,24,40,.18);
+    --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s7:32px;
+    --r-sm:10px;--r-md:12px;--r-lg:16px;--r-xl:20px;--radius:14px;
+    --col:520px;
+    --ic-alert:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E");
+    --ic-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    --ic-receipt:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z'/%3E%3Cpath d='M8 8h8'/%3E%3Cpath d='M8 12h6'/%3E%3C/svg%3E")
+  }
+  [data-theme="dark"]{
+    --bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--surface-3:#272e3a;
+    --ink:#e6e9ef;--ink-2:#c4cad5;--muted:#8a93a3;--line:#252b36;
+    --primary:#2ec24a;--primary-hover:#45d160;--primary-strong:#2ec24a;--primary-press:#45d160;
+    --primary-ink:#5fd97b;--primary-soft:#12281a;--primary-ring:rgba(46,194,74,.28);--on-primary:#07130b;
+    --green:#2ec24a;--red:#ff6259;--red-soft:#33150f;--red-ink:#ff8a82;--red-line:rgba(255,98,89,.28);--on-red:#2a0a07;
+    --hero-a:#14682a;--hero-b:#0a3d19;--hero-ink:#fff;--hero-line:rgba(255,255,255,.18);
+    --shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55);--shadow-lg:0 18px 44px rgba(0,0,0,.6)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
-  .num,.amtbig{font-variant-numeric:tabular-nums}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  .num,.amtbig,.tnum{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}
+  ::selection{background:var(--primary-soft);color:var(--primary-ink)}
+  svg.lucide{flex:none;stroke-width:2}
+  /* Fokus: sichqonchada halqa yo'q, klaviaturada — aniq brend halqa */
+  :focus{outline:none}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   #app{display:none}
-  /* header */
-  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
-    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
-  .top .brand{display:flex;align-items:center;gap:10px}
-  .top .logo{width:26px;height:31px;color:var(--primary)}.top .logo svg{width:100%;height:100%;display:block}
-  .top .title{font-weight:800;font-size:17px;letter-spacing:-.02em}
-  .top .title span{color:var(--muted);font-weight:500}
-  .iconbtn{background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px;display:inline-flex;cursor:pointer;transition:background .13s,color .13s}
-  .iconbtn svg{width:20px;height:20px}.iconbtn:hover{background:var(--surface-2);color:var(--ink)}
-  /* body */
-  .wrap{max-width:520px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
-  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:14px;display:none}
-  .lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 9px 2px}
-  .sect{margin-bottom:22px}
-  /* kassa chips */
-  .chips{display:flex;flex-wrap:wrap;gap:9px}
-  .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:120px;border:1.5px solid var(--line);
-    background:var(--surface);color:var(--ink);border-radius:13px;padding:12px 15px;cursor:pointer;font-family:inherit;text-align:left;
-    transition:border-color .13s,background .13s,box-shadow .13s}
-  .chip:hover{border-color:var(--primary)}
-  .chip.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
-  .chip-code{font-size:11.5px;font-weight:700;color:var(--muted)}
-  .chip.on .chip-code{color:var(--primary)}
-  .chip-name{font-size:15px;font-weight:600}
-  .chips-empty{color:var(--muted);font-size:14px;padding:14px;background:var(--surface-2);border-radius:12px;text-align:center}
-  .bal{font-size:13px;color:var(--muted);margin:10px 0 0 2px}
-  .bal b{color:var(--ink);font-weight:700}
-  /* filial multiselect (Aros brend rang = --primary) */
-  .fchips{display:flex;flex-wrap:wrap;gap:8px}
-  .fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;
-    font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
-  .fchip:hover{border-color:var(--primary)}
-  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
-  .fchips-empty{color:var(--muted);font-size:13.5px;padding:10px;background:var(--surface-2);border-radius:12px;text-align:center}
-  /* davr (sana oralig'i) — maxsus kalendar (ikki oy, uz nomlar) */
-  .davrsel{font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:11px;min-height:20px;font-variant-numeric:tabular-nums}
+  /* ================= header ================= */
+  .top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) var(--s4) 10px}
+  .topin{max-width:var(--col);margin:0 auto;display:flex;align-items:center;gap:var(--s2)}
+  .brand{display:flex;align-items:center;gap:var(--s3);min-width:0;flex:1}
+  .top .logo{width:24px;height:28px;flex:none;color:var(--primary)}.top .logo svg{width:100%;height:100%;display:block}
+  .btxt{min-width:0;display:flex;flex-direction:column}
+  .top .title{font-weight:700;font-size:16px;letter-spacing:-.015em;line-height:1.25;white-space:nowrap}
+  /* Uzun ism-familiya ham, uzun email ham bir qatorda kesiladi (…) */
+  .top .who{font-size:12.5px;line-height:1.35;color:var(--muted);font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .top .who:empty{display:none}
+  .topacts{display:flex;gap:var(--s1);flex:none}
+  .iconbtn{background:transparent;border:none;color:var(--muted);border-radius:var(--r-md);
+    width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:background .15s,color .15s}
+  .iconbtn svg{width:20px;height:20px}
+  @media(hover:hover){.iconbtn:hover{background:var(--surface-2);color:var(--ink)}}
+  .iconbtn:active{background:var(--surface-3);color:var(--ink)}
+  /* ================= sahifa ================= */
+  .wrap{max-width:var(--col);margin:0 auto;padding:var(--s5) var(--s4) calc(104px + env(safe-area-inset-bottom))}
+  .sect{margin-bottom:var(--s6)}
+  .banner{display:none;background:var(--red-soft);color:var(--red-ink);border:1px solid var(--red-line);
+    border-radius:var(--r-md);padding:var(--s3) var(--s4);font-size:13.5px;line-height:1.45;margin-bottom:var(--s4)}
+  .banner::before{content:'';display:inline-block;vertical-align:-4px;width:18px;height:18px;margin-right:var(--s2);
+    background:currentColor;-webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* Maydon sarlavhasi + "majburiy" nishoni */
+  .lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 var(--s2) 2px;
+    display:flex;align-items:center;gap:var(--s2);min-height:18px}
+  .lbl .opt{font-weight:500;opacity:.9}
+  .req{display:inline-flex;align-items:center;height:20px;padding:0 var(--s2);border-radius:6px;
+    background:var(--red-soft);color:var(--red-ink);font-size:11px;font-weight:700;letter-spacing:.01em}
+  /* tanlanmagan holat matni (placeholder) */
+  .ph{color:var(--muted);font-weight:500}
+  .bal{font-size:13px;color:var(--muted);margin:var(--s3) 0 0 2px}
+  .bal b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  /* ================= filial multiselect (brend yashil) ================= */
+  .fchips{display:flex;flex-wrap:wrap;gap:var(--s2)}
+  .fchip{display:inline-flex;align-items:center;min-height:44px;border:1.5px solid var(--line);background:var(--surface);
+    color:var(--ink-2);border-radius:999px;padding:0 var(--s4);font-size:14px;font-weight:600;font-family:inherit;
+    cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  @media(hover:hover){.fchip:hover{border-color:var(--primary);color:var(--ink)}}
+  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+  .fchip.on::before{content:'';width:14px;height:14px;margin-right:6px;background:currentColor;
+    -webkit-mask:var(--ic-check) center/contain no-repeat;mask:var(--ic-check) center/contain no-repeat}
+  .fchips-empty{color:var(--muted);font-size:13.5px;padding:var(--s3) var(--s4);background:var(--surface-2);
+    border-radius:var(--r-md);text-align:center}
+  /* ================= davr kalendari (ikki oy, uz nomlar) ================= */
+  .davrsel{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:var(--s3);min-height:20px;
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em}
   .davrsel .ph{color:var(--muted);font-weight:500}
-  .cal{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 15px}
-  .cal-months{display:grid;grid-template-columns:1fr;gap:18px}
-  @media(min-width:560px){.cal-months{grid-template-columns:1fr 1fr;gap:24px}}
+  .cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s3);box-shadow:var(--shadow)}
+  .cal-months{display:grid;grid-template-columns:1fr;gap:var(--s5)}
+  @media(min-width:600px){.cal-months{grid-template-columns:1fr 1fr;gap:var(--s4)}}
   .cal-m{min-width:0}
-  .cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;height:28px}
-  .cal-title{font-weight:700;font-size:14.5px;letter-spacing:-.01em}
-  .cal-nav{border:none;background:transparent;color:var(--muted);cursor:pointer;padding:5px;border-radius:8px;display:inline-flex}
-  .cal-nav:hover{background:var(--surface-2);color:var(--ink)}
+  .cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1);height:40px}
+  .cal-title{font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .cal-nav{border:none;background:transparent;color:var(--muted);cursor:pointer;width:40px;height:40px;border-radius:var(--r-sm);
+    display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+  @media(hover:hover){.cal-nav:hover{background:var(--surface-2);color:var(--ink)}}
   .cal-nav svg{width:18px;height:18px}
-  .cal-nav.hidden{visibility:hidden;pointer-events:none}
+  .cal-nav.hidden{visibility:hidden;pointer-events:none;width:40px;height:40px;display:inline-block}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0}
-  .cal-wd{font-size:11.5px;font-weight:600;color:var(--muted);text-align:center;padding:3px 0 6px}
-  .cal-day{aspect-ratio:1;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:13.5px;
+  .cal-wd{font-size:11px;font-weight:600;color:var(--muted);text-align:center;padding:0 0 var(--s2);letter-spacing:.02em}
+  .cal-day{aspect-ratio:1;min-height:36px;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:13.5px;
     font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;
-    font-variant-numeric:tabular-nums;border-radius:9px;transition:background .12s,color .12s}
-  .cal-day:hover{background:var(--surface-2)}
-  .cal-day.muted{color:var(--line);pointer-events:none;background:transparent!important}
-  .cal-day.inrange{background:var(--primary-soft);border-radius:0}
-  .cal-day.on{background:var(--primary);color:#fff}
-  .cal-day.on:hover{background:var(--primary-hover)}
-  .cal-day.on.s{border-radius:9px 0 0 9px}
-  .cal-day.on.e{border-radius:0 9px 9px 0}
-  .cal-day.on.single{border-radius:9px}
-  /* summa */
-  .amtwrap{position:relative;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 18px;transition:border-color .13s,box-shadow .13s}
-  .amtwrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .amtbig{width:100%;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:38px;font-weight:800;
-    letter-spacing:-.02em;text-align:right;outline:none;padding:0}
-  .amtbig::placeholder{color:var(--line)}
-  .amtcur{position:absolute;left:18px;bottom:20px;font-size:14px;font-weight:600;color:var(--muted)}
-  /* izoh */
-  .txt{width:100%;height:48px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:13px;
-    padding:0 14px;font-size:15px;font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
-  .txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+    font-variant-numeric:tabular-nums;border-radius:var(--r-sm);transition:background .12s,color .12s}
+  @media(hover:hover){.cal-day:hover{background:var(--surface-2)}}
+  .cal-day.muted{color:var(--muted);opacity:.32;pointer-events:none;background:transparent!important}
+  .cal-day.inrange{background:var(--primary-soft);border-radius:0;color:var(--primary-ink)}
+  .cal-day.on{background:var(--primary-strong);color:var(--on-primary)}
+  @media(hover:hover){.cal-day.on:hover{background:var(--primary-press)}}
+  .cal-day.on.s{border-radius:var(--r-sm) 0 0 var(--r-sm)}
+  .cal-day.on.e{border-radius:0 var(--r-sm) var(--r-sm) 0}
+  .cal-day.on.single{border-radius:var(--r-sm)}
+  /* ================= summa ================= */
+  .amtwrap{display:flex;align-items:baseline;gap:var(--s3);background:var(--surface);border:1.5px solid var(--line);
+    border-radius:var(--r-lg);padding:var(--s4) var(--s5);box-shadow:var(--shadow);
+    transition:border-color .15s,box-shadow .15s}
+  .amtwrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  .amtcur{flex:none;font-size:14px;font-weight:600;color:var(--muted)}
+  .amtbig{flex:1;min-width:0;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:36px;font-weight:700;
+    letter-spacing:-.03em;line-height:1.15;text-align:right;outline:none;padding:0}
+  .amtbig::placeholder{color:var(--muted);opacity:.42}
+  /* ================= matn maydoni / tanlagich ================= */
+  .txt{width:100%;height:52px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--r-md);
+    padding:0 var(--s4);font-size:15px;font-family:inherit;outline:none;box-shadow:var(--shadow);
+    transition:border-color .15s,box-shadow .15s}
+  .txt::placeholder{color:var(--muted);opacity:.75}
+  .txt:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  @media(hover:hover){.moddafield:hover{border-color:var(--primary)}}
   select.txt{-webkit-appearance:none;appearance:none;cursor:pointer;padding-right:38px;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
-  /* qoldiq limiti (1-band) */
-  .amtwrap.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
+  /* qoldiq/limit ogohlantirishi */
+  .amtwrap.over{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
   .amtwrap.over .amtbig{color:var(--red)}
-  .amtwarn{color:var(--red);font-size:13px;font-weight:600;margin:9px 2px 0;text-align:right}
-  /* modda tanlagich (qidiruvli) */
-  .moddafield{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left}
+  /* display'ni JS block/none qilib almashtiradi — shuning uchun ikonka inline-block */
+  .amtwarn{color:var(--red-ink);font-size:13px;font-weight:600;line-height:1.4;margin:var(--s2) 2px 0;text-align:right}
+  .amtwarn::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;
+    background:currentColor;-webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* ================= tanlagich maydoni (modda/kassa) ================= */
+  .moddafield{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);cursor:pointer;text-align:left;
+    font-weight:600;color:var(--ink)}
   .moddafield span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .moddafield svg{width:16px;height:16px;color:var(--muted);flex:none}
-  .picklist{margin-top:12px;max-height:46vh;overflow:auto;-webkit-overflow-scrolling:touch}
-  .pickitem{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:none;background:transparent;color:var(--ink);
-    padding:12px 10px;border-radius:10px;cursor:pointer;font-family:inherit;border-bottom:1px solid var(--line)}
+  .moddafield svg{width:18px;height:18px;color:var(--muted);flex:none}
+  /* ================= modal / pastdan chiquvchi varaq ================= */
+  .modal,.kmodal,.tmodal{position:fixed;inset:0;background:rgba(16,24,40,.5);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;padding:var(--s5);z-index:120;animation:fadein .16s ease}
+  .tmodal,.kmodal{z-index:130}
+  .modal.open,.kmodal.open,.tmodal.open{display:flex}
+  /* modal ochiq bo'lsa orqa fon siljimasin (qo'llab-quvvatlamagan brauzerda e'tiborsiz qoladi) */
+  body:has(.modal.open),body:has(.kmodal.open),body:has(.tmodal.open){overflow:hidden}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  @keyframes popin{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes sheetin{from{transform:translateY(100%)}to{transform:none}}
+  .modalbox,.kbox,.tbox{background:var(--surface);width:100%;border-radius:var(--r-xl);padding:var(--s5);
+    box-shadow:var(--shadow-lg);animation:popin .2s cubic-bezier(.22,.61,.36,1)}
+  .modalbox{max-width:400px}
+  .kbox{max-width:380px}
+  .tbox{max-width:460px;max-height:88vh;display:flex;flex-direction:column}
+  .modalbox h3,.kbox h3,.tbox h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.015em}
+  /* modal sarlavha qatori (yopish tugmasi bilan) */
+  .mhead{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s4)}
+  .mclose{flex:none;width:40px;height:40px;margin:-8px -8px -8px 0;border:none;background:transparent;color:var(--muted);
+    border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s}
+  .mclose svg{width:18px;height:18px}
+  @media(hover:hover){.mclose:hover{background:var(--surface-2);color:var(--ink)}}
+  /* Telefon: markazdagi oyna emas — pastdan chiquvchi varaq (katta barmoq zonasi) */
+  @media(max-width:560px){
+    .modal,.kmodal,.tmodal{align-items:flex-end;padding:0}
+    .modalbox,.kbox,.tbox{max-width:none;border-radius:var(--r-xl) var(--r-xl) 0 0;
+      padding:var(--s5) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom));
+      max-height:92vh;display:flex;flex-direction:column;animation:sheetin .22s cubic-bezier(.22,.61,.36,1)}
+    .modalbox::before,.kbox::before,.tbox::before{content:'';flex:none;width:36px;height:4px;border-radius:2px;background:var(--surface-3);
+      margin:-6px auto var(--s3)}
+    .modalbox>*,.kbox>*,.tbox>*{flex:none}
+    .picklist,.tlist{flex:1 1 auto;min-height:0}
+  }
+  /* ================= ro'yxat (qidiruv natijasi) ================= */
+  .picklist{margin-top:var(--s3);max-height:46vh;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent}
+  @media(max-width:560px){.picklist{max-height:none;flex:1;min-height:38vh}}
+  .picklist::-webkit-scrollbar{width:6px}
+  .picklist::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:3px}
+  .pickitem{position:relative;display:flex;flex-direction:column;gap:2px;width:100%;min-height:52px;justify-content:center;
+    text-align:left;border:none;background:transparent;color:var(--ink);padding:10px 36px 10px var(--s3);border-radius:var(--r-sm);
+    cursor:pointer;font-family:inherit;border-bottom:1px solid var(--line);transition:background .13s}
   .pickitem:last-child{border-bottom:none}
-  .pickitem:hover{background:var(--surface-2)}
+  @media(hover:hover){.pickitem:hover{background:var(--surface-2)}}
+  .pickitem:active{background:var(--surface-2)}
   .pickitem.on{background:var(--primary-soft)}
-  .pickitem .pn{font-size:15px;font-weight:600}
-  .pickitem .pc{font-size:12px;color:var(--muted);font-weight:700}
-  .pickitem.on .pc{color:var(--primary)}
-  .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:16px}
-  /* Kommunal turi (9413) modal + chip */
-  .kmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:130}
-  .kmodal.open{display:flex}
-  .kbox{background:var(--surface);width:100%;max-width:380px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
-  .kbox h3{margin:0 0 16px;font-size:18px;font-weight:800}
-  .kbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .kbtn{display:flex;flex-direction:column;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 8px;cursor:pointer;font-family:inherit;transition:border-color .13s,background .13s,box-shadow .13s}
-  .kbtn:hover{border-color:var(--primary)}
-  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
-  .kbtn .kemo{font-size:30px;line-height:1}
-  .kbtn .klbl{font-size:14px;font-weight:700}
-  .kcancel{width:100%;height:46px;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
-  .kommchip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
-  .kommchip svg{width:15px;height:15px}
-  /* Filial taqsimoti modali (2+ filial) */
-  .tmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:130}
-  .tmodal.open{display:flex}
-  .tbox{background:var(--surface);width:100%;max-width:460px;max-height:88vh;display:flex;flex-direction:column;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
-  .tbox h3{margin:0 0 4px;font-size:18px;font-weight:800}
-  .thint{font-size:13px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .teq{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--primary);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;border-radius:8px;padding:6px 11px}
-  .teq:hover{border-color:var(--primary);background:var(--primary-soft)}
-  .tlist{overflow:auto;-webkit-overflow-scrolling:touch}
-  .trow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
-  .trow:last-child{border-bottom:none}
-  .trow .tfn{flex:1;min-width:0;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .trow input{width:150px;flex:none;height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:15px;font-family:inherit;text-align:right;outline:none;font-variant-numeric:tabular-nums;transition:border-color .13s,box-shadow .13s}
-  .trow input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .tsum{background:var(--surface-2);border-radius:12px;padding:11px 14px;margin-top:14px;font-size:13.5px}
-  .tsrow{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+  .pickitem.on::after{content:'';position:absolute;right:var(--s3);top:50%;margin-top:-8px;width:16px;height:16px;
+    background:var(--primary-ink);-webkit-mask:var(--ic-check) center/contain no-repeat;mask:var(--ic-check) center/contain no-repeat}
+  .pickitem .pn{font-size:15px;font-weight:600;line-height:1.35}
+  .pickitem .pc{font-size:12.5px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+  .pickitem.on .pc{color:var(--primary-ink)}
+  .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:var(--s6) var(--s4)}
+  /* ================= Kommunal turi (9413) ================= */
+  .kbtns{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+  .kbtn{display:flex;flex-direction:column;align-items:center;gap:var(--s2);border:1.5px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:var(--r-lg);padding:var(--s5) var(--s2);cursor:pointer;font-family:inherit;
+    transition:border-color .15s,background .15s,box-shadow .15s,transform .12s}
+  @media(hover:hover){.kbtn:hover{border-color:var(--primary)}}
+  .kbtn:active{transform:scale(.98)}
+  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-ring)}
+  .kbtn .kemo{display:flex;align-items:center;justify-content:center;width:28px;height:28px;color:var(--muted)}
+  .kbtn .kemo svg{width:26px;height:26px;stroke-width:1.75}
+  .kbtn.on .kemo{color:var(--primary-ink)}
+  .kbtn .klbl{font-size:14px;font-weight:600}
+  .kbtn.on .klbl{color:var(--primary-ink);font-weight:700}
+  .kcancel{width:100%;height:48px;margin-top:var(--s3);border:1px solid var(--line);border-radius:var(--r-md);
+    background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s}
+  @media(hover:hover){.kcancel:hover{background:var(--surface-3)}}
+  .kommchip{display:inline-flex;align-items:center;gap:var(--s2);min-height:44px;border:1.5px solid var(--primary);
+    background:var(--primary-soft);color:var(--primary-ink);border-radius:999px;padding:0 var(--s4);font-size:14px;
+    font-weight:700;font-family:inherit;cursor:pointer;transition:background .15s}
+  .kommchip svg{width:16px;height:16px}
+  .kommchip .kdrop{color:var(--primary);opacity:.7}
+  /* ================= Filial taqsimoti modali (2+ filial) ================= */
+  .thint{font-size:13px;color:var(--muted);margin:-8px 0 var(--s4);display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;line-height:1.4}
+  .teq{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--primary-ink);font-weight:700;
+    font-size:12.5px;cursor:pointer;font-family:inherit;border-radius:var(--r-sm);padding:8px var(--s3);min-height:36px;transition:border-color .15s,background .15s}
+  @media(hover:hover){.teq:hover{border-color:var(--primary);background:var(--primary-soft)}}
+  .tlist{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  /* Taqsimot satri — tarix satri (.trow) bilan to'qnashmasin deb alohida nom */
+  .talloc{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;border-bottom:1px solid var(--line)}
+  .talloc:last-child{border-bottom:none}
+  .talloc .tfn{flex:1;min-width:0;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .talloc input{width:140px;flex:none;height:44px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-sm);padding:0 var(--s3);font-size:15px;font-weight:600;font-family:inherit;text-align:right;outline:none;
+    font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s}
+  .talloc input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+  .tsum{background:var(--surface-2);border-radius:var(--r-md);padding:var(--s3) var(--s4);margin-top:var(--s4);font-size:13.5px}
+  .tsrow{display:flex;justify-content:space-between;gap:var(--s3);padding:var(--s1) 0}
   .tsrow span{color:var(--muted)}.tsrow b{font-variant-numeric:tabular-nums}
-  .tmsg{text-align:right;font-weight:700;font-size:13px;margin-top:8px;min-height:16px}
-  .tmsg.ok{color:var(--green)}.tmsg.no{color:var(--red)}
-  .tacts{display:flex;gap:9px;margin-top:14px}
-  .tacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
-  .tacts button.primary{border:none;background:var(--primary);color:#fff}
-  .tacts button.primary:disabled{opacity:.5;cursor:not-allowed}
-  /* modal */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:120}
-  .modal.open{display:flex}
-  .modalbox{background:var(--surface);width:100%;max-width:360px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
-  .modalbox h3{margin:0 0 14px;font-size:18px;font-weight:800}
-  .modalbox .row{display:flex;gap:9px;margin-top:14px}
-  .modalbox .btn{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
-  .modalbox .btn.primary{border:none;background:var(--primary);color:#fff}
-  .modalbox .btn:disabled{opacity:.5;cursor:not-allowed}
-  /* sticky save */
-  .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-    background:linear-gradient(to top,var(--bg) 62%,transparent);max-width:520px;margin:0 auto}
-  .save{width:100%;height:54px;border:none;border-radius:15px;background:var(--primary);color:var(--on-primary);
-    font-size:17px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:var(--shadow);
-    display:flex;align-items:center;justify-content:center;gap:9px;transition:background .13s,transform .12s,box-shadow .12s}
+  .tmsg{text-align:right;font-weight:600;font-size:13px;margin-top:var(--s2);min-height:18px;line-height:1.4}
+  .tmsg.ok{color:var(--primary-ink)}.tmsg.no{color:var(--red-ink)}
+  .tmsg.ok::before,.tmsg.no::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;
+    margin-right:5px;background:currentColor;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+    -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain}
+  .tmsg.ok::before{-webkit-mask-image:var(--ic-check);mask-image:var(--ic-check)}
+  .tmsg.no::before{-webkit-mask-image:var(--ic-alert);mask-image:var(--ic-alert)}
+  .tacts{display:flex;gap:var(--s2);margin-top:var(--s4)}
+  .tacts button{flex:1;height:48px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s,opacity .15s}
+  @media(hover:hover){.tacts button:hover{background:var(--surface-3)}}
+  .tacts button.primary{border:none;background:var(--primary-strong);color:var(--on-primary);
+    display:inline-flex;align-items:center;justify-content:center;gap:var(--s2)}
+  @media(hover:hover){.tacts button.primary:hover{background:var(--primary-press)}}
+  .tacts button.primary:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  /* ================= oddiy modal tugmalari ================= */
+  .modalbox .row{display:flex;gap:var(--s2);margin-top:var(--s4)}
+  .modalbox .btn{flex:1;height:48px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .modalbox .btn.primary{border:none;background:var(--primary-strong);color:var(--on-primary)}
+  .modalbox .btn:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  /* ================= sticky Saqlash ================= */
+  .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 64%,transparent);max-width:var(--col);margin:0 auto;pointer-events:none}
+  .save{pointer-events:auto;width:100%;height:54px;border:none;border-radius:var(--r-lg);background:var(--primary-strong);
+    color:var(--on-primary);font-size:17px;font-weight:700;font-family:inherit;letter-spacing:-.01em;cursor:pointer;
+    box-shadow:0 4px 14px rgba(23,134,47,.28);display:flex;align-items:center;justify-content:center;gap:var(--s2);
+    transition:background .15s,transform .12s,box-shadow .15s,color .15s}
   .save svg{width:20px;height:20px}
-  .save:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow-hover)}
-  .save:active{transform:translateY(0)}
-  .save:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
-  .save.ok{background:var(--green)}
-  /* today list */
-  .today h2{font-size:14px;font-weight:700;color:var(--muted);margin:0 0 12px 2px}
-  .trow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  @media(hover:hover){.save:hover{background:var(--primary-press);transform:translateY(-1px);box-shadow:0 8px 20px rgba(23,134,47,.30)}}
+  .save:active{transform:translateY(0);box-shadow:0 2px 8px rgba(23,134,47,.24)}
+  .save:disabled{background:var(--surface-2);color:var(--muted);box-shadow:none;transform:none;cursor:not-allowed}
+  .save.ok{background:var(--primary-strong);color:var(--on-primary)}
+  /* tugma ichidagi aylanuvchi indikator */
+  .spin{width:18px;height:18px;flex:none;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;
+    display:inline-block;animation:spin .7s linear infinite;vertical-align:-3px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* ================= xarajat tarixi (karta) ================= */
+  .today{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:var(--s4) var(--s4) var(--s2);box-shadow:var(--shadow)}
+  .today h2{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em;margin:0 0 var(--s3)}
+  .trow{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) 0;border-bottom:1px solid var(--line)}
   .trow:last-child{border-bottom:none}
-  .trow .tic{width:38px;height:38px;flex:none;border-radius:11px;background:var(--red-soft);color:var(--red);
+  .trow .tic{width:38px;height:38px;flex:none;border-radius:var(--r-md);background:var(--red-soft);color:var(--red);
     display:flex;align-items:center;justify-content:center}
   .trow .tic svg{width:18px;height:18px}
   .trow .tm{flex:1;min-width:0}
-  .trow .tm .tt{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .trow .tm .ts{font-size:12.5px;color:var(--muted)}
-  .trow .ta{font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap}
-  .today-empty{color:var(--muted);font-size:13.5px;padding:6px 2px}
-  .trow .chekpin{flex:none;border:none;background:transparent;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px}
+  .trow .tm .tt{font-weight:600;font-size:14.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .tm .ts{font-size:12.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums}
+  .trow .ta{font-weight:700;font-size:15px;color:var(--red-ink);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.01em}
+  .trow .chekpin{flex:none;width:40px;height:40px;border:none;background:transparent;color:var(--muted);cursor:pointer;
+    border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
   .trow .chekpin svg{width:16px;height:16px}
-  .trow .chekpin:hover{color:var(--primary);background:var(--surface-2)}
-  /* 5-band: bu oy jami */
-  .month{font-size:13px;color:var(--muted);margin:0 0 16px 2px}
-  .month b{color:var(--ink);font-weight:700}
-  /* hero — umumiy qoldiq (hamma biriktirilgan kassalar) */
-  .hero{background:linear-gradient(135deg,var(--primary),var(--primary-hover));color:#fff;
-    border-radius:18px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
-  .hero-lbl{font-size:12.5px;font-weight:600;letter-spacing:.01em;opacity:.85;margin-bottom:5px}
-  .hero-amt{display:flex;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
-  .hero-amt #totalBal{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
-  .hero-cur{font-size:15px;font-weight:600;opacity:.85}
-  .hero-sub{font-size:13.5px;font-weight:500;opacity:.92;margin-top:7px;display:flex;align-items:center;gap:6px}
-  .hero-sub svg{width:15px;height:15px}
-  /* progressive reveal (modda tanlangach qadamlar ochiladi) */
+  @media(hover:hover){.trow .chekpin:hover{color:var(--primary-ink);background:var(--surface-2)}}
+  /* bo'sh holat */
+  .today-empty{color:var(--ink-2);font-size:14px;font-weight:600;text-align:center;padding:var(--s6) var(--s4) var(--s7);line-height:1.5}
+  .today-empty::before{content:'';display:block;width:32px;height:32px;margin:0 auto var(--s3);background:var(--muted);opacity:.5;
+    -webkit-mask:var(--ic-receipt) center/contain no-repeat;mask:var(--ic-receipt) center/contain no-repeat}
+  .today-empty span{display:block;margin-top:var(--s1);font-size:12.5px;font-weight:400;color:var(--muted)}
+  /* xato holati (tarix yuklanmadi) */
+  .today-err{background:var(--red-soft);color:var(--red-ink);border:1px solid var(--red-line);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);font-size:13px;line-height:1.45;margin:var(--s2) 0 var(--s4)}
+  .today-err::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;background:currentColor;
+    -webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* skeleton (yuklanmoqda) */
+  .skel{height:12px;border-radius:6px;background:var(--surface-2);position:relative;overflow:hidden}
+  .skel::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:shine 1.3s infinite}
+  [data-theme="dark"] .skel::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent)}
+  @keyframes shine{100%{transform:translateX(100%)}}
+  .skrow{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) 0;border-bottom:1px solid var(--line)}
+  .skrow:last-child{border-bottom:none}
+  .skrow .skic{width:38px;height:38px;flex:none;border-radius:var(--r-md)}
+  .skrow .skb{flex:1}
+  .skrow .skb .skel+.skel{margin-top:var(--s2);height:10px}
+  /* ================= hero — umumiy qoldiq ================= */
+  .hero{background:linear-gradient(135deg,var(--hero-a),var(--hero-b));color:var(--hero-ink);
+    border-radius:var(--r-xl);padding:var(--s5);margin-bottom:var(--s4);box-shadow:0 6px 20px rgba(15,96,35,.18)}
+  /* Hero matnlari TO'LIQ oq (shaffoflik yo'q) — to'q yashil fonda AA kontrast (4.7:1+).
+     Ierarxiya o'lcham/og'irlik bilan beriladi, opacity bilan emas. */
+  .hero-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:var(--s1)}
+  .hero-amt{display:flex;align-items:baseline;gap:var(--s2);font-variant-numeric:tabular-nums;min-height:38px}
+  .hero-amt #totalBal{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+  /* qoldiq hali yuklanmagan — shimmer (skelet) */
+  .hero-amt #totalBal.ph{display:inline-block;width:132px;height:26px;border-radius:8px;color:transparent;
+    background:rgba(255,255,255,.22);overflow:hidden;position:relative;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .hero-cur{font-size:15px;font-weight:600}
+  .hero-sub{font-size:13.5px;font-weight:500;margin-top:var(--s2);display:flex;align-items:center;gap:var(--s2);min-width:0}
+  .hero-sub svg{width:16px;height:16px;opacity:.85}
+  .hero-sub span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hero-note{font-size:13px;margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--hero-line)}
+  .hero-note b{font-weight:700;font-variant-numeric:tabular-nums}
+  /* ================= progressiv ochilish ================= */
   .reveal{animation:reveal .26s cubic-bezier(.22,.61,.36,1)}
   @keyframes reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
   /* qadam eslatmasi (kutish holati) */
-  .stepnote{color:var(--muted);font-size:13px;background:var(--surface-2);border-radius:11px;
-    padding:11px 13px;display:flex;align-items:center;gap:8px}
+  .stepnote{color:var(--muted);font-size:13px;line-height:1.45;background:var(--surface-2);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s2)}
   .stepnote svg{width:16px;height:16px;flex:none}
-  /* xarajat tarixi (davr chip + kategoriya) */
-  .histhd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  /* ================= tarix sarlavhasi + davr chiplari ================= */
+  .histhd{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
   .histhd h2{margin:0}
-  .chips2{display:flex;gap:6px}
-  .pchip{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:7px 13px;
-    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,color .13s,background .13s}
-  .pchip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
-  .histcat{margin-bottom:16px}
-  .hcat{margin-bottom:11px}
-  .hcat .hcl{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
-  .hcat .hcl .a{font-weight:700;font-variant-numeric:tabular-nums}.hcat .hcl .a .p{color:var(--muted);font-weight:400;margin-left:4px}
-  .hcat.total{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}.hcat.total .hcl{font-weight:800}
-  .htrack{height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden}
-  .htrack .hfill{height:100%;background:var(--primary);border-radius:5px;transition:width .4s ease}
-  /* 3-band: chek surati */
-  .chekbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border:1.5px dashed var(--line);
-    border-radius:13px;background:transparent;color:var(--primary);font-size:14.5px;font-weight:600;cursor:pointer;transition:background .13s,border-color .13s}
-  .chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}
+  .chips2{display:flex;gap:2px;background:var(--surface-2);border-radius:999px;padding:var(--s1)}
+  .pchip{border:none;background:transparent;color:var(--muted);border-radius:999px;padding:0 var(--s3);min-height:36px;
+    display:inline-flex;align-items:center;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;
+    transition:color .15s,background .15s,box-shadow .15s}
+  @media(hover:hover){.pchip:hover{color:var(--ink)}}
+  .pchip.on{background:var(--surface);color:var(--primary-ink);box-shadow:var(--shadow)}
+  /* kategoriya taqsimoti */
+  .histcat{margin-bottom:var(--s5)}
+  .histcat:empty{margin-bottom:0}
+  .hcat{margin-bottom:var(--s3)}
+  .hcat .hcl{display:flex;justify-content:space-between;gap:var(--s3);font-size:13.5px;margin-bottom:var(--s1)}
+  .hcat .hcl>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+  .hcat .hcl .a{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .hcat .hcl .a .p{color:var(--muted);font-weight:500;margin-left:6px}
+  .hcat.total{margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)}
+  .hcat.total .hcl{font-weight:700;font-size:14.5px;margin-bottom:0}
+  .hcat.total .hcl>span:first-child{color:var(--ink)}
+  .htrack{height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+  .htrack .hfill{height:100%;background:var(--primary);border-radius:999px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  /* ================= chek surati ================= */
+  .chekbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:var(--s2);width:100%;min-height:52px;
+    border:1.5px dashed var(--line);border-radius:var(--r-md);background:var(--surface);color:var(--primary-ink);
+    font-size:14.5px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+  @media(hover:hover){.chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}}
+  .chekbtn:active{background:var(--primary-soft)}
   .chekbtn svg{width:18px;height:18px}
-  .chekprev{display:flex;align-items:center;gap:12px;margin-top:10px}
-  .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
-  .chekrm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--red);
-    border-radius:10px;padding:8px 12px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer}
-  .chekrm svg{width:15px;height:15px}
-  .chekreq{color:var(--red);font-size:13px;font-weight:600;margin-top:8px}
-  /* toast */
-  .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);
-    background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-size:14.5px;font-weight:600;
-    box-shadow:var(--shadow-hover);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;
-    display:flex;align-items:center;gap:8px}
-  .toast svg{width:17px;height:17px}
+  .chekbtn:focus-within{outline:2px solid var(--primary);outline-offset:2px;border-color:var(--primary)}
+  .vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;margin:0}
+  .kommchip .kommic{display:inline-flex;align-items:center;color:var(--primary)}
+  .chekprev{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s3)}
+  .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2)}
+  .chekrm{display:inline-flex;align-items:center;gap:6px;min-height:40px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--red-ink);border-radius:var(--r-sm);padding:0 var(--s3);font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;
+    transition:background .15s}
+  @media(hover:hover){.chekrm:hover{background:var(--surface-3)}}
+  .chekrm svg{width:16px;height:16px}
+  .chekreq{color:var(--red-ink);font-size:13px;font-weight:600;line-height:1.4;margin-top:var(--s2)}
+  .chekreq::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;background:currentColor;
+    -webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* ================= toast ================= */
+  .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);
+    background:var(--ink);color:var(--bg);padding:12px var(--s5);border-radius:999px;font-size:14.5px;font-weight:600;
+    line-height:1.35;max-width:calc(100vw - 32px);text-align:left;
+    box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;
+    display:flex;align-items:center;gap:var(--s2)}
+  .toast svg{width:18px;height:18px;flex:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  /* auth gate */
-  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
-  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px;color:var(--primary)}.authbox .logo svg{width:100%;height:100%}
-  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
-  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
-  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
-  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
-  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  /* ================= auth gate ================= */
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:var(--s6);z-index:100}
+  .authbox{width:100%;max-width:360px}
+  .authbox .logo{width:44px;height:52px;margin:0 auto var(--s5);color:var(--primary)}.authbox .logo svg{width:100%;height:100%}
+  .authbox h1{font-size:22px;text-align:center;margin:0 0 var(--s1);font-weight:700;letter-spacing:-.02em}
+  .authbox p{text-align:center;color:var(--muted);margin:0 0 var(--s6);font-size:14px}
+  .authbox input{width:100%;height:52px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-md);padding:0 var(--s4);font-size:15px;font-family:inherit;margin-bottom:var(--s3);outline:none;
+    transition:border-color .15s,box-shadow .15s}
+  .authbox input::placeholder{color:var(--muted);opacity:.75}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  .authbox button{width:100%;height:52px;border:none;border-radius:var(--r-md);background:var(--primary-strong);color:var(--on-primary);
+    font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .15s,transform .12s}
+  @media(hover:hover){.authbox button:hover{background:var(--primary-press);transform:translateY(-1px)}}
+  .authbox button:active{transform:translateY(0)}
+  .autherr{color:var(--red-ink);font-size:14px;margin-top:var(--s3);text-align:center;min-height:18px;line-height:1.4}
+  /* ================= responsiv ================= */
+  /* 375px va undan kichik telefon — summani va tashqi bo'shliqni siqamiz */
+  @media(max-width:380px){
+    .wrap{padding-left:var(--s3);padding-right:var(--s3)}
+    .top{padding-left:var(--s3);padding-right:var(--s3)}
+    .amtbig{font-size:32px}
+    .amtwrap{padding:var(--s3) var(--s4)}
+    .hero{padding:var(--s4)}
+    .hero-amt #totalBal{font-size:30px}
+    .today{padding:var(--s3) var(--s3) var(--s2)}
+    .talloc input{width:120px}
+  }
+  /* Noutbuk (1024 / 1280 / 1366) — ustun biroz kengayadi, kalendar ikki oy bemalol sig'adi */
+  @media(min-width:1024px){
+    :root{--col:560px}
+    .wrap{padding-top:var(--s7);padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+    .hero{padding:var(--s6)}
+    .hero-amt #totalBal{font-size:36px}
+  }
+  /* Past bo'yli, keng ekran (noutbuk landshaft) — tepa qism kamroq joy olsin */
+  @media(min-width:1024px) and (max-height:800px){
+    .wrap{padding-top:var(--s5)}
+    .hero{padding:var(--s5)}
+  }
 </style>
 </head>
 <body>
 <div id="gate" class="gate"><div class="authbox">
   <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
-  <input id="email" type="email" placeholder="Email" autocomplete="username">
-  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
-  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+  <input id="email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password" aria-label="Parol">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr" role="alert"></div>
 </div></div>
 
 <div id="app">
   <header class="top">
-    <div class="brand">
-      <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div>
-      <div class="title">Xarajat <span id="who"></span></div>
-    </div>
-    <div style="display:flex;gap:2px">
-      <button class="iconbtn" onclick="toggleTheme()" aria-label="Mavzu"><i data-lucide="moon"></i></button>
-      <button class="iconbtn" onclick="logout()" aria-label="Chiqish"><i data-lucide="log-out"></i></button>
+    <div class="topin">
+      <div class="brand">
+        <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div>
+        <!-- Ikki qator: sahifa nomi + foydalanuvchi (ism-familiya yoki email).
+             #who bitta qatorda kesiladi (…) — uzun ism ham, uzun email ham sig'adi. -->
+        <div class="btxt">
+          <div class="title">Xarajat</div>
+          <div class="who" id="who"></div>
+        </div>
+      </div>
+      <div class="topacts">
+        <button class="iconbtn" onclick="toggleTheme()" aria-label="Mavzu"><i data-lucide="moon"></i></button>
+        <button class="iconbtn" onclick="logout()" aria-label="Chiqish"><i data-lucide="log-out"></i></button>
+      </div>
     </div>
   </header>
 
   <main class="wrap">
-    <div id="banner" class="banner"></div>
+    <div id="banner" class="banner" role="alert"></div>
 
-    <!-- Umumiy qoldiq: hamma biriktirilgan kassalar yig'indisi -->
+    <!-- Umumiy qoldiq: hamma biriktirilgan kassalar yig'indisi + bu oy sarfi -->
     <div class="hero">
       <div class="hero-lbl">Umumiy qoldiq</div>
       <div class="hero-amt"><span id="totalBal">—</span><span class="hero-cur">so'm</span></div>
       <div class="hero-sub" id="heroSub"><i data-lucide="wallet"></i><span>—</span></div>
+      <div id="month" class="hero-note" style="display:none"></div>
     </div>
-    <div id="month" class="month" style="display:none"></div>
 
     <!-- Kassa tanlagich: FAQAT bir nechta kassa bo'lsa ko'rinadi (bitta bo'lsa avtomat) -->
     <div class="sect" id="kassaSect" style="display:none">
-      <div class="lbl">Qaysi kassadan</div>
-      <button type="button" class="txt moddafield" id="kassaField" onclick="openKassa()"><span id="kassaFieldTxt">— kassa tanlang —</span><i data-lucide="chevron-down"></i></button>
+      <div class="lbl" id="kassaLbl">Qaysi kassadan</div>
+      <button type="button" class="txt moddafield" id="kassaField" onclick="openKassa()" aria-labelledby="kassaLbl kassaFieldTxt" aria-haspopup="dialog"><span id="kassaFieldTxt" class="ph">Kassa tanlang</span><i data-lucide="chevron-down"></i></button>
       <div id="kassaBal" class="bal" style="display:none"></div>
     </div>
 
     <div class="sect">
-      <div class="lbl">Summa</div>
+      <label class="lbl" for="summa">Summa</label>
       <div class="amtwrap" id="amtwrap">
         <span class="amtcur">so'm</span>
-        <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off">
+        <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off" aria-describedby="amtWarn">
       </div>
-      <div id="amtWarn" class="amtwarn" style="display:none"></div>
+      <div id="amtWarn" class="amtwarn" style="display:none" role="status" aria-live="polite"></div>
     </div>
 
     <div class="sect">
-      <div class="lbl">Nimaga (modda)</div>
-      <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()"><span id="moddaFieldTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
+      <div class="lbl" id="moddaLbl">Nimaga <span class="opt">(xarajat moddasi)</span></div>
+      <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()" aria-labelledby="moddaLbl moddaFieldTxt" aria-haspopup="dialog"><span id="moddaFieldTxt" class="ph">Modda tanlang</span><i data-lucide="chevron-down"></i></button>
     </div>
 
     <!-- Modda tanlangach ochiladigan qadamlar (ketma-ket flow) -->
     <div id="afterModda" style="display:none">
 
       <div class="sect" id="kommSect" style="display:none">
-        <div class="lbl">Qaysi kommunal? <span style="color:var(--red);font-weight:700">(majburiy)</span></div>
-        <button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
+        <div class="lbl" id="kommLbl">Qaysi kommunal? <span class="req">majburiy</span></div>
+        <button type="button" class="kommchip" onclick="openKomm()" aria-labelledby="kommLbl kommChipTxt" aria-haspopup="dialog"><span class="kommic" id="kommChipIc"><i data-lucide="plug-zap"></i></span><span id="kommChipTxt">Tanlang</span><i class="kdrop" data-lucide="chevron-down"></i></button>
       </div>
 
       <div class="sect">
-        <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></div>
+        <div class="lbl">Filial <span class="opt">(ixtiyoriy — bir nechta)</span></div>
         <div id="filialChips" class="fchips"></div>
-        <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px"></div>
+        <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px" role="status" aria-live="polite"></div>
       </div>
 
       <div class="sect" id="davrSect" style="display:none">
-        <div class="lbl" id="davrLbl">📅 Davr (majburiy)</div>
+        <div class="lbl" id="davrLbl">Davr <span class="req">majburiy</span></div>
         <div id="davrWait" class="stepnote" style="display:none"><i data-lucide="corner-down-right"></i><span>Avval filialni tanlang — so'ng davr chiqadi.</span></div>
         <div id="davrPickWrap" style="display:none">
           <div id="davrSel" class="davrsel"></div>
@@ -321,9 +526,10 @@
       </div>
 
       <div class="sect" id="chekSect">
-        <div class="lbl" id="chekLbl">📷 Chek (ixtiyoriy)</div>
+        <div class="lbl" id="chekLbl">Chek <span class="opt">(ixtiyoriy)</span></div>
         <label class="chekbtn">
-          <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
+          <!-- input yashirin, lekin FOKUSLANADI — klaviatura bilan ham ochiladi (:focus-within halqa) -->
+          <input type="file" accept="image/*" capture="environment" id="chekFile" class="vh" onchange="onChekFile(this)">
           <i data-lucide="camera"></i><span>Chek suratini olish</span>
         </label>
         <div id="chekPrev" class="chekprev" style="display:none"></div>
@@ -331,7 +537,7 @@
       </div>
 
       <div class="sect">
-        <div class="lbl" id="izohLbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></div>
+        <label class="lbl" id="izohLbl" for="izoh">Izoh <span class="opt">(ixtiyoriy)</span></label>
         <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
       </div>
 
@@ -340,14 +546,18 @@
     <div class="today sect" id="histSect">
       <div class="histhd">
         <h2>Xarajatlarim</h2>
-        <div class="chips2">
+        <div class="chips2" role="group" aria-label="Davr">
           <button type="button" class="pchip on" data-p="bugun" onclick="setHistPeriod('bugun')">Bugun</button>
           <button type="button" class="pchip" data-p="hafta" onclick="setHistPeriod('hafta')">Bu hafta</button>
           <button type="button" class="pchip" data-p="oy" onclick="setHistPeriod('oy')">Bu oy</button>
         </div>
       </div>
       <div id="histCat" class="histcat"></div>
-      <div id="histList"></div>
+      <!-- Boshlang'ich skeleton — birinchi yuklashda bo'sh oq joy ko'rinmasin -->
+      <div id="histList" aria-live="polite">
+        <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:52%"></div><div class="skel" style="width:34%"></div></div></div>
+        <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:40%"></div><div class="skel" style="width:28%"></div></div></div>
+      </div>
     </div>
   </main>
 
@@ -356,21 +566,21 @@
   </div>
 </div>
 
-<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()">
+<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()" role="dialog" aria-modal="true" aria-label="Kommunal turi">
   <div class="kbox">
-    <h3>Qaysi kommunal?</h3>
+    <div class="mhead"><h3>Qaysi kommunal?</h3><button type="button" class="mclose" onclick="cancelKomm()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
     <div class="kbtns" id="kommBtns"></div>
     <button type="button" class="kcancel" onclick="cancelKomm()">Bekor</button>
   </div>
 </div>
 
-<div class="tmodal" id="taqsimModal" onclick="if(event.target===this)closeTaqsim()">
+<div class="tmodal" id="taqsimModal" onclick="if(event.target===this)closeTaqsim()" role="dialog" aria-modal="true" aria-label="Filiallar bo'yicha taqsimlash">
   <div class="tbox">
-    <h3>Filiallar bo'yicha taqsimlash</h3>
+    <div class="mhead"><h3>Filiallar bo'yicha taqsimlash</h3><button type="button" class="mclose" onclick="closeTaqsim()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
     <div class="thint">Har filial uchun alohida provodka yoziladi.<button type="button" class="teq" onclick="taqsimEqual()">Teng bo'lish</button></div>
     <div class="tlist" id="taqsimRows"></div>
     <div class="tsum" id="taqsimSum"></div>
-    <div class="tmsg" id="taqsimMsg"></div>
+    <div class="tmsg" id="taqsimMsg" role="status" aria-live="polite"></div>
     <div class="tacts">
       <button type="button" onclick="closeTaqsim()">Bekor</button>
       <button type="button" class="primary" id="taqsimSaveBtn" onclick="confirmTaqsim()" disabled>Saqlash</button>
@@ -378,18 +588,18 @@
   </div>
 </div>
 
-<div class="modal" id="moddaModal" onclick="if(event.target===this)closeModda()">
+<div class="modal" id="moddaModal" onclick="if(event.target===this)closeModda()" role="dialog" aria-modal="true" aria-label="Xarajat moddasi">
   <div class="modalbox">
-    <h3>Xarajat moddasi</h3>
-    <input class="txt" id="moddaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderModdaList()">
+    <div class="mhead"><h3>Xarajat moddasi</h3><button type="button" class="mclose" onclick="closeModda()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+    <input class="txt" id="moddaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderModdaList()" aria-label="Modda qidirish">
     <div id="moddaList" class="picklist"></div>
   </div>
 </div>
 
-<div class="modal" id="kassaModal" onclick="if(event.target===this)closeKassa()">
+<div class="modal" id="kassaModal" onclick="if(event.target===this)closeKassa()" role="dialog" aria-modal="true" aria-label="Kassa tanlash">
   <div class="modalbox">
-    <h3>Kassa tanlang</h3>
-    <input class="txt" id="kassaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderKassaList()">
+    <div class="mhead"><h3>Kassa tanlang</h3><button type="button" class="mclose" onclick="closeKassa()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+    <input class="txt" id="kassaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderKassaList()" aria-label="Kassa qidirish">
     <div id="kassaList2" class="picklist"></div>
   </div>
 </div>
@@ -524,7 +734,8 @@ function renderKassa(){
   $('kassaSect').style.display=single?'none':'block';
   const k=accounts.find(a=>a.id===selKassa);
   $('kassaFieldTxt').textContent = k ? `${k.name}${k.subtitle?' · '+k.subtitle:''}`
-    : (ks.length ? '— kassa tanlang —' : 'Kassa biriktirilmagan');
+    : (ks.length ? 'Kassa tanlang' : 'Kassa biriktirilmagan');
+  $('kassaFieldTxt').classList.toggle('ph', !k);   // vizual: tanlanmagan holat kulrang
   renderHero(); renderKassaBal();
 }
 // Umumiy qoldiq (hero) — barcha biriktirilgan kassalar yig'indisi.
@@ -533,6 +744,8 @@ function renderHero(){
   let total=0, known=false;
   ks.forEach(k=>{ const v=balMap[k.id]; if(v!=null){ total+=v; known=true; } });
   $('totalBal').textContent = known ? money(total) : '—';
+  // vizual: qoldiq hali kelmagan bo'lsa shimmer (kassa umuman yo'q bo'lsa — shimmer emas)
+  $('totalBal').classList.toggle('ph', !known && ks.length>0);
   const sub=$('heroSub').querySelector('span');
   if(!ks.length) sub.textContent='Sizga kassa biriktirilmagan';
   else if(ks.length===1) sub.textContent=ks[0].name+(ks[0].subtitle?' · '+ks[0].subtitle:'');
@@ -561,6 +774,14 @@ async function loadBalances(){
 window.pickKassa=id=>{ selKassa=id; closeKassa(); renderKassa(); loadMonth(); };
 window.openKassa=()=>{ $('kassaSearch').value=''; renderKassaList(); $('kassaModal').classList.add('open'); setTimeout(()=>{ try{ $('kassaSearch').focus(); }catch(e){} },50); };
 window.closeKassa=()=>{ $('kassaModal').classList.remove('open'); };
+// Esc — ochiq modalni yopadi (klaviatura qulayligi; mantiqqa tegmaydi)
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if($('kommModal').classList.contains('open')) return window.cancelKomm();
+  if($('taqsimModal').classList.contains('open')) return window.closeTaqsim();
+  if($('moddaModal').classList.contains('open')) return window.closeModda();
+  if($('kassaModal').classList.contains('open')) return window.closeKassa();
+});
 window.renderKassaList=()=>{
   const q=$('kassaSearch').value.trim().toLowerCase();
   const ks=kassaList().filter(k=>!q||String(k.name).toLowerCase().includes(q)||String(k.code).toLowerCase().includes(q)||String(k.subtitle||'').toLowerCase().includes(q));
@@ -568,7 +789,7 @@ window.renderKassaList=()=>{
     const v=balMap[k.id];
     const bal=v!=null?`<span class="pc">${money(v)} so'm</span>`:`<span class="pc">${esc(k.code)}</span>`;
     return `<button type="button" class="pickitem${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')"><span class="pn">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span>${bal}</button>`;
-  }).join('') : '<div class="pickempty">Kassa yo\'q</div>';
+  }).join('') : '<div class="pickempty">Topilmadi</div>';
 };
 
 // Modda maydoni matni (tanlangan modda). Ro'yxat qidiruvli modalда (renderModdaList).
@@ -576,7 +797,8 @@ function renderModda(){
   const ms=moddaList();
   if(selModda && !ms.some(m=>m.id===selModda)) selModda=null;
   const m=accounts.find(a=>a.id===selModda);
-  $('moddaFieldTxt').textContent = m ? `${m.name} · ${m.code}` : '— tanlang —';
+  $('moddaFieldTxt').textContent = m ? `${m.name} · ${m.code}` : 'Modda tanlang';
+  $('moddaFieldTxt').classList.toggle('ph', !m);   // vizual: tanlanmagan holat kulrang
   updateSave();
 }
 window.openModda=()=>{ $('moddaSearch').value=''; renderModdaList(); $('moddaModal').classList.add('open'); setTimeout(()=>{ try{ $('moddaSearch').focus(); }catch(e){} },50); };
@@ -616,16 +838,20 @@ async function loadFilials(){
 function moddaObj(){ return accounts.find(a=>a.id===selModda); }
 // --- Kommunal turi (9413): gaz | svet | suv | musor (kelajakda kengayadi — massiv) ---
 // V8: 'suv' qo'shildi. Ro'yxat shu massivda — DB CHECK constraint bilan mos bo'lsin.
-const KOMMUNAL=[{k:'gaz',label:'Gaz',emo:'🔥'},{k:'svet',label:'Svet',emo:'💡'},{k:'suv',label:'Suv',emo:'💧'},{k:'musor',label:'Musor',emo:'🗑️'}];
+// `ico` — Lucide ikonka nomi (emoji o'rniga; vizual, DB qiymati `k` o'zgarmaydi)
+const KOMMUNAL=[{k:'gaz',label:'Gaz',ico:'flame'},{k:'svet',label:'Svet',ico:'lightbulb'},{k:'suv',label:'Suv',ico:'droplet'},{k:'musor',label:'Musor',ico:'trash-2'}];
 let kommTuri=null;
 const isKomm=()=>{ const m=moddaObj(); return !!(m&&m.code==='9413'); };
 function updateKommUI(){ const show=isKomm(); $('kommSect').style.display=show?'block':'none';
   if(!show) kommTuri=null;
   const x=KOMMUNAL.find(y=>y.k===kommTuri);
-  $('kommChipTxt').textContent=x?(x.emo+' '+x.label):'— tanlang —'; icons();
+  $('kommChipTxt').textContent=x?x.label:'Tanlang';
+  $('kommChipIc').innerHTML=`<i data-lucide="${x?x.ico:'plug-zap'}"></i>`;   // ikonka har safar qayta quriladi
+  icons();
 }
 function renderKommBtns(){ $('kommBtns').innerHTML=KOMMUNAL.map(x=>
-  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo">${x.emo}</span><span class="klbl">${x.label}</span></button>`).join(''); }
+  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo"><i data-lucide="${x.ico}"></i></span><span class="klbl">${x.label}</span></button>`).join('');
+  icons(); }   // innerHTML'dan keyin ikonkalarni tiklash SHART
 window.openKomm=()=>{ renderKommBtns(); $('kommModal').classList.add('open'); };
 window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); updateKommUI(); updateSave(); };
 window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
@@ -691,14 +917,16 @@ function updateModdaUI(){
 }
 function updateChekUI(){
   const req=chekRequired();
-  $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
+  $('chekLbl').innerHTML = req
+    ? 'Chek surati <span class="req">majburiy</span>'
+    : 'Chek <span class="opt">(ixtiyoriy)</span>';
   $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
 }
 function updateIzohUI(){
   const req=izohRequired();
   $('izohLbl').innerHTML = req
-    ? 'Izoh <span style="color:var(--red);font-weight:600">(majburiy)</span>'
-    : 'Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
+    ? 'Izoh <span class="req">majburiy</span>'
+    : 'Izoh <span class="opt">(ixtiyoriy)</span>';
 }
 // Davr — modda majburiy qilsa ko'rinadi; foydalanuvchi so'roviga ko'ra kalendar
 // FILIAL tanlangach chiqadi (ketma-ketlik). Filial tanlanmaguncha kutish eslatmasi turadi.
@@ -793,7 +1021,7 @@ window.saveHodim=async()=>{
   if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
   // Stage 2: 2+ filial → har filialga ALOHIDA provodka (taqsim modal → atomik RPC)
   if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa); return; }
-  const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; icons();
+  const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…'; icons();
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
   // trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
@@ -818,7 +1046,7 @@ window.saveHodim=async()=>{
   davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
-  toast('Saqlandi ✓');
+  toast('Saqlandi');
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
   // ==== FON: chek upload + n8n alert + haqiqiy qoldiq/oy/tarix ====
   (async()=>{
@@ -871,7 +1099,7 @@ function taqsimEqualCalc(){
 window.taqsimEqual=()=>{ taqsimEqualCalc(); renderTaqsim(); };
 function renderTaqsim(){
   $('taqsimRows').innerHTML=taqsimFils.map(f=>
-    `<div class="trow"><span class="tfn">${esc(f.name)}</span>`
+    `<div class="talloc"><span class="tfn">${esc(f.name)}</span>`
     +`<input inputmode="numeric" value="${taqsimAlloc[f.id]?money(taqsimAlloc[f.id]):''}" oninput="setTaqsim('${f.id}',this)"></div>`).join('');
   renderTaqsimSum();
 }
@@ -891,13 +1119,13 @@ function renderTaqsimSum(){
   else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }
   else if(!allPos){ msg.textContent='Har filialga summa yozing'; msg.className='tmsg no'; }
   else if(limErr){ msg.textContent=limErr; msg.className='tmsg no'; }
-  else { msg.textContent='✓ to\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
+  else { msg.textContent='To\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
   $('taqsimSaveBtn').disabled=!ok;
 }
 window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
-  const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
   const {dtId,ktId,kassa,izoh,chek,mName}=taqsimCtx;
   const p_data={
     entry_date:isoDay(nowUz()), description:izoh||null, source:'manual', status:'posted',
@@ -917,7 +1145,7 @@ window.confirmTaqsim=async()=>{
   // Forma tozalanadi (kassa qoladi)
   $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
-  toast('Saqlandi ✓ ('+nFil+' filial)');
+  toast('Saqlandi · '+nFil+' filial');
   // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
   (async()=>{
     if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
@@ -930,7 +1158,7 @@ let toastTimer=null;
 function toast(msg,err){
   const t=$('toast'); $('toastMsg').textContent=msg;
   t.style.background=err?'var(--red)':'var(--ink)';
-  t.style.color=err?'#fff':'var(--bg)';
+  t.style.color=err?'var(--on-red)':'var(--bg)';   // qorong'i temada qizil fon ustida to'q matn — kontrast uchun
   // Ikonka har safar qayta quriladi — createIcons() <i>ni <svg>ga aylantirgach data-lucide yo'qoladi.
   $('toastIc').innerHTML=`<i data-lucide="${err?'alert-circle':'check-circle-2'}"></i>`; icons();
   t.classList.add('show'); clearTimeout(toastTimer);
@@ -966,7 +1194,7 @@ async function loadHist(){
   const {from,to}=histRange();
   const {data,error}=await sb.rpc('hodim_oz_tarix',{p_from:from,p_to:to});
   if(error){ histRows=[]; renderHistCat([]);
-    $('histList').innerHTML='<div class="today-empty">Tarix yuklanmadi: '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); return; }
+    $('histList').innerHTML='<div class="today-err">Tarix yuklanmadi — '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); return; }
   histRows=(data&&data.royxat)||[];
   await loadHistChek();
   renderHistCat((data&&data.kategoriya)||[]);
@@ -983,7 +1211,7 @@ function renderHistCat(cat){
 }
 function renderHistList(){
   const box=$('histList');
-  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q.</div>'; icons(); return; }
+  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q<span>Yuqoridagi shakl orqali kiritilgan xarajatlar shu yerda ko\'rinadi</span></div>'; icons(); return; }
   box.innerHTML=histRows.map(r=>{
     const amt=Number(r.summa)||0;
     let t=''; try{ t=new Date(new Date(r.created_at).getTime()+5*3600*1000).toISOString().slice(5,16).replace('T',' '); }catch(x){}
@@ -1045,10 +1273,12 @@ async function init(){
   // filials
   if(!fRes.error){ swrSet('filials',fRes.data||[]); filials=window.permFilterFilials?window.permFilterFilials(fRes.data||[]):(fRes.data||[]); renderFilials(); }
   // foydalanuvchi nomi (profiles — fon, formani bloklamaydi)
+  // Tepadagi ikkinchi qator: ism-familiya (bo'lmasa email). Uzun matn CSS bilan kesiladi (…).
   const user=uRes.data&&uRes.data.user; myName=(user&&user.email)||'';
-  $('who').textContent=myName?('· '+myName):'';
+  $('who').textContent=myName||'';
   if(user) sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
-    .then(({data:p})=>{ if(p&&p.full_name){ myName=p.full_name; $('who').textContent='· '+myName; } }).catch(()=>{});
+    // Faqat probeldan iborat ism ham "bo'sh" — email fallback saqlanadi (qolgan 6 fayl bilan bir xil naqsh)
+    .then(({data:p})=>{ const fn=((p&&p.full_name)||'').trim(); if(fn){ myName=fn; $('who').textContent=myName; } }).catch(()=>{});
   updateModdaUI();
   loadBalances(); loadMonth(); loadLimits(); // qoldiq/oy/limitlar — fon
   console.timeEnd('hodim:ochilish');
