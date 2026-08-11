@@ -131,6 +131,9 @@
   .krow .v{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .krow .l{min-width:0}
   .krow .nm,.krow .st{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Taqsimot satri kesilmasin — telefonda ikkinchi qatorga o'tadi.
+     `.krow .st` dan KEYIN turishi shart: bir xil aniqlik, keyingisi yutadi. */
+  .krow .tq{white-space:normal;overflow:visible;margin-top:3px}
   .krow.kempty{color:var(--muted);font-size:13px;justify-content:flex-start;padding:14px}
   /* "Valyuta qo'shish" — faqat adminda ko'rinadi (body.is-admin) */
   .kchip .top{position:relative}
@@ -353,26 +356,36 @@ const jamiOf=rows=>rows.reduce((a,r)=>a+(Number(r.jami)||0),0);
 // Valyuta qoldig'i — 2 kasr, probel bilan (money() butun son uchun)
 const fc=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ');
 const TURI_IKO={naqd:"💵",click:'💳',payme:'📱'};
-function kcard(r){
-  // Taqsimot satri: pul turi bolalari (naqd/Click/Payme) + valyuta bolalari + parentning
-  // o'z qoldig'i. Nol bo'lganlar chiqmaydi.
-  // naqd/click/payme ustunlari PROVODKA_VALYUTA.sql bilan qo'shiladi — SQL hali RUN
-  // qilinmagan bo'lsa ular undefined bo'ladi va satr avvalgidek faqat valyutani ko'rsatadi.
+// Taqsimot satri: pul turi bolalari (naqd/Click/Payme) + parentning o'z qoldig'i
+// + valyuta bolalari. Nol bo'lganlar chiqmaydi.
+// ⚠️ kcard (markaziy/filial kartasi) va krow (hodim kassasi qatori) AYNI shu
+//    funksiyani chaqiradi — mantiq ikkiga bo'linib, vaqt o'tib ajralib ketmasin.
+// naqd/click/payme ustunlari PROVODKA_VALYUTA.sql bilan qo'shiladi — SQL hali RUN
+// qilinmagan bo'lsa ular undefined bo'ladi va satr avvalgidek faqat valyutani ko'rsatadi.
+// p_oz=true (karta): turlar umuman bo'lmasa ham parentning o'z qoldig'i yoziladi.
+// p_oz=false (hodim qatori): jami o'ng tomonda turibdi — uni takrorlash ortiqcha,
+//    o'z qoldig'i faqat "turga ajratilmagan pul" bo'lganda ko'rsatiladi.
+function taqsimot(r,p_oz){
   const vals=(kval[r.id]||[]);
   const qism=[];
   const turi=(k,v)=>{ const n=Number(v)||0; if(n) qism.push(TURI_IKO[k]+' '+money(n)); };
   turi('naqd',r.naqd); turi('click',r.click); turi('payme',r.payme);
   const turBor=qism.length>0;
   const oz=Number(r.uzs)||0;
-  // Parentning o'z qoldig'i: turlar bo'lsa "turga ajratilmagan pul" degani — shunday belgilanadi
-  if(oz||!turBor) qism.push(turBor?('◦ '+money(oz)+" so'm"):(money(oz)+" so'm"));
+  // Turlar bor + parentda ham pul bor -> "turga ajratilmagan pul", shunday belgilanadi
+  if(turBor && oz) qism.push('◦ '+money(oz)+" so'm");
+  else if(p_oz && !turBor) qism.push(money(oz)+" so'm");
   // Valyuta satrlari: nol qoldiqlisi ko'rsatilmaydi. Sabab — seed hamma kassaga USD
   // hisobini oldindan ochadi (n8n tur bo'yicha sinxron qilishi uchun), aks holda har
   // kartada foydasiz "0.00 USD" yozilib turardi. Hisob o'zi joyida: professional va
   // konvertda baribir tanlanadi, pul tushishi bilan bu yerda ham paydo bo'ladi.
   const valBor=vals.filter(v=>Number(v.fc_qoldiq)||0);
   valBor.forEach(v=>qism.push(fc(v.fc_qoldiq)+' '+esc(v.currency)));
-  const sub=(valBor.length||turBor) ? `<div class="sub">${qism.join(' · ')}</div>` : '';
+  return {qism,turBor,valBor};
+}
+function kcard(r){
+  const t=taqsimot(r,true);
+  const sub=(t.valBor.length||t.turBor) ? `<div class="sub">${t.qism.join(' · ')}</div>` : '';
   const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
     +`<div class="v">${money(r.jami)}</div>${sub}</div>`;
@@ -384,13 +397,13 @@ function kgroup(lbl,rows){
 }
 // Guruh qatori (5400) + uning bolalari: karta emas, nom + kichik kulrang subtitle ro'yxati.
 function krow(r){
-  const vals=(kval[r.id]||[]);
-  // Hodim kassasida ham valyuta bolasi bo'lishi mumkin — subtitle yoniga qo'shiladi
-  const qism=vals.map(v=>fc(v.fc_qoldiq)+' '+esc(v.currency)).join(' · ');
-  const pastki=[r.subtitle?esc(r.subtitle):'',qism].filter(Boolean).join(' · ');
-  const st=pastki?`<div class="st">${pastki}</div>`:'';
+  const t=taqsimot(r,false);
+  const st=r.subtitle?`<div class="st">${esc(r.subtitle)}</div>`:'';
+  // Taqsimot ALOHIDA satrda, kartadagidek. Avval u subtitle yoniga qo'shilardi va
+  // faqat valyutani ko'rsatardi — naqd/Click/Payme umuman ko'rinmasdi.
+  const tq=t.qism.length?`<div class="st tq">${t.qism.join(' · ')}</div>`:'';
   const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
-  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}</div>`
+  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}</div>`
     +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
