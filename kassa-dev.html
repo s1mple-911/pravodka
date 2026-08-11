@@ -333,8 +333,9 @@ async function boot(){
 async function loadRole(){
   const {data:{user}}=await sb.auth.getUser();
   myName = user?.email || 'foydalanuvchi';
-  const {data:p}=await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle();
-  if(p){ isAdmin=(p.role==='admin'); if(p.full_name) myName=p.full_name; }
+  const {data:p,error:pErr}= user ? await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle() : {data:null,error:null};
+  if(pErr) console.warn("profiles o'qilmadi:",pErr.message);   // ism/rol kelmasa — email fallback qoladi
+  if(p){ isAdmin=(p.role==='admin'); const fn=(p.full_name||'').trim(); if(fn) myName=fn; }   // ism-familiya; bo'sh bo'lsa gmail
   // "Valyuta qo'shish" tugmalari CSS orqali ochiladi — kartalarni qayta chizish shart emas
   document.body.classList.toggle('is-admin',isAdmin);
   $('roleBadge').textContent = (isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
