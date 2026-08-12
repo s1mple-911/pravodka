@@ -1,446 +1,246 @@
 -- =====================================================================
---  PROVODKA_HODIM_KAPITAL.sql
+--  PROVODKA_HODIM_KAPITAL.sql   (KOD BO'YICHA — nom qidiruvi YO'Q)
 --  Hodim kassalariga boshlang'ich kapital sifatida NAQD pul kirim qilish.
 --      Dt <hodim kassasi · Naqd>  /  Kt <Boshlang'ich kapital (87xx)>
 -- ---------------------------------------------------------------------
 --  Project: Provodka (kxzerccdpcltmzrxutlo). TaskFix EMAS.
 --
---  ⚠️ BU SKRIPT IKKI BOSQICHLI — BUTUN FAYLNI BIRDANIGA RUN QILMANG.
---     1-BOSQICH (PREVIEW) hech qanday pul yozmaydi — faqat rejani tuzadi
---     va "qaysi nom qaysi kassaga tushdi" ni ko'rsatadi.
---     2-BOSQICH (YOZISH) ni FAQAT preview tekshirilgandan keyin RUN qiling.
+--  20 ta kassa: 5405 – 5424.  JAMI: 29 949 000 so'm.
 --
---  NEGA IKKI BOSQICH: ro'yxatdagi 24 ta nomning 12 tasi — 6 juft, ular
---  bir xil summa bilan, faqat imlosi boshqacha yozilgan:
---      Sardor Bahodirov / Sardor Baxodirov            868 000
---      Samariddin Mirxoliqov / Samariddin           1 017 000
---      Qilichov Sardor / Sardor Klichov             1 056 000
---      Alisher Ruyiddinov / Alisher Ruitdinov       1 600 000
---      Ozodbek Abduhomidov / Ozodbek Abduhamidov      238 000
---      Shovkatbek Fayziyev / Shavkatbek Fayziyev       30 000
---  Agar bular BITTA odamning ikki hisobi bo'lsa (eskisi + yangisi), ikkalasiga
---  ham yozilsa pul IKKI BAROBAR bo'lib ketadi va uni faqat qo'lda tuzatish
---  mumkin. Shuning uchun qaror MASHINA emas, ODAM tomonidan qabul qilinadi.
+--  🔴 RESET YO'Q — eski qoldiq ustiga QO'SHILADI (naqd_keyin = eski + reja).
+--  🔴 Kassa FAQAT `code` bo'yicha topiladi. Nom bilan qidirish OLIB TASHLANDI.
+--     `kutilgan_nom` faqat ko'z bilan tekshirish uchun (preview'da bazadagi
+--     nom bilan yonma-yon chiqadi; mos kelmasa ⚠️ belgisi).
+--  🔴 Bu fayl PROVODKA_TURLAR_AVTO.sql dan OLDIN RUN qilingani ma'qul
+--     (naqd bola-hisob kodlari uchun 4 xonali bloklarda hali joy bor).
 --
---  🔴 IKKI BAROBAR YOZILISHIGA QARSHI AVTOMATIK HIMOYA YO'Q.
---     YAGONA HIMOYA — ASILBEKNING PREVIEW (1.6/1.7) QARORI.
+--  IKKI BOSQICH — butun faylni birdaniga RUN QILMANG:
+--     1-BOSQICH (jadval + reja + PREVIEW) pul yozmaydi.
+--     2-BOSQICH (do $yoz$) haqiqiy pul yozadi — faqat preview toza bo'lsa.
 --
---     (Avvalgi izohda "ikkala imlo bitta hisobga tushsa ext_ref to'sadi"
---      deyilgan edi — bu NOTO'G'RI, shuning uchun olib tashlandi.)
---     Sabab: `hodim_kassa_top()` NORMALLASHGAN NOM TENGLIGI bo'yicha
---     qidiradi, `hodim_nom_norm()` esa q/x/h harflariga TEGMAYDI (1.1 ga
---     qarang). Ya'ni "Bahodirov" va "Baxodirov" hech qachon bitta hisobga
---     tusha olmaydi — yo har biri o'z kassasini topadi (u holda ext_ref ham
---     boshqa: 'bkap:hodim:<kassa_code>'), yo biri umuman topilmaydi
---     (u holda 2-bosqich xato beradi va HAMMASI orqaga qaytadi).
---     Juftlik ikki alohida hisob bo'lsa PUL IKKI BAROBAR yoziladi va uni
---     faqat qo'lda (pastdagi ROLLBACK B) tuzatish mumkin.
+--  NEGA KAPITAL, 9010 EMAS: bu pul TUSHUM emas, allaqachon ishlab topilgan.
+--  Kt'ga 9010 yozilsa o'sha kunning P&L'i shishadi. Kapitalga yozilganda
+--  AKTIV va KAPITAL birga o'sadi, P&L'ga umuman tegilmaydi.
 --
---     `ext_ref` unique belgisi FAQAT bitta narsani kafolatlaydi: skript
---     QAYTA RUN qilinsa o'sha kassaga ikkinchi marta yozilmaydi
---     (takroriy RUN himoyasi). Juft-nom himoyasi emas.
+--  HAMMASI NAQD: pul kassaning `pul_turi='naqd'` bola-hisobiga tushadi,
+--  ildiz hisobga EMAS (ildizda pul turmaydi — u konteyner).
 --
---  NIMA QILADI (2-bosqich):
---    1) Har nom uchun ANIQ BITTA hodim kassasini topadi (ildiz hisob:
---       kassa_turi='xarajat', pul_turi is null, ota = 5400 konteyner).
---       0 yoki 2+ topilsa — raise exception, HAMMASI orqaga qaytadi.
---    2) Kassada `naqd` bola-hisobi bo'lmasa — ochadi (pul yozmasdan).
---    3) Har hodimga BITTA yozuv: Dt naqd bolasi / Kt Boshlang'ich kapital.
---    4) O'zini o'zi tekshiradi: qoldiq (eski + yangi) kutilganga tengmi,
---       balans tenglikda qoldimi, P&L'ga tegmadimi.
+--  IDEMPOTENT: har yozuv `ext_ref = 'bkap:hodim:<kassa_code>'`. Qayta RUN
+--  qilinsa o'sha kassa o'tkazib yuboriladi (pul ikki marta yozilmaydi).
 --
---  ⚠️ RESET YO'Q. PROVODKA_BOSHLANGICH_QOLDIQ.sql eski qoldiqni avval nolga
---     tushirardi — BU SKRIPT UNDAY QILMAYDI. Kassada allaqachon pul bo'lsa,
---     yangi summa USTIGA QO'SHILADI. Ya'ni yakuniy qoldiq = eski + reja.
---     Preview'da IKKI ustun bor: `oldin_qoldiq` (faqat NAQD bolasi — pul
---     aynan shu yerga tushadi) va `jami_hozir` (ildiz + hamma bolalar, ya'ni
---     kassa.html kartasidagi raqam). Ular teng bo'lmasligi normal.
+--  TALAB: PROVODKA_KAPITAL.sql (boshlangich_kapital_id), PROVODKA_VALYUTA.sql
+--         (pul_turi_kod_blok) RUN qilingan bo'lsin.
 --
---  NEGA 9010 (savdo tushumi) EMAS: bu pul TUSHUM emas, u allaqachon ishlab
---  topilgan. Kt tomoniga 9010 yozilsa o'sha kunning P&L'i shishadi. Kapitalga
---  yozilganda AKTIV va KAPITAL birga o'sadi, P&L'ga umuman tegmaydi.
---  Kapital hisobi: PROVODKA_KAPITAL.sql dagi `Boshlang'ich kapital` (odatda
---  8720, type='kapital'). Kodini qattiq yozmaymiz — boshlangich_kapital_id().
---
---  HAMMASI NAQD: pul hodim kassasining `pul_turi='naqd'` bola-hisobiga
---  tushadi, ildiz hisobning o'ziga EMAS (kassa modeli shunday: ildizda pul
---  turmaydi, u faqat konteyner; v_kassa_card `jami` ni bolalardan yig'adi).
---
---  IDEMPOTENT: har yozuv `ext_ref` = '<batch>:<kassa_code>' bilan belgilanadi.
---  Skript qayta RUN qilinsa o'sha kassa O'TKAZIB YUBORILADI (pul ikki marta
---  yozilmaydi). Ro'yxatga keyin yangi hodim qo'shilsa — faqat u yoziladi.
---
---  TALAB: PROVODKA_KAPITAL.sql, PROVODKA_VALYUTA.sql (pul_turi_kod_blok)
---         RUN qilingan bo'lsin.
---
---  ADDITIVE: birorta mavjud jadval/ustun/funksiya/view o'zgartirilmaydi va
---  o'chirilmaydi. Yangi: 2 ta yordamchi funksiya + 1 ta reja jadvali.
+--  ADDITIVE: mavjud jadval/ustun/funksiya/view o'zgartirilmaydi. Eski
+--  `hodim_nom_norm()` / `hodim_kassa_top()` bazada QOLADI (drop qilinmaydi),
+--  lekin bu fayl ularga umuman bog'lanmaydi.
 -- =====================================================================
 
 
 -- #####################################################################
---  1-BOSQICH — PREVIEW.  PUL YOZMAYDI.
---
---  ⚠️⚠️ SUPABASE FAQAT OXIRGI STATEMENT NATIJASINI KO'RSATADI.
---     Agar 1.1–1.7 ni bir marta belgilab RUN qilsangiz, faqat 1.7 (c)
---     natijasini ko'rasiz — eng muhim 1.6 ro'yxati va 1.7 (a) "muammoli
---     qatorlar" KO'RINMAY QOLADI.
---
---     TO'G'RI TARTIB:
---       1-qadam: 1.1 dan 1.5 gacha (funksiyalar + jadval + reja + bog'lash)
---                — bir marta belgilab RUN qiling. Natija muhim emas.
---       2-qadam: 1.6 ni ALOHIDA belgilab RUN qiling  ← asosiy ro'yxat
---       3-qadam: 1.7 (a) ni ALOHIDA belgilab RUN qiling ← BO'SH bo'lishi kerak
---       4-qadam: 1.7 (b) ni ALOHIDA belgilab RUN qiling ← juftlar
---       5-qadam: 1.7 (c) ni ALOHIDA belgilab RUN qiling ← yakuniy summa
---     Rejaga o'zgartirish kiritsangiz (faol=false), 1.5 ni qayta RUN qilib
---     keyin 1.6/1.7 ga qayting.
+--  1-BOSQICH — REJA + PREVIEW.  PUL YOZMAYDI.
 -- #####################################################################
 
 -- ---------------------------------------------------------------------
--- 1.1 hodim_nom_norm(text) — nomni solishtirishga tayyorlash
+-- 1.1 REJA JADVALI — qayta yaratiladi
 -- ---------------------------------------------------------------------
--- Faqat kichik harf + apostrof variantlari + ortiqcha bo'sh joy tozalanadi:
---   "Abrorxo'ja Ahmadov" / "Abrorxoʻja  Ahmadov" / "abrorxo’ja ahmadov"
---   -> hammasi "abrorxoja ahmadov"
---
--- ⚠️ ATAYLAB aros_nom_norm() ISHLATILMADI. U q->k, x->h qiladi, ya'ni
---    "Bahodirov" va "Baxodirov" ni BIR XIL deb ko'radi. Bu yerda esa aynan
---    teskarisi kerak: ular baza'da ikki alohida hisob bo'lishi mumkin va
---    skript ularni o'zi birlashtirib yubormasligi kerak — qarorni Asilbek
---    qabul qiladi (1.6 dagi "bir xil summa" ro'yxatiga qarang).
-create or replace function hodim_nom_norm(p_nom text)
-returns text
-language sql
-immutable
-as $$
-  select nullif(
-           btrim(
-             regexp_replace(
-               regexp_replace(lower(coalesce(p_nom, '')), '[''ʻʼ`´‘’]', '', 'g'),
-               '\s+', ' ', 'g')),
-           '');
-$$;
+-- `hodim_kapital_reja` — SHU SKRIPTNING O'Z jadvali. Frontend, view, RPC yoki
+-- boshqa .sql fayl unga murojaat qilmaydi, shuning uchun drop+create ADDITIVE
+-- qoidasini buzmaydi (tuzilishi nom -> kod ga o'zgardi, eski ustunlar keraksiz).
+drop table if exists hodim_kapital_reja;
 
-revoke all on function hodim_nom_norm(text) from public, anon;
-
-comment on function hodim_nom_norm(text) is
-  'Hodim ismini solishtirish uchun normallashtiradi: kichik harf, apostrof '
-  'variantlari (''/ʻ/ʼ/’) olib tashlanadi, ketma-ket bo''sh joylar bittaga. '
-  'q/x harflariga TEGMAYDI — Bahodirov va Baxodirov alohida qoladi.';
-
-
--- ---------------------------------------------------------------------
--- 1.2 hodim_kassa_top(text) — nom bo'yicha hodim kassasini qidirish
--- ---------------------------------------------------------------------
--- Qidiruv shartlari (preview va yozish AYNAN shu funksiyani ishlatadi —
--- shuning uchun ikkalasi hech qachon bir-biridan farq qilmaydi):
---   • section='pul', is_active
---   • kassa_turi='xarajat'  -> hodim kassasi (5401+)
---   • pul_turi is null      -> ILDIZ hisob; "... · Naqd/Click/Payme" TUSHMAYDI
---   • currency='UZS'        -> "... · USD" bola-hisobi TUSHMAYDI
---   • ota = kassa_turi='xarajat_guruh' (odatda 5400 "Hodim xarajat kassalari")
--- Bir nechta qator qaytishi MUMKIN — chaqiruvchi sonini o'zi tekshiradi.
-create or replace function hodim_kassa_top(p_nom text)
-returns table (kassa_id uuid, kassa_code text, kassa_nom text,
-               kassa_sub text, kassa_tur text)
-language sql
-stable
-as $$
-  select a.id, a.code, a.name, a.subtitle, a.kassa_turi
-    from accounts a
-    join accounts g on g.id = a.parent_id
-                   and g.kassa_turi = 'xarajat_guruh'
-   where a.section = 'pul'
-     and a.is_active
-     and a.kassa_turi = 'xarajat'
-     and a.pul_turi is null
-     and coalesce(a.currency, 'UZS') = 'UZS'
-     and hodim_nom_norm(a.name) = hodim_nom_norm(p_nom)
-   order by a.code;
-$$;
-
-revoke all on function hodim_kassa_top(text) from public, anon;
-
-comment on function hodim_kassa_top(text) is
-  'Nom bo''yicha hodim kassasini (ildiz hisob) topadi. '
-  'PROVODKA_HODIM_KAPITAL.sql uchun: preview ham, yozish ham shuni chaqiradi.';
-
-
--- ---------------------------------------------------------------------
--- 1.3 REJA JADVALI
--- ---------------------------------------------------------------------
-create table if not exists hodim_kapital_reja (
-  nom          text    not null primary key,
-  miqdor       numeric not null default 0 check (miqdor >= 0),
-  faol         boolean not null default true,
-  izoh         text,
-  -- pastdagilarni skript to'ldiradi, qo'lda tegmang:
-  nechta       int,
-  kassa_code   text,
-  naqd_code    text,
-  oldin_qoldiq numeric,
-  jami_hozir   numeric,
-  kutilgan     numeric,
-  holat        text,
-  entry_id     uuid
+create table hodim_kapital_reja (
+  kassa_code   text    primary key,
+  kutilgan_nom text,
+  miqdor       numeric not null check (miqdor >= 0),
+  faol         boolean not null default true
 );
-
--- Jadval avvalgi RUN'dan qolgan bo'lsa — yetishmagan ustunlarni qo'shamiz
--- (ADDITIVE, bor ustunga tegilmaydi).
-alter table hodim_kapital_reja add column if not exists nechta       int;
-alter table hodim_kapital_reja add column if not exists kassa_code   text;
-alter table hodim_kapital_reja add column if not exists naqd_code    text;
-alter table hodim_kapital_reja add column if not exists oldin_qoldiq numeric;
-alter table hodim_kapital_reja add column if not exists jami_hozir   numeric;
-alter table hodim_kapital_reja add column if not exists kutilgan     numeric;
-alter table hodim_kapital_reja add column if not exists holat        text;
-alter table hodim_kapital_reja add column if not exists entry_id     uuid;
-alter table hodim_kapital_reja add column if not exists faol         boolean not null default true;
 
 comment on table hodim_kapital_reja is
   'Hodim kassalariga boshlang''ich kapital rejasi (PROVODKA_HODIM_KAPITAL.sql). '
-  'miqdor — so''mda, hammasi NAQD. faol=false qator yozilmaydi.';
+  'Kassa FAQAT kassa_code bo''yicha topiladi. miqdor — so''mda, hammasi NAQD. '
+  'faol=false qator yozilmaydi.';
 
-comment on column hodim_kapital_reja.oldin_qoldiq is
-  'FAQAT naqd bola-hisobidagi qoldiq (pul shu yerga yoziladi). '
-  'Ildizdagi yoki click/payme/USD bolasidagi pul BU YERGA KIRMAYDI — jami uchun jami_hozir ga qarang.';
-
-comment on column hodim_kapital_reja.jami_hozir is
-  'Kassaning JAMI puli: ildiz hisob + HAMMA bolalari (naqd/click/payme/valyuta). '
-  'kassa.html kartasidagi `jami` bilan bir xil o''qiladi. Valyuta bolasi TARIXIY kursdagi '
-  'so''m ekvivalenti bilan kiradi. Faqat ko''rsatkich — yozish mantig''iga ta''sir qilmaydi.';
+comment on column hodim_kapital_reja.kutilgan_nom is
+  'Faqat ko''z bilan tekshirish uchun — qidiruvda ISHLATILMAYDI.';
 
 revoke all on hodim_kapital_reja from public, anon;
 -- RLS yoqilgan, policy YO'Q -> anon/authenticated o'qiy olmaydi.
--- Egasi (postgres, SQL editor) RLS'dan o'tadi, shuning uchun skript ishlaydi.
+-- Egasi (postgres, SQL editor) RLS'dan o'tadi.
 alter table hodim_kapital_reja enable row level security;
 
 
 -- ---------------------------------------------------------------------
--- 1.4 ⚙️⚙️ RAQAMLAR — FAQAT SHU BLOKNI TAHRIRLANG
+-- 1.2 ⚙️⚙️ RAQAMLAR — FAQAT SHU BLOKNI TAHRIRLANG
 -- ---------------------------------------------------------------------
 -- Hammasi so'mda, hammasi NAQD.
--- ⚠️ `faol` ustuni ATAYLAB YANGILANMAYDI (on conflict'da yo'q): siz
---    qatorni `faol=false` qilgan bo'lsangiz, preview qayta RUN qilinganda
---    u qayta yoqilmaydi.
---
--- 🔴 KERAKSIZ QATORNI `delete` QILMANG — faqat `faol = false`:
---       update hodim_kapital_reja set faol = false where nom = '...';
---    Sabab: quyidagi `insert ... on conflict (nom)` — o'chirilgan qator
---    endi mavjud emas, ya'ni konflikt bo'lmaydi va qator QAYTADAN
---    qo'shiladi, `faol` esa ustun DEFAULT'i (true) bilan TIRILADI.
---    Ya'ni delete + preview qayta RUN = o'sha hodim yana rejaga qaytadi.
-insert into hodim_kapital_reja (nom, miqdor, izoh) values
-  ('Abrorxo''ja Ahmadov',      32000, null),
-  ('Alisher Ruyiddinov',     1600000, 'juft: Alisher Ruitdinov'),
-  ('Sardor Bahodirov',        868000, 'juft: Sardor Baxodirov'),
-  ('Qilichov Sardor',        1056000, 'juft: Sardor Klichov'),
-  ('Ozodbek Abduhomidov',     238000, 'juft: Ozodbek Abduhamidov'),
-  ('Samariddin Mirxoliqov',  1017000, 'juft: Samariddin'),
-  ('Shahboz Xoliyorov',       732000, null),
-  ('Shovkatbek Fayziyev',      30000, 'juft: Shavkatbek Fayziyev'),
-  ('Choriyev Diyorbek',       148000, null),
-  ('Abdujalil',              3766000, null),
-  ('Shavkatbek Fayziyev',      30000, 'juft: Shovkatbek Fayziyev'),
-  ('Sardor Baxodirov',        868000, 'juft: Sardor Bahodirov'),
-  ('Asilbek Aliyorov',        470000, null),
-  ('Giyos',                  2472000, null),
-  ('Umidjon Meyliyev',       7070000, null),
-  ('Saidov Nuriddin',        2169000, null),
-  ('Rovshanbek Aliyorov',    2015000, null),
-  ('Samariddin',             1017000, 'juft: Samariddin Mirxoliqov'),
-  ('Sherdil Saidov',         1210000, null),
-  ('Xudoberdi',              1317000, null),
-  ('Ilyos HRM',              1627000, null),
-  ('Sardor Klichov',         1056000, 'juft: Qilichov Sardor'),
-  ('Alisher Ruitdinov',      1600000, 'juft: Alisher Ruyiddinov'),
-  ('Ozodbek Abduhamidov',     238000, 'juft: Ozodbek Abduhomidov')
-on conflict (nom) do update
-   set miqdor = excluded.miqdor,
-       izoh   = excluded.izoh;
--- Jami (24 qator, hammasi faol): 32 646 000 so'm
--- Agar 6 juftning har biridan bittasi o'chirilsa: 27 837 000 so'm
+-- Qatorni O'CHIRMANG — kerak bo'lmasa faol=false qiling:
+--     update hodim_kapital_reja set faol = false where kassa_code = '5412';
+insert into hodim_kapital_reja (kassa_code, kutilgan_nom, miqdor) values
+  ('5405', 'Abrorxo''ja Ahmadov',      32000),
+  ('5406', 'Alisher Ruyiddinov',     1600000),
+  ('5407', 'Sardor Bahodirov',        868000),
+  ('5408', 'Qilichov Sardor',        1056000),
+  ('5409', 'Ozodbek Abduhomidov',     238000),
+  ('5410', 'Samariddin Mirxoliqov',  1017000),
+  ('5411', 'Shahboz Xoliyorov',       732000),
+  ('5412', 'Shovkatbek Fayziyev',      30000),
+  ('5413', 'Saidov Nuriddin',        2169000),
+  ('5414', 'Abdujalil',              3766000),
+  ('5415', 'Giyos',                  2472000),
+  ('5416', 'Umidjon Meyliyev',       7070000),
+  ('5417', 'Choriyev Diyorbek',       148000),
+  ('5418', 'Ilyos HRM',              1627000),
+  ('5419', 'Asilbek Aliyorov',        470000),
+  ('5420', 'Rovshanbek Aliyorov',    2015000),
+  ('5421', 'ural maximum',            392000),
+  ('5422', 'Xudoberdi',              1317000),
+  ('5423', 'Sherdil Saidov',         1210000),
+  ('5424', 'Tojiddin',               1720000);
+-- JAMI: 20 qator, 29 949 000 so'm.
 
 
 -- ---------------------------------------------------------------------
--- 1.5 Rejani hisoblar bilan bog'lash (faqat REJA jadvali yangilanadi)
+-- 1.3 👀 PREVIEW — ASILBEK SHUNI TEKSHIRSIN
 -- ---------------------------------------------------------------------
--- Bu UPDATE `accounts` ga ham, `entry` ga ham TEGMAYDI — pul yozilmaydi.
+--  ⛔ `kassa_topildi` ustunida ❌ bo'lsa — 2-BOSQICHNI RUN QILMANG
+--     (2-bosqich baribir xato beradi va hammasi orqaga qaytadi, lekin
+--      avval sababini toping: kod noto'g'ri yoki kassa shartga mos emas).
+--  ⚠️ `nom_mos` ustunida ⚠️ FARQ bo'lsa — ham TO'XTANG va tekshiring:
+--     kod boshqa odamning kassasiga tushib qolgan bo'lishi mumkin.
+--     Nom haqiqatan boshqacha yozilgan bo'lsa (imlo), davom etsa bo'ladi.
 --
--- IKKI XIL QOLDIQ HISOBLANADI, ikkalasi ham preview'da ko'rinadi:
---   • oldin_qoldiq — FAQAT `naqd` bola-hisobi (pul aynan shu yerga yoziladi,
---                    shuning uchun `kutilgan` ham shundan hisoblanadi);
---   • jami_hozir   — kassaning JAMI puli: ildiz + HAMMA bolalari
---                    (naqd/click/payme/valyuta). kassa.html kartasidagi
---                    `jami` shu. Ikkisi teng bo'lmasligi NORMAL.
-update hodim_kapital_reja r
-   set nechta       = m.nechta,
-       kassa_code   = m.kassa_code,
-       naqd_code    = m.naqd_code,
-       oldin_qoldiq = m.naqd_qoldiq,
-       jami_hozir   = m.jami_qoldiq,
-       kutilgan     = case when m.nechta = 1 then coalesce(m.naqd_qoldiq, 0) + r.miqdor end
+--  Ustunlar:
+--    naqd_qoldiq_hozir — FAQAT naqd bola-hisobi (pul aynan shu yerga tushadi)
+--    jami_qoldiq_hozir — ildiz hisob + HAMMA bolalari (kassa.html kartasidagi
+--                        `jami`). Ikkisi teng bo'lmasligi NORMAL.
+--    naqd_keyin        — naqd_qoldiq_hozir + yoziladi (RESET YO'Q!)
+--    avval_yozilgan    — ✔ bo'lsa 2-bosqich uni o'tkazib yuboradi
+--    naqd_hisob_kod    — '(ochiladi)' bo'lsa muammo emas, 2-bosqich o'zi ochadi
+--
+--  Oxirgi qator — JAMI.
+with d as (
+  select r.kassa_code,
+         r.kutilgan_nom,
+         r.miqdor,
+         r.faol,
+         a.id                                     as kassa_id,
+         a.name                                   as bazadagi_nom,
+         a.subtitle,
+         -- kassa shartga mos keladimi (2-bosqich AYNAN shu shartni qo'yadi)
+         (a.id is not null
+          and a.section = 'pul'
+          and a.is_active
+          and a.pul_turi is null
+          and coalesce(a.currency, 'UZS') = 'UZS'
+          and exists (select 1 from accounts g
+                       where g.id = a.parent_id
+                         and g.kassa_turi = 'xarajat_guruh'))   as mos,
+         exists (select 1 from entry e
+                  where e.ext_ref = 'bkap:hodim:' || r.kassa_code) as bor,
+         n.code                                   as naqd_code,
+         coalesce(nb.uzs, 0)                      as naqd_qoldiq,
+         coalesce(jb.uzs, 0)                      as jami_qoldiq
+    from hodim_kapital_reja r
+    left join accounts a on a.code = r.kassa_code
+    left join lateral (
+      select c.id, c.code
+        from accounts c
+       where c.parent_id = a.id and c.is_active
+         and c.pul_turi = 'naqd'
+         and coalesce(c.currency, 'UZS') = 'UZS'
+       order by c.code limit 1
+    ) n on true
+    left join lateral (
+      select coalesce(sum(l.debit - l.credit), 0) as uzs
+        from entry_line l
+        join entry e on e.id = l.entry_id
+       where l.account_id = n.id
+         and e.status = 'posted' and e.is_deleted = false
+    ) nb on true
+    -- Ildiz + HAMMA bolalari (valyuta bolasi tarixiy kursdagi so'm ekvivalenti
+    -- bilan kiradi — v_kassa_card `jami` bilan bir xil qoida).
+    left join lateral (
+      select coalesce(sum(l.debit - l.credit), 0) as uzs
+        from entry_line l
+        join entry e on e.id = l.entry_id
+        join accounts x on x.id = l.account_id
+       where (x.id = a.id or x.parent_id = a.id)
+         and e.status = 'posted' and e.is_deleted = false
+    ) jb on true
+),
+p as (
+  select d.*,
+         case when d.faol and d.mos then d.miqdor else 0 end as yoziladi,
+         -- avval yozilgan bo'lsa summa allaqachon qoldiqda bor
+         case when d.faol and d.mos and not d.bor then d.miqdor else 0 end as qoshiladi,
+         -- nomni solishtirish: kichik harf + apostrof variantlari + ortiqcha probel
+         (regexp_replace(regexp_replace(lower(coalesce(d.kutilgan_nom, '')),
+            '[''ʻʼ`´‘’]', '', 'g'), '\s+', ' ', 'g') =
+          regexp_replace(regexp_replace(lower(coalesce(d.bazadagi_nom, '')),
+            '[''ʻʼ`´‘’]', '', 'g'), '\s+', ' ', 'g'))                     as nom_teng
+    from d
+)
+select kassa_code, kutilgan_nom, bazadagi_nom, nom_mos, subtitle,
+       kassa_topildi, naqd_hisob_kod, avval_yozilgan,
+       naqd_qoldiq_hozir, jami_qoldiq_hozir, yoziladi, naqd_keyin
   from (
-    select p.nom,
-           (select count(*) from hodim_kassa_top(p.nom))          as nechta,
-           k.kassa_code,
-           n.code                                                 as naqd_code,
-           b.uzs                                                  as naqd_qoldiq,
-           j.uzs                                                  as jami_qoldiq
-      from hodim_kapital_reja p
-      left join lateral (select * from hodim_kassa_top(p.nom) limit 1) k on true
-      left join lateral (
-        select a.id, a.code
-          from accounts a
-         where a.parent_id = k.kassa_id and a.is_active
-           and a.pul_turi = 'naqd'
-           and coalesce(a.currency, 'UZS') = 'UZS'
-         order by a.code limit 1
-      ) n on true
-      left join lateral (
-        select coalesce(sum(l.debit - l.credit), 0) as uzs
-          from entry_line l
-          join entry e on e.id = l.entry_id
-         where l.account_id = n.id
-           and e.status = 'posted' and e.is_deleted = false
-      ) b on true
-      -- Ildiz kassa + HAMMA bolalari (is_active shart emas — pul puldir).
-      -- Valyuta bolasi tarixiy kursdagi so'm ekvivalenti bilan kiradi
-      -- (v_kassa_card `jami` bilan bir xil qoida).
-      left join lateral (
-        select coalesce(sum(l.debit - l.credit), 0) as uzs
-          from entry_line l
-          join entry e on e.id = l.entry_id
-          join accounts a on a.id = l.account_id
-         where (a.id = k.kassa_id or a.parent_id = k.kassa_id)
-           and e.status = 'posted' and e.is_deleted = false
-      ) j on true
-  ) m
- where m.nom = r.nom;
-
-
--- ---------------------------------------------------------------------
--- 1.6 👀 PREVIEW — ASOSIY RO'YXAT.  ASILBEK SHUNI TEKSHIRSIN.
--- ---------------------------------------------------------------------
---  ⚠️⚠️  BU RO'YXATNI ASILBEK O'ZI TEKSHIRSIN  ⚠️⚠️
---
---  1) `nechta` ustuni HAMMA faol qatorda 1 bo'lishi SHART.
---     0 = kassa topilmadi (nom baza'dagidan boshqacha yozilgan).
---     2+ = bir nechta kassa mos keldi (qaysi biri kerakligi noma'lum).
---     Ikkala holatda ham 2-bosqich XATO beradi va hech narsa yozilmaydi.
---
---  2) TAKRORLANGAN ISMLAR — 1.7 dagi "bir xil summa" ro'yxatiga qarang.
---     Agar juftlik BITTA odam bo'lsa (eski hisob + yangi hisob), keraksizini
---     O'CHIRMANG, balki FAOLSIZLANTIRING, aks holda pul ikki barobar yoziladi:
---         update hodim_kapital_reja set faol = false where nom = 'Sardor Baxodirov';
---     ⚠️ `delete` QILMANG: 1.4 dagi insert qatorni faol=true bilan tiriltadi
---        (sababi 1.4 izohida).
---     Agar bular HAQIQATAN ikki xil odam bo'lsa — hech narsa qilmang.
---
---  3) IKKI XIL QOLDIQ USTUNI — chalkashtirmang:
---     • `oldin_qoldiq` — FAQAT naqd bola-hisobidagi pul. Yozuv aynan shu
---       hisobga tushadi, shuning uchun `yozilgandan_keyin` (= kutilgan)
---       ham shundan hisoblanadi.
---     • `jami_hozir`   — kassaning JAMI puli: ildiz hisob + HAMMA bolalari
---       (naqd + click + payme + valyuta). `kassa.html` kartasida ko'rinadigan
---       raqam AYNAN shu.
---     Ikkalasi teng bo'lmasligi NORMAL: pul click/payme bolasida yoki
---     ildiz hisobning o'zida turgan bo'lishi mumkin. Ya'ni
---     `yozilgandan_keyin` ni hodimning JAMI puli deb o'qimang — u faqat
---     naqd hisobning bo'lajak qoldig'i. Hodimning yozuvdan keyingi jami puli
---     taxminan `jami_hozir + miqdor` bo'ladi.
---     RESET YO'Q: yangi summa ustiga qo'shiladi. Agar "shuncha bo'lsin"
---     degan bo'lsangiz — miqdorni kamaytiring yoki menga ayting.
---
---  4) `naqd_code` bo'sh (null) bo'lsa — muammo emas: 2-bosqich naqd
---     bola-hisobini o'zi ochadi.
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
-select r.nom,
-       r.miqdor,
-       r.faol,
-       r.nechta                                  as nechta_kassa_topildi,
-       r.kassa_code,
-       k.kassa_nom                               as kassa_nomi_bazada,
-       k.kassa_sub                               as filial_lavozim,
-       coalesce(r.naqd_code, '(ochiladi)')       as naqd_hisob,
-       coalesce(r.oldin_qoldiq, 0)               as oldin_qoldiq,
-       coalesce(r.jami_hozir, 0)                 as jami_hozir,
-       r.kutilgan                                as yozilgandan_keyin,
-       r.izoh
-  from hodim_kapital_reja r
-  left join lateral (select * from hodim_kassa_top(r.nom) limit 1) k on true
- order by (r.nechta is distinct from 1) desc, r.faol desc, r.nom;
-
-
--- ---------------------------------------------------------------------
--- 1.7 ⚠️ MUAMMOLI QATORLAR — bu ro'yxat BO'SH bo'lishi kerak
--- ---------------------------------------------------------------------
--- (a) topilmagan / bir nechta topilgan nomlar
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
-select case when coalesce(r.nechta, 0) = 0 then 'TOPILMADI'
-            else 'BIR NECHTA TOPILDI (' || r.nechta || ')' end as muammo,
-       r.nom,
-       r.miqdor,
-       (select string_agg(t.kassa_code || ' ' || t.kassa_nom, ' | ' order by t.kassa_code)
-          from hodim_kassa_top(r.nom) t)                       as topilganlar
-  from hodim_kapital_reja r
- where r.faol and coalesce(r.nechta, 0) <> 1
- order by r.nechta, r.nom;
-
--- (b) BIR XIL SUMMALI QATORLAR — ehtimoliy takror (bitta odam ikki nomda)
---     Bu yerda 6 juft chiqishi KUTILADI. Har juftni ko'zdan kechiring:
---     bitta odammi? Bo'lsa — bittasini faol=false qiling.
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
-select r.miqdor,
-       count(*)                                                     as nechta_nom,
-       string_agg(r.nom || ' [' || coalesce(r.kassa_code, '—') || ']',
-                  '  ·  ' order by r.nom)                           as nomlar,
-       sum(r.miqdor)                                                as jami_yoziladi
-  from hodim_kapital_reja r
- where r.faol
- group by r.miqdor
-having count(*) > 1
- order by r.miqdor desc;
-
--- (c) YAKUNIY SUMMA — 2-bosqich shuncha pul yozadi
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
-select count(*)      as qatorlar,
-       sum(miqdor)   as jami_som
-  from hodim_kapital_reja
- where faol and miqdor > 0;
-
--- (d) Yordamchi: baza'dagi HAMMA hodim kassasi (nom qidirishda adashsangiz)
---     Alohida RUN qiling:
---       select a.code, a.name, a.subtitle, hodim_nom_norm(a.name) as normal_shakl
---         from accounts a
---         join accounts g on g.id = a.parent_id and g.kassa_turi = 'xarajat_guruh'
---        where a.section = 'pul' and a.is_active and a.pul_turi is null
---          and coalesce(a.currency,'UZS') = 'UZS'
---        order by a.code;
+    select 0                                        as srt,
+           p.kassa_code,
+           p.kutilgan_nom,
+           coalesce(p.bazadagi_nom, '—')            as bazadagi_nom,
+           case when p.bazadagi_nom is null then '—'
+                when p.nom_teng then '✅'
+                else '⚠️ FARQ' end                  as nom_mos,
+           coalesce(p.subtitle, '—')                as subtitle,
+           case when p.bazadagi_nom is null then '❌ YO''Q (kod topilmadi)'
+                when not p.mos then '❌ SHART MOS EMAS'
+                else '✅' end                       as kassa_topildi,
+           coalesce(p.naqd_code, '(ochiladi)')      as naqd_hisob_kod,
+           case when p.bor then '✔' else '—' end    as avval_yozilgan,
+           p.naqd_qoldiq                            as naqd_qoldiq_hozir,
+           p.jami_qoldiq                            as jami_qoldiq_hozir,
+           p.yoziladi,
+           p.naqd_qoldiq + p.qoshiladi              as naqd_keyin
+      from p
+    union all
+    select 1,
+           'JAMI',
+           count(*)::text || ' qator',
+           '—',
+           '—',
+           count(*) filter (where p.mos and p.faol)::text || ' ta tayyor',
+           case when count(*) filter (where not p.mos and p.faol) > 0
+                then '❌ ' || count(*) filter (where not p.mos and p.faol)::text || ' ta MUAMMO'
+                else '✅ hammasi joyida' end,
+           '—',
+           count(*) filter (where p.bor)::text || ' ta',
+           sum(p.naqd_qoldiq),
+           sum(p.jami_qoldiq),
+           sum(p.yoziladi),
+           sum(p.naqd_qoldiq + p.qoshiladi)
+      from p
+  ) t
+ order by t.srt, t.kassa_code;
 
 
 -- #####################################################################
 --
 --   ⛔⛔  FAQAT PREVIEW TEKSHIRILGANDAN KEYIN RUN QILING  ⛔⛔
 --
---   Quyidagi 2-BOSQICH haqiqiy pul yozadi. Yuqoridagi 1.7 (a) ro'yxati
---   BO'SH bo'lsin va 1.7 (b) dagi juftlar bo'yicha qaror qabul qilingan
---   bo'lsin. Shundan keyingina shu bo'limni belgilab RUN qiling.
---
+--   Quyidagi 2-BOSQICH haqiqiy pul yozadi (29 949 000 so'm).
 --   Hammasi BITTA tranzaksiya: biror joyda xato bo'lsa HAMMASI orqaga
 --   qaytadi (yarim yozilgan holat bo'lmaydi).
 --
 -- #####################################################################
 
 -- ---------------------------------------------------------------------
--- 2. YOZISH — Dt hodim naqd / Kt Boshlang'ich kapital
+-- 2-BOSQICH — YOZISH: Dt hodim naqd / Kt Boshlang'ich kapital
 -- ---------------------------------------------------------------------
 do $yoz$
 declare
   -- ⚙️ Yozuv belgisi. ext_ref = '<batch>:<kassa_code>' -> takroriy RUN pulni
-  --    ikki marta yozmaydi. Sanadan MUSTAQIL: ertaga RUN qilsangiz ham
-  --    o'sha kassalar qayta yozilmaydi. ROLLBACK ham shu belgi bo'yicha.
+  --    ikki marta yozmaydi. Sanadan mustaqil. ROLLBACK ham shu belgi bo'yicha.
   v_batch  text := 'bkap:hodim';
   -- ⚙️ Yozuv sanasi. UZB vaqti (Supabase UTC'da yuradi — current_date emas).
   p_sana   date := (now() at time zone 'Asia/Tashkent')::date;
@@ -450,13 +250,12 @@ declare
   v_source   text := 'boshlangich_kapital';
 
   r          record;
+  v_soni     int;
   v_kassa    uuid;
   v_kod      text;
   v_nom      text;
   v_sub      text;
   v_turi     text;
-  v_soni     int;
-  v_topilgan text;
 
   v_naqd     uuid;
   v_naqd_kod text;
@@ -467,8 +266,7 @@ declare
   v_uzun_bor boolean;
 
   v_oldin    numeric;
-  -- ⚠️ nomi ataylab v_jami EMAS: pastda `v_jami` (yozilgan umumiy summa) bor.
-  v_kassa_jami numeric;   -- kassaning ildiz + hamma bolalari qoldig'i (ko'rsatkich)
+  v_keyin    numeric;
   v_entry    uuid;
   v_ext      text;
   v_dt       numeric;
@@ -489,10 +287,9 @@ begin
   select code into v_kap_code from accounts where id = v_kapital;
 
   -- ---- `source` ustunida cheklov bormi -------------------------------
-  -- Bazada entry.source ga check constraint qo'yilgan bo'lsa, notanish
-  -- qiymat butun tranzaksiyani yiqitadi. Shu holatda xavfsiz 'manual' ga
-  -- tushamiz — yozuvni baribir created_by='boshlangich_kapital' va ext_ref
-  -- belgilaydi, hech narsa yo'qolmaydi.
+  -- Bazada entry.source ga check constraint qo'yilgan bo'lsa, notanish qiymat
+  -- butun tranzaksiyani yiqitadi. Shu holatda xavfsiz 'manual' ga tushamiz —
+  -- yozuvni baribir created_by va ext_ref belgilaydi.
   if exists (select 1 from pg_constraint c
               where c.conrelid = 'public.entry'::regclass
                 and c.contype = 'c'
@@ -504,40 +301,47 @@ begin
   raise notice 'Kapital hisob: % (%) | sana: % | belgi: %',
     v_kap_code, v_kapital, p_sana, v_batch;
 
-  -- ---- Har hodim uchun ------------------------------------------------
+  -- ---- Har kassa uchun ------------------------------------------------
   for r in
-    select nom, miqdor
+    select kassa_code, kutilgan_nom, miqdor
       from hodim_kapital_reja
      where faol and miqdor > 0
-     order by nom
+     order by kassa_code
   loop
-    -- 2.1 Kassani topish: ANIQ BITTA bo'lishi SHART
-    select count(*) into v_soni from hodim_kassa_top(r.nom);
+    -- 2.1 Kassani KOD bo'yicha topish. Shartlar preview bilan AYNAN bir xil:
+    --     section='pul', is_active, pul_turi is null (ildiz hisob),
+    --     currency='UZS', otasi kassa_turi='xarajat_guruh' (5400).
+    select count(*) into v_soni
+      from accounts a
+      join accounts g on g.id = a.parent_id and g.kassa_turi = 'xarajat_guruh'
+     where a.code = r.kassa_code
+       and a.section = 'pul'
+       and a.is_active
+       and a.pul_turi is null
+       and coalesce(a.currency, 'UZS') = 'UZS';
 
     if v_soni <> 1 then
-      select coalesce(string_agg(t.kassa_code || ' ' || t.kassa_nom, ' | '
-                                 order by t.kassa_code), '(yo''q)')
-        into v_topilgan
-        from hodim_kassa_top(r.nom) t;
-      raise exception E'"%" — % ta hodim kassasi topildi (aniq 1 ta kerak).\n'
-        E'Topilganlar: %\n'
-        'HAMMASI BEKOR QILINDI. 1-BOSQICH (preview) ni qayta RUN qilib '
-        '1.7 (a) ro''yxatini tekshiring: nomni baza''dagi yozilishiga moslang '
-        'yoki qatorni faol=false qiling.',
-        r.nom, v_soni, v_topilgan;
+      -- ⚠️ raise format satri BITTA literal bo'lishi SHART (yonma-yon 'a' 'b'
+      --    PL/pgSQL'da syntax error beradi). Uzun tushuntirish -> USING HINT.
+      raise exception 'Kassa % ("%") — % ta mos hisob topildi (aniq 1 ta kerak). HAMMASI BEKOR QILINDI.',
+        r.kassa_code, coalesce(r.kutilgan_nom, '?'), v_soni
+        using hint = 'Talab: section=pul, is_active, pul_turi is null, currency=UZS, otasi kassa_turi=xarajat_guruh. 1-BOSQICH preview dagi kassa_topildi ustunini tekshiring.';
     end if;
 
-    select t.kassa_id, t.kassa_code, t.kassa_nom, t.kassa_sub, t.kassa_tur
+    select a.id, a.code, a.name, a.subtitle, a.kassa_turi
       into v_kassa, v_kod, v_nom, v_sub, v_turi
-      from hodim_kassa_top(r.nom) t;
+      from accounts a
+      join accounts g on g.id = a.parent_id and g.kassa_turi = 'xarajat_guruh'
+     where a.code = r.kassa_code
+       and a.section = 'pul'
+       and a.is_active
+       and a.pul_turi is null
+       and coalesce(a.currency, 'UZS') = 'UZS';
 
-    -- 2.2 Allaqachon yozilganmi (takroriy RUN)
+    -- 2.2 Allaqachon yozilganmi (takroriy RUN himoyasi)
     v_ext := v_batch || ':' || v_kod;
     if exists (select 1 from entry where ext_ref = v_ext) then
       n_otkaz := n_otkaz + 1;
-      update hodim_kapital_reja
-         set holat = 'otkazildi (avval yozilgan)'
-       where nom = r.nom;
       raise notice '  o''tkazildi  % — % (avval yozilgan)', v_kod, v_nom;
       continue;
     end if;
@@ -559,15 +363,13 @@ begin
       -- hisoblanadi — shu tranzaksiyada yangi qo'shilgan kodlar ham ko'rinadi.
       --
       -- ⚠️ FAYLLAR TARTIBI: bu fayl PROVODKA_TURLAR_AVTO.sql dan OLDIN RUN
-      --    qilinishi ko'zda tutilgan (o'shanda 4 xonali bloklarda joy bor).
-      --    TURLAR_AVTO `pul_turi_kod_blok` ga `raqam_uzunlik` ustunini qo'shadi
-      --    va 5 xonali bloklarni (55xxx / 53xxx / 51xxx) ochadi, chunki
-      --    60+ hodim x 4 tur 4 xonali bloklarni to'ldiradi.
-      --    Shuning uchun quyida MOSLASHUV bor:
-      --      • ustun BOR   -> blokning o'z uzunligi ishlatiladi (5 xonali ham);
+      --    qilinishi ko'zda tutilgan. TURLAR_AVTO `pul_turi_kod_blok` ga
+      --    `raqam_uzunlik` ustunini qo'shadi va 5 xonali bloklarni ochadi.
+      --    Shuning uchun MOSLASHUV:
+      --      • ustun BOR   -> blokning o'z uzunligi (5 xonali ham) ishlatiladi;
       --      • ustun YO'Q  -> eski 2 raqamli mantiq (o'zgarishsiz).
-      --    Ustunga statik havola qilinmaydi (ustun yo'q bazada butun blok
-      --    parse xatosi berardi) — shuning uchun dinamik `execute`.
+      --    Ustunga statik havola qilinmaydi (ustun yo'q bazada butun blok parse
+      --    xatosi berardi) — shuning uchun dinamik `execute`.
       v_prefix := null;
       v_uzun   := 2;
 
@@ -604,10 +406,8 @@ begin
       end if;
 
       if v_prefix is null then
-        raise exception 'Tur kod bloklari to''ldi (% kassada to''xtadi). '
-                        'pul_turi_kod_blok''ga yangi prefiks qo''shing — yoki '
-                        'PROVODKA_TURLAR_AVTO.sql ni RUN qilib 5 xonali '
-                        'bloklarni oching (u raqam_uzunlik ustunini qo''shadi).', v_kod;
+        raise exception 'Tur kod bloklari to''ldi (% kassada to''xtadi).', v_kod
+          using hint = 'pul_turi_kod_blok ga yangi prefiks qo''shing yoki PROVODKA_TURLAR_AVTO.sql ni RUN qiling (u raqam_uzunlik ustunini qo''shib 5 xonali bloklarni ochadi).';
       end if;
 
       v_code := v_prefix || lpad(v_next::text, v_uzun, '0');
@@ -622,26 +422,12 @@ begin
       raise notice '  HISOB OCHILDI: %  % · Naqd', v_naqd_kod, v_nom;
     end if;
 
-    -- 2.4 Yozuvdan OLDINGI qoldiq (reset yo'q — ustiga qo'shiladi).
-    --     ⚠️ FAQAT NAQD bolasi — pul aynan shu hisobga tushadi, shuning uchun
-    --        `kutilgan` va 2.6 (a) tekshiruvi ham shundan hisoblanadi.
+    -- 2.4 Yozuvdan OLDINGI naqd qoldiq (RESET YO'Q — ustiga qo'shiladi)
     select coalesce(sum(l.debit - l.credit), 0)
       into v_oldin
       from entry_line l
       join entry e on e.id = l.entry_id
      where l.account_id = v_naqd
-       and e.status = 'posted' and e.is_deleted = false;
-
-    -- 2.4b Kassaning JAMI puli: ildiz + HAMMA bolalari (naqd/click/payme/valyuta).
-    --      kassa.html kartasidagi `jami` bilan bir xil o'qiladi.
-    --      FAQAT KO'RSATKICH — yozish mantig'iga ta'sir qilmaydi (pul baribir
-    --      naqd bolasiga tushadi). `oldin_qoldiq` bilan farqi normal.
-    select coalesce(sum(l.debit - l.credit), 0)
-      into v_kassa_jami
-      from entry_line l
-      join entry e on e.id = l.entry_id
-      join accounts a on a.id = l.account_id
-     where (a.id = v_kassa or a.parent_id = v_kassa)
        and e.status = 'posted' and e.is_deleted = false;
 
     -- 2.5 Yozuv: Dt naqd hisob / Kt boshlang'ich kapital
@@ -657,53 +443,39 @@ begin
     insert into entry_line(entry_id, account_id, debit, credit, fc_amount)
     values (v_entry, v_kapital, 0, r.miqdor, null);
 
-    -- check_entry_balanced DEFERRED, u faqat COMMIT paytida ishlaydi va
-    -- o'sha yerdagi xato tushunarsiz bo'ladi — shuning uchun o'zimiz tekshiramiz.
+    -- check_entry_balanced DEFERRED — u COMMIT paytida ishlaydi va o'sha yerdagi
+    -- xato tushunarsiz bo'ladi, shuning uchun o'zimiz darrov tekshiramiz.
     select coalesce(sum(debit), 0), coalesce(sum(credit), 0)
       into v_dt, v_kt from entry_line where entry_id = v_entry;
     if v_dt <> v_kt then
       raise exception 'Yozuv muvozanatda emas: Dt=% Kt=% (% — %)', v_dt, v_kt, v_kod, v_nom;
     end if;
 
-    update hodim_kapital_reja
-       set nechta       = 1,
-           kassa_code   = v_kod,
-           naqd_code    = v_naqd_kod,
-           oldin_qoldiq = v_oldin,
-           jami_hozir   = v_kassa_jami + r.miqdor,   -- ildiz + hamma bolalar, yozuvdan KEYIN
-           kutilgan     = v_oldin + r.miqdor,
-           holat        = 'yozildi',
-           entry_id     = v_entry
-     where nom = r.nom;
+    -- (a) TEKSHIRUV: naqd qoldiq = eski + reja
+    select coalesce(sum(l.debit - l.credit), 0)
+      into v_keyin
+      from entry_line l
+      join entry e on e.id = l.entry_id
+     where l.account_id = v_naqd
+       and e.status = 'posted' and e.is_deleted = false;
+
+    if v_keyin <> v_oldin + r.miqdor then
+      raise exception 'TEKSHIRUV XATO (%): naqd qoldiq % bo''ldi, % kutilgan edi — hammasi bekor qilindi.',
+        v_kod, v_keyin, v_oldin + r.miqdor;
+    end if;
 
     n_yozildi := n_yozildi + 1;
     v_jami    := v_jami + r.miqdor;
-    raise notice '  kirim  %  %  +% so''m  (oldin: %, keyin: %)',
-      v_naqd_kod, v_nom, r.miqdor, v_oldin, v_oldin + r.miqdor;
+    raise notice '  kirim  %  %  %  +% so''m  (oldin: %, keyin: %)',
+      v_kod, v_naqd_kod, v_nom, r.miqdor, v_oldin, v_keyin;
   end loop;
 
   if n_yozildi = 0 and n_otkaz = 0 then
     raise exception 'TO''XTADI: birorta faol qator yo''q — reja bo''shmi?';
   end if;
 
-  -- ---- 2.6 O'Z-O'ZINI TEKSHIRISH -------------------------------------
+  -- ---- O'Z-O'ZINI TEKSHIRISH -----------------------------------------
   -- Bu yerdan chiqadigan har qanday xato BUTUN skriptni orqaga qaytaradi.
-
-  -- (a) Har naqd hisobning qoldig'i kutilganga tengmi (eski + yangi)
-  select count(*) into v_xato
-    from hodim_kapital_reja r
-    join accounts n on n.code = r.naqd_code
-    join lateral (
-      select coalesce(sum(l.debit - l.credit), 0) as uzs
-        from entry_line l join entry e on e.id = l.entry_id
-       where l.account_id = n.id
-         and e.status = 'posted' and e.is_deleted = false
-    ) b on true
-   where r.holat = 'yozildi' and b.uzs <> r.kutilgan;
-
-  if v_xato > 0 then
-    raise exception 'TEKSHIRUV XATO: % ta hisob qoldig''i kutilganga teng emas — hammasi bekor qilindi.', v_xato;
-  end if;
 
   -- (b) Har yozuvda aniq 2 satr va Dt = Kt
   select count(*) into v_xato
@@ -720,7 +492,7 @@ begin
     raise exception 'TEKSHIRUV XATO: % ta yozuv noto''g''ri tuzilgan (satr soni yoki Dt<>Kt)', v_xato;
   end if;
 
-  -- (c) P&L'ga tegmadimi — daromad/xarajat hisobi bo'lmasligi SHART
+  -- (c) P&L'ga tegmadimi — daromad/xarajat satri bo'lmasligi SHART
   select count(*) into v_xato
     from entry e
     join entry_line l on l.entry_id = e.id
@@ -732,7 +504,9 @@ begin
     raise exception 'TEKSHIRUV XATO: % ta satr daromad/xarajat hisobiga tushib qolgan (P&L shishadi)', v_xato;
   end if;
 
-  -- (d) Kapital hisobiga tushgan Kt summasi rejaga tengmi
+  -- (d) Kapital hisobiga tushgan Kt summasi shu RUN'da yozilganga tengmi
+  --     (n_otkaz > 0 bo'lsa ext_ref bo'yicha summa avvalgi RUN'larni ham
+  --      qamraydi — u holda bu tekshiruv o'tkazib yuboriladi.)
   select coalesce(sum(l.credit), 0) - coalesce(sum(l.debit), 0)
     into v_farq
     from entry e
@@ -761,41 +535,48 @@ $yoz$;
 
 
 -- ---------------------------------------------------------------------
--- 3. NATIJA — skriptning oxirgi so'rovi, Supabase shuni ko'rsatadi
+-- 3-BOSQICH — NATIJA.  2-bosqich tugagach ALOHIDA belgilab RUN qiling.
 -- ---------------------------------------------------------------------
--- `hozirgi_qoldiq` — FAQAT naqd hisob (yozuv shu yerga tushdi), `kutilgan`
--- bilan solishtiriladi. `jami_kassa_hozir` — hodimning JAMI puli (ildiz +
--- hamma bolalari), ya'ni kassa.html kartasida ko'rinadigan raqam. Ikkisi
--- teng bo'lmasligi NORMAL: click/payme/valyuta bolasida ham pul bo'lishi mumkin.
-select r.nom,
-       r.miqdor,
-       r.holat,
-       r.kassa_code,
-       r.naqd_code,
-       r.oldin_qoldiq,
-       r.kutilgan,
-       b.uzs                                   as hozirgi_qoldiq,
-       b.uzs - coalesce(r.kutilgan, b.uzs)     as farq_nol_bolishi_kerak,
-       jb.uzs                                  as jami_kassa_hozir
+-- `naqd_qoldiq` — faqat naqd hisob (yozuv shu yerga tushdi).
+-- `jami_qoldiq` — ildiz + hamma bolalari (kassa.html kartasidagi raqam).
+-- `yozilgan`    — shu skript yozgan summa (ext_ref bo'yicha; o'chirilgani hisobga olinmaydi).
+select r.kassa_code,
+       coalesce(a.name, '—')                as nom,
+       coalesce(nb.uzs, 0)                  as naqd_qoldiq,
+       coalesce(jb.uzs, 0)                  as jami_qoldiq,
+       coalesce(w.summa, 0)                 as yozilgan,
+       r.miqdor                             as reja
   from hodim_kapital_reja r
-  left join accounts n on n.code = r.naqd_code
+  left join accounts a on a.code = r.kassa_code
+  left join lateral (
+    select c.id from accounts c
+     where c.parent_id = a.id and c.is_active and c.pul_turi = 'naqd'
+       and coalesce(c.currency, 'UZS') = 'UZS'
+     order by c.code limit 1
+  ) n on true
   left join lateral (
     select coalesce(sum(l.debit - l.credit), 0) as uzs
       from entry_line l join entry e on e.id = l.entry_id
      where l.account_id = n.id
        and e.status = 'posted' and e.is_deleted = false
-  ) b on true
-  left join accounts kk on kk.code = r.kassa_code
+  ) nb on true
   left join lateral (
     select coalesce(sum(l.debit - l.credit), 0) as uzs
       from entry_line l
       join entry e on e.id = l.entry_id
-      join accounts a on a.id = l.account_id
-     where (a.id = kk.id or a.parent_id = kk.id)
+      join accounts x on x.id = l.account_id
+     where (x.id = a.id or x.parent_id = a.id)
        and e.status = 'posted' and e.is_deleted = false
   ) jb on true
+  left join lateral (
+    select coalesce(sum(l.debit), 0) as summa
+      from entry e join entry_line l on l.entry_id = e.id
+     where e.ext_ref = 'bkap:hodim:' || r.kassa_code
+       and e.is_deleted = false
+       and l.debit > 0
+  ) w on true
  where r.faol
- order by r.nom;
+ order by r.kassa_code;
 
 
 -- =====================================================================
@@ -809,7 +590,7 @@ select r.nom,
 --    group by e.id, e.ext_ref, e.entry_date, e.description
 --    order by e.ext_ref;
 --
--- Jami yozilgan summa (reja bilan solishtiring):
+-- Jami yozilgan summa (29 949 000 bo'lishi kerak):
 --   select count(*) as yozuvlar, sum(l.debit) as jami_som
 --     from entry e join entry_line l on l.entry_id = e.id
 --     join accounts a on a.id = l.account_id
@@ -824,7 +605,7 @@ select r.nom,
 -- Kartada qanday ko'rinadi:
 --   select c.code, c.name, c.kassa_turi, c.uzs, c.jami
 --     from v_kassa_card c
---    where c.code in (select kassa_code from hodim_kapital_reja where holat = 'yozildi')
+--    where c.code in (select kassa_code from hodim_kapital_reja)
 --    order by c.code;
 --
 -- Kapital hisobining yangi qoldig'i:
@@ -833,37 +614,32 @@ select r.nom,
 
 
 -- =====================================================================
---  ROLLBACK — noto'g'ri summa yoki noto'g'ri hodimga yozilib qolsa
+--  ROLLBACK — noto'g'ri summa yoki noto'g'ri kassaga yozilib qolsa
 -- =====================================================================
--- Yozuvlar `ext_ref` = 'bkap:hodim:...' bilan belgilangan, shuning uchun
--- aniq topiladi va boshqa hech narsaga tegmaydi.
+-- Yozuvlar `ext_ref` = 'bkap:hodim:<kod>' bilan belgilangan — aniq topiladi,
+-- boshqa hech narsaga tegmaydi.
 --
 -- A) HAMMASINI qaytarish (yumshoq — tarix saqlanadi, jurnalda usti chizilgan
---    holda qoladi, kassa qoldig'i yozuvdan OLDINGI holatiga qaytadi):
+--    holda qoladi, naqd qoldiq yozuvdan OLDINGI holatiga qaytadi):
 --
 --    update entry set is_deleted = true,
 --                     deleted_at = now(),
 --                     deleted_by_name = 'rollback: hodim boshlangich kapital'
 --     where ext_ref like 'bkap:hodim:%' and is_deleted = false;
 --
---    Keyin qayta RUN qilish uchun ext_ref'ni bo'shatish SHART (unique to'siq,
---    aks holda skript "avval yozilgan" deb o'tkazib yuboradi):
+--    Qayta RUN qilish uchun ext_ref'ni bo'shatish SHART (unique to'siq, aks
+--    holda skript "avval yozilgan" deb o'tkazib yuboradi):
 --    update entry set ext_ref = ext_ref || ':bekor:' || id::text
 --     where ext_ref like 'bkap:hodim:%' and is_deleted;
 --
---    Rejani ham tozalang:
---    update hodim_kapital_reja set holat = null, entry_id = null;
---
--- B) BITTA hodimni qaytarish (masalan takror ekani keyin ma'lum bo'lsa):
---    5423 o'rniga o'sha hodimning kassa kodini yozing.
+-- B) BITTA kassani qaytarish (5423 o'rniga kerakli kodni yozing):
 --
 --    update entry set is_deleted = true, deleted_at = now(),
---                     deleted_by_name = 'rollback: takror hodim'
+--                     deleted_by_name = 'rollback: hodim boshlangich kapital'
 --     where ext_ref = 'bkap:hodim:5423';
 --    update entry set ext_ref = ext_ref || ':bekor:' || id::text
 --     where ext_ref = 'bkap:hodim:5423' and is_deleted;
---    update hodim_kapital_reja set faol = false, holat = null, entry_id = null
---     where kassa_code = '5423';
+--    update hodim_kapital_reja set faol = false where kassa_code = '5423';
 --
 -- C) QATTIQ — butunlay o'chirish, izsiz. Faqat xato darrov sezilsa.
 --    entry_line BITTA statement bilan o'chiriladi — deferred balans triggeri
