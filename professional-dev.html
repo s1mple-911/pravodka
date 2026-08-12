@@ -175,6 +175,10 @@
   .curbtn .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
   .curbtn.on .qd{color:var(--primary)}
   .curbtn.bosh .qd{color:var(--red)}   /* qoldiq 0 yoki manfiy — undan pul chiqmaydi */
+  /* Valyuta kassasida: kurs + so'm ekvivalenti (entry_line debit/credit shu so'mda yoziladi) */
+  .kursnote{font-size:12.5px;color:var(--muted);margin:-8px 0 14px 2px}
+  .kursnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .kursnote.no{color:var(--red)}
   /* Modal: xarajat vs tanlangan yuklar summasi */
   .yuksum{background:var(--surface-2);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:13.5px}
   .ysrow{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
@@ -334,8 +338,9 @@
         <label>Modda</label>
         <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
         <div id="kommChipWrap" style="display:none;margin:-6px 0 15px"><button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt"></span><i data-lucide="pencil"></i></button></div>
-        <label>Summa</label>
+        <label id="summaLbl">Summa</label>
         <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
+        <div id="kursNote" class="kursnote" style="display:none" role="status" aria-live="polite"></div>
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
         <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
@@ -566,9 +571,13 @@ const modaShow=a=>a.type==='xarajat'&&a.code!=='9110-1';
 function accOptions(sel){
   const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
   // Hodim kassalari (54xx, kassa_turi='xarajat') — oddiy kassa, faqat alohida guruhda ko'rinadi
-  const xk=accounts.filter(a=>isKassa(a)&&a.kassa_turi==='xarajat');
+  // VALYUTA hisoblari (56xx USD, 57xx CNY…) bu yerda YO'Q: ko'p satrli rejimda har satr
+  // uchun kurs kiritish joyi yo'q, fc_amount ham yozilmaydi — tanlansa valyuta qoldig'i
+  // (v_hisob_bal.fc) buzilardi. Valyuta harakati: Oddiy rejim (kurs bilan) yoki Konvert.
+  const kassaOk=a=>isKassa(a)&&(a.currency||'UZS')==='UZS';
+  const xk=accounts.filter(a=>kassaOk(a)&&a.kassa_turi==='xarajat');
   const xkId=new Set(xk.map(a=>a.id));
-  return g('Kassalar',accounts.filter(a=>isKassa(a)&&!xkId.has(a.id)))
+  return g('Kassalar',accounts.filter(a=>kassaOk(a)&&!xkId.has(a.id)))
     +g('Xarajat kassalar',xk)
     +g('Xarajatlar',accounts.filter(modaShow))
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
@@ -842,9 +851,50 @@ window.pickSub=id=>{
   selSub=id||null;
   const yangi=effKassa(), yangiVal=!!(yangi&&yangi.currency&&yangi.currency!=='UZS');
   if(eskiVal!==yangiVal){ const s=$('summa'); if(s){ s.value=''; s.dataset.a000=''; } }
-  renderCurSeg(); fetchSimpleBal(); updateSimple();
+  renderCurSeg(); fetchSimpleBal(); loadKassaRate(); updateSimple();
 };
-window.pickKassa=id=>{ selKassa=id; selSub=null; renderChips(); fetchSubBal(); fetchSimpleBal(); };
+window.pickKassa=id=>{ selKassa=id; selSub=null; renderChips(); fetchSubBal(); fetchSimpleBal(); loadKassaRate(); };
+// ---- Valyuta kassasi: kurs (1 birlik = necha so'm) ----------------------
+// Summa maydoni valyuta hisobida VALYUTADA kiritiladi (qoldiq ham valyutada ko'rsatiladi),
+// lekin entry_line.debit/credit HAR DOIM so'mda bo'lishi shart — aks holda balans va
+// hisobotlarda dollar soni so'm bo'lib ko'rinadi. Shuning uchun kurs majburiy.
+// Manba: yuk_kurslar RPC (ichida conv_baza_kurs) — yuk modali bilan BITTA rateMap,
+// shuning uchun entry summasi va entry_yuk.summa_uzs bir-biriga mos keladi.
+let kursBusy=false;
+async function loadKassaRate(){
+  const k=effKassa(), c=(k&&k.currency)||'UZS';
+  if(c==='UZS'||rateMap[c]!=null){ updateSimple(); return; }
+  kursBusy=true; updateSimple();
+  try{ const {data}=await sb.rpc('yuk_kurslar',{p_curs:[c]});
+    if(data&&data[c]!=null) rateMap[c]=data[c];
+  }catch(e){}
+  kursBusy=false; updateSimple();
+}
+// Kiritilgan summa → {uzs, fc, rate}. null = kurs yo'q (valyuta hisobi bilan yozib bo'lmaydi).
+// So'm kassasida fc=null — entry_line'ga fc_amount umuman yozilmaydi (eski xatti-harakat).
+function amtPair(){
+  const raw=Number(($('summa').value||'').replace(/\D/g,''))||0;
+  const k=effKassa(), c=(k&&k.currency)||'UZS';
+  if(c==='UZS') return {raw, uzs:Math.round(raw), fc:null, rate:null, cur:'UZS'};
+  const r=curRate(c);
+  if(r==null||!(r>0)) return null;
+  return {raw, uzs:Math.round(raw*r), fc:raw, rate:Number(r), cur:c};
+}
+function renderKursNote(){
+  const el=$('kursNote'); if(!el) return;
+  const k=effKassa(), c=(k&&k.currency)||'UZS';
+  const lbl=$('summaLbl'); if(lbl) lbl.textContent = c==='UZS' ? 'Summa' : ('Summa ('+c+')');
+  if(c==='UZS'){ el.style.display='none'; return; }
+  el.style.display='block';
+  const r=curRate(c);
+  if(r==null){ el.className='kursnote'+(kursBusy?'':' no');
+    el.textContent=kursBusy?'Kurs olinmoqda…':(c+' kursi yo\'q — Valyuta bo\'limida kurs qo\'shing');
+    return; }
+  const p=amtPair();
+  el.className='kursnote';
+  el.innerHTML='Kurs: <b>'+money(r)+'</b> so\'m / 1 '+esc(c)
+    +((p&&p.raw>0)?(' · '+money(p.raw)+' '+esc(c)+' ≈ <b>'+money(p.uzs)+' so\'m</b> yoziladi'):'');
+}
 // Tanlangan kassa + uning bolalarining qoldig'i — segment tugmalarida ko'rsatish uchun.
 // Bitta so'rov (v_hisob_bal), xato bo'lsa jimgina o'tadi: raqamsiz tugma ham ishlaydi.
 async function fetchSubBal(){
@@ -934,14 +984,19 @@ window.updateSimple=()=>{
     w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} ${(kassa&&kassa.currency&&kassa.currency!=='UZS')?kassa.currency:"so'm"}`; }
   else w.style.display='none';
   const needKomm=isKomm() && !kommTuri;   // Kommunal (9413): turi majburiy
+  // Valyuta kassasi: kurssiz yozib bo'lmaydi (debit/credit so'mda bo'lishi shart).
+  renderKursNote();
+  const pair=amtPair();
+  const needKurs = !pair;
+  const uzsAmt = pair ? pair.uzs : 0;     // limit/taqsim HAR DOIM so'mda
   // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
   let overLimit=false; const lw=$('limitWarn');
   if(selFilials.size===1 && $('modda').value){
     const lm=limitFor([...selFilials][0], $('modda').value);
-    if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
+    if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needIzoh && !needChek && !needDavr && !needKomm && !overLimit);
+  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needKurs && !needIzoh && !needChek && !needDavr && !needKomm && !overLimit);
   $('saveSimpleBtn').disabled=!ok;
   // Saqlash hech qachon "sababsiz" yopiq turmasin — birinchi yetishmayotgan shartni yozamiz.
   // (9411 "Ijara" bug'i aynan shu ko'rinmas holat edi: davr majburiy, lekin sana tanlab bo'lmasdi.)
@@ -951,6 +1006,7 @@ window.updateSimple=()=>{
     if(!selKassa) msg='Kassani tanlang';
     else if(!$('modda').value) msg='Moddani tanlang';
     else if(amt<=0) msg='Summani kiriting';
+    else if(needKurs) msg='Bu kassa valyutada — <b>kurs</b> topilmadi. <b>Valyuta</b> bo‘limida kurs qo‘shing';
     else if(needIzoh) msg='Bu modda uchun <b>izoh</b> majburiy — yuqoridagi <b>Izoh</b> maydonini to‘ldiring';
     else if(needChek) msg='Bu modda uchun <b>chek surati</b> majburiy — yuqoridagi <b>Chek</b> tugmasidan yuklang';
     else if(needDavr) msg='Bu modda uchun <b>davr</b> (boshi–oxiri) majburiy';
@@ -1090,7 +1146,10 @@ async function loadYukList(){
     yukList=j.yuklar; yukLoaded=true;
     const ids=yukList.map(y=>Number(y.id)).filter(Number.isFinite);
     const curs=[...new Set(yukList.map(y=>y.valyuta).filter(Boolean).concat([yukSaveCur]))];
-    try{ const {data:kr}=await sb.rpc('yuk_kurslar',{p_curs:curs}); rateMap=kr||{}; }catch(e){ rateMap={}; }
+    // rateMap'ni ALMASHTIRMAYMIZ, ustiga qo'shamiz: loadKassaRate() qo'ygan kassa
+    // valyutasi (masalan USD) bu ro'yxatda bo'lmasa o'chib ketardi va oddiy rejimda
+    // "USD kursi yo'q" deb Saqlash bloklanardi. Xatoda ham eski kurslar joyida qoladi.
+    try{ const {data:kr}=await sb.rpc('yuk_kurslar',{p_curs:curs}); if(kr) Object.assign(rateMap,kr); }catch(e){}
     if(ids.length){ try{ const {data:st}=await sb.rpc('yuk_tolangan_summa',{p_ids:ids}); yukPaidMap={}; (st||[]).forEach(s=>{ yukPaidMap[s.yuk_id]=s; }); }catch(e){ yukPaidMap={}; } }
   }catch(e){ $('yukList').innerHTML='<div class="yukempty">Yuklar ulanmadi: '+esc(e.message||'')+'<br><button class="ylink" onclick="reloadYuk()">Qaytadan urinish</button></div>'; return; }
   afterYukLoad();
@@ -1151,13 +1210,19 @@ async function doSavePending(izohP){
   const modda1=accByCode('9110-1');
   if(!kassa||amt<=0) return;
   if(!modda1){ alert('9110-1 hisobi topilmadi — PROVODKA_V7.sql RUN qilinganmi?'); $('modda').value=''; updateSimple(); return; }
+  // Valyuta kassasi: debit/credit SO'MDA (amt × kurs), fc_amount esa valyuta miqdori.
+  // Avval ikkalasiga ham `amt` yozilardi — dollar soni so'm ustuniga tushib ketardi.
+  // Tekshiruv entry INSERT'idan OLDIN — aks holda yetim sarlavha qolardi.
+  const p=amtPair();
+  if(!p){ alert((kassa.currency||'')+' kursi yo\'q — Valyuta bo\'limida kurs qo\'shing'); $('modda').value=''; updateSimple(); return; }
   const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
   const entryPayload={entry_date:$('sana').value||null,description:izohP,source:'manual',status:'posted',filial_ids:[...selFilials],yuk_kutilmoqda:true};
+  if(p.rate) entryPayload.fc_rate=p.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
-  const rows=[{entry_id:ent.id,account_id:modda1.id,debit:amt,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt}];
-  if(kassa.currency && kassa.currency!=='UZS'){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=amt; }); }
+  const rows=[{entry_id:ent.id,account_id:modda1.id,debit:p.uzs,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:p.uzs}];
+  if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
   if(chekBlob) uploadChek(kassa.id, ent.id, chekBlob);
@@ -1171,20 +1236,27 @@ async function doSaveSimple(){
   const {modda,kassa,income}=simpleDir();
   if(!kassa||!modda||amt<=0) return;
   const dtId=income?kassa.id:modda.id, ktId=income?modda.id:kassa.id;
-  // Stage 2: 2+ filial va yuk yo'q → filiallar bo'yicha ALOHIDA provodka (taqsim modal)
-  if(selFilials.size>=2 && !selYuk.size){ openTaqsim(amt, dtId, ktId, kassa); return; }
+  // Valyuta kassasi: summa maydonida VALYUTA miqdori turadi, lekin entry_line'ga
+  // so'm ekvivalenti (× kurs) yoziladi; valyuta miqdori fc_amount'ga. Tekshiruv
+  // entry INSERT'idan OLDIN — kurs yo'q bo'lsa yetim sarlavha qolmasin.
+  const p=amtPair();
+  if(!p){ alert((kassa.currency||'')+' kursi yo\'q — Valyuta bo\'limida kurs qo\'shing'); updateSimple(); return; }
+  // Stage 2: 2+ filial va yuk yo'q → filiallar bo'yicha ALOHIDA provodka (taqsim modal).
+  // Taqsimot HAR DOIM so'mda — shuning uchun p.uzs uzatiladi.
+  if(selFilials.size>=2 && !selYuk.size){ openTaqsim(p.uzs, dtId, ktId, kassa, p); return; }
   const btn=$('saveSimpleBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda...';
   // entry → entry_line. Server guard trigger (op_kassa_ids) avtomat tekshiradi.
   // V6: filial_ids + davr metadata; Yuklar: yuk_ids (9110). entry_line struktura o'zgarmaydi.
   const entryPayload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
+  if(p.rate) entryPayload.fc_rate=p.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(selYuk.size) entryPayload.yuk_ids=[...selYuk];
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  const rows=[{entry_id:ent.id,account_id:dtId,debit:amt,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:amt}];
-  // Ko'p-valyuta: kassa hisobi UZS bo'lmasa fc_amount = kiritilgan miqdor (valyuta soni).
-  if(kassa.currency && kassa.currency!=='UZS'){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=amt; }); }
+  const rows=[{entry_id:ent.id,account_id:dtId,debit:p.uzs,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:p.uzs}];
+  // Ko'p-valyuta: fc_amount = VALYUTA miqdori (so'm summasi emas).
+  if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
   // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk (kompensatsiya: xatoda entry o'chadi)
@@ -1212,9 +1284,11 @@ async function loadLimits(){
 }
 // ---- Stage 2: Filial taqsimoti modali (har filialga alohida entry, atomik RPC) ----
 let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
-function openTaqsim(amt, dtId, ktId, kassa){
+// amt — HAR DOIM so'mda (valyuta kassasida kurs bilan hisoblangan). `pair` esa
+// {uzs, fc, rate} — server har ulush uchun fc = ulush/kurs hisoblashi uchun kerak.
+function openTaqsim(amt, dtId, ktId, kassa, pair){
   const moddaId=(dtId===kassa.id)?ktId:dtId;   // kassa bo'lmagan tomon = modda (limit shu bo'yicha)
-  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId};
+  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId, pair:pair||null};
   taqsimFils=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
   if(taqsimFils.length<2){ doSaveSimpleForce(); return; }   // himoya (filial ro'yxati kelmasa)
   taqsimEqualCalc(); renderTaqsim();
@@ -1256,7 +1330,7 @@ window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
-  const {dtId,ktId,kassa}=taqsimCtx;
+  const {dtId,ktId,kassa,pair}=taqsimCtx;
   const p_data={
     entry_date:$('sana').value||null, description:$('izoh').value||null,
     source:'manual', status:'posted',
@@ -1264,6 +1338,9 @@ window.confirmTaqsim=async()=>{
     kassa_account:kassa.id, kassa_currency:kassa.currency||'UZS',
     taqsim:taqsimFils.map(f=>({filial_id:f.id, summa:Number(taqsimAlloc[f.id])||0}))
   };
+  // Valyuta kassasi: kurs berilsa server fc = ulush/kurs qiladi (PROVODKA_HODIM_VALYUTA.sql).
+  // Berilmasa eski xatti-harakat (fc = so'm ulushi) — shuning uchun kursni yuborish MUHIM.
+  if(pair && pair.rate) p_data.kassa_kurs=pair.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
   const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});

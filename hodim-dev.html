@@ -681,6 +681,14 @@ const isoDay=d=>d.toISOString().slice(0,10);
 const swrKey=n=>`prov-swr:hodim:${n}`;
 function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null; const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
 function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
+/* Keshda endi QOLDIQ (pul raqamlari) ham turadi va sessionStorage reload'dan omon
+   chiqadi — permClear() esa faqat ruxsat kalitini o'chiradi. Shuning uchun login va
+   logoutda `prov-swr:` kalitlarini ham tozalaymiz: yangi foydalanuvchi eskisining
+   qoldig'ini ko'rmasin. */
+function swrClear(){ try{
+  Object.keys(sessionStorage).filter(k=>k.indexOf('prov-swr:')===0)
+    .forEach(k=>sessionStorage.removeItem(k));
+}catch(e){} }
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan hisob qoldig'i (null=noma'lum)
 // selSub — kassa ICHIDAN tanlangan pul turi / valyuta hisobi (null = kassaning o'zi).
 // Kassa BITTA tanlanadi (parent), tur esa alohida segmentdan — professional.html'dagi naqsh.
@@ -706,9 +714,10 @@ if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttr
 
 // --- auth (boshqa sahifalardagidek) ---
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
-  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
-// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi foydalanuvchi eskisining ruxsatlarisiz kirsin.
-window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); swrClear(); enterApp(); };
+// permClear()+swrClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsati ham, qoldiq raqamlari ham bilan kirmasin.
+window.logout=async()=>{ window.permClear(); swrClear(); await sb.auth.signOut(); location.reload(); };
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 
 let appShown=false;
@@ -744,7 +753,44 @@ const curOf=a=>String((a&&a.currency)||'UZS').toUpperCase();
 // Shuning uchun shart faqat pul_turi/currency bo'yicha, parent_id bor-yo'qligi bo'yicha emas.
 const isTuriChild=a=>!!(a.parent_id&&a.pul_turi);
 const isCurChild =a=>!!(a.parent_id&&curOf(a)!=='UZS');
-const isSubChild =a=>isTuriChild(a)||isCurChild(a);
+/* ⚠️ ESKI TUR HISOBLARI — ustunsiz, faqat NOM bilan bog'langan.
+   Bir qism hisob `create_pul_turi_child` dan OLDIN qo'lda ochilgan: kodi boshqa
+   diapazonda va `parent_id`/`pul_turi` ustunlari BO'SH. Masalan:
+     5351 "Abrorxo'ja Ahmadov · Naqd"   ←  5405 "Abrorxo'ja Ahmadov"
+     5352 "Abrorxo'ja Ahmadov · Payme"  ←  5405
+   Ustunga tayangan filtr ularni bola deb tanimaydi va ro'yxatda Abrorxo'ja 3 marta
+   chiqadi. create_pul_turi_child/create_valyuta_child ham AYNAN shu naqshda nom
+   beradi (parent.name || ' · ' || tur), shuning uchun nomdan ildizni tiklash xavfsiz.
+   PROVODKA_TUR_BOGLASH.sql ustunlarni to'ldirgach bu fallback o'z-o'zidan jim qoladi. */
+const TUR_SUF=/\s*·\s*(naqd|click|payme|terminal|karta|plastik|usd|eur|rub|cny|chy)\s*$/i;
+const normNom=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+let nomIndex={};                     // normalizatsiyalangan nom → kassa id (null = ko'p moslik)
+// ⚠️ Ism TAKRORLANSA bog'lamaymiz. Ikki filialda bir xil ismli hodim bo'lishi mumkin
+// ("Alisher Ruyiddinov" — Izza Zapchast va Chilonzor). Oxirgisini yozib qo'ysak
+// "· Naqd" boshqa filialning kassasiga bog'lanib, pul NOTO'G'RI kassadan chiqardi.
+// Shubha bo'lsa — bog'lamaymiz: hisob ildiz bo'lib qoladi (eski xatti-harakat, xavfsiz).
+// PROVODKA_TUR_BOGLASH.sql ham aynan shu qoidada (having count(*)=1).
+function buildNomIndex(){
+  nomIndex={};
+  accounts.forEach(a=>{ if(!isKassa(a)) return;
+    const k=normNom(a.name);
+    nomIndex[k] = (k in nomIndex) ? null : a.id;   // ikkinchi moslik → null (noaniq)
+  });
+}
+// Nomdagi "· Naqd" qo'shimchasini olib tashlab, o'sha nomli kassani izlaydi.
+function nomParent(a){
+  if(!a||!TUR_SUF.test(String(a.name||''))) return null;
+  const pid=nomIndex[normNom(String(a.name).replace(TUR_SUF,''))];
+  return (pid && pid!==a.id) ? pid : null;
+}
+// Bu hisob KIMNING bolasi (id) yoki null (ildiz kassa).
+// Tartib muhim: ustunlar birinchi, nom faqat fallback.
+function kimningBolasi(a){
+  if(isTuriChild(a)) return a.parent_id;
+  if(isCurChild(a))  return a.parent_id;
+  return nomParent(a);
+}
+const isSubChild =a=>!!kimningBolasi(a);
 // Frequent moddalar — tepada chiqadi (brief bo'yicha eng ko'p ishlatiladigan xarajatlar)
 const FREQ=['9412','9411','9414','9416','9419'];
 
@@ -763,18 +809,31 @@ function kassaList(){
 }
 // Tanlangan kassaning barcha bola-hisoblari. NEVARALARNI ham oladi: valyuta hisobi
 // ba'zan pul turi bolasining ostiga ochilgan bo'ladi ("Naqd · USD") — u ham ko'rinsin.
-const TURI_TART={naqd:1,click:2,payme:3};
-const TURI_LBL={naqd:"Naqd",click:'Click',payme:'Payme'};
+const TURI_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
+const TURI_LBL={naqd:"Naqd",click:'Click',payme:'Payme',terminal:'Terminal',karta:'Karta',plastik:'Plastik'};
 function subChildren(pid){
   const out=[], seen=new Set();
   (function walk(p){
-    accounts.forEach(a=>{ if(a.parent_id===p && isKassa(a) && isSubChild(a) && !seen.has(a.id)){
+    accounts.forEach(a=>{ if(isKassa(a) && !seen.has(a.id) && kimningBolasi(a)===p){
       seen.add(a.id); out.push(a); walk(a.id); } });
   })(pid);
-  return out.sort((x,y)=>(TURI_TART[x.pul_turi]||9)-(TURI_TART[y.pul_turi]||9)
+  return out.sort((x,y)=>(TURI_TART[turKey(x)]||9)-(TURI_TART[turKey(y)]||9)
                       || String(curOf(x)).localeCompare(String(curOf(y))));
 }
-const subLbl=a=>a.pul_turi?(TURI_LBL[a.pul_turi]||a.pul_turi):(curOf(a));
+// Tur kaliti: ustun bo'lsa undan, aks holda nomdagi qo'shimchadan ("· Naqd" → naqd).
+function turKey(a){
+  if(a.pul_turi) return String(a.pul_turi).toLowerCase();
+  const m=String(a&&a.name||'').match(TUR_SUF);
+  return m?m[1].toLowerCase():'';
+}
+// Yorliq: pul turi bo'lsa chiroyli nomi, valyuta bo'lsa kodi, aks holda nomdagi qo'shimcha.
+function subLbl(a){
+  const t=turKey(a);
+  if(TURI_LBL[t]) return TURI_LBL[t];
+  if(curOf(a)!=='UZS') return curOf(a);
+  if(t) return t.length<=3 ? t.toUpperCase() : (t.charAt(0).toUpperCase()+t.slice(1));
+  return a.code||'Tur';
+}
 // Pul AYNAN shu hisobdan chiqadi: tur tanlansa bola-hisob, aks holda kassaning o'zi.
 function effKassa(){
   const p=accounts.find(a=>a.id===selKassa); if(!p) return null;
@@ -882,13 +941,47 @@ function renderKassaBal(){
 }
 // Qoldiqlar: parent + hamma bola-hisoblar BITTA so'rovda (v_hisob_bal → uzs va fc).
 // Eski acc_balance sikli olib tashlandi — 60+ kassada ham bitta RT.
+// TEZLIK: qoldiq keshdan DARROV ko'rsatiladi (sahifa ochilishi bilan raqam turadi),
+// fonda haqiqiysi kelib jimgina almashtiriladi. Hodim endi bo'sh hero'ni kutmaydi.
+// Kesh kaliti kassa ro'yxatiga bog'liq emas — balMap id bo'yicha, ortiqchasi zarar qilmaydi.
+function loadBalancesCached(){
+  const c=swrGet('bal');
+  if(c && typeof c==='object'){ balMap=c; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return true; }
+  return false;
+}
+// Bir vaqtda BITTA so'rov: init() da qoldiq keshsiz bo'lsa erta boshlanadi, keyin
+// accounts yangilangach yana chaqiriladi. Guardsiz ikkalasi ketardi va kech tugagani
+// yangi kassalarsiz balMap'ni yozib ketishi mumkin edi.
+// So'rov ketayotgan bo'lsa yangisi navbatga turadi (balYana) — shunda ikki barobar
+// RPC ham bo'lmaydi, oxirgi holat (yangilangan accounts) ham albatta yuklanadi.
+let balSorov=null, balYana=false;
 async function loadBalances(){
+  if(balSorov){ balYana=true; return balSorov; }
+  balSorov=(async()=>{
+    try{ do{ balYana=false; await loadBalancesIch(); } while(balYana); }
+    finally{ balSorov=null; }
+  })();
+  return balSorov;
+}
+async function loadBalancesIch(){
   const ks=kassaList();
   const ids=[]; ks.forEach(k=>{ ids.push(k.id); subChildren(k.id).forEach(c=>ids.push(c.id)); });
   if(!ids.length){ balMap={}; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return; }
-  // Admin (scope='all') da 100+ hisob bo'lishi mumkin — .in() URL'i cheksiz uzun bo'lmasin.
-  const bloklar=[]; for(let i=0;i<ids.length;i+=80) bloklar.push(ids.slice(i,i+80));
   try{
+    // TEZ YO'L: bitta to'plamli RPC (SECURITY DEFINER — RLS to'smaydi, indekslardan
+    // foydalanadi). PROVODKA_HODIM_TEZLIK.sql RUN qilinmagan bo'lsa xato beradi va
+    // pastdagi eski yo'lga tushamiz — sahifa baribir ishlaydi.
+    const {data:rpc,error:rpcErr}=await sb.rpc('hodim_qoldiqlar',{p_accounts:ids});
+    if(!rpcErr && rpc && typeof rpc==='object'){
+      const m={};
+      Object.keys(rpc).forEach(id=>{ const v=rpc[id]||{}; m[id]={uzs:Number(v.uzs)||0, fc:Number(v.fc)||0}; });
+      balMap=m; swrSet('bal',m);
+      renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
+      return;
+    }
+    // ESKI YO'L: v_hisob_bal. Admin (scope='all') da 100+ hisob bo'lishi mumkin —
+    // .in() URL'i cheksiz uzun bo'lmasin, 80 tadan bo'lakma-bo'lak.
+    const bloklar=[]; for(let i=0;i<ids.length;i+=80) bloklar.push(ids.slice(i,i+80));
     const res=await Promise.all(bloklar.map(b=>sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',b)));
     if(res.some(r=>r.error)) return;        // xato — eski qoldiqlar joyida qoladi
     const m={}; let n=0;
@@ -897,7 +990,7 @@ async function loadBalances(){
     // bo'lsa nol qoldiq "Qoldiqdan oshdi · max 0" berib Saqlashni butunlay bloklardi.
     // Kamida bitta qator kelgan bo'lsa — o'qish ishlayapti, qolganlari haqiqatan 0.
     if(n) ids.forEach(id=>{ if(!m[id]) m[id]={uzs:0,fc:0}; });
-    balMap=m;
+    balMap=m; swrSet('bal',m);            // keyingi ochilishda darrov ko'rinsin
   }catch(e){ return; }
   renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
 }
@@ -1471,15 +1564,23 @@ async function loadMonth(){
   const n=nowUz();
   const from=isoDay(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1))), to=isoDay(n);
   const want=selKassa;
-  // Kassaning o'zi + bola-hisoblari (naqd/Click/Payme/USD) — RPC bitta hisobni biladi,
-  // shuning uchun parallel chaqirib qo'shamiz. Odatda 1–4 ta hisob.
+  // Kassaning o'zi + bola-hisoblari (naqd/Click/Payme/USD).
   const ids=[want].concat(subChildren(want).map(a=>a.id));
   try{
-    const res=await Promise.all(ids.map(id=>sb.rpc('hodim_oy_jami',{p_account:id,p_from:from,p_to:to})
-      .then(r=>(r.error||r.data==null)?null:Number(r.data)).catch(()=>null)));
+    // TEZ YO'L: bitta to'plamli RPC. Yo'q bo'lsa (SQL RUN qilinmagan) — eski
+    // hodim_oy_jami har hisob uchun parallel.
+    const {data:kop,error:kopErr}=await sb.rpc('hodim_oy_jami_kop',{p_accounts:ids,p_from:from,p_to:to});
     if(selKassa!==want) return;
-    if(res.every(v=>v==null)) return;
-    const jami=res.reduce((s,v)=>s+(v||0),0);
+    let jami=null;
+    if(!kopErr && kop!=null) jami=Number(kop)||0;
+    else{
+      const res=await Promise.all(ids.map(id=>sb.rpc('hodim_oy_jami',{p_account:id,p_from:from,p_to:to})
+        .then(r=>(r.error||r.data==null)?null:Number(r.data)).catch(()=>null)));
+      if(selKassa!==want) return;
+      if(res.every(v=>v==null)) return;
+      jami=res.reduce((s,v)=>s+(v||0),0);
+    }
+    if(jami==null) return;
     el.innerHTML=`Bu oy sarflandi: <b>${money(jami)} so'm</b>`;
     el.style.display='block';
   }catch(e){}
@@ -1489,6 +1590,7 @@ async function loadMonth(){
 // bo'yicha cheklaydi; moddalar (xarajat) doim qoladi. 5400 konteyner chiqariladi.
 function applyAccounts(data){
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
+  buildNomIndex();                 // nom→id (eski, ustunsiz tur hisoblarini bog'lash uchun)
   renderKassa(); renderModda(); loadRate();
 }
 let _bound=false;
@@ -1507,6 +1609,9 @@ async function init(){
   // 1) KESHDAN darrov (repeat ochilishda forma to'la keladi — bo'sh ekran yo'q)
   const cAcc=swrGet('accounts'); if(cAcc) applyAccounts(cAcc);
   const cFil=swrGet('filials');  if(cFil){ filials=window.permFilterFilials?window.permFilterFilials(cFil):cFil; renderFilials(); }
+  // Qoldiq ham keshdan — hero DARROV raqam ko'rsatadi, "—" da turmaydi.
+  // (Kesh 5 daqiqa; fonda loadBalances() haqiqiysini olib almashtiradi.)
+  const balKesh=loadBalancesCached();
   updateModdaUI();
   // 2) Mustaqil so'rovlar — HAMMASI PARALLEL
   const pPerm=window.permLoad(sb);
@@ -1514,6 +1619,10 @@ async function init(){
   const pFil =sb.from('v_filial_tanlov').select('*');
   const pUser=sb.auth.getUser();
   loadHist();                               // tarix mustaqil (server auth.uid()) — fon
+  // TEZLIK: qoldiq keshda YO'Q bo'lsa — accounts keshdan kelgan zahoti so'rovni
+  // BOSHLAB yuboramiz, Promise.all ni kutmasdan. Aks holda qoldiq 2-to'lqinda
+  // kelardi va hodim bo'sh hero'ga qarab turardi.
+  if(!balKesh && cAcc) loadBalances();
   const [,aRes,fRes,uRes]=await Promise.all([pPerm,pAcc,pFil,pUser]);
   // accounts (perms endi tayyor → to'g'ri filtr)
   if(aRes.error){ if(!cAcc){ $('banner').style.display='block'; $('banner').textContent='Xato: '+aRes.error.message; } }

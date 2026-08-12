@@ -40,6 +40,14 @@ declare
   v_fc     numeric;
   v_fc_dt  numeric;
   v_fc_kt  numeric;
+  -- fc yaxlitlash siljishini yo'qotish uchun: jami valyuta miqdori va sarflangani.
+  -- Har ulushni alohida round(summa/kurs,2) qilsak yig'indi ±0.02 farq qilardi va
+  -- vaqt o'tib dollar qoldig'i siljib ketardi. Oxirgi ulushga qoldiq yuklanadi.
+  v_jami   numeric := 0;
+  v_fc_bar numeric;
+  v_fc_qol numeric;
+  v_n      int;
+  v_i      int := 0;
 begin
   if v_dt is null or v_kt is null then
     raise exception 'dt/kt hisob berilmadi' using errcode = '22000';
@@ -52,7 +60,18 @@ begin
     raise exception 'Kurs musbat bo''lishi kerak' using errcode = '22000';
   end if;
 
+  -- Valyuta jamisi BIR MARTA hisoblanadi (ulushlar yig'indisidan), keyin ulushlarga
+  -- taqsimlanadi — shunda sum(fc) = round(jami/kurs, 2) aniq mos keladi.
+  v_n := jsonb_array_length(p_data->'taqsim');
+  if v_kurs is not null then
+    select coalesce(sum((x->>'summa')::numeric), 0) into v_jami
+      from jsonb_array_elements(p_data->'taqsim') as x;
+    v_fc_bar := round(v_jami / v_kurs, 2);
+    v_fc_qol := v_fc_bar;
+  end if;
+
   for it in select * from jsonb_array_elements(p_data->'taqsim') loop
+    v_i := v_i + 1;
     v_summa  := (it->>'summa')::numeric;
     v_filial := nullif(it->>'filial_id','')::uuid;
     if v_summa is null or v_summa <= 0 then
@@ -75,8 +94,16 @@ begin
     returning id into v_entry;
 
     -- fc_amount faqat valyuta kassasi satriga (client bilan bir xil mantiq).
-    -- Kurs berilgan bo'lsa so'm ulushi valyutaga aylantiriladi.
-    v_fc := case when v_kurs is not null then round(v_summa / v_kurs, 2) else v_summa end;
+    -- Kurs berilgan bo'lsa so'm ulushi valyutaga aylantiriladi; OXIRGI ulushga
+    -- taqsimlanmay qolgan qoldiq beriladi — sum(fc) = round(jami/kurs, 2).
+    if v_kurs is null then
+      v_fc := v_summa;                                   -- eski xatti-harakat
+    elsif v_i = v_n then
+      v_fc := v_fc_qol;
+    else
+      v_fc := round(v_fc_bar * v_summa / nullif(v_jami, 0), 2);
+      v_fc_qol := v_fc_qol - v_fc;
+    end if;
     v_fc_dt := case when v_cur is not null and v_cur <> 'UZS' and v_kassa = v_dt then v_fc else null end;
     v_fc_kt := case when v_cur is not null and v_cur <> 'UZS' and v_kassa = v_kt then v_fc else null end;
 
