@@ -13,22 +13,12 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. Indekslar — qoldiq agregatsiyasi uchun
+-- 1. Indekslar — ALOHIDA faylda: PROVODKA_HODIM_INDEKS.sql
 -- ---------------------------------------------------------------------
--- ⚠️ CONCURRENTLY: prod'da foydalanuvchilar ishlab turibdi. Oddiy `create index`
---    jadvalni QULFLAYDI va yozuvni to'xtatadi. CONCURRENTLY sekinroq, lekin
---    hech kimni bloklamaydi.
--- ⚠️ CONCURRENTLY tranzaksiya ichida ishlamaydi — bu uchta qatorni Supabase SQL
---    Editor'da BITTA-BITTADAN (alohida RUN) bajar. Xato bersa ("cannot run inside
---    a transaction block") — aynan shu sabab.
--- Agar biror indeks yarim qolsa: `select indexrelid::regclass, indisvalid from pg_index
--- where not indisvalid;` → nomini olib `drop index <nom>;` va qayta RUN qil.
-
-create index concurrently if not exists idx_entry_line_account on entry_line(account_id);
-
-create index concurrently if not exists idx_entry_posted on entry(status) where is_deleted = false;
-
-create index concurrently if not exists idx_entry_date on entry(entry_date);
+-- `create index concurrently` tranzaksiya ichida ishlamaydi, Supabase SQL Editor
+-- esa butun skriptni bitta tranzaksiyada bajaradi. Shuning uchun indekslar shu
+-- fayldan CHIQARILDI — ular PROVODKA_HODIM_INDEKS.sql da, bitta-bittadan RUN qilinadi.
+-- Indekslarsiz ham bu fayldagi funksiyalar ishlaydi (shunchaki sekinroq).
 
 
 -- ---------------------------------------------------------------------
@@ -45,6 +35,7 @@ language plpgsql
 stable
 security definer
 set search_path = public
+as $$
 declare v_ids uuid[];
 begin
   -- RUXSAT: SECURITY DEFINER RLS'ni chetlab o'tadi, shuning uchun kim qaysi hisobni
