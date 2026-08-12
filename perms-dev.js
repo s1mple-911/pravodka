@@ -218,13 +218,16 @@
   }
 
   // ---- kassalar --------------------------------------------------------
-  /* Ruxsat kaliti: valyuta bola-hisobi parent kassasiga tegishli.
-     parent_id ikki ma'noli (valyuta juftligi + guruh a'zoligi) — shuning uchun
-     currency sharti majburiy, aks holda hodim kassalari (parent = 5400) chalkashadi. */
+  /* Ruxsat kaliti: bola-hisob (valyuta YOKI pul turi) parent kassasiga tegishli.
+     Serverdagi kassa_root()/perm_op_key() bilan AYNAN bir xil bo'lishi shart —
+     aks holda klient naqd/Click/Payme hisobini yashiradi, server esa ruxsat beradi
+     (yoki teskarisi: UI ko'rsatadi, guard trigger 42501 bilan rad etadi).
+     parent_id UCH ma'noli — hodim kassasi (parent=5400, UZS, pul_turi yo'q) bola EMAS,
+     shuning uchun shart currency<>'UZS' YOKI pul_turi bor bo'lishi kerak. */
   function keyOf(a) {
     if (!a) return null;
     var c = a.currency || 'UZS';
-    return (a.parent_id && c !== 'UZS') ? a.parent_id : a.id;
+    return (a.parent_id && (c !== 'UZS' || a.pul_turi)) ? a.parent_id : a.id;
   }
   function viewOk(a) {
     var p = get();

@@ -90,6 +90,24 @@
   .ph{color:var(--muted);font-weight:500}
   .bal{font-size:13px;color:var(--muted);margin:var(--s3) 0 0 2px}
   .bal b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  /* ===== Pul turi / valyuta segmenti (kassa ostida) — professional.html bilan bir xil naqsh ===== */
+  .turseg{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0 0}
+  .turbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;
+    padding:8px 13px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;
+    line-height:1.25;transition:border-color .15s,background .15s,color .15s}
+  @media(hover:hover){.turbtn:hover{border-color:var(--primary)}}
+  .turbtn.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+  .turbtn .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+  .turbtn.on .qd{color:var(--primary-ink)}
+  .turbtn.bosh .qd{color:var(--red)}   /* qoldiq 0 yoki manfiy — undan pul chiqmaydi */
+  /* Summa valyutasi: so'mda yozish yoki valyutada yozish */
+  .valseg{display:flex;gap:var(--s2);margin:0 0 var(--s3)}
+  .valbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;
+    padding:6px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  .valbtn.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+  .kursnote{font-size:12.5px;color:var(--muted);margin:var(--s2) 0 0 2px}
+  .kursnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .kursnote.no{color:var(--red-ink)}
   /* ================= filial multiselect (brend yashil) ================= */
   .fchips{display:flex;flex-wrap:wrap;gap:var(--s2)}
   .fchip{display:inline-flex;align-items:center;min-height:44px;border:1.5px solid var(--line);background:var(--surface);
@@ -474,25 +492,35 @@
 
     <!-- Umumiy qoldiq: hamma biriktirilgan kassalar yig'indisi + bu oy sarfi -->
     <div class="hero">
-      <div class="hero-lbl">Umumiy qoldiq</div>
-      <div class="hero-amt"><span id="totalBal">—</span><span class="hero-cur">so'm</span></div>
+      <div class="hero-lbl" id="heroLbl">Umumiy qoldiq</div>
+      <div class="hero-amt"><span id="totalBal">—</span><span class="hero-cur" id="heroCur">so'm</span></div>
       <div class="hero-sub" id="heroSub"><i data-lucide="wallet"></i><span>—</span></div>
       <div id="month" class="hero-note" style="display:none"></div>
     </div>
 
-    <!-- Kassa tanlagich: FAQAT bir nechta kassa bo'lsa ko'rinadi (bitta bo'lsa avtomat) -->
+    <!-- Kassa tanlagich: FAQAT bir nechta kassa bo'lsa ko'rinadi (bitta bo'lsa avtomat).
+         Ostida pul turi / valyuta segmenti (#turSeg) — kassaning bola-hisoblari bo'lsa. -->
     <div class="sect" id="kassaSect" style="display:none">
       <div class="lbl" id="kassaLbl">Qaysi kassadan</div>
       <button type="button" class="txt moddafield" id="kassaField" onclick="openKassa()" aria-labelledby="kassaLbl kassaFieldTxt" aria-haspopup="dialog"><span id="kassaFieldTxt" class="ph">Kassa tanlang</span><i data-lucide="chevron-down"></i></button>
       <div id="kassaBal" class="bal" style="display:none"></div>
     </div>
 
+    <!-- Pul turi: naqd / Click / Payme / USD… — kassa tanlangach ichidan tanlanadi.
+         Bitta kassa bo'lib kassaSect yashiringan bo'lsa ham bu ko'rinadi (alohida sect). -->
+    <div class="sect" id="turSect" style="display:none">
+      <div class="lbl" id="turLbl">Qaysi turdan</div>
+      <div id="turSeg" class="turseg"></div>
+    </div>
+
     <div class="sect">
       <label class="lbl" for="summa">Summa</label>
+      <div class="valseg" id="valSeg" style="display:none"></div>
       <div class="amtwrap" id="amtwrap">
-        <span class="amtcur">so'm</span>
+        <span class="amtcur" id="amtCurLbl">so'm</span>
         <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off" aria-describedby="amtWarn">
       </div>
+      <div id="kursNote" class="kursnote" style="display:none" role="status" aria-live="polite"></div>
       <div id="amtWarn" class="amtwarn" style="display:none" role="status" aria-live="polite"></div>
     </div>
 
@@ -612,6 +640,10 @@ const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+/* Valyuta miqdori (USD/CNY…): 2 kasrgacha, keraksiz nollarsiz. money() so'm uchun (butun). */
+const fcTxt=n=>{ const v=Math.round((Number(n)||0)*100)/100, a=Math.abs(v);
+  const i=Math.trunc(a), f=Math.round((a-i)*100);
+  return (v<0?'−':'')+i.toLocaleString('en-US').replaceAll(',',' ')+(f?'.'+String(f).padStart(2,'0'):''); };
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
@@ -649,9 +681,15 @@ const isoDay=d=>d.toISOString().slice(0,10);
 const swrKey=n=>`prov-swr:hodim:${n}`;
 function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null; const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
 function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
-let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
-let balMap={};              // {kassa_id: qoldiq} — hero (umumiy) + kassa picker uchun, bir marta yuklanadi
-const BAL_MAX=8;            // shuncha kassagacha qoldiqlar yuklanadi (admin 60+ kassada og'ir bo'lmasin)
+let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan hisob qoldig'i (null=noma'lum)
+// selSub — kassa ICHIDAN tanlangan pul turi / valyuta hisobi (null = kassaning o'zi).
+// Kassa BITTA tanlanadi (parent), tur esa alohida segmentdan — professional.html'dagi naqsh.
+let selSub=null;
+// amtCur — summa QAYSI valyutada kiritilyapti ('UZS' yoki hisob valyutasi).
+// Valyuta kassasida ikkalasi ham mumkin: so'm yozilsa kurs bilan valyutaga aylantiriladi.
+let amtCur='UZS', curRate=null, rateBusy=false;
+// {account_id: {uzs, fc}} — parent + hamma bola-hisoblar. Bitta v_hisob_bal so'rovi bilan keladi.
+let balMap={};
 let filials=[], selFilials=new Set();  // V6: filial multiselect (entry.filial_ids — faqat metadata)
 let calBase=null, davrS=null, davrE=null;  // V6: davr kalendari (ikki oy) — boshi/oxiri ISO sana
 const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
@@ -697,16 +735,55 @@ async function boot(){
 }
 
 const isKassa=a=>a.type==='aktiv'&&a.code.startsWith('5');
+const curOf=a=>String((a&&a.currency)||'UZS').toUpperCase();
+// Kassaning BOLA-HISOBI ikki xil bo'ladi va ikkalasi ham ro'yxatda alohida kassa
+// bo'lib ko'rinmasligi kerak (Abrorxo'ja 3 marta chiqib ketardi):
+//   • pul turi — naqd / Click / Payme (currency='UZS', pul_turi to'ldirilgan)
+//   • valyuta  — USD / CNY / … (currency<>'UZS', pul_turi bo'sh)
+// DIQQAT: hodim kassasining parenti 5400 (konteyner guruh) — u bola-hisob EMAS.
+// Shuning uchun shart faqat pul_turi/currency bo'yicha, parent_id bor-yo'qligi bo'yicha emas.
+const isTuriChild=a=>!!(a.parent_id&&a.pul_turi);
+const isCurChild =a=>!!(a.parent_id&&curOf(a)!=='UZS');
+const isSubChild =a=>isTuriChild(a)||isCurChild(a);
 // Frequent moddalar — tepada chiqadi (brief bo'yicha eng ko'p ishlatiladigan xarajatlar)
 const FREQ=['9412','9411','9414','9416','9419'];
 
 // Kassa ro'yxati: accounts allaqachon permFilterOp'dan o'tgan (op_kassa_ids; scope='all'→hammasi).
 // 5400 konteyner chiqarilgan. scope='all' (admin) da faqat hodim xarajat kassalari ko'rsatiladi —
 // list user'da esa aynan biriktirilgan kassa(lar) (permFilterOp cheklab bo'lgan).
+// FAQAT ILDIZ kassalar — bola-hisoblar (tur/valyuta) #turSeg segmentidan tanlanadi.
 function kassaList(){
-  let ks=accounts.filter(a=>isKassa(a));
+  let ks=accounts.filter(a=>isKassa(a)&&!isSubChild(a));
   if(window.permScope&&window.permScope()==='all') ks=ks.filter(a=>a.kassa_turi==='xarajat');
   return ks;
+}
+// Tanlangan kassaning barcha bola-hisoblari. NEVARALARNI ham oladi: valyuta hisobi
+// ba'zan pul turi bolasining ostiga ochilgan bo'ladi ("Naqd · USD") — u ham ko'rinsin.
+const TURI_TART={naqd:1,click:2,payme:3};
+const TURI_LBL={naqd:"Naqd",click:'Click',payme:'Payme'};
+function subChildren(pid){
+  const out=[], seen=new Set();
+  (function walk(p){
+    accounts.forEach(a=>{ if(a.parent_id===p && isKassa(a) && isSubChild(a) && !seen.has(a.id)){
+      seen.add(a.id); out.push(a); walk(a.id); } });
+  })(pid);
+  return out.sort((x,y)=>(TURI_TART[x.pul_turi]||9)-(TURI_TART[y.pul_turi]||9)
+                      || String(curOf(x)).localeCompare(String(curOf(y))));
+}
+const subLbl=a=>a.pul_turi?(TURI_LBL[a.pul_turi]||a.pul_turi):(curOf(a));
+// Pul AYNAN shu hisobdan chiqadi: tur tanlansa bola-hisob, aks holda kassaning o'zi.
+function effKassa(){
+  const p=accounts.find(a=>a.id===selKassa); if(!p) return null;
+  if(!selSub) return p;
+  return accounts.find(a=>a.id===selSub) || p;
+}
+const balOf=id=>(id!=null?balMap[id]:null)||null;
+// Kassaning JAMI puli: o'zi + hamma bola-hisoblari (so'm ekvivalentida).
+function kassaJami(pid){
+  let t=0, known=false;
+  [pid].concat(subChildren(pid).map(a=>a.id)).forEach(id=>{
+    const b=balOf(id); if(b){ t+=Number(b.uzs)||0; known=true; } });
+  return known?t:null;
 }
 // Modda ro'yxati: FAQAT xarajat moddalari (type='xarajat'). Daromad ko'rsatilmaydi.
 // (Kapital xarajat / aktiv moddalar hodim uchun kamdan-kam — chalkashmaslik uchun bu yerda
@@ -725,49 +802,173 @@ function moddaList(){
 function renderKassa(){
   const ks=kassaList();
   if(ks.length===1) selKassa=ks[0].id;                       // bitta → default tanlangan
-  if(selKassa&&!ks.some(k=>k.id===selKassa)) selKassa=null;
+  if(selKassa&&!ks.some(k=>k.id===selKassa)){ selKassa=null; selSub=null; }
   const single=ks.length===1;
   $('kassaSect').style.display=single?'none':'block';
   const k=accounts.find(a=>a.id===selKassa);
   $('kassaFieldTxt').textContent = k ? `${k.name}${k.subtitle?' · '+k.subtitle:''}`
     : (ks.length ? 'Kassa tanlang' : 'Kassa biriktirilmagan');
   $('kassaFieldTxt').classList.toggle('ph', !k);   // vizual: tanlanmagan holat kulrang
-  renderHero(); renderKassaBal();
+  renderTurSeg(); renderHero(); renderKassaBal();
 }
-// Umumiy qoldiq (hero) — barcha biriktirilgan kassalar yig'indisi.
+// Pul turi / valyuta segmenti: kassa tanlangach ICHIDAN tanlanadi (professional.html naqshi).
+// Birinchi tugma "Kassa" — parentning o'z qoldig'i (turga ajratilmagan pul).
+// Har tugmada qoldiq yozilib turadi: hodim qaysi turdan pul chiqayotganini ko'radi.
+function renderTurSeg(){
+  const box=$('turSeg'); if(!box) return;
+  const kids=selKassa?subChildren(selKassa):[];
+  if(!selKassa||!kids.length){ $('turSect').style.display='none'; box.innerHTML=''; selSub=null; syncAmtCur(); return; }
+  if(selSub&&!kids.some(k=>k.id===selSub)) selSub=null;
+  const qd=id=>{ const b=balOf(id); if(!b) return '';
+    const c=curOf(accounts.find(a=>a.id===id));
+    return `<span class="qd">${c==='UZS'?money(b.uzs)+" so'm":fcTxt(b.fc)+' '+esc(c)}</span>`; };
+  const bosh=id=>{ const b=balOf(id); if(!b) return '';
+    const c=curOf(accounts.find(a=>a.id===id));
+    return ((c==='UZS'?Number(b.uzs):Number(b.fc))<=0)?' bosh':''; };
+  const btn=(id,lbl,on)=>`<button type="button" class="turbtn${on?' on':''}${bosh(id)}" onclick="pickSub(${id===selKassa?'null':`'${id}'`})">${lbl}${qd(id)}</button>`;
+  $('turSect').style.display='block';
+  box.innerHTML=btn(selKassa,'Kassa',!selSub)
+    +kids.map(k=>btn(k.id,esc(subLbl(k)),k.id===selSub)).join('');
+  syncAmtCur();
+}
+window.pickSub=id=>{ selSub=id||null; $('summa').value=''; $('summa').dataset.a000='';
+  renderTurSeg(); renderHero(); renderKassaBal(); loadRate(); };
+// Hero: kassa/tur tanlanmaguncha JAMI pul, tanlangач aynan o'sha tur qoldig'i.
 function renderHero(){
   const ks=kassaList();
-  let total=0, known=false;
-  ks.forEach(k=>{ const v=balMap[k.id]; if(v!=null){ total+=v; known=true; } });
-  $('totalBal').textContent = known ? money(total) : '—';
+  const k=accounts.find(a=>a.id===selKassa);
+  const eff=effKassa();
+  let val=null, cur='so\'m', lbl='Umumiy qoldiq';
+  if(eff && selSub){                       // tur tanlandi → aynan shu hisob
+    const b=balOf(eff.id), c=curOf(eff);
+    if(b) val = c==='UZS' ? money(b.uzs) : fcTxt(b.fc);
+    if(c!=='UZS') cur=c;
+    lbl=(k?k.name+' · ':'')+subLbl(eff);
+  }else if(k){                             // kassa tanlandi → o'zi + bolalari
+    const t=kassaJami(k.id); if(t!=null) val=money(t);
+    lbl=k.name+(k.subtitle?' · '+k.subtitle:'');
+  }else{                                   // hech narsa tanlanmadi → hamma kassa jami
+    let total=0, known=false;
+    ks.forEach(x=>{ const t=kassaJami(x.id); if(t!=null){ total+=t; known=true; } });
+    if(known) val=money(total);
+  }
+  $('heroLbl').textContent=lbl;
+  $('heroCur').textContent=cur;
+  $('totalBal').textContent = val!=null ? val : '—';
   // vizual: qoldiq hali kelmagan bo'lsa shimmer (kassa umuman yo'q bo'lsa — shimmer emas)
-  $('totalBal').classList.toggle('ph', !known && ks.length>0);
+  $('totalBal').classList.toggle('ph', val==null && ks.length>0);
   const sub=$('heroSub').querySelector('span');
   if(!ks.length) sub.textContent='Sizga kassa biriktirilmagan';
   else if(ks.length===1) sub.textContent=ks[0].name+(ks[0].subtitle?' · '+ks[0].subtitle:'');
   else sub.textContent=ks.length+' ta kassa';
   icons();
 }
-// Tanlangan kassa qoldig'i (tanlagich ostida). curBal shu yerdan olinadi (limit tekshiruvi uchun).
+// Tanlangan hisob qoldig'i (tanlagich ostida). curBal shu yerdan — limit tekshiruvi uchun.
+// Valyuta hisobida curBal VALYUTADA (fc), so'm hisobida so'mda.
 function renderKassaBal(){
   const el=$('kassaBal');
-  const v = selKassa!=null ? balMap[selKassa] : undefined;
-  curBal = (v==null)?null:Number(v);
-  if(selKassa && v!=null){ el.style.display='block'; el.innerHTML=`Ushbu kassada: <b>${money(v)} so'm</b>`; }
+  const eff=effKassa();
+  const b=eff?balOf(eff.id):null;
+  const c=eff?curOf(eff):'UZS';
+  curBal = b ? (c==='UZS'?Number(b.uzs):Number(b.fc)) : null;
+  if(eff && b){ el.style.display='block';
+    el.innerHTML=`${selSub?esc(subLbl(eff)):'Ushbu kassada'}: <b>${c==='UZS'?money(b.uzs)+" so'm":fcTxt(b.fc)+' '+esc(c)}</b>`; }
   else el.style.display='none';
   updateSave();
 }
-// Qoldiqlarni bir marta yuklaydi (acc_balance har kassa uchun, parallel). Ko'p kassada (admin) o'tkazadi.
+// Qoldiqlar: parent + hamma bola-hisoblar BITTA so'rovda (v_hisob_bal → uzs va fc).
+// Eski acc_balance sikli olib tashlandi — 60+ kassada ham bitta RT.
 async function loadBalances(){
-  const ks=kassaList(); balMap={};
-  if(ks.length && ks.length<=BAL_MAX){
-    const res=await Promise.all(ks.map(k=>sb.rpc('acc_balance',{p_account:k.id})
-      .then(r=>[k.id,(r.error||r.data==null)?null:Number(r.data)]).catch(()=>[k.id,null])));
-    res.forEach(([id,v])=>{ balMap[id]=v; });
-  }
-  renderHero(); renderKassaBal(); renderKassaList();
+  const ks=kassaList();
+  const ids=[]; ks.forEach(k=>{ ids.push(k.id); subChildren(k.id).forEach(c=>ids.push(c.id)); });
+  if(!ids.length){ balMap={}; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return; }
+  // Admin (scope='all') da 100+ hisob bo'lishi mumkin — .in() URL'i cheksiz uzun bo'lmasin.
+  const bloklar=[]; for(let i=0;i<ids.length;i+=80) bloklar.push(ids.slice(i,i+80));
+  try{
+    const res=await Promise.all(bloklar.map(b=>sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',b)));
+    if(res.some(r=>r.error)) return;        // xato — eski qoldiqlar joyida qoladi
+    const m={}; let n=0;
+    res.forEach(r=>(r.data||[]).forEach(x=>{ m[x.account_id]={uzs:Number(x.uzs)||0, fc:Number(x.fc)||0}; n++; }));
+    // MUHIM: birorta qator kelmasa qoldiqni NOL deb hisoblamaymiz. RLS to'sib qo'ygan
+    // bo'lsa nol qoldiq "Qoldiqdan oshdi · max 0" berib Saqlashni butunlay bloklardi.
+    // Kamida bitta qator kelgan bo'lsa — o'qish ishlayapti, qolganlari haqiqatan 0.
+    if(n) ids.forEach(id=>{ if(!m[id]) m[id]={uzs:0,fc:0}; });
+    balMap=m;
+  }catch(e){ return; }
+  renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
 }
-window.pickKassa=id=>{ selKassa=id; closeKassa(); renderKassa(); loadMonth(); };
+window.pickKassa=id=>{ selKassa=id; selSub=null; $('summa').value=''; $('summa').dataset.a000='';
+  closeKassa(); renderKassa(); loadRate(); loadMonth(); };
+
+// ================= Valyuta: xarajatni so'mda YOKI hisob valyutasida yozish =================
+// Dollar turi tanlansa hodim ikkalasini ham yoza oladi:
+//   • so'm yozsa   → kurs bilan dollarga aylantiriladi (dollar shuncha kamayadi)
+//   • dollar yozsa → to'g'ridan dollar, so'm ekvivalenti kurs bilan hisoblanadi
+// entry_line: debit/credit HAR DOIM so'mda (Dt=Kt kafolati), fc_amount — valyuta miqdori.
+const accCur=()=>{ const e=effKassa(); return e?curOf(e):'UZS'; };
+function syncAmtCur(){
+  const c=accCur();
+  if(c==='UZS') amtCur='UZS';
+  else if(amtCur!=='UZS'&&amtCur!==c) amtCur=c;   // boshqa valyutadan o'tildi
+  renderValSeg();
+}
+function renderValSeg(){
+  const box=$('valSeg'), c=accCur();
+  if(c==='UZS'){ box.style.display='none'; box.innerHTML=''; $('amtCurLbl').textContent="so'm"; $('kursNote').style.display='none'; return; }
+  box.style.display='flex';
+  box.innerHTML=`<button type="button" class="valbtn${amtCur==='UZS'?' on':''}" onclick="pickAmtCur('UZS')">so'm</button>`
+    +`<button type="button" class="valbtn${amtCur!=='UZS'?' on':''}" onclick="pickAmtCur('${esc(c)}')">${esc(c)}</button>`;
+  $('amtCurLbl').textContent = amtCur==='UZS' ? "so'm" : c;
+  renderKursNote();
+}
+window.pickAmtCur=c=>{ amtCur=c; $('summa').value=''; $('summa').dataset.a000=''; renderValSeg(); updateSave(); };
+// Kurs satri: kurs + kiritilgan summaning ikkinchi tomondagi ekvivalenti.
+function renderKursNote(){
+  const el=$('kursNote'), c=accCur();
+  if(c==='UZS'){ el.style.display='none'; return; }
+  el.style.display='block';
+  if(curRate==null){
+    el.className='kursnote'+(rateBusy?'':' no');
+    el.textContent=rateBusy?'Kurs olinmoqda…':`${c} kursi yo'q — Valyuta bo'limida kurs qo'shilishi kerak`;
+    return;
+  }
+  const cc=calcAmounts();
+  el.className='kursnote';
+  el.innerHTML=`Kurs: <b>${money(curRate)}</b> so'm / 1 ${esc(c)}`
+    +((cc&&cc.raw>0) ? (amtCur==='UZS'
+        ? ` · ${money(cc.uzs)} so'm ≈ <b>${fcTxt(cc.fc)} ${esc(c)}</b>`
+        : ` · ${fcTxt(cc.fc)} ${esc(c)} ≈ <b>${money(cc.uzs)} so'm</b>`) : '');
+}
+// Kurs manbai — conv_baza_kurs (USD uchun Aros kursi, boshqasi currency_rate). null bo'lishi mumkin.
+async function loadRate(){
+  syncAmtCur();
+  const c=accCur();
+  if(c==='UZS'){ curRate=null; rateBusy=false; renderValSeg(); updateSave(); return; }
+  curRate=null; rateBusy=true; renderValSeg();
+  try{
+    const {data,error}=await sb.rpc('conv_baza_kurs',{p_cur:c});
+    if(accCur()!==c) return;                        // hisob almashdi — eski javob tashlanadi
+    curRate=(error||data==null)?null:(Number(data)||null);
+  }catch(e){ curRate=null; }
+  rateBusy=false; renderValSeg(); updateSave();
+}
+// Summani ikki tomonga hisoblaydi. null = hisoblab bo'lmaydi (valyuta hisobi, kurs yo'q).
+function calcAmounts(){
+  const raw=amtVal(), c=accCur();
+  if(c==='UZS') return {raw, uzs:Math.round(raw), fc:null, rate:null, cur:'UZS'};
+  if(!curRate||curRate<=0) return null;
+  if(amtCur==='UZS'){ const uzs=Math.round(raw);
+    return {raw, uzs, fc:Math.round((uzs/curRate)*100)/100, rate:curRate, cur:c}; }
+  const fc=Math.round(raw*100)/100;
+  return {raw, uzs:Math.round(fc*curRate), fc, rate:curRate, cur:c};
+}
+// Valyuta maydoni: raqam + bitta nuqta (2 kasrgacha). Minglik ajratgich YO'Q —
+// "12.50" ni terish paytida kursor sakramaydi. Avtomat "000" ham qo'shilmaydi.
+function fmtFc(el){
+  let v=String(el.value||'').replace(/,/g,'.').replace(/[^\d.]/g,'');
+  const p=v.split('.');
+  el.value=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+}
 window.openKassa=()=>{ $('kassaSearch').value=''; renderKassaList(); $('kassaModal').classList.add('open'); setTimeout(()=>{ try{ $('kassaSearch').focus(); }catch(e){} },50); };
 window.closeKassa=()=>{ $('kassaModal').classList.remove('open'); };
 // Esc — ochiq modalni yopadi (klaviatura qulayligi; mantiqqa tegmaydi)
@@ -782,7 +983,7 @@ window.renderKassaList=()=>{
   const q=$('kassaSearch').value.trim().toLowerCase();
   const ks=kassaList().filter(k=>!q||String(k.name).toLowerCase().includes(q)||String(k.code).toLowerCase().includes(q)||String(k.subtitle||'').toLowerCase().includes(q));
   $('kassaList2').innerHTML = ks.length ? ks.map(k=>{
-    const v=balMap[k.id];
+    const v=kassaJami(k.id);              // o'zi + bola-hisoblar (turlar/valyutalar)
     const bal=v!=null?`<span class="pc">${money(v)} so'm</span>`:`<span class="pc">${esc(k.code)}</span>`;
     return `<button type="button" class="pickitem${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')"><span class="pn">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span>${bal}</button>`;
   }).join('') : '<div class="pickempty">Topilmadi</div>';
@@ -978,15 +1179,30 @@ window.openChek=async(kassaId,entryId)=>{
   }catch(e){ toast('Chek ochilmadi',true); }
 };
 
-function amtVal(){ return Number(($('summa').value||'').replace(/\D/g,''))||0; }
+// Kiritilgan son — TANLANGAN valyutada (so'mda butun, valyutada 2 kasrgacha).
+function amtVal(){
+  const s=String($('summa').value||'');
+  return (amtCur==='UZS' ? Number(s.replace(/\D/g,'')) : Number(s.replace(/[^\d.]/g,'')))||0;
+}
 // 1-band: summa qoldiqdan oshsa — input qizil, ogohlantirish, Saqlash disabled (server ham rad etadi).
 function updateSave(){
   const amt=amtVal();
-  const over = curBal!=null && amt>curBal;
+  const ac=accCur();
+  const c=calcAmounts();
+  const needKurs = ac!=='UZS' && !c;                 // valyuta hisobi, lekin kurs yo'q → yozib bo'lmaydi
+  const uzsAmt = c ? c.uzs : 0;                      // limit/taqsim hisoblari HAR DOIM so'mda
+  // Ikkala tomon ham musbat bo'lishi shart: mayda summada bir tomon nolga
+  // yaxlitlanib ketardi (1 so'm → 0.00 $, yoki 0.001 $ → 0 so'm) va hisob
+  // kitobi so'm bilan valyutadan uzilib qolardi.
+  const okAmt = !!c && c.uzs>0 && (ac==='UZS' || c.fc>0);
+  // Qoldiq tekshiruvi hisob valyutasida: so'm hisobida so'm, valyuta hisobida valyuta miqdori.
+  const over = !!c && curBal!=null && ((ac==='UZS'?c.uzs:c.fc) > curBal);
+  renderKursNote();
   const w=$('amtWarn'), aw=$('amtwrap');
   if(aw){ aw.classList.toggle('over',over); }
   if(w){
-    if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(curBal)} so'm`; }
+    if(over){ w.style.display='block';
+      w.textContent=`Qoldiqdan oshdi · max ${ac==='UZS'?money(curBal)+" so'm":fcTxt(curBal)+' '+ac}`; }
     else w.style.display='none';
   }
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
@@ -997,48 +1213,64 @@ function updateSave(){
   let overLimit=false; const lw=$('limitWarn');
   if(selFilials.size===1 && selModda){
     const lm=limitFor([...selFilials][0], selModda);
-    if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
+    if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
 }
 
 window.saveHodim=async()=>{
   console.time('hodim:saqlash');
-  const amt=amtVal();
-  const kassa=accounts.find(a=>a.id===selKassa);
+  // Pul AYNAN tanlangan tur hisobidan chiqadi (naqd/Click/Payme/USD), kassaning o'zidan emas.
+  const kassa=effKassa();
   const modda=accounts.find(a=>a.id===selModda);
   if(!kassa){ toast('Kassa tanlang',true); return; }
   if(!modda){ toast('Modda tanlang',true); return; }
-  if(amt<=0){ toast('Summa kiriting',true); return; }
+  const calc=calcAmounts();
+  if(!calc){ toast(accCur()+' kursi yo\'q — Valyuta bo\'limida kurs qo\'shing',true); return; }
+  const amt=calc.uzs;                       // so'm summasi: entry_line debit/credit shu
+  if(amtVal()<=0||amt<=0){ toast('Summa kiriting',true); return; }
+  // Valyuta xarajatida ikkala tomon ham musbat bo'lsin (yaxlitlanib nolga tushmasin)
+  if(calc.cur!=='UZS' && !(calc.fc>0)){ toast('Summa juda kichik — '+calc.cur+' miqdori nolga aylanadi',true); return; }
   if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
   if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
   // Stage 2: 2+ filial → har filialga ALOHIDA provodka (taqsim modal → atomik RPC)
-  if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa); return; }
+  if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa, calc); return; }
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…'; icons();
-  // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
+  // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi (tanlangan tur hisobi).
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
   // trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
   // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
   const savedIzoh=$('izoh').value||'';
-  const entryPayload={entry_date:isoDay(nowUz()),description:savedIzoh||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
+  // Valyuta xarajati jurnalda ANIQ ko'rinsin: miqdor + kurs izohga qo'shiladi,
+  // kurs entry.fc_rate ustuniga ham yoziladi (konvert bilan bir xil naqsh).
+  const fcNote = calc.cur!=='UZS' ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
+  const entryPayload={entry_date:isoDay(nowUz()),
+    description:[savedIzoh,fcNote].filter(Boolean).join(' · ')||null,
+    source:'manual',status:'posted',filial_ids:[...selFilials]};
+  if(calc.cur!=='UZS') entryPayload.fc_rate=calc.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   // 2 ta insert (entry id kerak → entry_line). Qo'shimcha qayta-o'qish YO'Q (insert…returning).
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
-  const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt}];
+  // fc_amount FAQAT valyuta hisobi satriga (Kt = kassa). v_hisob_bal uni
+  // debit>0 ? +fc : −fc bilan hisoblaydi — chiqimда dollar shuncha kamayadi.
+  const kassaRow={entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt};
+  if(calc.cur!=='UZS') kassaRow.fc_amount=calc.fc;
+  const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},kassaRow];
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
   console.timeEnd('hodim:saqlash');
   const kId=kassa.id, kName=kassa.name, kSub=kassa.subtitle, mName=modda.name, chekUp=chekBlob;
   // Optimistik qoldiq: summani darrov ayirib ko'rsat, fonda haqiqiysi kelib to'g'rilaydi.
-  if(balMap[kId]!=null){ balMap[kId]=Number(balMap[kId])-amt; renderHero(); renderKassaBal(); }
-  // Forma darrov tozalanadi (kassa qoladi — ketma-ket yozish oson)
-  $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear();
+  if(balMap[kId]){ balMap[kId]={uzs:Number(balMap[kId].uzs)-amt,
+    fc:Number(balMap[kId].fc)-(calc.fc||0)}; renderTurSeg(); renderHero(); renderKassaBal(); }
+  // Forma darrov tozalanadi (kassa + tur qoladi — ketma-ket yozish oson)
+  $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
@@ -1079,10 +1311,13 @@ async function loadLimits(){
 // ---- Stage 2: Filial taqsimoti (har filialga alohida entry, atomik RPC) ----
 const selFilialObjs=()=>[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
 let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
-function openTaqsim(amt, dtId, ktId, kassa){
+function openTaqsim(amt, dtId, ktId, kassa, calc){
   taqsimFils=selFilialObjs();
   if(taqsimFils.length<2) return;   // himoya (kondifsiya allaqachon tekshirgan)
-  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||''};
+  // Taqsimot HAR DOIM so'mda (amt = calc.uzs). Valyuta kassasida server
+  // har ulush uchun fc = ulush / kurs hisoblaydi (xarajat_saqlash_taqsim → kassa_kurs).
+  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, calc:calc||null,
+    izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||''};
   taqsimEqualCalc(); renderTaqsim();
   $('taqsimModal').classList.add('open');
 }
@@ -1122,13 +1357,18 @@ window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
-  const {dtId,ktId,kassa,izoh,chek,mName}=taqsimCtx;
+  const {dtId,ktId,kassa,izoh,chek,mName,calc}=taqsimCtx;
+  const kCur=curOf(kassa);
+  const fcNote = (calc&&calc.cur!=='UZS') ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
   const p_data={
-    entry_date:isoDay(nowUz()), description:izoh||null, source:'manual', status:'posted',
+    entry_date:isoDay(nowUz()), description:[izoh,fcNote].filter(Boolean).join(' · ')||null,
+    source:'manual', status:'posted',
     dt_account:dtId, kt_account:ktId,
-    kassa_account:kassa.id, kassa_currency:kassa.currency||'UZS',
+    kassa_account:kassa.id, kassa_currency:kCur,
     taqsim:taqsimFils.map(f=>({filial_id:f.id, summa:Number(taqsimAlloc[f.id])||0}))
   };
+  // Valyuta kassasi: kurs berilsa server fc = summa/kurs qiladi (eski xatti-harakat — fc=summa).
+  if(kCur!=='UZS' && calc && calc.rate) p_data.kassa_kurs=calc.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
   const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
@@ -1137,9 +1377,10 @@ window.confirmTaqsim=async()=>{
   const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
   closeTaqsim();
   // Optimistik qoldiq (butun summa chiqdi)
-  if(balMap[kassa.id]!=null){ balMap[kassa.id]=Number(balMap[kassa.id])-amt; renderHero(); renderKassaBal(); }
-  // Forma tozalanadi (kassa qoladi)
-  $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
+  if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-amt,
+    fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; renderTurSeg(); renderHero(); renderKassaBal(); }
+  // Forma tozalanadi (kassa + tur qoladi)
+  $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('Saqlandi · '+nFil+' filial');
   // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
@@ -1226,10 +1467,16 @@ async function loadMonth(){
   const n=nowUz();
   const from=isoDay(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1))), to=isoDay(n);
   const want=selKassa;
+  // Kassaning o'zi + bola-hisoblari (naqd/Click/Payme/USD) — RPC bitta hisobni biladi,
+  // shuning uchun parallel chaqirib qo'shamiz. Odatda 1–4 ta hisob.
+  const ids=[want].concat(subChildren(want).map(a=>a.id));
   try{
-    const {data,error}=await sb.rpc('hodim_oy_jami',{p_account:want,p_from:from,p_to:to});
-    if(error||data==null||selKassa!==want) return;
-    el.innerHTML=`Bu oy sarflandi: <b>${money(data)} so'm</b>`;
+    const res=await Promise.all(ids.map(id=>sb.rpc('hodim_oy_jami',{p_account:id,p_from:from,p_to:to})
+      .then(r=>(r.error||r.data==null)?null:Number(r.data)).catch(()=>null)));
+    if(selKassa!==want) return;
+    if(res.every(v=>v==null)) return;
+    const jami=res.reduce((s,v)=>s+(v||0),0);
+    el.innerHTML=`Bu oy sarflandi: <b>${money(jami)} so'm</b>`;
     el.style.display='block';
   }catch(e){}
 }
@@ -1238,11 +1485,12 @@ async function loadMonth(){
 // bo'yicha cheklaydi; moddalar (xarajat) doim qoladi. 5400 konteyner chiqariladi.
 function applyAccounts(data){
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
-  renderKassa(); renderModda();
+  renderKassa(); renderModda(); loadRate();
 }
 let _bound=false;
 function bindInputs(){ if(_bound) return; _bound=true;
-  $('summa').addEventListener('input',e=>{ fmtAmt(e.target); updateSave(); });
+  // so'mda — minglik ajratgich + avtomat "000"; valyutada — 2 kasrgacha, "000" YO'Q.
+  $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); });
   $('izoh').addEventListener('input',updateSave);
 }
 
