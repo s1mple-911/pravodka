@@ -796,7 +796,9 @@ const isTuriChild=a=>!!(a.parent_id && a.pul_turi);
 const isCurChild =a=>!!(a.parent_id && a.currency && a.currency!=='UZS');
 const isSubChild =a=>isTuriChild(a)||isCurChild(a);
 // Tanlangan kassaning barcha bola-hisoblari: avval turlar (naqd→click→payme), keyin valyutalar
-const TURI_TART={naqd:1,click:2,payme:3};
+// Tartib va yorliqlar hodim-dev.html dagi TURI_TART/TURI_LBL bilan bir xil —
+// yangi turlar (terminal/karta/plastik) sahifalarda boshqacha ko'rinmasin.
+const TURI_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
 const subChildren=pid=>accounts.filter(a=>a.parent_id===pid && isKassa(a) && isSubChild(a))
   .sort((x,y)=>(TURI_TART[x.pul_turi]||9)-(TURI_TART[y.pul_turi]||9)
             || String(x.currency||'').localeCompare(String(y.currency||'')));
@@ -819,7 +821,7 @@ function renderChips(){
 // Pul turi / valyuta segmenti — tanlangan kassada bola-hisob bo'lsa ko'rinadi.
 // Birinchi tugma "Kassa" — parentning o'z qoldig'i (turga ajratilmagan pul).
 // Har tugmada qoldiq yozilib turadi: odam qaysi turdan pul chiqayotganini ko'radi.
-const TURI_LBL={naqd:"💵 Naqd",click:'💳 Click',payme:'📱 Payme'};
+const TURI_LBL={naqd:"💵 Naqd",click:'💳 Click',payme:'📱 Payme',terminal:'🏧 Terminal',karta:'🏦 Karta',plastik:'🏦 Plastik'};
 const subLbl=a=>a.pul_turi?(TURI_LBL[a.pul_turi]||a.pul_turi):('💲 '+(a.currency||''));
 function renderCurSeg(){
   const box=$('curSeg'); if(!box) return;

@@ -92,14 +92,27 @@
   .bal b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   /* ===== Pul turi / valyuta segmenti (kassa ostida) — professional.html bilan bir xil naqsh ===== */
   .turseg{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0 0}
-  .turbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;
+  /* Tugma ichida IKKI qavat: NOM (asosiy — ink-2) + QOLDIQ (ikkilamchi — muted).
+     Avval ikkalasi ham kulrang edi va tugma "o'chirilgan"dek ko'rinardi.
+     min-height:48 — qoldig'i noma'lum (qd yo'q) tugma ham barmoqbop bo'lsin va
+     bir qatordagilar teng bo'yda tursin; markazlash uchun flex-column. */
+  /* align-items ATAYLAB aniq: brauzer UA uslubi button uchun `align-items:center` beradi va
+     ustunli flex'da nom/qoldiq markazga tortilib, text-align:left ishlamay qolardi. */
+  .turbtn{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+    max-width:100%;min-height:48px;min-width:84px;
+    border:1.5px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:10px;
     padding:8px 13px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;
-    line-height:1.25;transition:border-color .15s,background .15s,color .15s}
+    line-height:1.25;transition:border-color .15s,background .15s,color .15s,transform .12s}
   @media(hover:hover){.turbtn:hover{border-color:var(--primary)}}
+  .turbtn:active{transform:scale(.98)}
   .turbtn.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
-  .turbtn .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+  /* nowrap — "12 500 000 so'm" raqami o'rtasidan bo'linmasin (probel ajratgich) */
+  .turbtn .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
   .turbtn.on .qd{color:var(--primary-ink)}
-  .turbtn.bosh .qd{color:var(--red)}   /* qoldiq 0 yoki manfiy — undan pul chiqmaydi */
+  /* qoldiq 0 yoki manfiy — undan pul chiqmaydi. --red-ink (11px matn uchun AA: 5.9:1;
+     --red esa 4.0:1 — yiqilardi) va ohangi "xato" emas, "diqqat" — hodimni qo'rqitmaydi. */
+  .turbtn.bosh .qd{color:var(--red-ink)}
   /* Summa valyutasi: so'mda yozish yoki valyutada yozish */
   .valseg{display:flex;gap:var(--s2);margin:0 0 var(--s3)}
   .valbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;
@@ -348,13 +361,22 @@
     border-radius:var(--r-xl);padding:var(--s5);margin-bottom:var(--s4);box-shadow:0 6px 20px rgba(15,96,35,.18)}
   /* Hero matnlari TO'LIQ oq (shaffoflik yo'q) — to'q yashil fonda AA kontrast (4.7:1+).
      Ierarxiya o'lcham/og'irlik bilan beriladi, opacity bilan emas. */
-  .hero-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:var(--s1)}
+  /* Yorliq dinamik: "Umumiy qoldiq" yoki kassa/tur nomi. Uzun nom (Ism · Filial · Lavozim)
+     UPPERCASE holida 2-3 qatorga bo'linib hero'ni bo'rttirmasin — bir qator, … bilan. */
+  .hero-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:var(--s1);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hero-amt{display:flex;align-items:baseline;gap:var(--s2);font-variant-numeric:tabular-nums;min-height:38px}
-  .hero-amt #totalBal{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+  /* transition — .ph (shimmer) 8 soniyadan keyin olinganda fon/rang to'satdan emas, so'nib ketadi */
+  .hero-amt #totalBal{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1;
+    transition:background-color .25s ease,color .25s ease}
   /* qoldiq hali yuklanmagan — shimmer (skelet) */
   .hero-amt #totalBal.ph{display:inline-block;width:132px;height:26px;border-radius:8px;color:transparent;
     background:rgba(255,255,255,.22);overflow:hidden;position:relative;animation:pulse 1.4s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  /* QOLDIQ NOMA'LUM ("—") — haqiqiy "0 so'm" bilan CHALKASHMASLIGI shart: "—" ingichkaroq
+     va susroq (bu holatda opacity o'rinli — ierarxiya emas, "raqam yo'q" belgisi).
+     ⚠️ Klassni JS toggle qilishi kerak — renderHero() ga bitta qator (hisobotga qara). */
+  .hero-amt #totalBal.unk{font-weight:500;opacity:.6;letter-spacing:0}
   .hero-cur{font-size:15px;font-weight:600}
   .hero-sub{font-size:13.5px;font-weight:500;margin-top:var(--s2);display:flex;align-items:center;gap:var(--s2);min-width:0}
   .hero-sub svg{width:16px;height:16px;opacity:.85}
@@ -909,8 +931,10 @@ function renderHero(){
     lbl=(k?k.name+' · ':'')+subLbl(eff);
   }else if(k){                             // kassa tanlandi → o'zi + bolalari
     const t=kassaJami(k.id); if(t!=null) val=money(t);
-    lbl=k.name+(k.subtitle?' · '+k.subtitle:'');
-  }else{                                   // hech narsa tanlanmadi → hamma kassa jami
+    // Bitta kassali hodimda (80% holat) nom heroSub'da baribir turadi — bu yerda ham
+    // yozilsa ism ikki marta chiqib, "Umumiy qoldiq" yorlig'i umuman yo'qolardi.
+    lbl = ks.length===1 ? 'Umumiy qoldiq' : k.name+(k.subtitle?' · '+k.subtitle:'');
+  }else{                                 // hech narsa tanlanmadi → hamma kassa jami
     let total=0, known=false;
     ks.forEach(x=>{ const t=kassaJami(x.id); if(t!=null){ total+=t; known=true; } });
     if(known) val=money(total);
@@ -918,10 +942,18 @@ function renderHero(){
   $('heroLbl').textContent=lbl;
   $('heroCur').textContent=cur;
   $('totalBal').textContent = val!=null ? val : '—';
-  // vizual: qoldiq hali kelmagan bo'lsa shimmer (kassa umuman yo'q bo'lsa — shimmer emas)
-  $('totalBal').classList.toggle('ph', val==null && ks.length>0);
+  // vizual: qoldiq hali kelmagan bo'lsa shimmer (kassa umuman yo'q bo'lsa — shimmer emas).
+  // balShimmer 8 soniyadan keyin o'chadi, balXato'da esa umuman aylanmaydi.
+  $('totalBal').classList.toggle('ph', val==null && ks.length>0 && balShimmer && !balXato);
+  // "0 so'm" va "—" (noma'lum) bir xil qalin oq raqam bo'lib ko'rinmasin: bo'sh kassani
+  // hodim "yuklanmadi" deb o'ylamasin. Noma'lum — ingichka va sust.
+  $('totalBal').classList.toggle('unk', val==null);
   const sub=$('heroSub').querySelector('span');
   if(!ks.length) sub.textContent='Sizga kassa biriktirilmagan';
+  // Qoldiq kelmadi — jimgina "—" da qoldirmaymiz. balXato = hech narsa kelmadi;
+  // !balShimmer = kutish tugadi, lekin AYNAN shu kassa/tur qoldig'i baribir noma'lum
+  // (qisman javob: boshqa kassalar keldi, bu esa yo'q — avval hech qanday izoh yo'q edi).
+  else if(val==null && (balXato || !balShimmer)) sub.textContent='Qoldiq yuklanmadi — sahifani yangilang';
   else if(ks.length===1) sub.textContent=ks[0].name+(ks[0].subtitle?' · '+ks[0].subtitle:'');
   else sub.textContent=ks.length+' ta kassa';
   icons();
@@ -944,9 +976,12 @@ function renderKassaBal(){
 // TEZLIK: qoldiq keshdan DARROV ko'rsatiladi (sahifa ochilishi bilan raqam turadi),
 // fonda haqiqiysi kelib jimgina almashtiriladi. Hodim endi bo'sh hero'ni kutmaydi.
 // Kesh kaliti kassa ro'yxatiga bog'liq emas — balMap id bo'yicha, ortiqchasi zarar qilmaydi.
+// MUHIM: BO'SH obyekt kesh emas. Yangi ochilgan kassada v_hisob_bal birorta qator
+// qaytarmasa, avval bo'sh {} keshlanardi va sahifa qayta ochilganda hero yana "—" bo'lib
+// qolardi (kesh 5 daqiqa). Bo'sh natija hech qachon keshlanmaydi ham, o'qilmaydi ham.
 function loadBalancesCached(){
   const c=swrGet('bal');
-  if(c && typeof c==='object'){ balMap=c; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return true; }
+  if(c && typeof c==='object' && Object.keys(c).length){ balMap=c; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return true; }
   return false;
 }
 // Bir vaqtda BITTA so'rov: init() da qoldiq keshsiz bo'lsa erta boshlanadi, keyin
@@ -955,7 +990,12 @@ function loadBalancesCached(){
 // So'rov ketayotgan bo'lsa yangisi navbatga turadi (balYana) — shunda ikki barobar
 // RPC ham bo'lmaydi, oxirgi holat (yangilangan accounts) ham albatta yuklanadi.
 let balSorov=null, balYana=false;
+// balXato — hamma yo'l ishlamadi (qoldiq HAQIQATAN noma'lum) → hero ostida izoh.
+// balShimmer — kutish animatsiyasi. 8 soniyadan keyin o'chadi: cheksiz aylanib turgan
+// shimmer "yuklanyapti" degan yolg'on taassurot beradi, "—" halolroq.
+let balXato=false, balShimmer=true, balShimmerT=null;
 async function loadBalances(){
+  if(balShimmerT==null) balShimmerT=setTimeout(()=>{ balShimmer=false; renderHero(); }, 8000);
   if(balSorov){ balYana=true; return balSorov; }
   balSorov=(async()=>{
     try{ do{ balYana=false; await loadBalancesIch(); } while(balYana); }
@@ -963,39 +1003,77 @@ async function loadBalances(){
   })();
   return balSorov;
 }
+// Uch bosqich, biri ishlasa — keyingisiga o'tilmaydi:
+//   1) hodim_qoldiqlar RPC (tez, bitta RT)  2) v_hisob_bal view  3) acc_balance (oxirgi chora).
+// Har bosqich konsolga yoziladi ([bal] ...) — qaysi yo'l ishlayotganini ko'rish uchun.
 async function loadBalancesIch(){
   const ks=kassaList();
   const ids=[]; ks.forEach(k=>{ ids.push(k.id); subChildren(k.id).forEach(c=>ids.push(c.id)); });
-  if(!ids.length){ balMap={}; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return; }
+  if(!ids.length){ balMap={}; balXato=false; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return; }
+  let m=null;                              // null = hali birorta yo'l natija bermadi
   try{
-    // TEZ YO'L: bitta to'plamli RPC (SECURITY DEFINER — RLS to'smaydi, indekslardan
+    // 1-YO'L: bitta to'plamli RPC (SECURITY DEFINER — RLS to'smaydi, indekslardan
     // foydalanadi). PROVODKA_HODIM_TEZLIK.sql RUN qilinmagan bo'lsa xato beradi va
     // pastdagi eski yo'lga tushamiz — sahifa baribir ishlaydi.
     const {data:rpc,error:rpcErr}=await sb.rpc('hodim_qoldiqlar',{p_accounts:ids});
-    if(!rpcErr && rpc && typeof rpc==='object'){
-      const m={};
-      Object.keys(rpc).forEach(id=>{ const v=rpc[id]||{}; m[id]={uzs:Number(v.uzs)||0, fc:Number(v.fc)||0}; });
-      balMap=m; swrSet('bal',m);
-      renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
-      return;
+    const rpcN=(!rpcErr && rpc && typeof rpc==='object')?Object.keys(rpc).length:0;
+    console.log('[bal] rpc', rpcErr||('hisob: '+rpcN+'/'+ids.length));
+    if(rpcN){
+      const t={};
+      Object.keys(rpc).forEach(id=>{ const v=rpc[id]||{}; t[id]={uzs:Number(v.uzs)||0, fc:Number(v.fc)||0}; });
+      m=t;                                 // bo'sh {} bo'lsa (rpcN=0) — keyingi yo'lga
     }
-    // ESKI YO'L: v_hisob_bal. Admin (scope='all') da 100+ hisob bo'lishi mumkin —
-    // .in() URL'i cheksiz uzun bo'lmasin, 80 tadan bo'lakma-bo'lak.
-    const bloklar=[]; for(let i=0;i<ids.length;i+=80) bloklar.push(ids.slice(i,i+80));
-    const res=await Promise.all(bloklar.map(b=>sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',b)));
-    if(res.some(r=>r.error)) return;        // xato — eski qoldiqlar joyida qoladi
-    const m={}; let n=0;
-    res.forEach(r=>(r.data||[]).forEach(x=>{ m[x.account_id]={uzs:Number(x.uzs)||0, fc:Number(x.fc)||0}; n++; }));
-    // MUHIM: birorta qator kelmasa qoldiqni NOL deb hisoblamaymiz. RLS to'sib qo'ygan
-    // bo'lsa nol qoldiq "Qoldiqdan oshdi · max 0" berib Saqlashni butunlay bloklardi.
-    // Kamida bitta qator kelgan bo'lsa — o'qish ishlayapti, qolganlari haqiqatan 0.
-    if(n) ids.forEach(id=>{ if(!m[id]) m[id]={uzs:0,fc:0}; });
-    balMap=m; swrSet('bal',m);            // keyingi ochilishda darrov ko'rinsin
-  }catch(e){ return; }
+    if(!m){
+      // 2-YO'L: v_hisob_bal. Admin (scope='all') da 100+ hisob bo'lishi mumkin —
+      // .in() URL'i cheksiz uzun bo'lmasin, 80 tadan bo'lakma-bo'lak.
+      const bloklar=[]; for(let i=0;i<ids.length;i+=80) bloklar.push(ids.slice(i,i+80));
+      const res=await Promise.all(bloklar.map(b=>sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',b)));
+      const vErr=(res.find(r=>r.error)||{}).error;
+      const t={}; let n=0;
+      if(!vErr) res.forEach(r=>(r.data||[]).forEach(x=>{ t[x.account_id]={uzs:Number(x.uzs)||0, fc:Number(x.fc)||0}; n++; }));
+      console.log('[bal] view', vErr||(n+'/'+ids.length));
+      // MUHIM: birorta qator kelmasa qoldiqni NOL deb hisoblamaymiz. RLS to'sib qo'ygan
+      // bo'lsa nol qoldiq "Qoldiqdan oshdi · max 0" berib Saqlashni butunlay bloklardi.
+      // Kamida bitta qator kelgan bo'lsa — o'qish ishlayapti, qolganlari haqiqatan 0.
+      if(n){ ids.forEach(id=>{ if(!t[id]) t[id]={uzs:0,fc:0}; }); m=t; }
+    }
+    if(!m){
+      // 3-YO'L (OXIRGI CHORA): hisob-hisob acc_balance. v_hisob_bal `group by account_id`
+      // qiladi — yozuvi HALI YO'Q hisob uchun qator qaytarmaydi, ya'ni yangi ochilgan
+      // hodim kassasida "qator yo'q" = "qoldiq noma'lum" bo'lib qolardi. acc_balance esa
+      // har hisob uchun aniq raqam beradi. So'rov ko'paymasin: tanlangan kassa + bolalari,
+      // kassalar oz bo'lsa (<10) hammasi. RPC yo'q/xato bo'lsa jimgina o'tkazamiz.
+      // ⚠️ acc_balance FAQAT so'm qaytaradi. Valyuta hisobiga (USD…) qo'llasak unga
+      // fc:0 yozilib, keshdagi HAQIQIY valyuta qoldig'i yuvilardi va updateSave()
+      // "Qoldiqdan oshdi · max 0" bilan Saqlashni butunlay yopardi — ya'ni aynan shu
+      // fix bartaraf qilayotgan xatoning valyuta varianti. Shuning uchun valyuta
+      // hisoblari bu yo'lga UMUMAN kirmaydi (ular 1/2-yo'ldan keladi).
+      const uzsMi=id=>curOf(accounts.find(x=>x.id===id))==='UZS';
+      let need = selKassa ? [selKassa].concat(subChildren(selKassa).map(a=>a.id)) : [];
+      if(ks.length<10) need=ids.concat(need);   // kam kassada hammasi; tanlangani baribir ichida qolsin
+      need=need.filter((x,i,arr)=>x&&arr.indexOf(x)===i&&uzsMi(x));
+      if(need.length){
+        const rs=await Promise.all(need.map(id=>sb.rpc('acc_balance',{p_account:id})
+          .then(r=>({id, v:(r.error||r.data==null)?null:r.data}), ()=>({id, v:null}))));
+        const t={}; let n=0;
+        // fc eski qiymatdan saqlanadi (need faqat so'm hisoblari — amalda 0, lekin yuvmaymiz).
+        rs.forEach(r=>{ if(r.v!=null){ t[r.id]={uzs:Number(r.v)||0, fc:(balMap[r.id]&&Number(balMap[r.id].fc))||0}; n++; } });
+        console.log('[bal] acc_balance', n+'/'+need.length);
+        // Qisman natija: mavjud balMap ustiga qo'shamiz (boshqa kassalarniki yo'qolmasin).
+        if(n) m=Object.assign({}, balMap, t);
+      }
+    }
+  }catch(e){ console.log('[bal] istisno', e); }
+  // Bo'sh natija KESHLANMAYDI va mavjud qoldiqni ham yuvib ketmaydi.
+  if(m && Object.keys(m).length){ balMap=m; swrSet('bal',m); }   // keyingi ochilishda darrov ko'rinsin
+  balXato=!Object.keys(balMap).length;
   renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
 }
 window.pickKassa=id=>{ selKassa=id; selSub=null; $('summa').value=''; $('summa').dataset.a000='';
-  closeKassa(); renderKassa(); loadRate(); loadMonth(); };
+  closeKassa(); renderKassa(); loadRate(); loadMonth();
+  // Shu kassaning qoldig'i noma'lum bo'lsa — qayta so'raymiz: 3-yo'l (acc_balance)
+  // aynan tanlangan kassa bo'yicha ishlaydi, ya'ni endi raqam kelishi mumkin.
+  if(!balOf(id)) loadBalances(); };
 
 // ================= Valyuta: xarajatni so'mda YOKI hisob valyutasida yozish =================
 // Dollar turi tanlansa hodim ikkalasini ham yoza oladi:
@@ -1365,7 +1443,8 @@ window.saveHodim=async()=>{
   const kId=kassa.id, kName=kassa.name, kSub=kassa.subtitle, mName=modda.name, chekUp=chekBlob;
   // Optimistik qoldiq: summani darrov ayirib ko'rsat, fonda haqiqiysi kelib to'g'rilaydi.
   if(balMap[kId]){ balMap[kId]={uzs:Number(balMap[kId].uzs)-amt,
-    fc:Number(balMap[kId].fc)-(calc.fc||0)}; renderTurSeg(); renderHero(); renderKassaBal(); }
+    fc:Number(balMap[kId].fc)-(calc.fc||0)}; swrSet('bal',balMap);   // kesh ham yangilansin — reload eski raqamni ko'rsatmasin
+    renderTurSeg(); renderHero(); renderKassaBal(); }
   // Forma darrov tozalanadi (kassa + tur qoladi — ketma-ket yozish oson)
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null;
@@ -1475,7 +1554,8 @@ window.confirmTaqsim=async()=>{
   closeTaqsim();
   // Optimistik qoldiq (butun summa chiqdi)
   if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-amt,
-    fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; renderTurSeg(); renderHero(); renderKassaBal(); }
+    fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; swrSet('bal',balMap);   // kesh ham yangilansin
+    renderTurSeg(); renderHero(); renderKassaBal(); }
   // Forma tozalanadi (kassa + tur qoladi)
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();

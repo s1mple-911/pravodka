@@ -615,10 +615,30 @@ async function loadAccSel(){
   buildAccSel();
   $('acc').onchange=onAcc;
 }
-// Hodim filtri — kassa_turi='xarajat' kassalar (name=ism, subtitle='Filial · Lavozim').
+// Bola-hisob (tur yoki valyuta) aniqlash — perms-dev.js keyOf() va SQL kassa_oila()
+// bilan AYNAN bir xil qoida. parent_id UCH ma'noli: hodim kassasining parenti 5400
+// konteyner guruh, u bola-hisob EMAS. Shuning uchun faqat parent_id ga tayanib bo'lmaydi:
+//   currency <> 'UZS'    → valyuta bolasi (56xx USD, 57xx CNY…)
+//   pul_turi to'ldirilgan → pul turi bolasi (naqd/click/payme/karta, 55xxx)
+const jCurOf=a=>String((a&&a.currency)||'UZS').toUpperCase();
+const isSubAcc=a=>!!(a&&a.parent_id&&(jCurOf(a)!=='UZS'||a.pul_turi));
+// Kassa + uning barcha bola-hisoblari (nevaralar ham: "Naqd · USD" bo'lishi mumkin).
+// SQL kassa_oila() ning klient nusxasi — jurnal RPC'ga p_accounts sifatida ketadi.
+function kassaOila(id){
+  const out=[id], seen=new Set([id]);
+  for(let i=0;i<out.length;i++){
+    (accounts||[]).forEach(a=>{
+      if(a.parent_id===out[i] && isSubAcc(a) && !seen.has(a.id)){ seen.add(a.id); out.push(a.id); }
+    });
+  }
+  return out;
+}
+// Hodim filtri — kassa_turi='xarajat' ILDIZ kassalar (name=ism, subtitle='Filial · Lavozim').
+// Tur bolalari (·Naqd/·Click/·Payme/·Karta) parentdan kassa_turi'ni MEROS qiladi —
+// isSubAcc bo'lmasa ro'yxat 5 barobar shishib ketadi ("Ali Valiyev · Naqd" …).
 // permFilterView: cheklangan user faqat o'z hodim kassa(lar)ini ko'radi.
 function buildHodimSel(){
-  const hs=window.permFilterView((accounts||[]).filter(a=>a.kassa_turi==='xarajat'));
+  const hs=window.permFilterView((accounts||[]).filter(a=>a.kassa_turi==='xarajat'&&!isSubAcc(a)));
   $('hodim').innerHTML='<option value="">Barcha hodimlar</option>'
     +hs.map(a=>`<option value="${a.id}">${esc(a.name)}${a.subtitle?' · '+esc(a.subtitle):''}</option>`).join('');
   $('hodim').onchange=onHodim;
@@ -879,7 +899,7 @@ window.confirmLink=async()=>{
 // hisob NOMIDA allaqachon bor ("Toshkent Kassa · Click"). Ko'z bilan tez ajratish uchun
 // oldiga belgi qo'yamiz. jurnal() RPC pul_turi qaytarmaydi (imzosi o'zgarmaydi),
 // shuning uchun accounts'dan qaraladi; u hali yuklanmagan bo'lsa belgi chiqmaydi.
-const TURI_IKO={naqd:"💵",click:'💳',payme:'📱'};
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'🏦'};
 const turiIko=id=>{ const a=accounts.find(x=>x.id===id); return (a&&a.pul_turi&&TURI_IKO[a.pul_turi])?TURI_IKO[a.pul_turi]+' ':''; };
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
@@ -978,9 +998,22 @@ window.render=render;
 // Ruxsat (permAccIds): hech narsa tanlanmagan bo'lsa ham list-scope userga faqat o'z kassalari
 // qatnashgan yozuvlar ketadi; filial tanlangan bo'lsa u bilan kesishtiriladi.
 function args(){
-  const acc=($('hodim').value)||($('acc').value)||null;   // Hodim filtri ustun (o'sha hodim kassasi)
+  const hid=$('hodim').value||'';
+  let acc=hid||($('acc').value)||null;   // Hodim filtri ustun (o'sha hodim kassasi)
   let accs=null;
-  if(!acc){
+  // Hodim puli tur bola-hisoblarida (·Naqd/·Click/·Payme/·Karta) yotadi — bitta
+  // p_account bilan so'ralsa yozuvlar KO'RINMAY qoladi. Shuning uchun butun oila
+  // p_accounts sifatida ketadi (p_account null bo'ladi, aks holda u ustun turadi).
+  if(hid){
+    const oila=kassaOila(hid);
+    if(oila.length>1){
+      acc=null; accs=oila;
+      // Cheklangan user: ko'rish ruxsati bilan kesishtiramiz (permAccIds bola id'larini
+      // ham o'z ichiga oladi — permViewOk keyOf orqali parentga bog'laydi).
+      if(permAccIds){ const ok=new Set(permAccIds); const f=accs.filter(id=>ok.has(id)); if(f.length) accs=f; }
+    }
+  }
+  if(!acc&&!accs){
     if(filAllow){
       accs=[...filAllow];
       if(permAccIds){ const ok=new Set(permAccIds); accs=accs.filter(id=>ok.has(id)); }

@@ -313,12 +313,19 @@ async function fillKassalar(){
   // Hodim kassasining nomi = ism — "Filial · Lavozim" subtitle yonida turadi
   const opt=r=>`<option value="${r.id}">${r.code} · ${r.name}${r.subtitle?' · '+r.subtitle:''}</option>`;
   const grp=(t,arr)=>arr.length?`<optgroup label="${t}">${arr.map(opt).join('')}</optgroup>`:'';
-  // Tanlagichda faqat KASSANING O'ZI. Tur/valyuta bolalari alohida qator
+  // Tanlagichda faqat KASSANING O'ZI (ildiz). Tur/valyuta bolalari alohida qator
   // bo'lib chiqmaydi — ular parentning kassa_turi'sini meros qiladi, shuning
-  // uchun "Filial kassalari" guruhi 5 barobar shishib ketardi. Kassa
-  // tanlanganda bolalari cashflow_kassa() ichida baribir hisobga kiradi.
-  // Hodim kassalari (54xx) parent_id = 5400 konteyner — ular kassa, qoladi.
-  const list=list0.filter(r=>!r.parent_id||r.kassa_turi==='xarajat');
+  // uchun guruhlar 5 barobar shishib ketardi. Kassa tanlanganda bolalari
+  // cashflow_kassa()/pul_qoldiq_kassa() ichida (kassa_oila) baribir hisobga kiradi.
+  // ⚠️ Eski shart `!r.parent_id || r.kassa_turi==='xarajat'` edi va HODIM tur bolalarini
+  // (55xxx "Ali Valiyev · Naqd", kassa_turi meros bo'yicha 'xarajat') o'tkazib yuborardi.
+  // v_pul_hisoblar `pul_turi` ustunini bermaydi, shuning uchun ildiz ota-bola bog'lanishidan
+  // aniqlanadi: bola-hisobning parenti ro'yxatning O'ZIDA turadi (markaziy/filial/hodim kassasi),
+  // hodim kassasining parenti esa 5400 konteyner — u view'dan chiqarilgan, ya'ni hodim ildiz.
+  // idSet ataylab permFilterView'dan OLDINGI ro'yxatdan: ruxsat parentni yashirsa ham
+  // bola noto'g'ri "ildiz" bo'lib qolmasin.
+  const idSet=new Set((data||[]).map(r=>r.id));
+  const list=list0.filter(r=>!r.parent_id||!idSet.has(r.parent_id));
   const xarajat=list.filter(r=>r.kassa_turi==='xarajat');
   const xId=new Set(xarajat.map(r=>r.id));
   $('kassa').innerHTML='<option value="">Hamma kassalar</option>'

@@ -386,8 +386,18 @@ function taqsimot(r,p_oz){
   const qism=[];
   const turi=(k,v)=>{ const n=Number(v)||0; if(n) qism.push(TURI_IKO[k]+' '+money(n)); };
   turi('naqd',r.naqd); turi('click',r.click); turi('payme',r.payme);
-  const turBor=qism.length>0;
   const oz=Number(r.uzs)||0;
+  // ⚠️ v_kassa_card FAQAT naqd/click/payme ustunlarini beradi, `jami` esa HAMMA tur
+  //    bolasini qo'shadi (karta/terminal/plastik ham — ular 55xxx hisoblar).
+  //    Ustunsiz turlar "Boshqa" bo'lib bitta qism sifatida chiqadi, aks holda
+  //    taqsimot yig'indisi `jami` dan kam bo'lib qolardi va odam "raqamlar
+  //    qo'shilmayapti" deb chalkashardi. View'ga TEGILMAYDI (u drop+create talab qiladi).
+  //    Qoldiq = jami − o'z qoldig'i − valyuta bolalari − ustunli turlar.
+  const valUzs=vals.reduce((a,v)=>a+(Number(v.uzs)||0),0);
+  const turUst=(Number(r.naqd)||0)+(Number(r.click)||0)+(Number(r.payme)||0);
+  const boshqa=Math.round((Number(r.jami)||0)-oz-valUzs-turUst);
+  if(Math.abs(boshqa)>=1) qism.push('▫ Boshqa '+money(boshqa));
+  const turBor=qism.length>0;
   // Turlar bor + parentda ham pul bor -> "turga ajratilmagan pul", shunday belgilanadi
   if(turBor && oz) qism.push('◦ '+money(oz)+" so'm");
   else if(p_oz && !turBor) qism.push(money(oz)+" so'm");
@@ -729,7 +739,9 @@ const tcIsTur=r=>{
   const p=tcAll.find(x=>x.id===r.parent_id);
   return !!p && p.kassa_turi!==KT_GURUH;
 };
-const TC_LBL={naqd:'💵 Naqd',click:'💳 Click',payme:'📱 Payme'};
+// Yorliqlar hodim-dev.html dagi TURI_LBL bilan bir xil ro'yxat — yangi tur qo'shilsa
+// (karta/terminal/plastik) modalda xom kalit ("karta") ko'rinib qolmasin.
+const TC_LBL={naqd:'💵 Naqd',click:'💳 Click',payme:'📱 Payme',terminal:'🏧 Terminal',karta:'🏦 Karta',plastik:'🏦 Plastik'};
 const tcLbl=r=>r.pul_turi?(TC_LBL[r.pul_turi]||r.pul_turi):'Asosiy (tursiz)';
 const tcBal=id=>{ const r=tcAll.find(x=>x.id===id); return r?(Number(r.uzs)||0):0; };
 window.tcFmt=el=>{ fmtAmt(el); };
@@ -758,7 +770,7 @@ window.openTur=async()=>{
 window.closeTur=()=>$('turModal').classList.remove('open');
 // Tanlangan kassaning turlari: asosiy (parentning o'zi) + naqd/click/payme bolalari.
 // Valyuta bolalari QO'SHILMAYDI — ular kursli konvert orqali harakat qiladi.
-const TC_TART={naqd:1,click:2,payme:3};
+const TC_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
 function tcFillTur(){
   const k=$('tcKassa').value;
   $('tcMsg').className='cv-msg'; $('tcMsg').textContent='';
