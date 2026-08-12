@@ -218,13 +218,19 @@
   }
 
   // ---- kassalar --------------------------------------------------------
-  /* Ruxsat kaliti: valyuta bola-hisobi parent kassasiga tegishli.
-     parent_id ikki ma'noli (valyuta juftligi + guruh a'zoligi) — shuning uchun
-     currency sharti majburiy, aks holda hodim kassalari (parent = 5400) chalkashadi. */
+  /* Ruxsat kaliti: kassaning bola-hisobi ruxsatni PARENT kassadan oladi.
+     Bola IKKI xil bo'ladi va ikkalasi ham shu qoidaga tushadi:
+       • valyuta bolasi   — currency <> 'UZS' (56xx USD, 57xx CNY…)
+       • pul turi bolasi  — pul_turi to'ldirilgan (naqd/click/payme, currency='UZS')
+     parent_id ikki ma'noli (bola-hisob + guruh a'zoligi) — shuning uchun yolg'iz
+     parent_id ga TAYANILMAYDI: hodim kassasining parenti 5400 konteyner, lekin
+     uning currency='UZS' va pul_turi bo'sh, ya'ni kaliti o'zi bo'lib qoladi.
+     ⚠️ Server (perm_op_key) bilan AYNI qoida — ikkovi ajralib qolmasin, aks holda
+     tugma ko'rinadi-yu, saqlashda trigger 42501 beradi. */
   function keyOf(a) {
     if (!a) return null;
     var c = a.currency || 'UZS';
-    return (a.parent_id && c !== 'UZS') ? a.parent_id : a.id;
+    return (a.parent_id && (c !== 'UZS' || a.pul_turi)) ? a.parent_id : a.id;
   }
   function viewOk(a) {
     var p = get();

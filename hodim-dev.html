@@ -752,6 +752,10 @@ const FREQ=['9412','9411','9414','9416','9419'];
 // 5400 konteyner chiqarilgan. scope='all' (admin) da faqat hodim xarajat kassalari ko'rsatiladi —
 // list user'da esa aynan biriktirilgan kassa(lar) (permFilterOp cheklab bo'lgan).
 // FAQAT ILDIZ kassalar — bola-hisoblar (tur/valyuta) #turSeg segmentidan tanlanadi.
+// Eslatma: avval bu yerda `(a.currency||'UZS')==='UZS'` to'sig'i turardi — forma
+// faqat so'm yozgani (fc_amount'siz) uchun valyuta hisobi tanlansa qoldiq buzilardi.
+// Endi forma fc_amount'ni kurs bilan to'g'ri yozadi, shuning uchun to'siq olib tashlandi:
+// valyuta hisobi ildiz ro'yxatida emas, tur segmentida (#turSeg) tanlanadi.
 function kassaList(){
   let ks=accounts.filter(a=>isKassa(a)&&!isSubChild(a));
   if(window.permScope&&window.permScope()==='all') ks=ks.filter(a=>a.kassa_turi==='xarajat');

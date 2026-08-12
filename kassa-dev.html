@@ -182,6 +182,7 @@
     <div class="page-head">
       <h1>Kassa</h1>
       <div class="head-actions">
+        <button class="kbtn" id="turBtn" onclick="openTur()"><i data-lucide="shuffle"></i>Tur o'tkazish</button>
         <button class="kbtn" id="convBtn" onclick="openConv()"><i data-lucide="arrow-right-left"></i>Konvert</button>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
@@ -239,6 +240,20 @@
     <div class="cv-out"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
     <label>Izoh</label><input class="txt" id="cvNote" placeholder="ixtiyoriy izoh">
     <div class="mrow"><button onclick="closeConv()">Bekor</button><button class="primary" id="cvSave" onclick="convSave()">Konvert qilish</button></div>
+  </div></div>
+
+  <!-- Tur o'tkazish — bir kassa ICHIDA naqd/click/payme aro. Kurs YO'Q, tasdiq YO'Q.
+       Valyuta konverti (yuqoridagi convModal) bilan chalkashmasin: u so'm↔valyuta. -->
+  <div class="modal" id="turModal"><div class="sheet">
+    <h3>Tur o'tkazish</h3>
+    <div id="tcMsg" class="cv-msg"></div>
+    <label>Kassa</label><select id="tcKassa"></select>
+    <label>Qayerdan</label><select id="tcFrom"></select>
+    <label>Qayerga</label><select id="tcTo"></select>
+    <label>Summa (so'm)</label><input class="txt" id="tcAmount" inputmode="numeric" placeholder="0" oninput="tcFmt(this)">
+    <div class="cv-out"><span class="k" id="tcBalLbl">Manba qoldig'i</span><span class="v" id="tcBal">0</span></div>
+    <label>Izoh</label><input class="txt" id="tcNote" placeholder="ixtiyoriy izoh">
+    <div class="mrow"><button onclick="closeTur()">Bekor</button><button class="primary" id="tcSave" onclick="turSave()">O'tkazish</button></div>
   </div></div>
 
   <div class="modal" id="valModal"><div class="sheet">
@@ -699,6 +714,102 @@ window.convSave=async()=>{
   cvErr(r.error||"Noma'lum javob");
 };
 // /konvert
+
+// tur o'tkazish — bir kassa ICHIDA naqd ↔ click ↔ payme (faqat so'm).
+// ⚠️ Konvert bilan chalkashtirma: bu yerda KURS yo'q, koridor yo'q, admin tasdig'i yo'q.
+// Kassaning jami qoldig'i o'zgarmaydi — faqat taqsimoti. Server: tur_convert().
+let tcAll=[];
+// "Bu qator kassaning tur bolasimi?" — v_kassa_tanlov'da pul_turi bor, eski
+// v_kassa_toliq'da yo'q. Shuning uchun ikkinchi belgi: UZS + parenti ro'yxatda bor.
+// ⚠️ Hodim kassasining parenti 5400 (konteyner guruh) — u tur bolasi EMAS.
+const tcIsTur=r=>{
+  if(r.pul_turi) return true;
+  if(!r.parent_id) return false;
+  if(r.currency&&r.currency!=='UZS') return false;          // valyuta bolasi — bu yerda emas
+  const p=tcAll.find(x=>x.id===r.parent_id);
+  return !!p && p.kassa_turi!==KT_GURUH;
+};
+const TC_LBL={naqd:'💵 Naqd',click:'💳 Click',payme:'📱 Payme'};
+const tcLbl=r=>r.pul_turi?(TC_LBL[r.pul_turi]||r.pul_turi):'Asosiy (tursiz)';
+const tcBal=id=>{ const r=tcAll.find(x=>x.id===id); return r?(Number(r.uzs)||0):0; };
+window.tcFmt=el=>{ fmtAmt(el); };
+function tcErr(m){ $('tcMsg').className='cv-msg err'; $('tcMsg').textContent=m; }
+window.openTur=async()=>{
+  $('tcAmount').value=''; $('tcNote').value='';
+  $('tcMsg').className='cv-msg'; $('tcMsg').textContent='';
+  $('tcSave').disabled=false; $('tcSave').textContent='O\'tkazish';
+  $('turModal').classList.add('open');
+  // Konvert modali bilan bir manba: har hisob alohida qator + pul_turi + uzs qoldiq
+  let {data,error}=await sb.from('v_kassa_tanlov').select('*').order('code');
+  if(error){ ({data,error}=await sb.from('v_kassa_toliq').select('*').order('code')); }
+  if(error){ tcErr(error.message); return; }
+  tcAll=data||[];
+  // Kassa ro'yxati: faqat ILDIZ kassalar (tur/valyuta bolalari emas), so'mda,
+  // guruh emas, va amaliyot ruxsati bor (serverda ham tekshiriladi).
+  const ks=tcAll.filter(r=>!tcIsTur(r)&&(!r.currency||r.currency==='UZS')
+                          &&r.kassa_turi!==KT_GURUH&&window.permOpOk(r));
+  $('tcKassa').innerHTML=ks.length
+    ? ks.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join('')
+    : '<option value="">Mos kassa yo\'q</option>';
+  $('tcKassa').onchange=tcFillTur;
+  $('tcFrom').onchange=tcPick; $('tcTo').onchange=tcPick;
+  tcFillTur(); icons();
+};
+window.closeTur=()=>$('turModal').classList.remove('open');
+// Tanlangan kassaning turlari: asosiy (parentning o'zi) + naqd/click/payme bolalari.
+// Valyuta bolalari QO'SHILMAYDI — ular kursli konvert orqali harakat qiladi.
+const TC_TART={naqd:1,click:2,payme:3};
+function tcFillTur(){
+  const k=$('tcKassa').value;
+  $('tcMsg').className='cv-msg'; $('tcMsg').textContent='';
+  const kids=tcAll.filter(r=>r.parent_id===k&&tcIsTur(r))
+    .sort((a,b)=>(TC_TART[a.pul_turi]||9)-(TC_TART[b.pul_turi]||9));
+  const parent=tcAll.find(r=>r.id===k);
+  const list=(parent?[parent]:[]).concat(kids);
+  if(list.length<2){
+    $('tcFrom').innerHTML=$('tcTo').innerHTML='<option value="">— tur hisoblari yo\'q —</option>';
+    $('tcSave').disabled=true;
+    tcErr('Bu kassada naqd/click/payme hisoblari ochilmagan.');
+    return;
+  }
+  $('tcSave').disabled=false;
+  const opt=r=>`<option value="${r.id}">${esc(tcLbl(r))} · ${money(Number(r.uzs)||0)}</option>`;
+  $('tcFrom').innerHTML=list.map(opt).join('');
+  $('tcTo').innerHTML=list.map(opt).join('');
+  // Maqsad sifatida boshlanishiga boshqa turni qo'yamiz — ikkovi bir xil bo'lib turmasin
+  $('tcTo').selectedIndex=1;
+  // Filial ogohlantirishi: har tur Aros bilan ALOHIDA sinxronlanadi
+  if(parent&&parent.kassa_turi==='filial'){
+    $('tcMsg').className='cv-msg pend';
+    $('tcMsg').textContent='Filial kassasi Aros bilan sinxronlanadi. Aros\'da ham shu '
+      +'o\'tkazma qilinmagan bo\'lsa, keyingi sinxron uni qaytarib qo\'yadi.';
+  }
+  tcPick();
+}
+function tcPick(){
+  $('tcBal').textContent=money(tcBal($('tcFrom').value));
+}
+window.turSave=async()=>{
+  const p_from=$('tcFrom').value, p_to=$('tcTo').value;
+  const p_amount=Number(($('tcAmount').value||'').replaceAll(' ',''))||0;
+  const filial=$('tcMsg').className.indexOf('pend')>-1;   // ogohlantirish turgan bo'lsa saqlaymiz
+  if(!filial){ $('tcMsg').className='cv-msg'; $('tcMsg').textContent=''; }
+  if(!p_from||!p_to){ tcErr('Manba va maqsad turini tanlang'); return; }
+  if(p_from===p_to){ tcErr('Manba va maqsad bir xil'); return; }
+  if(p_amount<=0){ tcErr('Summa kiriting'); return; }
+  if(p_amount>tcBal(p_from)){ tcErr('Qoldiq yetarli emas: '+money(tcBal(p_from))); return; }
+  $('tcSave').disabled=true; $('tcSave').textContent='Yuborilmoqda...';
+  const {data,error}=await sb.rpc('tur_convert',{p_from,p_to,p_amount,p_note:$('tcNote').value||null});
+  $('tcSave').disabled=false; $('tcSave').textContent='O\'tkazish';
+  if(error){ tcErr(window.permErr?window.permErr(error):error.message); return; }
+  const r=data||{};
+  if(!r.ok){ tcErr(r.error||'Noma\'lum javob'); return; }
+  closeTur();
+  // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
+  swrSet('cards',null); swrSet('valyutalar',null);
+  await loadKassalar();
+};
+// /tur o'tkazish
 
 async function init(){
   // Konvert ruxsati yo'q bo'lsa tugma ko'rinmaydi (server ham to'sadi — perm_can_convert)

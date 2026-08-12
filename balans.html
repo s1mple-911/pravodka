@@ -316,10 +316,15 @@ function renderAktivNew(aktivRows, accs){
   const consumed=new Set();
   const omborByKassaId={};
   (accs||[]).forEach(a=>{ if(a.section==='tovar' && a.linked_kassa_id) omborByKassaId[a.linked_kassa_id]=a; });
-  const filkassas=(accs||[]).filter(a=>a.kassa_turi==='filial' && a.section==='pul' && (a.currency||'UZS')==='UZS' && a.is_active!==false);
+  // ⚠️ `!a.parent_id` MAJBURIY: tur/valyuta bolalari parentning kassa_turi='filial'
+  //    qiymatini meros qiladi (PROVODKA_VALYUTA_SEED.sql). Bu shartsiz bitta filial
+  //    jadvalda 4-5 marta chiqardi ("Izza", "Izza · Naqd", "Izza · Click", …).
+  const filkassas=(accs||[]).filter(a=>a.kassa_turi==='filial' && a.section==='pul' && (a.currency||'UZS')==='UZS' && !a.parent_id && a.is_active!==false);
   const frows=filkassas.map(k=>{
     let pul=Number(amt[k.code]||0); consumed.add(k.code); let vcnt=0;
-    (accs||[]).forEach(c=>{ if(c.parent_id===k.id && c.section==='pul' && c.currency && c.currency!=='UZS'){ pul+=Number(amt[c.code]||0); consumed.add(c.code); if(amt[c.code]!=null) vcnt++; } });
+    // Filial "Pul" ustuni = kassaning o'zi + HAMMA bolasi (naqd/click/payme + valyuta).
+    // vcnt esa faqat valyuta bolalarini sanaydi — "+val" belgisi shu uchun.
+    (accs||[]).forEach(c=>{ if(c.parent_id===k.id && c.section==='pul'){ pul+=Number(amt[c.code]||0); consumed.add(c.code); if(c.currency&&c.currency!=='UZS'&&amt[c.code]!=null) vcnt++; } });
     const o=omborByKassaId[k.id]; let tovar=0; if(o){ tovar=Number(amt[o.code]||0); consumed.add(o.code); }
     return {name:k.name, code:k.code, pul, tovar, jami:pul+tovar, vcnt};
   }).sort((a,b)=>b.jami-a.jami);

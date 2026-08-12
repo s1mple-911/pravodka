@@ -148,6 +148,11 @@
     background:var(--surface-2);border-radius:7px;padding:3px 7px;white-space:nowrap;font-variant-numeric:tabular-nums}
   .bchip b{font-weight:700;color:var(--ink)}
   .bchip.usd b{color:var(--tr)}
+  /* Aros va daftar (Provodka) raqamlarini solishtirish satri */
+  td.f .dft{margin-top:5px;font-size:11px;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+  td.f .dft b{font-weight:700;color:var(--ink)}
+  td.f .dft .ok{color:var(--green);font-weight:700}
+  td.f .dft .no{color:var(--amber);font-weight:700}
 </style>
 </head>
 <body>
@@ -371,6 +376,31 @@ async function loadSnapshot(){
   render({synced_at:data.synced_at, synced_by_name:data.synced_by_name});
 }
 
+/* ---- Daftar (Provodka) qoldig'i — Aros bilan solishtirish uchun ----
+   Bu sahifadagi "Jonli pul" AROS'dan keladi (n8n aros-filial-live -> filial_snapshot).
+   Kassa sahifasi esa DAFTARdan o'qiydi (v_kassa_card -> v_hisob_bal -> entry_line).
+   Ikkovi ATAYLAB ikki xil manba: balans sync to'g'ri ishlayotganini faqat shu
+   ikkovini solishtirib bilish mumkin. Farq bo'lsa — sync orqada yoki xato.
+   Kalit: Aros cachier id (rows[].ref) <-> accounts.filial_ref. */
+let daftar={};      // filial_ref -> {jami, code, name}
+async function loadDaftar(){
+  try{
+    const {data:accs,error:e1}=await sb.from('accounts')
+      .select('id,code,name,filial_ref')
+      .eq('section','pul').eq('is_active',true).is('parent_id',null)
+      .not('filial_ref','is',null);
+    if(e1||!accs||!accs.length) return;
+    const {data:cards,error:e2}=await sb.from('v_kassa_card').select('id,jami');
+    if(e2||!cards) return;
+    const jami={}; cards.forEach(c=>{ jami[c.id]=Number(c.jami)||0; });
+    const m={};
+    accs.forEach(a=>{ if(a.filial_ref!==null&&a.filial_ref!==undefined)
+      m[String(a.filial_ref).trim()]={ jami:jami[a.id]||0, code:a.code, name:a.name }; });
+    daftar=m;
+    render(soggiMeta);
+  }catch(e){}
+}
+
 async function provRate(){
   try{
     const {data}=await sb.from('v_current_rate').select('rate').eq('from_code','USD').eq('to_code','UZS').maybeSingle();
@@ -390,7 +420,12 @@ window.syncNow=async()=>{
       const bug = rate!==null ? (cash+click+payme+usd*rate) : (Number(f.total)||0);
       // Bo'linish ham snapshot'ga tushadi — kartada naqd/Click/Payme/dollar alohida ko'rinsin.
       // Eski snapshot'larda bu maydonlar yo'q; render() ularsiz ham ishlaydi.
-      return { name:(f.warehouse_name||f.title||'Filial'), bug:Math.round(bug), usd:usd, cash:cash, click:click, payme:payme };
+      // ref = Aros cachier id (accounts.filial_ref) — daftar qoldig'i bilan
+      // solishtirish uchun yagona ishonchli kalit. Nom bo'yicha solishtirish
+      // ishonchsiz: Aros "Karshi Bahor", Provodka "Qarshi Bahor" deb yozishi mumkin.
+      return { ref:(f.id!==undefined&&f.id!==null)?String(f.id):null,
+               name:(f.warehouse_name||f.title||'Filial'), bug:Math.round(bug),
+               usd:usd, cash:cash, click:click, payme:payme };
     }).sort((a,b)=>b.bug-a.bug);
     const total=rows.reduce((x,r)=>x+r.bug,0);
     const now=new Date().toISOString();
@@ -399,6 +434,7 @@ window.syncNow=async()=>{
     if(error) showErr('Saqlashda: '+error.message);
     swrSet('snapshot',{rows, usedRate, synced_at:now, synced_by_name:myName});
     render({synced_at:now, synced_by_name:myName});
+    loadDaftar();          // Aros yangilandi — daftar bilan farqni qayta hisoblaymiz
   }catch(e){ showErr('Xato: '+e.message); }
   btn.disabled=false; btn.innerHTML=old; icons();
 };
@@ -427,7 +463,22 @@ function breakdown(r){
   return chips.length?`<div class="bd">${chips.join('')}</div>`:'';
 }
 
+// Daftar (Provodka) qoldig'i va Aros bilan farqi. Bu SOLISHTIRISH — ikkovi
+// ikki xil manbadan keladi, mos kelishi balans sync to'g'ri ishlayotganini bildiradi.
+// Daftar hali yuklanmagan yoki ref yo'q bo'lsa (eski snapshot) — satr chiqmaydi.
+function daftarSatr(r){
+  if(!r.ref) return '';
+  const d=daftar[String(r.ref).trim()];
+  if(!d) return '';
+  const farq=Math.round((Number(d.jami)||0)-(Number(r.bug)||0));
+  const cls=farq===0?'ok':'no';
+  const txt=farq===0?'mos ✓':(farq>0?'+':'−')+money(Math.abs(farq));
+  return `<div class="dft">daftar <b>${money(d.jami)}</b> · farq <span class="${cls}">${txt}</span></div>`;
+}
+
+let soggiMeta=null;      // oxirgi render meta'si — daftar kelgach qayta chizish uchun
 function render(meta){
+  if(meta!==undefined) soggiMeta=meta;
   const t=rows.reduce((s,r)=>s+r.bug,0);
   $('sBug').textContent=money(t);
   const bor=rows.filter(r=>r.bug>0).length;
@@ -437,8 +488,12 @@ function render(meta){
     ? 'Yangilandi: '+fmtWhen(meta.synced_at)+(meta.synced_by_name?' · '+meta.synced_by_name:'')+rt : '';
   if(!rows.length){ $('tb').innerHTML='<tr><td colspan="2" class="empty">Filial topilmadi</td></tr>'; return; }
   $('tb').innerHTML=rows.map(r=>`<tr>
-      <td class="f">${esc(r.name)}${breakdown(r)}</td>
+      <td class="f">${esc(r.name)}${breakdown(r)}${daftarSatr(r)}</td>
       <td class="n ${r.bug>0?'pos':'zero'}">${money(r.bug)}</td></tr>`).join('');
+  // Eski snapshot'da naqd/Click/Payme yo'q (faqat dollar saqlangan) — o'shanda chiplar
+  // to'liq chiqmaydi va "faqat Dollar ko'rinadi" degan chalkashlik bo'ladi. Aytib qo'yamiz.
+  const eski=rows.some(r=>r.cash===undefined&&r.click===undefined&&r.payme===undefined);
+  showInfo(eski?'Bo\'linish (naqd · Click · Payme) eski ma\'lumotda saqlanmagan — "Yangilash" bosing, shundan keyin har filial ostida to\'liq chiqadi.':'');
   icons();
 }
 
@@ -518,7 +573,8 @@ async function init(){
   $('pFrom').value=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
   $('pTo').value=iso(n);
   $('pFrom').onchange=loadPnl; $('pTo').onchange=loadPnl;
-  await Promise.all([loadRole(), loadSnapshot()]);
+  // loadDaftar solishtirish uchun — yiqilsa sahifa baribir ishlaydi (satr chiqmaydi)
+  await Promise.all([loadRole(), loadSnapshot(), loadDaftar()]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.

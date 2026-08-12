@@ -818,15 +818,32 @@ function renderCurSeg(){
   if(!selKassa || !kids.length){ box.style.display='none'; box.innerHTML=''; selSub=null; return; }
   if(selSub && !kids.some(k=>k.id===selSub)) selSub=null;
   const p=accounts.find(a=>a.id===selKassa);
-  const qd=id=>{ const v=subBal[id]; return v===undefined?'':`<span class="qd">${money(v)}</span>`; };
-  const bosh=id=>{ const v=subBal[id]; return (v!==undefined&&v<=0)?' bosh':''; };
+  // ⚠️ Valyuta hisobida IKKI o'lchov bor: uzs (so'm ekvivalenti, TARIXIY kursda)
+  //    va fc (valyutaning o'zi). Tugmada valyuta bolasi uchun FC ko'rsatiladi —
+  //    avval uzs chiqarilardi va "💲 USD 93 990 000" bo'lib ko'rinardi
+  //    (aslida 7 800 $ ≈ 93,99 mln so'm). So'm hisoblarida esa uzs.
+  const balOf=id=>{ const b=subBal[id]; if(!b) return undefined;
+    const a=accounts.find(x=>x.id===id);
+    return (a&&a.currency&&a.currency!=='UZS')?b.fc:b.uzs; };
+  const birligi=id=>{ const a=accounts.find(x=>x.id===id);
+    return (a&&a.currency&&a.currency!=='UZS')?(' '+a.currency):''; };
+  const qd=id=>{ const v=balOf(id); return v===undefined?'':`<span class="qd">${money(v)}${birligi(id)}</span>`; };
+  const bosh=id=>{ const v=balOf(id); return (v!==undefined&&v<=0)?' bosh':''; };
   const btn=(id,lbl,on)=>`<button type="button" class="curbtn${on?' on':''}${bosh(id)}" `
     +`onclick="pickSub(${id?`'${id}'`:'null'})">${lbl}${qd(id)}</button>`;
   box.style.display='flex';
   box.innerHTML=btn(selKassa,'Kassa',!selSub)
     +kids.map(k=>btn(k.id,esc(subLbl(k)),k.id===selSub)).join('');
 }
-window.pickSub=id=>{ selSub=id||null; renderCurSeg(); fetchSimpleBal(); updateSimple(); };
+window.pickSub=id=>{
+  // O'lchov birligi almashsa (so'm ↔ valyuta) summa tozalanadi — so'mda terilgan
+  // 500 000 valyutaga o'tganda 500 000 dollar bo'lib qolmasin.
+  const eski=effKassa(), eskiVal=!!(eski&&eski.currency&&eski.currency!=='UZS');
+  selSub=id||null;
+  const yangi=effKassa(), yangiVal=!!(yangi&&yangi.currency&&yangi.currency!=='UZS');
+  if(eskiVal!==yangiVal){ const s=$('summa'); if(s){ s.value=''; s.dataset.a000=''; } }
+  renderCurSeg(); fetchSimpleBal(); updateSimple();
+};
 window.pickKassa=id=>{ selKassa=id; selSub=null; renderChips(); fetchSubBal(); fetchSimpleBal(); };
 // Tanlangan kassa + uning bolalarining qoldig'i — segment tugmalarida ko'rsatish uchun.
 // Bitta so'rov (v_hisob_bal), xato bo'lsa jimgina o'tadi: raqamsiz tugma ham ishlaydi.
@@ -837,10 +854,11 @@ async function fetchSubBal(){
   if(ids.length<2){ renderCurSeg(); return; }   // bolasi yo'q — segment baribir chiqmaydi
   const soralgan=selKassa;
   try{
-    const {data,error}=await sb.from('v_hisob_bal').select('account_id,uzs').in('account_id',ids);
+    // fc ham olinadi: valyuta bolasining qoldig'i tugmada VALYUTADA ko'rsatiladi
+    const {data,error}=await sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',ids);
     if(error||selKassa!==soralgan) return;      // kassa almashgan bo'lsa eski javob tashlanadi
-    (data||[]).forEach(r=>{ subBal[r.account_id]=Number(r.uzs)||0; });
-    ids.forEach(id=>{ if(subBal[id]===undefined) subBal[id]=0; });   // yozuvi yo'q hisob = 0
+    (data||[]).forEach(r=>{ subBal[r.account_id]={uzs:Number(r.uzs)||0, fc:Number(r.fc)||0}; });
+    ids.forEach(id=>{ if(subBal[id]===undefined) subBal[id]={uzs:0,fc:0}; });   // yozuvi yo'q hisob = 0
     renderCurSeg();
   }catch(e){}
 }
@@ -849,7 +867,18 @@ async function fetchSimpleBal(){
   simpleBal=null; updateSimple();
   const k=effKassa(); if(!k) return;
   const want=k.id;
-  try{ const {data,error}=await sb.rpc('acc_balance',{p_account:want}); if(error||data==null||(effKassa()&&effKassa().id!==want)) return; simpleBal=Number(data)||0; updateSimple(); }catch(e){}
+  try{
+    // ⚠️ Valyuta hisobida kiritiladigan summa VALYUTADA o'qiladi (saqlashda u
+    //    fc_amount bo'ladi), shuning uchun limit ham valyutada bo'lishi kerak.
+    //    acc_balance() so'm qaytaradi — u bilan solishtirilsa 7 800 $ ni
+    //    93 990 000 bilan taqqoslab, chegara umuman ishlamay qolardi.
+    if(k.currency && k.currency!=='UZS'){
+      const {data,error}=await sb.from('v_hisob_bal').select('fc').eq('account_id',want).maybeSingle();
+      if(error||(effKassa()&&effKassa().id!==want)) return;
+      simpleBal=Number(data&&data.fc)||0; updateSimple(); return;
+    }
+    const {data,error}=await sb.rpc('acc_balance',{p_account:want}); if(error||data==null||(effKassa()&&effKassa().id!==want)) return; simpleBal=Number(data)||0; updateSimple();
+  }catch(e){}
 }
 // Modda tanlagichi — kassalar chiqmaydi (kassa chip orqali tanlanadi), qolgan optgrouplar avvalgidek.
 function moddaOptions(){
@@ -859,7 +888,20 @@ function moddaOptions(){
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
-window.fmtSumma=el=>{ fmtAmt(el); updateSimple(); };
+// ⚠️ AVTOMAT "000" faqat SO'M uchun. Valyuta hisobi tanlanganda summa
+// valyutada o'qiladi (7 800 $) — "7" tersa "7 000" bo'lib qolishi 1000 barobar
+// xato degani. Shuning uchun valyutada oddiy minglik ajratgich, nol qo'shilmaydi
+// (kassa.html konvert modalida ham ayni qoida).
+window.fmtSumma=el=>{
+  const k=effKassa();
+  if(k && k.currency && k.currency!=='UZS'){
+    const raw=(el.value||'').replace(/\D/g,'');
+    el.value=raw?money(raw):'';
+    el.dataset.a000='';
+    updateSimple(); return;
+  }
+  fmtAmt(el); updateSimple();
+};
 // Yo'nalish modda turidan: daromad → pul kiradi (Dt=kassa), aks holda → pul chiqadi (Kt=kassa).
 function simpleDir(){
   const modda=accounts.find(a=>a.id===$('modda').value);
@@ -887,7 +929,9 @@ window.updateSimple=()=>{
   const over = !income && simpleBal!=null && amt>simpleBal;
   const inp=$('summa'), w=$('simpleWarn');
   inp.classList.toggle('over',over);
-  if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} so'm`; }
+  // Birlik kassaning valyutasidan — valyuta hisobida "so'm" deb yozish yolg'on bo'lardi
+  if(over){ w.style.display='block';
+    w.textContent=`Qoldiqdan oshdi · max ${money(simpleBal)} ${(kassa&&kassa.currency&&kassa.currency!=='UZS')?kassa.currency:"so'm"}`; }
   else w.style.display='none';
   const needKomm=isKomm() && !kommTuri;   // Kommunal (9413): turi majburiy
   // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
@@ -1094,7 +1138,7 @@ window.saveSimple=async()=>{
   if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
   if(chekRequired() && !chekBlob){ alert('Bu modda uchun chek surati majburiy'); return; }          // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
-  if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+(kassa.currency||'so\'m')); return; }
+  if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+((kassa.currency&&kassa.currency!=='UZS')?kassa.currency:'so\'m')); return; }
   // 9110 Tovar tannarxi → avval yuk modali (yoki "Hujjat hali yo'q" → yo'ldagi tovar).
   if(modda.code==='9110'){ openYukSave(amt, kassa.currency||'UZS', doSaveSimple, 'simple'); return; }
   doSaveSimple();
