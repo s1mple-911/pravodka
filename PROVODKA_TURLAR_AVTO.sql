@@ -1,4 +1,18 @@
 -- =====================================================================
+--  ⚠️⚠️  SUPABASE SQL EDITOR — QANDAY RUN QILINADI (avval SHUNI o'qing)
+-- ---------------------------------------------------------------------
+--   1) Bu fayl BUTUNLAY, tepadan pastgacha RUN qilinadi (idempotent).
+--      Bo'lak-bo'lak RUN qilsangiz — `do $$` bloklarini TO'LIQ belgilang:
+--      `do $$` qatoridan `end $$;` qatorigacha, ikkalasi ham ichida.
+--   2) Blok yarim belgilansa Postgres uni PL/pgSQL emas, oddiy SQL deb
+--      o'qiydi va o'zgaruvchini jadval deb izlaydi:
+--      `ERROR: 42P01: relation "v_def" does not exist`. Bu FAYL XATOSI EMAS —
+--      belgilashni to'g'rilab qayta RUN qiling.
+--   3) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
+--      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+-- =====================================================================
+
+-- =====================================================================
 --  PROVODKA_TURLAR_AVTO.sql
 --  Yangi hodim kassasiga PUL TURLARI avtomatik ochilsin
 -- ---------------------------------------------------------------------
@@ -116,7 +130,7 @@ end $$;
 --           xarajatda 42501 olardi. Endi ta'rifning o'zi tekshiriladi.
 --       (b) MAVJUD MA'LUMOT — qo'shimcha qatlam (ta'rif to'g'ri, lekin
 --           amalda boshqacha ishlayotgan holatni ushlaydi).
-do $preflight13$
+do $$
 declare
   n      int;
   n_bor  int;
@@ -170,7 +184,7 @@ begin
   end if;
 
   raise notice 'perm_op_key OK: ta''rifda pul_turi sharti bor + mavjud % ta tur hisobi tekshirildi', n_bor;
-end $preflight13$;
+end $$;
 
 -- 1.4 Trigger sharti mavjud hodim kassalariga mos keladimi.
 --     Trigger WHEN sharti `section='pul'` ga tayanadi. TaskFix
@@ -210,7 +224,7 @@ end $$;
 --        where pul_turi is not null
 --        group by pul_turi
 --        order by pul_turi;
-do $preflight15$
+do $$
 declare
   v_taqsimot text;
   v_notanish text;
@@ -233,7 +247,7 @@ begin
   if v_notanish is not null then
     raise warning 'DIQQAT: ro''yxatdan TASHQARI pul turi bor: % — 2-bo''lim to''xtaydi. Avval ularni to''g''rilang yoki 2-bo''limdagi ro''yxatga qo''shing.', v_notanish;
   end if;
-end $preflight15$;
+end $$;
 
 
 -- ---------------------------------------------------------------------
@@ -253,7 +267,7 @@ end $preflight15$;
 --    QAYTA O'RNATILMAY qolib ketardi (jadval himoyasiz qoladi). Shuning
 --    uchun mos kelmagan qiymatni OLDINDAN topamiz va hech narsaga tegmasdan
 --    to'xtaymiz. Ro'yxatni preflight 1.5 ham ko'rsatadi.
-do $bolim2$
+do $$
 declare v_notanish text;
 begin
   select string_agg(distinct pul_turi, ', ')
@@ -276,7 +290,7 @@ begin
   alter table accounts add constraint accounts_pul_turi_chk
     check (pul_turi is null
            or pul_turi in ('naqd','click','payme','karta','terminal','plastik'));
-end $bolim2$;
+end $$;
 
 comment on column accounts.pul_turi is
   'Pul turi bola-hisobi: naqd|click|payme|karta|terminal|plastik. '

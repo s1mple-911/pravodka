@@ -1,4 +1,22 @@
 -- =====================================================================
+--  ⚠️⚠️  SUPABASE SQL EDITOR — QANDAY RUN QILINADI (avval SHUNI o'qing)
+-- ---------------------------------------------------------------------
+--   1) Tartib: 1-BOSQICH (jadval+reja) → 1.3 PREVIEW → (preview toza bo'lsa)
+--      2-BOSQICH (pul yozadi) → 3-BOSQICH (natija). Butun faylni birdaniga
+--      RUN QILMANG — 2-BOSQICH haqiqiy pul yozadi.
+--   2) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
+--      belgilab RUN qiling.
+--   3) `do $$` blokini TO'LIQ belgilash SHART: `do $$` qatoridan `$$;`
+--      qatorigacha, ikkalasi ham ichida. Yarim belgilansa Postgres blokni
+--      PL/pgSQL emas, oddiy SQL deb o'qiydi va o'zgaruvchini jadval deb izlaydi.
+--   4) O'shanda chiqadigan xato — `ERROR: 42P01: relation "v_kap_code" does
+--      not exist` (yoki boshqa `v_...` nomi). Bu FAYL XATOSI EMAS, belgilash
+--      noto'g'ri: blokni boshidan oxirigacha qayta belgilab RUN qiling.
+--   5) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
+--      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+-- =====================================================================
+
+-- =====================================================================
 --  PROVODKA_HODIM_KAPITAL.sql   (KOD BO'YICHA — nom qidiruvi YO'Q)
 --  Hodim kassalariga boshlang'ich kapital sifatida NAQD pul kirim qilish.
 --      Dt <hodim kassasi · Naqd>  /  Kt <Boshlang'ich kapital (87xx)>
@@ -16,7 +34,7 @@
 --
 --  IKKI BOSQICH — butun faylni birdaniga RUN QILMANG:
 --     1-BOSQICH (jadval + reja + PREVIEW) pul yozmaydi.
---     2-BOSQICH (do $yoz$) haqiqiy pul yozadi — faqat preview toza bo'lsa.
+--     2-BOSQICH (do $$ bloki) haqiqiy pul yozadi — faqat preview toza bo'lsa.
 --
 --  NEGA KAPITAL, 9010 EMAS: bu pul TUSHUM emas, allaqachon ishlab topilgan.
 --  Kt'ga 9010 yozilsa o'sha kunning P&L'i shishadi. Kapitalga yozilganda
@@ -47,6 +65,9 @@
 -- `hodim_kapital_reja` — SHU SKRIPTNING O'Z jadvali. Frontend, view, RPC yoki
 -- boshqa .sql fayl unga murojaat qilmaydi, shuning uchun drop+create ADDITIVE
 -- qoidasini buzmaydi (tuzilishi nom -> kod ga o'zgardi, eski ustunlar keraksiz).
+--
+-- ⬇⬇⬇  1.1 + 1.2: SHU QATORDAN 1.2 oxiridagi `('5424', ...);` GACHA BELGILANG  ⬇⬇⬇
+--       (`do` bloki yo'q — oddiy DDL/DML, birdaniga RUN qilinadi)
 drop table if exists hodim_kapital_reja;
 
 create table hodim_kapital_reja (
@@ -97,6 +118,7 @@ insert into hodim_kapital_reja (kassa_code, kutilgan_nom, miqdor) values
   ('5422', 'Xudoberdi',              1317000),
   ('5423', 'Sherdil Saidov',         1210000),
   ('5424', 'Tojiddin',               1720000);
+-- ⬆⬆⬆  1.1 + 1.2 shu yergacha  ⬆⬆⬆
 -- JAMI: 20 qator, 29 949 000 so'm.
 
 
@@ -240,16 +262,16 @@ select kassa_code, kutilgan_nom, bazadagi_nom, nom_mos, subtitle,
 -- ---------------------------------------------------------------------
 -- 2-BOSQICH — YOZISH: Dt hodim naqd / Kt Boshlang'ich kapital
 -- ---------------------------------------------------------------------
--- ⚠️⚠️ BELGILASHNI AYNAN QUYIDAGI `do $yoz$` QATORIDAN BOSHLANG va
---      pastdagi `$yoz$;` QATORIGACHA (u ham ichida) belgilang.
---      `do $yoz$` yoki `declare` bo'limi belgilashdan tashqarida qolsa,
+-- ⚠️⚠️ BELGILASHNI AYNAN QUYIDAGI `do $$` QATORIDAN BOSHLANG va
+--      pastdagi `$$;` QATORIGACHA (u ham ichida) belgilang.
+--      `do $$` yoki `declare` bo'limi belgilashdan tashqarida qolsa,
 --      Postgres blokni PL/pgSQL deb emas, oddiy SQL deb o'qiydi va
 --      o'zgaruvchi nomini jadval deb izlaydi:
 --         ERROR: 42P01: relation "v_kap_code" does not exist
 --      Xato shundan — fayldan emas.
 --
--- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  SHU QATORDAN BOSHLAB BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
-do $yoz$
+-- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  `do $$` QATORIDAN `$$;` QATORIGACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
+do $$
 declare
   -- ⚙️ Yozuv belgisi. ext_ref = '<batch>:<kassa_code>' -> takroriy RUN pulni
   --    ikki marta yozmaydi. Sanadan mustaqil. ROLLBACK ham shu belgi bo'yicha.
@@ -382,6 +404,9 @@ begin
       --      • ustun YO'Q  -> eski 2 raqamli mantiq (o'zgarishsiz).
       --    Ustunga statik havola qilinmaydi (ustun yo'q bazada butun blok parse
       --    xatosi berardi) — shuning uchun dinamik `execute`.
+      --    ⚠️ So'rov matni ODDIY BIR TIRNOQLI satr (ichma-ich dollar-quote
+      --    YO'Q, aks holda tashqi do-blok vaqtidan oldin yopilardi).
+      --    Shuning uchun ichkaridagi har `'` ikkilangan: '^' -> ''^''.
       v_prefix := null;
       v_uzun   := 2;
 
@@ -392,18 +417,18 @@ begin
         into v_uzun_bor;
 
       if v_uzun_bor then
-        execute $q$
+        execute '
           select b.prefix, b.raqam_uzunlik, coalesce(mx.n, 0) + 1
             from pul_turi_kod_blok b
             left join lateral (
               select max(substring(a.code from 3)::int) as n
                 from accounts a
-               where a.code ~ ('^' || b.prefix || '[0-9]{' || b.raqam_uzunlik::text || '}$')
+               where a.code ~ (''^'' || b.prefix || ''[0-9]{'' || b.raqam_uzunlik::text || ''}$'')
             ) mx on true
            where coalesce(mx.n, 0) + 1 <= (power(10, b.raqam_uzunlik)::int - 1)
            order by b.nav
-           limit 1
-        $q$ into v_prefix, v_uzun, v_next;
+           limit 1'
+        into v_prefix, v_uzun, v_next;
       else
         select b.prefix, 2, coalesce(mx.n, 0) + 1
           into v_prefix, v_uzun, v_next
@@ -543,8 +568,8 @@ begin
   raise notice '--- ✅ TUGADI: % ta yozuv | % ta o''tkazib yuborildi | % ta naqd hisob ochildi | jami % so''m | balans farqi 0',
     n_yozildi, n_otkaz, n_ochildi, v_jami;
 end
-$yoz$;
--- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA (u ham ichida) BELGILANG  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
+$$;
+-- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA (`$$;` ham ichida) BELGILANG (2-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -553,6 +578,8 @@ $yoz$;
 -- `naqd_qoldiq` — faqat naqd hisob (yozuv shu yerga tushdi).
 -- `jami_qoldiq` — ildiz + hamma bolalari (kassa.html kartasidagi raqam).
 -- `yozilgan`    — shu skript yozgan summa (ext_ref bo'yicha; o'chirilgani hisobga olinmaydi).
+--
+-- ⬇⬇⬇  SHU QATORDAN pastdagi ` order by r.kassa_code;` GACHA BELGILANG  ⬇⬇⬇
 select r.kassa_code,
        coalesce(a.name, '—')                as nom,
        coalesce(nb.uzs, 0)                  as naqd_qoldiq,
@@ -590,6 +617,7 @@ select r.kassa_code,
   ) w on true
  where r.faol
  order by r.kassa_code;
+-- ⬆⬆⬆  3-BOSQICH shu yergacha  ⬆⬆⬆
 
 
 -- =====================================================================
