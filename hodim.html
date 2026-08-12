@@ -8,310 +8,565 @@
 <link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
-<script src="perms.js" defer></script>
+<script src="perms-dev.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  /* ================= DIZAYN TOKENLARI =================
+     BREND: Aros yashil #1ea83a. Kontrast uchun uch pog'ona (hammasi bir xil tus):
+       --primary        #1ea83a  brend to'ldirish: ramka, ikon, progress, tanlangan holat (3.1:1 → katta yuza/grafika uchun AA)
+       --primary-strong #17862f  OQ matnli CTA foni (4.7:1 → kichik matn uchun ham AA)
+       --primary-ink    #136a26  och fonda YASHIL MATN (6.0:1)
+     Boshqa yashil tus ishlatilmaydi — "muvaffaqiyat" rangi ham shu brend yashil.
+     Spacing 4/8 shkalasi: 4 8 12 16 20 24 32. Radius: 10 12 16 20 pill. */
+  :root{
+    --bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--surface-3:#e7eaef;
+    --ink:#101828;--ink-2:#344054;--muted:#667085;--line:#e6e8ec;
+    --primary:#1ea83a;--primary-hover:#17862f;--primary-strong:#17862f;--primary-press:#126a26;
+    --primary-ink:#136a26;--primary-soft:#e6f6ea;--primary-ring:rgba(30,168,58,.22);--on-primary:#fff;
+    --green:#1ea83a;--red:#d92d20;--red-soft:#fef3f2;--red-ink:#b42318;--red-line:rgba(217,45,32,.20);--on-red:#fff;
+    --hero-a:#17862f;--hero-b:#0f6023;--hero-ink:#fff;--hero-line:rgba(255,255,255,.20);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+    --shadow-hover:0 6px 16px rgba(16,24,40,.10);--shadow-lg:0 16px 40px rgba(16,24,40,.18);
+    --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s7:32px;
+    --r-sm:10px;--r-md:12px;--r-lg:16px;--r-xl:20px;--radius:14px;
+    --col:520px;
+    --ic-alert:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E");
+    --ic-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    --ic-receipt:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z'/%3E%3Cpath d='M8 8h8'/%3E%3Cpath d='M8 12h6'/%3E%3C/svg%3E")
+  }
+  [data-theme="dark"]{
+    --bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--surface-3:#272e3a;
+    --ink:#e6e9ef;--ink-2:#c4cad5;--muted:#8a93a3;--line:#252b36;
+    --primary:#2ec24a;--primary-hover:#45d160;--primary-strong:#2ec24a;--primary-press:#45d160;
+    --primary-ink:#5fd97b;--primary-soft:#12281a;--primary-ring:rgba(46,194,74,.28);--on-primary:#07130b;
+    --green:#2ec24a;--red:#ff6259;--red-soft:#33150f;--red-ink:#ff8a82;--red-line:rgba(255,98,89,.28);--on-red:#2a0a07;
+    --hero-a:#14682a;--hero-b:#0a3d19;--hero-ink:#fff;--hero-line:rgba(255,255,255,.18);
+    --shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55);--shadow-lg:0 18px 44px rgba(0,0,0,.6)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
-  .num,.amtbig{font-variant-numeric:tabular-nums}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  .num,.amtbig,.tnum{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1}
+  ::selection{background:var(--primary-soft);color:var(--primary-ink)}
+  svg.lucide{flex:none;stroke-width:2}
+  /* Fokus: sichqonchada halqa yo'q, klaviaturada — aniq brend halqa */
+  :focus{outline:none}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   #app{display:none}
-  /* header */
-  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
-    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
-  .top .brand{display:flex;align-items:center;gap:10px}
-  .top .logo{width:26px;height:31px;color:var(--primary)}.top .logo svg{width:100%;height:100%;display:block}
-  .top .title{font-weight:800;font-size:17px;letter-spacing:-.02em}
-  .top .title span{color:var(--muted);font-weight:500}
-  .iconbtn{background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px;display:inline-flex;cursor:pointer;transition:background .13s,color .13s}
-  .iconbtn svg{width:20px;height:20px}.iconbtn:hover{background:var(--surface-2);color:var(--ink)}
-  /* body */
-  .wrap{max-width:520px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
-  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:14px;display:none}
-  .lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 9px 2px}
-  .sect{margin-bottom:22px}
-  /* kassa chips */
-  .chips{display:flex;flex-wrap:wrap;gap:9px}
-  .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:120px;border:1.5px solid var(--line);
-    background:var(--surface);color:var(--ink);border-radius:13px;padding:12px 15px;cursor:pointer;font-family:inherit;text-align:left;
-    transition:border-color .13s,background .13s,box-shadow .13s}
-  .chip:hover{border-color:var(--primary)}
-  .chip.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
-  .chip-code{font-size:11.5px;font-weight:700;color:var(--muted)}
-  .chip.on .chip-code{color:var(--primary)}
-  .chip-name{font-size:15px;font-weight:600}
-  .chips-empty{color:var(--muted);font-size:14px;padding:14px;background:var(--surface-2);border-radius:12px;text-align:center}
-  .bal{font-size:13px;color:var(--muted);margin:10px 0 0 2px}
-  .bal b{color:var(--ink);font-weight:700}
-  /* filial multiselect (Aros brend rang = --primary) */
-  .fchips{display:flex;flex-wrap:wrap;gap:8px}
-  .fchip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 14px;
-    font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,background .13s,color .13s}
-  .fchip:hover{border-color:var(--primary)}
-  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
-  .fchips-empty{color:var(--muted);font-size:13.5px;padding:10px;background:var(--surface-2);border-radius:12px;text-align:center}
-  /* davr (sana oralig'i) — maxsus kalendar (ikki oy, uz nomlar) */
-  .davrsel{font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:11px;min-height:20px;font-variant-numeric:tabular-nums}
+  /* ================= header ================= */
+  .top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) var(--s4) 10px}
+  .topin{max-width:var(--col);margin:0 auto;display:flex;align-items:center;gap:var(--s2)}
+  .brand{display:flex;align-items:center;gap:var(--s3);min-width:0;flex:1}
+  .top .logo{width:24px;height:28px;flex:none;color:var(--primary)}.top .logo svg{width:100%;height:100%;display:block}
+  .btxt{min-width:0;display:flex;flex-direction:column}
+  .top .title{font-weight:700;font-size:16px;letter-spacing:-.015em;line-height:1.25;white-space:nowrap}
+  /* Uzun ism-familiya ham, uzun email ham bir qatorda kesiladi (…) */
+  .top .who{font-size:12.5px;line-height:1.35;color:var(--muted);font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .top .who:empty{display:none}
+  .topacts{display:flex;gap:var(--s1);flex:none}
+  .iconbtn{background:transparent;border:none;color:var(--muted);border-radius:var(--r-md);
+    width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:background .15s,color .15s}
+  .iconbtn svg{width:20px;height:20px}
+  @media(hover:hover){.iconbtn:hover{background:var(--surface-2);color:var(--ink)}}
+  .iconbtn:active{background:var(--surface-3);color:var(--ink)}
+  /* ================= sahifa ================= */
+  .wrap{max-width:var(--col);margin:0 auto;padding:var(--s5) var(--s4) calc(104px + env(safe-area-inset-bottom))}
+  .sect{margin-bottom:var(--s6)}
+  .banner{display:none;background:var(--red-soft);color:var(--red-ink);border:1px solid var(--red-line);
+    border-radius:var(--r-md);padding:var(--s3) var(--s4);font-size:13.5px;line-height:1.45;margin-bottom:var(--s4)}
+  .banner::before{content:'';display:inline-block;vertical-align:-4px;width:18px;height:18px;margin-right:var(--s2);
+    background:currentColor;-webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* Maydon sarlavhasi + "majburiy" nishoni */
+  .lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 var(--s2) 2px;
+    display:flex;align-items:center;gap:var(--s2);min-height:18px}
+  .lbl .opt{font-weight:500;opacity:.9}
+  .req{display:inline-flex;align-items:center;height:20px;padding:0 var(--s2);border-radius:6px;
+    background:var(--red-soft);color:var(--red-ink);font-size:11px;font-weight:700;letter-spacing:.01em}
+  /* tanlanmagan holat matni (placeholder) */
+  .ph{color:var(--muted);font-weight:500}
+  .bal{font-size:13px;color:var(--muted);margin:var(--s3) 0 0 2px}
+  .bal b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  /* ===== Pul turi / valyuta segmenti (kassa ostida) — professional.html bilan bir xil naqsh ===== */
+  .turseg{display:flex;flex-wrap:wrap;gap:var(--s2);margin:var(--s3) 0 0}
+  /* Tugma ichida IKKI qavat: NOM (asosiy — ink-2) + QOLDIQ (ikkilamchi — muted).
+     Avval ikkalasi ham kulrang edi va tugma "o'chirilgan"dek ko'rinardi.
+     min-height:48 — qoldig'i noma'lum (qd yo'q) tugma ham barmoqbop bo'lsin va
+     bir qatordagilar teng bo'yda tursin; markazlash uchun flex-column. */
+  /* align-items ATAYLAB aniq: brauzer UA uslubi button uchun `align-items:center` beradi va
+     ustunli flex'da nom/qoldiq markazga tortilib, text-align:left ishlamay qolardi. */
+  .turbtn{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+    max-width:100%;min-height:48px;min-width:84px;
+    border:1.5px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:10px;
+    padding:8px 13px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;
+    line-height:1.25;transition:border-color .15s,background .15s,color .15s,transform .12s}
+  @media(hover:hover){.turbtn:hover{border-color:var(--primary)}}
+  .turbtn:active{transform:scale(.98)}
+  .turbtn.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+  /* nowrap — "12 500 000 so'm" raqami o'rtasidan bo'linmasin (probel ajratgich) */
+  .turbtn .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .turbtn.on .qd{color:var(--primary-ink)}
+  /* qoldiq 0 yoki manfiy — undan pul chiqmaydi. --red-ink (11px matn uchun AA: 5.9:1;
+     --red esa 4.0:1 — yiqilardi) va ohangi "xato" emas, "diqqat" — hodimni qo'rqitmaydi. */
+  .turbtn.bosh .qd{color:var(--red-ink)}
+  /* Summa valyutasi: so'mda yozish yoki valyutada yozish */
+  .valseg{display:flex;gap:var(--s2);margin:0 0 var(--s3)}
+  .valbtn{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;
+    padding:6px 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  .valbtn.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+  .kursnote{font-size:12.5px;color:var(--muted);margin:var(--s2) 0 0 2px}
+  .kursnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .kursnote.no{color:var(--red-ink)}
+  /* ================= filial multiselect (brend yashil) ================= */
+  .fchips{display:flex;flex-wrap:wrap;gap:var(--s2)}
+  .fchip{display:inline-flex;align-items:center;min-height:44px;border:1.5px solid var(--line);background:var(--surface);
+    color:var(--ink-2);border-radius:999px;padding:0 var(--s4);font-size:14px;font-weight:600;font-family:inherit;
+    cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  @media(hover:hover){.fchip:hover{border-color:var(--primary);color:var(--ink)}}
+  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+  .fchip.on::before{content:'';width:14px;height:14px;margin-right:6px;background:currentColor;
+    -webkit-mask:var(--ic-check) center/contain no-repeat;mask:var(--ic-check) center/contain no-repeat}
+  .fchips-empty{color:var(--muted);font-size:13.5px;padding:var(--s3) var(--s4);background:var(--surface-2);
+    border-radius:var(--r-md);text-align:center}
+  /* ================= davr kalendari (ikki oy, uz nomlar) ================= */
+  .davrsel{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:var(--s3);min-height:20px;
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em}
   .davrsel .ph{color:var(--muted);font-weight:500}
-  .cal{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 15px}
-  .cal-months{display:grid;grid-template-columns:1fr;gap:18px}
-  @media(min-width:560px){.cal-months{grid-template-columns:1fr 1fr;gap:24px}}
+  .cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s3);box-shadow:var(--shadow)}
+  .cal-months{display:grid;grid-template-columns:1fr;gap:var(--s5)}
+  @media(min-width:600px){.cal-months{grid-template-columns:1fr 1fr;gap:var(--s4)}}
   .cal-m{min-width:0}
-  .cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;height:28px}
-  .cal-title{font-weight:700;font-size:14.5px;letter-spacing:-.01em}
-  .cal-nav{border:none;background:transparent;color:var(--muted);cursor:pointer;padding:5px;border-radius:8px;display:inline-flex}
-  .cal-nav:hover{background:var(--surface-2);color:var(--ink)}
+  .cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1);height:40px}
+  .cal-title{font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .cal-nav{border:none;background:transparent;color:var(--muted);cursor:pointer;width:40px;height:40px;border-radius:var(--r-sm);
+    display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+  @media(hover:hover){.cal-nav:hover{background:var(--surface-2);color:var(--ink)}}
   .cal-nav svg{width:18px;height:18px}
-  .cal-nav.hidden{visibility:hidden;pointer-events:none}
+  .cal-nav.hidden{visibility:hidden;pointer-events:none;width:40px;height:40px;display:inline-block}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0}
-  .cal-wd{font-size:11.5px;font-weight:600;color:var(--muted);text-align:center;padding:3px 0 6px}
-  .cal-day{aspect-ratio:1;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:13.5px;
+  .cal-wd{font-size:11px;font-weight:600;color:var(--muted);text-align:center;padding:0 0 var(--s2);letter-spacing:.02em}
+  .cal-day{aspect-ratio:1;min-height:36px;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:13.5px;
     font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;
-    font-variant-numeric:tabular-nums;border-radius:9px;transition:background .12s,color .12s}
-  .cal-day:hover{background:var(--surface-2)}
-  .cal-day.muted{color:var(--line);pointer-events:none;background:transparent!important}
-  .cal-day.inrange{background:var(--primary-soft);border-radius:0}
-  .cal-day.on{background:var(--primary);color:#fff}
-  .cal-day.on:hover{background:var(--primary-hover)}
-  .cal-day.on.s{border-radius:9px 0 0 9px}
-  .cal-day.on.e{border-radius:0 9px 9px 0}
-  .cal-day.on.single{border-radius:9px}
-  /* summa */
-  .amtwrap{position:relative;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 18px;transition:border-color .13s,box-shadow .13s}
-  .amtwrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .amtbig{width:100%;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:38px;font-weight:800;
-    letter-spacing:-.02em;text-align:right;outline:none;padding:0}
-  .amtbig::placeholder{color:var(--line)}
-  .amtcur{position:absolute;left:18px;bottom:20px;font-size:14px;font-weight:600;color:var(--muted)}
-  /* izoh */
-  .txt{width:100%;height:48px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:13px;
-    padding:0 14px;font-size:15px;font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
-  .txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+    font-variant-numeric:tabular-nums;border-radius:var(--r-sm);transition:background .12s,color .12s}
+  @media(hover:hover){.cal-day:hover{background:var(--surface-2)}}
+  .cal-day.muted{color:var(--muted);opacity:.32;pointer-events:none;background:transparent!important}
+  .cal-day.inrange{background:var(--primary-soft);border-radius:0;color:var(--primary-ink)}
+  .cal-day.on{background:var(--primary-strong);color:var(--on-primary)}
+  @media(hover:hover){.cal-day.on:hover{background:var(--primary-press)}}
+  .cal-day.on.s{border-radius:var(--r-sm) 0 0 var(--r-sm)}
+  .cal-day.on.e{border-radius:0 var(--r-sm) var(--r-sm) 0}
+  .cal-day.on.single{border-radius:var(--r-sm)}
+  /* ================= summa ================= */
+  .amtwrap{display:flex;align-items:baseline;gap:var(--s3);background:var(--surface);border:1.5px solid var(--line);
+    border-radius:var(--r-lg);padding:var(--s4) var(--s5);box-shadow:var(--shadow);
+    transition:border-color .15s,box-shadow .15s}
+  .amtwrap:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  .amtcur{flex:none;font-size:14px;font-weight:600;color:var(--muted)}
+  .amtbig{flex:1;min-width:0;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:36px;font-weight:700;
+    letter-spacing:-.03em;line-height:1.15;text-align:right;outline:none;padding:0}
+  .amtbig::placeholder{color:var(--muted);opacity:.42}
+  /* ================= matn maydoni / tanlagich ================= */
+  .txt{width:100%;height:52px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--r-md);
+    padding:0 var(--s4);font-size:15px;font-family:inherit;outline:none;box-shadow:var(--shadow);
+    transition:border-color .15s,box-shadow .15s}
+  .txt::placeholder{color:var(--muted);opacity:.75}
+  .txt:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  @media(hover:hover){.moddafield:hover{border-color:var(--primary)}}
   select.txt{-webkit-appearance:none;appearance:none;cursor:pointer;padding-right:38px;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
-  /* qoldiq limiti (1-band) */
-  .amtwrap.over{border-color:var(--red);box-shadow:0 0 0 3px var(--red-soft)}
+  /* qoldiq/limit ogohlantirishi */
+  .amtwrap.over{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
   .amtwrap.over .amtbig{color:var(--red)}
-  .amtwarn{color:var(--red);font-size:13px;font-weight:600;margin:9px 2px 0;text-align:right}
-  /* modda tanlagich (qidiruvli) */
-  .moddafield{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:left}
+  /* display'ni JS block/none qilib almashtiradi — shuning uchun ikonka inline-block */
+  .amtwarn{color:var(--red-ink);font-size:13px;font-weight:600;line-height:1.4;margin:var(--s2) 2px 0;text-align:right}
+  .amtwarn::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;
+    background:currentColor;-webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* ================= tanlagich maydoni (modda/kassa) ================= */
+  .moddafield{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);cursor:pointer;text-align:left;
+    font-weight:600;color:var(--ink)}
   .moddafield span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .moddafield svg{width:16px;height:16px;color:var(--muted);flex:none}
-  .picklist{margin-top:12px;max-height:46vh;overflow:auto;-webkit-overflow-scrolling:touch}
-  .pickitem{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:none;background:transparent;color:var(--ink);
-    padding:12px 10px;border-radius:10px;cursor:pointer;font-family:inherit;border-bottom:1px solid var(--line)}
+  .moddafield svg{width:18px;height:18px;color:var(--muted);flex:none}
+  /* ================= modal / pastdan chiquvchi varaq ================= */
+  .modal,.kmodal,.tmodal{position:fixed;inset:0;background:rgba(16,24,40,.5);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;padding:var(--s5);z-index:120;animation:fadein .16s ease}
+  .tmodal,.kmodal{z-index:130}
+  .modal.open,.kmodal.open,.tmodal.open{display:flex}
+  /* modal ochiq bo'lsa orqa fon siljimasin (qo'llab-quvvatlamagan brauzerda e'tiborsiz qoladi) */
+  body:has(.modal.open),body:has(.kmodal.open),body:has(.tmodal.open){overflow:hidden}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  @keyframes popin{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes sheetin{from{transform:translateY(100%)}to{transform:none}}
+  .modalbox,.kbox,.tbox{background:var(--surface);width:100%;border-radius:var(--r-xl);padding:var(--s5);
+    box-shadow:var(--shadow-lg);animation:popin .2s cubic-bezier(.22,.61,.36,1)}
+  .modalbox{max-width:400px}
+  .kbox{max-width:380px}
+  .tbox{max-width:460px;max-height:88vh;display:flex;flex-direction:column}
+  .modalbox h3,.kbox h3,.tbox h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.015em}
+  /* modal sarlavha qatori (yopish tugmasi bilan) */
+  .mhead{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s4)}
+  .mclose{flex:none;width:40px;height:40px;margin:-8px -8px -8px 0;border:none;background:transparent;color:var(--muted);
+    border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s}
+  .mclose svg{width:18px;height:18px}
+  @media(hover:hover){.mclose:hover{background:var(--surface-2);color:var(--ink)}}
+  /* Telefon: markazdagi oyna emas — pastdan chiquvchi varaq (katta barmoq zonasi) */
+  @media(max-width:560px){
+    .modal,.kmodal,.tmodal{align-items:flex-end;padding:0}
+    .modalbox,.kbox,.tbox{max-width:none;border-radius:var(--r-xl) var(--r-xl) 0 0;
+      padding:var(--s5) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom));
+      max-height:92vh;display:flex;flex-direction:column;animation:sheetin .22s cubic-bezier(.22,.61,.36,1)}
+    .modalbox::before,.kbox::before,.tbox::before{content:'';flex:none;width:36px;height:4px;border-radius:2px;background:var(--surface-3);
+      margin:-6px auto var(--s3)}
+    .modalbox>*,.kbox>*,.tbox>*{flex:none}
+    .picklist,.tlist{flex:1 1 auto;min-height:0}
+  }
+  /* ================= ro'yxat (qidiruv natijasi) ================= */
+  .picklist{margin-top:var(--s3);max-height:46vh;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent}
+  @media(max-width:560px){.picklist{max-height:none;flex:1;min-height:38vh}}
+  .picklist::-webkit-scrollbar{width:6px}
+  .picklist::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:3px}
+  .pickitem{position:relative;display:flex;flex-direction:column;gap:2px;width:100%;min-height:52px;justify-content:center;
+    text-align:left;border:none;background:transparent;color:var(--ink);padding:10px 36px 10px var(--s3);border-radius:var(--r-sm);
+    cursor:pointer;font-family:inherit;border-bottom:1px solid var(--line);transition:background .13s}
   .pickitem:last-child{border-bottom:none}
-  .pickitem:hover{background:var(--surface-2)}
+  @media(hover:hover){.pickitem:hover{background:var(--surface-2)}}
+  .pickitem:active{background:var(--surface-2)}
   .pickitem.on{background:var(--primary-soft)}
-  .pickitem .pn{font-size:15px;font-weight:600}
-  .pickitem .pc{font-size:12px;color:var(--muted);font-weight:700}
-  .pickitem.on .pc{color:var(--primary)}
-  .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:16px}
-  /* Kommunal turi (9413) modal + chip */
-  .kmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:130}
-  .kmodal.open{display:flex}
-  .kbox{background:var(--surface);width:100%;max-width:380px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
-  .kbox h3{margin:0 0 16px;font-size:18px;font-weight:800}
-  .kbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .kbtn{display:flex;flex-direction:column;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 8px;cursor:pointer;font-family:inherit;transition:border-color .13s,background .13s,box-shadow .13s}
-  .kbtn:hover{border-color:var(--primary)}
-  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
-  .kbtn .kemo{font-size:30px;line-height:1}
-  .kbtn .klbl{font-size:14px;font-weight:700}
-  .kcancel{width:100%;height:46px;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
-  .kommchip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
-  .kommchip svg{width:15px;height:15px}
-  /* Filial taqsimoti modali (2+ filial) */
-  .tmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:130}
-  .tmodal.open{display:flex}
-  .tbox{background:var(--surface);width:100%;max-width:460px;max-height:88vh;display:flex;flex-direction:column;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
-  .tbox h3{margin:0 0 4px;font-size:18px;font-weight:800}
-  .thint{font-size:13px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .teq{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--primary);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;border-radius:8px;padding:6px 11px}
-  .teq:hover{border-color:var(--primary);background:var(--primary-soft)}
-  .tlist{overflow:auto;-webkit-overflow-scrolling:touch}
-  .trow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
-  .trow:last-child{border-bottom:none}
-  .trow .tfn{flex:1;min-width:0;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .trow input{width:150px;flex:none;height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:15px;font-family:inherit;text-align:right;outline:none;font-variant-numeric:tabular-nums;transition:border-color .13s,box-shadow .13s}
-  .trow input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .tsum{background:var(--surface-2);border-radius:12px;padding:11px 14px;margin-top:14px;font-size:13.5px}
-  .tsrow{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+  .pickitem.on::after{content:'';position:absolute;right:var(--s3);top:50%;margin-top:-8px;width:16px;height:16px;
+    background:var(--primary-ink);-webkit-mask:var(--ic-check) center/contain no-repeat;mask:var(--ic-check) center/contain no-repeat}
+  .pickitem .pn{font-size:15px;font-weight:600;line-height:1.35}
+  .pickitem .pc{font-size:12.5px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+  .pickitem.on .pc{color:var(--primary-ink)}
+  .pickempty{color:var(--muted);font-size:14px;text-align:center;padding:var(--s6) var(--s4)}
+  /* ================= Kommunal turi (9413) ================= */
+  .kbtns{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+  .kbtn{display:flex;flex-direction:column;align-items:center;gap:var(--s2);border:1.5px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:var(--r-lg);padding:var(--s5) var(--s2);cursor:pointer;font-family:inherit;
+    transition:border-color .15s,background .15s,box-shadow .15s,transform .12s}
+  @media(hover:hover){.kbtn:hover{border-color:var(--primary)}}
+  .kbtn:active{transform:scale(.98)}
+  .kbtn.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-ring)}
+  .kbtn .kemo{display:flex;align-items:center;justify-content:center;width:28px;height:28px;color:var(--muted)}
+  .kbtn .kemo svg{width:26px;height:26px;stroke-width:1.75}
+  .kbtn.on .kemo{color:var(--primary-ink)}
+  .kbtn .klbl{font-size:14px;font-weight:600}
+  .kbtn.on .klbl{color:var(--primary-ink);font-weight:700}
+  .kcancel{width:100%;height:48px;margin-top:var(--s3);border:1px solid var(--line);border-radius:var(--r-md);
+    background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s}
+  @media(hover:hover){.kcancel:hover{background:var(--surface-3)}}
+  .kommchip{display:inline-flex;align-items:center;gap:var(--s2);min-height:44px;border:1.5px solid var(--primary);
+    background:var(--primary-soft);color:var(--primary-ink);border-radius:999px;padding:0 var(--s4);font-size:14px;
+    font-weight:700;font-family:inherit;cursor:pointer;transition:background .15s}
+  .kommchip svg{width:16px;height:16px}
+  .kommchip .kdrop{color:var(--primary);opacity:.7}
+  /* ================= Filial taqsimoti modali (2+ filial) ================= */
+  .thint{font-size:13px;color:var(--muted);margin:-8px 0 var(--s4);display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;line-height:1.4}
+  .teq{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--primary-ink);font-weight:700;
+    font-size:12.5px;cursor:pointer;font-family:inherit;border-radius:var(--r-sm);padding:8px var(--s3);min-height:36px;transition:border-color .15s,background .15s}
+  @media(hover:hover){.teq:hover{border-color:var(--primary);background:var(--primary-soft)}}
+  .tlist{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  /* Taqsimot satri — tarix satri (.trow) bilan to'qnashmasin deb alohida nom */
+  .talloc{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;border-bottom:1px solid var(--line)}
+  .talloc:last-child{border-bottom:none}
+  .talloc .tfn{flex:1;min-width:0;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .talloc input{width:140px;flex:none;height:44px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-sm);padding:0 var(--s3);font-size:15px;font-weight:600;font-family:inherit;text-align:right;outline:none;
+    font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s}
+  .talloc input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+  .tsum{background:var(--surface-2);border-radius:var(--r-md);padding:var(--s3) var(--s4);margin-top:var(--s4);font-size:13.5px}
+  .tsrow{display:flex;justify-content:space-between;gap:var(--s3);padding:var(--s1) 0}
   .tsrow span{color:var(--muted)}.tsrow b{font-variant-numeric:tabular-nums}
-  .tmsg{text-align:right;font-weight:700;font-size:13px;margin-top:8px;min-height:16px}
-  .tmsg.ok{color:var(--green)}.tmsg.no{color:var(--red)}
-  .tacts{display:flex;gap:9px;margin-top:14px}
-  .tacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
-  .tacts button.primary{border:none;background:var(--primary);color:#fff}
-  .tacts button.primary:disabled{opacity:.5;cursor:not-allowed}
-  /* modal */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:120}
-  .modal.open{display:flex}
-  .modalbox{background:var(--surface);width:100%;max-width:360px;border-radius:18px;padding:20px;box-shadow:var(--shadow-hover)}
-  .modalbox h3{margin:0 0 14px;font-size:18px;font-weight:800}
-  .modalbox .row{display:flex;gap:9px;margin-top:14px}
-  .modalbox .btn{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
-  .modalbox .btn.primary{border:none;background:var(--primary);color:#fff}
-  .modalbox .btn:disabled{opacity:.5;cursor:not-allowed}
-  /* sticky save */
-  .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-    background:linear-gradient(to top,var(--bg) 62%,transparent);max-width:520px;margin:0 auto}
-  .save{width:100%;height:54px;border:none;border-radius:15px;background:var(--primary);color:var(--on-primary);
-    font-size:17px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:var(--shadow);
-    display:flex;align-items:center;justify-content:center;gap:9px;transition:background .13s,transform .12s,box-shadow .12s}
+  .tmsg{text-align:right;font-weight:600;font-size:13px;margin-top:var(--s2);min-height:18px;line-height:1.4}
+  .tmsg.ok{color:var(--primary-ink)}.tmsg.no{color:var(--red-ink)}
+  .tmsg.ok::before,.tmsg.no::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;
+    margin-right:5px;background:currentColor;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+    -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain}
+  .tmsg.ok::before{-webkit-mask-image:var(--ic-check);mask-image:var(--ic-check)}
+  .tmsg.no::before{-webkit-mask-image:var(--ic-alert);mask-image:var(--ic-alert)}
+  .tacts{display:flex;gap:var(--s2);margin-top:var(--s4)}
+  .tacts button{flex:1;height:48px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s,opacity .15s}
+  @media(hover:hover){.tacts button:hover{background:var(--surface-3)}}
+  .tacts button.primary{border:none;background:var(--primary-strong);color:var(--on-primary);
+    display:inline-flex;align-items:center;justify-content:center;gap:var(--s2)}
+  @media(hover:hover){.tacts button.primary:hover{background:var(--primary-press)}}
+  .tacts button.primary:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  /* ================= oddiy modal tugmalari ================= */
+  .modalbox .row{display:flex;gap:var(--s2);margin-top:var(--s4)}
+  .modalbox .btn{flex:1;height:48px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
+  .modalbox .btn.primary{border:none;background:var(--primary-strong);color:var(--on-primary)}
+  .modalbox .btn:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  /* ================= sticky Saqlash ================= */
+  .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 64%,transparent);max-width:var(--col);margin:0 auto;pointer-events:none}
+  .save{pointer-events:auto;width:100%;height:54px;border:none;border-radius:var(--r-lg);background:var(--primary-strong);
+    color:var(--on-primary);font-size:17px;font-weight:700;font-family:inherit;letter-spacing:-.01em;cursor:pointer;
+    box-shadow:0 4px 14px rgba(23,134,47,.28);display:flex;align-items:center;justify-content:center;gap:var(--s2);
+    transition:background .15s,transform .12s,box-shadow .15s,color .15s}
   .save svg{width:20px;height:20px}
-  .save:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:var(--shadow-hover)}
-  .save:active{transform:translateY(0)}
-  .save:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
-  .save.ok{background:var(--green)}
-  /* today list */
-  .today h2{font-size:14px;font-weight:700;color:var(--muted);margin:0 0 12px 2px}
-  .trow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  @media(hover:hover){.save:hover{background:var(--primary-press);transform:translateY(-1px);box-shadow:0 8px 20px rgba(23,134,47,.30)}}
+  .save:active{transform:translateY(0);box-shadow:0 2px 8px rgba(23,134,47,.24)}
+  .save:disabled{background:var(--surface-2);color:var(--muted);box-shadow:none;transform:none;cursor:not-allowed}
+  .save.ok{background:var(--primary-strong);color:var(--on-primary)}
+  /* tugma ichidagi aylanuvchi indikator */
+  .spin{width:18px;height:18px;flex:none;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;
+    display:inline-block;animation:spin .7s linear infinite;vertical-align:-3px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* ================= xarajat tarixi (karta) ================= */
+  .today{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:var(--s4) var(--s4) var(--s2);box-shadow:var(--shadow)}
+  .today h2{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em;margin:0 0 var(--s3)}
+  .trow{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) 0;border-bottom:1px solid var(--line)}
   .trow:last-child{border-bottom:none}
-  .trow .tic{width:38px;height:38px;flex:none;border-radius:11px;background:var(--red-soft);color:var(--red);
+  .trow .tic{width:38px;height:38px;flex:none;border-radius:var(--r-md);background:var(--red-soft);color:var(--red);
     display:flex;align-items:center;justify-content:center}
   .trow .tic svg{width:18px;height:18px}
   .trow .tm{flex:1;min-width:0}
-  .trow .tm .tt{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .trow .tm .ts{font-size:12.5px;color:var(--muted)}
-  .trow .ta{font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap}
-  .today-empty{color:var(--muted);font-size:13.5px;padding:6px 2px}
-  .trow .chekpin{flex:none;border:none;background:transparent;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px}
+  .trow .tm .tt{font-weight:600;font-size:14.5px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .tm .ts{font-size:12.5px;color:var(--muted);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums}
+  .trow .ta{font-weight:700;font-size:15px;color:var(--red-ink);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.01em}
+  .trow .chekpin{flex:none;width:40px;height:40px;border:none;background:transparent;color:var(--muted);cursor:pointer;
+    border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
   .trow .chekpin svg{width:16px;height:16px}
-  .trow .chekpin:hover{color:var(--primary);background:var(--surface-2)}
-  /* 5-band: bu oy jami */
-  .month{font-size:13px;color:var(--muted);margin:0 0 16px 2px}
-  .month b{color:var(--ink);font-weight:700}
-  /* hero — umumiy qoldiq (hamma biriktirilgan kassalar) */
-  .hero{background:linear-gradient(135deg,var(--primary),var(--primary-hover));color:#fff;
-    border-radius:18px;padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
-  .hero-lbl{font-size:12.5px;font-weight:600;letter-spacing:.01em;opacity:.85;margin-bottom:5px}
-  .hero-amt{display:flex;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
-  .hero-amt #totalBal{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
-  .hero-cur{font-size:15px;font-weight:600;opacity:.85}
-  .hero-sub{font-size:13.5px;font-weight:500;opacity:.92;margin-top:7px;display:flex;align-items:center;gap:6px}
-  .hero-sub svg{width:15px;height:15px}
-  /* progressive reveal (modda tanlangach qadamlar ochiladi) */
+  @media(hover:hover){.trow .chekpin:hover{color:var(--primary-ink);background:var(--surface-2)}}
+  /* bo'sh holat */
+  .today-empty{color:var(--ink-2);font-size:14px;font-weight:600;text-align:center;padding:var(--s6) var(--s4) var(--s7);line-height:1.5}
+  .today-empty::before{content:'';display:block;width:32px;height:32px;margin:0 auto var(--s3);background:var(--muted);opacity:.5;
+    -webkit-mask:var(--ic-receipt) center/contain no-repeat;mask:var(--ic-receipt) center/contain no-repeat}
+  .today-empty span{display:block;margin-top:var(--s1);font-size:12.5px;font-weight:400;color:var(--muted)}
+  /* xato holati (tarix yuklanmadi) */
+  .today-err{background:var(--red-soft);color:var(--red-ink);border:1px solid var(--red-line);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);font-size:13px;line-height:1.45;margin:var(--s2) 0 var(--s4)}
+  .today-err::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;background:currentColor;
+    -webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* skeleton (yuklanmoqda) */
+  .skel{height:12px;border-radius:6px;background:var(--surface-2);position:relative;overflow:hidden}
+  .skel::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:shine 1.3s infinite}
+  [data-theme="dark"] .skel::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent)}
+  @keyframes shine{100%{transform:translateX(100%)}}
+  .skrow{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) 0;border-bottom:1px solid var(--line)}
+  .skrow:last-child{border-bottom:none}
+  .skrow .skic{width:38px;height:38px;flex:none;border-radius:var(--r-md)}
+  .skrow .skb{flex:1}
+  .skrow .skb .skel+.skel{margin-top:var(--s2);height:10px}
+  /* ================= hero — umumiy qoldiq ================= */
+  .hero{background:linear-gradient(135deg,var(--hero-a),var(--hero-b));color:var(--hero-ink);
+    border-radius:var(--r-xl);padding:var(--s5);margin-bottom:var(--s4);box-shadow:0 6px 20px rgba(15,96,35,.18)}
+  /* Hero matnlari TO'LIQ oq (shaffoflik yo'q) — to'q yashil fonda AA kontrast (4.7:1+).
+     Ierarxiya o'lcham/og'irlik bilan beriladi, opacity bilan emas. */
+  /* Yorliq dinamik: "Umumiy qoldiq" yoki kassa/tur nomi. Uzun nom (Ism · Filial · Lavozim)
+     UPPERCASE holida 2-3 qatorga bo'linib hero'ni bo'rttirmasin — bir qator, … bilan. */
+  .hero-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:var(--s1);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero-amt{display:flex;align-items:baseline;gap:var(--s2);font-variant-numeric:tabular-nums;min-height:38px}
+  /* transition — .ph (shimmer) 8 soniyadan keyin olinganda fon/rang to'satdan emas, so'nib ketadi */
+  .hero-amt #totalBal{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1;
+    transition:background-color .25s ease,color .25s ease}
+  /* qoldiq hali yuklanmagan — shimmer (skelet) */
+  .hero-amt #totalBal.ph{display:inline-block;width:132px;height:26px;border-radius:8px;color:transparent;
+    background:rgba(255,255,255,.22);overflow:hidden;position:relative;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  /* QOLDIQ NOMA'LUM ("—") — haqiqiy "0 so'm" bilan CHALKASHMASLIGI shart: "—" ingichkaroq
+     va susroq (bu holatda opacity o'rinli — ierarxiya emas, "raqam yo'q" belgisi).
+     ⚠️ Klassni JS toggle qilishi kerak — renderHero() ga bitta qator (hisobotga qara). */
+  .hero-amt #totalBal.unk{font-weight:500;opacity:.6;letter-spacing:0}
+  .hero-cur{font-size:15px;font-weight:600}
+  .hero-sub{font-size:13.5px;font-weight:500;margin-top:var(--s2);display:flex;align-items:center;gap:var(--s2);min-width:0}
+  .hero-sub svg{width:16px;height:16px;opacity:.85}
+  .hero-sub span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hero-note{font-size:13px;margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--hero-line)}
+  .hero-note b{font-weight:700;font-variant-numeric:tabular-nums}
+  /* ================= progressiv ochilish ================= */
   .reveal{animation:reveal .26s cubic-bezier(.22,.61,.36,1)}
   @keyframes reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
   /* qadam eslatmasi (kutish holati) */
-  .stepnote{color:var(--muted);font-size:13px;background:var(--surface-2);border-radius:11px;
-    padding:11px 13px;display:flex;align-items:center;gap:8px}
+  .stepnote{color:var(--muted);font-size:13px;line-height:1.45;background:var(--surface-2);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s2)}
   .stepnote svg{width:16px;height:16px;flex:none}
-  /* xarajat tarixi (davr chip + kategoriya) */
-  .histhd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  /* ================= tarix sarlavhasi + davr chiplari ================= */
+  .histhd{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
   .histhd h2{margin:0}
-  .chips2{display:flex;gap:6px}
-  .pchip{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:7px 13px;
-    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:border-color .13s,color .13s,background .13s}
-  .pchip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
-  .histcat{margin-bottom:16px}
-  .hcat{margin-bottom:11px}
-  .hcat .hcl{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
-  .hcat .hcl .a{font-weight:700;font-variant-numeric:tabular-nums}.hcat .hcl .a .p{color:var(--muted);font-weight:400;margin-left:4px}
-  .hcat.total{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}.hcat.total .hcl{font-weight:800}
-  .htrack{height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden}
-  .htrack .hfill{height:100%;background:var(--primary);border-radius:5px;transition:width .4s ease}
-  /* 3-band: chek surati */
-  .chekbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;border:1.5px dashed var(--line);
-    border-radius:13px;background:transparent;color:var(--primary);font-size:14.5px;font-weight:600;cursor:pointer;transition:background .13s,border-color .13s}
-  .chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}
+  .chips2{display:flex;gap:2px;background:var(--surface-2);border-radius:999px;padding:var(--s1)}
+  .pchip{border:none;background:transparent;color:var(--muted);border-radius:999px;padding:0 var(--s3);min-height:36px;
+    display:inline-flex;align-items:center;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;
+    transition:color .15s,background .15s,box-shadow .15s}
+  @media(hover:hover){.pchip:hover{color:var(--ink)}}
+  .pchip.on{background:var(--surface);color:var(--primary-ink);box-shadow:var(--shadow)}
+  /* kategoriya taqsimoti */
+  .histcat{margin-bottom:var(--s5)}
+  .histcat:empty{margin-bottom:0}
+  .hcat{margin-bottom:var(--s3)}
+  .hcat .hcl{display:flex;justify-content:space-between;gap:var(--s3);font-size:13.5px;margin-bottom:var(--s1)}
+  .hcat .hcl>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+  .hcat .hcl .a{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .hcat .hcl .a .p{color:var(--muted);font-weight:500;margin-left:6px}
+  .hcat.total{margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)}
+  .hcat.total .hcl{font-weight:700;font-size:14.5px;margin-bottom:0}
+  .hcat.total .hcl>span:first-child{color:var(--ink)}
+  .htrack{height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+  .htrack .hfill{height:100%;background:var(--primary);border-radius:999px;transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  /* ================= chek surati ================= */
+  .chekbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:var(--s2);width:100%;min-height:52px;
+    border:1.5px dashed var(--line);border-radius:var(--r-md);background:var(--surface);color:var(--primary-ink);
+    font-size:14.5px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+  @media(hover:hover){.chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}}
+  .chekbtn:active{background:var(--primary-soft)}
   .chekbtn svg{width:18px;height:18px}
-  .chekprev{display:flex;align-items:center;gap:12px;margin-top:10px}
-  .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
-  .chekrm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--red);
-    border-radius:10px;padding:8px 12px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer}
-  .chekrm svg{width:15px;height:15px}
-  .chekreq{color:var(--red);font-size:13px;font-weight:600;margin-top:8px}
-  /* toast */
-  .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);
-    background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-size:14.5px;font-weight:600;
-    box-shadow:var(--shadow-hover);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;
-    display:flex;align-items:center;gap:8px}
-  .toast svg{width:17px;height:17px}
+  .chekbtn:focus-within{outline:2px solid var(--primary);outline-offset:2px;border-color:var(--primary)}
+  .vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;margin:0}
+  .kommchip .kommic{display:inline-flex;align-items:center;color:var(--primary)}
+  .chekprev{display:flex;align-items:center;gap:var(--s3);margin-top:var(--s3)}
+  .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2)}
+  .chekrm{display:inline-flex;align-items:center;gap:6px;min-height:40px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--red-ink);border-radius:var(--r-sm);padding:0 var(--s3);font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;
+    transition:background .15s}
+  @media(hover:hover){.chekrm:hover{background:var(--surface-3)}}
+  .chekrm svg{width:16px;height:16px}
+  .chekreq{color:var(--red-ink);font-size:13px;font-weight:600;line-height:1.4;margin-top:var(--s2)}
+  .chekreq::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;background:currentColor;
+    -webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* ================= toast ================= */
+  .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);
+    background:var(--ink);color:var(--bg);padding:12px var(--s5);border-radius:999px;font-size:14.5px;font-weight:600;
+    line-height:1.35;max-width:calc(100vw - 32px);text-align:left;
+    box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;
+    display:flex;align-items:center;gap:var(--s2)}
+  .toast svg{width:18px;height:18px;flex:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  /* auth gate */
-  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
-  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px;color:var(--primary)}.authbox .logo svg{width:100%;height:100%}
-  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
-  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
-  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
-  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
-  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  /* ================= auth gate ================= */
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:var(--s6);z-index:100}
+  .authbox{width:100%;max-width:360px}
+  .authbox .logo{width:44px;height:52px;margin:0 auto var(--s5);color:var(--primary)}.authbox .logo svg{width:100%;height:100%}
+  .authbox h1{font-size:22px;text-align:center;margin:0 0 var(--s1);font-weight:700;letter-spacing:-.02em}
+  .authbox p{text-align:center;color:var(--muted);margin:0 0 var(--s6);font-size:14px}
+  .authbox input{width:100%;height:52px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-md);padding:0 var(--s4);font-size:15px;font-family:inherit;margin-bottom:var(--s3);outline:none;
+    transition:border-color .15s,box-shadow .15s}
+  .authbox input::placeholder{color:var(--muted);opacity:.75}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  .authbox button{width:100%;height:52px;border:none;border-radius:var(--r-md);background:var(--primary-strong);color:var(--on-primary);
+    font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .15s,transform .12s}
+  @media(hover:hover){.authbox button:hover{background:var(--primary-press);transform:translateY(-1px)}}
+  .authbox button:active{transform:translateY(0)}
+  .autherr{color:var(--red-ink);font-size:14px;margin-top:var(--s3);text-align:center;min-height:18px;line-height:1.4}
+  /* ================= responsiv ================= */
+  /* 375px va undan kichik telefon — summani va tashqi bo'shliqni siqamiz */
+  @media(max-width:380px){
+    .wrap{padding-left:var(--s3);padding-right:var(--s3)}
+    .top{padding-left:var(--s3);padding-right:var(--s3)}
+    .amtbig{font-size:32px}
+    .amtwrap{padding:var(--s3) var(--s4)}
+    .hero{padding:var(--s4)}
+    .hero-amt #totalBal{font-size:30px}
+    .today{padding:var(--s3) var(--s3) var(--s2)}
+    .talloc input{width:120px}
+  }
+  /* Noutbuk (1024 / 1280 / 1366) — ustun biroz kengayadi, kalendar ikki oy bemalol sig'adi */
+  @media(min-width:1024px){
+    :root{--col:560px}
+    .wrap{padding-top:var(--s7);padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+    .hero{padding:var(--s6)}
+    .hero-amt #totalBal{font-size:36px}
+  }
+  /* Past bo'yli, keng ekran (noutbuk landshaft) — tepa qism kamroq joy olsin */
+  @media(min-width:1024px) and (max-height:800px){
+    .wrap{padding-top:var(--s5)}
+    .hero{padding:var(--s5)}
+  }
 </style>
 </head>
 <body>
 <div id="gate" class="gate"><div class="authbox">
   <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
-  <input id="email" type="email" placeholder="Email" autocomplete="username">
-  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
-  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+  <input id="email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password" aria-label="Parol">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr" role="alert"></div>
 </div></div>
 
 <div id="app">
   <header class="top">
-    <div class="brand">
-      <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div>
-      <div class="title">Xarajat <span id="who"></span></div>
-    </div>
-    <div style="display:flex;gap:2px">
-      <button class="iconbtn" onclick="toggleTheme()" aria-label="Mavzu"><i data-lucide="moon"></i></button>
-      <button class="iconbtn" onclick="logout()" aria-label="Chiqish"><i data-lucide="log-out"></i></button>
+    <div class="topin">
+      <div class="brand">
+        <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div>
+        <!-- Ikki qator: sahifa nomi + foydalanuvchi (ism-familiya yoki email).
+             #who bitta qatorda kesiladi (…) — uzun ism ham, uzun email ham sig'adi. -->
+        <div class="btxt">
+          <div class="title">Xarajat</div>
+          <div class="who" id="who"></div>
+        </div>
+      </div>
+      <div class="topacts">
+        <button class="iconbtn" onclick="toggleTheme()" aria-label="Mavzu"><i data-lucide="moon"></i></button>
+        <button class="iconbtn" onclick="logout()" aria-label="Chiqish"><i data-lucide="log-out"></i></button>
+      </div>
     </div>
   </header>
 
   <main class="wrap">
-    <div id="banner" class="banner"></div>
+    <div id="banner" class="banner" role="alert"></div>
 
-    <!-- Umumiy qoldiq: hamma biriktirilgan kassalar yig'indisi -->
+    <!-- Umumiy qoldiq: hamma biriktirilgan kassalar yig'indisi + bu oy sarfi -->
     <div class="hero">
-      <div class="hero-lbl">Umumiy qoldiq</div>
-      <div class="hero-amt"><span id="totalBal">—</span><span class="hero-cur">so'm</span></div>
+      <div class="hero-lbl" id="heroLbl">Umumiy qoldiq</div>
+      <div class="hero-amt"><span id="totalBal">—</span><span class="hero-cur" id="heroCur">so'm</span></div>
       <div class="hero-sub" id="heroSub"><i data-lucide="wallet"></i><span>—</span></div>
+      <div id="month" class="hero-note" style="display:none"></div>
     </div>
-    <div id="month" class="month" style="display:none"></div>
 
-    <!-- Kassa tanlagich: FAQAT bir nechta kassa bo'lsa ko'rinadi (bitta bo'lsa avtomat) -->
+    <!-- Kassa tanlagich: FAQAT bir nechta kassa bo'lsa ko'rinadi (bitta bo'lsa avtomat).
+         Ostida pul turi / valyuta segmenti (#turSeg) — kassaning bola-hisoblari bo'lsa. -->
     <div class="sect" id="kassaSect" style="display:none">
-      <div class="lbl">Qaysi kassadan</div>
-      <button type="button" class="txt moddafield" id="kassaField" onclick="openKassa()"><span id="kassaFieldTxt">— kassa tanlang —</span><i data-lucide="chevron-down"></i></button>
+      <div class="lbl" id="kassaLbl">Qaysi kassadan</div>
+      <button type="button" class="txt moddafield" id="kassaField" onclick="openKassa()" aria-labelledby="kassaLbl kassaFieldTxt" aria-haspopup="dialog"><span id="kassaFieldTxt" class="ph">Kassa tanlang</span><i data-lucide="chevron-down"></i></button>
       <div id="kassaBal" class="bal" style="display:none"></div>
     </div>
 
-    <div class="sect">
-      <div class="lbl">Summa</div>
-      <div class="amtwrap" id="amtwrap">
-        <span class="amtcur">so'm</span>
-        <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off">
-      </div>
-      <div id="amtWarn" class="amtwarn" style="display:none"></div>
+    <!-- Pul turi: naqd / Click / Payme / USD… — kassa tanlangach ichidan tanlanadi.
+         Bitta kassa bo'lib kassaSect yashiringan bo'lsa ham bu ko'rinadi (alohida sect). -->
+    <div class="sect" id="turSect" style="display:none">
+      <div class="lbl" id="turLbl">Qaysi turdan</div>
+      <div id="turSeg" class="turseg"></div>
     </div>
 
     <div class="sect">
-      <div class="lbl">Nimaga (modda)</div>
-      <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()"><span id="moddaFieldTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
+      <label class="lbl" for="summa">Summa</label>
+      <div class="valseg" id="valSeg" style="display:none"></div>
+      <div class="amtwrap" id="amtwrap">
+        <span class="amtcur" id="amtCurLbl">so'm</span>
+        <input class="amtbig" id="summa" inputmode="numeric" placeholder="0" autocomplete="off" aria-describedby="amtWarn">
+      </div>
+      <div id="kursNote" class="kursnote" style="display:none" role="status" aria-live="polite"></div>
+      <div id="amtWarn" class="amtwarn" style="display:none" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="sect">
+      <div class="lbl" id="moddaLbl">Nimaga <span class="opt">(xarajat moddasi)</span></div>
+      <button type="button" class="txt moddafield" id="moddaField" onclick="openModda()" aria-labelledby="moddaLbl moddaFieldTxt" aria-haspopup="dialog"><span id="moddaFieldTxt" class="ph">Modda tanlang</span><i data-lucide="chevron-down"></i></button>
     </div>
 
     <!-- Modda tanlangach ochiladigan qadamlar (ketma-ket flow) -->
     <div id="afterModda" style="display:none">
 
       <div class="sect" id="kommSect" style="display:none">
-        <div class="lbl">Qaysi kommunal? <span style="color:var(--red);font-weight:700">(majburiy)</span></div>
-        <button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt">— tanlang —</span><i data-lucide="chevron-down"></i></button>
+        <div class="lbl" id="kommLbl">Qaysi kommunal? <span class="req">majburiy</span></div>
+        <button type="button" class="kommchip" onclick="openKomm()" aria-labelledby="kommLbl kommChipTxt" aria-haspopup="dialog"><span class="kommic" id="kommChipIc"><i data-lucide="plug-zap"></i></span><span id="kommChipTxt">Tanlang</span><i class="kdrop" data-lucide="chevron-down"></i></button>
       </div>
 
       <div class="sect">
-        <div class="lbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></div>
+        <div class="lbl">Filial <span class="opt">(ixtiyoriy — bir nechta)</span></div>
         <div id="filialChips" class="fchips"></div>
-        <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px"></div>
+        <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px" role="status" aria-live="polite"></div>
       </div>
 
       <div class="sect" id="davrSect" style="display:none">
-        <div class="lbl" id="davrLbl">📅 Davr (majburiy)</div>
+        <div class="lbl" id="davrLbl">Davr <span class="req">majburiy</span></div>
         <div id="davrWait" class="stepnote" style="display:none"><i data-lucide="corner-down-right"></i><span>Avval filialni tanlang — so'ng davr chiqadi.</span></div>
         <div id="davrPickWrap" style="display:none">
           <div id="davrSel" class="davrsel"></div>
@@ -321,9 +576,10 @@
       </div>
 
       <div class="sect" id="chekSect">
-        <div class="lbl" id="chekLbl">📷 Chek (ixtiyoriy)</div>
+        <div class="lbl" id="chekLbl">Chek <span class="opt">(ixtiyoriy)</span></div>
         <label class="chekbtn">
-          <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
+          <!-- input yashirin, lekin FOKUSLANADI — klaviatura bilan ham ochiladi (:focus-within halqa) -->
+          <input type="file" accept="image/*" capture="environment" id="chekFile" class="vh" onchange="onChekFile(this)">
           <i data-lucide="camera"></i><span>Chek suratini olish</span>
         </label>
         <div id="chekPrev" class="chekprev" style="display:none"></div>
@@ -331,7 +587,7 @@
       </div>
 
       <div class="sect">
-        <div class="lbl" id="izohLbl">Izoh <span style="font-weight:400">(ixtiyoriy)</span></div>
+        <label class="lbl" id="izohLbl" for="izoh">Izoh <span class="opt">(ixtiyoriy)</span></label>
         <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
       </div>
 
@@ -340,14 +596,18 @@
     <div class="today sect" id="histSect">
       <div class="histhd">
         <h2>Xarajatlarim</h2>
-        <div class="chips2">
+        <div class="chips2" role="group" aria-label="Davr">
           <button type="button" class="pchip on" data-p="bugun" onclick="setHistPeriod('bugun')">Bugun</button>
           <button type="button" class="pchip" data-p="hafta" onclick="setHistPeriod('hafta')">Bu hafta</button>
           <button type="button" class="pchip" data-p="oy" onclick="setHistPeriod('oy')">Bu oy</button>
         </div>
       </div>
       <div id="histCat" class="histcat"></div>
-      <div id="histList"></div>
+      <!-- Boshlang'ich skeleton — birinchi yuklashda bo'sh oq joy ko'rinmasin -->
+      <div id="histList" aria-live="polite">
+        <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:52%"></div><div class="skel" style="width:34%"></div></div></div>
+        <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:40%"></div><div class="skel" style="width:28%"></div></div></div>
+      </div>
     </div>
   </main>
 
@@ -356,21 +616,21 @@
   </div>
 </div>
 
-<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()">
+<div class="kmodal" id="kommModal" onclick="if(event.target===this)cancelKomm()" role="dialog" aria-modal="true" aria-label="Kommunal turi">
   <div class="kbox">
-    <h3>Qaysi kommunal?</h3>
+    <div class="mhead"><h3>Qaysi kommunal?</h3><button type="button" class="mclose" onclick="cancelKomm()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
     <div class="kbtns" id="kommBtns"></div>
     <button type="button" class="kcancel" onclick="cancelKomm()">Bekor</button>
   </div>
 </div>
 
-<div class="tmodal" id="taqsimModal" onclick="if(event.target===this)closeTaqsim()">
+<div class="tmodal" id="taqsimModal" onclick="if(event.target===this)closeTaqsim()" role="dialog" aria-modal="true" aria-label="Filiallar bo'yicha taqsimlash">
   <div class="tbox">
-    <h3>Filiallar bo'yicha taqsimlash</h3>
+    <div class="mhead"><h3>Filiallar bo'yicha taqsimlash</h3><button type="button" class="mclose" onclick="closeTaqsim()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
     <div class="thint">Har filial uchun alohida provodka yoziladi.<button type="button" class="teq" onclick="taqsimEqual()">Teng bo'lish</button></div>
     <div class="tlist" id="taqsimRows"></div>
     <div class="tsum" id="taqsimSum"></div>
-    <div class="tmsg" id="taqsimMsg"></div>
+    <div class="tmsg" id="taqsimMsg" role="status" aria-live="polite"></div>
     <div class="tacts">
       <button type="button" onclick="closeTaqsim()">Bekor</button>
       <button type="button" class="primary" id="taqsimSaveBtn" onclick="confirmTaqsim()" disabled>Saqlash</button>
@@ -378,18 +638,18 @@
   </div>
 </div>
 
-<div class="modal" id="moddaModal" onclick="if(event.target===this)closeModda()">
+<div class="modal" id="moddaModal" onclick="if(event.target===this)closeModda()" role="dialog" aria-modal="true" aria-label="Xarajat moddasi">
   <div class="modalbox">
-    <h3>Xarajat moddasi</h3>
-    <input class="txt" id="moddaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderModdaList()">
+    <div class="mhead"><h3>Xarajat moddasi</h3><button type="button" class="mclose" onclick="closeModda()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+    <input class="txt" id="moddaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderModdaList()" aria-label="Modda qidirish">
     <div id="moddaList" class="picklist"></div>
   </div>
 </div>
 
-<div class="modal" id="kassaModal" onclick="if(event.target===this)closeKassa()">
+<div class="modal" id="kassaModal" onclick="if(event.target===this)closeKassa()" role="dialog" aria-modal="true" aria-label="Kassa tanlash">
   <div class="modalbox">
-    <h3>Kassa tanlang</h3>
-    <input class="txt" id="kassaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderKassaList()">
+    <div class="mhead"><h3>Kassa tanlang</h3><button type="button" class="mclose" onclick="closeKassa()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+    <input class="txt" id="kassaSearch" placeholder="Qidirish (nom yoki kod)" autocomplete="off" oninput="renderKassaList()" aria-label="Kassa qidirish">
     <div id="kassaList2" class="picklist"></div>
   </div>
 </div>
@@ -402,6 +662,10 @@ const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+/* Valyuta miqdori (USD/CNY…): 2 kasrgacha, keraksiz nollarsiz. money() so'm uchun (butun). */
+const fcTxt=n=>{ const v=Math.round((Number(n)||0)*100)/100, a=Math.abs(v);
+  const i=Math.trunc(a), f=Math.round((a-i)*100);
+  return (v<0?'−':'')+i.toLocaleString('en-US').replaceAll(',',' ')+(f?'.'+String(f).padStart(2,'0'):''); };
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
@@ -439,9 +703,27 @@ const isoDay=d=>d.toISOString().slice(0,10);
 const swrKey=n=>`prov-swr:hodim:${n}`;
 function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null; const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
 function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
-let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan kassa qoldig'i (null=noma'lum)
-let balMap={};              // {kassa_id: qoldiq} — hero (umumiy) + kassa picker uchun, bir marta yuklanadi
-const BAL_MAX=8;            // shuncha kassagacha qoldiqlar yuklanadi (admin 60+ kassada og'ir bo'lmasin)
+/* Keshda endi QOLDIQ (pul raqamlari) ham turadi va sessionStorage reload'dan omon
+   chiqadi — permClear() esa faqat ruxsat kalitini o'chiradi. Shuning uchun login va
+   logoutda `prov-swr:` kalitlarini ham tozalaymiz: yangi foydalanuvchi eskisining
+   qoldig'ini ko'rmasin. */
+function swrClear(){ try{
+  Object.keys(sessionStorage).filter(k=>k.indexOf('prov-swr:')===0)
+    .forEach(k=>sessionStorage.removeItem(k));
+}catch(e){} }
+let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan hisob qoldig'i (null=noma'lum)
+// selSub — kassa ICHIDAN tanlangan pul turi / valyuta hisobi (null = kassaning o'zi).
+// Kassa BITTA tanlanadi (parent), tur esa alohida segmentdan — professional.html'dagi naqsh.
+let selSub=null;
+// amtCur — summa QAYSI valyutada kiritilyapti ('UZS' yoki hisob valyutasi).
+// Valyuta kassasida ikkalasi ham mumkin: so'm yozilsa kurs bilan valyutaga aylantiriladi.
+let amtCur='UZS', curRate=null, rateBusy=false;
+// {account_id: {uzs, fc}} — parent + hamma bola-hisoblar. Bitta v_hisob_bal so'rovi bilan keladi.
+let balMap={};
+// Sahifa ochilganda eng ko'p puli bor kassa avtomat tanlanadi — FAQAT BIR MARTA.
+// Bayroq bir marta ko'tarilgach, fon so'rovlari (loadBalances) tanlovni qaytarib bosmaydi:
+// hodim ataylab boshqa kassaga o'tgan bo'lishi mumkin.
+let avtoTanlandi=false;
 let filials=[], selFilials=new Set();  // V6: filial multiselect (entry.filial_ids — faqat metadata)
 let calBase=null, davrS=null, davrE=null;  // V6: davr kalendari (ikki oy) — boshi/oxiri ISO sana
 const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
@@ -458,9 +740,10 @@ if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttr
 
 // --- auth (boshqa sahifalardagidek) ---
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
-  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
-// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi foydalanuvchi eskisining ruxsatlarisiz kirsin.
-window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); swrClear(); enterApp(); };
+// permClear()+swrClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsati ham, qoldiq raqamlari ham bilan kirmasin.
+window.logout=async()=>{ window.permClear(); swrClear(); await sb.auth.signOut(); location.reload(); };
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 
 let appShown=false;
@@ -487,24 +770,113 @@ async function boot(){
 }
 
 const isKassa=a=>a.type==='aktiv'&&a.code.startsWith('5');
+const curOf=a=>String((a&&a.currency)||'UZS').toUpperCase();
+// Kassaning BOLA-HISOBI ikki xil bo'ladi va ikkalasi ham ro'yxatda alohida kassa
+// bo'lib ko'rinmasligi kerak (Abrorxo'ja 3 marta chiqib ketardi):
+//   • pul turi — naqd / Click / Payme (currency='UZS', pul_turi to'ldirilgan)
+//   • valyuta  — USD / CNY / … (currency<>'UZS', pul_turi bo'sh)
+// DIQQAT: hodim kassasining parenti 5400 (konteyner guruh) — u bola-hisob EMAS.
+// Shuning uchun shart faqat pul_turi/currency bo'yicha, parent_id bor-yo'qligi bo'yicha emas.
+const isTuriChild=a=>!!(a.parent_id&&a.pul_turi);
+const isCurChild =a=>!!(a.parent_id&&curOf(a)!=='UZS');
+/* ⚠️ ESKI TUR HISOBLARI — ustunsiz, faqat NOM bilan bog'langan.
+   Bir qism hisob `create_pul_turi_child` dan OLDIN qo'lda ochilgan: kodi boshqa
+   diapazonda va `parent_id`/`pul_turi` ustunlari BO'SH. Masalan:
+     5351 "Abrorxo'ja Ahmadov · Naqd"   ←  5405 "Abrorxo'ja Ahmadov"
+     5352 "Abrorxo'ja Ahmadov · Payme"  ←  5405
+   Ustunga tayangan filtr ularni bola deb tanimaydi va ro'yxatda Abrorxo'ja 3 marta
+   chiqadi. create_pul_turi_child/create_valyuta_child ham AYNAN shu naqshda nom
+   beradi (parent.name || ' · ' || tur), shuning uchun nomdan ildizni tiklash xavfsiz.
+   PROVODKA_TUR_BOGLASH.sql ustunlarni to'ldirgach bu fallback o'z-o'zidan jim qoladi. */
+const TUR_SUF=/\s*·\s*(naqd|click|payme|terminal|karta|plastik|usd|eur|rub|cny|chy)\s*$/i;
+const normNom=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+let nomIndex={};                     // normalizatsiyalangan nom → kassa id (null = ko'p moslik)
+// ⚠️ Ism TAKRORLANSA bog'lamaymiz. Ikki filialda bir xil ismli hodim bo'lishi mumkin
+// ("Alisher Ruyiddinov" — Izza Zapchast va Chilonzor). Oxirgisini yozib qo'ysak
+// "· Naqd" boshqa filialning kassasiga bog'lanib, pul NOTO'G'RI kassadan chiqardi.
+// Shubha bo'lsa — bog'lamaymiz: hisob ildiz bo'lib qoladi (eski xatti-harakat, xavfsiz).
+// PROVODKA_TUR_BOGLASH.sql ham aynan shu qoidada (having count(*)=1).
+function buildNomIndex(){
+  nomIndex={};
+  accounts.forEach(a=>{ if(!isKassa(a)) return;
+    const k=normNom(a.name);
+    nomIndex[k] = (k in nomIndex) ? null : a.id;   // ikkinchi moslik → null (noaniq)
+  });
+}
+// Nomdagi "· Naqd" qo'shimchasini olib tashlab, o'sha nomli kassani izlaydi.
+function nomParent(a){
+  if(!a||!TUR_SUF.test(String(a.name||''))) return null;
+  const pid=nomIndex[normNom(String(a.name).replace(TUR_SUF,''))];
+  return (pid && pid!==a.id) ? pid : null;
+}
+// Bu hisob KIMNING bolasi (id) yoki null (ildiz kassa).
+// Tartib muhim: ustunlar birinchi, nom faqat fallback.
+function kimningBolasi(a){
+  if(isTuriChild(a)) return a.parent_id;
+  if(isCurChild(a))  return a.parent_id;
+  return nomParent(a);
+}
+const isSubChild =a=>!!kimningBolasi(a);
 // Frequent moddalar — tepada chiqadi (brief bo'yicha eng ko'p ishlatiladigan xarajatlar)
 const FREQ=['9412','9411','9414','9416','9419'];
 
 // Kassa ro'yxati: accounts allaqachon permFilterOp'dan o'tgan (op_kassa_ids; scope='all'→hammasi).
 // 5400 konteyner chiqarilgan. scope='all' (admin) da faqat hodim xarajat kassalari ko'rsatiladi —
 // list user'da esa aynan biriktirilgan kassa(lar) (permFilterOp cheklab bo'lgan).
+// FAQAT ILDIZ kassalar — bola-hisoblar (tur/valyuta) #turSeg segmentidan tanlanadi.
+// Eslatma: avval bu yerda `(a.currency||'UZS')==='UZS'` to'sig'i turardi — forma
+// faqat so'm yozgani (fc_amount'siz) uchun valyuta hisobi tanlansa qoldiq buzilardi.
+// Endi forma fc_amount'ni kurs bilan to'g'ri yozadi, shuning uchun to'siq olib tashlandi:
+// valyuta hisobi ildiz ro'yxatida emas, tur segmentida (#turSeg) tanlanadi.
 function kassaList(){
-  // Valyuta bola-hisobi (56xx USD…) chiqmaydi: bu forma faqat so'm yozadi
-  // (fc_amount'siz), tanlansa valyuta qoldig'i buzilardi. Hodim kassalarida
-  // bola-hisob yo'q — bu shart faqat scope='list' user boshqa kassaga
-  // biriktirilgan holat uchun.
-  let ks=accounts.filter(a=>isKassa(a)&&(a.currency||'UZS')==='UZS');
+  let ks=accounts.filter(a=>isKassa(a)&&!isSubChild(a));
   if(window.permScope&&window.permScope()==='all') ks=ks.filter(a=>a.kassa_turi==='xarajat');
   return ks;
 }
+// Tanlangan kassaning barcha bola-hisoblari. NEVARALARNI ham oladi: valyuta hisobi
+// ba'zan pul turi bolasining ostiga ochilgan bo'ladi ("Naqd · USD") — u ham ko'rinsin.
+const TURI_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
+const TURI_LBL={naqd:"Naqd",click:'Click',payme:'Payme',terminal:'Terminal',karta:'Karta',plastik:'Plastik'};
+function subChildren(pid){
+  const out=[], seen=new Set();
+  (function walk(p){
+    accounts.forEach(a=>{ if(isKassa(a) && !seen.has(a.id) && kimningBolasi(a)===p){
+      seen.add(a.id); out.push(a); walk(a.id); } });
+  })(pid);
+  return out.sort((x,y)=>(TURI_TART[turKey(x)]||9)-(TURI_TART[turKey(y)]||9)
+                      || String(curOf(x)).localeCompare(String(curOf(y))));
+}
+// Tur kaliti: ustun bo'lsa undan, aks holda nomdagi qo'shimchadan ("· Naqd" → naqd).
+function turKey(a){
+  if(a.pul_turi) return String(a.pul_turi).toLowerCase();
+  const m=String(a&&a.name||'').match(TUR_SUF);
+  return m?m[1].toLowerCase():'';
+}
+// Yorliq: pul turi bo'lsa chiroyli nomi, valyuta bo'lsa kodi, aks holda nomdagi qo'shimcha.
+function subLbl(a){
+  const t=turKey(a);
+  if(TURI_LBL[t]) return TURI_LBL[t];
+  if(curOf(a)!=='UZS') return curOf(a);
+  if(t) return t.length<=3 ? t.toUpperCase() : (t.charAt(0).toUpperCase()+t.slice(1));
+  return a.code||'Tur';
+}
+// Pul AYNAN shu hisobdan chiqadi: tur tanlansa bola-hisob, aks holda kassaning o'zi.
+function effKassa(){
+  const p=accounts.find(a=>a.id===selKassa); if(!p) return null;
+  if(!selSub) return p;
+  return accounts.find(a=>a.id===selSub) || p;
+}
+const balOf=id=>(id!=null?balMap[id]:null)||null;
+// Kassaning JAMI puli: o'zi + hamma bola-hisoblari (so'm ekvivalentida).
+function kassaJami(pid){
+  let t=0, known=false;
+  [pid].concat(subChildren(pid).map(a=>a.id)).forEach(id=>{
+    const b=balOf(id); if(b){ t+=Number(b.uzs)||0; known=true; } });
+  return known?t:null;
+}
 // Modda ro'yxati: FAQAT xarajat moddalari (type='xarajat'). Daromad ko'rsatilmaydi.
 // (Kapital xarajat / aktiv moddalar hodim uchun kamdan-kam — chalkashmaslik uchun bu yerda
-//  chiqarilmaydi; ular kerak bo'lsa professional.html orqali kiritiladi.)
+//  chiqarilmaydi; ular kerak bo'lsa professional-dev.html orqali kiritiladi.)
 function moddaList(){
   // 9110-1 (yo'ldagi tovar) — professional oqimi; hodimda ko'rinmaydi.
   const xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
@@ -519,56 +891,309 @@ function moddaList(){
 function renderKassa(){
   const ks=kassaList();
   if(ks.length===1) selKassa=ks[0].id;                       // bitta → default tanlangan
-  if(selKassa&&!ks.some(k=>k.id===selKassa)) selKassa=null;
+  if(selKassa&&!ks.some(k=>k.id===selKassa)){ selKassa=null; selSub=null; }
   const single=ks.length===1;
   $('kassaSect').style.display=single?'none':'block';
   const k=accounts.find(a=>a.id===selKassa);
   $('kassaFieldTxt').textContent = k ? `${k.name}${k.subtitle?' · '+k.subtitle:''}`
-    : (ks.length ? '— kassa tanlang —' : 'Kassa biriktirilmagan');
-  renderHero(); renderKassaBal();
+    : (ks.length ? 'Kassa tanlang' : 'Kassa biriktirilmagan');
+  $('kassaFieldTxt').classList.toggle('ph', !k);   // vizual: tanlanmagan holat kulrang
+  renderTurSeg(); renderHero(); renderKassaBal();
 }
-// Umumiy qoldiq (hero) — barcha biriktirilgan kassalar yig'indisi.
+// Pul turi / valyuta segmenti: kassa tanlangach ICHIDAN tanlanadi (professional.html naqshi).
+// Birinchi tugma "Kassa" — parentning o'z qoldig'i (turga ajratilmagan pul).
+// Har tugmada qoldiq yozilib turadi: hodim qaysi turdan pul chiqayotganini ko'radi.
+function renderTurSeg(){
+  const box=$('turSeg'); if(!box) return;
+  const kids=selKassa?subChildren(selKassa):[];
+  if(!selKassa||!kids.length){ $('turSect').style.display='none'; box.innerHTML=''; selSub=null; syncAmtCur(); return; }
+  if(selSub&&!kids.some(k=>k.id===selSub)) selSub=null;
+  const qd=id=>{ const b=balOf(id); if(!b) return '';
+    const c=curOf(accounts.find(a=>a.id===id));
+    return `<span class="qd">${c==='UZS'?money(b.uzs)+" so'm":fcTxt(b.fc)+' '+esc(c)}</span>`; };
+  const bosh=id=>{ const b=balOf(id); if(!b) return '';
+    const c=curOf(accounts.find(a=>a.id===id));
+    return ((c==='UZS'?Number(b.uzs):Number(b.fc))<=0)?' bosh':''; };
+  const btn=(id,lbl,on)=>`<button type="button" class="turbtn${on?' on':''}${bosh(id)}" onclick="pickSub(${id===selKassa?'null':`'${id}'`})">${lbl}${qd(id)}</button>`;
+  $('turSect').style.display='block';
+  box.innerHTML=btn(selKassa,'Kassa',!selSub)
+    +kids.map(k=>btn(k.id,esc(subLbl(k)),k.id===selSub)).join('');
+  syncAmtCur();
+}
+window.pickSub=id=>{ selSub=id||null; $('summa').value=''; $('summa').dataset.a000='';
+  renderTurSeg(); renderHero(); renderKassaBal(); loadRate(); };
+// Hero: kassa/tur tanlanmaguncha JAMI pul, tanlangач aynan o'sha tur qoldig'i.
 function renderHero(){
   const ks=kassaList();
-  let total=0, known=false;
-  ks.forEach(k=>{ const v=balMap[k.id]; if(v!=null){ total+=v; known=true; } });
-  $('totalBal').textContent = known ? money(total) : '—';
+  const k=accounts.find(a=>a.id===selKassa);
+  const eff=effKassa();
+  let val=null, cur='so\'m', lbl='Umumiy qoldiq';
+  if(eff && selSub){                       // tur tanlandi → aynan shu hisob
+    const b=balOf(eff.id), c=curOf(eff);
+    if(b) val = c==='UZS' ? money(b.uzs) : fcTxt(b.fc);
+    if(c!=='UZS') cur=c;
+    lbl=(k?k.name+' · ':'')+subLbl(eff);
+  }else if(k){                             // kassa tanlandi → o'zi + bolalari
+    const t=kassaJami(k.id); if(t!=null) val=money(t);
+    // Bitta kassali hodimda (80% holat) nom heroSub'da baribir turadi — bu yerda ham
+    // yozilsa ism ikki marta chiqib, "Umumiy qoldiq" yorlig'i umuman yo'qolardi.
+    lbl = ks.length===1 ? 'Umumiy qoldiq' : k.name+(k.subtitle?' · '+k.subtitle:'');
+  }else{                                 // hech narsa tanlanmadi → hamma kassa jami
+    let total=0, known=false;
+    ks.forEach(x=>{ const t=kassaJami(x.id); if(t!=null){ total+=t; known=true; } });
+    if(known) val=money(total);
+  }
+  $('heroLbl').textContent=lbl;
+  $('heroCur').textContent=cur;
+  $('totalBal').textContent = val!=null ? val : '—';
+  // vizual: qoldiq hali kelmagan bo'lsa shimmer (kassa umuman yo'q bo'lsa — shimmer emas).
+  // balShimmer 8 soniyadan keyin o'chadi, balXato'da esa umuman aylanmaydi.
+  $('totalBal').classList.toggle('ph', val==null && ks.length>0 && balShimmer && !balXato);
+  // "0 so'm" va "—" (noma'lum) bir xil qalin oq raqam bo'lib ko'rinmasin: bo'sh kassani
+  // hodim "yuklanmadi" deb o'ylamasin. Noma'lum — ingichka va sust.
+  $('totalBal').classList.toggle('unk', val==null);
   const sub=$('heroSub').querySelector('span');
   if(!ks.length) sub.textContent='Sizga kassa biriktirilmagan';
+  // Qoldiq kelmadi — jimgina "—" da qoldirmaymiz. balXato = hech narsa kelmadi;
+  // !balShimmer = kutish tugadi, lekin AYNAN shu kassa/tur qoldig'i baribir noma'lum
+  // (qisman javob: boshqa kassalar keldi, bu esa yo'q — avval hech qanday izoh yo'q edi).
+  else if(val==null && (balXato || !balShimmer)) sub.textContent='Qoldiq yuklanmadi — sahifani yangilang';
   else if(ks.length===1) sub.textContent=ks[0].name+(ks[0].subtitle?' · '+ks[0].subtitle:'');
   else sub.textContent=ks.length+' ta kassa';
   icons();
 }
-// Tanlangan kassa qoldig'i (tanlagich ostida). curBal shu yerdan olinadi (limit tekshiruvi uchun).
+// Tanlangan hisob qoldig'i (tanlagich ostida). curBal shu yerdan — limit tekshiruvi uchun.
+// Valyuta hisobida curBal VALYUTADA (fc), so'm hisobida so'mda.
 function renderKassaBal(){
   const el=$('kassaBal');
-  const v = selKassa!=null ? balMap[selKassa] : undefined;
-  curBal = (v==null)?null:Number(v);
-  if(selKassa && v!=null){ el.style.display='block'; el.innerHTML=`Ushbu kassada: <b>${money(v)} so'm</b>`; }
+  const eff=effKassa();
+  const b=eff?balOf(eff.id):null;
+  const c=eff?curOf(eff):'UZS';
+  curBal = b ? (c==='UZS'?Number(b.uzs):Number(b.fc)) : null;
+  if(eff && b){ el.style.display='block';
+    el.innerHTML=`${selSub?esc(subLbl(eff)):'Ushbu kassada'}: <b>${c==='UZS'?money(b.uzs)+" so'm":fcTxt(b.fc)+' '+esc(c)}</b>`; }
   else el.style.display='none';
   updateSave();
 }
-// Qoldiqlarni bir marta yuklaydi (acc_balance har kassa uchun, parallel). Ko'p kassada (admin) o'tkazadi.
-async function loadBalances(){
-  const ks=kassaList(); balMap={};
-  if(ks.length && ks.length<=BAL_MAX){
-    const res=await Promise.all(ks.map(k=>sb.rpc('acc_balance',{p_account:k.id})
-      .then(r=>[k.id,(r.error||r.data==null)?null:Number(r.data)]).catch(()=>[k.id,null])));
-    res.forEach(([id,v])=>{ balMap[id]=v; });
-  }
-  renderHero(); renderKassaBal(); renderKassaList();
+// Qoldiqlar: parent + hamma bola-hisoblar BITTA so'rovda (v_hisob_bal → uzs va fc).
+// Eski acc_balance sikli olib tashlandi — 60+ kassada ham bitta RT.
+// TEZLIK: qoldiq keshdan DARROV ko'rsatiladi (sahifa ochilishi bilan raqam turadi),
+// fonda haqiqiysi kelib jimgina almashtiriladi. Hodim endi bo'sh hero'ni kutmaydi.
+// Kesh kaliti kassa ro'yxatiga bog'liq emas — balMap id bo'yicha, ortiqchasi zarar qilmaydi.
+// MUHIM: BO'SH obyekt kesh emas. Yangi ochilgan kassada v_hisob_bal birorta qator
+// qaytarmasa, avval bo'sh {} keshlanardi va sahifa qayta ochilganda hero yana "—" bo'lib
+// qolardi (kesh 5 daqiqa). Bo'sh natija hech qachon keshlanmaydi ham, o'qilmaydi ham.
+function loadBalancesCached(){
+  const c=swrGet('bal');
+  if(c && typeof c==='object' && Object.keys(c).length){ balMap=c; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
+    avtoKassa();                        // keshli qoldiq bilan darrov: eng katta kassa tanlansin
+    return true; }
+  return false;
 }
-window.pickKassa=id=>{ selKassa=id; closeKassa(); renderKassa(); loadMonth(); };
+// Bir vaqtda BITTA so'rov: init() da qoldiq keshsiz bo'lsa erta boshlanadi, keyin
+// accounts yangilangach yana chaqiriladi. Guardsiz ikkalasi ketardi va kech tugagani
+// yangi kassalarsiz balMap'ni yozib ketishi mumkin edi.
+// So'rov ketayotgan bo'lsa yangisi navbatga turadi (balYana) — shunda ikki barobar
+// RPC ham bo'lmaydi, oxirgi holat (yangilangan accounts) ham albatta yuklanadi.
+let balSorov=null, balYana=false;
+// balXato — hamma yo'l ishlamadi (qoldiq HAQIQATAN noma'lum) → hero ostida izoh.
+// balShimmer — kutish animatsiyasi. 8 soniyadan keyin o'chadi: cheksiz aylanib turgan
+// shimmer "yuklanyapti" degan yolg'on taassurot beradi, "—" halolroq.
+let balXato=false, balShimmer=true, balShimmerT=null;
+async function loadBalances(){
+  if(balShimmerT==null) balShimmerT=setTimeout(()=>{ balShimmer=false; renderHero(); }, 8000);
+  if(balSorov){ balYana=true; return balSorov; }
+  balSorov=(async()=>{
+    try{ do{ balYana=false; await loadBalancesIch(); } while(balYana); }
+    finally{ balSorov=null; }
+  })();
+  return balSorov;
+}
+// Uch bosqich, biri ishlasa — keyingisiga o'tilmaydi:
+//   1) hodim_qoldiqlar RPC (tez, bitta RT)  2) v_hisob_bal view  3) acc_balance (oxirgi chora).
+// Har bosqich konsolga yoziladi ([bal] ...) — qaysi yo'l ishlayotganini ko'rish uchun.
+async function loadBalancesIch(){
+  const ks=kassaList();
+  const ids=[]; ks.forEach(k=>{ ids.push(k.id); subChildren(k.id).forEach(c=>ids.push(c.id)); });
+  if(!ids.length){ balMap={}; balXato=false; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return; }
+  let m=null;                              // null = hali birorta yo'l natija bermadi
+  try{
+    // 1-YO'L: bitta to'plamli RPC (SECURITY DEFINER — RLS to'smaydi, indekslardan
+    // foydalanadi). PROVODKA_HODIM_TEZLIK.sql RUN qilinmagan bo'lsa xato beradi va
+    // pastdagi eski yo'lga tushamiz — sahifa baribir ishlaydi.
+    const {data:rpc,error:rpcErr}=await sb.rpc('hodim_qoldiqlar',{p_accounts:ids});
+    const rpcN=(!rpcErr && rpc && typeof rpc==='object')?Object.keys(rpc).length:0;
+    console.log('[bal] rpc', rpcErr||('hisob: '+rpcN+'/'+ids.length));
+    if(rpcN){
+      const t={};
+      Object.keys(rpc).forEach(id=>{ const v=rpc[id]||{}; t[id]={uzs:Number(v.uzs)||0, fc:Number(v.fc)||0}; });
+      m=t;                                 // bo'sh {} bo'lsa (rpcN=0) — keyingi yo'lga
+    }
+    if(!m){
+      // 2-YO'L: v_hisob_bal. Admin (scope='all') da 100+ hisob bo'lishi mumkin —
+      // .in() URL'i cheksiz uzun bo'lmasin, 80 tadan bo'lakma-bo'lak.
+      const bloklar=[]; for(let i=0;i<ids.length;i+=80) bloklar.push(ids.slice(i,i+80));
+      const res=await Promise.all(bloklar.map(b=>sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',b)));
+      const vErr=(res.find(r=>r.error)||{}).error;
+      const t={}; let n=0;
+      if(!vErr) res.forEach(r=>(r.data||[]).forEach(x=>{ t[x.account_id]={uzs:Number(x.uzs)||0, fc:Number(x.fc)||0}; n++; }));
+      console.log('[bal] view', vErr||(n+'/'+ids.length));
+      // MUHIM: birorta qator kelmasa qoldiqni NOL deb hisoblamaymiz. RLS to'sib qo'ygan
+      // bo'lsa nol qoldiq "Qoldiqdan oshdi · max 0" berib Saqlashni butunlay bloklardi.
+      // Kamida bitta qator kelgan bo'lsa — o'qish ishlayapti, qolganlari haqiqatan 0.
+      if(n){ ids.forEach(id=>{ if(!t[id]) t[id]={uzs:0,fc:0}; }); m=t; }
+    }
+    if(!m){
+      // 3-YO'L (OXIRGI CHORA): hisob-hisob acc_balance. v_hisob_bal `group by account_id`
+      // qiladi — yozuvi HALI YO'Q hisob uchun qator qaytarmaydi, ya'ni yangi ochilgan
+      // hodim kassasida "qator yo'q" = "qoldiq noma'lum" bo'lib qolardi. acc_balance esa
+      // har hisob uchun aniq raqam beradi. So'rov ko'paymasin: tanlangan kassa + bolalari,
+      // kassalar oz bo'lsa (<10) hammasi. RPC yo'q/xato bo'lsa jimgina o'tkazamiz.
+      // ⚠️ acc_balance FAQAT so'm qaytaradi. Valyuta hisobiga (USD…) qo'llasak unga
+      // fc:0 yozilib, keshdagi HAQIQIY valyuta qoldig'i yuvilardi va updateSave()
+      // "Qoldiqdan oshdi · max 0" bilan Saqlashni butunlay yopardi — ya'ni aynan shu
+      // fix bartaraf qilayotgan xatoning valyuta varianti. Shuning uchun valyuta
+      // hisoblari bu yo'lga UMUMAN kirmaydi (ular 1/2-yo'ldan keladi).
+      const uzsMi=id=>curOf(accounts.find(x=>x.id===id))==='UZS';
+      let need = selKassa ? [selKassa].concat(subChildren(selKassa).map(a=>a.id)) : [];
+      if(ks.length<10) need=ids.concat(need);   // kam kassada hammasi; tanlangani baribir ichida qolsin
+      need=need.filter((x,i,arr)=>x&&arr.indexOf(x)===i&&uzsMi(x));
+      if(need.length){
+        const rs=await Promise.all(need.map(id=>sb.rpc('acc_balance',{p_account:id})
+          .then(r=>({id, v:(r.error||r.data==null)?null:r.data}), ()=>({id, v:null}))));
+        const t={}; let n=0;
+        // fc eski qiymatdan saqlanadi (need faqat so'm hisoblari — amalda 0, lekin yuvmaymiz).
+        rs.forEach(r=>{ if(r.v!=null){ t[r.id]={uzs:Number(r.v)||0, fc:(balMap[r.id]&&Number(balMap[r.id].fc))||0}; n++; } });
+        console.log('[bal] acc_balance', n+'/'+need.length);
+        // Qisman natija: mavjud balMap ustiga qo'shamiz (boshqa kassalarniki yo'qolmasin).
+        if(n) m=Object.assign({}, balMap, t);
+      }
+    }
+  }catch(e){ console.log('[bal] istisno', e); }
+  // Bo'sh natija KESHLANMAYDI va mavjud qoldiqni ham yuvib ketmaydi.
+  if(m && Object.keys(m).length){ balMap=m; swrSet('bal',m); }   // keyingi ochilishda darrov ko'rinsin
+  balXato=!Object.keys(balMap).length;
+  renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
+  avtoKassa();                          // haqiqiy qoldiq keldi — avtomat tanlashning asosiy nuqtasi
+}
+window.pickKassa=id=>{ avtoTanlandi=true;   // hodim o'zi tanladi — avtomat tanlash boshqa aralashmaydi
+  selKassa=id; selSub=null; $('summa').value=''; $('summa').dataset.a000='';
+  closeKassa(); renderKassa(); loadRate(); loadMonth();
+  // Shu kassaning qoldig'i noma'lum bo'lsa — qayta so'raymiz: 3-yo'l (acc_balance)
+  // aynan tanlangan kassa bo'yicha ishlaydi, ya'ni endi raqam kelishi mumkin.
+  if(!balOf(id)) loadBalances(); };
+
+// Sahifa ochilganda ENG KO'P puli bor kassani avtomat tanlaydi (hodim odatda shundan sarflaydi).
+// Qoldiq ASYNC keladi, shuning uchun bir necha nuqtadan chaqiriladi (accounts kelganda,
+// keshdan va qoldiq so'rovi tugaganda) — bayroq tufayli baribir bir marta ishlaydi.
+// Tanlanmaydi: selKassa allaqachon bor / hodim o'zi tanlagan / hamma qoldiq 0 yoki noma'lum.
+function avtoKassa(){
+  if(avtoTanlandi||selKassa) return;
+  // ⚠️ ADMIN (permScope='all') da kassaList() — HAMMA hodim kassasi (60+). U yerda
+  // "eng ko'p puli bor" BEGONA hodimning kassasi bo'ladi va admin sezmay o'sha kassadan
+  // pul chiqarib yuborishi mumkin. Admin ataylab tanlasin — avtomatika aralashmaydi.
+  try{ if(window.permScope&&window.permScope()==='all') return; }catch(e){}
+  // Kassa tanlash sheet'i ochiq bo'lsa aralashmaymiz — hodim aynan o'zi tanlayotgan payt.
+  try{ if($('kassaModal').classList.contains('open')) return; }catch(e){}
+  const ks=kassaList();
+  if(ks.length<2) return;                 // bitta kassani renderKassa() o'zi tanlaydi
+  let best=null, bestV=0;
+  ks.forEach(k=>{ const v=kassaJami(k.id); if(v!=null && v>bestV){ bestV=v; best=k.id; } });
+  if(!best) return;                       // hammasi 0/noma'lum — eski xatti-harakat: tanlanmaydi
+  // pickKassa summani tozalaydi. Qoldiq fonda kech kelsa hodim allaqachon raqam yozgan
+  // bo'lishi mumkin — uni yo'qotmaymiz.
+  const oldAmt=$('summa').value;
+  window.pickKassa(best);                 // tanlash + renderKassa/loadRate/loadMonth (modal yopiq: closeKassa zararsiz)
+  if(oldAmt){ $('summa').value=oldAmt; updateSave(); }
+}
+
+// ================= Valyuta: xarajatni so'mda YOKI hisob valyutasida yozish =================
+// Dollar turi tanlansa hodim ikkalasini ham yoza oladi:
+//   • so'm yozsa   → kurs bilan dollarga aylantiriladi (dollar shuncha kamayadi)
+//   • dollar yozsa → to'g'ridan dollar, so'm ekvivalenti kurs bilan hisoblanadi
+// entry_line: debit/credit HAR DOIM so'mda (Dt=Kt kafolati), fc_amount — valyuta miqdori.
+const accCur=()=>{ const e=effKassa(); return e?curOf(e):'UZS'; };
+function syncAmtCur(){
+  const c=accCur();
+  if(c==='UZS') amtCur='UZS';
+  else if(amtCur!=='UZS'&&amtCur!==c) amtCur=c;   // boshqa valyutadan o'tildi
+  renderValSeg();
+}
+function renderValSeg(){
+  const box=$('valSeg'), c=accCur();
+  if(c==='UZS'){ box.style.display='none'; box.innerHTML=''; $('amtCurLbl').textContent="so'm"; $('kursNote').style.display='none'; return; }
+  box.style.display='flex';
+  box.innerHTML=`<button type="button" class="valbtn${amtCur==='UZS'?' on':''}" onclick="pickAmtCur('UZS')">so'm</button>`
+    +`<button type="button" class="valbtn${amtCur!=='UZS'?' on':''}" onclick="pickAmtCur('${esc(c)}')">${esc(c)}</button>`;
+  $('amtCurLbl').textContent = amtCur==='UZS' ? "so'm" : c;
+  renderKursNote();
+}
+window.pickAmtCur=c=>{ amtCur=c; $('summa').value=''; $('summa').dataset.a000=''; renderValSeg(); updateSave(); };
+// Kurs satri: kurs + kiritilgan summaning ikkinchi tomondagi ekvivalenti.
+function renderKursNote(){
+  const el=$('kursNote'), c=accCur();
+  if(c==='UZS'){ el.style.display='none'; return; }
+  el.style.display='block';
+  if(curRate==null){
+    el.className='kursnote'+(rateBusy?'':' no');
+    el.textContent=rateBusy?'Kurs olinmoqda…':`${c} kursi yo'q — Valyuta bo'limida kurs qo'shilishi kerak`;
+    return;
+  }
+  const cc=calcAmounts();
+  el.className='kursnote';
+  el.innerHTML=`Kurs: <b>${money(curRate)}</b> so'm / 1 ${esc(c)}`
+    +((cc&&cc.raw>0) ? (amtCur==='UZS'
+        ? ` · ${money(cc.uzs)} so'm ≈ <b>${fcTxt(cc.fc)} ${esc(c)}</b>`
+        : ` · ${fcTxt(cc.fc)} ${esc(c)} ≈ <b>${money(cc.uzs)} so'm</b>`) : '');
+}
+// Kurs manbai — conv_baza_kurs (USD uchun Aros kursi, boshqasi currency_rate). null bo'lishi mumkin.
+async function loadRate(){
+  syncAmtCur();
+  const c=accCur();
+  if(c==='UZS'){ curRate=null; rateBusy=false; renderValSeg(); updateSave(); return; }
+  curRate=null; rateBusy=true; renderValSeg();
+  try{
+    const {data,error}=await sb.rpc('conv_baza_kurs',{p_cur:c});
+    if(accCur()!==c) return;                        // hisob almashdi — eski javob tashlanadi
+    curRate=(error||data==null)?null:(Number(data)||null);
+  }catch(e){ curRate=null; }
+  rateBusy=false; renderValSeg(); updateSave();
+}
+// Summani ikki tomonga hisoblaydi. null = hisoblab bo'lmaydi (valyuta hisobi, kurs yo'q).
+function calcAmounts(){
+  const raw=amtVal(), c=accCur();
+  if(c==='UZS') return {raw, uzs:Math.round(raw), fc:null, rate:null, cur:'UZS'};
+  if(!curRate||curRate<=0) return null;
+  if(amtCur==='UZS'){ const uzs=Math.round(raw);
+    return {raw, uzs, fc:Math.round((uzs/curRate)*100)/100, rate:curRate, cur:c}; }
+  const fc=Math.round(raw*100)/100;
+  return {raw, uzs:Math.round(fc*curRate), fc, rate:curRate, cur:c};
+}
+// Valyuta maydoni: raqam + bitta nuqta (2 kasrgacha). Minglik ajratgich YO'Q —
+// "12.50" ni terish paytida kursor sakramaydi. Avtomat "000" ham qo'shilmaydi.
+function fmtFc(el){
+  let v=String(el.value||'').replace(/,/g,'.').replace(/[^\d.]/g,'');
+  const p=v.split('.');
+  el.value=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+}
 window.openKassa=()=>{ $('kassaSearch').value=''; renderKassaList(); $('kassaModal').classList.add('open'); setTimeout(()=>{ try{ $('kassaSearch').focus(); }catch(e){} },50); };
 window.closeKassa=()=>{ $('kassaModal').classList.remove('open'); };
+// Esc — ochiq modalni yopadi (klaviatura qulayligi; mantiqqa tegmaydi)
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if($('kommModal').classList.contains('open')) return window.cancelKomm();
+  if($('taqsimModal').classList.contains('open')) return window.closeTaqsim();
+  if($('moddaModal').classList.contains('open')) return window.closeModda();
+  if($('kassaModal').classList.contains('open')) return window.closeKassa();
+});
 window.renderKassaList=()=>{
   const q=$('kassaSearch').value.trim().toLowerCase();
   const ks=kassaList().filter(k=>!q||String(k.name).toLowerCase().includes(q)||String(k.code).toLowerCase().includes(q)||String(k.subtitle||'').toLowerCase().includes(q));
   $('kassaList2').innerHTML = ks.length ? ks.map(k=>{
-    const v=balMap[k.id];
+    const v=kassaJami(k.id);              // o'zi + bola-hisoblar (turlar/valyutalar)
     const bal=v!=null?`<span class="pc">${money(v)} so'm</span>`:`<span class="pc">${esc(k.code)}</span>`;
     return `<button type="button" class="pickitem${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')"><span class="pn">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span>${bal}</button>`;
-  }).join('') : '<div class="pickempty">Kassa yo\'q</div>';
+  }).join('') : '<div class="pickempty">Topilmadi</div>';
 };
 
 // Modda maydoni matni (tanlangan modda). Ro'yxat qidiruvli modalда (renderModdaList).
@@ -576,7 +1201,8 @@ function renderModda(){
   const ms=moddaList();
   if(selModda && !ms.some(m=>m.id===selModda)) selModda=null;
   const m=accounts.find(a=>a.id===selModda);
-  $('moddaFieldTxt').textContent = m ? `${m.name} · ${m.code}` : '— tanlang —';
+  $('moddaFieldTxt').textContent = m ? `${m.name} · ${m.code}` : 'Modda tanlang';
+  $('moddaFieldTxt').classList.toggle('ph', !m);   // vizual: tanlanmagan holat kulrang
   updateSave();
 }
 window.openModda=()=>{ $('moddaSearch').value=''; renderModdaList(); $('moddaModal').classList.add('open'); setTimeout(()=>{ try{ $('moddaSearch').focus(); }catch(e){} },50); };
@@ -595,11 +1221,22 @@ window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI()
 
 // --- V6: filial multiselect (metadata tag) ---
 // Filiallar accounts'dan EMAS (u permFilterOp bilan cheklangan) — alohida v_filial_tanlov'dan.
+// Filial nomi bazada "Toshkent Kassa" ko'rinishida. Oxiridagi "kassa" so'zi ekranda ortiqcha —
+// FAQAT KO'RSATISHDA kesiladi. Bazadagi `name` va `f.name` o'zgarmaydi: Aros sinxroni va
+// boshqa sahifalar aynan shu nomga tayanadi. Kesish faqat OXIRIDAN, o'rtadan emas;
+// nom butunlay "Kassa" bo'lsa aslicha qoladi (bo'sh yorliq chiqmasin).
+function filNom(s){
+  const t=String(s==null?'':s).trim();
+  // \s+ (bo'sh joy MAJBURIY): "ToshkentKassa" kabi bitishgan nom kesilib ketmasin —
+  // faqat alohida so'z bo'lgan "… Kassa" olib tashlanadi. "Kassasi" ham tegilmaydi.
+  const q=t.replace(/\s+kassa\s*$/i,'').trim();
+  return q||t;
+}
 function renderFilials(){
   const box=$('filialChips');
   const restricted = window.permFilialScope && window.permFilialScope()==='list';
   box.innerHTML = filials.length
-    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
+    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
     : `<div class="fchips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateDavrUI(); updateSave(); };
@@ -616,16 +1253,20 @@ async function loadFilials(){
 function moddaObj(){ return accounts.find(a=>a.id===selModda); }
 // --- Kommunal turi (9413): gaz | svet | suv | musor (kelajakda kengayadi — massiv) ---
 // V8: 'suv' qo'shildi. Ro'yxat shu massivda — DB CHECK constraint bilan mos bo'lsin.
-const KOMMUNAL=[{k:'gaz',label:'Gaz',emo:'🔥'},{k:'svet',label:'Svet',emo:'💡'},{k:'suv',label:'Suv',emo:'💧'},{k:'musor',label:'Musor',emo:'🗑️'}];
+// `ico` — Lucide ikonka nomi (emoji o'rniga; vizual, DB qiymati `k` o'zgarmaydi)
+const KOMMUNAL=[{k:'gaz',label:'Gaz',ico:'flame'},{k:'svet',label:'Svet',ico:'lightbulb'},{k:'suv',label:'Suv',ico:'droplet'},{k:'musor',label:'Musor',ico:'trash-2'}];
 let kommTuri=null;
 const isKomm=()=>{ const m=moddaObj(); return !!(m&&m.code==='9413'); };
 function updateKommUI(){ const show=isKomm(); $('kommSect').style.display=show?'block':'none';
   if(!show) kommTuri=null;
   const x=KOMMUNAL.find(y=>y.k===kommTuri);
-  $('kommChipTxt').textContent=x?(x.emo+' '+x.label):'— tanlang —'; icons();
+  $('kommChipTxt').textContent=x?x.label:'Tanlang';
+  $('kommChipIc').innerHTML=`<i data-lucide="${x?x.ico:'plug-zap'}"></i>`;   // ikonka har safar qayta quriladi
+  icons();
 }
 function renderKommBtns(){ $('kommBtns').innerHTML=KOMMUNAL.map(x=>
-  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo">${x.emo}</span><span class="klbl">${x.label}</span></button>`).join(''); }
+  `<button type="button" class="kbtn${kommTuri===x.k?' on':''}" onclick="pickKomm('${x.k}')"><span class="kemo"><i data-lucide="${x.ico}"></i></span><span class="klbl">${x.label}</span></button>`).join('');
+  icons(); }   // innerHTML'dan keyin ikonkalarni tiklash SHART
 window.openKomm=()=>{ renderKommBtns(); $('kommModal').classList.add('open'); };
 window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); updateKommUI(); updateSave(); };
 window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
@@ -691,14 +1332,16 @@ function updateModdaUI(){
 }
 function updateChekUI(){
   const req=chekRequired();
-  $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
+  $('chekLbl').innerHTML = req
+    ? 'Chek surati <span class="req">majburiy</span>'
+    : 'Chek <span class="opt">(ixtiyoriy)</span>';
   $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
 }
 function updateIzohUI(){
   const req=izohRequired();
   $('izohLbl').innerHTML = req
-    ? 'Izoh <span style="color:var(--red);font-weight:600">(majburiy)</span>'
-    : 'Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
+    ? 'Izoh <span class="req">majburiy</span>'
+    : 'Izoh <span class="opt">(ixtiyoriy)</span>';
 }
 // Davr — modda majburiy qilsa ko'rinadi; foydalanuvchi so'roviga ko'ra kalendar
 // FILIAL tanlangach chiqadi (ketma-ketlik). Filial tanlanmaguncha kutish eslatmasi turadi.
@@ -754,15 +1397,30 @@ window.openChek=async(kassaId,entryId)=>{
   }catch(e){ toast('Chek ochilmadi',true); }
 };
 
-function amtVal(){ return Number(($('summa').value||'').replace(/\D/g,''))||0; }
+// Kiritilgan son — TANLANGAN valyutada (so'mda butun, valyutada 2 kasrgacha).
+function amtVal(){
+  const s=String($('summa').value||'');
+  return (amtCur==='UZS' ? Number(s.replace(/\D/g,'')) : Number(s.replace(/[^\d.]/g,'')))||0;
+}
 // 1-band: summa qoldiqdan oshsa — input qizil, ogohlantirish, Saqlash disabled (server ham rad etadi).
 function updateSave(){
   const amt=amtVal();
-  const over = curBal!=null && amt>curBal;
+  const ac=accCur();
+  const c=calcAmounts();
+  const needKurs = ac!=='UZS' && !c;                 // valyuta hisobi, lekin kurs yo'q → yozib bo'lmaydi
+  const uzsAmt = c ? c.uzs : 0;                      // limit/taqsim hisoblari HAR DOIM so'mda
+  // Ikkala tomon ham musbat bo'lishi shart: mayda summada bir tomon nolga
+  // yaxlitlanib ketardi (1 so'm → 0.00 $, yoki 0.001 $ → 0 so'm) va hisob
+  // kitobi so'm bilan valyutadan uzilib qolardi.
+  const okAmt = !!c && c.uzs>0 && (ac==='UZS' || c.fc>0);
+  // Qoldiq tekshiruvi hisob valyutasida: so'm hisobida so'm, valyuta hisobida valyuta miqdori.
+  const over = !!c && curBal!=null && ((ac==='UZS'?c.uzs:c.fc) > curBal);
+  renderKursNote();
   const w=$('amtWarn'), aw=$('amtwrap');
   if(aw){ aw.classList.toggle('over',over); }
   if(w){
-    if(over){ w.style.display='block'; w.textContent=`Qoldiqdan oshdi · max ${money(curBal)} so'm`; }
+    if(over){ w.style.display='block';
+      w.textContent=`Qoldiqdan oshdi · max ${ac==='UZS'?money(curBal)+" so'm":fcTxt(curBal)+' '+ac}`; }
     else w.style.display='none';
   }
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
@@ -773,52 +1431,69 @@ function updateSave(){
   let overLimit=false; const lw=$('limitWarn');
   if(selFilials.size===1 && selModda){
     const lm=limitFor([...selFilials][0], selModda);
-    if(lm && amt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
+    if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&!over&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
 }
 
 window.saveHodim=async()=>{
   console.time('hodim:saqlash');
-  const amt=amtVal();
-  const kassa=accounts.find(a=>a.id===selKassa);
+  // Pul AYNAN tanlangan tur hisobidan chiqadi (naqd/Click/Payme/USD), kassaning o'zidan emas.
+  const kassa=effKassa();
   const modda=accounts.find(a=>a.id===selModda);
   if(!kassa){ toast('Kassa tanlang',true); return; }
   if(!modda){ toast('Modda tanlang',true); return; }
-  if(amt<=0){ toast('Summa kiriting',true); return; }
+  const calc=calcAmounts();
+  if(!calc){ toast(accCur()+' kursi yo\'q — Valyuta bo\'limida kurs qo\'shing',true); return; }
+  const amt=calc.uzs;                       // so'm summasi: entry_line debit/credit shu
+  if(amtVal()<=0||amt<=0){ toast('Summa kiriting',true); return; }
+  // Valyuta xarajatida ikkala tomon ham musbat bo'lsin (yaxlitlanib nolga tushmasin)
+  if(calc.cur!=='UZS' && !(calc.fc>0)){ toast('Summa juda kichik — '+calc.cur+' miqdori nolga aylanadi',true); return; }
   if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
   if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
   // Stage 2: 2+ filial → har filialga ALOHIDA provodka (taqsim modal → atomik RPC)
-  if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa); return; }
-  const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; icons();
-  // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi.
+  if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa, calc); return; }
+  const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…'; icons();
+  // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi (tanlangan tur hisobi).
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
   // trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
   // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
   const savedIzoh=$('izoh').value||'';
-  const entryPayload={entry_date:isoDay(nowUz()),description:savedIzoh||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
+  // Valyuta xarajati jurnalda ANIQ ko'rinsin: miqdor + kurs izohga qo'shiladi,
+  // kurs entry.fc_rate ustuniga ham yoziladi (konvert bilan bir xil naqsh).
+  const fcNote = calc.cur!=='UZS' ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
+  const entryPayload={entry_date:isoDay(nowUz()),
+    description:[savedIzoh,fcNote].filter(Boolean).join(' · ')||null,
+    source:'manual',status:'posted',filial_ids:[...selFilials]};
+  if(calc.cur!=='UZS') entryPayload.fc_rate=calc.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   // 2 ta insert (entry id kerak → entry_line). Qo'shimcha qayta-o'qish YO'Q (insert…returning).
   const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
   if(e1){ toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
-  const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt}];
+  // fc_amount FAQAT valyuta hisobi satriga (Kt = kassa). v_hisob_bal uni
+  // debit>0 ? +fc : −fc bilan hisoblaydi — chiqimда dollar shuncha kamayadi.
+  const kassaRow={entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt};
+  if(calc.cur!=='UZS') kassaRow.fc_amount=calc.fc;
+  const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},kassaRow];
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
   console.timeEnd('hodim:saqlash');
   const kId=kassa.id, kName=kassa.name, kSub=kassa.subtitle, mName=modda.name, chekUp=chekBlob;
   // Optimistik qoldiq: summani darrov ayirib ko'rsat, fonda haqiqiysi kelib to'g'rilaydi.
-  if(balMap[kId]!=null){ balMap[kId]=Number(balMap[kId])-amt; renderHero(); renderKassaBal(); }
-  // Forma darrov tozalanadi (kassa qoladi — ketma-ket yozish oson)
-  $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear();
+  if(balMap[kId]){ balMap[kId]={uzs:Number(balMap[kId].uzs)-amt,
+    fc:Number(balMap[kId].fc)-(calc.fc||0)}; swrSet('bal',balMap);   // kesh ham yangilansin — reload eski raqamni ko'rsatmasin
+    renderTurSeg(); renderHero(); renderKassaBal(); }
+  // Forma darrov tozalanadi (kassa + tur qoladi — ketma-ket yozish oson)
+  $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
-  toast('Saqlandi ✓');
+  toast('Saqlandi');
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
   // ==== FON: chek upload + n8n alert + haqiqiy qoldiq/oy/tarix ====
   (async()=>{
@@ -855,10 +1530,13 @@ async function loadLimits(){
 // ---- Stage 2: Filial taqsimoti (har filialga alohida entry, atomik RPC) ----
 const selFilialObjs=()=>[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
 let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
-function openTaqsim(amt, dtId, ktId, kassa){
+function openTaqsim(amt, dtId, ktId, kassa, calc){
   taqsimFils=selFilialObjs();
   if(taqsimFils.length<2) return;   // himoya (kondifsiya allaqachon tekshirgan)
-  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||''};
+  // Taqsimot HAR DOIM so'mda (amt = calc.uzs). Valyuta kassasida server
+  // har ulush uchun fc = ulush / kurs hisoblaydi (xarajat_saqlash_taqsim → kassa_kurs).
+  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, calc:calc||null,
+    izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||''};
   taqsimEqualCalc(); renderTaqsim();
   $('taqsimModal').classList.add('open');
 }
@@ -871,7 +1549,7 @@ function taqsimEqualCalc(){
 window.taqsimEqual=()=>{ taqsimEqualCalc(); renderTaqsim(); };
 function renderTaqsim(){
   $('taqsimRows').innerHTML=taqsimFils.map(f=>
-    `<div class="trow"><span class="tfn">${esc(f.name)}</span>`
+    `<div class="talloc"><span class="tfn">${esc(filNom(f.name))}</span>`
     +`<input inputmode="numeric" value="${taqsimAlloc[f.id]?money(taqsimAlloc[f.id]):''}" oninput="setTaqsim('${f.id}',this)"></div>`).join('');
   renderTaqsimSum();
 }
@@ -885,26 +1563,31 @@ function renderTaqsimSum(){
   // Stage 4: har filial ulushi o'z limitidan oshmasin
   let limErr='';
   taqsimFils.forEach(f=>{ const lm=limitFor(f.id, selModda); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
-    if(a>lm.qoldi && !limErr) limErr=`${f.name}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
+    if(a>lm.qoldi && !limErr) limErr=`${filNom(f.name)}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
   else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }
   else if(!allPos){ msg.textContent='Har filialga summa yozing'; msg.className='tmsg no'; }
   else if(limErr){ msg.textContent=limErr; msg.className='tmsg no'; }
-  else { msg.textContent='✓ to\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
+  else { msg.textContent='To\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
   $('taqsimSaveBtn').disabled=!ok;
 }
 window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
-  const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
-  const {dtId,ktId,kassa,izoh,chek,mName}=taqsimCtx;
+  const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
+  const {dtId,ktId,kassa,izoh,chek,mName,calc}=taqsimCtx;
+  const kCur=curOf(kassa);
+  const fcNote = (calc&&calc.cur!=='UZS') ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
   const p_data={
-    entry_date:isoDay(nowUz()), description:izoh||null, source:'manual', status:'posted',
+    entry_date:isoDay(nowUz()), description:[izoh,fcNote].filter(Boolean).join(' · ')||null,
+    source:'manual', status:'posted',
     dt_account:dtId, kt_account:ktId,
-    kassa_account:kassa.id, kassa_currency:kassa.currency||'UZS',
+    kassa_account:kassa.id, kassa_currency:kCur,
     taqsim:taqsimFils.map(f=>({filial_id:f.id, summa:Number(taqsimAlloc[f.id])||0}))
   };
+  // Valyuta kassasi: kurs berilsa server fc = summa/kurs qiladi (eski xatti-harakat — fc=summa).
+  if(kCur!=='UZS' && calc && calc.rate) p_data.kassa_kurs=calc.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
   const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
@@ -913,11 +1596,13 @@ window.confirmTaqsim=async()=>{
   const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
   closeTaqsim();
   // Optimistik qoldiq (butun summa chiqdi)
-  if(balMap[kassa.id]!=null){ balMap[kassa.id]=Number(balMap[kassa.id])-amt; renderHero(); renderKassaBal(); }
-  // Forma tozalanadi (kassa qoladi)
-  $('summa').value=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
+  if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-amt,
+    fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; swrSet('bal',balMap);   // kesh ham yangilansin
+    renderTurSeg(); renderHero(); renderKassaBal(); }
+  // Forma tozalanadi (kassa + tur qoladi)
+  $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
-  toast('Saqlandi ✓ ('+nFil+' filial)');
+  toast('Saqlandi · '+nFil+' filial');
   // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
   (async()=>{
     if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
@@ -930,7 +1615,7 @@ let toastTimer=null;
 function toast(msg,err){
   const t=$('toast'); $('toastMsg').textContent=msg;
   t.style.background=err?'var(--red)':'var(--ink)';
-  t.style.color=err?'#fff':'var(--bg)';
+  t.style.color=err?'var(--on-red)':'var(--bg)';   // qorong'i temada qizil fon ustida to'q matn — kontrast uchun
   // Ikonka har safar qayta quriladi — createIcons() <i>ni <svg>ga aylantirgach data-lucide yo'qoladi.
   $('toastIc').innerHTML=`<i data-lucide="${err?'alert-circle':'check-circle-2'}"></i>`; icons();
   t.classList.add('show'); clearTimeout(toastTimer);
@@ -966,7 +1651,7 @@ async function loadHist(){
   const {from,to}=histRange();
   const {data,error}=await sb.rpc('hodim_oz_tarix',{p_from:from,p_to:to});
   if(error){ histRows=[]; renderHistCat([]);
-    $('histList').innerHTML='<div class="today-empty">Tarix yuklanmadi: '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); return; }
+    $('histList').innerHTML='<div class="today-err">Tarix yuklanmadi — '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); return; }
   histRows=(data&&data.royxat)||[];
   await loadHistChek();
   renderHistCat((data&&data.kategoriya)||[]);
@@ -983,7 +1668,7 @@ function renderHistCat(cat){
 }
 function renderHistList(){
   const box=$('histList');
-  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q.</div>'; icons(); return; }
+  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q<span>Yuqoridagi shakl orqali kiritilgan xarajatlar shu yerda ko\'rinadi</span></div>'; icons(); return; }
   box.innerHTML=histRows.map(r=>{
     const amt=Number(r.summa)||0;
     let t=''; try{ t=new Date(new Date(r.created_at).getTime()+5*3600*1000).toISOString().slice(5,16).replace('T',' '); }catch(x){}
@@ -1002,10 +1687,24 @@ async function loadMonth(){
   const n=nowUz();
   const from=isoDay(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1))), to=isoDay(n);
   const want=selKassa;
+  // Kassaning o'zi + bola-hisoblari (naqd/Click/Payme/USD).
+  const ids=[want].concat(subChildren(want).map(a=>a.id));
   try{
-    const {data,error}=await sb.rpc('hodim_oy_jami',{p_account:want,p_from:from,p_to:to});
-    if(error||data==null||selKassa!==want) return;
-    el.innerHTML=`Bu oy sarflandi: <b>${money(data)} so'm</b>`;
+    // TEZ YO'L: bitta to'plamli RPC. Yo'q bo'lsa (SQL RUN qilinmagan) — eski
+    // hodim_oy_jami har hisob uchun parallel.
+    const {data:kop,error:kopErr}=await sb.rpc('hodim_oy_jami_kop',{p_accounts:ids,p_from:from,p_to:to});
+    if(selKassa!==want) return;
+    let jami=null;
+    if(!kopErr && kop!=null) jami=Number(kop)||0;
+    else{
+      const res=await Promise.all(ids.map(id=>sb.rpc('hodim_oy_jami',{p_account:id,p_from:from,p_to:to})
+        .then(r=>(r.error||r.data==null)?null:Number(r.data)).catch(()=>null)));
+      if(selKassa!==want) return;
+      if(res.every(v=>v==null)) return;
+      jami=res.reduce((s,v)=>s+(v||0),0);
+    }
+    if(jami==null) return;
+    el.innerHTML=`Bu oy sarflandi: <b>${money(jami)} so'm</b>`;
     el.style.display='block';
   }catch(e){}
 }
@@ -1014,11 +1713,14 @@ async function loadMonth(){
 // bo'yicha cheklaydi; moddalar (xarajat) doim qoladi. 5400 konteyner chiqariladi.
 function applyAccounts(data){
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
-  renderKassa(); renderModda();
+  buildNomIndex();                 // nom→id (eski, ustunsiz tur hisoblarini bog'lash uchun)
+  renderKassa(); renderModda(); loadRate();
+  avtoKassa();                     // kassa ro'yxati yangilandi: qoldiq allaqachon bo'lsa shu yerda tanlanadi
 }
 let _bound=false;
 function bindInputs(){ if(_bound) return; _bound=true;
-  $('summa').addEventListener('input',e=>{ fmtAmt(e.target); updateSave(); });
+  // so'mda — minglik ajratgich + avtomat "000"; valyutada — 2 kasrgacha, "000" YO'Q.
+  $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); });
   $('izoh').addEventListener('input',updateSave);
 }
 
@@ -1031,6 +1733,9 @@ async function init(){
   // 1) KESHDAN darrov (repeat ochilishda forma to'la keladi — bo'sh ekran yo'q)
   const cAcc=swrGet('accounts'); if(cAcc) applyAccounts(cAcc);
   const cFil=swrGet('filials');  if(cFil){ filials=window.permFilterFilials?window.permFilterFilials(cFil):cFil; renderFilials(); }
+  // Qoldiq ham keshdan — hero DARROV raqam ko'rsatadi, "—" da turmaydi.
+  // (Kesh 5 daqiqa; fonda loadBalances() haqiqiysini olib almashtiradi.)
+  const balKesh=loadBalancesCached();
   updateModdaUI();
   // 2) Mustaqil so'rovlar — HAMMASI PARALLEL
   const pPerm=window.permLoad(sb);
@@ -1038,6 +1743,10 @@ async function init(){
   const pFil =sb.from('v_filial_tanlov').select('*');
   const pUser=sb.auth.getUser();
   loadHist();                               // tarix mustaqil (server auth.uid()) — fon
+  // TEZLIK: qoldiq keshda YO'Q bo'lsa — accounts keshdan kelgan zahoti so'rovni
+  // BOSHLAB yuboramiz, Promise.all ni kutmasdan. Aks holda qoldiq 2-to'lqinda
+  // kelardi va hodim bo'sh hero'ga qarab turardi.
+  if(!balKesh && cAcc) loadBalances();
   const [,aRes,fRes,uRes]=await Promise.all([pPerm,pAcc,pFil,pUser]);
   // accounts (perms endi tayyor → to'g'ri filtr)
   if(aRes.error){ if(!cAcc){ $('banner').style.display='block'; $('banner').textContent='Xato: '+aRes.error.message; } }
@@ -1045,10 +1754,12 @@ async function init(){
   // filials
   if(!fRes.error){ swrSet('filials',fRes.data||[]); filials=window.permFilterFilials?window.permFilterFilials(fRes.data||[]):(fRes.data||[]); renderFilials(); }
   // foydalanuvchi nomi (profiles — fon, formani bloklamaydi)
+  // Tepadagi ikkinchi qator: ism-familiya (bo'lmasa email). Uzun matn CSS bilan kesiladi (…).
   const user=uRes.data&&uRes.data.user; myName=(user&&user.email)||'';
-  $('who').textContent=myName?('· '+myName):'';
+  $('who').textContent=myName||'';
   if(user) sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
-    .then(({data:p})=>{ if(p&&p.full_name){ myName=p.full_name; $('who').textContent='· '+myName; } }).catch(()=>{});
+    // Faqat probeldan iborat ism ham "bo'sh" — email fallback saqlanadi (qolgan 6 fayl bilan bir xil naqsh)
+    .then(({data:p})=>{ const fn=((p&&p.full_name)||'').trim(); if(fn){ myName=fn; $('who').textContent=myName; } }).catch(()=>{});
   updateModdaUI();
   loadBalances(); loadMonth(); loadLimits(); // qoldiq/oy/limitlar — fon
   console.timeEnd('hodim:ochilish');
