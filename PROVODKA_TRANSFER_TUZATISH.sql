@@ -61,18 +61,43 @@
 --
 --  #####  IKKI MARTA YOZILMASLIK — UCH QAVAT HIMOYA  ###################
 --
---  1. ext_ref = 'aros_tr_fix:<transfer_id>:<tur>' — UNIQUE. Ikkinchi
---     marta chaqirilsa baza o'zi to'sadi (RPC oldindan ham tekshiradi).
---  2. Agar o'sha transfer uchun HAQIQIY transfer yozuvi bor bo'lsa
---     ('aros_tr:<id>:<tur>'), to'g'irlash YOZILMAYDI — demak transfer
---     sync uni to'g'ri yozib bo'lgan, delta uni yutmagan.
---  3. ⭐ CUTOFF: faqat received_at <= cutoff bo'lgan transfer to'g'rilanadi.
---     Sabab: cutoff = daftar Aros bilan oxirgi marta tenglashtirilgan payt
+--  Har qavat BOSHQA xavfdan saqlaydi — uchtasi bir-birini almashtirmaydi:
+--
+--  1. ⭐ "SHU SKRIPT IKKI MARTA" — ext_ref = 'aros_tr_fix:<id>:<tur>'.
+--     UNIQUE ustun. RPC oldindan ham tekshiradi (1-himoya), baza esa
+--     oxirgi to'siq. Ya'ni bitta payload ikki marta yuborilsa ikkinchisi
+--     hech narsa yozmaydi.
+--     `tur` bu yerda: naqd | click | payme | dollar.
+--
+--  2. ⭐ "SINXRON ALLAQACHON TO'G'RI YOZGAN" — o'sha transfer/tur uchun
+--     HAQIQIY transfer yozuvi bormi: ext_ref = 'aros_tr:<id>:<maydon>'.
+--     Bo'lsa — delta uni yutmagan, transfer sync normal yozgan; to'g'irlash
+--     ustiga yozilsa pul IKKI MARTA kirim bo'lardi.
+--     🔴 KALIT SINXRONNIKI BILAN BAYT-MA-BAYT BIR XIL BO'LISHI SHART:
+--        PROVODKA_TRANSFER.sql:943 -> 'aros_tr:' || id || ':' || v_maydon,
+--        maydon = cash | click | payme | dollar_usd (naqd/dollar EMAS).
+--        2026-08-13 gacha shu yerda 'naqd'/'dollar' izlanardi — ya'ni
+--        naqd va dollar uchun 2-himoya HECH QACHON ishlamagan. Tuzatildi.
+--
+--  3. ⭐ "SINXRONNING HUDUDIGA KIRISH" — CUTOFF: faqat
+--     received_at <= cutoff bo'lgan transfer to'g'rilanadi.
+--     cutoff = daftar Aros bilan oxirgi marta tenglashtirilgan payt
 --     (aros_transfer_cutoff()). Undan OLDINGI transferni delta allaqachon
 --     yutgan — to'g'irlash kerak. Undan KEYINGISINI esa transfer sync
 --     o'zi normal yozadi — to'g'irlansa IKKI MARTA bo'lardi.
 --     Shu sabab tuzatishni transfer sync bilan bir vaqtda ishlatish ham
 --     xavfsiz: ikkovi bir-birining hududiga kirmaydi.
+--     🔴 CUTOFF SOLISHTIRUVI VAQT ZONASIGA BOG'LIQ: Aros `received_at` ni
+--        ZONASIZ (naive, Toshkent vaqtida) beradi. Zonasiz matn Postgres
+--        sessiyasida UTC deb o'qiladi -> 5 soat siljiydi. Sinxron aynan
+--        shu matnga '+05' qo'shadi (PROVODKA_TRANSFER.sql:833-841), shuning
+--        uchun bu yerda ham AYNAN o'sha normalizatsiya turadi. 2026-08-13
+--        gacha bu yerda oddiy cast edi — cutoffdan oldingi 5 soatlik
+--        transferlar noto'g'ri "cutoffdan KEYIN" deb rad etilardi.
+--
+--  Qo'shimcha (himoya emas, xavfsizlik): payloadda status bo'lsa va u
+--  'received' bo'lmasa — o'tkazib yuboriladi. Sinxron ham shunday qiladi
+--  (PROVODKA_TRANSFER.sql:822). Statussiz payload eskisidek ishlaydi.
 --
 --  #####  JURNALDA QANDAY KO'RINADI  ###################################
 --
@@ -95,11 +120,17 @@
 --    { "transferlar": [
 --        { "id": 1234, "sender_title": "Malika", "receiver_title": "Toshkent Kassa",
 --          "status": "received", "received_at": "2026-08-07T09:12:00",
---          "cash": 0, "click": 18000000, "payme": 0, "dollar": 0 }
+--          "cash": 0, "click": 18000000, "payme": 0,
+--          "dollar_usd": 0, "dollar_rate": 12050 }
 --    ] }
 --
 --  (massiv ham bo'ladi). Kerakli maydonlar: id, receiver_title,
 --  received_at va tur summalari. sender_title faqat izoh uchun.
+--
+--  Tur maydonlari sinxron kontraktidagidek: cash | click | payme | dollar_usd
+--  (sinonimlar: seller_cash/seller_click/seller_payme/seller_dollar, eski
+--  `dollar` ham o'qiladi). Dollar uchun kurs: dollar_rate | currency_rate | rate
+--  — 1$ necha so'm. received_at zonasiz (Toshkent) bo'lsa +05 o'zi qo'shiladi.
 -- ---------------------------------------------------------------------
 
 
@@ -158,7 +189,10 @@ declare
   v_id      text;
   v_recv    text;
   v_send    text;
+  v_txt     text;
+  v_status  text;
   v_rat     timestamptz;
+  v_sana    date;
   v_cut     timestamptz;
   v_kassa   jsonb;
   v_kid     uuid;
@@ -171,6 +205,7 @@ declare
   v_rate    numeric;
   v_acc     uuid;
   v_ext     text;
+  v_sync_ext text;
   v_entry   uuid;
   n_yozuv   int := 0;
   n_otkaz   int := 0;
@@ -212,7 +247,31 @@ begin
     v_id   := nullif(btrim(coalesce(v_el ->> 'id', '')), '');
     v_recv := nullif(btrim(coalesce(v_el ->> 'receiver_title', '')), '');
     v_send := coalesce(nullif(btrim(coalesce(v_el ->> 'sender_title', '')), ''), '?');
-    v_rat  := nullif(v_el ->> 'received_at', '')::timestamptz;
+
+    -- ⭐ VAQT ZONASI — PROVODKA_TRANSFER.sql:833-841 dagi normalizatsiya AYNAN
+    --    ko'chirilgan. Aros vaqtni ZONASIZ (naive, Toshkent) beradi; zonasiz
+    --    matn sessiyada UTC deb o'qiladi -> 5 soat siljish -> cutoff solishtiruvi
+    --    sinxronnikidan farq qiladi. Shuning uchun:
+    --      • faqat sana ('2026-08-12')      -> T00:00:00+05
+    --      • zona belgisi yo'q              -> +05
+    --      • Z / +HH:MM / +HHMM / kasrli soniyadan keyingi zona — tegilmaydi
+    --    Cast xato bersa butun RPC yiqilmasin: begin/exception -> null,
+    --    quyida "received_at o'qib bo'lmadi" deb o'tkazib yuboriladi.
+    v_txt := nullif(btrim(coalesce(v_el ->> 'received_at',
+                                   v_el ->> 'received_datetime', '')), '');
+    v_rat := null;
+    if v_txt is not null then
+      if v_txt ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+        v_txt := v_txt || 'T00:00:00+05';
+      elsif v_txt !~ '([Zz]|[+-][0-9]{2}:[0-9]{2}|[+-][0-9]{4}|:[0-9]{2}(\.[0-9]+)?[+-][0-9]{2})$' then
+        v_txt := v_txt || '+05';
+      end if;
+      begin
+        v_rat := v_txt::timestamptz;
+      exception when others then
+        v_rat := null;
+      end;
+    end if;
 
     if v_id is null or v_recv is null then
       n_otkaz := n_otkaz + 1;
@@ -221,11 +280,23 @@ begin
       continue;
     end if;
 
+    -- Status: sinxron ham faqat 'received' ni yozadi (PROVODKA_TRANSFER.sql:822).
+    -- Payloadda status bo'lmasa — eskisidek 'received' deb qabul qilinadi.
+    v_status := lower(btrim(coalesce(nullif(v_el ->> 'status', ''), 'received')));
+    if v_status <> 'received' then
+      n_otkaz := n_otkaz + 1;
+      v_ogoh := v_ogoh || jsonb_build_object('id', v_id, 'status', v_status,
+        'sabab', 'status "received" emas — pul hali kelmagan, to''g''irlanmaydi');
+      continue;
+    end if;
+
     -- ⭐ CUTOFF: keyingi transferni transfer sync o'zi yozadi — tegmaymiz
     if v_rat is null then
       n_otkaz := n_otkaz + 1;
       v_ogoh := v_ogoh || jsonb_build_object('id', v_id,
-        'sabab', 'received_at yo''q — cutoff tekshirib bo''lmadi, xavfsizlik uchun tashlandi');
+        'received_at', v_el ->> 'received_at',
+        'sabab', 'received_at yo''q yoki o''qib bo''lmadi — cutoff tekshirib '
+                 || 'bo''lmadi, xavfsizlik uchun tashlandi');
       continue;
     end if;
     if v_rat > v_cut then
@@ -247,13 +318,40 @@ begin
     v_kid   := (v_kassa ->> 'id')::uuid;
     v_kcode := v_kassa ->> 'code';
 
-    foreach v_maydon in array array['cash','click','payme','dollar']
+    -- ⭐ MAYDON NOMLARI SINXRON KONTRAKTIDAN (PROVODKA_TRANSFER.sql:920):
+    --    cash | click | payme | dollar_usd. Bu massivni o'zgartirsang
+    --    2-himoyaning kaliti sinxronnikidan ajralib qoladi.
+    foreach v_maydon in array array['cash','click','payme','dollar_usd']
     loop
-      v_amt := coalesce(nullif(v_el ->> v_maydon, '')::numeric, 0);
+      -- Summa — sinxrondagi sinonim maydonlar bilan (4.7). Ya'ni dollar
+      -- 'dollar_usd', 'seller_dollar' yoki eski 'dollar' nomi bilan kelsa ham
+      -- o'qiladi; kalit esa baribir sinxronniki ('...:dollar_usd') bo'ladi.
+      begin
+        v_amt := coalesce(nullif(btrim(coalesce(
+                   case v_maydon
+                     when 'cash'       then coalesce(v_el ->> 'cash',  v_el ->> 'seller_cash')
+                     when 'click'      then coalesce(v_el ->> 'click', v_el ->> 'seller_click')
+                     when 'payme'      then coalesce(v_el ->> 'payme', v_el ->> 'seller_payme')
+                     when 'dollar_usd' then coalesce(v_el ->> 'dollar_usd',
+                                                     v_el ->> 'seller_dollar',
+                                                     v_el ->> 'dollar')
+                   end, '')), '')::numeric, 0);
+      exception when others then
+        v_amt := 0;                     -- o'qib bo'lmadi = pul o'tmagan deb sanaymiz
+      end;
       if v_amt <= 0 then continue; end if;
 
-      v_tur := case v_maydon when 'cash' then 'naqd' else v_maydon end;
-      v_ext := 'aros_tr_fix:' || v_id || ':' || v_tur;
+      -- ⚠️ IKKI XIL KALIT — ATAYLAB, aralashtirma:
+      --   v_ext      = 'aros_tr_fix:<id>:<tur>'    — SHU skript yozadigan kalit.
+      --                `tur` (naqd/dollar) ATAYLAB saqlandi: avval yozilgan
+      --                to'g'irlashlar 1-himoyada tanilib qolsin.
+      --   v_sync_ext = 'aros_tr:<id>:<maydon>'     — SINXRON yozadigan kalit
+      --                (PROVODKA_TRANSFER.sql:943). 2-himoya AYNAN shuni izlaydi.
+      v_tur := case v_maydon when 'cash'       then 'naqd'
+                             when 'dollar_usd' then 'dollar'
+                             else v_maydon end;
+      v_ext      := 'aros_tr_fix:' || v_id || ':' || v_tur;
+      v_sync_ext := 'aros_tr:'     || v_id || ':' || v_maydon;
 
       -- 1-himoya: shu to'g'irlash allaqachon yozilganmi
       if exists (select 1 from entry where ext_ref = v_ext) then
@@ -264,10 +362,10 @@ begin
       end if;
 
       -- 2-himoya: haqiqiy transfer yozuvi bormi -> delta uni yutmagan
-      if exists (select 1 from entry
-                  where ext_ref = 'aros_tr:' || v_id || ':' || v_tur) then
+      if exists (select 1 from entry where ext_ref = v_sync_ext) then
         n_otkaz := n_otkaz + 1;
         v_ogoh := v_ogoh || jsonb_build_object('id', v_id, 'tur', v_tur,
+          'sync_kalit', v_sync_ext,
           'sabab', 'transfer sync buni to''g''ri yozgan — to''g''irlash kerak emas');
         continue;
       end if;
@@ -282,25 +380,48 @@ begin
         continue;
       end if;
 
-      -- Dollar: summa VALYUTADA keladi, so'm ekvivalenti kurs orqali
+      -- Dollar: summa VALYUTADA keladi, so'm ekvivalenti kurs orqali.
+      -- Kurs manbalari sinxrondagi tartibda (4.6): dollar_rate ->
+      -- currency_rate{rate} -> currency_rate -> rate.
       v_fc   := null;
       v_rate := null;
-      if v_maydon = 'dollar' then
-        v_rate := nullif(v_el ->> 'dollar_rate', '')::numeric;
+      if v_maydon = 'dollar_usd' then
+        begin
+          if (v_el ? 'dollar_rate') and jsonb_typeof(v_el -> 'dollar_rate') <> 'null' then
+            v_rate := nullif(v_el ->> 'dollar_rate', '')::numeric;
+          elsif (v_el ? 'currency_rate') and jsonb_typeof(v_el -> 'currency_rate') = 'object' then
+            v_rate := nullif(v_el -> 'currency_rate' ->> 'rate', '')::numeric;
+          elsif (v_el ? 'currency_rate') and jsonb_typeof(v_el -> 'currency_rate') in ('number','string') then
+            v_rate := nullif(v_el ->> 'currency_rate', '')::numeric;
+          elsif (v_el ? 'rate') and jsonb_typeof(v_el -> 'rate') in ('number','string') then
+            v_rate := nullif(v_el ->> 'rate', '')::numeric;
+          end if;
+        exception when others then
+          v_rate := null;
+        end;
         if v_rate is null or v_rate <= 0 then
           n_otkaz := n_otkaz + 1;
           v_ogoh := v_ogoh || jsonb_build_object('id', v_id, 'tur', v_tur,
-            'sabab', 'dollar_rate yo''q — so''m ekvivalentini hisoblab bo''lmaydi');
+            'sabab', 'kurs yo''q (dollar_rate / currency_rate / rate) — '
+                     || 'so''m ekvivalentini hisoblab bo''lmaydi');
           continue;
         end if;
         v_fc  := v_amt;
         v_amt := round(v_amt * v_rate, 2);
       end if;
 
+      -- Sana — sinxrondagidek (PROVODKA_TRANSFER.sql:916): Toshkent zonasida,
+      -- va hech qachon kelajakda emas. `v_rat::date` ishlatilmaydi — u sessiya
+      -- zonasida (UTC) hisoblab, tunggi transferni bir kun oldinga surib yuboradi.
+      v_sana := least((v_rat at time zone 'Asia/Tashkent')::date,
+                      (now()  at time zone 'Asia/Tashkent')::date);
+
       v_tafsil := v_tafsil || jsonb_build_object(
         'transfer_id', v_id, 'kimdan', v_send, 'kimga', v_kcode,
-        'tur', v_tur, 'summa_uzs', v_amt, 'fc', v_fc,
-        'received_at', v_rat, 'hisob', v_acc, 'ext_ref', v_ext);
+        'tur', v_tur, 'maydon', v_maydon, 'summa_uzs', v_amt, 'fc', v_fc,
+        'kurs', v_rate, 'sana', v_sana,
+        'received_at', v_rat, 'hisob', v_acc,
+        'ext_ref', v_ext, 'sync_kalit', v_sync_ext);
 
       if p_dry_run then
         n_yozuv := n_yozuv + 1;
@@ -309,7 +430,7 @@ begin
 
       insert into entry(entry_date, description, source, status, created_by,
                         fc_rate, ext_ref)
-      values (coalesce(v_rat::date, current_date),
+      values (v_sana,
               'To''g''irlash: transfer ' || v_send || ' → ' || v_recv
                 || ' · ' || v_tur || ' (delta sync uni 9010 savdoga yozib yuborgan)',
               'aros_auto', 'posted', 'transfer_fix', v_rate, v_ext)
@@ -352,7 +473,8 @@ comment on function transfer_tuzatish(jsonb, boolean) is
 --     workflow'ini bir marta ishga tushirib, o'sha node chiqishini nusxalang).
 -- select jsonb_pretty(transfer_tuzatish('{"transferlar":[
 --   {"id":1234,"sender_title":"Malika","receiver_title":"Toshkent Kassa",
---    "received_at":"2026-08-07T09:12:00","cash":0,"click":18000000,"payme":0,"dollar":0}
+--    "status":"received","received_at":"2026-08-07T09:12:00",
+--    "cash":0,"click":18000000,"payme":0,"dollar_usd":0,"dollar_rate":12050}
 -- ]}'::jsonb));
 --
 --     `tafsilot` ni O'QING: har qator uchun summa va qaysi hisobga
