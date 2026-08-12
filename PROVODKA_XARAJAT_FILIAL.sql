@@ -1,4 +1,23 @@
 -- =====================================================================
+--  ⚠️⚠️  SUPABASE SQL EDITOR — QANDAY RUN QILINADI (avval SHUNI o'qing)
+-- ---------------------------------------------------------------------
+--   1) Tartib: 0-BOSQICH (tekshiruv) → 1-BOSQICH (funksiyalar) →
+--      2-BOSQICH (o'z-o'zini test) → 3-BOSQICH (ko'rish). Butun faylni
+--      birdaniga RUN QILMANG.
+--   2) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
+--      belgilab RUN qiling.
+--   3) `do $$` va `as $$` bloklarini TO'LIQ belgilash SHART: `do $$`
+--      (yoki `create or replace function`) qatoridan `$$;` qatorigacha,
+--      ikkalasi ham ichida. Yarim belgilansa Postgres blokni PL/pgSQL emas,
+--      oddiy SQL deb o'qiydi va o'zgaruvchini jadval deb izlaydi.
+--   4) O'shanda chiqadigan xato — `ERROR: 42P01: relation "v_yoq" does not
+--      exist` (yoki boshqa `v_...` nomi). Bu FAYL XATOSI EMAS, belgilash
+--      noto'g'ri: blokni boshidan oxirigacha qayta belgilab RUN qiling.
+--   5) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
+--      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+-- =====================================================================
+
+-- =====================================================================
 --  PROVODKA_XARAJAT_FILIAL.sql — "savdo qilmaydigan, lekin xarajati bor"
 --  filiallarni qo'lda qo'shish (Aros'ga BOG'LANMAGAN filial hisobi)
 -- ---------------------------------------------------------------------
@@ -48,38 +67,48 @@
 -- #####################################################################
 --  0-BOSQICH — TEKSHIRUV (o'zgartirmaydi).  ALOHIDA belgilab RUN qiling.
 -- #####################################################################
+--  Oddiy `select` — `do` bloki EMAS, shuning uchun belgilash xatosi bo'lmaydi.
+--  `holat` ustunida ❌ chiqsa 1-BOSQICHGA O'TMANG: `nima_qilish` ustunini o'qing.
+--  Tekshiruvlar (ilgari `raise exception` bo'lgan) AYNAN o'sha shartlar:
+--    • accounts da 11 ta ustun bormi;  • v_filial_tanlov view bormi;
+--    • 52xx blokida hozir nechta hisob bor.
 
--- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  SHU QATORDAN `end $t0$;` GACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
-do $t0$
-declare
-  v_yoq text;
-begin
-  select string_agg(c, ', ')
-    into v_yoq
-    from unnest(array['code','name','type','section','currency','parent_id',
-                      'kassa_turi','is_active','subtitle','pul_turi','filial_ref']) c
-   where not exists (
-     select 1 from information_schema.columns
-      where table_schema = 'public' and table_name = 'accounts' and column_name = c);
-
-  if v_yoq is not null then
-    raise exception 'accounts jadvalida ustun(lar) yo''q: %', v_yoq
-      using hint = 'Avval PROVODKA_V6.sql / PROVODKA_VALYUTA.sql migratsiyalarini bajaring.';
-  end if;
-
-  if to_regclass('public.v_filial_tanlov') is null then
-    raise exception 'v_filial_tanlov view topilmadi'
-      using hint = 'PROVODKA_V6.sql (4-bo''lim) yoki PROVODKA_PAGES_EMPTY.sql (6-bo''lim) ni RUN qiling.';
-  end if;
-
-  raise notice 'OK: ustunlar joyida. Hozir 52xx bloklarida % ta hisob bor.',
-    (select count(*) from accounts where code ~ '^52[0-9]{2}$');
-end $t0$;
--- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA BELGILANG (0-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
+-- ⬇⬇⬇  SHU QATORDAN pastdagi `) t;` QATORIGACHA (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
+select case
+         when t.yoq is not null then '❌ accounts jadvalida ustun(lar) yo''q: ' || t.yoq
+         when t.view_yoq        then '❌ v_filial_tanlov view topilmadi'
+         else '✅ OK: ustunlar joyida, view bor — 1-BOSQICHGA o''ting'
+       end                                                     as holat,
+       coalesce(t.yoq, '—')                                    as yetishmagan_ustunlar,
+       case when t.view_yoq then '❌ yo''q' else '✅ bor' end   as v_filial_tanlov,
+       t.n52                                                   as hisob_52xx,
+       case
+         when t.yoq is not null
+           then 'Avval PROVODKA_V6.sql / PROVODKA_VALYUTA.sql migratsiyalarini bajaring.'
+         when t.view_yoq
+           then 'PROVODKA_V6.sql (4-bo''lim) yoki PROVODKA_PAGES_EMPTY.sql (6-bo''lim) ni RUN qiling.'
+         else '—'
+       end                                                     as nima_qilish
+  from (
+    select (select string_agg(c, ', ')
+              from unnest(array['code','name','type','section','currency','parent_id',
+                                'kassa_turi','is_active','subtitle','pul_turi','filial_ref']) c
+             where not exists (
+               select 1 from information_schema.columns
+                where table_schema = 'public'
+                  and table_name  = 'accounts'
+                  and column_name = c))                        as yoq,
+           (to_regclass('public.v_filial_tanlov') is null)      as view_yoq,
+           (select count(*) from accounts
+             where code ~ '^52[0-9]{2}$')                      as n52
+  ) t;
+-- ⬆⬆⬆  SHU QATORGACHA BELGILANG (0-BOSQICH tugadi)  ⬆⬆⬆
 
 
 -- #####################################################################
---  1-BOSQICH — FUNKSIYALAR.  Butun blokni birdaniga RUN qilsa bo'ladi.
+--  1-BOSQICH — FUNKSIYALAR.  Butun 1-BOSQICHNI birdaniga RUN qilsa bo'ladi
+--  (1.1 boshidan `notify pgrst` qatorigacha). Xato chiqsa — 1.1 va 1.2 ni
+--  ⬇⬇⬇ / ⬆⬆⬆ chegaralari bo'yicha ALOHIDA, TO'LIQ belgilab RUN qiling.
 -- #####################################################################
 
 -- ---------------------------------------------------------------------
@@ -112,12 +141,13 @@ end $t0$;
 --    service_role) o'tkaziladi — loyihadagi mavjud naqsh
 --    (hodim_kassa_turlar_toldir, entry_line guard triggeri ham shunday).
 --    `anon` ga EXECUTE berilmagan.
+-- ⬇⬇⬇  1.1: SHU QATORDAN pastdagi `$$;` QATORIGACHA (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
 create or replace function xarajat_filial_yarat(p_nom text, p_subtitle text default null)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $$
 declare
   v_uid  uuid := (select auth.uid());
   v_role text;
@@ -177,17 +207,20 @@ begin
   --    qilinmagan) tekshiruv o'tkazib yuboriladi — u holda sinxron ham yo'q.
   --    Chaqiruv `execute` bilan: funksiya yo'q bo'lsa plpgsql tanani
   --    tayyorlashda ham xato bermasin.
+  --    ⚠️ So'rov matni ODDIY BIR TIRNOQLI satr (ichma-ich dollar-quote YO'Q,
+  --    aks holda funksiya tanasi vaqtidan oldin yopilardi). Shuning uchun
+  --    ichkaridagi har `'` ikkilangan: 'pul' -> ''pul'', '' -> ''''.
   if to_regprocedure('public.aros_nom_norm(text)') is not null then
-    execute $q$
+    execute '
       select a.code, a.name
         from accounts a
-       where a.section = 'pul' and a.is_active and a.parent_id is null
-         and coalesce(a.currency, 'UZS') = 'UZS'
-         and coalesce(a.kassa_turi, '') <> 'xarajat_guruh'
+       where a.section = ''pul'' and a.is_active and a.parent_id is null
+         and coalesce(a.currency, ''UZS'') = ''UZS''
+         and coalesce(a.kassa_turi, '''') <> ''xarajat_guruh''
          and aros_nom_norm(a.name) = aros_nom_norm($1)
        order by a.code
-       limit 1
-    $q$ into v_tq_code, v_tq_name using v_nom;
+       limit 1'
+    into v_tq_code, v_tq_name using v_nom;
 
     if v_tq_code is not null then
       raise exception 'Bu nom mavjud kassa nomi bilan bir xil o''qiladi — Aros transfer sinxroni buziladi'
@@ -231,7 +264,9 @@ begin
   end loop;
 
   raise exception 'Filialga bo''sh kod topilmadi (5 urinish): %', v_nom;
-end $fn$;
+end
+$$;
+-- ⬆⬆⬆  1.1 shu yergacha (`$$;` ham ichida)  ⬆⬆⬆
 
 revoke all on function xarajat_filial_yarat(text, text) from public, anon;
 grant execute on function xarajat_filial_yarat(text, text) to authenticated, service_role;
@@ -256,12 +291,13 @@ comment on function xarajat_filial_yarat(text, text) is
 -- passivlashtiriladi, chunki ular yolg'iz qolsa kassa kartasi buziladi.
 --
 -- Qaytishi: {"ok":true,"id":"...","code":"...","name":"...","bolalar":N}
+-- ⬇⬇⬇  1.2: SHU QATORDAN pastdagi `$$;` QATORIGACHA (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
 create or replace function xarajat_filial_ochir(p_id uuid)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $$
 declare
   v_uid   uuid := (select auth.uid());
   v_role  text;
@@ -325,7 +361,9 @@ begin
 
   return jsonb_build_object('ok', true, 'id', v_acc.id, 'code', v_acc.code,
                             'name', v_acc.name, 'bolalar', v_bola);
-end $fn$;
+end
+$$;
+-- ⬆⬆⬆  1.2 shu yergacha (`$$;` ham ichida)  ⬆⬆⬆
 
 revoke all on function xarajat_filial_ochir(uuid) from public, anon;
 grant execute on function xarajat_filial_ochir(uuid) to authenticated, service_role;
@@ -354,8 +392,11 @@ notify pgrst, 'reload schema';
 --  o'chiriladi — 52xx kodi bo'shab qoladi (har RUN da bittadan yeyilmasin).
 -- #####################################################################
 
--- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  SHU QATORDAN `end $t2$;` GACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
-do $t2$
+-- ⚠️ Belgilashni AYNAN quyidagi `do $$` qatoridan boshlang va pastdagi `$$;`
+--    qatorigacha (u ham ichida) belgilang. `do $$` yoki `declare` tashqarida
+--    qolsa: ERROR 42P01 relation "v_nom" does not exist — bu fayl xatosi emas.
+-- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  `do $$` QATORIDAN `$$;` QATORIGACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
+do $$
 declare
   v_nom  text := 'ZZ Test filial (o''chiriladi)';
   v_r    jsonb;
@@ -444,8 +485,9 @@ begin
 
   raise notice '===== HAMMA TEST O''TDI. Test filial (%) jadvaldan o''chirildi, iz qolmadi. =====',
     v_r->>'code';
-end $t2$;
--- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA BELGILANG (2-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
+end
+$$;
+-- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA (`$$;` ham ichida) BELGILANG (2-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
 
 
 -- #####################################################################
