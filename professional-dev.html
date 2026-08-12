@@ -773,10 +773,21 @@ function updateDavrUI(){ const req=davrRequired();
   renderCalIfNeeded();
   $('davrReq').style.display=davrOk()?'none':'block';
 }
+// Filial nomi bazada "Toshkent Kassa" ko'rinishida. Oxiridagi "kassa" so'zi ekranda ortiqcha —
+// FAQAT KO'RSATISHDA kesiladi. Bazadagi `name` va `f.name` o'zgarmaydi: Aros sinxroni va
+// boshqa sahifalar aynan shu nomga tayanadi. Kesish faqat OXIRIDAN, o'rtadan emas;
+// nom butunlay "Kassa" bo'lsa aslicha qoladi (bo'sh yorliq chiqmasin).
+function filNom(s){
+  const t=String(s==null?'':s).trim();
+  // \s+ (bo'sh joy MAJBURIY): "ToshkentKassa" kabi bitishgan nom kesilib ketmasin —
+  // faqat alohida so'z bo'lgan "… Kassa" olib tashlanadi. "Kassasi" ham tegilmaydi.
+  const q=t.replace(/\s+kassa\s*$/i,'').trim();
+  return q||t;
+}
 function renderFilials(){ const box=$('filialChips');
   const restricted=window.permFilialScope&&window.permFilialScope()==='list';
   box.innerHTML=filials.length
-    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
+    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
     : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
 // updateSimple() shart: filial o'zgarsa limit ogohlantirishi ham qayta hisoblanadi.
@@ -1305,7 +1316,7 @@ function taqsimEqualCalc(){
 window.taqsimEqual=()=>{ taqsimEqualCalc(); renderTaqsim(); };
 function renderTaqsim(){
   $('taqsimRows').innerHTML=taqsimFils.map(f=>
-    `<div class="trow"><span class="tfn">${esc(f.name)}</span>`
+    `<div class="trow"><span class="tfn">${esc(filNom(f.name))}</span>`
     +`<input inputmode="numeric" value="${taqsimAlloc[f.id]?money(taqsimAlloc[f.id]):''}" oninput="setTaqsim('${f.id}',this)"></div>`).join('');
   renderTaqsimSum();
 }
@@ -1319,7 +1330,7 @@ function renderTaqsimSum(){
   // Stage 4: har filial ulushi o'z limitidan oshmasin
   let limErr='';
   taqsimFils.forEach(f=>{ const lm=limitFor(f.id, taqsimCtx.moddaId); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
-    if(a>lm.qoldi && !limErr) limErr=`${f.name}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
+    if(a>lm.qoldi && !limErr) limErr=`${filNom(f.name)}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
   else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }

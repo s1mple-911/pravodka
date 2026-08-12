@@ -338,7 +338,19 @@ window.oyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').m
 window.oyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); loadHolat(); };
 // holat -> filial bo'yicha guruh
 function byFilial(fid){ return holat.filter(r=>r.filial_id===fid); }
-function filName(fid){ const f=filials.find(x=>x.id===fid); return f?f.name:'—'; }
+// Filial nomi bazada "Toshkent Kassa" ko'rinishida. Oxiridagi "kassa" so'zi ekranda ortiqcha —
+// FAQAT KO'RSATISHDA kesiladi. Bazadagi `name` va `f.name` o'zgarmaydi: Aros sinxroni va
+// boshqa sahifalar aynan shu nomga tayanadi. Kesish faqat OXIRIDAN, o'rtadan emas;
+// nom butunlay "Kassa" bo'lsa aslicha qoladi (bo'sh yorliq chiqmasin).
+function filNom(s){
+  const t=String(s==null?'':s).trim();
+  // \s+ (bo'sh joy MAJBURIY): "ToshkentKassa" kabi bitishgan nom kesilib ketmasin —
+  // faqat alohida so'z bo'lgan "… Kassa" olib tashlanadi. "Kassasi" ham tegilmaydi.
+  const q=t.replace(/\s+kassa\s*$/i,'').trim();
+  return q||t;
+}
+// Faqat ko'rsatish uchun — qidiruv/taqqoslash `f.id` bilan ishlaydi, nomga tayanmaydi.
+function filName(fid){ const f=filials.find(x=>x.id===fid); return f?filNom(f.name):'—'; }
 function filSub(fid){ const f=filials.find(x=>x.id===fid); return f&&f.subtitle?f.subtitle:''; }
 
 async function loadHolat(){
@@ -360,7 +372,7 @@ function renderList(){
     const spent=rows.reduce((s,r)=>s+(Number(r.sarflandi)||0),0);
     const meta=n?`Jami limit: <b>${money(tot)}</b> · Sarflandi (${esc(oyUz($('oy').value))}): <b>${money(spent)}</b>`:'Limit qo\'yilmagan';
     return `<button type="button" class="fcard" onclick="openFilial('${f.id}')">`
-      +`<div class="fc-top"><div><div class="fc-name">${esc(f.name)}</div>${f.subtitle?`<div class="fc-sub">${esc(f.subtitle)}</div>`:''}</div>`
+      +`<div class="fc-top"><div><div class="fc-name">${esc(filNom(f.name))}</div>${f.subtitle?`<div class="fc-sub">${esc(f.subtitle)}</div>`:''}</div>`
       +`<span class="fc-cnt${n?'':' zero'}">${n} ta limit</span></div>`
       +`<div class="fc-meta">${meta}</div></button>`;
   }).join('');
