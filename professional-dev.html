@@ -175,6 +175,9 @@
   .curbtn .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
   .curbtn.on .qd{color:var(--primary)}
   .curbtn.bosh .qd{color:var(--red)}   /* qoldiq 0 yoki manfiy — undan pul chiqmaydi */
+  /* Kengaytirilgan rejim: HAR SATR ostidagi tur segmenti. Tugmalar aynan .curbtn —
+     faqat joylashuvi boshqa (satr kartasi ichida), shuning uchun margin qayta yoziladi. */
+  .line .curseg{margin:10px 0 0}
   /* Valyuta kassasida: kurs + so'm ekvivalenti (entry_line debit/credit shu so'mda yoziladi) */
   .kursnote{font-size:12.5px;color:var(--muted);margin:-8px 0 14px 2px}
   .kursnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
@@ -398,6 +401,8 @@
         </div>
         <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
         <div id="balHint" style="font-size:12.5px;color:var(--red);text-align:center;margin-top:10px;display:none">Saqlash uchun Debet (Dt) va Kredit (Kt) teng bo'lishi kerak</div>
+        <!-- Qoldiq ogohlantirishi: faqat xabar, Saqlash tugmasi bloklanmaydi -->
+        <div id="advWarn" class="simplewarn" style="display:none;text-align:center;margin:10px 0 0"></div>
       </div>
     </div>
   </main>
@@ -522,6 +527,10 @@ document.addEventListener('focusin',e=>{ const t=e.target;
 // selKassa = parent kassa; selSub = tanlangan bola-hisob id'si (pul turi yoki valyuta),
 // null bo'lsa pul parentning o'zidan chiqadi/kiradi. subBal = segment tugmalaridagi qoldiqlar.
 let accounts=[], lines=[], selKassa=null, selSub=null, simpleBal=null, subBal={};
+// advBal — kengaytirilgan rejim satrlaridagi kassa+tur qoldiqlari ({id:{uzs,fc}}).
+// subBal'dan ALOHIDA: subBal har pickKassa'da tozalanadi, adv satrlari esa o'z holicha qoladi.
+// advReq — hozir so'ralayotgan id'lar (bir id ikki marta so'ralmasin).
+let advBal={}, advReq=new Set();
 let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -574,7 +583,12 @@ function accOptions(sel){
   // VALYUTA hisoblari (56xx USD, 57xx CNY…) bu yerda YO'Q: ko'p satrli rejimda har satr
   // uchun kurs kiritish joyi yo'q, fc_amount ham yozilmaydi — tanlansa valyuta qoldig'i
   // (v_hisob_bal.fc) buzilardi. Valyuta harakati: Oddiy rejim (kurs bilan) yoki Konvert.
-  const kassaOk=a=>isKassa(a)&&(a.currency||'UZS')==='UZS';
+  // PUL TURI bola-hisoblari (· Naqd/Click/Payme/Karta) ham bu ro'yxatda YO'Q: ular
+  // satr ostidagi segment bilan tanlanadi (lineSeg). Aks holda ro'yxat 60+ hodim × 4 tur
+  // bo'lib shishardi va odam ildizni tanlab "puli yo'q" xatosiga tushardi.
+  // Shart pul_turi bo'yicha (isTuriChild), parent_id bo'yicha EMAS — hodim kassasining
+  // parenti 5400 konteyner, u bola-hisob emas va ro'yxatda qolishi kerak.
+  const kassaOk=a=>isKassa(a)&&(a.currency||'UZS')==='UZS'&&!isTuriChild(a);
   const xk=accounts.filter(a=>kassaOk(a)&&a.kassa_turi==='xarajat');
   const xkId=new Set(xk.map(a=>a.id));
   return g('Kassalar',accounts.filter(a=>kassaOk(a)&&!xkId.has(a.id)))
@@ -583,11 +597,30 @@ function accOptions(sel){
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
+// Satr tuzilishi: {root_id — selectda tanlangan ILDIZ hisob, account_id — YOZILADIGAN
+// yakuniy hisob (ildiz yoki uning tur bolasi), side, amount}. doSaveAdv faqat account_id'ni
+// oladi, shuning uchun tur tanlansa yozuv aynan o'sha bola-hisobga tushadi.
+// Tanlangan ildizning pul turi bolalari (naqd/click/payme…). VALYUTA bolalari ataylab yo'q:
+// bu rejimda kurs kiritish joyi yo'q va fc_amount yozilmaydi (accOptions izohiga qara) —
+// valyuta hisobiga so'm yozilsa v_hisob_bal.fc buzilardi.
+function lineTuri(rootId){ return rootId?subChildren(rootId).filter(isTuriChild):[]; }
+// Satr ostidagi ixcham segment: "Kassa" (ildizning o'z qoldig'i) + har tur, qoldig'i bilan.
+// Bolasi yo'q hisobda (xarajat moddasi, daromad…) umuman chizilmaydi.
+function lineSeg(i,ln){
+  const kids=lineTuri(ln.root_id); if(!kids.length) return '';
+  // Qoldiq hali kelmagan bo'lsa raqamsiz ko'rsatiladi — tugma baribir ishlaydi
+  const qd=id=>{ const b=advBal[id]; return b===undefined?'':`<span class="qd">${money(b.uzs)}</span>`; };
+  const bosh=id=>{ const b=advBal[id]; return (b!==undefined&&b.uzs<=0)?' bosh':''; };
+  const btn=(id,lbl,on)=>`<button type="button" class="curbtn${on?' on':''}${bosh(id)}" `
+    +`onclick="pickLineSub(${i},${id===ln.root_id?'null':`'${id}'`})">${lbl}${qd(id)}</button>`;
+  return '<div class="curseg">'+btn(ln.root_id,'Kassa',ln.account_id===ln.root_id)
+    +kids.map(k=>btn(k.id,esc(subLbl(k)),ln.account_id===k.id)).join('')+'</div>';
+}
 function renderLines(){
   $('lines').innerHTML=lines.map((ln,i)=>`
     <div class="line">
       <div class="lr">
-        <select onchange="setAcc(${i},this.value)">${accOptions(ln.account_id)}</select>
+        <select onchange="setAcc(${i},this.value)">${accOptions(ln.root_id||ln.account_id)}</select>
         <button class="rm" onclick="rmLine(${i})"><i data-lucide="x"></i></button>
       </div>
       <div class="lr2">
@@ -597,14 +630,87 @@ function renderLines(){
         </div>
         <input class="amt" inputmode="numeric" placeholder="0" value="${ln.amount?money(ln.amount):''}" oninput="setAmt(${i},this)">
       </div>
+      ${lineSeg(i,ln)}
     </div>`).join('');
-  icons(); updateTotals();
+  icons(); updateTotals(); fetchAdvBal();
 }
-window.addLine=()=>{ lines.push({account_id:accounts[0]?.id||'',side:'debit',amount:0}); renderLines(); };
+// Yangi satrning standart hisobi = dropdowndagi BIRINCHI option. accounts[0] emas:
+// tur bola-hisoblari ro'yxatdan chiqarilgani uchun u yerda bo'lmasligi mumkin va
+// select ko'rsatgan hisob bilan lines[i].root_id mos kelmay qolardi.
+function firstAccId(){ const m=accOptions('').match(/value="([^"]+)"/); return m?m[1]:''; }
+window.addLine=()=>{ const id=firstAccId(); lines.push({account_id:id,root_id:id,side:'debit',amount:0}); renderLines(); };
 window.rmLine=i=>{ lines.splice(i,1); renderLines(); };
-window.setAcc=(i,v)=>{ lines[i].account_id=v; };
+// Ildiz almashsa tur tanlovi bekor bo'ladi (yangi kassaning bolalari boshqa) —
+// account_id ildizga qaytadi, segment qayta chiziladi, qoldiqlar fonda yuklanadi.
+window.setAcc=(i,v)=>{ lines[i].root_id=v; lines[i].account_id=v; renderLines(); };
+// Tur tugmasi: null = "Kassa" (ildizning o'zi), aks holda tanlangan bola-hisob
+window.pickLineSub=(i,id)=>{ const ln=lines[i]; if(!ln) return; ln.account_id=id||ln.root_id; renderLines(); };
 window.setSide=(i,s)=>{ lines[i].side=s; renderLines(); };
 window.setAmt=(i,el)=>{ lines[i].amount=fmtAmt(el); updateTotals(); };
+// Qoldiq fondan kelganda satrlar qayta chiziladi (innerHTML almashadi). O'sha paytda
+// foydalanuvchi summa terayotgan bo'lsa fokus va kursor joyi tiklanadi — aks holda
+// raqam terish yarmida to'xtab qolardi.
+function renderLinesSaqlab(){
+  const box=$('lines'), el=document.activeElement;
+  const idx=(el&&box&&box.contains(el)&&el.classList&&el.classList.contains('amt'))
+    ? [...box.querySelectorAll('input.amt')].indexOf(el) : -1;
+  const pos=idx>=0?(el.selectionStart||0):0;
+  renderLines();
+  if(idx>=0){ const yangi=box.querySelectorAll('input.amt')[idx];
+    if(yangi){ yangi.focus(); try{ yangi.setSelectionRange(pos,pos); }catch(e){} } }
+}
+// Satrlarda tanlangan kassalar + ularning tur bolalarining qoldig'i — BITTA so'rovda.
+// Har satr uchun alohida RT bo'lmasin: hamma kerakli id yig'iladi, allaqachon olingani
+// yoki hozir so'ralayotgani tashlab yuboriladi. Yo'llar hodim-dev.html dagidek:
+// 1) hodim_qoldiqlar RPC (bitta chaqiruv)  2) v_hisob_bal view. Xato bo'lsa jimgina
+// o'tadi — segment raqamsiz bo'lsa ham tanlash ishlaydi.
+async function fetchAdvBal(){
+  const kerak=new Set();
+  lines.forEach(ln=>{
+    const a=accounts.find(x=>x.id===ln.root_id); if(!a||!isKassa(a)) return;
+    [ln.root_id].concat(lineTuri(ln.root_id).map(k=>k.id))
+      .forEach(id=>{ if(advBal[id]===undefined && !advReq.has(id)) kerak.add(id); });
+  });
+  if(!kerak.size) return;
+  const ids=[...kerak]; ids.forEach(id=>advReq.add(id));
+  try{
+    let m=null;
+    const {data:rpc,error:rpcErr}=await sb.rpc('hodim_qoldiqlar',{p_accounts:ids});
+    if(!rpcErr && rpc && typeof rpc==='object' && Object.keys(rpc).length){
+      m={}; Object.keys(rpc).forEach(id=>{ const v=rpc[id]||{}; m[id]={uzs:Number(v.uzs)||0, fc:Number(v.fc)||0}; });
+    }
+    if(!m){
+      const {data,error}=await sb.from('v_hisob_bal').select('account_id,uzs,fc').in('account_id',ids);
+      // Birorta qator kelmasa qoldiqni NOL deb yozmaymiz — RLS to'sgan bo'lsa hamma tugma
+      // "bo'sh" (qizil) bo'lib ko'rinardi. Kamida bitta qator kelsa — o'qish ishlayapti.
+      if(!error && data && data.length){ m={};
+        data.forEach(r=>{ m[r.account_id]={uzs:Number(r.uzs)||0, fc:Number(r.fc)||0}; }); }
+    }
+    if(m){ ids.forEach(id=>{ advBal[id]=m[id]||{uzs:0,fc:0}; }); renderLinesSaqlab(); }   // yozuvi yo'q hisob = 0
+  }catch(e){}
+  finally{ ids.forEach(id=>advReq.delete(id)); }
+}
+// Kt tomonida pul chiqayotgan hisob qoldig'i yetmasa — OGOHLANTIRISH, bloklamaydi.
+// Ataylab alert+return emas (oddiy rejimdagidek): ko'p satrli yozuvda bir hisobga
+// bir vaqtda kirim ham bo'lishi mumkin va qoldiq faqat ma'lumot uchun; saqlashni to'ssak
+// qonuniy yozuvlar yozilmay qolardi. Shuning uchun jonli, saqlash tugmasi ostida matn.
+function advWarn(){
+  const el=document.getElementById('advWarn'); if(!el) return;
+  const net={};   // shu hisobdan sof chiqim (Kt − Dt): kirim satri hisobga olinadi
+  lines.forEach(l=>{
+    const a=accounts.find(x=>x.id===l.account_id); if(!a||!isKassa(a)||!(l.amount>0)) return;
+    net[l.account_id]=(net[l.account_id]||0)+(l.side==='credit'?l.amount:-l.amount);
+  });
+  const yomon=Object.keys(net).filter(id=>{ const b=advBal[id];
+      return net[id]>0 && b!==undefined && b.uzs<net[id]; })
+    // textContent bilan yoziladi — esc() shart emas (aks holda & belgisi buzilardi).
+    // Bola-hisob nomida tur allaqachon bor ("Izza Showroom · Naqd").
+    .map(id=>{ const a=accounts.find(x=>x.id===id)||{};
+      return (a.name||'')+' — qoldiq '+money(advBal[id].uzs)+', chiqim '+money(net[id]); });
+  if(!yomon.length){ el.style.display='none'; el.textContent=''; return; }
+  el.style.display='block';
+  el.textContent='Qoldiqdan oshdi (saqlash to‘silmaydi): '+yomon.join('; ');
+}
 function updateTotals(){
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
   $('sumDt').textContent=money(dt); $('sumKt').textContent=money(kt);
@@ -613,6 +719,7 @@ function updateTotals(){
   else { $('balLbl').textContent='Farq'; $('farq').textContent=money(Math.abs(farq)); }
   $('balRow').className='tot bal'+(balanced?'':' no'); $('saveBtn').disabled=!balanced;
   { const h=document.getElementById('balHint'); if(h) h.style.display=(dt>0&&!balanced)?'block':'none'; }
+  advWarn();   // qoldiq ogohlantirishi jonli yangilanadi (saqlashni to'smaydi)
 }
 // ---- ODDIY rejim -----------------------------------------------------
 // Rejim almashtirish: oddiy (kassa chip + modda + summa) yoki kengaytirilgan (mavjud ko'p satrli).
@@ -1395,6 +1502,8 @@ async function doSaveSimpleForce(){ const one=[...selFilials]; selFilials=new Se
 
 const acc9110=l=>{ const a=accounts.find(x=>x.id===l.account_id); return !!(a&&a.code==='9110'); };
 window.save=async()=>{
+  // Himoya: yakuniy account_id har doim to'lgan bo'lsin (tur tanlanmagan satrda = ildiz)
+  lines.forEach(l=>{ if(!l.account_id) l.account_id=l.root_id||''; });
   let dt=0,kt=0; lines.forEach(l=>{ if(l.side==='debit')dt+=l.amount; else kt+=l.amount; });
   if(dt<=0||dt!==kt){ alert('Dt va Kt teng bo\'lishi kerak'); return; }
   if(lines.some(l=>!l.account_id||l.amount<=0)){ alert('Har satrda hisob va summa bo\'lsin'); return; }
@@ -1421,6 +1530,8 @@ async function doSaveAdv(){
   const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
   if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
     if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e3)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
+  // Yozuvdan keyin qoldiqlar o'zgardi — kesh tozalanadi, addLine() qayta yuklatadi
+  advBal={};
   lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
 }
