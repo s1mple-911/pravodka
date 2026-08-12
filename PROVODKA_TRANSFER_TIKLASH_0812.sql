@@ -1,19 +1,35 @@
 -- =====================================================================
 --  ⚠️⚠️  SUPABASE SQL EDITOR — QANDAY RUN QILINADI (avval SHUNI o'qing)
 -- ---------------------------------------------------------------------
---   1) Tartib: 0-BOSQICH → 1-BOSQICH (jadval + PREVIEW) → preview TOZA
---      bo'lsa → 2-BOSQICH (pul yozadi) → 3-BOSQICH (natija).
---      BUTUN FAYLNI BIRDANIGA RUN QILMANG — 2-BOSQICH haqiqiy pul yozadi.
---   2) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
---      belgilab RUN qiling.
---   3) `do $$` blokini TO'LIQ belgilash SHART: `do $$` qatoridan `$$;`
---      qatorigacha, ikkalasi ham ichida. Yarim belgilansa Postgres blokni
---      PL/pgSQL emas, oddiy SQL deb o'qiydi va o'zgaruvchini jadval deb izlaydi.
---   4) O'shanda chiqadigan xato — `ERROR: 42P01: relation "v_payload" does
---      not exist` (yoki boshqa `v_...` nomi). Bu FAYL XATOSI EMAS, belgilash
---      noto'g'ri: blokni boshidan oxirigacha qayta belgilab RUN qiling.
---   5) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
---      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+--   1) Bu faylda `do` bloki UMUMAN YO'Q va dollar-quote belgisi ham
+--      (ikki dollar yonma-yon) UMUMAN YO'Q — izohlarda ham yo'q.
+--      Hammasi oddiy `select` / `create table` / `insert`. Supabase SQL
+--      Editor `do` blokini bo'lib yuborar va o'zgaruvchini jadval deb
+--      izlar edi (`ERROR: 42P01: relation "v_payload" does not exist`) —
+--      shuning uchun mantiq o'zgarmagan holda qayta qadoqlandi.
+--
+--   2) Tartib:
+--        0-BOSQICH  — shart-sharoit tekshiruvi (hech narsa yozmaydi)
+--        1-BOSQICH  — reja jadvali + PREVIEW + "OLDIN" surati (yozmaydi)
+--        2.1        — MAJBURIY DRY-RUN (yozmaydi)
+--        2.2        — 🔴 YOZISH (haqiqiy pul)
+--        2.3.x      — yozgandan keyingi O'ZINI TEKSHIRUVLAR (har biri alohida)
+--        3-BOSQICH  — natija ko'rinishi
+--        4-BOSQICH  — ROLLBACK (qo'lda, izohdan chiqarib ishlatiladi)
+--      BUTUN FAYLNI BIRDANIGA RUN QILMANG — 2.2 haqiqiy pul yozadi.
+--
+--   3) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
+--      belgilab RUN qiling. Bitta `select` = bitta tranzaksiya: 2.2 ichida
+--      xato bo'lsa Postgres o'zi hammasini orqaga qaytaradi (yarim yozuv qolmaydi).
+--
+--   4) 🔴 YOZISHDAN OLDIN n8n `Aros Provodka - Transfer Sync`
+--      (eAsNswlsZO9VKKAq) ni VAQTINCHA DEACTIVATE QILING, 2.3.x
+--      tekshiruvlari tugagach qayta yoqing.
+--      Sabab: 2.2 ichidagi RPC `pg_advisory_xact_lock` oladi (u funksiya
+--      ichida, PROVODKA_TRANSFER_TUZATISH.sql:216 — YO'QOLMAGAN), ya'ni
+--      sinxron bilan bir vaqtda YOZISH mumkin emas. Lekin sinxron 2.2 dan
+--      keyin, tekshiruvlar orasida ishga tushsa raqamlar "jonli" o'zgaradi
+--      va tekshiruvlar sababsiz ❌ ko'rsatishi mumkin.
 -- =====================================================================
 
 -- =====================================================================
@@ -52,8 +68,8 @@
 --     A2) `received_at` zonasiz matn edi va UTC deb o'qilardi (5 soat
 --         siljish) — cutoff solishtiruvi sinxronnikidan farq qilardi.
 --  Eski (tuzatilmagan) RPC bilan bu skriptni ishlatish PULNI IKKI MARTA
---  YOZISH XAVFI. Shuning uchun 0-BOSQICH va 2-BOSQICH ikkalasi ham RPC
---  versiyasini tekshiradi va eski bo'lsa TO'XTAYDI.
+--  YOZISH XAVFI. Shuning uchun 0-BOSQICH buni tekshiradi va 2.1/2.2
+--  bloklarining O'ZI ham eski versiyada RPC ni umuman chaqirmaydi.
 --
 --  #####  9 TA TRANSFER  ###############################################
 --
@@ -69,10 +85,10 @@
 --   1174 2026-08-12 12:10:32     O'rikzor C8             Toshkent Kassa
 --
 --  Kutilgan: 21 ta yozuv (transfer × tur, summasi > 0 bo'lganlari).
---  So'm qismi: 339 625 000. Dollar: 1100 $ (kurs bilan ≈ 13 210 000).
+--  So'm qismi: 339 625 000. Dollar: 1100 USD (kurs bilan ≈ 13 210 000).
 --  JAMI ≈ 352 835 000 so'm. Skript haqiqiy jamini oxirida chiqaradi va
 --  Asilbek aytgan mo'ljal (352 068 000) bilan farqini ko'rsatadi —
---  farq bo'lsa DARROV ko'rinadi (2-BOSQICH bekor qilinmaydi, faqat
+--  farq bo'lsa DARROV ko'rinadi (yozish bekor qilinmaydi, faqat
 --  ogohlantiradi: mo'ljal taxminiy, reja jadvalidagi raqamlar aniq).
 --
 --  🔴 11-avgustgacha bo'lgan transferlar TIKLANMAYDI — ular boshlang'ich
@@ -80,21 +96,26 @@
 --
 --  #####  NEGA IKKI MARTA YOZILMAYDI  ##################################
 --     1. `aros_tr_fix:<id>:<tur>` — UNIQUE ext_ref. Skriptni ikki marta
---        RUN qilsang ikkinchisi 0 yozuv qiladi.
+--        RUN qilsang ikkinchisi 0 yozuv qiladi (RPC 1-himoya + baza unique).
 --     2. `aros_tr:<id>:<maydon>` — sinxron o'sha transferni oradan
 --        yozib qo'ygan bo'lsa, tuzatish o'sha turni O'TKAZIB YUBORADI.
 --        (Aynan shu himoya A1 da tuzatildi.)
 --     3. CUTOFF — received_at cutoff'dan keyin bo'lsa tegilmaydi
 --        (uni sinxronning o'zi yozadi).
---     + PREVIEW: yozishdan oldin har satr uchun qaror ko'rinadi.
---     + 2-BOSQICH: bitta tranzaksiya, o'zini tekshiradi, mos kelmasa
---        `raise exception` bilan HAMMASI ORQAGA QAYTADI.
+--     4. `pg_advisory_xact_lock` — RPC ning O'Z ichida (funksiya yo'qolmadi),
+--        ya'ni transfer sync bilan bir vaqtda YOZISH imkonsiz.
+--     5. 2.2 bloki eski RPC versiyasida va reja jadvali 9 qator bo'lmasa
+--        RPC ni umuman CHAQIRMAYDI (CASE ichida to'silgan).
+--     + PREVIEW (1.3): yozishdan oldin har satr uchun qaror ko'rinadi.
+--     + DRY-RUN (2.1): RPC ning o'zi nima yozishini aytadi, yozmaydi.
+--     + 2.3.7: yozgandan keyin "bir tur ikki marta yozilmaganini" tekshiradi.
 --
 --  TALAB: PROVODKA_TRANSFER.sql (aros_kassa_topish, aros_tur_hisob,
 --         aros_transfer_cutoff), PROVODKA_TRANSFER_TUZATISH.sql (tuzatilgan).
 --
 --  ADDITIVE: mavjud jadval/ustun/funksiya/view o'zgartirilmaydi. Yangi
---  jadval `transfer_tiklash_0812` — SHU skriptning o'z jadvali.
+--  jadvallar `transfer_tiklash_0812` va `transfer_tiklash_0812_oldin` —
+--  SHU skriptning o'z jadvallari.
 -- =====================================================================
 
 
@@ -103,18 +124,18 @@
 -- #####################################################################
 
 -- 0.1 `transfer_tuzatish()` TUZATILGAN versiyadami?
---     Ikkala qator ham "OK" bo'lishi SHART. Aks holda avval
+--     Ikkala qator ham "✅ OK" bo'lishi SHART. Aks holda avval
 --     PROVODKA_TRANSFER_TUZATISH.sql ni RUN qiling.
 select 'A1 — sinxron kaliti (dollar_usd)' as tekshiruv,
-       case when p.prosrc like '%dollar_usd%' then 'OK'
-            else 'ESKI VERSIYA — RUN QILMANG' end as holat
+       case when p.prosrc like '%dollar_usd%' then '✅ OK'
+            else '❌ ESKI VERSIYA — RUN QILMANG' end as natija
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and p.proname = 'transfer_tuzatish'
 union all
 select 'A2 — vaqt zonasi normalizatsiyasi (+05)',
-       case when p.prosrc like '%T00:00:00+05%' then 'OK'
-            else 'ESKI VERSIYA — RUN QILMANG' end
+       case when p.prosrc like '%T00:00:00+05%' then '✅ OK'
+            else '❌ ESKI VERSIYA — RUN QILMANG' end
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and p.proname = 'transfer_tuzatish';
@@ -143,7 +164,7 @@ select e.ext_ref, e.entry_date, e.description, e.is_deleted
 
 
 -- #####################################################################
---  1-BOSQICH — REJA JADVALI + PREVIEW.  PUL YOZMAYDI.
+--  1-BOSQICH — REJA JADVALI + PREVIEW + "OLDIN" SURATI.  PUL YOZMAYDI.
 -- #####################################################################
 
 -- ---------------------------------------------------------------------
@@ -160,7 +181,6 @@ select e.ext_ref, e.entry_date, e.description, e.is_deleted
 --    nomidagi yozilish farqi pulga ta'sir qilmaydi.
 --
 -- ⬇⬇⬇  1.1 + 1.2: SHU QATORDAN 1.2 oxiridagi `;` GACHA BELGILANG  ⬇⬇⬇
---       (`do` bloki yo'q — oddiy DDL/DML, birdaniga RUN qilinadi)
 drop table if exists transfer_tiklash_0812;
 
 create table transfer_tiklash_0812 (
@@ -226,7 +246,7 @@ select count(*)                                        as transferlar,
 --    kt_kod                 — 9010 (savdo tushumi) — har doim
 --    qaror                  — ✅ YOZILADI / ⏭ o'tkaziladi / ⛔ MUAMMO
 --
---  🔴 ⛔ belgisi bo'lgan bitta qator bo'lsa ham — 2-BOSQICHNI RUN QILMANG.
+--  🔴 ⛔ belgisi bo'lgan bitta qator bo'lsa ham — 2.2 NI RUN QILMANG.
 --     Avval sabab hal qilinsin (kassa nomi / tur bola-hisobi / kurs).
 with turlar(maydon, tur, lbl) as (
   values ('cash', 'naqd', 'Naqd'), ('click', 'click', 'Click'),
@@ -301,7 +321,8 @@ select t.tr_id,
   left join accounts a on a.id = t.dt_id
  order by t.tr_id, t.maydon;
 
--- 1.3.1 Preview yakuni — nechta yoziladi, jami qancha
+-- 1.3.1 Preview yakuni — nechta yoziladi, jami qancha.
+--       `yoziladigan_satr` 2.1 DRY-RUN dagi `yozuvlar` bilan MOS kelsin.
 with turlar(maydon, tur) as (
   values ('cash', 'naqd'), ('click', 'click'),
          ('payme', 'payme'), ('dollar_usd', 'dollar')
@@ -332,28 +353,7 @@ select count(*) as yoziladigan_satr,
                     where e.ext_ref = 'aros_tr_fix:' || q.tr_id || ':' || q.tur);
 
 -- ---------------------------------------------------------------------
--- 1.4 RPC ning O'Z quruq yugurishi (p_dry_run = true) — pul yozmaydi
--- ---------------------------------------------------------------------
---  `yozuvlar` soni 1.3.1 dagi `yoziladigan_satr` bilan MOS kelishi kerak.
---  `ogohlantirishlar` bo'sh yoki faqat kutilgan sabablar bo'lsin.
-select jsonb_pretty(transfer_tuzatish(
-  (select jsonb_build_object('transferlar', jsonb_agg(jsonb_build_object(
-            'id',             r.tr_id,
-            'sender_title',   r.sender,
-            'receiver_title', r.receiver,
-            'status',         'received',
-            'received_at',    to_char(r.received_at at time zone 'Asia/Tashkent',
-                                      'YYYY-MM-DD"T"HH24:MI:SS') || '+05:00',
-            'cash',           r.cash,
-            'click',          r.click,
-            'payme',          r.payme,
-            'dollar_usd',     r.dollar_usd,
-            'dollar_rate',    r.kurs) order by r.tr_id))
-     from transfer_tiklash_0812 r),
-  true));
-
--- ---------------------------------------------------------------------
--- 1.5 ⭐ MANTIQIY TEKSHIRUV — delta bu pulni haqiqatan "savdo minus"
+-- 1.4 ⭐ MANTIQIY TEKSHIRUV — delta bu pulni haqiqatan "savdo minus"
 --     qilib yutganmi? (to'g'irlash formulasi shunga tayanadi)
 -- ---------------------------------------------------------------------
 --  Bu yerda 12-avgust va undan keyin delta sync 9010 ga Dt qilgan
@@ -377,54 +377,64 @@ select k.code as filial_kassa, k.name as filial,
  group by k.code, k.name, coalesce(c.pul_turi, c.currency)
  order by k.code, tur;
 
+-- ---------------------------------------------------------------------
+-- 1.5 🔴 MAJBURIY — "OLDIN" SURATI (yozishdan oldingi holat)
+-- ---------------------------------------------------------------------
+--  Avval `do` bloki bu raqamlarni o'zgaruvchida saqlar edi. Endi blok
+--  yo'q, shuning uchun ular kichik jadvalga yoziladi va 2.3.4 / 2.3.6
+--  tekshiruvlari shu bilan solishtiradi.
+--  🔴 BU BLOKNI 2.2 DAN OLDIN RUN QILING — aks holda 2.3.4 va 2.3.6
+--     tekshiruvlari ishlamaydi (jadval topilmaydi).
+--  🔴 VA 2.2 DAN KEYIN QAYTA RUN QILMANG — u "oldin" holatini yozadi,
+--     yozgandan keyin qayta olinsa tekshiruvlar soxta ✅ beradi.
+--
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+drop table if exists transfer_tiklash_0812_oldin;
+
+create table transfer_tiklash_0812_oldin as
+select now() as olingan_at,
+       (select coalesce(sum(case when bolim = 'AKTIV' then amount else 0 end)
+                      - sum(case when bolim in ('PASSIV','KAPITAL')
+                                 then amount else 0 end), 0)
+          from balans(current_date))                            as balans_farqi,
+       (select coalesce(sum(l.credit) - sum(l.debit), 0)
+          from entry e
+          join entry_line l on l.entry_id = e.id
+          join accounts a   on a.id = l.account_id and a.code = '9010'
+         where e.entry_date = date '2026-08-12'
+           and e.status = 'posted' and e.is_deleted = false)     as sof_9010_0812,
+       (select count(*) from entry
+         where ext_ref like 'aros_tr_fix:%' and is_deleted = false) as fix_yozuvlar;
+-- ⬆⬆⬆  1.5 shu yerda tugadi  ⬆⬆⬆
+
+-- 1.5.1 Suratni ko'rish. `balans_farqi` 0 bo'lishi kerak (yozishdan oldin ham).
+select * from transfer_tiklash_0812_oldin;
+
 
 -- #####################################################################
---  2-BOSQICH — 🔴 HAQIQIY PUL YOZADI.  Faqat preview TOZA bo'lsa.
+--  2-BOSQICH — DRY-RUN va YOZISH
 -- #####################################################################
---  Bitta tranzaksiya: blok ichida biror tekshiruv yiqilsa `raise exception`
---  bo'ladi va YOZILGAN HAMMA NARSA ORQAGA QAYTADI (hech narsa qolmaydi).
+--  2.1 va 2.2 bloklari BAYT-MA-BAYT bir xil, farqi FAQAT oxirgi argument:
 --
---  Blok o'zi tekshiradigan narsalar:
---    1. `transfer_tuzatish()` TUZATILGAN versiyadami (A1 + A2)
---    2. reja jadvali bo'sh emasmi
---    3. RPC `ok:true` qaytardimi
---    4. yozilgan satrlar soni REJADAGI kutilgan son bilan mos keldimi
---    5. har yozuvda Dt = Kt
---    6. balans tenglikdan chiqmadimi (oldin/keyin farqi o'zgarmasin)
---    7. jami summa — reja bilan mos, mo'ljal bilan farqi ko'rsatiladi
+--        2.1  →   transfer_tuzatish(p.payload,  **true**  )   PUL YOZMAYDI
+--        2.2  →   transfer_tuzatish(p.payload,  **false** )   🔴 PUL YOZADI
 --
--- ⬇⬇⬇  SHU QATORDAN quyidagi `$$;` QATORIGACHA BELGILANG  ⬇⬇⬇
-do $$
-declare
-  v_payload      jsonb;
-  v_res          jsonb;
-  v_kalitlar     text[];
-  v_n_kutilgan   int;
-  v_kutilgan     numeric;
-  v_n_yozildi    int;
-  v_n_entry      int;
-  v_haqiqiy      numeric;
-  v_kt9010       numeric;
-  v_farq_oldin   numeric;
-  v_farq_keyin   numeric;
-  v_nomutanosib  int;
-  v_r            record;
-begin
-  -- ---- 1) Tuzatilgan RPC ligini tekshirish -------------------------
-  if not exists (select 1
-                   from pg_proc p
-                   join pg_namespace n on n.oid = p.pronamespace
-                  where n.nspname = 'public'
-                    and p.proname = 'transfer_tuzatish'
-                    and p.prosrc like '%dollar_usd%'
-                    and p.prosrc like '%T00:00:00+05%') then
-    raise exception 'transfer_tuzatish() ESKI versiyada — hech narsa yozilmadi'
-      using hint = 'Avval PROVODKA_TRANSFER_TUZATISH.sql ni RUN qiling. Eski '
-                   'versiyada 2-himoya naqd/dollar uchun ishlamaydi va vaqt '
-                   'zonasi 5 soat siljiydi — pul ikki marta yozilishi mumkin.';
-  end if;
+--  Avval 2.1 ni RUN qiling, natijasini o'qing (`yozuvlar` soni 1.3.1 dagi
+--  `yoziladigan_satr` bilan mos, `ogohlantirishlar` kutilgan sabablar) —
+--  shundan KEYIN 2.2.
+--
+--  Ikkala blokdagi ikkita QO'RIQCHI (RPC umuman chaqirilmaydi, agar):
+--    • `transfer_tuzatish()` eski versiyada bo'lsa (A1/A2 yamog'i yo'q);
+--    • `transfer_tiklash_0812` da 9 qator bo'lmasa (1-BOSQICH RUN qilinmagan
+--      yoki reja o'zgargan).
+--  CASE tanlanmagan shoxni HISOBLAMAYDI, shuning uchun bu holatlarda RPC
+--  chaqirilmaydi va hech narsa yozilmaydi.
 
-  -- ---- 2) Reja -> payload -------------------------------------------
+-- ---------------------------------------------------------------------
+-- 2.1 ⭐ MAJBURIY DRY-RUN — HECH NARSA YOZMAYDI (oxirgi argument: true)
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG (DRY-RUN)  ⬇⬇⬇
+with p as (
   select jsonb_build_object('transferlar', jsonb_agg(jsonb_build_object(
            'id',             r.tr_id,
            'sender_title',   r.sender,
@@ -436,166 +446,364 @@ begin
            'click',          r.click,
            'payme',          r.payme,
            'dollar_usd',     r.dollar_usd,
-           'dollar_rate',    r.kurs) order by r.tr_id))
-    into v_payload
-    from transfer_tiklash_0812 r;
+           'dollar_rate',    r.kurs) order by r.tr_id)) as payload,
+         count(*)                                       as n_reja
+    from transfer_tiklash_0812 r
+),
+g as (
+  select exists (select 1
+                   from pg_proc pr
+                   join pg_namespace n on n.oid = pr.pronamespace
+                  where n.nspname = 'public'
+                    and pr.proname = 'transfer_tuzatish'
+                    and pr.prosrc like '%dollar_usd%'
+                    and pr.prosrc like '%T00:00:00+05%') as versiya_ok
+)
+select jsonb_pretty(
+         case
+           when not g.versiya_ok
+             then jsonb_build_object('ok', false, 'error',
+                    'transfer_tuzatish() ESKI versiyada — RPC CHAQIRILMADI. '
+                    'Avval PROVODKA_TRANSFER_TUZATISH.sql ni RUN qiling.')
+           when p.n_reja <> 9
+             then jsonb_build_object('ok', false, 'error',
+                    'transfer_tiklash_0812 da 9 qator kutilgan edi, hozir '
+                    || p.n_reja || ' ta — RPC CHAQIRILMADI. 1-BOSQICHNI RUN qiling.')
+           else transfer_tuzatish(p.payload, true)
+         end) as natija
+  from p cross join g;
+-- ⬆⬆⬆  2.1 DRY-RUN shu yerda tugadi  ⬆⬆⬆
 
-  if v_payload is null or jsonb_typeof(v_payload -> 'transferlar') <> 'array' then
-    raise exception 'transfer_tiklash_0812 jadvali bo''sh — avval 1-BOSQICHNI RUN qiling';
-  end if;
 
-  -- ---- 3) Kutilgan natija (yozishdan OLDIN hisoblanadi) --------------
-  with turlar(maydon, tur) as (
-    values ('cash', 'naqd'), ('click', 'click'),
-           ('payme', 'payme'), ('dollar_usd', 'dollar')
-  ),
-  qator as (
-    select r.tr_id, r.kurs, t.maydon, t.tur,
-           case t.maydon
-             when 'cash'  then r.cash
-             when 'click' then r.click
-             when 'payme' then r.payme
-             else r.dollar_usd
-           end as miqdor
-      from transfer_tiklash_0812 r
-     cross join turlar t
-  )
-  select count(*),
-         coalesce(sum(case when q.maydon = 'dollar_usd'
-                           then round(q.miqdor * q.kurs, 2)
-                           else q.miqdor end), 0)
-    into v_n_kutilgan, v_kutilgan
+-- ---------------------------------------------------------------------
+-- 2.2 🔴🔴🔴 YOZISH — HAQIQIY PUL (oxirgi argument: false)
+-- ---------------------------------------------------------------------
+--  Shartlar (hammasi bajarilsin):
+--    • 0.1 ikkala qator ✅ OK
+--    • 1.3 PREVIEW da ⛔ YO'Q
+--    • 1.5 "oldin" surati olingan
+--    • 2.1 DRY-RUN natijasi to'g'ri (ok:true, yozuvlar = kutilgan son)
+--    • n8n `Aros Provodka - Transfer Sync` (eAsNswlsZO9VKKAq) DEACTIVATE
+--
+--  Bitta `select` = bitta tranzaksiya. RPC ichida xato chiqsa (masalan
+--  Dt=Kt triggeri, unique ext_ref) — YOZILGAN HAMMA NARSA ORQAGA QAYTADI.
+--
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG (YOZADI!)  ⬇⬇⬇
+with p as (
+  select jsonb_build_object('transferlar', jsonb_agg(jsonb_build_object(
+           'id',             r.tr_id,
+           'sender_title',   r.sender,
+           'receiver_title', r.receiver,
+           'status',         'received',
+           'received_at',    to_char(r.received_at at time zone 'Asia/Tashkent',
+                                     'YYYY-MM-DD"T"HH24:MI:SS') || '+05:00',
+           'cash',           r.cash,
+           'click',          r.click,
+           'payme',          r.payme,
+           'dollar_usd',     r.dollar_usd,
+           'dollar_rate',    r.kurs) order by r.tr_id)) as payload,
+         count(*)                                       as n_reja
+    from transfer_tiklash_0812 r
+),
+g as (
+  select exists (select 1
+                   from pg_proc pr
+                   join pg_namespace n on n.oid = pr.pronamespace
+                  where n.nspname = 'public'
+                    and pr.proname = 'transfer_tuzatish'
+                    and pr.prosrc like '%dollar_usd%'
+                    and pr.prosrc like '%T00:00:00+05%') as versiya_ok
+)
+select jsonb_pretty(
+         case
+           when not g.versiya_ok
+             then jsonb_build_object('ok', false, 'error',
+                    'transfer_tuzatish() ESKI versiyada — RPC CHAQIRILMADI. '
+                    'Avval PROVODKA_TRANSFER_TUZATISH.sql ni RUN qiling.')
+           when p.n_reja <> 9
+             then jsonb_build_object('ok', false, 'error',
+                    'transfer_tiklash_0812 da 9 qator kutilgan edi, hozir '
+                    || p.n_reja || ' ta — RPC CHAQIRILMADI. 1-BOSQICHNI RUN qiling.')
+           else transfer_tuzatish(p.payload, false)
+         end) as natija
+  from p cross join g;
+-- ⬆⬆⬆  2.2 YOZISH shu yerda tugadi  ⬆⬆⬆
+
+
+-- #####################################################################
+--  2.3 — O'ZINI TEKSHIRUVLAR (yozgandan KEYIN).  HECH BIRI YOZMAYDI.
+-- #####################################################################
+--  Avval `do` bloki bularni ichkarida bajarib, mos kelmasa `raise exception`
+--  bilan orqaga qaytarardi. Endi ular ALOHIDA `select` — natija ustuniga
+--  qarang: hammasi ✅ OK bo'lsa ish tugadi. Bittasi ham
+--  "❌ MUAMMO — ROLLBACK qiling" bo'lsa → 4-BOSQICH (rollback) ni bajaring.
+--  Har tekshiruvni ALOHIDA belgilab RUN qiling.
+
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.1 ALOHIDA belgilab RUN qiling — YOZUVLAR SONI rejadagidek bo'lsin.
+--    Ko'rsatadi: reja bo'yicha nechta satr yozilishi kerak edi va bazada
+--    nechta `aros_tr_fix:` yozuv paydo bo'ldi.
+-- ---------------------------------------------------------------------
+with turlar(maydon, tur) as (
+  values ('cash', 'naqd'), ('click', 'click'),
+         ('payme', 'payme'), ('dollar_usd', 'dollar')
+),
+qator as (
+  select r.tr_id, r.received_at, r.kurs, t.maydon, t.tur,
+         case t.maydon
+           when 'cash'  then r.cash
+           when 'click' then r.click
+           when 'payme' then r.payme
+           else r.dollar_usd
+         end as miqdor
+    from transfer_tiklash_0812 r
+   cross join turlar t
+),
+reja as (
+  select count(*) as n
     from qator q
    where q.miqdor > 0
+     and q.received_at <= (aros_transfer_cutoff() ->> 'cutoff')::timestamptz
      and not exists (select 1 from entry e
                       where e.ext_ref = 'aros_tr:' || q.tr_id || ':' || q.maydon)
-     and not exists (select 1 from entry e
-                      where e.ext_ref = 'aros_tr_fix:' || q.tr_id || ':' || q.tur);
-
-  select array_agg('aros_tr_fix:' || r.tr_id || ':' || t.tur)
-    into v_kalitlar
-    from transfer_tiklash_0812 r
-   cross join (values ('naqd'), ('click'), ('payme'), ('dollar')) t(tur);
-
-  -- Balans farqi — YOZISHDAN OLDIN
-  select coalesce(sum(case when bolim = 'AKTIV' then amount else 0 end)
-                - sum(case when bolim in ('PASSIV','KAPITAL') then amount else 0 end), 0)
-    into v_farq_oldin
-    from balans(current_date);
-
-  raise notice 'Kutilmoqda: % ta yozuv, jami % so''m', v_n_kutilgan, v_kutilgan;
-
-  if v_n_kutilgan = 0 then
-    raise notice 'Yozadigan narsa yo''q — hammasi allaqachon yozilgan. To''xtatildi.';
-    return;
-  end if;
-
-  -- ---- 4) YOZISH -----------------------------------------------------
-  v_res := transfer_tuzatish(v_payload, false);
-
-  if not coalesce((v_res ->> 'ok')::boolean, false) then
-    raise exception 'transfer_tuzatish() xato qaytardi: %',
-                    coalesce(v_res ->> 'error', '(sababsiz)')
-      using hint = 'Hech narsa yozilmadi (tranzaksiya orqaga qaytdi).';
-  end if;
-
-  v_n_yozildi := coalesce((v_res ->> 'yozuvlar')::int, 0);
-
-  -- ---- 5) O'ZINI TEKSHIRISH -----------------------------------------
-  -- 5.1 Soni rejadagidek bo'lsin
-  if v_n_yozildi <> v_n_kutilgan then
-    raise exception 'Yozuvlar soni mos kelmadi: yozildi %, kutilgan %',
-                    v_n_yozildi, v_n_kutilgan
-      using hint = 'HAMMASI ORQAGA QAYTARILDI. 1.3 PREVIEW ni qayta ko''ring: '
-                   'kassa topilmagan, tur hisobi yo''q yoki cutoff to''sgan '
-                   'bo''lishi mumkin (RPC javobidagi ogohlantirishlar).';
-  end if;
-
-  -- 5.2 Haqiqiy yozilgan summa va yozuvlar
-  select count(distinct e.id), coalesce(sum(l.debit), 0)
-    into v_n_entry, v_haqiqiy
+),
+haqiqiy as (
+  select count(*) as n
     from entry e
-    join entry_line l on l.entry_id = e.id and l.debit > 0
-   where e.ext_ref = any(v_kalitlar)
-     and e.is_deleted = false;
+   where e.is_deleted = false
+     and e.ext_ref in (select 'aros_tr_fix:' || q.tr_id || ':' || q.tur from qator q)
+)
+select 'Yozuvlar soni = reja' as tekshiruv,
+       r.n as kutilgan, h.n as yozilgan,
+       case when h.n = r.n then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija,
+       case when h.n = r.n then 'Reja bo''yicha hamma satr yozildi'
+            else 'RPC javobidagi `ogohlantirishlar` ni o''qing: kassa topilmagan, '
+                 'tur hisobi yo''q yoki cutoff to''sgan bo''lishi mumkin' end as izoh
+  from reja r cross join haqiqiy h;
 
-  -- 5.3 Dt = Kt (har yozuvda)
-  select count(*)
-    into v_nomutanosib
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.2 ALOHIDA belgilab RUN qiling — HAR YOZUVDA Dt = Kt.
+--    Ko'rsatadi: muvozanatsiz (Dt<>Kt) yozuvlar soni — 0 bo'lishi shart.
+-- ---------------------------------------------------------------------
+with turlar(tur) as (values ('naqd'), ('click'), ('payme'), ('dollar')),
+kalit as (
+  select 'aros_tr_fix:' || r.tr_id || ':' || t.tur as ext
+    from transfer_tiklash_0812 r cross join turlar t
+),
+nomutanosib as (
+  select count(*) as n
     from (select e.id
             from entry e
             join entry_line l on l.entry_id = e.id
-           where e.ext_ref = any(v_kalitlar)
+           where e.ext_ref in (select ext from kalit)
              and e.is_deleted = false
            group by e.id
-          having sum(l.debit) <> sum(l.credit)) x;
+          having sum(l.debit) <> sum(l.credit)) x
+)
+select 'Har yozuvda Dt = Kt' as tekshiruv,
+       n as muvozanatsiz_yozuv,
+       case when n = 0 then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija
+  from nomutanosib;
 
-  if v_nomutanosib > 0 then
-    raise exception 'Dt <> Kt bo''lgan yozuv topildi: % ta', v_nomutanosib
-      using hint = 'HAMMASI ORQAGA QAYTARILDI.';
-  end if;
-
-  -- 5.4 9010 ga Kt — Dt bilan teng bo'lishi kerak (har yozuv 2 satrli)
-  select coalesce(sum(l.credit), 0)
-    into v_kt9010
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.3 ALOHIDA belgilab RUN qiling — Kt 9010 jami = Dt jami.
+--    Ko'rsatadi: to'g'irlash yozuvlarida markaziy kassalarga tushgan Dt
+--    jamisi va 9010 ga yozilgan Kt jamisi — TENG bo'lishi shart.
+-- ---------------------------------------------------------------------
+with turlar(tur) as (values ('naqd'), ('click'), ('payme'), ('dollar')),
+kalit as (
+  select 'aros_tr_fix:' || r.tr_id || ':' || t.tur as ext
+    from transfer_tiklash_0812 r cross join turlar t
+),
+dt as (
+  select coalesce(sum(l.debit), 0) as s
+    from entry e
+    join entry_line l on l.entry_id = e.id and l.debit > 0
+   where e.ext_ref in (select ext from kalit) and e.is_deleted = false
+),
+kt as (
+  select coalesce(sum(l.credit), 0) as s
     from entry e
     join entry_line l on l.entry_id = e.id and l.credit > 0
     join accounts a   on a.id = l.account_id and a.code = '9010'
-   where e.ext_ref = any(v_kalitlar)
-     and e.is_deleted = false;
+   where e.ext_ref in (select ext from kalit) and e.is_deleted = false
+)
+select 'Kt 9010 = Dt jami' as tekshiruv,
+       dt.s as dt_jami, kt.s as kt_9010, kt.s - dt.s as farq,
+       case when abs(kt.s - dt.s) <= 0.01 then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija
+  from dt cross join kt;
 
-  if v_kt9010 <> v_haqiqiy then
-    raise exception 'Kt 9010 (%) Dt jamisiga (%) teng emas', v_kt9010, v_haqiqiy
-      using hint = 'HAMMASI ORQAGA QAYTARILDI.';
-  end if;
-
-  -- 5.5 Balans tenglikdan chiqmadimi
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.4 ALOHIDA belgilab RUN qiling — BALANS TENGLIGI (oldin/keyin).
+--    Ko'rsatadi: AKTIV − (PASSIV+KAPITAL) farqi yozishdan OLDIN (1.5 surati)
+--    va HOZIR. Ikkalasi ham 0 bo'lishi va o'zgarmasligi shart.
+-- ---------------------------------------------------------------------
+with keyin as (
   select coalesce(sum(case when bolim = 'AKTIV' then amount else 0 end)
-                - sum(case when bolim in ('PASSIV','KAPITAL') then amount else 0 end), 0)
-    into v_farq_keyin
-    from balans(current_date);
+                - sum(case when bolim in ('PASSIV','KAPITAL')
+                           then amount else 0 end), 0) as farq
+    from balans(current_date)
+)
+select 'Balans tengligi (oldin/keyin)' as tekshiruv,
+       o.balans_farqi as farq_oldin, k.farq as farq_keyin,
+       case when abs(k.farq) <= 0.01
+             and abs(k.farq - o.balans_farqi) <= 0.01 then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija,
+       'Ikkala farq ham 0 va bir xil bo''lishi shart' as izoh
+  from transfer_tiklash_0812_oldin o cross join keyin k;
 
-  if abs(v_farq_keyin - v_farq_oldin) > 0.01 then
-    raise exception 'Balans tenglikdan chiqdi: oldin %, keyin %',
-                    v_farq_oldin, v_farq_keyin
-      using hint = 'HAMMASI ORQAGA QAYTARILDI.';
-  end if;
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.5 ALOHIDA belgilab RUN qiling — JAMI SUMMA = REJA.
+--    Ko'rsatadi: reja bo'yicha kutilgan so'm va haqiqatan yozilgan so'm.
+--    Qo'shimcha: Asilbek aytgan mo'ljal (352 068 000) bilan farq —
+--    u FAQAT ma'lumot uchun, natijaga ta'sir qilmaydi.
+-- ---------------------------------------------------------------------
+with turlar(maydon, tur) as (
+  values ('cash', 'naqd'), ('click', 'click'),
+         ('payme', 'payme'), ('dollar_usd', 'dollar')
+),
+qator as (
+  select r.tr_id, r.received_at, r.kurs, t.maydon, t.tur,
+         case t.maydon
+           when 'cash'  then r.cash
+           when 'click' then r.click
+           when 'payme' then r.payme
+           else r.dollar_usd
+         end as miqdor
+    from transfer_tiklash_0812 r
+   cross join turlar t
+),
+reja as (
+  select coalesce(sum(case when q.maydon = 'dollar_usd'
+                           then round(q.miqdor * q.kurs, 2)
+                           else q.miqdor end), 0) as s
+    from qator q
+   where q.miqdor > 0
+     and q.received_at <= (aros_transfer_cutoff() ->> 'cutoff')::timestamptz
+     and not exists (select 1 from entry e
+                      where e.ext_ref = 'aros_tr:' || q.tr_id || ':' || q.maydon)
+),
+haqiqiy as (
+  select coalesce(sum(l.debit), 0) as s
+    from entry e
+    join entry_line l on l.entry_id = e.id and l.debit > 0
+   where e.is_deleted = false
+     and e.ext_ref in (select 'aros_tr_fix:' || q.tr_id || ':' || q.tur from qator q)
+)
+select 'Jami summa = reja' as tekshiruv,
+       r.s as reja_uzs, h.s as yozilgan_uzs, h.s - r.s as farq,
+       352068000 as moljal, h.s - 352068000 as moljal_farqi,
+       case when abs(h.s - r.s) <= 0.01 then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija
+  from reja r cross join haqiqiy h;
 
-  -- 5.6 Reja summasi bilan mos kelsinmi
-  if abs(v_haqiqiy - v_kutilgan) > 0.01 then
-    raise exception 'Yozilgan summa (%) reja summasidan (%) farq qildi',
-                    v_haqiqiy, v_kutilgan
-      using hint = 'HAMMASI ORQAGA QAYTARILDI.';
-  end if;
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.6 ALOHIDA belgilab RUN qiling — P&L GA TO'G'RI TUSHDIMI.
+--    Ko'rsatadi: 12-avgust kuni 9010 (savdo tushumi) sof qoldig'i
+--    yozishdan OLDIN va HOZIR. Farq AYNAN yozilgan jami summaga teng
+--    bo'lishi shart (delta sync ayirib qo'ygan minus qaytarildi, ortiqcha
+--    tushum PAYDO BO'LMADI).
+-- ---------------------------------------------------------------------
+with turlar(tur) as (values ('naqd'), ('click'), ('payme'), ('dollar')),
+kalit as (
+  select 'aros_tr_fix:' || r.tr_id || ':' || t.tur as ext
+    from transfer_tiklash_0812 r cross join turlar t
+),
+yozilgan as (
+  select coalesce(sum(l.debit), 0) as s
+    from entry e
+    join entry_line l on l.entry_id = e.id and l.debit > 0
+   where e.ext_ref in (select ext from kalit) and e.is_deleted = false
+),
+keyin as (
+  select coalesce(sum(l.credit) - sum(l.debit), 0) as sof
+    from entry e
+    join entry_line l on l.entry_id = e.id
+    join accounts a   on a.id = l.account_id and a.code = '9010'
+   where e.entry_date = date '2026-08-12'
+     and e.status = 'posted' and e.is_deleted = false
+)
+select 'P&L — 9010 sof tushum (12-avgust)' as tekshiruv,
+       o.sof_9010_0812 as sof_oldin, k.sof as sof_keyin,
+       k.sof - o.sof_9010_0812 as osdi, y.s as yozilgan_jami,
+       case when abs((k.sof - o.sof_9010_0812) - y.s) <= 0.01 then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija,
+       'osdi = yozilgan_jami bo''lsin. Farq bo''lsa: oradan boshqa yozuv '
+       'tushgan (sinxron?) — avval shuni tekshiring' as izoh
+  from transfer_tiklash_0812_oldin o cross join keyin k cross join yozilgan y;
 
-  -- ---- 6) HISOBOT ----------------------------------------------------
-  raise notice '--------------------------------------------------------';
-  for v_r in select e.ext_ref, e.entry_date, a.code, a.name, l.debit, l.fc_amount
-               from entry e
-               join entry_line l on l.entry_id = e.id and l.debit > 0
-               join accounts a   on a.id = l.account_id
-              where e.ext_ref = any(v_kalitlar)
-                and e.is_deleted = false
-              order by e.ext_ref
-  loop
-    raise notice '% | % | % % | Dt % | usd %',
-                 v_r.ext_ref, v_r.entry_date, v_r.code, v_r.name,
-                 v_r.debit, coalesce(v_r.fc_amount, 0);
-  end loop;
-  raise notice '--------------------------------------------------------';
-  raise notice 'YOZILDI: % ta yozuv (entry: %)', v_n_yozildi, v_n_entry;
-  raise notice 'JAMI: % so''m (Dt markaziy kassalar = Kt 9010)', v_haqiqiy;
-  raise notice 'MO''LJAL: 352068000 so''m · FARQ: %', v_haqiqiy - 352068000;
-  raise notice 'Balans farqi: oldin % -> keyin % (o''zgarmasligi shart)',
-               v_farq_oldin, v_farq_keyin;
-  raise notice 'P&L: 9010 ga Kt % so''m qo''shildi', v_kt9010;
-  raise notice 'Tugadi.'
-    using hint = 'P&L SHISHMAYDI: delta sync o''sha summani 9010 dan Dt qilib '
-                 'AYIRIB qo''ygan edi (1.5 tekshiruvi), bu yozuv o''shani '
-                 'qaytaradi. Filial tomoniga tegilmadi. Keyingi delta sync '
-                 'baribir 0 qaytarishi kerak.';
-end $$;
--- ⬆⬆⬆  2-BOSQICH shu yerda tugadi  ⬆⬆⬆
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.7 ALOHIDA belgilab RUN qiling — 🔴 IKKI MARTA YOZILMADIMI.
+--    Ko'rsatadi: har (transfer × tur) uchun sinxron kaliti (`aros_tr:`)
+--    VA to'g'irlash kaliti (`aros_tr_fix:`) BIR VAQTDA bormi, hamda bitta
+--    fix kalitiga bir nechta yozuv bormi. Ikkalasi ham 0 bo'lishi SHART.
+-- ---------------------------------------------------------------------
+with turlar(maydon, tur) as (
+  values ('cash', 'naqd'), ('click', 'click'),
+         ('payme', 'payme'), ('dollar_usd', 'dollar')
+),
+qator as (
+  select r.tr_id, t.maydon, t.tur,
+         'aros_tr:'     || r.tr_id || ':' || t.maydon as sync_kalit,
+         'aros_tr_fix:' || r.tr_id || ':' || t.tur    as fix_kalit
+    from transfer_tiklash_0812 r
+   cross join turlar t
+),
+ikkilangan as (
+  select count(*) as n
+    from qator q
+   where exists (select 1 from entry e
+                  where e.ext_ref = q.sync_kalit and e.is_deleted = false)
+     and exists (select 1 from entry e
+                  where e.ext_ref = q.fix_kalit  and e.is_deleted = false)
+),
+takror as (
+  select count(*) as n
+    from (select e.ext_ref
+            from entry e
+           where e.ext_ref in (select fix_kalit from qator)
+             and e.is_deleted = false
+           group by e.ext_ref
+          having count(*) > 1) x
+)
+select 'Ikki marta yozilmadi' as tekshiruv,
+       i.n as sync_va_fix_birga, t.n as takrorlangan_fix_kalit,
+       case when i.n = 0 and t.n = 0 then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija,
+       'sync_va_fix_birga > 0 = bitta pul ikki marta yozilgan (ENG XAVFLISI)' as izoh
+  from ikkilangan i cross join takror t;
+
+-- ---------------------------------------------------------------------
+-- ⚠️ 2.3.8 ALOHIDA belgilab RUN qiling — FILIAL TOMONIGA TEGILMADIMI.
+--    Ko'rsatadi: to'g'irlash yozuvlarida filial kassasiga (yoki uning
+--    bola-hisobiga) tushgan satrlar soni — 0 bo'lishi SHART.
+--    Dt faqat MARKAZIY kassa turi, Kt faqat 9010 bo'lishi kerak.
+-- ---------------------------------------------------------------------
+with turlar(tur) as (values ('naqd'), ('click'), ('payme'), ('dollar')),
+kalit as (
+  select 'aros_tr_fix:' || r.tr_id || ':' || t.tur as ext
+    from transfer_tiklash_0812 r cross join turlar t
+),
+satr as (
+  select a.code, a.name, a.kassa_turi, p.kassa_turi as parent_turi
+    from entry e
+    join entry_line l on l.entry_id = e.id
+    join accounts a   on a.id = l.account_id
+    left join accounts p on p.id = a.parent_id
+   where e.ext_ref in (select ext from kalit) and e.is_deleted = false
+)
+select 'Filial tomoniga tegilmadi' as tekshiruv,
+       count(*) filter (where s.kassa_turi = 'filial'
+                           or s.parent_turi = 'filial') as filial_satrlar,
+       count(*) as jami_satr,
+       case when count(*) filter (where s.kassa_turi = 'filial'
+                                    or s.parent_turi = 'filial') = 0
+            then '✅ OK'
+            else '❌ MUAMMO — ROLLBACK qiling' end as natija
+  from satr s;
 
 
 -- #####################################################################
@@ -645,24 +853,44 @@ select sum(l.credit) as kt_9010,
 
 -- 3.5 ⭐ FILIAL TOMONI O'ZGARMAGANINI tasdiqlash — eng muhim tekshiruv.
 --     To'g'irlash filialga TEGMAYDI, ya'ni keyingi delta sync baribir
---     0 qaytarishi kerak. n8n "Auto Sync" ni bir marta ishlatib, uning
---     sync_filial_balans natijasida "yozuvlar": 0 ekanini ko'ring.
---     (Aros balansi shu orada o'zgargan bo'lsa farq bo'lishi tabiiy.)
+--     0 qaytarishi kerak. n8n "Auto Sync" ni QAYTA YOQIB bir marta
+--     ishlatib, uning sync_filial_balans natijasida "yozuvlar": 0
+--     ekanini ko'ring. (Aros balansi shu orada o'zgargan bo'lsa farq
+--     bo'lishi tabiiy.)
+
+-- 3.6 🔴 n8n `Aros Provodka - Transfer Sync` (eAsNswlsZO9VKKAq) ni
+--     QAYTA ACTIVATE QILISHNI UNUTMANG.
 
 
 -- #####################################################################
---  4. ROLLBACK — xato bo'lsa qaytarish
+--  4-BOSQICH — ROLLBACK (2.3.x da ❌ chiqsa)
 -- #####################################################################
+--  Avval `do` bloki xato bo'lsa o'zi orqaga qaytarardi. Endi yozish
+--  alohida `select` bo'lgani uchun ROLLBACK QO'LDA bajariladi —
+--  quyidagi ikki qadam bilan.
+--
 --  To'g'irlash oddiy yozuv: soft-delete yetadi (hech narsa o'chirilmaydi).
 --  Faqat SHU 9 ta transferning to'g'irlashlarini qaytaradi — boshqa
---  `transfer_fix` yozuvlariga tegmaydi.
---
---  ⚠️ Qaytargandan keyin qayta yozmoqchi bo'lsang: 1-himoya (ext_ref)
---     o'chirilgan yozuvni ham ko'radi va IKKINCHI marta yozdirmaydi.
---     Shuning uchun qayta yozish uchun avval o'sha qatorlarni butunlay
---     o'chirish kerak (`delete from entry ...`) — buni faqat ongli ravishda,
---     Asilbek bilan kelishib qiling.
---
+--  `aros_tr_fix:` yozuvlariga tegmaydi.
+
+-- ---------------------------------------------------------------------
+-- 4.1 AVVAL KO'RING — nima qaytariladi (bu select xavfsiz, yozmaydi)
+-- ---------------------------------------------------------------------
+select e.id, e.ext_ref, e.entry_date, e.description,
+       (select sum(l.debit) from entry_line l where l.entry_id = e.id) as summa
+  from entry e
+ where e.ext_ref like 'aros_tr_fix:%'
+   and split_part(e.ext_ref, ':', 2) in
+       ('1148','1165','1166','1167','1168','1169','1170','1171','1174')
+   and e.is_deleted = false
+ order by e.ext_ref;
+
+-- ---------------------------------------------------------------------
+-- 4.2 ROLLBACK — quyidagi 8 qatorning har birining boshidagi `-- ` ni
+--     olib tashlang va BELGILAB RUN qiling. Tasodifan RUN bo'lmasin
+--     uchun ataylab izohda turibdi.
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ROLLBACK — izohni olib tashlagach shu oraliqni belgilang  ⬇⬇⬇
 -- update entry
 --    set is_deleted = true,
 --        deleted_at = now(),
@@ -671,3 +899,18 @@ select sum(l.credit) as kt_9010,
 --    and split_part(ext_ref, ':', 2) in
 --        ('1148','1165','1166','1167','1168','1169','1170','1171','1174')
 --    and is_deleted = false;
+-- ⬆⬆⬆  ROLLBACK shu yerda tugadi  ⬆⬆⬆
+
+-- ---------------------------------------------------------------------
+-- 4.3 Rollbackdan keyin tekshirish: balans farqi yana 0 bo'lsin,
+--     4.1 bo'sh natija bersin.
+-- ---------------------------------------------------------------------
+-- select sum(case when bolim = 'AKTIV' then amount else 0 end)
+--      - sum(case when bolim in ('PASSIV','KAPITAL') then amount else 0 end) as farq
+--   from balans(current_date);
+
+-- ⚠️ Qaytargandan keyin QAYTA yozmoqchi bo'lsangiz: 1-himoya (ext_ref)
+--    o'chirilgan yozuvni HAM ko'radi va ikkinchi marta yozdirmaydi.
+--    Shuning uchun qayta yozish uchun avval o'sha qatorlarni butunlay
+--    o'chirish kerak (`delete from entry ...`) — buni faqat ongli ravishda,
+--    Asilbek bilan kelishib qiling.
