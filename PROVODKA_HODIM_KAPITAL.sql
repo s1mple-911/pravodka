@@ -119,6 +119,8 @@ insert into hodim_kapital_reja (kassa_code, kutilgan_nom, miqdor) values
 --    naqd_hisob_kod    — '(ochiladi)' bo'lsa muammo emas, 2-bosqich o'zi ochadi
 --
 --  Oxirgi qator — JAMI.
+--
+-- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  SHU QATORDAN `;` BILAN TUGAGUNCHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
 with d as (
   select r.kassa_code,
          r.kutilgan_nom,
@@ -222,6 +224,7 @@ select kassa_code, kutilgan_nom, bazadagi_nom, nom_mos, subtitle,
       from p
   ) t
  order by t.srt, t.kassa_code;
+-- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA BELGILANG (1-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
 
 
 -- #####################################################################
@@ -237,6 +240,15 @@ select kassa_code, kutilgan_nom, bazadagi_nom, nom_mos, subtitle,
 -- ---------------------------------------------------------------------
 -- 2-BOSQICH — YOZISH: Dt hodim naqd / Kt Boshlang'ich kapital
 -- ---------------------------------------------------------------------
+-- ⚠️⚠️ BELGILASHNI AYNAN QUYIDAGI `do $yoz$` QATORIDAN BOSHLANG va
+--      pastdagi `$yoz$;` QATORIGACHA (u ham ichida) belgilang.
+--      `do $yoz$` yoki `declare` bo'limi belgilashdan tashqarida qolsa,
+--      Postgres blokni PL/pgSQL deb emas, oddiy SQL deb o'qiydi va
+--      o'zgaruvchi nomini jadval deb izlaydi:
+--         ERROR: 42P01: relation "v_kap_code" does not exist
+--      Xato shundan — fayldan emas.
+--
+-- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  SHU QATORDAN BOSHLAB BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
 do $yoz$
 declare
   -- ⚙️ Yozuv belgisi. ext_ref = '<batch>:<kassa_code>' -> takroriy RUN pulni
@@ -532,6 +544,7 @@ begin
     n_yozildi, n_otkaz, n_ochildi, v_jami;
 end
 $yoz$;
+-- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA (u ham ichida) BELGILANG  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
