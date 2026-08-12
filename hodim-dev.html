@@ -720,6 +720,10 @@ let selSub=null;
 let amtCur='UZS', curRate=null, rateBusy=false;
 // {account_id: {uzs, fc}} — parent + hamma bola-hisoblar. Bitta v_hisob_bal so'rovi bilan keladi.
 let balMap={};
+// Sahifa ochilganda eng ko'p puli bor kassa avtomat tanlanadi — FAQAT BIR MARTA.
+// Bayroq bir marta ko'tarilgach, fon so'rovlari (loadBalances) tanlovni qaytarib bosmaydi:
+// hodim ataylab boshqa kassaga o'tgan bo'lishi mumkin.
+let avtoTanlandi=false;
 let filials=[], selFilials=new Set();  // V6: filial multiselect (entry.filial_ids — faqat metadata)
 let calBase=null, davrS=null, davrE=null;  // V6: davr kalendari (ikki oy) — boshi/oxiri ISO sana
 const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
@@ -981,7 +985,9 @@ function renderKassaBal(){
 // qolardi (kesh 5 daqiqa). Bo'sh natija hech qachon keshlanmaydi ham, o'qilmaydi ham.
 function loadBalancesCached(){
   const c=swrGet('bal');
-  if(c && typeof c==='object' && Object.keys(c).length){ balMap=c; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg(); return true; }
+  if(c && typeof c==='object' && Object.keys(c).length){ balMap=c; renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
+    avtoKassa();                        // keshli qoldiq bilan darrov: eng katta kassa tanlansin
+    return true; }
   return false;
 }
 // Bir vaqtda BITTA so'rov: init() da qoldiq keshsiz bo'lsa erta boshlanadi, keyin
@@ -1068,12 +1074,38 @@ async function loadBalancesIch(){
   if(m && Object.keys(m).length){ balMap=m; swrSet('bal',m); }   // keyingi ochilishda darrov ko'rinsin
   balXato=!Object.keys(balMap).length;
   renderHero(); renderKassaBal(); renderKassaList(); renderTurSeg();
+  avtoKassa();                          // haqiqiy qoldiq keldi — avtomat tanlashning asosiy nuqtasi
 }
-window.pickKassa=id=>{ selKassa=id; selSub=null; $('summa').value=''; $('summa').dataset.a000='';
+window.pickKassa=id=>{ avtoTanlandi=true;   // hodim o'zi tanladi — avtomat tanlash boshqa aralashmaydi
+  selKassa=id; selSub=null; $('summa').value=''; $('summa').dataset.a000='';
   closeKassa(); renderKassa(); loadRate(); loadMonth();
   // Shu kassaning qoldig'i noma'lum bo'lsa — qayta so'raymiz: 3-yo'l (acc_balance)
   // aynan tanlangan kassa bo'yicha ishlaydi, ya'ni endi raqam kelishi mumkin.
   if(!balOf(id)) loadBalances(); };
+
+// Sahifa ochilganda ENG KO'P puli bor kassani avtomat tanlaydi (hodim odatda shundan sarflaydi).
+// Qoldiq ASYNC keladi, shuning uchun bir necha nuqtadan chaqiriladi (accounts kelganda,
+// keshdan va qoldiq so'rovi tugaganda) — bayroq tufayli baribir bir marta ishlaydi.
+// Tanlanmaydi: selKassa allaqachon bor / hodim o'zi tanlagan / hamma qoldiq 0 yoki noma'lum.
+function avtoKassa(){
+  if(avtoTanlandi||selKassa) return;
+  // ⚠️ ADMIN (permScope='all') da kassaList() — HAMMA hodim kassasi (60+). U yerda
+  // "eng ko'p puli bor" BEGONA hodimning kassasi bo'ladi va admin sezmay o'sha kassadan
+  // pul chiqarib yuborishi mumkin. Admin ataylab tanlasin — avtomatika aralashmaydi.
+  try{ if(window.permScope&&window.permScope()==='all') return; }catch(e){}
+  // Kassa tanlash sheet'i ochiq bo'lsa aralashmaymiz — hodim aynan o'zi tanlayotgan payt.
+  try{ if($('kassaModal').classList.contains('open')) return; }catch(e){}
+  const ks=kassaList();
+  if(ks.length<2) return;                 // bitta kassani renderKassa() o'zi tanlaydi
+  let best=null, bestV=0;
+  ks.forEach(k=>{ const v=kassaJami(k.id); if(v!=null && v>bestV){ bestV=v; best=k.id; } });
+  if(!best) return;                       // hammasi 0/noma'lum — eski xatti-harakat: tanlanmaydi
+  // pickKassa summani tozalaydi. Qoldiq fonda kech kelsa hodim allaqachon raqam yozgan
+  // bo'lishi mumkin — uni yo'qotmaymiz.
+  const oldAmt=$('summa').value;
+  window.pickKassa(best);                 // tanlash + renderKassa/loadRate/loadMonth (modal yopiq: closeKassa zararsiz)
+  if(oldAmt){ $('summa').value=oldAmt; updateSave(); }
+}
 
 // ================= Valyuta: xarajatni so'mda YOKI hisob valyutasida yozish =================
 // Dollar turi tanlansa hodim ikkalasini ham yoza oladi:
@@ -1189,11 +1221,22 @@ window.pickModda=id=>{ selModda=id; closeModda(); renderModda(); updateModdaUI()
 
 // --- V6: filial multiselect (metadata tag) ---
 // Filiallar accounts'dan EMAS (u permFilterOp bilan cheklangan) — alohida v_filial_tanlov'dan.
+// Filial nomi bazada "Toshkent Kassa" ko'rinishida. Oxiridagi "kassa" so'zi ekranda ortiqcha —
+// FAQAT KO'RSATISHDA kesiladi. Bazadagi `name` va `f.name` o'zgarmaydi: Aros sinxroni va
+// boshqa sahifalar aynan shu nomga tayanadi. Kesish faqat OXIRIDAN, o'rtadan emas;
+// nom butunlay "Kassa" bo'lsa aslicha qoladi (bo'sh yorliq chiqmasin).
+function filNom(s){
+  const t=String(s==null?'':s).trim();
+  // \s+ (bo'sh joy MAJBURIY): "ToshkentKassa" kabi bitishgan nom kesilib ketmasin —
+  // faqat alohida so'z bo'lgan "… Kassa" olib tashlanadi. "Kassasi" ham tegilmaydi.
+  const q=t.replace(/\s+kassa\s*$/i,'').trim();
+  return q||t;
+}
 function renderFilials(){
   const box=$('filialChips');
   const restricted = window.permFilialScope && window.permFilialScope()==='list';
   box.innerHTML = filials.length
-    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(f.name)}</button>`).join('')
+    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
     : `<div class="fchips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateDavrUI(); updateSave(); };
@@ -1506,7 +1549,7 @@ function taqsimEqualCalc(){
 window.taqsimEqual=()=>{ taqsimEqualCalc(); renderTaqsim(); };
 function renderTaqsim(){
   $('taqsimRows').innerHTML=taqsimFils.map(f=>
-    `<div class="talloc"><span class="tfn">${esc(f.name)}</span>`
+    `<div class="talloc"><span class="tfn">${esc(filNom(f.name))}</span>`
     +`<input inputmode="numeric" value="${taqsimAlloc[f.id]?money(taqsimAlloc[f.id]):''}" oninput="setTaqsim('${f.id}',this)"></div>`).join('');
   renderTaqsimSum();
 }
@@ -1520,7 +1563,7 @@ function renderTaqsimSum(){
   // Stage 4: har filial ulushi o'z limitidan oshmasin
   let limErr='';
   taqsimFils.forEach(f=>{ const lm=limitFor(f.id, selModda); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
-    if(a>lm.qoldi && !limErr) limErr=`${f.name}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
+    if(a>lm.qoldi && !limErr) limErr=`${filNom(f.name)}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
   else if(diff>0){ msg.textContent='Ortiqcha: '+money(diff)+' so\'m'; msg.className='tmsg no'; }
@@ -1672,6 +1715,7 @@ function applyAccounts(data){
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
   buildNomIndex();                 // nom→id (eski, ustunsiz tur hisoblarini bog'lash uchun)
   renderKassa(); renderModda(); loadRate();
+  avtoKassa();                     // kassa ro'yxati yangilandi: qoldiq allaqachon bo'lsa shu yerda tanlanadi
 }
 let _bound=false;
 function bindInputs(){ if(_bound) return; _bound=true;
