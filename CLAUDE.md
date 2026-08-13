@@ -128,6 +128,7 @@ bitta joyda tuzatiladi. Ikki nusxa vaqtinchalik — `promote.sh` dev'ni prod ust
 | `valyuta.html` | Valyuta kurslari (juftlik: from → to) |
 | `konvert.html` | Konvert so'rovlari: pending + tarix, admin tasdiqlaydi/rad etadi |
 | `sozlama.html` | Hisob rejasi boshqaruvi |
+| `ai.html` | AI yordamchi chat (hozircha faqat `ai-dev.html` — 1-bosqich, API yo'q) |
 
 Har fayl mustaqil: o'z login gate'i, sidebar/bnav navigatsiyasi, Supabase klienti bor.
 Dizayn tizimi hamma faylda takrorlanadi (CSS o'zgaruvchilari bir xil).
@@ -373,6 +374,30 @@ Uchta nozik joy (buzma):
 - **`has_provodka=false` → `hodim.html` ga redirect**, lekin faqat **bosh sahifada** (`jurnal`).
   Boshqa sahifaga to'g'ridan URL bilan kirsa — "Ruxsat yo'q" ekrani + "Xarajat kiritish" tugmasi.
   80% user redirect tufayli bu ekranni umuman ko'rmaydi.
+
+## AI yordamchi (`ai-dev.html`) — 1-BOSQICH (2026-08-13)
+
+`BRIEF_PROVODKA_AGENT.md`. Provodka ichidagi AI chat. **Hozircha faqat interfeys + ruxsat —
+Claude API YO'Q** (2-bosqich: Edge Function proxy, 3: web_search qonun, 4: Provodka konteksti).
+
+- **Alohida sahifa, widget emas** — har sahifa mustaqil bo'lgani uchun chat 15 faylga ko'chirilmadi;
+  `ai-dev.html` bitta fayl, ruxsat `permGate()` bilan avtomat ishlaydi.
+- **Ruxsat — mavjud SAHIFA tizimiga `ai` kaliti** (yangi `op_ai_agent` ustuni EMAS). Shu tanlov tufayli
+  `admin_set_provodka_perms` imzosi, `my_perms()` va **n8n payload kontrakti umuman o'zgarmadi**.
+  Uch joyda AYNAN bir xil bo'lishi shart: `perm_pages()` (`PROVODKA_AI_AGENT.sql`, 15→16) =
+  `perms-dev.js` `PAGES` = `admin-dev.html` `PVS_PAGES` (`{key:'ai', label:'AI agent'}`).
+  Birortasida yo'q bo'lsa `admin_set_provodka_perms` kalitni **jimgina tashlaydi**.
+- Nav: 15 dev faylda sidebar (15-element) + "Ko'proq" sheet (9-element), `sparkles` ikonkasi.
+  bnav tegilmagan (6 + Ko'proq). `promote.sh` `PAGES` ga `ai` qo'shilgan — **busiz prod'da
+  `ai-dev.html` havolalari qolib ketardi**.
+- 🔴 Klientda API kaliti/tarmoq chaqiruvi YO'Q; xabarlar `escapeHtml()` bilan chiziladi; chat tarixi
+  faqat xotirada (localStorage/DB emas). Stub javob soxta ma'lumot bermaydi ("AI hali ulanmagan").
+- 🔴 **2-BOSQICH SHARTI**: Edge Function ruxsatni **server tomonda** `perm_has_page('ai')` bilan
+  tekshirsin. Klientdagi `loaded=false → ochiq` semantikasi (perms.js) ataylab yumshoq —
+  u avtorizatsiya emas, faqat UI. `perm_has_page()` hozirgacha hech qayerda chaqirilmagan.
+- ℹ️ Faqat `ai` ruxsati bor user `has_provodka=true` bo'ladi → bosh sahifada `hodim.html` ga
+  redirect emas, "Ruxsat yo'q" ekrani + "Ochiq bo'limga o'tish" tugmasi chiqadi (bitta ortiqcha klik).
+- ℹ️ `#banner` bo'sh turibdi — 2-bosqichda EF xatosini ko'rsatish uchun (boshqa sahifalar naqshi).
 
 ## Qat'iy qoidalar
 

@@ -20,12 +20,12 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (15 ta).
+  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (16 ta).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx'];
+               'tannarx', 'ai'];
   var HOME  = 'jurnal';           // bosh sahifa (ildiz "/" ham shu)
 
   /* Havola qo'shimchasi joriy fayl nomidan olinadi: dev sahifada `-dev.html`,

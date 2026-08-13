@@ -23,7 +23,7 @@ set -euo pipefail
 #  1) ro'yxatda yo'q sahifa umuman prod'ga ko'chmaydi;
 #  2) undan ham xatarlisi — boshqa fayllardagi `NAME-dev.html` havolalari
 #     qaytarilmaydi, ya'ni PROD sahifalar DEV fayllarga havola qilib qoladi.
-PAGES="kassa jurnal professional hodim hisobot balans cashflow qarzdor filial valyuta konvert sozlama provodka standart yuklar tannarx"
+PAGES="kassa jurnal professional hodim hisobot balans cashflow qarzdor filial valyuta konvert sozlama provodka standart yuklar tannarx ai"
 
 # Ko'chiriladigan sahifalar: argument berilsa o'shalar, aks holda hammasi.
 if [ "$#" -gt 0 ]; then
