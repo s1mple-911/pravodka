@@ -95,6 +95,11 @@
   .ai-msg{padding:10px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;letter-spacing:-.004em;white-space:pre-wrap;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
   .ai-row.me .ai-msg{background:var(--ai-me);color:var(--ai-me-ink);border-bottom-right-radius:6px}
   .ai-row.bot .ai-msg{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:6px}
+  /* Xato pufagi — agent javobi EMAS (soxta javob ko'rsatilmaydi).
+     `.err` ataylab `.bot` klassisiz: aks holda ketma-ket bot qoidasi
+     (.ai-row.bot+.ai-row.bot .ai-av) uning avatarini yashirib qo'yardi. */
+  .ai-row.err .ai-av{background:var(--amber-soft);color:var(--amber)}
+  .ai-row.err .ai-msg{background:var(--amber-soft);border:1px solid var(--amber);color:var(--amber);border-bottom-left-radius:6px}
   .ai-time{font-size:11px;color:var(--muted);margin:5px 4px 0;font-variant-numeric:tabular-nums}
   .ai-typing{display:none;align-items:flex-start;gap:9px;flex:0 0 auto}
   .ai-dots{display:flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:6px;padding:13px 14px}
@@ -209,7 +214,7 @@
 
     <div class="ai-dock">
       <div class="ai-composer">
-        <textarea id="aiInp" rows="1" placeholder="Savolingizni yozing…" oninput="aiGrow()" aria-label="Savol matni"></textarea>
+        <textarea id="aiInp" rows="1" maxlength="4000" placeholder="Savolingizni yozing…" oninput="aiGrow()" aria-label="Savol matni"></textarea>
         <button class="ai-send" id="aiSend" onclick="aiSend()" title="Yuborish" aria-label="Yuborish" disabled><i data-lucide="arrow-up"></i></button>
       </div>
       <div class="ai-hint">Enter — yuborish, Shift+Enter — yangi qator. Suhbat faqat shu oyna ochiq turganda saqlanadi.</div>
@@ -305,31 +310,32 @@ async function loadRole(){
 }
 
 // =====================================================================
-//  AI CHAT — 1-BOSQICH: FAQAT INTERFEYS
+//  AI CHAT — 2-BOSQICH: Edge Function (`ai-chat`) ga ulangan
 // ---------------------------------------------------------------------
-//  🔴 Claude API bu yerda YO'Q va bo'lmaydi: API kaliti hech qachon
-//     frontendga tushmaydi. 2-bosqichda Supabase Edge Function proxy
-//     qo'shiladi (kalit server tomonda secret sifatida turadi).
-//  🔴 SOXTA JAVOB YOZILMAYDI — agent hozircha faqat "ulanmagan" deb
-//     javob beradi. Qonun/kassa haqida hech narsa "bilgan" bo'lib
-//     ko'rsatilmaydi, aks holda foydalanuvchi noto'g'ri ma'lumotga
-//     ishonib qolardi.
+//  🔴 API kaliti bu yerda YO'Q va hech qachon bo'lmaydi. Zanjir:
+//     brauzer → `sb.functions.invoke('ai-chat')` → Edge Function
+//     (ANTHROPIC_API_KEY faqat Supabase secret'ida) → Claude API.
+//     Deploy: EF_AI_CHAT_DEPLOY.txt.
+//  🔴 SOXTA JAVOB YOZILMAYDI — so'rov yiqilsa agent pufagi emas, kehribar
+//     XATO qatori chiqadi (`role:'err'`). Foydalanuvchi "javob keldi" deb
+//     o'ylab qolmasin.
+//  🔴 Ruxsat server tomonda ham tekshiriladi (`perm_has_page('ai')` VA
+//     `my_perms().allowed_pages`). Klientdagi permGate() — faqat UI.
 //  ⚠️ Suhbat tarixi FAQAT XOTIRADA (`msgs` massivi). localStorage ham,
-//     DB ham YO'Q — sahifa yangilansa suhbat o'chadi. Saqlash 2-bosqichda
-//     hal qilinadi (u yerda "kim nimani so'radi" maxfiylik masalasi ham
-//     bor: chat tarixi RLS bilan faqat egasiga ko'rinishi kerak).
+//     DB ham YO'Q — sahifa yangilansa suhbat o'chadi (4-bosqich).
+//     Claude API stateless: HAR so'rovda butun suhbat qayta yuboriladi.
 // =====================================================================
-const AI_STUB="AI agent hali ulanmagan — Claude API 2-bosqichda qo'shiladi. Hozircha bu faqat interfeys.";
-const AI_DELAY=400;   // "yozmoqda…" ko'rinishi uchun qisqa pauza
+const AI_TIMEOUT=60000;   // ms — "yozmoqda…" cheksiz qolib ketmasin
 const SUGGESTIONS=[
   "2026-yilda QQS stavkasi necha foiz?",
   "Yunusobod kassasida qancha pul bor?",
   "Hodim xarajat kassasi nima?",
   "Bu oyda qaysi xarajat eng ko'p bo'ldi?"
 ];
-let msgs=[];          // [{role:'me'|'bot', text, at}] — faqat xotirada
+let msgs=[];          // [{role:'me'|'bot'|'err', text, at}] — faqat xotirada
 let busy=false;       // javob kutilmoqda (ikki marta yuborilmasin)
-let replyTimer=null;
+let reqSeq=0;         // uchayotgan so'rovni eskirtirish (aiNew bosilsa)
+let curCtrl=null;     // joriy AbortController
 
 function threadEnd(){ const t=$('aiThread'); if(t) t.scrollTop=t.scrollHeight; }
 
@@ -342,21 +348,25 @@ function emptyHtml(){
     + '<div class="ai-sug">'
     + SUGGESTIONS.map((s,i)=>'<button type="button" onclick="aiPick('+i+')"><span>'+escapeHtml(s)+'</span><i data-lucide="arrow-up-right"></i></button>').join('')
     + '</div>'
-    + '<div class="ai-note"><i data-lucide="info"></i><span>1-bosqich: interfeys tayyor, AI hali ulanmagan.</span></div>'
+    + '<div class="ai-note"><i data-lucide="info"></i><span>AI ulangan. Qonun javoblarini rasmiy manbadan (lex.uz, soliq.uz) tekshiring.</span></div>'
     + '</div>';
 }
 
 function render(){
   const list=$('aiList');
   if(!msgs.length){ list.innerHTML=emptyHtml(); icons(); return; }
-  list.innerHTML=msgs.map(m=>
-    '<div class="ai-row '+(m.role==='me'?'me':'bot')+'">'
-    + (m.role==='me'?'':'<div class="ai-av"><i data-lucide="sparkles"></i></div>')
-    + '<div class="ai-bd">'
-    + '<div class="ai-msg">'+escapeHtml(m.text)+'</div>'
-    + '<div class="ai-time">'+escapeHtml(m.at)+'</div>'
-    + '</div>'
-    + '</div>').join('');
+  // XSS: matn HAR DOIM escapeHtml() dan o'tadi — Claude javobi ham xom matn.
+  list.innerHTML=msgs.map(m=>{
+    const cls=m.role==='me'?'me':(m.role==='err'?'err':'bot');
+    const ic=m.role==='err'?'triangle-alert':'sparkles';
+    return '<div class="ai-row '+cls+'">'
+      + (m.role==='me'?'':'<div class="ai-av"><i data-lucide="'+ic+'"></i></div>')
+      + '<div class="ai-bd">'
+      + '<div class="ai-msg">'+escapeHtml(m.text)+'</div>'
+      + '<div class="ai-time">'+escapeHtml(m.at)+'</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
   icons(); threadEnd();
 }
 
@@ -374,11 +384,39 @@ window.aiGrow=()=>{ const el=$('aiInp'); if(!el) return;
 window.aiPick=i=>{ const s=SUGGESTIONS[i]; if(s===undefined) return;
   const el=$('aiInp'); el.value=s; el.focus(); window.aiGrow(); };
 
-window.aiNew=()=>{ if(replyTimer){ clearTimeout(replyTimer); replyTimer=null; }
+// Yangi suhbat: uchayotgan so'rov ham BEKOR qilinadi va eskiradi (reqSeq),
+// aks holda kechikkan javob bo'shatilgan suhbatga tushib qolardi.
+window.aiNew=()=>{ reqSeq++;
+  if(curCtrl){ try{ curCtrl.abort(); }catch(e){ console.error('abort:',e); } curCtrl=null; }
   busy=false; msgs=[]; window.aiTyping(false); render();
   const el=$('aiInp'); if(el){ el.value=''; window.aiGrow(); el.focus(); } };
 
-window.aiSend=()=>{
+// Claude API stateless — har safar butun suhbat yuboriladi.
+// Xato qatorlari (`err`) TARIXGA KIRMAYDI: ular agent javobi emas.
+function apiMsgs(){
+  return msgs.filter(m=>m.role==='me'||m.role==='bot')
+             .map(m=>({role:m.role==='me'?'user':'assistant',content:m.text}));
+}
+
+/* EF xatosini odam o'qiydigan matnga aylantiradi.
+   🔴 functions.invoke {data,error} qaytaradi va THROW QILMAYDI — `error`
+      albatta tekshiriladi (CLAUDE.md 6-qoida ruhida).
+   FunctionsHttpError bo'lsa tanasida bizning {error, code} turadi. */
+async function aiErrText(e){
+  const st=e && e.context && e.context.status;
+  try{
+    if(e && e.name==='FunctionsHttpError' && e.context && typeof e.context.json==='function'){
+      const b=await e.context.json();
+      if(b && typeof b.error==='string' && b.error.trim()) return {t:b.error.trim(),code:b.code||''};
+    }
+  }catch(x){ console.error("EF xato tanasi o'qilmadi:",x); }
+  if(st===401) return {t:'Sessiya tugagan. Qaytadan kiring.',code:'auth'};
+  if(st===403) return {t:"Sizda AI agent ruxsati yo'q.",code:'forbidden'};
+  if(st===429) return {t:"Juda ko'p so'rov yuborildi. Biroz kuting.",code:'rate'};
+  return {t:"AI javob bermadi. Keyinroq urinib ko'ring.",code:''};
+}
+
+window.aiSend=async()=>{
   if(busy) return;
   const el=$('aiInp'); const text=(el.value||'').trim();
   if(!text) return;                      // bo'sh xabar yuborilmaydi
@@ -386,13 +424,44 @@ window.aiSend=()=>{
   el.value=''; window.aiGrow(); el.focus();
   busy=true; $('aiSend').disabled=true;
   window.aiTyping(true);
-  // 🔴 Bu setTimeout — 2-bosqichda Edge Function chaqiruvi bilan almashadi.
-  replyTimer=setTimeout(()=>{
-    replyTimer=null; busy=false;
-    window.aiTyping(false);
-    push('bot',AI_STUB);
-    window.aiGrow();
-  },AI_DELAY);
+
+  const my=++reqSeq;
+  const ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  curCtrl=ctrl;
+  let timedOut=false;
+  const timer=setTimeout(()=>{ timedOut=true;
+    if(ctrl){ try{ ctrl.abort(); }catch(e){ console.error('AI so\'rovi bekor qilinmadi:',e); } } },AI_TIMEOUT);
+
+  try{
+    const opts={body:{messages:apiMsgs()}};
+    if(ctrl) opts.signal=ctrl.signal;
+    const {data,error}=await sb.functions.invoke('ai-chat',opts);
+    if(error) throw error;
+    const reply=(data && typeof data.reply==='string')?data.reply.trim():'';
+    if(!reply) throw new Error("javob bo'sh keldi");
+    if(my!==reqSeq) return;              // «Yangi suhbat» bosilgan — javob eskirdi
+    push('bot',reply);
+  }catch(e){
+    console.error('AI so\'rov xatosi:',e);
+    if(my!==reqSeq) return;
+    const r=timedOut
+      ? {t:"Javob 60 soniyada kelmadi. Qaytadan urinib ko'ring.",code:'timeout'}
+      : await aiErrText(e);
+    if(my!==reqSeq) return;
+    push('err',r.t);
+    /* 🔴 Server RAD ETGAN xabar tarixda QOLMASIN: apiMsgs() uni har so'rovda
+       qayta yuborardi va chat butunlay qotib qolardi (har urinish o'sha 400).
+       Matn inputga qaytariladi — foydalanuvchi qisqartirib yubora oladi. */
+    if(r.code==='bad_input'){
+      for(let i=msgs.length-1;i>=0;i--){ if(msgs[i].role==='me'){ msgs.splice(i,1); break; } }
+      render();
+      if(el && !el.value){ el.value=text; window.aiGrow(); }
+    }
+  }finally{
+    clearTimeout(timer);
+    if(curCtrl===ctrl) curCtrl=null;
+    if(my===reqSeq){ busy=false; window.aiTyping(false); window.aiGrow(); }
+  }
 };
 
 $('aiInp').addEventListener('keydown',e=>{
