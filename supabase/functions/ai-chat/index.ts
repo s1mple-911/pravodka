@@ -28,9 +28,19 @@ import { createClient } from "npm:@supabase/supabase-js@2.110.6";
 //  Sozlamalar
 // ---------------------------------------------------------------------
 
-// Model env bilan almashtiriladi (kodni o'zgartirmasdan): `AI_MODEL`.
-const MODEL = (Deno.env.get("AI_MODEL") || "claude-sonnet-4-6").trim();
-const MAX_TOKENS = 4000;
+/* Model env bilan almashtiriladi (kodni o'zgartirmasdan): `AI_MODEL`.
+   Sukut `claude-sonnet-5` (Asilbek qarori 2026-08-13): sonnet-4-6 dan
+   sifatliroq va hozircha arzonroq ($2/$10 intro, 31-avgustgacha; keyin $3/$15).
+   Kod sukuti ham shu — `AI_MODEL` secret qo'yilmasa ham to'g'ri model ketadi.
+   ⚠️ Sonnet 5 da `budget_tokens` va sukutdan farqli `temperature/top_p/top_k`
+      400 beradi — ular bu yerda umuman ishlatilmaydi, shuning uchun almashtirish
+      xavfsiz. `thinking:{type:"disabled"}` Sonnet 5 da ham qabul qilinadi. */
+const MODEL = (Deno.env.get("AI_MODEL") || "claude-sonnet-5").trim();
+/* ⚠️ Sonnet 5 ning tokenizeri boshqa — bir xil matn Sonnet 4.6 ga qaraganda
+   ~30% ko'proq token beradi. Shuning uchun 4000 emas 6000: `max_tokens` — bu
+   CHEGARA, xarajat emas (faqat haqiqatan yozilgan token to'lanadi), lekin past
+   chegara javobni o'rtasidan kesib `stop_reason:"max_tokens"` berardi. */
+const MAX_TOKENS = 6000;
 
 // 🔴 System prompt FAQAT shu yerda. Mijoz uni bera olmaydi va o'zgartira olmaydi.
 const SYSTEM_PROMPT = [

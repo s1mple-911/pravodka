@@ -382,8 +382,13 @@ Qolgani: 3 — web_search bilan real-time qonunchilik, 4 — Provodka DB konteks
 
 ### 2-bosqich — Edge Function `supabase/functions/ai-chat/index.ts` (Provodka'dagi BIRINCHI EF)
 - Deno + `npm:@anthropic-ai/sdk` + `npm:@supabase/supabase-js@2.110.6` (vendor bilan bir xil versiya).
-  Model `claude-sonnet-4-6` (env **`AI_MODEL`** bilan almashadi — `claude-sonnet-5` yangiroq/arzonroq).
-  `max_tokens 4000`, `thinking:disabled` + `effort:medium` (chat uchun narx/kechikish), stream YO'Q.
+  Model **`claude-sonnet-5`** (Asilbek qarori; env `AI_MODEL` bilan almashadi, kod sukuti ham shu).
+  `max_tokens 6000` — ⚠️ Sonnet 5 tokenizeri bir xil matnga ~30% ko'proq token beradi, 4000 da
+  javob kesilardi (`max_tokens` chegara, xarajat emas). `thinking:disabled` + `effort:medium`
+  (chat uchun narx/kechikish), stream YO'Q.
+  ⚠️ **3-bosqich uchun eslatma**: Sonnet 5 `thinking:disabled` da **asboblarni kamroq chaqiradi** —
+  web_search qo'shilganda `thinking` ni adaptive qilish yoki `effort` ni ko'tarish kerak bo'ladi,
+  aks holda model qidirmasdan xotiradan javob berib qo'yishi mumkin.
   🔴 `temperature`/`top_p`/`top_k`/`budget_tokens` **ISHLATILMAYDI** — yangi modellarda 400 beradi.
 - 🔴 **API kalit faqat Supabase secret'da** (`ANTHROPIC_API_KEY`), mijozda Anthropic URL/kalit yo'q.
 - 🔴 **RUXSAT — IKKI tekshiruv AND bilan**: `perm_has_page('ai')` **VA** `my_perms()`
