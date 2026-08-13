@@ -216,7 +216,8 @@
   .yrow .ymain{flex:1;min-width:0}
   .yrow .yl1{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .yrow .yl2{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .yrow .ynarx{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  /* .yrow2 ham shu uslubdan foydalanadi — o'ngdagi jami tannarx soni */
+  .yrow .ynarx,.yrow2 .ynarx{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .pill.g{background:var(--green-soft);color:var(--green);border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   .pill.y{background:#fdf3d6;color:#a9791b;border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   [data-theme="dark"] .pill.y{background:#3a2f14;color:#e6b84a}
@@ -308,6 +309,7 @@
       <a class="nav-item" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="yuklar-dev.html"><i data-lucide="package"></i><span>Yuklar</span></a>
+      <a class="nav-item" href="tannarx-dev.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
@@ -435,6 +437,7 @@
       <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart-dev.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <a href="yuklar-dev.html"><i data-lucide="package"></i>Yuklar</a>
+      <a href="tannarx-dev.html"><i data-lucide="receipt-text"></i>Tannarx</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -1253,7 +1256,7 @@ const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
 // Modda 9110 ga qo'yiladi, summa to'ldiriladi; yuk modali ochilganda o'sha yuk
 // avtomat tanlanadi (afterYukLoad). Kassani foydalanuvchi tanlaydi (bitta bo'lsa avtomat).
 let preYuk=null;
-let yukList=[], yukPaidMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='unpaid', yukLoaded=false;
+let yukList=[], yukPaidMap={}, yukTanMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='unpaid', yukLoaded=false;
 let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0, yukSaveMode='simple';
 const _isoY=d=>d.toISOString().slice(0,10);
 function money2(n){ const v=Number(n)||0; return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '); }
@@ -1262,8 +1265,22 @@ function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; return isFin
 function curRate(cur){ if(!cur||String(cur).toUpperCase()==='UZS') return 1; const r=rateMap[cur]; return (r==null?null:Number(r)); }
 function yukNarxUzs(y){ const r=curRate(y.valyuta); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
 function yukTolangan(id){ const s=yukPaidMap[id]; return s?Number(s.tolangan_uzs)||0:0; }
-function yukQoldiq(y){ const n=yukNarxUzs(y); if(n==null) return null; return Math.max(0, n - yukTolangan(y.id)); }  // qolgan qarz (UZS)
-function yukPct(y){ const n=yukNarxUzs(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
+/* --- Yuk tannarxi (qiymat qatlami) ---
+   Aros narxi ustiga Provodka tomonida qo'shilgan xarajatlar (yo'l puli, bojxona,
+   valyuta farqi, abusaxiy). Pul harakati YO'Q — faqat yuk qiymatini oshiradi,
+   demak yuk bo'yicha QARZ ham shuncha oshadi.
+   yukTanMap kaliti — yuk_id MATN ko'rinishida; qatori yo'q yuk umuman kalit bo'lmaydi.
+   Tannarx SO'MDA saqlanadi va kursga bog'liq emas; Aros qismi esa kurssiz
+   hisoblanmaydi — shuning uchun kurs yo'q bo'lsa jami null (eski "kurs yo'q" holati). */
+function yukTannarx(id){ const t=yukTanMap[String(id)]; return t?(Number(t.jami_uzs)||0):0; }
+function yukTanQatorlar(id){ const t=yukTanMap[String(id)]; return (t&&Array.isArray(t.qatorlar))?t.qatorlar:[]; }
+// "🛃 Bojxona 5 000 000 · 🚚 Yo'l puli 2 000 000" — ko'p bo'lsa "va yana N ta"
+function yukTanSabab(id,lim=2){ const q=yukTanQatorlar(id); if(!q.length) return '';
+  const bosh=q.slice(0,lim).map(r=>(r.ikonka?r.ikonka+' ':'')+(r.sabab||'—')+' '+money(r.summa_uzs)).join(' · ');
+  return bosh+(q.length>lim?' · va yana '+(q.length-lim)+' ta':''); }
+function yukJami(y){ const n=yukNarxUzs(y); if(n==null) return null; return n + yukTannarx(y.id); }   // JAMI TANNARX
+function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; return Math.max(0, n - yukTolangan(y.id)); }  // qolgan qarz (UZS)
+function yukPct(y){ const n=yukJami(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
 function yukSelectable(y){ const q=yukQoldiq(y); return q!=null && q>0; }   // kurs bor va qarzi bor
 
 // --- Kommunal turi (9413): gaz | svet | suv | musor (kelajakda kengayadi — massiv) ---
@@ -1380,7 +1397,23 @@ async function loadYukList(){
     // valyutasi (masalan USD) bu ro'yxatda bo'lmasa o'chib ketardi va oddiy rejimda
     // "USD kursi yo'q" deb Saqlash bloklanardi. Xatoda ham eski kurslar joyida qoladi.
     try{ const {data:kr}=await sb.rpc('yuk_kurslar',{p_curs:curs}); if(kr) Object.assign(rateMap,kr); }catch(e){}
-    if(ids.length){ try{ const {data:st}=await sb.rpc('yuk_tolangan_summa',{p_ids:ids}); yukPaidMap={}; (st||[]).forEach(s=>{ yukPaidMap[s.yuk_id]=s; }); }catch(e){ yukPaidMap={}; } }
+    if(ids.length){
+      // To'langan summa + tannarx: ro'yxatdagi HAMMA yuk uchun bittadan so'rov (har yukka
+      // alohida emas), ikkalasi parallel — bir-biriga bog'liq emas.
+      yukPaidMap={}; yukTanMap={};
+      try{
+        const [st,tn]=await Promise.all([
+          sb.rpc('yuk_tolangan_summa',{p_ids:ids}),
+          sb.rpc('yuk_tannarx_jami',{p_ids:ids})
+        ]);
+        if(st.error) console.warn('yuk_tolangan_summa:',st.error.message);
+        else (st.data||[]).forEach(s=>{ yukPaidMap[s.yuk_id]=s; });
+        // yuk_tannarx_jami hali bazada bo'lmasligi mumkin — xato bo'lsa modal sinmasin,
+        // tannarx 0 deb ishlayveradi (eski xatti-harakat).
+        if(tn.error) console.warn('yuk_tannarx_jami:',tn.error.message);
+        else yukTanMap=tn.data||{};
+      }catch(e){ console.warn('yuk qo\'shimcha ma\'lumot:',e.message||e); }
+    }
   }catch(e){ $('yukList').innerHTML='<div class="yukempty">Yuklar ulanmadi: '+esc(e.message||'')+'<br><button class="ylink" onclick="reloadYuk()">Qaytadan urinish</button></div>'; return; }
   afterYukLoad();
 }
@@ -1406,16 +1439,25 @@ window.renderYukList=()=>{
   rows.sort((a,b)=>(yukSelectable(b)-yukSelectable(a))||String(b.sana||'').localeCompare(String(a.sana||'')));
   renderYukSum(); updateYukSaveBtn();
   $('yukList').innerHTML= rows.length ? rows.map(y=>{
-    const id=Number(y.id), on=selYuk.has(id), nUzs=yukNarxUzs(y), q2=yukQoldiq(y), pct=yukPct(y), rateErr=nUzs==null;
-    const uzsTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':(y.valyuta&&y.valyuta!=='UZS'?'≈ '+money(nUzs)+' so\'m':money(nUzs)+' so\'m');
+    const id=Number(y.id), on=selYuk.has(id), nUzs=yukNarxUzs(y), jami=yukJami(y), q2=yukQoldiq(y), pct=yukPct(y), rateErr=nUzs==null;
+    const tn=yukTannarx(id), sabab=yukTanSabab(id);
+    // O'ngdagi katta son — JAMI TANNARX (Aros narxi + qo'shimcha xarajatlar), Aros narxi emas.
+    const jamiTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':money(jami)+' so\'m';
+    // Chap ustun: Aros narxi qanday jami bo'lganini ochib beradi.
+    const arosTxt=rateErr?yPriceF(y.narx,y.valyuta):(yPriceF(y.narx,y.valyuta)+(y.valyuta&&y.valyuta!=='UZS'?' ≈ '+money(nUzs)+' so\'m':''));
     const badge=rateErr?'':(pct>=100?'<span class="pill g">to\'langan</span>':(pct>0?'<span class="pill y">qisman '+pct+'%</span>':''));
     const rem=rateErr?'':(q2>0?'<span class="yrem">qoldi '+money(q2)+'</span>':'');
     const dis=(!yukSelectable(y)&&!on)?' dis':'';
     const inp=on?'<div class="yalloc" onclick="event.stopPropagation()"><span>summa (so\'m)</span><input inputmode="numeric" value="'+(alloc[id]?money(alloc[id]):'')+'" oninput="setAlloc('+id+',this)"></div>':'';
+    // Nega qiymat oshgani — kichik harflarda, sabablar bilan. Tannarx so'mda bo'lgani uchun
+    // kurs bo'lmasa ham ko'rinadi (faqat jami hisoblanmaydi).
+    const sabRow=tn>0?'<span class="yl2">'+esc(sabab)+'</span>':'';
     return '<div class="yrow2'+(on?' on':'')+dis+'" onclick="toggleYuk('+id+')">'
       +'<div class="yrhead"><span class="ycheck">'+(on?'✓':'')+'</span>'
       +'<span class="ymain"><span class="yl1">#'+esc(y.id)+' · '+esc(y.ombor||'—')+' '+badge+'</span>'
-      +'<span class="yl2">'+yPriceF(y.narx,y.valyuta)+' · '+uzsTxt+' '+rem+'</span></span></div>'+inp+'</div>';
+      +'<span class="yl2">'+arosTxt+(tn>0?' + tannarx '+money(tn):'')+' '+rem+'</span>'
+      +sabRow+'</span>'
+      +'<span class="ynarx">'+jamiTxt+'</span></div>'+inp+'</div>';
   }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
 };
 window.saveSimple=async()=>{
