@@ -1,19 +1,36 @@
 -- =====================================================================
 --  ⚠️⚠️  SUPABASE SQL EDITOR — QANDAY RUN QILINADI (avval SHUNI o'qing)
 -- ---------------------------------------------------------------------
---   1) Tartib: 1-BOSQICH (jadval+reja) → 1.3 PREVIEW → (preview toza bo'lsa)
---      2-BOSQICH (pul yozadi) → 3-BOSQICH (natija). Butun faylni birdaniga
---      RUN QILMANG — 2-BOSQICH haqiqiy pul yozadi.
---   2) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
---      belgilab RUN qiling.
---   3) `do $$` blokini TO'LIQ belgilash SHART: `do $$` qatoridan `$$;`
---      qatorigacha, ikkalasi ham ichida. Yarim belgilansa Postgres blokni
---      PL/pgSQL emas, oddiy SQL deb o'qiydi va o'zgaruvchini jadval deb izlaydi.
---   4) O'shanda chiqadigan xato — `ERROR: 42P01: relation "v_kap_code" does
---      not exist` (yoki boshqa `v_...` nomi). Bu FAYL XATOSI EMAS, belgilash
---      noto'g'ri: blokni boshidan oxirigacha qayta belgilab RUN qiling.
---   5) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
---      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+--   1) Bu faylda `do` bloki UMUMAN YO'Q. Dollar-quote belgisi (ikki dollar
+--      yonma-yon) FAQAT 2.0 dagi ikki funksiya tanasining boshi va oxirida —
+--      izohlarda umuman yo'q. NOMLANGAN dollar-teg ham yo'q, ichma-ich
+--      dollar-quote ham yo'q.
+--      Sabab: Supabase SQL Editor `do` blokini bo'lib yuborar va PL/pgSQL
+--      o'zgaruvchisini jadval deb izlar edi
+--      (`ERROR: 42P01: relation "v_kap_code" does not exist`). Shuning uchun
+--      MANTIQ O'ZGARMAGAN holda funksiyaga qayta qadoqlandi —
+--      `create or replace function ... as` esa muammosiz ishlaydi.
+--
+--   2) Tartib:
+--        1-BOSQICH  — reja jadvali + PREVIEW (pul yozmaydi)
+--        2.0        — funksiyani yaratish (DDL, pul yozmaydi)
+--        2.1        — MAJBURIY DRY-RUN (bajaradi va darrov orqaga qaytaradi)
+--        2.2        — 🔴 YOZISH (haqiqiy pul)
+--        3-BOSQICH  — natija ko'rinishi
+--      BUTUN FAYLNI BIRDANIGA RUN QILMANG — 2.2 haqiqiy pul yozadi.
+--
+--   3) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
+--      belgilab RUN qiling. Bitta `select` = bitta tranzaksiya: funksiya
+--      ichida xato chiqsa Postgres hammasini orqaga qaytaradi (yarim
+--      yozilgan holat bo'lmaydi).
+--
+--   4) ♻️ YANGI HODIMLAR UCHUN QAYTA ISHLATISH: faqat 1.2 dagi `insert`
+--      qatorlarini yangilang (kassa kodi + summa) va 1.1+1.2 ni RUN qiling,
+--      keyin 1.3 PREVIEW → 2.1 DRY-RUN → 2.2 YOZISH. 2.0 funksiyasi
+--      o'zgarmaydi — u bir marta yaratilgani yetadi. Avval pul olgan
+--      kassalar `ext_ref` tufayli ikkinchi marta yozilmaydi (o'tkazib
+--      yuboriladi), shuning uchun eski qatorlarni ro'yxatda qoldirsa ham
+--      bo'ladi.
 -- =====================================================================
 
 -- =====================================================================
@@ -34,7 +51,8 @@
 --
 --  IKKI BOSQICH — butun faylni birdaniga RUN QILMANG:
 --     1-BOSQICH (jadval + reja + PREVIEW) pul yozmaydi.
---     2-BOSQICH (do $$ bloki) haqiqiy pul yozadi — faqat preview toza bo'lsa.
+--     2-BOSQICH: 2.0 funksiya (yozmaydi) → 2.1 dry-run (yozmaydi) →
+--     2.2 haqiqiy pul yozadi — faqat preview toza bo'lsa.
 --
 --  NEGA KAPITAL, 9010 EMAS: bu pul TUSHUM emas, allaqachon ishlab topilgan.
 --  Kt'ga 9010 yozilsa o'sha kunning P&L'i shishadi. Kapitalga yozilganda
@@ -49,9 +67,10 @@
 --  TALAB: PROVODKA_KAPITAL.sql (boshlangich_kapital_id), PROVODKA_VALYUTA.sql
 --         (pul_turi_kod_blok) RUN qilingan bo'lsin.
 --
---  ADDITIVE: mavjud jadval/ustun/funksiya/view o'zgartirilmaydi. Eski
---  `hodim_nom_norm()` / `hodim_kassa_top()` bazada QOLADI (drop qilinmaydi),
---  lekin bu fayl ularga umuman bog'lanmaydi.
+--  ADDITIVE: mavjud jadval/ustun/funksiya/view o'zgartirilmaydi, `drop` yo'q.
+--  Faqat ikki YANGI funksiya qo'shiladi (2.0): `hodim_kapital_ish()` va
+--  `hodim_kapital_yoz(boolean)`. Eski `hodim_nom_norm()` / `hodim_kassa_top()`
+--  bazada QOLADI, lekin bu fayl ularga umuman bog'lanmaydi.
 -- =====================================================================
 
 
@@ -262,16 +281,43 @@ select kassa_code, kutilgan_nom, bazadagi_nom, nom_mos, subtitle,
 -- ---------------------------------------------------------------------
 -- 2-BOSQICH — YOZISH: Dt hodim naqd / Kt Boshlang'ich kapital
 -- ---------------------------------------------------------------------
--- ⚠️⚠️ BELGILASHNI AYNAN QUYIDAGI `do $$` QATORIDAN BOSHLANG va
---      pastdagi `$$;` QATORIGACHA (u ham ichida) belgilang.
---      `do $$` yoki `declare` bo'limi belgilashdan tashqarida qolsa,
---      Postgres blokni PL/pgSQL deb emas, oddiy SQL deb o'qiydi va
---      o'zgaruvchi nomini jadval deb izlaydi:
---         ERROR: 42P01: relation "v_kap_code" does not exist
---      Xato shundan — fayldan emas.
+--  Uch qadam:  2.0 funksiyalar (DDL — pul yozmaydi)
+--           →  2.1 DRY-RUN  (bajaradi va DARROV orqaga qaytaradi)
+--           →  2.2 YOZISH   (🔴 haqiqiy pul)
 --
--- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  `do $$` QATORIDAN `$$;` QATORIGACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
-do $$
+--  Avval bu mantiq `do` blokida edi va Supabase SQL Editor uni bo'lib
+--  yuborardi (`ERROR: 42P01: relation "v_kap_code" does not exist`).
+--  Funksiya ichida esa xuddi shu mantiq muammosiz ishlaydi — shuning uchun
+--  MANTIQ, SUMMALAR, TEKSHIRUVLAR va XATO MATNLARI o'zgarmagan holda
+--  funksiyaga ko'chirildi. `raise exception` funksiya ichida ham butun
+--  tranzaksiyani orqaga qaytaradi, ya'ni himoya kuchi bir xil.
+
+-- ---------------------------------------------------------------------
+-- 2.0 FUNKSIYALAR.  PUL YOZMAYDI — faqat funksiyani yaratadi.
+-- ---------------------------------------------------------------------
+--  Ikkita funksiya:
+--    hodim_kapital_ish()                       -> jsonb   (butun mantiq)
+--    hodim_kapital_yoz(p_dry_run boolean=true) -> jsonb   (chaqiruvchi)
+--
+--  hodim_kapital_yoz(true)   — ichki blokda hamma yozuv HAQIQATAN
+--       bajariladi, 5 ta o'zini tekshiruv ishlaydi, so'ng blok o'zini
+--       ORQAGA QAYTARADI: bazada iz qolmaydi. Javobda "dry_run": true.
+--       Ya'ni bu "sanoq" emas — 2.2 ning aynan mashqi.
+--  hodim_kapital_yoz(false)  — 🔴 haqiqiy yozuv.
+--
+--  Kirim / o'tkazib yuborish satrlari NOTICE bo'lib chiqadi (Supabase
+--  natija panelidagi "Messages"/"Logs"), yakuniy hisobot esa jsonb.
+--
+--  ADDITIVE: ikki YANGI funksiya. Mavjud jadval/ustun/view/funksiya
+--  o'zgartirilmaydi, `drop` yo'q.
+--
+-- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  2.0: SHU QATORDAN pastdagi `comment on function
+--            hodim_kapital_yoz...;` QATORIGACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
+create or replace function hodim_kapital_ish()
+returns jsonb
+language plpgsql
+set search_path = public
+as $$
 declare
   -- ⚙️ Yozuv belgisi. ext_ref = '<batch>:<kassa_code>' -> takroriy RUN pulni
   --    ikki marta yozmaydi. Sanadan mustaqil. ROLLBACK ham shu belgi bo'yicha.
@@ -312,6 +358,7 @@ declare
   n_otkaz    int := 0;
   n_ochildi  int := 0;
   v_jami     numeric := 0;
+  v_natija   jsonb;
 begin
   -- ---- Kapital hisobi -----------------------------------------------
   v_kapital := boshlangich_kapital_id();
@@ -405,7 +452,7 @@ begin
       --    Ustunga statik havola qilinmaydi (ustun yo'q bazada butun blok parse
       --    xatosi berardi) — shuning uchun dinamik `execute`.
       --    ⚠️ So'rov matni ODDIY BIR TIRNOQLI satr (ichma-ich dollar-quote
-      --    YO'Q, aks holda tashqi do-blok vaqtidan oldin yopilardi).
+      --    YO'Q, aks holda funksiya tanasi vaqtidan oldin yopilardi).
       --    Shuning uchun ichkaridagi har `'` ikkilangan: '^' -> ''^''.
       v_prefix := null;
       v_uzun   := 2;
@@ -567,9 +614,114 @@ begin
 
   raise notice '--- ✅ TUGADI: % ta yozuv | % ta o''tkazib yuborildi | % ta naqd hisob ochildi | jami % so''m | balans farqi 0',
     n_yozildi, n_otkaz, n_ochildi, v_jami;
+
+  -- Yakuniy hisobot (NOTICE lar bilan bir xil raqamlar, jsonb ko'rinishida)
+  v_natija := jsonb_build_object(
+    'ok',            true,
+    'yozildi',       n_yozildi,
+    'otkazildi',     n_otkaz,
+    'hisob_ochildi', n_ochildi,
+    'jami_som',      v_jami,
+    'kapital_hisob', v_kap_code,
+    'sana',          p_sana,
+    'belgi',         v_batch,
+    'balans_farqi',  v_farq);
+
+  return v_natija;
 end
 $$;
--- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA (`$$;` ham ichida) BELGILANG (2-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
+
+-- ---------------------------------------------------------------------
+-- 2.0.b Chaqiruvchi — DRY-RUN shu yerda hal qilinadi
+-- ---------------------------------------------------------------------
+-- Ichki `begin ... exception ... end` = SUBTRANZAKSIYA: ichida yozilgan
+-- hamma narsa xato ushlanganda bekor bo'ladi. Dry-run uchun ataylab
+-- 'DRYRN' kodli xato ko'tariladi va o'sha yerda ushlanadi -> hamma yozuv
+-- orqaga qaytadi, natija esa DETAIL orqali qo'ldan-qo'lga o'tadi.
+-- Boshqa har qanday xato (tekshiruv, Dt<>Kt, kassa topilmadi...) ushlanmaydi
+-- — u yuqoriga chiqadi va butun tranzaksiyani orqaga qaytaradi.
+create or replace function hodim_kapital_yoz(p_dry_run boolean default true)
+returns jsonb
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_natija jsonb;
+  v_detail text;
+begin
+  begin
+    v_natija := hodim_kapital_ish() || jsonb_build_object('dry_run', p_dry_run);
+
+    if p_dry_run then
+      raise exception using errcode = 'DRYRN',
+        message = 'DRY-RUN — hech narsa yozilmadi',
+        detail  = v_natija::text;
+    end if;
+
+    v_natija := v_natija || jsonb_build_object(
+      'izoh', 'YOZILDI — haqiqiy pul. 3-BOSQICH bilan tekshiring.');
+  exception when sqlstate 'DRYRN' then
+    get stacked diagnostics v_detail = pg_exception_detail;
+    v_natija := (v_detail::jsonb) || jsonb_build_object(
+      'izoh', 'DRY-RUN: hammasi bajarildi va ORQAGA QAYTARILDI — bazada iz yo''q');
+  end;
+
+  return v_natija;
+end
+$$;
+
+revoke all on function hodim_kapital_ish() from public, anon;
+revoke all on function hodim_kapital_yoz(boolean) from public, anon;
+
+comment on function hodim_kapital_ish() is
+  'Hodim kassalariga boshlang''ich kapital yozadi (Dt hodim naqd / Kt 87xx), '
+  'reja: hodim_kapital_reja. To''g''ridan chaqirmang — hodim_kapital_yoz() orqali. '
+  'PROVODKA_HODIM_KAPITAL.sql.';
+
+comment on function hodim_kapital_yoz(boolean) is
+  'hodim_kapital_ish() chaqiruvchisi. p_dry_run=true -> hammasi bajariladi va '
+  'orqaga qaytariladi (bazada iz yo''q), false -> haqiqiy yozuv. '
+  'Idempotent: ext_ref = bkap:hodim:<kassa_code>.';
+-- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  2.0 SHU QATORGACHA BELGILANG (funksiyalar tayyor)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
+
+
+-- ---------------------------------------------------------------------
+-- 2.1 ⭐ MAJBURIY DRY-RUN — PUL YOZMAYDI (argument: true)
+-- ---------------------------------------------------------------------
+--  Nima bo'ladi: yozuvlar HAQIQATAN yoziladi, naqd bola-hisob kerak bo'lsa
+--  ochiladi, 5 ta tekshiruv (Dt=Kt, qoldiq, P&L, kapital, balans) ishlaydi —
+--  so'ng HAMMASI orqaga qaytariladi. Bazada iz qolmaydi.
+--
+--  Natijani o'qing:
+--    • "dry_run": true          — ha, hech narsa yozilmadi
+--    • "yozildi"                — 2.2 da nechta yozuv paydo bo'ladi
+--    • "jami_som"               — 1.3 PREVIEW dagi JAMI `yoziladi` bilan MOS kelsin
+--    • "otkazildi"              — avval yozilgan (ext_ref bor) kassalar
+--    • "hisob_ochildi"          — nechta naqd bola-hisob ochiladi
+--    • "balans_farqi": 0        — balans tenglikda qoladi
+--  Xato chiqsa (masalan "Kassa 5412 ... 0 ta mos hisob topildi") — 2.2 NI
+--  RUN QILMANG, avval sababini hal qiling.
+--
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG (DRY-RUN — YOZMAYDI)  ⬇⬇⬇
+select jsonb_pretty(hodim_kapital_yoz(true)) as dry_run_natija;
+-- ⬆⬆⬆  2.1 DRY-RUN shu yerda tugadi  ⬆⬆⬆
+
+
+-- ---------------------------------------------------------------------
+-- 2.2 🔴🔴🔴 YOZISH — HAQIQIY PUL (argument: false)
+-- ---------------------------------------------------------------------
+--  Shartlar (hammasi bajarilsin):
+--    • 1.3 PREVIEW da ❌ va ⚠️ FARQ yo'q
+--    • 2.0 funksiyalar yaratilgan
+--    • 2.1 DRY-RUN natijasi to'g'ri (yozildi / jami_som kutilgandek,
+--      balans_farqi = 0)
+--
+--  Bitta `select` = bitta tranzaksiya. Funksiya ichida xato chiqsa
+--  (Dt<>Kt, tekshiruv, unique ext_ref) — YOZILGAN HAMMA NARSA ORQAGA QAYTADI.
+--
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG (YOZADI!)  ⬇⬇⬇
+select jsonb_pretty(hodim_kapital_yoz(false)) as yozish_natijasi;
+-- ⬆⬆⬆  2.2 YOZISH shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -692,3 +844,6 @@ select r.kassa_code,
 -- Ochilgan naqd bola-hisoblar rollbackda TEGILMAYDI (bo'sh hisob, zarari yo'q,
 -- hodim baribir xarajat kiritganda ular kerak bo'ladi).
 -- Kerak bo'lsa: update accounts set is_active = false where code = '...';
+--
+-- Rollbackdan keyin qayta yozish: butun faylni emas — 1.3 PREVIEW →
+-- 2.1 DRY-RUN → 2.2 YOZISH. 2.0 funksiyalari joyida turadi.
