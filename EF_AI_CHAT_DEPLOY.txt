@@ -1,0 +1,192 @@
+=====================================================================
+ EF `ai-chat` — DEPLOY QO'LLANMASI (Asilbek uchun)
+ Provodka · Supabase project: kxzerccdpcltmzrxutlo
+ Fayl: supabase/functions/ai-chat/index.ts
+ Bosqich: BRIEF_PROVODKA_AGENT.md — 2-BOSQICH (Claude API proxy)
+=====================================================================
+
+NIMA QILADI
+-----------
+`ai-dev.html` chatidan kelgan xabarlarni Claude API ga uzatadi va
+javobni qaytaradi. Claude API kaliti FAQAT Edge Function ichida
+(Supabase secret) — brauzerga hech qachon tushmaydi.
+
+Bu bosqichda web qidiruv (web_search) va Provodka DB konteksti YO'Q —
+ular 3 va 4-bosqichda. Agent kassa/qoldiq savoliga "bu imkoniyat hali
+ulanmagan" deb javob beradi va raqam o'ylab topmaydi.
+
+
+0) OLDIN NIMA BO'LISHI KERAK
+----------------------------
+[a] `PROVODKA_AI_AGENT.sql` RUN qilingan bo'lsin (perm_pages() da 'ai').
+    Busiz EF ni deploy qilsa ham HECH KIM chatdan foydalana olmaydi:
+    EF `my_perms().allowed_pages` ichida 'ai' ni talab qiladi (fail-closed),
+    admin esa (is_admin=true) baribir o'ta oladi.
+[a2] `PROVODKA_PAGES_EMPTY.sql` bazada BO'LISHI SHART — `perm_has_page(text)`
+    aynan o'sha faylda yaratilgan. Bo'lmasa EF ning 1-tekshiruvi RPC xatosi
+    beradi va HAMMA (admin ham) 403 oladi. Chatda "Ruxsat tekshirilmadi.
+    Administratorga murojaat qiling." chiqadi — "Ruxsatingiz yo'q" dan
+    shu matn bilan ajratiladi.
+[b] `admin-dev.html` dan kerakli foydalanuvchilarga "AI agent" ruxsati
+    berilgan bo'lsin.
+[c] Supabase CLI o'rnatilgan bo'lsin (hozir bu kompyuterda YO'Q):
+        npm i -g supabase
+    yoki https://supabase.com/docs/guides/cli dan.
+
+
+1) LOGIN VA LOYIHAGA ULANISH
+----------------------------
+    supabase login
+    cd C:\Users\laziz\pravodka
+    supabase link --project-ref kxzerccdpcltmzrxutlo
+
+`supabase link` repoda `supabase/config.toml` yaratishi mumkin — bu normal,
+commit qilinsa ham sir emas (unda kalit yo'q).
+
+
+2) API KALITINI SECRET SIFATIDA YOZISH
+--------------------------------------
+    supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+
+🔴 KALIT FAQAT SHU YERDA. Repoda, `.env` faylida, HTML ichida yoki
+   chat/xabarda saqlanmaydi. Kalit oshkor bo'lsa — console.anthropic.com
+   dan darrov bekor qiling va yangisini `secrets set` bilan qo'ying.
+   `.gitignore` ga `.env` qo'shilgan (repoda hech qanday `.env` yo'q).
+
+Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
+    supabase secrets list
+
+
+3) IXTIYORIY SOZLAMALAR (env)
+-----------------------------
+    supabase secrets set AI_MODEL=claude-sonnet-5
+        Modelni kodni o'zgartirmasdan almashtiradi.
+        Sukut: `claude-sonnet-4-6` (briefda shu so'ralgan).
+        `claude-sonnet-5` — yangiroq va arzonroq (kirish $2/1M intro narx).
+        Almashtirish uchun EF ni qayta deploy qilish SHART EMAS —
+        secret o'zgargach yangi so'rovlar yangi modelga ketadi.
+
+    supabase secrets set AI_ALLOWED_ORIGINS=https://provodka.example.com
+        CORS allowlist'iga QO'SHIMCHA manzillar (vergul bilan).
+        Kodda sukut bo'yicha ruxsat berilganlar:
+          - https://s1mple-911.github.io   (GitHub Pages, repo: s1mple-911/pravodka)
+          - http://localhost:PORT va http://127.0.0.1:PORT (dev)
+        Repoda CNAME/maxsus domen yo'q. Agar keyinchalik o'z domeni
+        qo'shilsa — shu secret'ga yozing, kodga tegish shart emas.
+        `*` ATAYLAB ishlatilmagan (endpoint pul turadi).
+
+    supabase secrets set AI_SUPABASE_ANON_KEY=sb_publishable_...
+        FAQAT kerak bo'lsa. EF ruxsat RPC larini anon/publishable kalit +
+        foydalanuvchi JWT si bilan chaqiradi. Supabase odatda kalitni o'zi
+        beradi (SUPABASE_ANON_KEY / SUPABASE_PUBLISHABLE_KEY). Agar loglarda
+        "Invalid API key" ko'rinsa — mijozdagi `sb_publishable_...` kalitni
+        shu secret'ga yozing (SUPABASE_ prefiksli nomni qo'lda o'rnatib
+        bo'lmaydi, u himoyalangan). Bu kalit maxfiy emas — u allaqachon
+        har HTML faylda ochiq turibdi.
+
+
+4) DEPLOY
+---------
+    supabase functions deploy ai-chat
+
+⚠️ `verify_jwt` sukut bo'yicha YOQIQ — O'CHIRMANG
+   (`--no-verify-jwt` bayrog'ini ISHLATMANG). U birinchi qavat himoya;
+   EF ichida yana `auth.getUser()` + ruxsat tekshiruvi bor.
+
+⚠️ Agar deploy paytida `npm:@anthropic-ai/sdk@^0.110.0` versiyasi hal
+   bo'lmasa (rezolyutsiya xatosi) — `index.ts` ning 25-qatoridagi pinni
+   olib tashlash kifoya:
+       import Anthropic from "npm:@anthropic-ai/sdk";
+   Boshqa hech narsa o'zgarmaydi.
+
+
+5) TEKSHIRUV
+------------
+[5.1] Avtorizatsiyasiz — 401 kutiladi (JWT yo'q):
+
+    curl -i -X POST ^
+      https://kxzerccdpcltmzrxutlo.supabase.co/functions/v1/ai-chat ^
+      -H "Content-Type: application/json" ^
+      -d "{\"messages\":[{\"role\":\"user\",\"content\":\"salom\"}]}"
+
+    Kutilgan: HTTP/2 401 (Supabase gateway "Missing authorization header"
+    yoki EF ning {"error":"Avtorizatsiya kerak...","code":"no_auth"}).
+    200 kelsa — TO'XTANG va xabar bering.
+
+[5.2] Ruxsatsiz foydalanuvchi bilan (AI ruxsati berilmagan hisob):
+    ai-dev.html ni oching → savol yozing → kehribar xato qatori:
+    "Sizda AI agent ruxsati yo'q." (EF 403 qaytaradi).
+
+[5.3] Ruxsatli foydalanuvchi:
+    ai-dev.html → "2026-yilda QQS stavkasi necha foiz?" → javob keladi.
+    "Yunusobod kassasida qancha pul bor?" → "bu imkoniyat hali ulanmagan"
+    turidagi javob (raqam O'YLAB TOPILMAYDI — 4-bosqichgacha shunday).
+
+[5.4] Loglar:
+    supabase functions logs ai-chat
+    Xatolar console.error bilan to'liq yoziladi; API kaliti loglarga
+    HECH QACHON tushmaydi.
+
+[5.5] BIRINCHI SO'ROVDAN KEYIN LOGNI ALBATTA KO'RING.
+    Agar HAR so'rov "AI xizmatiga ulanib bo'lmadi" (502) bersa va logda
+    Anthropic 400 (`invalid_request_error`) ko'rinsa — sabab deyarli har
+    doim `index.ts` dagi ikki qator:
+        thinking: { type: "disabled" },
+        output_config: { effort: "medium" },
+    Model ularni qabul qilmasa — shu ikki qatorni o'chirib qayta deploy
+    qiling (qolgan hammasi o'zgarishsiz ishlaydi; javob biroz sekinroq va
+    qimmatroq bo'lishi mumkin, xolos). Bu ikkovi faqat narx/kechikish
+    sozlamasi — xavfsizlikka aloqasi YO'Q.
+
+
+6) EF ICHIDAGI HIMOYA QATLAMLARI (nima uchun shunday)
+-----------------------------------------------------
+[1] Auth — `Authorization: Bearer <jwt>` majburiy, `auth.getUser(token)`.
+[2] Ruxsat — IKKI tekshiruv, ikkalasi ham true bo'lishi shart:
+      (a) rpc perm_has_page('ai')
+      (b) rpc my_perms() → is_admin YOKI allowed_pages ⊇ ['ai']
+    🔴 Sabab: `perm_has_page()` tanasida
+       "if not (p_key = any(perm_pages())) then return true" bor. Ya'ni
+       PROVODKA_AI_AGENT.sql RUN QILINMAGAN bazada u HAMMAGA true qaytaradi
+       (fail-open teshigi). `my_perms()` fail-closed — AND bilan teshik yopiladi.
+    🔴 service_role kaliti ISHLATILMAYDI: `perm_has_page()` da
+       "if auth.uid() is null then return true" bor (n8n uchun) — service_role
+       bilan tekshiruv butunlay ochiq bo'lib qolardi. Shuning uchun anon key +
+       foydalanuvchi Authorization headeri.
+    Har qanday xato (RPC yiqildi / noma'lum shakl) → 403. "Shubhada
+    o'tkazish" YO'Q — bu avtorizatsiya, klientdagi UI semantikasi emas.
+[3] Kiritma — body dan FAQAT `messages` o'qiladi. `system`, `model`,
+    `max_tokens`, `tools` kelsa e'tiborsiz qoldiriladi (mijoz model/narx/
+    ko'rsatmani boshqara olmaydi). role ∈ {user,assistant}, content faqat
+    STRING, birinchi va oxirgi xabar `user`, ≤20 xabar, ≤4000 belgi/xabar,
+    ≤20000 belgi jami. Bo'sh matn rad etiladi.
+[4] Tezlik chegarasi — user_id bo'yicha 60 soniyada 8 so'rov (429).
+    ⚠️ Isolate XOTIRASIDA — qat'iy kafolat emas (bir necha isolate bo'lishi
+    yoki sovuq start hisoblagichni nolga tushirishi mumkin). DB darajasidagi
+    cheklov keyingi bosqichda.
+[5] CORS — allowlist (yuqorida 3-band). Noma'lum origin'ga CORS sarlavhasi
+    berilmaydi va so'rov 403 bo'ladi.
+[6] Xato matni — foydalanuvchiga faqat o'zbekcha, xom Anthropic/Postgres
+    matni chiqmaydi (u faqat console.error da).
+
+
+7) NARX / CHEGARA ESLATMASI
+---------------------------
+max_tokens = 4000, `thinking: disabled`, `output_config.effort: medium`.
+Stream YO'Q (keyingi bosqich) — javob to'liq tayyor bo'lgach keladi,
+klientda 60 soniyalik timeout bor.
+Har so'rovda BUTUN suhbat qayta yuboriladi (Claude API stateless), ya'ni
+uzun suhbat qimmatroq — "Yangi suhbat" tugmasi shuning uchun ham kerak.
+
+
+8) QAYTARISH (rollback)
+-----------------------
+EF ni o'chirish:
+    supabase functions delete ai-chat
+Shundan keyin `ai-dev.html` chatida har savolga kehribar xato qatori
+chiqadi ("AI javob bermadi...") — sahifaning qolgan qismi va boshqa
+15 fayl ISHLAYVERADI. Ruxsat tizimiga (perm_pages / user_perms) hech
+qanday ta'sir yo'q.
+Kalitni olib tashlash:
+    supabase secrets unset ANTHROPIC_API_KEY
+=====================================================================

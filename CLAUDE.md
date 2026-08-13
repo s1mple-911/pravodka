@@ -375,10 +375,44 @@ Uchta nozik joy (buzma):
   Boshqa sahifaga to'g'ridan URL bilan kirsa — "Ruxsat yo'q" ekrani + "Xarajat kiritish" tugmasi.
   80% user redirect tufayli bu ekranni umuman ko'rmaydi.
 
-## AI yordamchi (`ai-dev.html`) — 1-BOSQICH (2026-08-13)
+## AI yordamchi (`ai-dev.html` + EF `ai-chat`) — 1–2-BOSQICH (2026-08-13)
 
-`BRIEF_PROVODKA_AGENT.md`. Provodka ichidagi AI chat. **Hozircha faqat interfeys + ruxsat —
-Claude API YO'Q** (2-bosqich: Edge Function proxy, 3: web_search qonun, 4: Provodka konteksti).
+`BRIEF_PROVODKA_AGENT.md`. Provodka ichidagi AI chat. **Claude API ULANDI** (2-bosqich).
+Qolgani: 3 — web_search bilan real-time qonunchilik, 4 — Provodka DB konteksti (permission bo'yicha).
+
+### 2-bosqich — Edge Function `supabase/functions/ai-chat/index.ts` (Provodka'dagi BIRINCHI EF)
+- Deno + `npm:@anthropic-ai/sdk` + `npm:@supabase/supabase-js@2.110.6` (vendor bilan bir xil versiya).
+  Model `claude-sonnet-4-6` (env **`AI_MODEL`** bilan almashadi — `claude-sonnet-5` yangiroq/arzonroq).
+  `max_tokens 4000`, `thinking:disabled` + `effort:medium` (chat uchun narx/kechikish), stream YO'Q.
+  🔴 `temperature`/`top_p`/`top_k`/`budget_tokens` **ISHLATILMAYDI** — yangi modellarda 400 beradi.
+- 🔴 **API kalit faqat Supabase secret'da** (`ANTHROPIC_API_KEY`), mijozda Anthropic URL/kalit yo'q.
+- 🔴 **RUXSAT — IKKI tekshiruv AND bilan**: `perm_has_page('ai')` **VA** `my_perms()`
+  (`is_admin` yoki `allowed_pages ∋ 'ai'`). Sabab: `perm_has_page` tanasida
+  `if not (p_key = any(perm_pages())) then return true` bor — ya'ni `PROVODKA_AI_AGENT.sql`
+  RUN qilinmagan bazada u **hammaga true** qaytaradi (fail-OPEN). `my_perms` fail-closed →
+  AND teshikni yopadi. **Bittasini olib tashlash = ruxsat tizimini ochib qo'yish.**
+- 🔴 **service_role kaliti ISHLATILMAYDI** — u bilan `auth.uid()` null bo'lib `perm_has_page`
+  hammaga true berardi. Klient anon key + foydalanuvchi `Authorization` headeri bilan quriladi.
+- Klientdagi "yuklanmaguncha ochiq" (`perms.js` `loaded=false`) semantikasi EF da **TAKRORLANMAYDI**:
+  har qanday RPC xatosi → 403. U UI qulayligi, bu avtorizatsiya.
+- Kiritma: faqat `{messages:[{role:'user'|'assistant', content:<string>}]}`. Mijozdan kelgan
+  `system`/`model`/`max_tokens`/`tools`/`thinking` **e'tiborsiz** (narx/model boshqarib bo'lmasin).
+  ≤20 xabar, ≤4000 belgi, ≤20000 jami; birinchi va oxirgi xabar `user`. Foydalanuvchi matni
+  system prompt bilan **konkatenatsiya qilinmaydi**. EF hech qanday Provodka jadvalini o'qimaydi
+  (`.from(` yo'q) — 2-bosqichda sizadigan ma'lumot yo'q.
+- Tezlik chegarasi: user_id bo'yicha 60s/8 so'rov, **isolate xotirasida** (best-effort, qat'iy
+  kafolat emas — DB-lik cheklov keyingi bosqichda). CORS `*` emas, allowlist (`AI_ALLOWED_ORIGINS`).
+- ⚠️ Anthropic SDK `timeout` **har urinishga** tegishli (`maxRetries:1` → 2×). Mijoz 60s da uzadi,
+  shuning uchun EF 25s — aks holda mijoz ketgach ham ishlab token yoqardi.
+- Mijozda: `sb.functions.invoke` **`{data,error}`** qaytaradi (throw qilmaydi); xato = **kehribar
+  `err` qatori**, soxta AI javobi YO'Q; `err` qatorlari keyingi so'rovga yuborilmaydi; Claude javobi
+  ham `escapeHtml` dan o'tadi. `code==='bad_input'` bo'lsa rad etilgan `me` qatori tarixdan
+  **o'chiriladi** (aks holda u har so'rovda qayta yuborilib chat qotib qolardi).
+- Deploy: `EF_AI_CHAT_DEPLOY.txt` (Asilbek bajaradi). Old shart: `PROVODKA_PAGES_EMPTY.sql`
+  (`perm_has_page` o'sha yerda) + `PROVODKA_AI_AGENT.sql`. Birinchi so'rovdan keyin
+  `supabase functions logs ai-chat` — 400 kelsa `thinking`/`output_config` qatorlarini olib tashlash.
+
+### 1-bosqich (interfeys + ruxsat)
 
 - **Alohida sahifa, widget emas** — har sahifa mustaqil bo'lgani uchun chat 15 faylga ko'chirilmadi;
   `ai-dev.html` bitta fayl, ruxsat `permGate()` bilan avtomat ishlaydi.
@@ -392,11 +426,13 @@ Claude API YO'Q** (2-bosqich: Edge Function proxy, 3: web_search qonun, 4: Provo
   `ai-dev.html` havolalari qolib ketardi**.
 - 🔴 Klientda API kaliti/tarmoq chaqiruvi YO'Q; xabarlar `escapeHtml()` bilan chiziladi; chat tarixi
   faqat xotirada (localStorage/DB emas). Stub javob soxta ma'lumot bermaydi ("AI hali ulanmagan").
-- 🔴 **2-BOSQICH SHARTI**: Edge Function ruxsatni **server tomonda** `perm_has_page('ai')` bilan
-  tekshirsin. Klientdagi `loaded=false → ochiq` semantikasi (perms.js) ataylab yumshoq —
-  u avtorizatsiya emas, faqat UI. `perm_has_page()` hozirgacha hech qayerda chaqirilmagan.
-- ℹ️ Faqat `ai` ruxsati bor user `has_provodka=true` bo'ladi → bosh sahifada `hodim.html` ga
-  redirect emas, "Ruxsat yo'q" ekrani + "Ochiq bo'limga o'tish" tugmasi chiqadi (bitta ortiqcha klik).
+- ✅ 2-bosqichda bajarildi: EF ruxsatni server tomonda tekshiradi (yuqoridagi AND qoidasi).
+  `perm_has_page()` ning birinchi chaqiruvchisi — shu EF.
+- ⚠️ **`gate()` endi bosh sahifada YO'NALTIRADI** (`perms-dev.js`, 2-bosqich): bosh sahifa yopiq
+  bo'lsa "Ruxsat yo'q" ekrani o'rniga `firstAllowed()` sahifasiga `location.replace`. Faqat `ai`
+  ruxsatli user darrov AI sahifasiga tushadi. ⚠️ Bu **hamma cheklangan userga** tegadi (masalan
+  faqat `kassa` ruxsatlisi ham endi jimgina kassaga tushadi) — ataylab. `firstAllowed()` konvertni
+  `can_convert=false` bo'lsa o'tkazib yuboradi, aks holda redirect yana deny ekraniga olib borardi.
 - ℹ️ `#banner` bo'sh turibdi — 2-bosqichda EF xatosini ko'rsatish uchun (boshqa sahifalar naqshi).
 
 ## Qat'iy qoidalar
