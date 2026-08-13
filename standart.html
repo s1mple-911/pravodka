@@ -34,14 +34,17 @@
   .main{padding:22px 26px 40px;max-width:900px;margin:0 auto}
   @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
-  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
   .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
-  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .side-nav::-webkit-scrollbar{width:6px}
+  .side-nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .side-nav::-webkit-scrollbar-track{background:transparent}
   .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
   .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
   .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
-  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px;flex:0 0 auto}
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
   .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
@@ -170,6 +173,7 @@
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
+      <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
@@ -223,6 +227,7 @@
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
+      <a href="tannarx.html"><i data-lucide="receipt-text"></i>Tannarx</a>
       <a href="standart.html" class="active"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
@@ -338,7 +343,19 @@ window.oyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').m
 window.oyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); loadHolat(); };
 // holat -> filial bo'yicha guruh
 function byFilial(fid){ return holat.filter(r=>r.filial_id===fid); }
-function filName(fid){ const f=filials.find(x=>x.id===fid); return f?f.name:'—'; }
+// Filial nomi bazada "Toshkent Kassa" ko'rinishida. Oxiridagi "kassa" so'zi ekranda ortiqcha —
+// FAQAT KO'RSATISHDA kesiladi. Bazadagi `name` va `f.name` o'zgarmaydi: Aros sinxroni va
+// boshqa sahifalar aynan shu nomga tayanadi. Kesish faqat OXIRIDAN, o'rtadan emas;
+// nom butunlay "Kassa" bo'lsa aslicha qoladi (bo'sh yorliq chiqmasin).
+function filNom(s){
+  const t=String(s==null?'':s).trim();
+  // \s+ (bo'sh joy MAJBURIY): "ToshkentKassa" kabi bitishgan nom kesilib ketmasin —
+  // faqat alohida so'z bo'lgan "… Kassa" olib tashlanadi. "Kassasi" ham tegilmaydi.
+  const q=t.replace(/\s+kassa\s*$/i,'').trim();
+  return q||t;
+}
+// Faqat ko'rsatish uchun — qidiruv/taqqoslash `f.id` bilan ishlaydi, nomga tayanmaydi.
+function filName(fid){ const f=filials.find(x=>x.id===fid); return f?filNom(f.name):'—'; }
 function filSub(fid){ const f=filials.find(x=>x.id===fid); return f&&f.subtitle?f.subtitle:''; }
 
 async function loadHolat(){
@@ -360,7 +377,7 @@ function renderList(){
     const spent=rows.reduce((s,r)=>s+(Number(r.sarflandi)||0),0);
     const meta=n?`Jami limit: <b>${money(tot)}</b> · Sarflandi (${esc(oyUz($('oy').value))}): <b>${money(spent)}</b>`:'Limit qo\'yilmagan';
     return `<button type="button" class="fcard" onclick="openFilial('${f.id}')">`
-      +`<div class="fc-top"><div><div class="fc-name">${esc(f.name)}</div>${f.subtitle?`<div class="fc-sub">${esc(f.subtitle)}</div>`:''}</div>`
+      +`<div class="fc-top"><div><div class="fc-name">${esc(filNom(f.name))}</div>${f.subtitle?`<div class="fc-sub">${esc(f.subtitle)}</div>`:''}</div>`
       +`<span class="fc-cnt${n?'':' zero'}">${n} ta limit</span></div>`
       +`<div class="fc-meta">${meta}</div></button>`;
   }).join('');

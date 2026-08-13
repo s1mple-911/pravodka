@@ -32,14 +32,17 @@
   .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
   @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
-  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
   .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
-  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .side-nav::-webkit-scrollbar{width:6px}
+  .side-nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .side-nav::-webkit-scrollbar-track{background:transparent}
   .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
   .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
   .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
-  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px;flex:0 0 auto}
   .role-badge{font-size:11px;color:var(--muted);padding:4px 12px 8px;font-weight:500}
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
@@ -312,6 +315,7 @@
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
+      <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
@@ -403,6 +407,7 @@
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
+      <a href="tannarx.html"><i data-lucide="receipt-text"></i>Tannarx</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -557,8 +562,9 @@ async function boot(){
 async function loadRole(){
   const {data:{user}}=await sb.auth.getUser();
   myName = user?.email || 'foydalanuvchi';
-  const {data:p}=await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle();
-  if(p){ isAdmin=(p.role==='admin'); if(p.full_name) myName=p.full_name; }
+  const {data:p,error:pErr}= user ? await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle() : {data:null,error:null};
+  if(pErr) console.warn("profiles o'qilmadi:",pErr.message);   // ism/rol kelmasa — email fallback qoladi
+  if(p){ isAdmin=(p.role==='admin'); const fn=(p.full_name||'').trim(); if(fn) myName=fn; }   // ism-familiya; bo'sh bo'lsa gmail
   $('roleBadge').textContent = (isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
 
@@ -614,10 +620,30 @@ async function loadAccSel(){
   buildAccSel();
   $('acc').onchange=onAcc;
 }
-// Hodim filtri — kassa_turi='xarajat' kassalar (name=ism, subtitle='Filial · Lavozim').
+// Bola-hisob (tur yoki valyuta) aniqlash — perms.js keyOf() va SQL kassa_oila()
+// bilan AYNAN bir xil qoida. parent_id UCH ma'noli: hodim kassasining parenti 5400
+// konteyner guruh, u bola-hisob EMAS. Shuning uchun faqat parent_id ga tayanib bo'lmaydi:
+//   currency <> 'UZS'    → valyuta bolasi (56xx USD, 57xx CNY…)
+//   pul_turi to'ldirilgan → pul turi bolasi (naqd/click/payme/karta, 55xxx)
+const jCurOf=a=>String((a&&a.currency)||'UZS').toUpperCase();
+const isSubAcc=a=>!!(a&&a.parent_id&&(jCurOf(a)!=='UZS'||a.pul_turi));
+// Kassa + uning barcha bola-hisoblari (nevaralar ham: "Naqd · USD" bo'lishi mumkin).
+// SQL kassa_oila() ning klient nusxasi — jurnal RPC'ga p_accounts sifatida ketadi.
+function kassaOila(id){
+  const out=[id], seen=new Set([id]);
+  for(let i=0;i<out.length;i++){
+    (accounts||[]).forEach(a=>{
+      if(a.parent_id===out[i] && isSubAcc(a) && !seen.has(a.id)){ seen.add(a.id); out.push(a.id); }
+    });
+  }
+  return out;
+}
+// Hodim filtri — kassa_turi='xarajat' ILDIZ kassalar (name=ism, subtitle='Filial · Lavozim').
+// Tur bolalari (·Naqd/·Click/·Payme/·Karta) parentdan kassa_turi'ni MEROS qiladi —
+// isSubAcc bo'lmasa ro'yxat 5 barobar shishib ketadi ("Ali Valiyev · Naqd" …).
 // permFilterView: cheklangan user faqat o'z hodim kassa(lar)ini ko'radi.
 function buildHodimSel(){
-  const hs=window.permFilterView((accounts||[]).filter(a=>a.kassa_turi==='xarajat'));
+  const hs=window.permFilterView((accounts||[]).filter(a=>a.kassa_turi==='xarajat'&&!isSubAcc(a)));
   $('hodim').innerHTML='<option value="">Barcha hodimlar</option>'
     +hs.map(a=>`<option value="${a.id}">${esc(a.name)}${a.subtitle?' · '+esc(a.subtitle):''}</option>`).join('');
   $('hodim').onchange=onHodim;
@@ -878,7 +904,7 @@ window.confirmLink=async()=>{
 // hisob NOMIDA allaqachon bor ("Toshkent Kassa · Click"). Ko'z bilan tez ajratish uchun
 // oldiga belgi qo'yamiz. jurnal() RPC pul_turi qaytarmaydi (imzosi o'zgarmaydi),
 // shuning uchun accounts'dan qaraladi; u hali yuklanmagan bo'lsa belgi chiqmaydi.
-const TURI_IKO={naqd:"💵",click:'💳',payme:'📱'};
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'🏦'};
 const turiIko=id=>{ const a=accounts.find(x=>x.id===id); return (a&&a.pul_turi&&TURI_IKO[a.pul_turi])?TURI_IKO[a.pul_turi]+' ':''; };
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
@@ -977,9 +1003,22 @@ window.render=render;
 // Ruxsat (permAccIds): hech narsa tanlanmagan bo'lsa ham list-scope userga faqat o'z kassalari
 // qatnashgan yozuvlar ketadi; filial tanlangan bo'lsa u bilan kesishtiriladi.
 function args(){
-  const acc=($('hodim').value)||($('acc').value)||null;   // Hodim filtri ustun (o'sha hodim kassasi)
+  const hid=$('hodim').value||'';
+  let acc=hid||($('acc').value)||null;   // Hodim filtri ustun (o'sha hodim kassasi)
   let accs=null;
-  if(!acc){
+  // Hodim puli tur bola-hisoblarida (·Naqd/·Click/·Payme/·Karta) yotadi — bitta
+  // p_account bilan so'ralsa yozuvlar KO'RINMAY qoladi. Shuning uchun butun oila
+  // p_accounts sifatida ketadi (p_account null bo'ladi, aks holda u ustun turadi).
+  if(hid){
+    const oila=kassaOila(hid);
+    if(oila.length>1){
+      acc=null; accs=oila;
+      // Cheklangan user: ko'rish ruxsati bilan kesishtiramiz (permAccIds bola id'larini
+      // ham o'z ichiga oladi — permViewOk keyOf orqali parentga bog'laydi).
+      if(permAccIds){ const ok=new Set(permAccIds); const f=accs.filter(id=>ok.has(id)); if(f.length) accs=f; }
+    }
+  }
+  if(!acc&&!accs){
     if(filAllow){
       accs=[...filAllow];
       if(permAccIds){ const ok=new Set(permAccIds); accs=accs.filter(id=>ok.has(id)); }
