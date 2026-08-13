@@ -3,18 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aros Provodka — Konvert</title>
+<title>Aros Provodka — AI yordamchi</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
 <link rel="prefetch" href="jurnal-dev.html">
 <link rel="prefetch" href="professional-dev.html">
 <link rel="prefetch" href="kassa-dev.html">
 <link rel="prefetch" href="hisobot-dev.html">
-<link rel="prefetch" href="balans-dev.html">
 <link rel="prefetch" href="cashflow-dev.html">
 <link rel="prefetch" href="qarzdor-dev.html">
 <link rel="prefetch" href="filial-dev.html">
+<link rel="prefetch" href="yuklar-dev.html">
 <link rel="prefetch" href="valyuta-dev.html">
+<link rel="prefetch" href="konvert-dev.html">
 <link rel="prefetch" href="sozlama-dev.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
@@ -25,9 +26,9 @@
   [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
-  .num,.rq .amt,.rq .kv b,.rq .usd{font-variant-numeric:tabular-nums}
+  .num{font-variant-numeric:tabular-nums}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   #app{display:none}.sidebar{display:none}
   .main{padding:22px 26px 40px;max-width:900px;margin:0 auto}
   @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
@@ -49,34 +50,6 @@
   .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
   .head-actions{display:flex;gap:4px;align-items:center}
-  .sec{font-size:13px;color:var(--muted);margin:0 0 12px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
-  .rq{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
-  .rq.pending{border-left:3px solid var(--amber)}
-  .rq.done{border-left:3px solid var(--green)}
-  .rq.rejected{border-left:3px solid var(--red)}
-  .rq .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-  .rq .amt{font-size:20px;font-weight:800;letter-spacing:-.02em}
-  .rq .usd{font-size:13.5px;color:var(--muted);font-weight:600;margin-left:7px}
-  .st{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 11px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-  .st svg{width:12px;height:12px}
-  .st.pending{background:var(--amber-soft);color:var(--amber)}
-  .st.done{background:var(--green-soft);color:var(--green)}
-  .st.rejected{background:var(--red-soft);color:var(--red)}
-  .rq .grid{display:grid;grid-template-columns:1fr;gap:7px;font-size:13.5px}
-  @media(min-width:640px){.rq .grid{grid-template-columns:1fr 1fr}}
-  .rq .kv{display:flex;justify-content:space-between;gap:10px;color:var(--muted)}
-  .rq .kv b{color:var(--ink);font-weight:600;text-align:right}
-  .rq .kv b.warn{color:var(--amber)}
-  .rq .note{font-size:13px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--line);line-height:1.5}
-  .rq .acts{display:flex;gap:8px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
-  .rq .acts button{flex:1;height:42px;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .13s,color .13s,border-color .13s}
-  .rq .acts button svg{width:16px;height:16px}
-  .rq .acts button:disabled{opacity:.5;cursor:not-allowed}
-  .rq .acts .ok{background:var(--primary);border-color:var(--primary);color:#fff}
-  .rq .acts .ok:hover:not(:disabled){background:var(--primary-hover)}
-  .rq .acts .no:hover:not(:disabled){background:var(--red-soft);border-color:var(--red);color:var(--red)}
-  .empty{color:var(--muted);text-align:center;padding:30px;font-size:14px;border:1px dashed var(--line);border-radius:13px}
-  .note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.55}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
@@ -89,6 +62,82 @@
   .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
   .bnav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
   .bnav a svg{width:18px;height:18px}.bnav a.active{color:var(--primary)}
+  /* ===== AI chat (.ai-*) ===== */
+  /* Pufak/tugma uchun alohida yashil: --primary ustida oq matn atigi 3.0:1 beradi.
+     Qisqa yorliqda muammo emas, lekin uzun xabar matni uchun AA (4.5:1) kerak —
+     light'da --primary-hover (4.7:1), dark'da to'qroq yashil ishlatiladi. */
+  :root{--ai-me:var(--primary-hover);--ai-me-ink:#fff}
+  [data-theme="dark"]{--ai-me:#1c7a35;--ai-me-ink:#f0fff5}
+  /* Sahifa bitta ekran balandligida: scroll FAQAT xabarlar maydonida, body'da emas */
+  .ai-main{display:flex;flex-direction:column;min-height:0;height:100vh;height:100dvh;padding:22px 26px 0}
+  .ai-main .page-head{flex:0 0 auto;margin-bottom:16px}
+  .ai-main .banner{flex:0 0 auto}
+  .ai-newbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .ai-newbtn:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .ai-thread{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 16px;overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;box-shadow:var(--shadow);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ai-thread::-webkit-scrollbar{width:6px}
+  .ai-thread::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ai-thread::-webkit-scrollbar-track{background:transparent}
+  @media (prefers-reduced-motion:reduce){.ai-thread{scroll-behavior:auto}}
+  #aiList{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
+  /* bo'sh holat vertikal markazda. :has() yo'q brauzerda tepada qoladi — buzilmaydi */
+  #aiList:has(.ai-empty){flex:1 1 auto;justify-content:center}
+  .ai-row{display:flex;align-items:flex-start;gap:9px;max-width:100%}
+  .ai-row.me{justify-content:flex-end}
+  .ai-row:last-child{animation:aiIn .16s cubic-bezier(.2,.7,.3,1)}
+  @keyframes aiIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .ai-av{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .ai-av svg{width:15px;height:15px}
+  /* ketma-ket agent xabarlarida avatar takrorlanmasin (joyi saqlanadi) */
+  .ai-row.bot+.ai-row.bot .ai-av{opacity:0}
+  .ai-bd{display:flex;flex-direction:column;min-width:0;max-width:72%}
+  .ai-row.me .ai-bd{align-items:flex-end}
+  .ai-msg{padding:10px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;letter-spacing:-.004em;white-space:pre-wrap;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .ai-row.me .ai-msg{background:var(--ai-me);color:var(--ai-me-ink);border-bottom-right-radius:6px}
+  .ai-row.bot .ai-msg{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:6px}
+  .ai-time{font-size:11px;color:var(--muted);margin:5px 4px 0;font-variant-numeric:tabular-nums}
+  .ai-typing{display:none;align-items:flex-start;gap:9px;flex:0 0 auto}
+  .ai-dots{display:flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:6px;padding:13px 14px}
+  .ai-dots span{width:6px;height:6px;border-radius:50%;background:var(--muted);opacity:.3;animation:aiDot 1.2s ease-in-out infinite}
+  .ai-dots span:nth-child(2){animation-delay:.15s}
+  .ai-dots span:nth-child(3){animation-delay:.3s}
+  @keyframes aiDot{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:.9;transform:translateY(-3px)}}
+  .ai-empty{text-align:center;padding:10px 8px;margin:auto 0}
+  .ai-ava{width:54px;height:54px;margin:0 auto 14px;border-radius:18px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center}
+  .ai-ava svg{width:26px;height:26px}
+  .ai-empty h2{margin:0 0 6px;font-size:19px;font-weight:800;letter-spacing:-.02em}
+  .ai-empty p{margin:0 auto 18px;max-width:430px;color:var(--muted);font-size:13.5px;line-height:1.55}
+  .ai-sug{display:grid;grid-template-columns:1fr;gap:8px;max-width:520px;margin:0 auto;text-align:left}
+  .ai-sug button{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface-2);border:1px solid transparent;color:var(--ink);border-radius:12px;padding:11px 13px;font-size:13.5px;line-height:1.4;font-family:inherit;font-weight:500;text-align:left;cursor:pointer;transition:background .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s}
+  .ai-sug button:hover{background:var(--surface);border-color:var(--primary);color:var(--primary);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+  .ai-sug button:active{transform:translateY(0)}
+  .ai-sug button svg{width:15px;height:15px;flex:0 0 auto;color:var(--muted);transition:color .13s,transform .13s}
+  .ai-sug button:hover svg{color:var(--primary);transform:translate(1px,-1px)}
+  .ai-note{display:inline-flex;align-items:center;gap:7px;margin-top:18px;color:var(--muted);font-size:12px;border:1px dashed var(--line);border-radius:999px;padding:6px 12px}
+  .ai-note svg{width:14px;height:14px;flex:0 0 auto}
+  .ai-dock{flex:0 0 auto;position:sticky;bottom:0;background:var(--bg);padding:12px 0 16px}
+  .ai-composer{display:flex;align-items:flex-end;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:6px 6px 6px 4px;box-shadow:var(--shadow);transition:border-color .13s,box-shadow .13s}
+  .ai-composer:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .ai-composer textarea{flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--ink);font-family:inherit;font-size:15.5px;line-height:1.5;padding:9px 6px 9px 12px;resize:none;max-height:160px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ai-composer textarea::placeholder{color:var(--muted)}
+  .ai-send{flex:0 0 auto;width:40px;height:40px;border:none;border-radius:50%;background:var(--ai-me);color:var(--ai-me-ink);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .13s,filter .13s,transform .12s}
+  .ai-send svg{width:18px;height:18px}
+  .ai-send:hover:not(:disabled){filter:brightness(1.12)}
+  .ai-send:active:not(:disabled){transform:scale(.94)}
+  .ai-send:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed;filter:none}
+  .ai-hint{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.5;text-align:center}
+  @media(min-width:640px){.ai-sug{grid-template-columns:1fr 1fr}}
+  @media(max-width:899px){
+    /* bnav 76px — kiritish paneli uning ostida qolmasin (body padding-bottom:76px) */
+    .ai-main{height:calc(100vh - 76px);height:calc(100dvh - 76px - env(safe-area-inset-bottom,0px));padding:18px 16px 0}
+    .ai-thread{padding:14px 12px;border-radius:16px}
+    .ai-bd{max-width:88%}
+    .ai-composer textarea{font-size:16px}   /* iOS 16px'dan kichik inputda sahifani zoom qiladi */
+    /* barmoq uchun kattaroq nishon (~44px) */
+    .ai-send{width:44px;height:44px}
+    .ai-main .head-actions .icon-btn{min-height:42px;min-width:42px;justify-content:center}
+    .ai-hint{font-size:11.5px}
+  }
   /* more-sheet */
   .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
   .mmodal.open{display:flex}
@@ -127,10 +176,10 @@
       <a class="nav-item" href="yuklar-dev.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="tannarx-dev.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
-      <a class="nav-item active" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
       <a class="nav-item" href="standart-dev.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
-      <a class="nav-item" href="ai-dev.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
+      <a class="nav-item active" href="ai-dev.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
     </nav>
     <div class="role-badge" id="roleBadge"></div>
     <div class="side-foot">
@@ -139,23 +188,32 @@
     </div>
   </aside>
 
-  <main class="main">
+  <main class="main ai-main">
     <div class="page-head">
-      <h1>Konvert</h1>
-      <div class="head-actions mobile-only">
-        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
-        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+      <h1>AI yordamchi</h1>
+      <div class="head-actions">
+        <button class="icon-btn ai-newbtn" onclick="aiNew()" title="Yangi suhbat"><i data-lucide="square-pen"></i><span class="desktop-only">Yangi suhbat</span></button>
+        <button class="icon-btn mobile-only" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn mobile-only" onclick="logout()"><i data-lucide="log-out"></i></button>
       </div>
     </div>
     <div id="banner" class="banner"></div>
 
-    <div id="pendWrap" style="display:none">
-      <div class="sec">Tasdiq kutmoqda</div>
-      <div id="pend"></div>
+    <div class="ai-thread" id="aiThread">
+      <div id="aiList" role="log" aria-live="polite" aria-label="Suhbat"></div>
+      <div class="ai-typing" id="aiTypingBox" aria-hidden="true">
+        <div class="ai-av"><i data-lucide="sparkles"></i></div>
+        <div class="ai-dots"><span></span><span></span><span></span></div>
+      </div>
     </div>
-    <div class="sec" id="histSec">Tarix</div>
-    <div id="hist"></div>
-    <div class="note" id="foot"></div>
+
+    <div class="ai-dock">
+      <div class="ai-composer">
+        <textarea id="aiInp" rows="1" placeholder="Savolingizni yozing…" oninput="aiGrow()" aria-label="Savol matni"></textarea>
+        <button class="ai-send" id="aiSend" onclick="aiSend()" title="Yuborish" aria-label="Yuborish" disabled><i data-lucide="arrow-up"></i></button>
+      </div>
+      <div class="ai-hint">Enter — yuborish, Shift+Enter — yangi qator. Suhbat faqat shu oyna ochiq turganda saqlanadi.</div>
+    </div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -175,12 +233,12 @@
       <a href="professional-dev.html"><i data-lucide="list-plus"></i>Professional</a>
       <a href="kassa-dev.html"><i data-lucide="wallet"></i>Kassa</a>
       <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
-      <a href="konvert-dev.html" class="active"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart-dev.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <a href="yuklar-dev.html"><i data-lucide="package"></i>Yuklar</a>
       <a href="tannarx-dev.html"><i data-lucide="receipt-text"></i>Tannarx</a>
-      <a href="ai-dev.html"><i data-lucide="sparkles"></i>AI yordamchi</a>
+      <a href="ai-dev.html" class="active"><i data-lucide="sparkles"></i>AI yordamchi</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -191,24 +249,13 @@
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-// stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
-const PAGE=location.pathname.split('/').pop()||'index';
-const swrKey=n=>`prov-swr:${PAGE}:${n}`;
-function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
-  const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
-function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
 const $=id=>document.getElementById(id);
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
-const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
-// Valyuta miqdori — 2 kasr. Kod berilmasa (eski so'rovlar) $ deb ko'rsatiladi.
-const usdFmt=(n,cur)=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+' '+(cur||'$');
-const fmtWhen=x=>{ if(!x) return ''; try{ return new Date(x).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
-const ST_LBL={pending:'Kutilmoqda',done:'Bajarildi',rejected:'Rad etildi',approved:'Tasdiqlandi'};
-const ST_IC={pending:'clock',done:'check',rejected:'x',approved:'check'};
-const stLbl=s=>ST_LBL[s]||(s?String(s).replace(/_/g,' '):'—');
-let isAdmin=false, myName='', accById={};
-// Koridor foizi serverdan (conv_koridor_foiz). Kelmasa 5% — SQL'dagi joriy qiymat.
-let cvFoiz=5;
+// XSS: foydalanuvchi matni HAR DOIM shundan o'tadi — innerHTML ga xom matn tushmaydi.
+const escapeHtml=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Vaqt Toshkent bo'yicha (UTC+5) — CLAUDE.md qoidasi
+const nowHM=()=>new Date(Date.now()+5*3600*1000).toISOString().slice(11,16);
+let isAdmin=false, myName='';
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -227,7 +274,9 @@ window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('op
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 let appShown=false;
 // Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
-// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi (server guard baribir ikkinchi qavat).
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi.
+// ⚠️ Sahifa kaliti 'ai' (perms-dev.js `page()` fayl nomidan oladi, `-dev` kesiladi).
+// PAGES massiviga 'ai' qo'shilmaguncha bu sahifa "cheklanmagan" deb o'tkaziladi.
 async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
   if(!window.permGate()) return;
   await window.permLoad(sb);
@@ -251,117 +300,109 @@ async function loadRole(){
   const {data:{user}}=await sb.auth.getUser(); myName=user?.email||'foydalanuvchi';
   const {data:p,error:pErr}= user ? await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle() : {data:null,error:null};
   if(pErr) console.warn("profiles o'qilmadi:",pErr.message);   // ism/rol kelmasa — email fallback qoladi
-  if(p){ isAdmin=(p.role==='admin'); const fn=(p.full_name||'').trim(); if(fn) myName=fn; }   // ism-familiya; bo'sh bo'lsa gmail
+  if(p){ isAdmin=(p.role==='admin'); const fn=(p.full_name||'').trim(); if(fn) myName=fn; }
   $('roleBadge').textContent=(isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
 }
-const accName=id=>accById[id]?accById[id].name:'—';
-// Farq foizi so'rov paytidagi Aros kursidan hisoblanadi
-function farqPct(r){
-  const a=Number(r.aros_rate)||0, k=Number(r.rate)||0;
-  if(!a||!k) return null;
-  return (k-a)/a*100;
+
+// =====================================================================
+//  AI CHAT — 1-BOSQICH: FAQAT INTERFEYS
+// ---------------------------------------------------------------------
+//  🔴 Claude API bu yerda YO'Q va bo'lmaydi: API kaliti hech qachon
+//     frontendga tushmaydi. 2-bosqichda Supabase Edge Function proxy
+//     qo'shiladi (kalit server tomonda secret sifatida turadi).
+//  🔴 SOXTA JAVOB YOZILMAYDI — agent hozircha faqat "ulanmagan" deb
+//     javob beradi. Qonun/kassa haqida hech narsa "bilgan" bo'lib
+//     ko'rsatilmaydi, aks holda foydalanuvchi noto'g'ri ma'lumotga
+//     ishonib qolardi.
+//  ⚠️ Suhbat tarixi FAQAT XOTIRADA (`msgs` massivi). localStorage ham,
+//     DB ham YO'Q — sahifa yangilansa suhbat o'chadi. Saqlash 2-bosqichda
+//     hal qilinadi (u yerda "kim nimani so'radi" maxfiylik masalasi ham
+//     bor: chat tarixi RLS bilan faqat egasiga ko'rinishi kerak).
+// =====================================================================
+const AI_STUB="AI agent hali ulanmagan — Claude API 2-bosqichda qo'shiladi. Hozircha bu faqat interfeys.";
+const AI_DELAY=400;   // "yozmoqda…" ko'rinishi uchun qisqa pauza
+const SUGGESTIONS=[
+  "2026-yilda QQS stavkasi necha foiz?",
+  "Yunusobod kassasida qancha pul bor?",
+  "Hodim xarajat kassasi nima?",
+  "Bu oyda qaysi xarajat eng ko'p bo'ldi?"
+];
+let msgs=[];          // [{role:'me'|'bot', text, at}] — faqat xotirada
+let busy=false;       // javob kutilmoqda (ikki marta yuborilmasin)
+let replyTimer=null;
+
+function threadEnd(){ const t=$('aiThread'); if(t) t.scrollTop=t.scrollHeight; }
+
+function emptyHtml(){
+  return '<div class="ai-empty">'
+    + '<div class="ai-ava"><i data-lucide="sparkles"></i></div>'
+    + '<h2>Nima bilan yordam beray?</h2>'
+    + '<p>Moliya, kassa qoldiqlari va O\'zbekiston soliq/buxgalteriya qonunchiligi bo\'yicha savol bering. '
+    + 'Javob har doim sizning ruxsatingiz doirasida bo\'ladi.</p>'
+    + '<div class="ai-sug">'
+    + SUGGESTIONS.map((s,i)=>'<button type="button" onclick="aiPick('+i+')"><span>'+escapeHtml(s)+'</span><i data-lucide="arrow-up-right"></i></button>').join('')
+    + '</div>'
+    + '<div class="ai-note"><i data-lucide="info"></i><span>1-bosqich: interfeys tayyor, AI hali ulanmagan.</span></div>'
+    + '</div>';
 }
-// Yo'nalish so'rovdan tiklanadi — convert_request'da alohida ustun yo'q.
-// Beruvchi so'mda bo'lsa sotib olish, aks holda sotish.
-function yonalish(r){
-  const f=accById[r.from_account], t=accById[r.to_account];
-  const fcur=(f&&f.currency)||'UZS', tcur=(t&&t.currency)||'UZS';
-  const sotish=fcur!=='UZS';
-  return {sotish, cur:(sotish?fcur:tcur)};
+
+function render(){
+  const list=$('aiList');
+  if(!msgs.length){ list.innerHTML=emptyHtml(); icons(); return; }
+  list.innerHTML=msgs.map(m=>
+    '<div class="ai-row '+(m.role==='me'?'me':'bot')+'">'
+    + (m.role==='me'?'':'<div class="ai-av"><i data-lucide="sparkles"></i></div>')
+    + '<div class="ai-bd">'
+    + '<div class="ai-msg">'+escapeHtml(m.text)+'</div>'
+    + '<div class="ai-time">'+escapeHtml(m.at)+'</div>'
+    + '</div>'
+    + '</div>').join('');
+  icons(); threadEnd();
 }
-function card(r){
-  const st=String(r.status||'');
-  const pct=farqPct(r);
-  const pctTxt=pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%';
-  const chiqib=pct!==null&&Math.abs(pct)>cvFoiz;
-  const y=yonalish(r);
-  // V8 (6-ish): koridor ma'lumoti (tayanch kurs + farq foizi) FAQAT ADMINGA.
-  // Oddiy foydalanuvchi chegarani bilmasligi kerak — aks holda har safar
-  // koridor chetiga yaqin kurs yozadi. Server tekshiruvi o'z joyida qoladi.
-  const korKv=isAdmin
-    ? `<div class="kv"><span>Tayanch kurs</span><b>${r.aros_rate?money(r.aros_rate):'—'}</b></div>
-      <div class="kv"><span>Farq</span><b class="${chiqib?'warn':''}">${pctTxt}</b></div>`
-    : '';
-  // Sotib olish: so'm → valyuta. Sotish: valyuta → so'm.
-  const bosh=y.sotish
-    ? `<span class="amt">${usdFmt(r.fc_amount,y.cur)}</span><span class="usd">→ ${money(r.amount)} so'm</span>`
-    : `<span class="amt">${money(r.amount)}</span><span class="usd">→ ${usdFmt(r.fc_amount,y.cur)}</span>`;
-  const acts=(isAdmin&&st==='pending')?`<div class="acts">
-      <button class="ok" onclick="approve('${r.id}')"><i data-lucide="check"></i>Tasdiqlash</button>
-      <button class="no" onclick="reject('${r.id}')"><i data-lucide="x"></i>Rad etish</button>
-    </div>`:'';
-  const decided=(st!=='pending'&&r.decided_by_name)?`<div class="note">${stLbl(st)}: ${r.decided_by_name} · ${fmtWhen(r.decided_at)}</div>`:'';
-  const note=r.note?`<div class="note">${r.note}</div>`:'';
-  return `<div class="rq ${st}">
-    <div class="hd">
-      <div>${bosh}</div>
-      <span class="st ${st}"><i data-lucide="${ST_IC[st]||'circle'}"></i>${stLbl(st)}</span>
-    </div>
-    <div class="grid">
-      <div class="kv"><span>Kimdan</span><b>${accName(r.from_account)}</b></div>
-      <div class="kv"><span>Kimga</span><b>${accName(r.to_account)}</b></div>
-      <div class="kv"><span>Yo'nalish</span><b>${y.sotish?'Sotish':'Sotib olish'} · ${y.cur||'—'}</b></div>
-      <div class="kv"><span>Kurs</span><b>${money(r.rate)}</b></div>
-      ${korKv}
-      <div class="kv"><span>So'radi</span><b>${r.requested_by_name||'—'} · ${fmtWhen(r.requested_at)}</b></div>
-    </div>${note}${decided}${acts}</div>`;
-}
-window.approve=async id=>{
-  if(!confirm('Bu konvert tasdiqlansinmi? Pul harakat qiladi.')) return;
-  const {data,error}=await sb.rpc('convert_approve',{p_id:id});
-  if(error){ showErr(error.message); return; }
-  if(data&&data.ok===false){ showErr(data.error||'Tasdiqlab bo\'lmadi'); return; }
-  await load();
+
+function push(role,text){ msgs.push({role,text,at:nowHM()}); render(); }
+
+// 2-bosqich uchun tayyor: javob kutilayotganda ko'rsatiladi.
+window.aiTyping=on=>{ const b=$('aiTypingBox'); if(!b) return;
+  b.style.display=on?'flex':'none'; b.setAttribute('aria-hidden',on?'false':'true'); if(on) threadEnd(); };
+
+// Textarea o'z-o'zidan o'sadi (CSS max-height 160px dan keyin scroll)
+window.aiGrow=()=>{ const el=$('aiInp'); if(!el) return;
+  el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px';
+  $('aiSend').disabled = busy || !el.value.trim(); };
+
+window.aiPick=i=>{ const s=SUGGESTIONS[i]; if(s===undefined) return;
+  const el=$('aiInp'); el.value=s; el.focus(); window.aiGrow(); };
+
+window.aiNew=()=>{ if(replyTimer){ clearTimeout(replyTimer); replyTimer=null; }
+  busy=false; msgs=[]; window.aiTyping(false); render();
+  const el=$('aiInp'); if(el){ el.value=''; window.aiGrow(); el.focus(); } };
+
+window.aiSend=()=>{
+  if(busy) return;
+  const el=$('aiInp'); const text=(el.value||'').trim();
+  if(!text) return;                      // bo'sh xabar yuborilmaydi
+  push('me',text);
+  el.value=''; window.aiGrow(); el.focus();
+  busy=true; $('aiSend').disabled=true;
+  window.aiTyping(true);
+  // 🔴 Bu setTimeout — 2-bosqichda Edge Function chaqiruvi bilan almashadi.
+  replyTimer=setTimeout(()=>{
+    replyTimer=null; busy=false;
+    window.aiTyping(false);
+    push('bot',AI_STUB);
+    window.aiGrow();
+  },AI_DELAY);
 };
-window.reject=async id=>{
-  const note=prompt('Rad etish sababi:'); if(note===null) return;
-  const {data,error}=await sb.rpc('convert_reject',{p_id:id,p_note:note||null});
-  if(error){ showErr(error.message); return; }
-  if(data&&data.ok===false){ showErr(data.error||'Rad etib bo\'lmadi'); return; }
-  await load();
-};
-function showErr(m){ $('banner').style.display='block'; $('banner').textContent='Xato: '+m; }
-function renderRows(rows){
-  const pend=rows.filter(r=>r.status==='pending');
-  const rest=rows.filter(r=>r.status!=='pending');
-  $('pendWrap').style.display=pend.length?'block':'none';
-  $('pend').innerHTML=pend.map(card).join('');
-  $('hist').innerHTML=rest.length?rest.map(card).join('')
-    :`<div class="empty">${rows.length?'Boshqa so\'rov yo\'q':'Hali konvert so\'rovi yo\'q'}</div>`;
-  $('foot').textContent=isAdmin
-    ? "Kurs Aros kursidan ±2% dan ko'p farq qilsa so'rov tasdiqqa tushadi. Tasdiqlangunicha pul harakat qilmaydi."
-    : "Bu yerda o'z so'rovlaringiz holati ko'rinadi. Tasdiqlashni admin bajaradi.";
-  icons();
-}
-// useCache=true — faqat sahifa ochilishida keshdan darrov ko'rsat. Mutatsiyadan keyin (approve/reject) DOIM yangi so'rov.
-async function load(useCache){
-  $('banner').style.display='none';
-  const ck='main';
-  const cached=useCache?swrGet(ck):null;
-  if(useCache){ if(cached) renderRows(cached); else $('hist').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
-  // RLS hal qiladi: admin hammasini, oddiy user faqat o'zinikini ko'radi
-  const {data,error}=await sb.from('convert_request').select('*').order('requested_at',{ascending:false}).limit(100);
-  if(error){ if(!cached) showErr(error.message); return; }
-  const rows=data||[];
-  swrSet(ck,rows);
-  renderRows(rows);
-}
+
+$('aiInp').addEventListener('keydown',e=>{
+  if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); window.aiSend(); }
+});
+
 async function init(){
-  // Mustaqil so'rovlar parallel ketadi — ketma-ket kutish yo'q
-  await Promise.all([
-    loadRole(),
-    // currency — yo'nalishni (sotib olish/sotish) tiklash uchun kerak
-    (async()=>{ const {data:accs}=await sb.from('v_kassa_toliq').select('id,name,currency'); accById={}; (accs||[]).forEach(a=>{ accById[a.id]=a; }); })(),
-    // Koridor foizi bitta manbadan — "farq" ustuni shunga qarab sariq bo'ladi.
-    // V8 (6-ish): faqat admin kartasida ishlatiladi, shuning uchun loadRole()dan keyin
-    // (quyida) so'raladi — oddiy foydalanuvchiga umuman so'rov ketmaydi.
-  ]);
-  if(isAdmin){
-    const {data:f}=await sb.rpc('conv_koridor_foiz');
-    if(f!==null&&f!==undefined) cvFoiz=Number(f)||cvFoiz;
-  }
-  // Kartalar nom (accById) va isAdmin'ga bog'liq — shuning uchun load yuqoridagilardan keyin
-  await load(true);
+  render();
+  window.aiGrow();
+  await loadRole();
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
