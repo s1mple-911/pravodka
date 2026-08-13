@@ -31,14 +31,17 @@
   .main{padding:22px 26px 40px;max-width:720px;margin:0 auto}
   @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
-  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
   .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
-  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .side-nav::-webkit-scrollbar{width:6px}
+  .side-nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .side-nav::-webkit-scrollbar-track{background:transparent}
   .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
   .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
   .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
-  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px;flex:0 0 auto}
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
   .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
@@ -129,6 +132,7 @@
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
+      <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item active" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
@@ -166,6 +170,23 @@
     <!-- Ro'yxat tanlangan tabga (Kassa/Xarajat/Daromad) qarab filtrlanadi -->
     <div class="card"><div class="sec" id="listTitle">KASSALAR</div><div id="list"></div></div>
     <div class="card"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
+
+    <!-- Xarajat filiallari — savdo qilmaydigan, lekin xarajati bor filiallar (admin) -->
+    <div class="card" id="filCard" style="display:none">
+      <div class="sec">Filiallar</div>
+      <div class="hint">Bu ro'yxat xarajat kiritishda "Filial" tanlagichida ko'rinadi (Hodim / Professional / Standart).
+        Aros'da kassasi bo'lmagan, ya'ni <b>savdo qilmaydigan lekin xarajati bor</b> filialni shu yerdan qo'shing.
+        Qo'lda qo'shilgan filialga Aros sinxroni tegmaydi — unga faqat xarajat yoziladi.</div>
+      <div class="addrow" style="margin-bottom:10px">
+        <input id="filName" placeholder="Filial nomi (masalan: Chilonzor ofis)">
+      </div>
+      <div class="addrow">
+        <input id="filSub" placeholder="Izoh — ixtiyoriy (masalan: Toshkent · Ofis)">
+        <button id="filBtn" onclick="addFilial()"><i data-lucide="plus"></i>Filial qo'shish</button>
+      </div>
+      <div id="filRes" class="res"></div>
+      <div id="filList"></div>
+    </div>
 
     <!-- V8 (7-ish): konvert koridori — admin sozlaydi (provodka_config.konvert_koridor_foiz) -->
     <div class="card" id="korCard" style="display:none">
@@ -211,6 +232,7 @@
       <a href="sozlama.html" class="active"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
+      <a href="tannarx.html"><i data-lucide="receipt-text"></i>Tannarx</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
@@ -232,6 +254,9 @@ function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Da
 const $=id=>document.getElementById(id);
 const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
+// innerHTML'ga tushadigan HAR foydalanuvchi matni (nom, subtitle, kod) shundan o'tadi —
+// aks holda nomdagi `<`/`&` sahifa tuzilishini buzadi (boshqa sahifalardagi bilan bir xil).
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let accounts=[], curType='kassa', isAdmin=false;
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -310,7 +335,7 @@ function renderList(elId,arr,showChek){
   // showChek → Xarajat ro'yxatida "Chek" checkbox (admin chek majburiyligini boshqaradi)
   $(elId).innerHTML=arr.length?arr.map(a=>`
     <div class="item ${a.is_active?'':'off'}">
-      <div class="mid"><div class="t">${a.name}</div><div class="c">${a.code}${a.subtitle?' · '+a.subtitle:''}</div></div>
+      <div class="mid"><div class="t">${esc(a.name)}</div><div class="c">${esc(a.code)}${a.subtitle?' · '+esc(a.subtitle):''}</div></div>
       ${showChek?`<label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
       <label class="chekopt ${a.izoh_majburiy?'on':''}" title="Izoh majburiy"><input type="checkbox" ${a.izoh_majburiy?'checked':''} onchange="setFlag('${a.id}','izoh',this.checked)">Izoh</label>
       <label class="chekopt ${a.davr_majburiy?'on':''}" title="Davr (sana) majburiy"><input type="checkbox" ${a.davr_majburiy?'checked':''} onchange="setFlag('${a.id}','davr',this.checked)">Sana</label>`:''}
@@ -348,8 +373,66 @@ async function loadRole(){
   isAdmin=(p&&p.role==='admin');
   $('linkCard').style.display=isAdmin?'block':'none';
   $('korCard').style.display=isAdmin?'block':'none';
+  $('filCard').style.display=isAdmin?'block':'none';
   if(isAdmin) loadKoridor();
 }
+
+// ===== Xarajat filiallari (savdo qilmaydi, lekin xarajati bor) =====
+// Ro'yxat `v_filial_tanlov`dan — hodim/professional/standart AYNAN shu ro'yxatni
+// ko'radi, shuning uchun bu yerda ham aynan o'sha manba (accounts'dan qayta
+// filtrlansa, shartlar vaqt o'tib ajralib ketardi).
+// `filial_ref` view'da yo'q — u allaqachon yuklangan `accounts` massividan
+// olinadi: to'ldirilgan bo'lsa filial Aros sinxronida qatnashadi va o'chirish
+// tugmasi CHIQMAYDI (server ham rad etadi — xarajat_filial_ochir).
+let filials=[];
+async function loadFilials(){
+  const {data,error}=await sb.from('v_filial_tanlov').select('*');   // id, code, name, subtitle
+  if(error){ $('filRes').className='res err';
+    $('filRes').textContent='Ro\'yxat o\'qilmadi: '+(window.permErr?window.permErr(error):error.message); return; }
+  filials=data||[];
+  renderFilials();
+}
+function renderFilials(){
+  $('filList').innerHTML=filials.length?filials.map(f=>{
+    const a=accounts.find(x=>x.id===f.id);
+    const aros=!!(a&&a.filial_ref!==null&&a.filial_ref!==undefined);
+    const meta=[f.code,f.subtitle||'',aros?'Aros sinxroni':'qo\'lda qo\'shilgan'].filter(Boolean).map(x=>esc(x)).join(' · ');
+    return `<div class="item">
+      <div class="mid"><div class="t">${esc(f.name)}</div><div class="c">${meta}</div></div>
+      ${aros?'':`<button class="edit" title="Ro'yxatdan olish" onclick="ochirFilial('${f.id}')"><i data-lucide="trash-2"></i></button>`}
+    </div>`;
+  }).join(''):'<div class="empty">—</div>';
+  icons();
+}
+window.addFilial=async()=>{
+  if(!isAdmin){ alert('Faqat admin'); return; }
+  const nom=$('filName').value.trim(); if(!nom){ alert('Filial nomini kiriting'); return; }
+  const sub=$('filSub').value.trim();
+  const btn=$('filBtn'), old=btn.innerHTML, res=$('filRes');
+  btn.disabled=true; btn.innerHTML='Qo\'shilmoqda...'; res.className='res'; res.textContent='';
+  const {data,error}=await sb.rpc('xarajat_filial_yarat',{p_nom:nom,p_subtitle:sub||null});
+  btn.disabled=false; btn.innerHTML=old; icons();
+  if(error){ res.className='res err'; res.textContent='Xato: '+(window.permErr?window.permErr(error):error.message); return; }
+  const r=Array.isArray(data)?data[0]:data;
+  if(!r||r.ok!==true){ res.className='res err'; res.textContent='Xato: '+((r&&r.error)||'RPC natija qaytarmadi'); return; }
+  res.className='res ok';
+  res.textContent=r.yangi?`${r.name} (${r.code}) qo'shildi`:`${r.name} (${r.code}) allaqachon bor edi`;
+  $('filName').value=''; $('filSub').value='';
+  await load(); await loadFilials();          // yozuvdan keyin — yangi o'qish
+};
+// O'chirmaydi — is_active=false. Yozuvi/tegi bor yoki Aros'ga bog'langan
+// filialni server rad etadi, xato matni foydalanuvchiga ko'rsatiladi.
+window.ochirFilial=async id=>{
+  const f=filials.find(x=>x.id===id); if(!f) return;
+  if(!confirm(`"${f.name}" ro'yxatdan olinsinmi?\n\nHisob o'chirilmaydi — faqat filial tanlagichidan yashiriladi.`)) return;
+  const res=$('filRes'); res.className='res'; res.textContent='';
+  const {data,error}=await sb.rpc('xarajat_filial_ochir',{p_id:id});
+  if(error){ res.className='res err'; res.textContent='Xato: '+(window.permErr?window.permErr(error):error.message); return; }
+  const r=Array.isArray(data)?data[0]:data;
+  if(!r||r.ok!==true){ res.className='res err'; res.textContent='Xato: '+((r&&r.error)||'RPC natija qaytarmadi'); return; }
+  res.className='res ok'; res.textContent=`${r.name} (${r.code}) ro'yxatdan olindi`;
+  await load(); await loadFilials();
+};
 
 // ===== V8 (7-ish): Konvert koridori (%) — provodka_config.konvert_koridor_foiz =====
 // Serverdagi yagona manba conv_koridor_foiz(); u endi provodka_config'dan o'qiydi.
@@ -429,7 +512,9 @@ window.linkFilial=async()=>{
   btn.disabled=false; btn.innerHTML=old; icons();
 };
 
-async function init(){ await Promise.all([loadRole(), load()]); }
+// loadFilials() Promise.all'dan KEYIN: u `accounts` (filial_ref) va isAdmin
+// tayyor bo'lishiga tayanadi — aks holda "Aros sinxroni" belgisi noto'g'ri chiqadi.
+async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin) await loadFilials(); }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

@@ -20,11 +20,12 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (14 ta).
+  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (15 ta).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
-               'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart'];
+               'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
+               'tannarx'];
   var HOME  = 'jurnal';           // bosh sahifa (ildiz "/" ham shu)
 
   /* Havola qo'shimchasi joriy fayl nomidan olinadi: dev sahifada `-dev.html`,
@@ -218,15 +219,12 @@
   }
 
   // ---- kassalar --------------------------------------------------------
-  /* Ruxsat kaliti: kassaning bola-hisobi ruxsatni PARENT kassadan oladi.
-     Bola IKKI xil bo'ladi va ikkalasi ham shu qoidaga tushadi:
-       • valyuta bolasi   — currency <> 'UZS' (56xx USD, 57xx CNY…)
-       • pul turi bolasi  — pul_turi to'ldirilgan (naqd/click/payme, currency='UZS')
-     parent_id ikki ma'noli (bola-hisob + guruh a'zoligi) — shuning uchun yolg'iz
-     parent_id ga TAYANILMAYDI: hodim kassasining parenti 5400 konteyner, lekin
-     uning currency='UZS' va pul_turi bo'sh, ya'ni kaliti o'zi bo'lib qoladi.
-     ⚠️ Server (perm_op_key) bilan AYNI qoida — ikkovi ajralib qolmasin, aks holda
-     tugma ko'rinadi-yu, saqlashda trigger 42501 beradi. */
+  /* Ruxsat kaliti: bola-hisob (valyuta YOKI pul turi) parent kassasiga tegishli.
+     Serverdagi kassa_root()/perm_op_key() bilan AYNAN bir xil bo'lishi shart —
+     aks holda klient naqd/Click/Payme hisobini yashiradi, server esa ruxsat beradi
+     (yoki teskarisi: UI ko'rsatadi, guard trigger 42501 bilan rad etadi).
+     parent_id UCH ma'noli — hodim kassasi (parent=5400, UZS, pul_turi yo'q) bola EMAS,
+     shuning uchun shart currency<>'UZS' YOKI pul_turi bor bo'lishi kerak. */
   function keyOf(a) {
     if (!a) return null;
     var c = a.currency || 'UZS';
