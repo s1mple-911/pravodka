@@ -31,14 +31,20 @@
   .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
   @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
-  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
   .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
-  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1}
+  /* 14 ta nav elementi past ekranga (768px) sig'masligi mumkin — nav o'zi scroll
+     bo'lsin, brand va foot (Mavzu/Chiqish) esa doim ko'rinib tursin. min-height:0
+     SHART: usiz flex bola qisqarmaydi va foot ekran tashqarisiga chiqib ketadi. */
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .side-nav::-webkit-scrollbar{width:6px}
+  .side-nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .side-nav::-webkit-scrollbar-track{background:transparent}
   .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
   .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
   .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
-  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px;flex:0 0 auto}
   .role-badge{font-size:11px;color:var(--muted);padding:4px 12px 8px;font-weight:500}
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
@@ -71,6 +77,8 @@
   .mrow button{flex:1;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-weight:600;font-family:inherit;font-size:15px;cursor:pointer;transition:background .13s}
   .mrow button:hover{background:var(--line)}
   .mrow button.primary{background:var(--primary);color:#fff;border:none}.mrow button.primary:hover{background:var(--primary-hover)}
+  .mrow button.danger{background:var(--red);color:#fff;border:none}.mrow button.danger:hover{filter:brightness(.93)}
+  .mrow button:disabled{opacity:.55;cursor:default}
   /* more-sheet */
   .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
   .mmodal.open{display:flex}
@@ -141,6 +149,22 @@
   .kadd svg{width:13px;height:13px}
   .kadd:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   body.is-admin .kadd{display:inline-flex}
+  /* "+" modali — pul turi bo'limi: qo'shish tugmalari yonma-yon, sig'masa keyingi qatorga */
+  .vlwrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  .vlwrap .kbtn{height:36px;padding:0 12px;font-size:13.5px}
+  .vlwrap .empty{width:100%;padding:14px}
+  #vlTurBor .krow{padding:10px 13px}
+  .vlnote{font-size:12px;color:var(--muted);margin:10px 2px 0;line-height:1.45}
+  /* tur satrining o'ng tomoni: qoldiq + o'chirish tugmasi (yoki sabab) */
+  .krow .vlright{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .vlwhy{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .vldel{flex:0 0 auto;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);cursor:pointer;padding:0;transition:background .13s,border-color .13s,color .13s}
+  .vldel svg{width:14px;height:14px}
+  .vldel:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+  .vldel:disabled{opacity:.5;cursor:default}
+  /* tasdiq modali — "+" modalining USTIDA ochiladi (.modal z-index 200) */
+  #cfmModal{z-index:230}
+  .cfmtxt{font-size:13.5px;color:var(--muted);line-height:1.5;margin:-6px 0 16px}
   /* /kassa-kartalar */
 </style>
 </head>
@@ -258,14 +282,44 @@
     <div class="mrow"><button onclick="closeTur()">Bekor</button><button class="primary" id="tcSave" onclick="turSave()">O'tkazish</button></div>
   </div></div>
 
+  <!-- Kassaga bola-hisob qo'shish (faqat admin). Ikki bo'lim:
+       Valyuta  → create_valyuta_child (USD/CNY... — kursli konvert bilan ishlaydi)
+       Pul turi → create_pul_turi_child (naqd/click/payme/karta... — so'm ichida taqsimot) -->
   <div class="modal" id="valModal"><div class="sheet">
-    <h3>Valyuta qo'shish</h3>
+    <h3>Kassaga qo'shish</h3>
     <div id="vlMsg" class="cv-msg"></div>
     <div class="cv-rate"><i data-lucide="info"></i><span id="vlKassa">—</span></div>
-    <label>Valyuta</label><select id="vlCur"></select>
-    <label>Yoki yangi valyuta kodi (masalan CNY)</label><input class="txt" id="vlYangi" placeholder="ixtiyoriy" maxlength="8">
-    <div class="mrow"><button onclick="closeVal()">Bekor</button><button class="primary" id="vlSave" onclick="valSave()">Qo'shish</button></div>
+    <div class="cvseg" id="vlSeg">
+      <button class="on" onclick="vlTab('valyuta',this)">Valyuta</button>
+      <button onclick="vlTab('tur',this)">Pul turi</button>
+    </div>
+    <div id="vlPaneV">
+      <label>Valyuta</label><select id="vlCur"></select>
+      <label>Yoki yangi valyuta kodi (masalan CNY)</label><input class="txt" id="vlYangi" placeholder="ixtiyoriy" maxlength="8">
+      <div class="mrow"><button onclick="closeVal()">Bekor</button><button class="primary" id="vlSave" onclick="valSave()">Qo'shish</button></div>
+    </div>
+    <div id="vlPaneT" style="display:none">
+      <label>Kassadagi turlar</label>
+      <div id="vlTurBor"><div class="empty">—</div></div>
+      <label style="margin:14px 0 7px 2px">Qo'shish</label>
+      <div id="vlTurYoq" class="vlwrap"></div>
+      <div class="vlnote">Tur hisobi bazadan o'chirilmaydi — faqat yopiladi (tarixi joyida qoladi) va qayta qo'shsa tiklanadi. Yopish uchun qoldiq 0 bo'lishi shart: pulni avval "Tur o'tkazish" bilan boshqa turga chiqaring.</div>
+      <div class="mrow"><button onclick="closeVal()">Yopish</button><button class="primary" id="vlStd" onclick="vlStandart()">Standart turlar</button></div>
+    </div>
   </div></div>
+
+  <!-- Tasdiq modali — native confirm() o'rniga (u sahifani bloklaydi va dizayn tilidan chiqadi).
+       #cfmModal z-index 230 > .modal 200 — "+" modalining ustida ochiladi. -->
+  <div class="modal" id="cfmModal" onclick="if(event.target===this)cfmNo()" role="alertdialog" aria-modal="true" aria-labelledby="cfmTitle" aria-describedby="cfmSub">
+    <div class="sheet">
+      <h3 id="cfmTitle">Tasdiqlang</h3>
+      <div class="cfmtxt" id="cfmSub"></div>
+      <div class="mrow">
+        <button type="button" id="cfmNoBtn" onclick="cfmNo()">Bekor</button>
+        <button type="button" class="danger" id="cfmYesBtn" onclick="cfmYes()">O'chirish</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -414,7 +468,7 @@ function taqsimot(r,p_oz){
 function kcard(r){
   const t=taqsimot(r,true);
   const sub=(t.valBor.length||t.turBor) ? `<div class="sub">${t.qism.join(' · ')}</div>` : '';
-  const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
+  const add=`<button class="kadd" title="Valyuta / pul turi qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
     +`<div class="v">${money(r.jami)}</div>${sub}</div>`;
 }
@@ -430,7 +484,7 @@ function krow(r){
   // Taqsimot ALOHIDA satrda, kartadagidek. Avval u subtitle yoniga qo'shilardi va
   // faqat valyutani ko'rsatardi — naqd/Click/Payme umuman ko'rinmasdi.
   const tq=t.qism.length?`<div class="st tq">${t.qism.join(' · ')}</div>`:'';
-  const add=`<button class="kadd" title="Valyuta qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
+  const add=`<button class="kadd" title="Valyuta / pul turi qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
   return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}</div>`
     +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
@@ -522,12 +576,14 @@ async function loadKassalar(){
 // valyuta qo'shish (admin) — kassaga bola-hisob ochadi
 let vlParent=null;
 window.openVal=async id=>{
-  if(!isAdmin){ alert('Faqat admin valyuta qo\'sha oladi'); return; }
+  if(!isAdmin){ alert('Faqat admin bola-hisob qo\'sha oladi'); return; }
   vlParent=id;
   const k=(swrGet('cards')||[]).find(r=>r.id===id);
   $('vlKassa').textContent=k?(k.code+' · '+k.name):'Kassa';
   $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
   $('vlYangi').value=''; $('vlSave').disabled=false; $('vlSave').textContent='Qo\'shish';
+  // Har ochilganda birinchi bo'lim (Valyuta) — pul turi ro'yxati tab bosilganda yuklanadi
+  vlReset();
   $('valModal').classList.add('open'); icons();
   // Mavjud valyutalar ro'yxati; shu kassada allaqachon bor bo'lganlari chiqarib tashlanadi
   const bor=new Set((kval[id]||[]).map(v=>v.currency));
@@ -824,6 +880,184 @@ window.turSave=async()=>{
   await loadKassalar();
 };
 // /tur o'tkazish
+
+// pul turi bola-hisoblari — "+" modalining ikkinchi bo'limi (faqat admin).
+// Server: create_pul_turi_child(p_parent, p_turi) — admin, idempotent, SECURITY DEFINER.
+//         pul_turi_ochir(p_id)                    — admin, is_active=false (DELETE emas).
+// ⚠️ O'CHIRISH = YOPISH. Loyiha qoidasi "hech narsa o'chirilmaydi": server hisobni
+//    bazadan olib tashlamaydi, faqat is_active=false qiladi va u ro'yxatlardan chiqadi.
+//    Qoldig'i bo'lgan tur UMUMAN yopilmaydi — tugma ham chizilmaydi (sabab yoziladi).
+// Turlar ro'yxati TC_LBL dan olinadi — modal va "Tur o'tkazish" bitta manbadan yuradi.
+const VL_TUR=Object.keys(TC_LBL).sort((a,b)=>(TC_TART[a]||9)-(TC_TART[b]||9));
+let vlTuri=[];   // vlParent ning mavjud turlari: {pul_turi, code, qoldiq}
+function vlErr(m){ $('vlMsg').className='cv-msg err'; $('vlMsg').textContent=m; }
+// Modal ochilganda birinchi bo'limga qaytarish (eski kassaning ro'yxati qolib ketmasin)
+function vlReset(){
+  [...$('vlSeg').children].forEach((b,i)=>b.classList.toggle('on',i===0));
+  $('vlPaneV').style.display=''; $('vlPaneT').style.display='none';
+  vlTuri=[]; $('vlTurBor').innerHTML='<div class="empty">—</div>'; $('vlTurYoq').innerHTML='';
+}
+window.vlTab=(t,btn)=>{
+  [...$('vlSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  const tur=(t==='tur');
+  $('vlPaneV').style.display=tur?'none':'';
+  $('vlPaneT').style.display=tur?'':'none';
+  $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
+  if(tur) vlLoadTur();
+};
+// v_kassa_turlar: parent_id, account_id, code, name, pul_turi, qoldiq.
+// View bo'lmasa (PROVODKA_VALYUTA.sql RUN qilinmagan) — v_kassa_tanlov'dan olamiz,
+// u ham bo'lmasa bo'lim jimgina bo'sh qoladi, sahifa sinmaydi.
+async function vlLoadTur(){
+  if(!vlParent) return;
+  $('vlTurBor').innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  let rows=null;
+  const {data,error}=await sb.from('v_kassa_turlar').select('*').eq('parent_id',vlParent);
+  if(!error) rows=data||[];
+  else{
+    const {data:d2,error:e2}=await sb.from('v_kassa_tanlov').select('*').eq('parent_id',vlParent);
+    if(e2){ $('vlTurBor').innerHTML='<div class="empty">Tur hisoblari o\'qilmadi</div>';
+      vlErr('Turlar yuklanmadi: '+error.message); vlRenderYoq(); return; }
+    // account_id ham kerak — o'chirish tugmasi shu id bilan ishlaydi
+    rows=(d2||[]).filter(r=>r.pul_turi)
+      .map(r=>({account_id:r.id,pul_turi:r.pul_turi,code:r.code,qoldiq:r.uzs}));
+  }
+  vlTuri=rows.sort((a,b)=>(TC_TART[a.pul_turi]||9)-(TC_TART[b.pul_turi]||9));
+  vlRenderBor(); vlRenderYoq();
+}
+// Har satrda: nom + kod | qoldiq + o'chirish.
+// 🗑 FAQAT admin va FAQAT qoldiq 0 bo'lganda chiziladi — qoldig'i bor turda
+// o'rniga "Qoldiq bor" sababi turadi (bosib bo'lmaydigan tugma chalg'itadi).
+// account_id bo'lmasa (eski view) ham tugma chizilmaydi — RPC'ga nima
+// yuborishni bilmaymiz.
+function vlRenderBor(){
+  $('vlTurBor').innerHTML = vlTuri.length
+    ? `<div class="klist">${vlTuri.map(r=>{
+        const q=Number(r.qoldiq)||0, id=r.account_id||'';
+        const ong = (!isAdmin||!id) ? ''
+          : (q!==0
+              ? '<span class="vlwhy">Qoldiq bor</span>'
+              : `<button type="button" class="vldel" title="O'chirish" aria-label="O'chirish"`
+                +` onclick="vlTurDel('${id}','${r.pul_turi||''}')"><i data-lucide="trash-2"></i></button>`);
+        return `<div class="krow"><div class="l">`
+          +`<div class="nm">${esc(TC_LBL[r.pul_turi]||r.pul_turi)}</div>`
+          +`<div class="st">${esc(r.code||'')}</div></div>`
+          +`<div class="vlright"><div class="v">${money(q)}</div>${ong}</div></div>`;
+      }).join('')}</div>`
+    : '<div class="empty">Tur hisobi ochilmagan</div>';
+  icons();
+}
+function vlRenderYoq(){
+  const bor=new Set(vlTuri.map(r=>r.pul_turi));
+  const yoq=VL_TUR.filter(t=>!bor.has(t));
+  $('vlTurYoq').innerHTML = yoq.length
+    ? yoq.map(t=>`<button class="kbtn" onclick="vlTurAdd('${t}')"><i data-lucide="plus"></i>${esc(TC_LBL[t]||t)}</button>`).join('')
+    : '<div class="empty">Hamma tur ochilgan</div>';
+  $('vlStd').style.display=yoq.length?'':'none';
+  icons();
+}
+// karta/terminal/plastik PROVODKA_TURLAR_AVTO.sql bilan qo'shiladi — u RUN qilinmagan
+// bazada server "Pul turi noto'g'ri" deydi. Xatoni odam tilida tushuntiramiz.
+function vlTurXato(e,turi){
+  const m=(window.permErr?window.permErr(e):e.message)||'Xato';
+  if(m.indexOf('Pul turi')>-1) return m+' — bu tur bazada hali yoqilmagan.';
+  return m;
+}
+// Yozuvdan keyin: modal ro'yxati + kassa kartalari fresh (keshdan bermaydi)
+async function vlYangila(){
+  swrSet('cards',null); swrSet('valyutalar',null);
+  await Promise.all([vlLoadTur(), loadKassalar()]);
+}
+window.vlTurAdd=async turi=>{
+  if(!vlParent) return;
+  if(!isAdmin){ vlErr('Faqat admin tur hisobi ocha oladi'); return; }
+  $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
+  const btns=[...$('vlTurYoq').querySelectorAll('button')];
+  btns.forEach(b=>b.disabled=true);
+  const {error}=await sb.rpc('create_pul_turi_child',{p_parent:vlParent,p_turi:turi});
+  btns.forEach(b=>b.disabled=false);
+  if(error){ vlErr(vlTurXato(error,turi)); return; }
+  await vlYangila();
+};
+
+// ===== Tasdiq modali (native confirm() o'rniga — u sahifani bloklaydi) =====
+let cfmDone=null;
+/* askConfirm('Sarlavha','Tushuntirish','O\'chirish') → Promise<boolean> */
+function askConfirm(title,text,okText){
+  return new Promise(res=>{
+    if(cfmDone){ const eski=cfmDone; cfmDone=null; eski(false); }   // qo'sh chaqiruv: eskisi bekor
+    cfmDone=res;
+    $('cfmTitle').textContent=title;
+    $('cfmSub').textContent=text||'';        // textContent — matn xavfsiz
+    $('cfmYesBtn').textContent=okText||'Ha';
+    $('cfmModal').classList.add('open');
+    icons();
+    try{ $('cfmNoBtn').focus(); }catch(e){}  // xavfsiz tanlov fokusda — Enter tasodifan o'chirmasin
+  });
+}
+function cfmClose(v){ $('cfmModal').classList.remove('open'); const p=cfmDone; cfmDone=null; if(p) p(v); }
+window.cfmYes=()=>cfmClose(true);
+window.cfmNo=()=>cfmClose(false);
+
+// pul_turi_ochir bazada bo'lmasligi mumkin (PROVODKA_TURLAR_AVTO.sql hali RUN
+// qilinmagan) — PostgREST 'PGRST202' beradi. Sahifa sinmasin, odam tilida aytamiz.
+function vlDelXato(e){
+  const m=(window.permErr?window.permErr(e):e.message)||'Xato';
+  if((e&&e.code)==='PGRST202'||m.indexOf('pul_turi_ochir')>-1||m.indexOf('Could not find the function')>-1)
+    return 'O\'chirish funksiyasi bazada hali yo\'q (PROVODKA_TURLAR_AVTO.sql RUN qilinmagan).';
+  return m;
+}
+// Server: pul_turi_ochir(p_id) -> {ok, holat}. HECH NARSA O'CHIRMAYDI — is_active=false.
+// holat: 'passiv' (yozuvlari bor) | 'ochirildi' | 'allaqachon_passiv'.
+window.vlTurDel=async(id,turi)=>{
+  if(!id||!vlParent) return;
+  if(!isAdmin){ vlErr('Faqat admin tur hisobini yopa oladi'); return; }
+  const r=vlTuri.find(x=>String(x.account_id)===String(id));
+  const q=Number(r&&r.qoldiq)||0;
+  // Ikkinchi to'siq (birinchisi — tugma umuman chizilmasligi). Server ham tekshiradi.
+  if(q!==0){ vlErr('Qoldiq nolga teng emas: '+money(q)+' — avval "Tur o\'tkazish" bilan chiqaring'); return; }
+  const nom=TC_LBL[turi]||turi||'Tur';
+  const ok=await askConfirm(nom+' hisobini o\'chirish',
+    'Hisob bazadan o\'chmaydi — yopiladi, tarixi saqlanadi. Qoldiq 0. Kerak bo\'lsa qayta qo\'shsangiz tiklanadi.',
+    'O\'chirish');
+  if(!ok) return;
+  $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
+  const btns=[...$('vlTurBor').querySelectorAll('button')];
+  btns.forEach(b=>b.disabled=true);
+  const {data,error}=await sb.rpc('pul_turi_ochir',{p_id:id});
+  btns.forEach(b=>b.disabled=false);
+  if(error){ vlErr(vlDelXato(error)); return; }
+  const res=data||{};
+  if(!res.ok){ vlErr(res.error||'Noma\'lum javob'); return; }
+  await vlYangila();   // kesh tozalanib fresh o'qiladi (ro'yxat + kartalar)
+  // Xabar vlYangila'dan KEYIN — vlLoadTur xato bo'lmasa vlMsg'ga tegmaydi
+  $('vlMsg').className='cv-msg pend';
+  $('vlMsg').textContent = res.holat==='passiv'
+    ? 'Yozuvlari bor — passivlashtirildi (tarixi saqlandi)'
+    : (res.holat==='allaqachon_passiv' ? 'Bu hisob allaqachon yopilgan edi' : 'O\'chirildi');
+};
+// "Standart turlar" — ro'yxat serverdan (pul_turi_standart), bo'lmasa eski uchtalik.
+// hodim_kassa_turlar_toldir ATAYLAB ishlatilmadi: u faqat HODIM kassasini qabul qiladi
+// (otasi 5400), markaziy/filial kassada xato beradi. Bu modal esa hamma kassada ochiladi.
+window.vlStandart=async()=>{
+  if(!vlParent) return;
+  if(!isAdmin){ vlErr('Faqat admin tur hisobi ocha oladi'); return; }
+  $('vlMsg').className='cv-msg'; $('vlMsg').textContent='';
+  $('vlStd').disabled=true; $('vlStd').textContent='Qo\'shilmoqda...';
+  const {data:sd,error:se}=await sb.rpc('pul_turi_standart');
+  const std=(!se&&Array.isArray(sd)&&sd.length)?sd:['naqd','click','payme'];
+  const bor=new Set(vlTuri.map(r=>r.pul_turi));
+  const xato=[]; let n=0;
+  for(const t of std.filter(x=>!bor.has(x))){
+    const {error}=await sb.rpc('create_pul_turi_child',{p_parent:vlParent,p_turi:t});
+    if(error) xato.push((TC_LBL[t]||t)+': '+vlTurXato(error,t)); else n++;
+  }
+  $('vlStd').disabled=false; $('vlStd').textContent='Standart turlar';
+  if(xato.length) vlErr(xato.join(' · '));
+  else if(!n){ $('vlMsg').className='cv-msg pend'; $('vlMsg').textContent='Standart turlar allaqachon ochilgan'; }
+  await vlYangila();
+};
+// /pul turi
 
 async function init(){
   // Konvert ruxsati yo'q bo'lsa tugma ko'rinmaydi (server ham to'sadi — perm_can_convert)

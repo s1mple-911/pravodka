@@ -1,15 +1,33 @@
 -- =====================================================================
 --  ⚠️⚠️  SUPABASE SQL EDITOR — QANDAY RUN QILINADI (avval SHUNI o'qing)
 -- ---------------------------------------------------------------------
---   1) Bu fayl BUTUNLAY, tepadan pastgacha RUN qilinadi (idempotent).
---      Bo'lak-bo'lak RUN qilsangiz — `do $$` bloklarini TO'LIQ belgilang:
---      `do $$` qatoridan `end $$;` qatorigacha, ikkalasi ham ichida.
---   2) Blok yarim belgilansa Postgres uni PL/pgSQL emas, oddiy SQL deb
---      o'qiydi va o'zgaruvchini jadval deb izlaydi:
---      `ERROR: 42P01: relation "v_def" does not exist`. Bu FAYL XATOSI EMAS —
---      belgilashni to'g'rilab qayta RUN qiling.
---   3) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
---      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+--   1) Bu faylda anonim blok (`do ...`) UMUMAN YO'Q va dollar-quote
+--      belgisi (ikki dollar yonma-yon) FAQAT funksiya tanasining boshi
+--      va oxirida — izohlarda umuman yo'q, ichma-ich ham yo'q.
+--      Sabab: Supabase SQL Editor anonim blokni bo'lib yuborardi va
+--      PL/pgSQL o'zgaruvchisini jadval deb izlardi
+--      (`ERROR: 42P01: relation "v_def" does not exist`) — besh xil faylda
+--      takrorlandi. `create or replace function ... as` esa muammosiz
+--      ishlaydi. Shuning uchun MANTIQ O'ZGARMAGAN holda qayta qadoqlandi:
+--        • tekshiruv bloklari  -> oddiy `select` (natijada `holat` ustuni)
+--        • shartli DDL bloklari -> funksiya + `select f();`
+--
+--   2) Tartib:
+--        1-BO'LIM   — PREFLIGHT (5 ta tekshiruv, HECH NARSA YOZMAYDI)
+--        2..8.5     — DDL: cheklov, kod bloklari, funksiyalar, trigger
+--        9-BO'LIM   — o'zini tekshiruv (HECH NARSA YOZMAYDI)
+--        10-BO'LIM  — ko'rish so'rovlari (HECH NARSA YOZMAYDI)
+--        11-BO'LIM  — BACKFILL (funksiya yaratiladi, CHAQIRUVI izohda)
+--        12-BO'LIM  — orqaga qaytarish (izohda)
+--
+--   3) Butun faylni tepadan pastgacha RUN qilsa bo'ladi (idempotent),
+--      LEKIN Supabase faqat OXIRGI statement natijasini ko'rsatadi.
+--      Tekshiruv natijalarini ko'rish uchun har bo'lakni ⬇⬇⬇ va ⬆⬆⬆
+--      belgilari orasidan ALOHIDA belgilab RUN qiling.
+--
+--   4) 🔴 PREFLIGHT endi faylni O'ZI TO'XTATMAYDI (avval `raise exception`
+--      qilardi). Natijada ❌ ko'rsangiz PASTINI RUN QILMANG — avval
+--      sababini hal qiling. ✅ / ⚠️ bo'lsa davom eting.
 -- =====================================================================
 
 -- =====================================================================
@@ -34,7 +52,10 @@
 --       standart turlarni (naqd/click/payme/karta) ochadi, idempotent
 --    4. `accounts` ustidagi AFTER INSERT trigger — yangi hodim kassasiga
 --       turlar O'ZI ochiladi (TaskFix tomonda hech narsa o'zgarmaydi)
---    5. BACKFILL — mavjud hodim kassalari uchun (izohda, ALOHIDA RUN)
+--    5. Yangi RPC `pul_turi_ochir(uuid)` — xato ochilgan tur hisobini YOPADI
+--       (is_active=false, HECH QACHON delete emas). Qoldiq 0 bo'lishi shart.
+--       `create_pul_turi_child` yopilganini qayta yoqadi (yangi kod yemaydi).
+--    6. BACKFILL — mavjud hodim kassalari uchun (chaqiruvi izohda, ALOHIDA RUN)
 --
 --  ⛔⛔ 0-TALAB — AVVAL PROMOTE, KEYIN RUN:  bash promote.sh hodim
 --    ⛔ AVVAL 'bash promote.sh hodim' — prod hodim.html tur bolalarini
@@ -60,7 +81,7 @@
 --      kassaga bog'laydi. Bu tuzatmasiz yangi turlar cheklangan
 --      (kassa_scope='list') foydalanuvchilar uchun ruxsatdan CHETDA qoladi
 --      va entry_line guard triggeri 42501 beradi. Quyida 1.3-bo'lim buni
---      TEKSHIRADI va noto'g'ri bo'lsa faylni to'xtatadi.
+--      TEKSHIRADI va noto'g'ri bo'lsa ❌ ko'rsatadi (to'xtang).
 --      (PROVODKA_VALYUTA.sql ning 7-bo'limi ham ayni tuzatmani beradi —
 --       ikkalasidan biri yetarli.)
 --
@@ -74,29 +95,49 @@
 --      HODIM KASSASINI (parent = 5400 konteyner) ham rad etardi, ya'ni
 --      hodim kassasiga tur ochish umuman mumkin emas edi (4-bo'limga qara).
 --
+--  QADOQLASH uchun qo'shilgan YORDAMCHI funksiyalar (mantiq o'zgarmagan,
+--  ular avval `do` bloki edi; hammasi public/anon/authenticated dan revoke):
+--    • turlar_avto_perm_tekshir()  — 1.3 preflight (perm_op_key ni dinamik
+--                                    chaqiradi, shuning uchun `select` emas)
+--    • turlar_avto_chk_yangila()   — 2-bo'lim, accounts_pul_turi_chk
+--    • turlar_avto_blok_chk()      — 3.1, pul_turi_kod_blok_uzunlik_chk
+--    • turlar_avto_uniq_yangila()  — 3.2, eski `prefix unique` ni olib tashlash
+--    • hodim_turlar_backfill()     — 11.2 (CHAQIRUVI IZOHDA)
+--
 --  Bir necha marta RUN qilish xavfsiz (idempotent).
 -- =====================================================================
 
 
 -- ---------------------------------------------------------------------
--- 1. PREFLIGHT — bog'liqliklar joyidami
+-- 1. PREFLIGHT — bog'liqliklar joyidami.  HECH NARSA YOZMAYDI.
 -- ---------------------------------------------------------------------
+-- Har bo'lakni ALOHIDA belgilab RUN qiling. `holat` ustunida ❌ bo'lsa
+-- pastini RUN QILMANG.
 
 -- 1.1 PROVODKA_VALYUTA.sql RUN qilinganmi
-do $$
-begin
-  if to_regclass('public.pul_turi_kod_blok') is null then
-    raise exception 'pul_turi_kod_blok jadvali yo''q — avval PROVODKA_VALYUTA.sql ni RUN qiling';
-  end if;
-  if to_regprocedure('public.create_pul_turi_child(uuid,text)') is null then
-    raise exception 'create_pul_turi_child yo''q — avval PROVODKA_VALYUTA.sql ni RUN qiling';
-  end if;
-  if not exists (select 1 from information_schema.columns
-                  where table_schema = 'public' and table_name = 'accounts'
-                    and column_name = 'pul_turi') then
-    raise exception 'accounts.pul_turi ustuni yo''q — avval PROVODKA_VALYUTA.sql';
-  end if;
-end $$;
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+select 'pul_turi_kod_blok jadvali' as tekshiruv,
+       case when to_regclass('public.pul_turi_kod_blok') is not null
+            then '✅ OK' else '❌ MUAMMO' end as holat,
+       case when to_regclass('public.pul_turi_kod_blok') is not null then '—'
+            else 'pul_turi_kod_blok jadvali yo''q — avval PROVODKA_VALYUTA.sql ni RUN qiling' end as izoh
+union all
+select 'create_pul_turi_child(uuid,text)',
+       case when to_regprocedure('public.create_pul_turi_child(uuid,text)') is not null
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when to_regprocedure('public.create_pul_turi_child(uuid,text)') is not null then '—'
+            else 'create_pul_turi_child yo''q — avval PROVODKA_VALYUTA.sql ni RUN qiling' end
+union all
+select 'accounts.pul_turi ustuni',
+       case when exists (select 1 from information_schema.columns
+                          where table_schema = 'public' and table_name = 'accounts'
+                            and column_name = 'pul_turi')
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when exists (select 1 from information_schema.columns
+                          where table_schema = 'public' and table_name = 'accounts'
+                            and column_name = 'pul_turi') then '—'
+            else 'accounts.pul_turi ustuni yo''q — avval PROVODKA_VALYUTA.sql' end;
+-- ⬆⬆⬆  1.1 shu yerda tugadi  ⬆⬆⬆
 
 -- 1.2 accounts.code ga 5 xonali kod sig'adimi.
 --     Kod `text` bo'lsa cheklov yo'q (character_maximum_length = NULL).
@@ -104,22 +145,25 @@ end $$;
 --     ⚠️ 5 raqami `pul_turi_kod_blok_uzunlik_chk` (3.1) bilan MOS: prefiks 2 belgi
 --        + raqam_uzunlik ko'pi bilan 3 = eng uzun kod 5 belgi. Cheklovni
 --        `raqam_uzunlik = 4` gacha kengaytirsangiz, bu yerdagi 5 ni ham 6 qiling.
-do $$
-declare v_len int;
-begin
-  select character_maximum_length into v_len
-    from information_schema.columns
-   where table_schema = 'public' and table_name = 'accounts' and column_name = 'code';
-  if v_len is not null and v_len < 5 then
-    raise exception
-      'accounts.code uzunligi % — 5 xonali kod sig''maydi. Avval: alter table accounts alter column code type text;',
-      v_len;
-  end if;
-end $$;
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+select 'accounts.code uzunligi' as tekshiruv,
+       coalesce(c.character_maximum_length::text, 'text (cheklovsiz)') as uzunlik,
+       case when c.character_maximum_length is not null
+             and c.character_maximum_length < 5
+            then '❌ MUAMMO' else '✅ OK' end as holat,
+       case when c.character_maximum_length is not null
+             and c.character_maximum_length < 5
+            then 'accounts.code uzunligi ' || c.character_maximum_length::text ||
+                 ' — 5 xonali kod sig''maydi. Avval: alter table accounts alter column code type text;'
+            else '—' end as izoh
+  from information_schema.columns c
+ where c.table_schema = 'public' and c.table_name = 'accounts' and c.column_name = 'code';
+-- ⬆⬆⬆  1.2 shu yerda tugadi  ⬆⬆⬆
 
 -- 1.3 ⭐ RUXSAT TEKSHIRUVI — perm_op_key tur bolasini parentga bog'laydimi.
 --     Bog'lamasa, bu fayl ochadigan yuzlab yangi tur hisobi cheklangan
---     foydalanuvchilar uchun ishlamaydi (42501). Shuning uchun TO'XTATAMIZ.
+--     foydalanuvchilar uchun ishlamaydi (42501). Shuning uchun ❌ chiqsa
+--     PASTINI RUN QILMANG.
 --
 --     IKKI QATLAM (ikkalasi ham kerak):
 --       (a) FUNKSIYA TA'RIFI — asosiy. Mavjud ma'lumotga tayanmaydi.
@@ -130,7 +174,16 @@ end $$;
 --           xarajatda 42501 olardi. Endi ta'rifning o'zi tekshiriladi.
 --       (b) MAVJUD MA'LUMOT — qo'shimcha qatlam (ta'rif to'g'ri, lekin
 --           amalda boshqacha ishlayotgan holatni ushlaydi).
-do $$
+--
+--     NEGA FUNKSIYA (oddiy `select` emas): (b) qatlami `perm_op_key(...)` ni
+--     chaqiradi, funksiya bo'lmasa esa oddiy `select` PARSE bosqichidayoq
+--     yiqilardi. Funksiya ichida u `execute` bilan chaqiriladi, ya'ni
+--     "perm_op_key yo'q" holati eskisidek jimgina o'tkazib yuboriladi.
+-- ⬇⬇⬇  1.3: SHU QATORDAN pastdagi `select * from turlar_avto_perm_tekshir();` GACHA  ⬇⬇⬇
+create or replace function turlar_avto_perm_tekshir()
+returns table(tekshiruv text, holat text, izoh text)
+language plpgsql
+as $$
 declare
   n      int;
   n_bor  int;
@@ -139,7 +192,10 @@ declare
   v_ok   boolean := false;
 begin
   if to_regprocedure('public.perm_op_key(uuid)') is null then
-    raise notice 'perm_op_key yo''q — ruxsat tizimi o''rnatilmagan, tekshiruv o''tkazib yuborildi';
+    tekshiruv := 'perm_op_key(uuid)';
+    holat     := '⚠️ O''TKAZIB YUBORILDI';
+    izoh      := 'perm_op_key yo''q — ruxsat tizimi o''rnatilmagan, tekshiruv o''tkazib yuborildi';
+    return next;
     return;
   end if;
 
@@ -154,69 +210,100 @@ begin
     v_ok := true;
   elsif v_def ilike '%kassa_root%' then
     if to_regprocedure('public.kassa_root(uuid)') is null then
-      raise exception
-        'perm_op_key kassa_root() ni chaqiryapti, lekin kassa_root(uuid) yo''q — avval PROVODKA_VALYUTA.sql ni RUN qiling';
+      tekshiruv := '(a) perm_op_key ta''rifi';
+      holat     := '❌ MUAMMO — TO''XTANG';
+      izoh      := 'perm_op_key kassa_root() ni chaqiryapti, lekin kassa_root(uuid) yo''q — avval PROVODKA_VALYUTA.sql ni RUN qiling';
+      return next;
+      return;
     end if;
     v_root := pg_get_functiondef(to_regprocedure('public.kassa_root(uuid)')::oid);
     v_ok   := v_root ilike '%pul_turi%';
   end if;
 
   if not v_ok then
-    raise exception
-      'perm_op_key() ta''rifida `pul_turi` sharti YO''Q — tur bola-hisoblari cheklangan (kassa_scope=''list'') foydalanuvchilar uchun ruxsatdan chetda qoladi va entry_line guard triggeri 42501 beradi. AVVAL PROVODKA_PERM_TUR_FIX.sql ni RUN qiling (yoki PROVODKA_VALYUTA.sql 7-bo''limini).';
+    tekshiruv := '(a) perm_op_key ta''rifi';
+    holat     := '❌ MUAMMO — TO''XTANG';
+    izoh      := 'perm_op_key() ta''rifida `pul_turi` sharti YO''Q — tur bola-hisoblari cheklangan (kassa_scope=''list'') foydalanuvchilar uchun ruxsatdan chetda qoladi va entry_line guard triggeri 42501 beradi. AVVAL PROVODKA_PERM_TUR_FIX.sql ni RUN qiling (yoki PROVODKA_VALYUTA.sql 7-bo''limini).';
+    return next;
+    return;
   end if;
+
+  tekshiruv := '(a) perm_op_key ta''rifi';
+  holat     := '✅ OK';
+  izoh      := 'ta''rifda `pul_turi` sharti bor';
+  return next;
 
   -- (b) MAVJUD MA'LUMOT bo'yicha (eski tekshiruv — saqlanadi).
   --     Bitta ham tur hisobi bo'lmasligi normal (bu fayl aynan ularni ochadi),
   --     shuning uchun bu qatlam yolg'iz o'zi yetarli emas — (a) bilan birga ishlaydi.
-  select count(*),
-         count(*) filter (where perm_op_key(c.id) is distinct from c.parent_id)
-    into n_bor, n
-    from accounts c
-   where c.is_active
-     and c.pul_turi is not null
-     and c.parent_id is not null;
+  execute 'select count(*), count(*) filter (where perm_op_key(c.id) is distinct from c.parent_id)
+             from accounts c
+            where c.is_active
+              and c.pul_turi is not null
+              and c.parent_id is not null'
+    into n_bor, n;
 
   if n > 0 then
-    raise exception
-      'perm_op_key tur bola-hisobini parent kassaga bog''lamayapti (% ta hisob) — avval PROVODKA_PERM_TUR_FIX.sql ni RUN qiling',
-      n;
+    tekshiruv := '(b) mavjud tur hisoblari';
+    holat     := '❌ MUAMMO — TO''XTANG';
+    izoh      := 'perm_op_key tur bola-hisobini parent kassaga bog''lamayapti (' || n::text ||
+                 ' ta hisob) — avval PROVODKA_PERM_TUR_FIX.sql ni RUN qiling';
+    return next;
+    return;
   end if;
 
-  raise notice 'perm_op_key OK: ta''rifda pul_turi sharti bor + mavjud % ta tur hisobi tekshirildi', n_bor;
+  tekshiruv := '(b) mavjud tur hisoblari';
+  holat     := '✅ OK';
+  izoh      := 'perm_op_key OK: ta''rifda pul_turi sharti bor + mavjud ' || n_bor::text ||
+               ' ta tur hisobi tekshirildi';
+  return next;
+  return;
 end $$;
+
+revoke all on function turlar_avto_perm_tekshir() from public, anon, authenticated;
+
+comment on function turlar_avto_perm_tekshir() is
+  'PREFLIGHT 1.3: perm_op_key() tur bola-hisobini parent kassaga bog''laydimi. '
+  'Hech narsa yozmaydi, faqat tekshiradi.';
+
+select * from turlar_avto_perm_tekshir();
+-- ⬆⬆⬆  1.3 shu yerda tugadi  ⬆⬆⬆
 
 -- 1.4 Trigger sharti mavjud hodim kassalariga mos keladimi.
 --     Trigger WHEN sharti `section='pul'` ga tayanadi. TaskFix
 --     (`upsert_hodim_kassa`, tanasi repoda yo'q) kassani section'siz ochsa,
 --     trigger JIMGINA ishlamay qolardi — shuning uchun ochiq tekshiramiz.
-do $$
-declare n_bor int; n_sectionsiz int;
-begin
-  select count(*),
-         count(*) filter (where p.section is distinct from 'pul')
-    into n_bor, n_sectionsiz
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+with h as (
+  select count(*)                                          as n_bor,
+         count(*) filter (where p.section is distinct from 'pul') as n_sectionsiz
     from accounts p
     join accounts g on g.id = p.parent_id and g.kassa_turi = 'xarajat_guruh'
-   where p.is_active and p.kassa_turi = 'xarajat' and p.pul_turi is null;
-
-  if n_bor = 0 then
-    raise notice 'Hodim kassasi topilmadi (5400 konteyner bo''sh) — trigger baribir o''rnatiladi';
-  elsif n_sectionsiz > 0 then
-    raise warning 'DIQQAT: % / % ta hodim kassasida section <> ''pul'' — trigger ular uchun ishlamaydi (10.2 so''rovi bilan ko''ring)', n_sectionsiz, n_bor;
-  else
-    raise notice 'Hodim kassalari: % ta, hammasi section=''pul'' — trigger sharti mos', n_bor;
-  end if;
-end $$;
+   where p.is_active and p.kassa_turi = 'xarajat' and p.pul_turi is null
+)
+select 'Trigger sharti (section=''pul'')' as tekshiruv,
+       h.n_bor                            as hodim_kassa,
+       h.n_sectionsiz                     as sectionsiz,
+       case when h.n_bor = 0            then '⚠️ KASSA YO''Q'
+            when h.n_sectionsiz > 0     then '⚠️ DIQQAT'
+            else '✅ OK' end              as holat,
+       case when h.n_bor = 0
+              then 'Hodim kassasi topilmadi (5400 konteyner bo''sh) — trigger baribir o''rnatiladi'
+            when h.n_sectionsiz > 0
+              then 'DIQQAT: ' || h.n_sectionsiz::text || ' / ' || h.n_bor::text ||
+                   ' ta hodim kassasida section <> ''pul'' — trigger ular uchun ishlamaydi (10.2 so''rovi bilan ko''ring)'
+            else 'Hodim kassalari: ' || h.n_bor::text || ' ta, hammasi section=''pul'' — trigger sharti mos'
+       end                                as izoh
+  from h;
+-- ⬆⬆⬆  1.4 shu yerda tugadi  ⬆⬆⬆
 
 -- 1.5 👀 PREVIEW — bazada HOZIR qanday pul turlari bor.
 --     2-bo'lim `accounts_pul_turi_chk` ni drop+add qiladi; ro'yxatdan tashqari
 --     qiymat bo'lsa yangi cheklov o'rnatilmaydi (add constraint xato beradi va
---     jadval CHEKLOVSIZ qolib ketadi). Shuning uchun avval KO'RAMIZ, keyin
---     2-bo'lim boshida qat'iy TEKSHIRAMIZ.
+--     jadval CHEKLOVSIZ qolib ketardi). Shuning uchun avval KO'RAMIZ, keyin
+--     2-bo'lim boshida qat'iy TEKSHIRAMIZ (u yerda `raise exception` — hech
+--     narsaga tegmasdan to'xtaydi).
 --
---     Taqsimot `raise notice` bilan chiqadi (Supabase → "Messages" paneli),
---     chunki oraga `select` qo'yilsa u faylning oxirgi natijasini bosib qolardi.
 --     Batafsil jadval ko'rinishida kerak bo'lsa — quyidagi so'rovni ALOHIDA RUN qiling:
 --
 --       select pul_turi, count(*) as nechta
@@ -224,30 +311,29 @@ end $$;
 --        where pul_turi is not null
 --        group by pul_turi
 --        order by pul_turi;
-do $$
-declare
-  v_taqsimot text;
-  v_notanish text;
-begin
-  select string_agg(t.pul_turi || '=' || t.n::text, ', ' order by t.pul_turi)
-    into v_taqsimot
-    from (select pul_turi, count(*) as n
-            from accounts
-           where pul_turi is not null
-           group by pul_turi) t;
-
-  raise notice 'Mavjud pul turlari: %', coalesce(v_taqsimot, '(bitta ham yo''q)');
-
-  select string_agg(distinct pul_turi, ', ')
-    into v_notanish
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+with t as (
+  select pul_turi, count(*) as n
     from accounts
    where pul_turi is not null
-     and pul_turi not in ('naqd','click','payme','karta','terminal','plastik');
-
-  if v_notanish is not null then
-    raise warning 'DIQQAT: ro''yxatdan TASHQARI pul turi bor: % — 2-bo''lim to''xtaydi. Avval ularni to''g''rilang yoki 2-bo''limdagi ro''yxatga qo''shing.', v_notanish;
-  end if;
-end $$;
+   group by pul_turi
+),
+notanish as (
+  select string_agg(distinct pul_turi, ', ') as s
+    from accounts
+   where pul_turi is not null
+     and pul_turi not in ('naqd','click','payme','karta','terminal','plastik')
+)
+select coalesce((select string_agg(t.pul_turi || '=' || t.n::text, ', ' order by t.pul_turi) from t),
+                '(bitta ham yo''q)')                as mavjud_turlar,
+       coalesce(n.s, '—')                          as royxatdan_tashqari,
+       case when n.s is not null then '⚠️ DIQQAT' else '✅ OK' end as holat,
+       case when n.s is not null
+              then 'DIQQAT: ro''yxatdan TASHQARI pul turi bor: ' || n.s ||
+                   ' — 2-bo''lim to''xtaydi. Avval ularni to''g''rilang yoki 2-bo''limdagi ro''yxatga qo''shing.'
+            else '—' end                           as izoh
+  from notanish n;
+-- ⬆⬆⬆  1.5 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -266,8 +352,14 @@ end $$;
 --    bo'lsa, `add constraint` yiqiladi va cheklov drop qilingandan keyin
 --    QAYTA O'RNATILMAY qolib ketardi (jadval himoyasiz qoladi). Shuning
 --    uchun mos kelmagan qiymatni OLDINDAN topamiz va hech narsaga tegmasdan
---    to'xtaymiz. Ro'yxatni preflight 1.5 ham ko'rsatadi.
-do $$
+--    to'xtaymiz (`raise exception` — bu yerda ATAYLAB saqlangan: cheklov
+--    drop bo'lgan holatda davom etib bo'lmaydi). Ro'yxatni preflight 1.5 ham
+--    ko'rsatadi.
+-- ⬇⬇⬇  2: SHU QATORDAN pastdagi `select turlar_avto_chk_yangila();` GACHA  ⬇⬇⬇
+create or replace function turlar_avto_chk_yangila()
+returns text
+language plpgsql
+as $$
 declare v_notanish text;
 begin
   select string_agg(distinct pul_turi, ', ')
@@ -290,7 +382,18 @@ begin
   alter table accounts add constraint accounts_pul_turi_chk
     check (pul_turi is null
            or pul_turi in ('naqd','click','payme','karta','terminal','plastik'));
+
+  return '✅ OK — accounts_pul_turi_chk yangilandi (naqd|click|payme|karta|terminal|plastik)';
 end $$;
+
+revoke all on function turlar_avto_chk_yangila() from public, anon, authenticated;
+
+comment on function turlar_avto_chk_yangila() is
+  '2-bo''lim: accounts_pul_turi_chk ni yangi turlar bilan qayta o''rnatadi. '
+  'Ro''yxatdan tashqari qiymat bo''lsa hech narsaga tegmay xato beradi.';
+
+select turlar_avto_chk_yangila() as natija;
+-- ⬆⬆⬆  2 shu yerda tugadi  ⬆⬆⬆
 
 comment on column accounts.pul_turi is
   'Pul turi bola-hisobi: naqd|click|payme|karta|terminal|plastik. '
@@ -336,22 +439,36 @@ comment on column accounts.pul_turi is
 --   • Kod bo'yicha saralash matn bo'yicha: '5500' < '55000' < '5501' —
 --     ro'yxat tartibi biroz aralashadi, funksional zarar yo'q.
 
--- 3.1 Ustun
+-- 3.1 Ustun + uzunlik cheklovi
+-- ⚠️ Yuqori chegara 3 — preflight 1.2 bilan MOS. 1.2 accounts.code ga
+--    ATIGI 5 belgi sig'ishini kafolatlaydi (2 belgili prefiks + 3 raqam).
+--    `4` ga ruxsat berilsa 6 belgili kod (550001) paydo bo'lardi va u
+--    varchar(5) ustunda RUN paytida yiqilardi — ikkisi bir xil bo'lsin.
+--    Kengaytirish kerak bo'lsa: avval 1.2 dagi 5 ni 6 qiling, keyin bu yerni.
+-- ⬇⬇⬇  3.1: SHU QATORDAN pastdagi `select turlar_avto_blok_chk();` GACHA  ⬇⬇⬇
 alter table pul_turi_kod_blok
   add column if not exists raqam_uzunlik int not null default 2;
 
-do $$
+create or replace function turlar_avto_blok_chk()
+returns text
+language plpgsql
+as $$
 begin
-  -- ⚠️ Yuqori chegara 3 — preflight 1.2 bilan MOS. 1.2 accounts.code ga
-  --    ATIGI 5 belgi sig'ishini kafolatlaydi (2 belgili prefiks + 3 raqam).
-  --    `4` ga ruxsat berilsa 6 belgili kod (550001) paydo bo'lardi va u
-  --    varchar(5) ustunda RUN paytida yiqilardi — ikkisi bir xil bo'lsin.
-  --    Kengaytirish kerak bo'lsa: avval 1.2 dagi 5 ni 6 qiling, keyin bu yerni.
   if not exists (select 1 from pg_constraint where conname = 'pul_turi_kod_blok_uzunlik_chk') then
     alter table pul_turi_kod_blok add constraint pul_turi_kod_blok_uzunlik_chk
       check (raqam_uzunlik between 2 and 3);
+    return '✅ OK — pul_turi_kod_blok_uzunlik_chk qo''shildi (raqam_uzunlik 2..3)';
   end if;
+  return '✅ OK — pul_turi_kod_blok_uzunlik_chk allaqachon bor (tegilmadi)';
 end $$;
+
+revoke all on function turlar_avto_blok_chk() from public, anon, authenticated;
+
+comment on function turlar_avto_blok_chk() is
+  '3.1-bo''lim: pul_turi_kod_blok.raqam_uzunlik ga 2..3 cheklovini qo''shadi (bo''lmasa).';
+
+select turlar_avto_blok_chk() as natija;
+-- ⬆⬆⬆  3.1 shu yerda tugadi  ⬆⬆⬆
 
 comment on column pul_turi_kod_blok.raqam_uzunlik is
   'Prefiksdan keyingi raqamlar soni: 2 -> 5501, 3 -> 55001 (ruxsat: 2..3, '
@@ -361,8 +478,14 @@ comment on column pul_turi_kod_blok.raqam_uzunlik is
 --     Aks holda ('55',3) qatorini qo'shib bo'lmaydi — '55' allaqachon bor.
 --     Bu BO'SHATISH: avval taqiqlangan hech narsa endi ham taqiq
 --     (bir xil prefiks + bir xil uzunlik ikki marta bo'lolmaydi).
-do $$
-declare c record;
+-- ⬇⬇⬇  3.2: SHU QATORDAN pastdagi `select turlar_avto_uniq_yangila();` GACHA  ⬇⬇⬇
+create or replace function turlar_avto_uniq_yangila()
+returns text
+language plpgsql
+as $$
+declare
+  c      record;
+  v_list text := '';
 begin
   for c in
     select con.conname
@@ -376,8 +499,22 @@ begin
   loop
     execute format('alter table pul_turi_kod_blok drop constraint %I', c.conname);
     raise notice 'Eski unique cheklov olib tashlandi: %', c.conname;
+    v_list := v_list || case when v_list = '' then '' else ', ' end || c.conname;
   end loop;
+
+  if v_list = '' then
+    return '✅ OK — olib tashlanadigan eski `prefix unique` cheklov yo''q';
+  end if;
+  return '✅ OK — eski unique cheklov olib tashlandi: ' || v_list;
 end $$;
+
+revoke all on function turlar_avto_uniq_yangila() from public, anon, authenticated;
+
+comment on function turlar_avto_uniq_yangila() is
+  '3.2-bo''lim: pul_turi_kod_blok(prefix) ustidagi bir ustunli unique cheklovlarni olib tashlaydi.';
+
+select turlar_avto_uniq_yangila() as natija;
+-- ⬆⬆⬆  3.2 shu yerda tugadi  ⬆⬆⬆
 
 create unique index if not exists pul_turi_kod_blok_prefix_uzunlik_uniq
   on pul_turi_kod_blok(prefix, raqam_uzunlik);
@@ -408,6 +545,7 @@ comment on table pul_turi_kod_blok is
 --    aks holda oddiy user admin tekshiruvini chetlab o'tardi. Uni faqat
 --    SECURITY DEFINER funksiyalar va trigger chaqiradi (ular egasi nomidan
 --    ishlaydi, shuning uchun grant kerak emas).
+-- ⬇⬇⬇  4: SHU QATORDAN pastdagi `comment on function _pul_turi_child_ich` GACHA  ⬇⬇⬇
 create or replace function _pul_turi_child_ich(p_parent uuid, p_turi text)
 returns uuid
 language plpgsql
@@ -477,6 +615,28 @@ begin
     return v_id;
   end if;
 
+  -- QAYTA YOQISH: `pul_turi_ochir` (8.5-bo'lim) bilan yopilgan (is_active=false)
+  -- shu turdagi bola bo'lsa — YANGI kod ochmaymiz, eskisini tiklaymiz.
+  -- Aks holda "o'chirdim → qayta qo'shdim" har safar yangi kod yeb, bir xil
+  -- nomli ikki hisob qoldirardi (`accounts_parent_turi_uniq` faqat is_active
+  -- qatorlarga qo'yilgan — ya'ni baza buni to'smaydi).
+  -- Nom/subtitle parentdan qayta olinadi: kassa nomi o'zgargan bo'lishi mumkin.
+  -- Bu UPDATE trg_hodim_kassa_turlar ni ishga tushirmaydi (u AFTER INSERT).
+  select id into v_id
+    from accounts
+   where parent_id = p_parent and pul_turi = v_turi
+     and coalesce(is_active, true) = false
+   order by code
+   limit 1;
+  if v_id is not null then
+    update accounts
+       set is_active = true,
+           name      = v_parent.name || ' · ' || v_lbl,
+           subtitle  = v_parent.subtitle
+     where id = v_id;
+    return v_id;
+  end if;
+
   -- Kod: bo'sh joyi bor birinchi blok (nav tartibida). Blokdagi eng katta
   -- kod + 1; faol bo'lmagan eski hisoblar ham hisobga olinadi (kod unique).
   -- `substring(code from 3)` — regexp uzunlikni kafolatlagani uchun ::int xavfsiz.
@@ -532,6 +692,7 @@ revoke all on function _pul_turi_child_ich(uuid, text) from public, anon, authen
 comment on function _pul_turi_child_ich(uuid, text) is
   'ICHKI: kassaga pul turi bola-hisobini ochadi. RUXSAT TEKSHIRMAYDI — '
   'faqat create_pul_turi_child va accounts triggeri chaqiradi. authenticated ga berilmagan.';
+-- ⬆⬆⬆  4 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -540,6 +701,7 @@ comment on function _pul_turi_child_ich(uuid, text) is
 -- Tana ichkiga ko'chdi; bu yerda faqat ADMIN tekshiruvi qoldi.
 -- Eski xulq to'liq saqlanadi: admin-only, idempotent, SECURITY DEFINER.
 -- Yangilik: turlar ro'yxatiga karta/terminal/plastik qo'shildi.
+-- ⬇⬇⬇  5: SHU QATORDAN pastdagi `comment on function create_pul_turi_child` GACHA  ⬇⬇⬇
 create or replace function create_pul_turi_child(p_parent uuid, p_turi text)
 returns uuid
 language plpgsql
@@ -562,6 +724,7 @@ grant execute on function create_pul_turi_child(uuid, text) to authenticated;
 
 comment on function create_pul_turi_child(uuid, text) is
   'Kassaga pul turi (naqd|click|payme|karta|terminal|plastik) bola-hisobini ochadi. Admin, idempotent.';
+-- ⬆⬆⬆  5 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -573,6 +736,7 @@ comment on function create_pul_turi_child(uuid, text) is
 -- (naqd emas, lekin dollar ham emas — plastik karta bilan to'lov).
 -- USD (dollar) ATAYLAB YO'Q: u valyuta bolasi, `create_valyuta_child` ishi
 -- va konvert mantiqiga tegadi (56xx blok, fc_amount, koridor).
+-- ⬇⬇⬇  6: SHU QATORDAN pastdagi `comment on function pul_turi_standart` GACHA  ⬇⬇⬇
 create or replace function pul_turi_standart()
 returns text[]
 language sql
@@ -586,6 +750,7 @@ grant execute on function pul_turi_standart() to authenticated, service_role;
 
 comment on function pul_turi_standart() is
   'Yangi kassaga avtomatik ochiladigan pul turlari. USD kirmaydi (u valyuta bolasi).';
+-- ⬆⬆⬆  6 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -601,6 +766,7 @@ comment on function pul_turi_standart() is
 --    (entry_line guard triggeri ham aynan shunday: service_role o'tadi).
 --    PostgREST orqali auth.uid() faqat service_role kalitida NULL bo'ladi;
 --    `anon` ga EXECUTE berilmagan.
+-- ⬇⬇⬇  7: SHU QATORDAN pastdagi `comment on function hodim_kassa_turlar_toldir` GACHA  ⬇⬇⬇
 create or replace function hodim_kassa_turlar_toldir(p_kassa uuid,
                                                      p_usd boolean default false)
 returns jsonb
@@ -685,6 +851,7 @@ comment on function hodim_kassa_turlar_toldir(uuid, boolean) is
   'HODIM kassasiga (otasi kassa_turi=''xarajat_guruh'', ya''ni 5400) standart pul '
   'turlarini (pul_turi_standart) ochadi. Boshqa kassani RAD ETADI. Idempotent, admin. '
   'p_usd=true bo''lsa create_valyuta_child(...,''USD'') ham chaqiriladi.';
+-- ⬆⬆⬆  7 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
@@ -708,6 +875,7 @@ comment on function hodim_kassa_turlar_toldir(uuid, boolean) is
 --    yaratilishi buzilmasligi kerak — aks holda TaskFix tomon sinadi.
 --    Ogohlantirish Postgres logida qoladi, kassa esa ochiladi; turlarni
 --    keyin `hodim_kassa_turlar_toldir` bilan qo'lda to'ldirsa bo'ladi.
+-- ⬇⬇⬇  8: SHU QATORDAN pastdagi `execute function trg_hodim_kassa_turlar_fn();` GACHA  ⬇⬇⬇
 create or replace function trg_hodim_kassa_turlar_fn()
 returns trigger
 language plpgsql
@@ -763,102 +931,294 @@ when (new.section = 'pul'
       and coalesce(new.currency, 'UZS') = 'UZS'
       and coalesce(new.is_active, true) = true)
 execute function trg_hodim_kassa_turlar_fn();
+-- ⬆⬆⬆  8 shu yerda tugadi  ⬆⬆⬆
 
+
+-- ---------------------------------------------------------------------
+-- 8.5 pul_turi_ochir(p_id) -> jsonb — tur bola-hisobini YOPISH
+-- ---------------------------------------------------------------------
+-- Turlarni ochish oson bo'lgach, xato ochilganini YOPISH ham kerak bo'ldi
+-- (kassa-dev.html "+" modalidagi 🗑 tugmasi shu funksiyani chaqiradi).
+--
+-- 🔴 HECH NARSA O'CHIRILMAYDI (CLAUDE.md). `delete from accounts` YO'Q —
+--    faqat `is_active = false`. Hisob jurnalda, entry_history'da, balansda
+--    o'z joyida qoladi; faqat ro'yxatlardan chiqadi.
+--
+-- QOIDALAR:
+--   1) FAQAT tur bola-hisobi (`pul_turi is not null`). Oddiy kassa, guruh
+--      (5400), valyuta bolasi — RAD ETILADI. Kassani yopish boshqa ish
+--      (`xarajat_filial_ochir`), bu yerda chalkashmasin.
+--   2) Qoldiq 0 BO'LMASA rad etiladi. Qoldiq `v_hisob_bal` dan — sahifa,
+--      view va bu funksiya bitta manbadan o'qiydi (yangi hisoblash YO'Q).
+--      `uzs` ham, `fc` ham tekshiriladi: tur bolasi UZS bo'lsa ham
+--      fc_amount bilan yozuv tushib qolgan holat jimgina yutilmasin.
+--   3) Yozuvi bor (entry_line da uchraydi — o'chirilgan yozuvlar ham) →
+--      holat 'passiv': tarixi saqlanadi, faqat ro'yxatlardan olinadi.
+--   4) Qoldiq 0 va yozuvi yo'q → holat 'ochirildi' (amalda ham is_active=false).
+--      Ikkalasining ham bazadagi ta'siri BIR XIL — farq faqat xabarda,
+--      foydalanuvchi "tarixi bormi" ni bilib tursin.
+--   5) Aros bilan sinxronlanadigan filial kassasining turi RAD ETILADI:
+--      `v_filial_turi_hisob` (n8n auto-sync qidiruv jadvali) faqat
+--      `is_active` bolalarni ko'radi — yopilsa sinxron o'sha tur uchun
+--      hisob topolmay qoladi.
+--
+-- Qaytishi (exception EMAS — sahifa sinmasin, konvert/tannarx RPC uslubi):
+--   {"ok":true,"holat":"ochirildi","id":...,"code":...,"name":...,"pul_turi":...}
+--   {"ok":true,"holat":"passiv","satr":N, ...}          -- entry_line satrlari soni
+--   {"ok":true,"holat":"allaqachon_passiv", ...}        -- idempotent
+--   {"ok":false,"error":"...","qoldiq":N}               -- qoldiq bo'lsa
+--
+-- ⚠️ v_kassa_card / jami: `v_kassa_turlar` `is_active = true` bilan filtrlaydi,
+--    ya'ni yopilgan bola `turi_jami` dan chiqib ketadi. Qoldiq 0 bo'lmasa
+--    yopilmagani uchun `jami` ARIFMETIK O'ZGARMAYDI (0 ni ayirish). Kartaning
+--    `naqd/click/payme` ustunlari ham 0 ni yo'qotadi — ko'rinish o'zgarmaydi.
+--    `v_kassa_toliq`/`v_kassa_tanlov`, `isKassa()` filtrlari ham faol hisoblar
+--    bilan ishlaydi — yopilgan tur dropdownlardan chiqadi, bu ayni maqsad.
+-- ⬇⬇⬇  8.5: SHU QATORDAN pastdagi `notify pgrst, 'reload schema';` GACHA  ⬇⬇⬇
+create or replace function pul_turi_ochir(p_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid  uuid := (select auth.uid());
+  v_role text;
+  v_acc  accounts%rowtype;
+  v_par  accounts%rowtype;
+  v_uzs  numeric := 0;
+  v_fc   numeric := 0;
+  v_satr int := 0;
+  v_bola int := 0;
+begin
+  if p_id is null then
+    return jsonb_build_object('ok', false, 'error', 'Hisob korsatilmagan');
+  end if;
+
+  -- ADMIN. auth.uid() null (SQL Editor / service_role) — o'tkaziladi,
+  -- bu loyihadagi mavjud naqsh (7-bo'lim, xarajat_filial_ochir).
+  if v_uid is not null then
+    select role into v_role from profiles where id = v_uid;
+    if v_role is distinct from 'admin' then
+      return jsonb_build_object('ok', false, 'error', 'Faqat admin tur hisobini yopa oladi');
+    end if;
+  end if;
+
+  select * into v_acc from accounts where id = p_id;
+  if not found then
+    return jsonb_build_object('ok', false, 'error', 'Hisob topilmadi');
+  end if;
+
+  -- (1) faqat tur bola-hisobi
+  if v_acc.pul_turi is null then
+    return jsonb_build_object('ok', false,
+      'error', 'Bu tur hisobi emas: ' || coalesce(v_acc.code, '?') || ' ' ||
+               coalesce(v_acc.name, '') ||
+               '. Faqat naqd/click/payme/karta bola-hisobi yopiladi.');
+  end if;
+
+  -- idempotent
+  if coalesce(v_acc.is_active, true) = false then
+    return jsonb_build_object('ok', true, 'holat', 'allaqachon_passiv',
+      'id', v_acc.id, 'code', v_acc.code, 'name', v_acc.name, 'pul_turi', v_acc.pul_turi);
+  end if;
+
+  -- (5) Aros sinxronidagi filial turi tegilmaydi
+  if v_acc.parent_id is not null then
+    select * into v_par from accounts where id = v_acc.parent_id;
+    if found and v_par.kassa_turi = 'filial' and v_par.filial_ref is not null then
+      return jsonb_build_object('ok', false,
+        'error', 'Aros bilan sinxronlanadigan filial kassasining turi yopilmaydi: ' ||
+                 coalesce(v_par.code, '?') || ' ' || coalesce(v_par.name, '') ||
+                 '. Auto-sync shu tur uchun hisob topolmay qoladi.');
+    end if;
+  end if;
+
+  -- Bola-hisobning o'z bolasi bo'lmasligi kerak (ikki qavat taqiqlangan),
+  -- lekin qo'lda ochilgan bo'lsa yetim qolmasin — ochiq aytamiz.
+  select count(*) into v_bola
+    from accounts
+   where parent_id = p_id and coalesce(is_active, true) = true;
+  if v_bola > 0 then
+    return jsonb_build_object('ok', false,
+      'error', 'Bu hisobda ' || v_bola::text || ' ta faol bola-hisob bor — avval ularni yoping.');
+  end if;
+
+  -- (2) QOLDIQ — mavjud yordamchidan (v_hisob_bal: posted + o'chirilmagan)
+  select coalesce(b.uzs, 0), coalesce(b.fc, 0)
+    into v_uzs, v_fc
+    from v_hisob_bal b
+   where b.account_id = p_id;
+  v_uzs := coalesce(v_uzs, 0);
+  v_fc  := coalesce(v_fc, 0);
+
+  if v_uzs <> 0 or v_fc <> 0 then
+    return jsonb_build_object('ok', false,
+      'error', 'Qoldiq nolga teng emas (' || v_uzs::text ||
+               ') — avval "Tur otkazish" bilan pulni boshqa turga chiqaring.',
+      'qoldiq', v_uzs,
+      'fc',     v_fc);
+  end if;
+
+  -- (3) yozuvi bormi (o'chirilgan yozuvlar ham sanaladi — tarix baribir bor)
+  select count(*) into v_satr from entry_line l where l.account_id = p_id;
+
+  update accounts set is_active = false where id = p_id;
+
+  if v_satr > 0 then
+    return jsonb_build_object('ok', true, 'holat', 'passiv', 'satr', v_satr,
+      'id', v_acc.id, 'code', v_acc.code, 'name', v_acc.name, 'pul_turi', v_acc.pul_turi);
+  end if;
+
+  -- (4) qoldiq 0, yozuv yo'q
+  return jsonb_build_object('ok', true, 'holat', 'ochirildi', 'satr', 0,
+    'id', v_acc.id, 'code', v_acc.code, 'name', v_acc.name, 'pul_turi', v_acc.pul_turi);
+
+exception when others then
+  -- Sahifa sinmasin: har qanday xato ham {ok:false} bo'lib qaytadi.
+  return jsonb_build_object('ok', false, 'error', sqlerrm);
+end $$;
+
+revoke all on function pul_turi_ochir(uuid) from public, anon;
+grant execute on function pul_turi_ochir(uuid) to authenticated;
+
+comment on function pul_turi_ochir(uuid) is
+  'Pul turi bola-hisobini YOPADI (is_active=false, HECH QACHON delete emas). Admin, idempotent. '
+  'Qoldiq 0 bo''lishi shart; yozuvi bo''lsa holat=passiv, bo''lmasa holat=ochirildi. '
+  'Xatoda exception emas, {ok:false,error} qaytaradi.';
 
 notify pgrst, 'reload schema';
+-- ⬆⬆⬆  8.5 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
--- 9. O'ZINI TEKSHIRUV
+-- 9. O'ZINI TEKSHIRUV.  HECH NARSA YOZMAYDI.
 -- ---------------------------------------------------------------------
-do $$
-declare
-  v_def   text;
-  v_blok  int;
-  v_blok3 int;
-  v_bosh  bigint;
-  v_std   text[];
-begin
-  if to_regprocedure('public._pul_turi_child_ich(uuid,text)') is null then
-    raise exception '_pul_turi_child_ich yaratilmadi';
-  end if;
-  if to_regprocedure('public.create_pul_turi_child(uuid,text)') is null then
-    raise exception 'create_pul_turi_child imzosi yo''qoldi (uuid,text) — ADDITIVE qoidasi buzilgan';
-  end if;
-  if to_regprocedure('public.hodim_kassa_turlar_toldir(uuid,boolean)') is null then
-    raise exception 'hodim_kassa_turlar_toldir yaratilmadi';
-  end if;
-  if to_regprocedure('public.pul_turi_standart()') is null then
-    raise exception 'pul_turi_standart yaratilmadi';
-  end if;
+-- Avval bitta `do` bloki edi va birinchi muammoda `raise exception` bilan
+-- to'xtardi. Endi 5 ta ALOHIDA `select` — har birini alohida belgilab RUN
+-- qiling. `holat` ustunida ❌ bo'lsa `izoh` da aynan eski xato matni turadi.
 
-  -- Trigger o'rnatildimi
-  if not exists (
-    select 1 from pg_trigger
-     where tgrelid = 'public.accounts'::regclass
-       and tgname = 'trg_hodim_kassa_turlar'
-       and not tgisinternal
-  ) then
-    raise exception 'trg_hodim_kassa_turlar triggeri o''rnatilmadi';
-  end if;
+-- 9.1 Funksiyalar va trigger o'rnatildimi
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+select '_pul_turi_child_ich(uuid,text)' as obyekt,
+       case when to_regprocedure('public._pul_turi_child_ich(uuid,text)') is not null
+            then '✅ OK' else '❌ MUAMMO' end as holat,
+       case when to_regprocedure('public._pul_turi_child_ich(uuid,text)') is not null then '—'
+            else '_pul_turi_child_ich yaratilmadi' end as izoh
+union all
+select 'create_pul_turi_child(uuid,text)',
+       case when to_regprocedure('public.create_pul_turi_child(uuid,text)') is not null
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when to_regprocedure('public.create_pul_turi_child(uuid,text)') is not null then '—'
+            else 'create_pul_turi_child imzosi yo''qoldi (uuid,text) — ADDITIVE qoidasi buzilgan' end
+union all
+select 'hodim_kassa_turlar_toldir(uuid,boolean)',
+       case when to_regprocedure('public.hodim_kassa_turlar_toldir(uuid,boolean)') is not null
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when to_regprocedure('public.hodim_kassa_turlar_toldir(uuid,boolean)') is not null then '—'
+            else 'hodim_kassa_turlar_toldir yaratilmadi' end
+union all
+select 'pul_turi_standart()',
+       case when to_regprocedure('public.pul_turi_standart()') is not null
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when to_regprocedure('public.pul_turi_standart()') is not null then '—'
+            else 'pul_turi_standart yaratilmadi' end
+union all
+select 'pul_turi_ochir(uuid)',
+       case when to_regprocedure('public.pul_turi_ochir(uuid)') is not null
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when to_regprocedure('public.pul_turi_ochir(uuid)') is not null then '—'
+            else 'pul_turi_ochir yaratilmadi (8.5-bo''lim) — kassa sahifasidagi o''chirish tugmasi ishlamaydi' end
+union all
+select 'trg_hodim_kassa_turlar (accounts)',
+       case when exists (select 1 from pg_trigger
+                          where tgrelid = 'public.accounts'::regclass
+                            and tgname = 'trg_hodim_kassa_turlar'
+                            and not tgisinternal)
+            then '✅ OK' else '❌ MUAMMO' end,
+       case when exists (select 1 from pg_trigger
+                          where tgrelid = 'public.accounts'::regclass
+                            and tgname = 'trg_hodim_kassa_turlar'
+                            and not tgisinternal) then '—'
+            else 'trg_hodim_kassa_turlar triggeri o''rnatilmadi' end;
+-- ⬆⬆⬆  9.1 shu yerda tugadi  ⬆⬆⬆
 
-  -- CHECK kengaydimi
-  select pg_get_constraintdef(oid) into v_def
-    from pg_constraint
-   where conname = 'accounts_pul_turi_chk'
-     and conrelid = 'public.accounts'::regclass;
-  if v_def is null or v_def not like '%karta%' then
-    raise exception 'accounts_pul_turi_chk kengaymadi: %', coalesce(v_def, '(yo''q)');
-  end if;
+-- 9.2 CHECK kengaydimi
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+with d as (
+  select (select pg_get_constraintdef(oid)
+            from pg_constraint
+           where conname = 'accounts_pul_turi_chk'
+             and conrelid = 'public.accounts'::regclass) as def
+)
+select 'accounts_pul_turi_chk'                as obyekt,
+       coalesce(d.def, '(yo''q)')             as tarif,
+       case when d.def is not null and d.def like '%karta%'
+            then '✅ OK' else '❌ MUAMMO' end  as holat,
+       case when d.def is not null and d.def like '%karta%' then '—'
+            else 'accounts_pul_turi_chk kengaymadi: ' || coalesce(d.def, '(yo''q)') end as izoh
+  from d;
+-- ⬆⬆⬆  9.2 shu yerda tugadi  ⬆⬆⬆
 
-  -- Kod bloklari.
-  -- ⚠️ JAMI SANOQ YETARLI EMAS: 3.3 dagi `on conflict (nav) do nothing` nav 4/5/6
-  --    boshqa prefiks bilan allaqachon band bo'lsa qatorni JIMGINA o'tkazib
-  --    yuboradi — jadvalda baribir 6 ta qator turadi va `count(*) >= 6` yolg'on
-  --    tasdiq berardi (5 xonali blok aslida qo'shilmagan). Shuning uchun AYNAN
-  --    5 xonali bloklar (raqam_uzunlik = 3) sanaladi.
-  select count(*), count(*) filter (where raqam_uzunlik = 3)
-    into v_blok, v_blok3
-    from pul_turi_kod_blok;
+-- 9.3 Kod bloklari.
+-- ⚠️ JAMI SANOQ YETARLI EMAS: 3.3 dagi `on conflict (nav) do nothing` nav 4/5/6
+--    boshqa prefiks bilan allaqachon band bo'lsa qatorni JIMGINA o'tkazib
+--    yuboradi — jadvalda baribir 6 ta qator turadi va `count(*) >= 6` yolg'on
+--    tasdiq berardi (5 xonali blok aslida qo'shilmagan). Shuning uchun AYNAN
+--    5 xonali bloklar (raqam_uzunlik = 3) sanaladi.
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+with b as (
+  select count(*)                                  as jami,
+         count(*) filter (where raqam_uzunlik = 3) as uzun3
+    from pul_turi_kod_blok
+)
+select 'Kod bloklari'                     as obyekt,
+       b.jami                             as bloklar,
+       b.uzun3                            as besh_xonali,
+       case when b.uzun3 >= 3 then '✅ OK' else '❌ MUAMMO' end as holat,
+       case when b.uzun3 >= 3 then '—'
+            else '5 xonali blok (raqam_uzunlik=3) atigi ' || b.uzun3::text ||
+                 ' ta — 3 ta kerak (jami blok: ' || b.jami::text ||
+                 '). Ehtimol nav 4/5/6 boshqa prefiks bilan band va 3.3 dagi insert o''tkazib yuborilgan. Bo''sh nav raqamlari bilan qo''lda qo''shing: insert into pul_turi_kod_blok(nav, prefix, raqam_uzunlik) values (<bo''sh nav>, ''55'', 3), ...'
+       end                                as izoh
+  from b;
+-- ⬆⬆⬆  9.3 shu yerda tugadi  ⬆⬆⬆
 
-  if v_blok3 < 3 then
-    raise exception
-      '5 xonali blok (raqam_uzunlik=3) atigi % ta — 3 ta kerak (jami blok: %). Ehtimol nav 4/5/6 boshqa prefiks bilan band va 3.3 dagi insert o''tkazib yuborilgan. Bo''sh nav raqamlari bilan qo''lda qo''shing: insert into pul_turi_kod_blok(nav, prefix, raqam_uzunlik) values (<bo''sh nav>, ''55'', 3), ...',
-      v_blok3, v_blok;
-  end if;
+-- 9.4 Standart turlar ro'yxati
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+select 'pul_turi_standart()'                       as obyekt,
+       array_to_string(pul_turi_standart(), ', ')  as royxat,
+       case when 'karta' = any(pul_turi_standart())
+            then '✅ OK' else '❌ MUAMMO' end       as holat,
+       case when 'karta' = any(pul_turi_standart()) then '—'
+            else 'pul_turi_standart ichida karta yo''q' end as izoh;
+-- ⬆⬆⬆  9.4 shu yerda tugadi  ⬆⬆⬆
 
-  -- Standart turlar ro'yxati
-  v_std := pul_turi_standart();
-  if not ('karta' = any(v_std)) then
-    raise exception 'pul_turi_standart ichida karta yo''q';
-  end if;
-
-  -- Bo'sh kod sig'imi (taqribiy: har blokda "eng katta band kod"dan yuqorisi
-  -- bo'sh deb sanaladi — o'rtadagi bo'shliqlar qayta ishlatilmaydi)
-  select sum(greatest((power(10, b.raqam_uzunlik)::int - 1) - coalesce(mx.n, 0), 0))
-    into v_bosh
-    from pul_turi_kod_blok b
-    left join lateral (
-      select max(substring(a.code from 3)::int) as n
-        from accounts a
-       where a.code ~ ('^' || b.prefix || '[0-9]{' || b.raqam_uzunlik::text || '}$')
-    ) mx on true;
-
-  raise notice 'OK: turlar avtomatikasi tayyor. Bloklar: %, bo''sh kod (taqribiy): %',
-    v_blok, v_bosh;
-end $$;
+-- 9.5 Bo'sh kod sig'imi (taqribiy: har blokda "eng katta band kod"dan yuqorisi
+--     bo'sh deb sanaladi — o'rtadagi bo'shliqlar qayta ishlatilmaydi)
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+select 'Bo''sh kod sig''imi'  as obyekt,
+       count(*)              as bloklar,
+       sum(greatest((power(10, b.raqam_uzunlik)::int - 1) - coalesce(mx.n, 0), 0)) as bosh_kod,
+       '✅ OK — turlar avtomatikasi tayyor' as holat
+  from pul_turi_kod_blok b
+  left join lateral (
+    select max(substring(a.code from 3)::int) as n
+      from accounts a
+     where a.code ~ ('^' || b.prefix || '[0-9]{' || b.raqam_uzunlik::text || '}$')
+  ) mx on true;
+-- ⬆⬆⬆  9.5 shu yerda tugadi  ⬆⬆⬆
 
 
 -- ---------------------------------------------------------------------
 -- 10. TEKSHIRUV SO'ROVLARI (o'zgartirmaydi)
 -- ---------------------------------------------------------------------
--- ⚠️ Bu bo'limda 2 ta SELECT bor (10.1 va 10.2), 11.1 da yana bittasi.
---    Supabase SQL Editor FAQAT OXIRGI statement natijasini ko'rsatadi —
+-- ⚠️ Supabase SQL Editor FAQAT OXIRGI statement natijasini ko'rsatadi —
 --    hammasini birga RUN qilsangiz faqat oxirgisini ko'rasiz.
 --    Har birini SICHQONCHA BILAN BELGILAB alohida RUN qiling.
 
 -- 10.1 Bloklar va ularda qolgan joy
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
 select b.nav, b.prefix, b.raqam_uzunlik,
        ('^' || b.prefix || '[0-9]{' || b.raqam_uzunlik::text || '}$') as naqsh,
        coalesce(mx.n, 0)                                        as oxirgi_band,
@@ -870,11 +1230,12 @@ select b.nav, b.prefix, b.raqam_uzunlik,
      where a.code ~ ('^' || b.prefix || '[0-9]{' || b.raqam_uzunlik::text || '}$')
   ) mx on true
  order by b.nav;
+-- ⬆⬆⬆  10.1 shu yerda tugadi  ⬆⬆⬆
 
 -- 10.2 Hodim kassalari va ularda qaysi turlar bor / yetishmaydi.
 --      `section` ustuni ataylab chiqariladi: 'pul' bo'lmasa trigger
 --      o'sha kassa uchun ishlamaydi (1.4-tekshiruvga qara).
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
 select p.code, p.name, p.subtitle, p.section,
        coalesce(string_agg(c.pul_turi, ', ' order by c.pul_turi), '—') as bor_turlar,
        (select string_agg(s.t, ', ')
@@ -889,21 +1250,45 @@ select p.code, p.name, p.subtitle, p.section,
    and p.pul_turi is null and coalesce(p.currency,'UZS') = 'UZS'
  group by p.id, p.code, p.name, p.subtitle, p.section
  order by p.code;
+-- ⬆⬆⬆  10.2 shu yerda tugadi  ⬆⬆⬆
 
 -- 10.3 Triggerni SINAB ko'rish (ixtiyoriy — test kassa ochadi va o'chiradi).
 --      ⚠️ accounts dan DELETE qiladi — faqat yozuvsiz test kassasi uchun.
--- do $$
--- declare v_g uuid; v_k uuid; n int;
--- begin
---   select id into v_g from accounts where kassa_turi = 'xarajat_guruh' and is_active limit 1;
---   insert into accounts(code, name, type, section, currency, parent_id, kassa_turi, is_active, subtitle)
---   values ('5499', 'ZZZ Test Hodim', 'aktiv', 'pul', 'UZS', v_g, 'xarajat', true, 'Test')
---   returning id into v_k;
---   select count(*) into n from accounts where parent_id = v_k and pul_turi is not null;
---   raise notice 'Trigger ochgan turlar soni: % (4 bo''lishi kerak)', n;
---   delete from accounts where parent_id = v_k;
---   delete from accounts where id = v_k;
--- end $$;
+--      Avval `do` bloki edi; endi 4 ta oddiy statement, ATAYLAB izohda.
+--      Ishlatish: qator boshidagi `-- ` larni olib tashlang va statementlarni
+--      BIRMA-BIR RUN qiling (2-statement `4` qaytarishi kerak), oxirgi ikkitasi
+--      test kassani tozalaydi.
+-- ⬇⬇⬇  10.3 SINOV — izohni olib tashlagach shu oraliqni belgilang  ⬇⬇⬇
+-- insert into accounts(code, name, type, section, currency, parent_id, kassa_turi, is_active, subtitle)
+-- select '5499', 'ZZZ Test Hodim', 'aktiv', 'pul', 'UZS', g.id, 'xarajat', true, 'Test'
+--   from accounts g where g.kassa_turi = 'xarajat_guruh' and g.is_active limit 1;
+--
+-- select count(*) as trigger_ochgan_turlar   -- 4 bo'lishi kerak
+--   from accounts c join accounts k on k.id = c.parent_id
+--  where k.code = '5499' and c.pul_turi is not null;
+--
+-- delete from accounts where parent_id = (select id from accounts where code = '5499');
+-- delete from accounts where code = '5499';
+-- ⬆⬆⬆  10.3 SINOV shu yerda tugadi  ⬆⬆⬆
+
+-- 10.4 Qaysi tur hisobini YOPSA bo'ladi (pul_turi_ochir uchun oldindan ko'rish).
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
+select c.code, c.name, c.pul_turi,
+       coalesce(b.uzs, 0)                                           as qoldiq,
+       (select count(*) from entry_line l where l.account_id = c.id) as satr,
+       case when coalesce(b.uzs, 0) <> 0 or coalesce(b.fc, 0) <> 0
+              then 'yoq — qoldiq bor'
+            when p.kassa_turi = 'filial' and p.filial_ref is not null
+              then 'yoq — Aros sinxroni'
+            when exists (select 1 from entry_line l where l.account_id = c.id)
+              then 'ha (passiv, tarixi saqlanadi)'
+            else 'ha' end                                           as yopish_mumkin
+  from accounts c
+  left join accounts p    on p.id = c.parent_id
+  left join v_hisob_bal b on b.account_id = c.id
+ where c.pul_turi is not null and c.is_active
+ order by c.code;
+-- ⬆⬆⬆  10.4 shu yerda tugadi  ⬆⬆⬆
 
 
 -- =====================================================================
@@ -913,7 +1298,7 @@ select p.code, p.name, p.subtitle, p.section,
 
 -- 11.1 ⭐ AVVAL PREVIEW — nechta kassa, nechta yangi hisob ochiladi.
 --      Bu so'rov hech narsani o'zgartirmaydi.
--- ⚠️ Bu SELECT'ni ALOHIDA belgilab RUN qiling (Supabase faqat oxirgi natijani ko'rsatadi)
+-- ⬇⬇⬇  SHU QATORDAN quyidagi `;` GACHA BELGILANG  ⬇⬇⬇
 with k as (
   select p.id, p.code,
          (select count(*)
@@ -942,41 +1327,64 @@ select count(*)                                   as hodim_kassa_soni,
        case when coalesce(sum(yetishmaydi), 0) <= (select joy from bosh)
             then 'YETADI' else 'KOD YETMAYDI — pul_turi_kod_blok ga yangi blok qo''shing' end as holat
   from k;
+-- ⬆⬆⬆  11.1 shu yerda tugadi  ⬆⬆⬆
 
--- 11.2 BAJARISH — 11.1 natijasi to'g'ri bo'lsa, quyidagi bloknining
---      izohini olib tashlab RUN qiling.
+-- 11.2 BAJARISH — 11.1 natijasi to'g'ri bo'lsa.
 --      hodim_kassa_turlar_toldir har kassaga idempotent ishlaydi:
 --      bori qayta ochilmaydi. Bitta kassada xato bo'lsa — o'sha kassa
 --      o'tkazib yuboriladi (warning), qolganlari davom etadi.
 --
--- do $$
--- declare
---   r        record;
---   v_res    jsonb;
---   n_kassa  int := 0;
---   n_yangi  int := 0;
---   n_xato   int := 0;
--- begin
---   for r in
---     select p.id, p.code, p.name
---       from accounts p
---       join accounts g on g.id = p.parent_id and g.kassa_turi = 'xarajat_guruh'
---      where p.is_active and p.section = 'pul' and p.kassa_turi = 'xarajat'
---        and p.pul_turi is null and coalesce(p.currency,'UZS') = 'UZS'
---      order by p.code
---   loop
---     begin
---       v_res   := hodim_kassa_turlar_toldir(r.id);   -- p_usd = false
---       n_kassa := n_kassa + 1;
---       n_yangi := n_yangi + coalesce(jsonb_array_length(v_res -> 'yaratildi'), 0);
---     exception when others then
---       n_xato := n_xato + 1;
---       raise warning 'Kassa % (%) to''ldirilmadi: %', r.code, r.name, sqlerrm;
---     end;
---   end loop;
---   raise notice 'BACKFILL: % ta kassa ko''rildi, % ta yangi tur hisobi ochildi, % ta xato',
---     n_kassa, n_yangi, n_xato;
--- end $$;
+--      🔴 FUNKSIYA YARATILADI, LEKIN CHAQIRILMAYDI. Butun fayl RUN
+--         qilinganda 240 ta hisob o'z-o'zidan ochilib ketmasligi uchun
+--         chaqiruv ATAYLAB izohda turibdi (pastdagi oxirgi qator).
+--         Ishlatish: o'sha bitta qatorning `-- ` sini olib tashlang va
+--         FAQAT o'sha qatorni belgilab RUN qiling.
+-- ⬇⬇⬇  11.2: funksiya (xavfsiz, hech narsa qilmaydi)  ⬇⬇⬇
+create or replace function hodim_turlar_backfill()
+returns jsonb
+language plpgsql
+as $$
+declare
+  r        record;
+  v_res    jsonb;
+  n_kassa  int := 0;
+  n_yangi  int := 0;
+  n_xato   int := 0;
+begin
+  for r in
+    select p.id, p.code, p.name
+      from accounts p
+      join accounts g on g.id = p.parent_id and g.kassa_turi = 'xarajat_guruh'
+     where p.is_active and p.section = 'pul' and p.kassa_turi = 'xarajat'
+       and p.pul_turi is null and coalesce(p.currency,'UZS') = 'UZS'
+     order by p.code
+  loop
+    begin
+      v_res   := hodim_kassa_turlar_toldir(r.id);   -- p_usd = false
+      n_kassa := n_kassa + 1;
+      n_yangi := n_yangi + coalesce(jsonb_array_length(v_res -> 'yaratildi'), 0);
+    exception when others then
+      n_xato := n_xato + 1;
+      raise warning 'Kassa % (%) to''ldirilmadi: %', r.code, r.name, sqlerrm;
+    end;
+  end loop;
+
+  raise notice 'BACKFILL: % ta kassa ko''rildi, % ta yangi tur hisobi ochildi, % ta xato',
+    n_kassa, n_yangi, n_xato;
+
+  return jsonb_build_object('kassa', n_kassa, 'yangi_hisob', n_yangi, 'xato', n_xato);
+end $$;
+
+revoke all on function hodim_turlar_backfill() from public, anon, authenticated;
+
+comment on function hodim_turlar_backfill() is
+  'BACKFILL: mavjud hodim kassalarining hammasiga standart turlarni to''ldiradi. '
+  'Idempotent; bitta kassadagi xato qolganlarini to''xtatmaydi (warning). '
+  'ATAYLAB avtomatik chaqirilmaydi — PROVODKA_TURLAR_AVTO.sql 11.2 ga qara.';
+-- ⬆⬆⬆  11.2 funksiya shu yerda tugadi  ⬆⬆⬆
+
+-- 🔴 BACKFILLNI HAQIQATAN BAJARISH — faqat shu qatorning izohini oling:
+-- select jsonb_pretty(hodim_turlar_backfill()) as backfill_natija;
 
 -- 11.3 Backfilldan keyin: 10.2 ni qayta RUN qiling — `yetishmaydi` ustuni
 --      hamma qatorda bo'sh bo'lishi kerak.
@@ -1003,6 +1411,12 @@ select count(*)                                   as hodim_kassa_soni,
 --   update accounts set is_active = false
 --    where id in ('<id1>', '<id2>')
 --      and not exists (select 1 from entry_line l where l.account_id = accounts.id);
+--
+-- 12.2b `pul_turi_ochir` bilan yopilgan hisobni QAYTA ochish (undo).
+--       Eng oson yo'l — kassa sahifasidagi "+" modalidan o'sha turni qayta
+--       qo'shish: `create_pul_turi_child` yopilgan bolani TIKLAYDI (yangi kod
+--       ochmaydi, 4-bo'limdagi "QAYTA YOQISH" blokiga qara).
+--       Qo'lda: update accounts set is_active = true where id = '<id>';
 --
 -- 12.3 5 xonali bloklarni olib tashlash (yangi kod berilmasin):
 --   delete from pul_turi_kod_blok where raqam_uzunlik = 3;
