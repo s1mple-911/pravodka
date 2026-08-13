@@ -142,6 +142,9 @@
   /* Taqsimot satri kesilmasin — telefonda ikkinchi qatorga o'tadi.
      `.krow .st` dan KEYIN turishi shart: bir xil aniqlik, keyingisi yutadi. */
   .krow .tq{white-space:normal;overflow:visible;margin-top:3px}
+  /* Qoldig'i 0 bo'lgan tur satri — ko'rinadi (hisob ochilgani bilinsin), lekin
+     puli borlaridan ajralib tursin. Yo'q qilib yuborilsa "tur qo'shdim, ko'rinmayapti" bo'ladi. */
+  .kchip .sub .zq,.krow .tq .zq{opacity:.5}
   .krow.kempty{color:var(--muted);font-size:13px;justify-content:flex-start;padding:14px}
   /* "Valyuta qo'shish" — faqat adminda ko'rinadi (body.is-admin) */
   .kchip .top{position:relative}
@@ -427,30 +430,48 @@ const accLbl=a=>a.name+(a.subtitle?' · '+a.subtitle:'');
 const jamiOf=rows=>rows.reduce((a,r)=>a+(Number(r.jami)||0),0);
 // Valyuta qoldig'i — 2 kasr, probel bilan (money() butun son uchun)
 const fc=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ');
-const TURI_IKO={naqd:"💵",click:'💳',payme:'📱'};
+// Tur ikonkalari — TC_LBL (tur o'tkazish modali) bilan bir xil oila.
+// karta/terminal/plastik PROVODKA_TURLAR_AVTO.sql bilan qo'shilgan turlar.
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'💠'};
+const TURI_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
 // Taqsimot satri: pul turi bolalari (naqd/Click/Payme) + parentning o'z qoldig'i
 // + valyuta bolalari. Nol bo'lganlar chiqmaydi.
 // ⚠️ kcard (markaziy/filial kartasi) va krow (hodim kassasi qatori) AYNI shu
 //    funksiyani chaqiradi — mantiq ikkiga bo'linib, vaqt o'tib ajralib ketmasin.
-// naqd/click/payme ustunlari PROVODKA_VALYUTA.sql bilan qo'shiladi — SQL hali RUN
-// qilinmagan bo'lsa ular undefined bo'ladi va satr avvalgidek faqat valyutani ko'rsatadi.
+// Tur satrlari `ktur` (v_kassa_turlar) dan keladi; u o'qilmasa karta ustunlariga
+// (naqd/click/payme) qaytamiz — o'shanda ham satr avvalgidek chiziladi.
 // p_oz=true (karta): turlar umuman bo'lmasa ham parentning o'z qoldig'i yoziladi.
 // p_oz=false (hodim qatori): jami o'ng tomonda turibdi — uni takrorlash ortiqcha,
 //    o'z qoldig'i faqat "turga ajratilmagan pul" bo'lganda ko'rsatiladi.
 function taqsimot(r,p_oz){
   const vals=(kval[r.id]||[]);
+  const turs=(ktur[r.id]||[]);
   const qism=[];
-  const turi=(k,v)=>{ const n=Number(v)||0; if(n) qism.push(TURI_IKO[k]+' '+money(n)); };
-  turi('naqd',r.naqd); turi('click',r.click); turi('payme',r.payme);
+  let turUst=0;
+  // 🔴 Tur satrlari `v_kassa_turlar` dan (ktur), v_kassa_card ustunlaridan EMAS.
+  //    Sabab: ustunlar (naqd/click/payme) 0 ni "hisob umuman yo'q" dan ajratmaydi
+  //    va yangi turlarni (karta/terminal/plastik) umuman bermaydi. Eski kod nol
+  //    qoldiqli turni yashirardi — yangi ochilgan tur hech qayerda ko'rinmasdi
+  //    ("qo'shildi" deydi, kassada yo'q). Endi hisob bor bo'lsa satr bor,
+  //    qoldig'i 0 bo'lsa .zq bilan xiraroq chiziladi.
+  if(turs.length){
+    turs.forEach(t=>{
+      const n=Number(t.qoldiq)||0; turUst+=n;
+      const s=(TURI_IKO[t.pul_turi]||'▫')+' '+money(n);
+      qism.push(n?s:'<span class="zq">'+s+'</span>');
+    });
+  }else{
+    // Zaxira yo'l: v_kassa_turlar o'qilmadi (view yo'q yoki tarmoq xatosi) —
+    // avvalgidek karta ustunlaridan chizamiz, nolsiz.
+    const turi=(k,v)=>{ const n=Number(v)||0; if(n){ turUst+=n; qism.push(TURI_IKO[k]+' '+money(n)); } };
+    turi('naqd',r.naqd); turi('click',r.click); turi('payme',r.payme);
+  }
   const oz=Number(r.uzs)||0;
-  // ⚠️ v_kassa_card FAQAT naqd/click/payme ustunlarini beradi, `jami` esa HAMMA tur
-  //    bolasini qo'shadi (karta/terminal/plastik ham — ular 55xxx hisoblar).
-  //    Ustunsiz turlar "Boshqa" bo'lib bitta qism sifatida chiqadi, aks holda
-  //    taqsimot yig'indisi `jami` dan kam bo'lib qolardi va odam "raqamlar
-  //    qo'shilmayapti" deb chalkashardi. View'ga TEGILMAYDI (u drop+create talab qiladi).
-  //    Qoldiq = jami − o'z qoldig'i − valyuta bolalari − ustunli turlar.
+  // "Boshqa" — taqsimotda hisobga olinmagan qoldiq (zaxira yo'lda ustunsiz turlar).
+  // Aks holda taqsimot yig'indisi `jami` dan kam bo'lib qolardi va odam "raqamlar
+  // qo'shilmayapti" deb chalkashardi.
+  // Qoldiq = jami − o'z qoldig'i − valyuta bolalari − ko'rsatilgan turlar.
   const valUzs=vals.reduce((a,v)=>a+(Number(v.uzs)||0),0);
-  const turUst=(Number(r.naqd)||0)+(Number(r.click)||0)+(Number(r.payme)||0);
   const boshqa=Math.round((Number(r.jami)||0)-oz-valUzs-turUst);
   if(Math.abs(boshqa)>=1) qism.push('▫ Boshqa '+money(boshqa));
   const turBor=qism.length>0;
@@ -546,20 +567,32 @@ function renderKassalar(list){
 // parent_id -> valyuta satrlari (v_kassa_valyutalar). Kartalar shu ro'yxatdan chiziladi.
 let kval={};
 const kvalIndex=rows=>{ const m={}; (rows||[]).forEach(v=>{ (m[v.parent_id]||(m[v.parent_id]=[])).push(v); }); return m; };
+// parent_id -> tur satrlari (v_kassa_turlar: parent_id, account_id, code, name, pul_turi, qoldiq).
+// Valyuta bilan bir xil naqsh. Tartib TURI_TART bo'yicha — "+" modalidagi ro'yxat bilan bir xil.
+let ktur={};
+const kturIndex=rows=>{ const m={};
+  (rows||[]).slice().sort((a,b)=>(TURI_TART[a.pul_turi]||9)-(TURI_TART[b.pul_turi]||9))
+    .forEach(t=>{ (m[t.parent_id]||(m[t.parent_id]=[])).push(t); });
+  return m; };
 async function loadKassalar(){
   // SWR: keshdagi qatorlarni darrov ko'rsat, aks holda "Yuklanmoqda…" placeholder
   const cachedVal=swrGet('valyutalar'); if(cachedVal) kval=kvalIndex(cachedVal);
+  const cachedTur=swrGet('turlar'); if(cachedTur) ktur=kturIndex(cachedTur);
   const cached=swrGet('cards');
   if(cached) renderKassalar(cached);
   else $('kassalar').innerHTML='<div class="empty">Yuklanmoqda…</div>';
   // Ikkalasi parallel — lekin render ikkovi kelgach bo'ladi, aks holda karta
   // valyutasiz chizilib, keyin sassiz eskirib qoladi. View hali yaratilmagan
   // bo'lsa xato yutiladi va karta eski ko'rinishda (faqat jami) chiziladi.
-  const [{data,error},{data:vs,error:ve}]=await Promise.all([
+  const [{data,error},{data:vs,error:ve},{data:ts,error:te}]=await Promise.all([
     sb.from('v_kassa_card').select('*').order('code'),
     sb.from('v_kassa_valyutalar').select('*').order('code'),
+    sb.from('v_kassa_turlar').select('*').order('code'),
   ]);
   if(!ve&&vs){ swrSet('valyutalar',vs); kval=kvalIndex(vs); }
+  // View bo'lmasa (PROVODKA_VALYUTA.sql RUN qilinmagan) xato jimgina yutiladi —
+  // taqsimot() zaxira yo'lga (karta ustunlariga) tushadi, sahifa sinmaydi.
+  if(!te&&ts){ swrSet('turlar',ts); ktur=kturIndex(ts); }
   // Xato bo'lsa har doim ko'rsat — keshdagi eski raqam jimgina qolib ketmasin
   if(error){
     $('banner').style.display='block';
@@ -605,7 +638,7 @@ window.valSave=async()=>{
   if(error){ $('vlMsg').className='cv-msg err'; $('vlMsg').textContent='Xato: '+error.message; return; }
   closeVal();
   // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
-  swrSet('cards',null); swrSet('valyutalar',null);
+  swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
   await loadKassalar();
 };
 // /valyuta qo'shish
@@ -759,7 +792,7 @@ window.convSave=async()=>{
     }
     valyuta=yid;
     // Ro'yxatni yangilaymiz — keyingi konvertda "yangi" emas, oddiy hisob bo'lib chiqsin
-    swrSet('cards',null); swrSet('valyutalar',null);
+    swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
   }
   // p_amount HAR DOIM beruvchi hisobning o'z valyutasida
   const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
@@ -768,7 +801,7 @@ window.convSave=async()=>{
   if(error){ cvErr('Xato: '+error.message); return; }
   const r=data||{};
   // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
-  if(r.ok&&r.status==='done'){ closeConv(); swrSet('cards',null); swrSet('valyutalar',null); await loadKassalar(); return; }
+  if(r.ok&&r.status==='done'){ closeConv(); swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null); await loadKassalar(); return; }
   if(!r.ok&&r.status==='pending'){
     $('cvMsg').className='cv-msg pend';
     // Bu yerda ham lo/hi ko'rsatilmaydi (adminga ham): so'rov yuborilgandan keyin
@@ -876,7 +909,7 @@ window.turSave=async()=>{
   if(!r.ok){ tcErr(r.error||'Noma\'lum javob'); return; }
   closeTur();
   // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
-  swrSet('cards',null); swrSet('valyutalar',null);
+  swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
   await loadKassalar();
 };
 // /tur o'tkazish
@@ -965,7 +998,7 @@ function vlTurXato(e,turi){
 }
 // Yozuvdan keyin: modal ro'yxati + kassa kartalari fresh (keshdan bermaydi)
 async function vlYangila(){
-  swrSet('cards',null); swrSet('valyutalar',null);
+  swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
   await Promise.all([vlLoadTur(), loadKassalar()]);
 }
 window.vlTurAdd=async turi=>{
