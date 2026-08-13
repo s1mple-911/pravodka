@@ -1,4 +1,12 @@
 =====================================================================
+ !!! DIQQAT: BU FAYL KOD EMAS — O'QISH UCHUN QO'LLANMA !!!
+ Bu matnni `index.ts` ga NUSXALAMANG va Supabase Dashboard'dagi funksiya
+ muharririga QO'YMANG. Kod faqat: supabase/functions/ai-chat/index.ts
+ (u `// ===` bilan boshlanadi va ichida `Deno.serve` bor).
+ Agar bu matn kod o'rniga qo'yilsa deploy shu xatoni beradi:
+     index.ts:2:15 Expected ';', '}' or <eof>
+ (2-qatorning 15-ustuni — quyidagi sarlavhadagi "—" belgisi.)
+
  EF `ai-chat` — DEPLOY QO'LLANMASI (Asilbek uchun)
  Provodka · Supabase project: kxzerccdpcltmzrxutlo
  Fayl: supabase/functions/ai-chat/index.ts
@@ -61,10 +69,13 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
 -----------------------------
     supabase secrets set AI_MODEL=claude-sonnet-5
         Modelni kodni o'zgartirmasdan almashtiradi.
-        Sukut: `claude-sonnet-4-6` (briefda shu so'ralgan).
-        `claude-sonnet-5` — yangiroq va arzonroq (kirish $2/1M intro narx).
-        Almashtirish uchun EF ni qayta deploy qilish SHART EMAS —
-        secret o'zgargach yangi so'rovlar yangi modelga ketadi.
+        Sukut ham `claude-sonnet-5` (Asilbek qarori) — ya'ni bu secret'ni
+        QO'YMASA ham to'g'ri model ketadi. Secret faqat keyinchalik boshqa
+        modelga o'tmoqchi bo'lsangiz kerak bo'ladi; almashtirish uchun EF ni
+        qayta deploy qilish SHART EMAS — secret o'zgargach yangi so'rovlar
+        yangi modelga ketadi.
+        Narx: $2/$10 per 1M token (intro, 31-avgustgacha), keyin $3/$15.
+        Eski `claude-sonnet-4-6` ham ishlaydi (kodda hech nima o'zgarmaydi).
 
     supabase secrets set AI_ALLOWED_ORIGINS=https://provodka.example.com
         CORS allowlist'iga QO'SHIMCHA manzillar (vergul bilan).
@@ -87,7 +98,17 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
 
 4) DEPLOY
 ---------
+    # Repo ildizidan (C:\Users\laziz\pravodka) ishga tushiring.
+    # Deploy'dan OLDIN 2 soniyalik tekshiruv — nima ketayotganini ko'rasiz:
+    head -1 supabase/functions/ai-chat/index.ts
+        Kutilgan: // =====================================================================
+        Agar "===" yoki "EF `ai-chat` — DEPLOY..." chiqsa — faylga qo'llanma
+        matni tushib qolgan, deploy qilmang (git checkout bilan tiklang).
+
     supabase functions deploy ai-chat
+
+    Deploy Dashboard'dagi muharrirdan EMAS, shu buyruq bilan qilinsin —
+    u aynan repodagi faylni yuklaydi va nusxa-ko'chirish xatosi bo'lmaydi.
 
 ⚠️ `verify_jwt` sukut bo'yicha YOQIQ — O'CHIRMANG
    (`--no-verify-jwt` bayrog'ini ISHLATMANG). U birinchi qavat himoya;
