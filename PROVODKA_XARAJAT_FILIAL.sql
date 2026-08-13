@@ -6,15 +6,21 @@
 --      birdaniga RUN QILMANG.
 --   2) Har bo'lak ⬇⬇⬇ va ⬆⬆⬆ belgilari orasida — AYNAN o'sha oraliqni
 --      belgilab RUN qiling.
---   3) `do $$` va `as $$` bloklarini TO'LIQ belgilash SHART: `do $$`
---      (yoki `create or replace function`) qatoridan `$$;` qatorigacha,
---      ikkalasi ham ichida. Yarim belgilansa Postgres blokni PL/pgSQL emas,
---      oddiy SQL deb o'qiydi va o'zgaruvchini jadval deb izlaydi.
---   4) O'shanda chiqadigan xato — `ERROR: 42P01: relation "v_yoq" does not
---      exist` (yoki boshqa `v_...` nomi). Bu FAYL XATOSI EMAS, belgilash
---      noto'g'ri: blokni boshidan oxirigacha qayta belgilab RUN qiling.
---   5) Faylda NOMLANGAN dollar-teg (dollar + nom + dollar ko'rinishi) YO'Q —
---      faqat oddiy `$$`. Ichma-ich dollar-quote ham yo'q.
+--   3) Bu faylda `do` bloki UMUMAN YO'Q. Dollar-quote belgisi (ikki dollar
+--      yonma-yon) FAQAT ikki funksiyaning tanasida (1.1 va 1.2) — izohlarda
+--      umuman yo'q. NOMLANGAN dollar-teg ham, ichma-ich dollar-quote ham yo'q.
+--      Sabab: Supabase SQL Editor `do` blokini bo'lib yuborar va PL/pgSQL
+--      o'zgaruvchisini jadval deb izlar edi
+--      (`ERROR: 42P01: relation "v_yoq" does not exist`).
+--      `create or replace function ... as` esa muammosiz ishlaydi.
+--   4) Shu sababli 1.1 / 1.2 funksiyasini BOSHIDAN OXIRIGACHA belgilang:
+--      `create or replace function` qatoridan pastdagi yopuvchi dollar-quote
+--      qatorigacha (ikkalasi ham ichida). Yarim belgilansa Postgres tanani
+--      PL/pgSQL emas, oddiy SQL deb o'qiydi va yana o'sha 42P01 xatosi
+--      chiqadi — bu FAYL XATOSI EMAS, qayta to'liq belgilang.
+--   5) 2-BOSQICH (o'zini tekshiruv) endi bitta blok emas — oddiy `select`
+--      lar ketma-ketligi. 2.0 dan 2.8 gacha TARTIB bilan, har birini
+--      alohida belgilab RUN qiling va `natija` ustuniga qarang.
 -- =====================================================================
 
 -- =====================================================================
@@ -141,7 +147,8 @@ select case
 --    service_role) o'tkaziladi — loyihadagi mavjud naqsh
 --    (hodim_kassa_turlar_toldir, entry_line guard triggeri ham shunday).
 --    `anon` ga EXECUTE berilmagan.
--- ⬇⬇⬇  1.1: SHU QATORDAN pastdagi `$$;` QATORIGACHA (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
+-- ⬇⬇⬇  1.1: SHU QATORDAN pastdagi YOPUVCHI dollar-quote qatorigacha
+--       (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
 create or replace function xarajat_filial_yarat(p_nom text, p_subtitle text default null)
 returns jsonb
 language plpgsql
@@ -266,7 +273,7 @@ begin
   raise exception 'Filialga bo''sh kod topilmadi (5 urinish): %', v_nom;
 end
 $$;
--- ⬆⬆⬆  1.1 shu yergacha (`$$;` ham ichida)  ⬆⬆⬆
+-- ⬆⬆⬆  1.1 shu yergacha (yopuvchi dollar-quote qatori ham ichida)  ⬆⬆⬆
 
 revoke all on function xarajat_filial_yarat(text, text) from public, anon;
 grant execute on function xarajat_filial_yarat(text, text) to authenticated, service_role;
@@ -291,7 +298,8 @@ comment on function xarajat_filial_yarat(text, text) is
 -- passivlashtiriladi, chunki ular yolg'iz qolsa kassa kartasi buziladi.
 --
 -- Qaytishi: {"ok":true,"id":"...","code":"...","name":"...","bolalar":N}
--- ⬇⬇⬇  1.2: SHU QATORDAN pastdagi `$$;` QATORIGACHA (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
+-- ⬇⬇⬇  1.2: SHU QATORDAN pastdagi YOPUVCHI dollar-quote qatorigacha
+--       (ikkalasi ham ichida) BELGILANG  ⬇⬇⬇
 create or replace function xarajat_filial_ochir(p_id uuid)
 returns jsonb
 language plpgsql
@@ -363,7 +371,7 @@ begin
                             'name', v_acc.name, 'bolalar', v_bola);
 end
 $$;
--- ⬆⬆⬆  1.2 shu yergacha (`$$;` ham ichida)  ⬆⬆⬆
+-- ⬆⬆⬆  1.2 shu yergacha (yopuvchi dollar-quote qatori ham ichida)  ⬆⬆⬆
 
 revoke all on function xarajat_filial_ochir(uuid) from public, anon;
 grant execute on function xarajat_filial_ochir(uuid) to authenticated, service_role;
@@ -388,106 +396,288 @@ notify pgrst, 'reload schema';
 
 -- #####################################################################
 --  2-BOSQICH — O'ZINI TEKSHIRUV (test filial ochib, tekshirib, o'chiradi)
---  ALOHIDA belgilab RUN qiling. Test filial oxirida jadvaldan BUTUNLAY
---  o'chiriladi — 52xx kodi bo'shab qoladi (har RUN da bittadan yeyilmasin).
 -- #####################################################################
+--  Avval bu bo'lim bitta `do` bloki edi — Supabase SQL Editor uni bo'lib
+--  yuborar va PL/pgSQL o'zgaruvchisini jadval deb izlar edi
+--  (`ERROR: 42P01: relation "v_nom" does not exist`). Endi har tekshiruv
+--  ALOHIDA oddiy `select`. Shartlar, ketma-ketlik va xato matnlari
+--  `do` blokidagi bilan AYNAN bir xil — faqat qadoqlash o'zgardi.
+--
+--  QANDAY O'QILADI: `natija` ustuni
+--     ✅ OK      -> keyingi bo'lakka o'ting
+--     ❌ ...XATO -> TO'XTANG, sababni hal qiling.
+--
+--  🔴 IKKI MUHIM FARQ (`do` blokiga nisbatan):
+--   1. Tartib MUHIM: 2.0 → 2.8 gacha KETMA-KET, birin-ketin. Har bo'lak
+--      o'zidan oldingisi qoldirgan holatga tayanadi (test filial nom
+--      bo'yicha topiladi, `order by code desc limit 1` — eng yangisi).
+--   2. Endi hammasi BITTA tranzaksiya emas: biror tekshiruv ❌ bersa test
+--      filial bazada QOLIB KETADI. Shuning uchun ❌ chiqsa ham oxirida
+--      2.8 TOZALASH ni baribir RUN qiling (u xavfsiz — faqat
+--      'ZZ Test filial%' nomli, filial_ref NULL qatorlarga tegadi).
+--
+--  Test filial 2.8 da jadvaldan BUTUNLAY o'chiriladi — 52xx kodi bo'shab
+--  qoladi (har RUN da bittadan yeyilmasin).
 
--- ⚠️ Belgilashni AYNAN quyidagi `do $$` qatoridan boshlang va pastdagi `$$;`
---    qatorigacha (u ham ichida) belgilang. `do $$` yoki `declare` tashqarida
---    qolsa: ERROR 42P01 relation "v_nom" does not exist — bu fayl xatosi emas.
--- ⬇⬇⬇⬇⬇⬇⬇⬇⬇  `do $$` QATORIDAN `$$;` QATORIGACHA BELGILANG  ⬇⬇⬇⬇⬇⬇⬇⬇⬇
-do $$
-declare
-  v_nom  text := 'ZZ Test filial (o''chiriladi)';
-  v_r    jsonb;
-  v_r2   jsonb;
-  v_id   uuid;
-  v_n    int;
-begin
-  -- (a) yaratish
-  v_r  := xarajat_filial_yarat(v_nom, 'Test · Xarajat');
-  v_id := (v_r->>'id')::uuid;
-  if (v_r->>'ok') <> 'true' or v_id is null then
-    raise exception 'TEST 1 XATO: yaratilmadi — %', v_r;
-  end if;
-  if (v_r->>'yangi') <> 'true' then
-    raise exception 'TEST 1 XATO: yangi=false, oldin qolib ketgan test filial bormi? — %', v_r;
-  end if;
-  raise notice 'TEST 1 OK: % ochildi (%)', v_r->>'code', v_r->>'name';
+-- ---------------------------------------------------------------------
+-- 2.0 Boshlashdan oldin: eski test filial qolib ketmaganmi.
+--     ❌ bo'lsa avval ROLLBACK (b) bilan tozalang, keyin 2.1 ga o'ting.
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+select case when count(*) = 0
+              then '✅ OK: eski test filial yo''q — 2.1 ga o''ting'
+              else '❌ MUAMMO: eski test filial bor — avval ROLLBACK (b) ni bajaring'
+       end                        as natija,
+       count(*)                   as qolgan_qator
+  from accounts
+ where name ilike 'ZZ Test filial%';
+-- ⬆⬆⬆  2.0 shu yergacha  ⬆⬆⬆
 
-  -- (b) idempotentlik: ikkinchi chaqiruv YANGI ochmasin
-  v_r2 := xarajat_filial_yarat(lower(v_nom), null);
-  if (v_r2->>'yangi') <> 'false' or (v_r2->>'id') <> (v_r->>'id') then
-    raise exception 'TEST 2 XATO: idempotent emas — %', v_r2;
-  end if;
-  raise notice 'TEST 2 OK: idempotent (yangi=false)';
 
-  -- (c) v_filial_tanlov ko'rdimi (view o'zgartirilmagani shu bilan tasdiqlanadi)
-  select count(*) into v_n from v_filial_tanlov where id = v_id;
-  if v_n <> 1 then
-    raise exception 'TEST 3 XATO: v_filial_tanlov da % qator (1 kutilgandi) — view sharti mos kelmadi', v_n;
-  end if;
-  raise notice 'TEST 3 OK: v_filial_tanlov da ko''rinadi';
+-- ---------------------------------------------------------------------
+-- 2.1 (a) YARATISH — test filial ochiladi (bu bo'lak accounts ga YOZADI).
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with r as (
+  select xarajat_filial_yarat('ZZ Test filial (o''chiriladi)', 'Test · Xarajat') as res
+)
+select case
+         when (r.res->>'ok') is distinct from 'true'
+              or nullif(r.res->>'id', '') is null
+           then '❌ TEST 1 XATO: yaratilmadi — ' || r.res::text
+         when (r.res->>'yangi') <> 'true'
+           then '❌ TEST 1 XATO: yangi=false, oldin qolib ketgan test filial bormi? — ' || r.res::text
+         else '✅ TEST 1 OK: ' || (r.res->>'code') || ' ochildi (' || (r.res->>'name') || ')'
+       end        as natija,
+       r.res      as javob
+  from r;
+-- ⬆⬆⬆  2.1 shu yergacha  ⬆⬆⬆
 
-  -- (d) kassa kartasi buzilmadimi: yangi filial BITTA qator, jami = 0
-  select count(*) into v_n from v_kassa_card where id = v_id;
-  if v_n <> 1 then
-    raise exception 'TEST 4 XATO: v_kassa_card da % qator (1 kutilgandi)', v_n;
-  end if;
-  select count(*) into v_n from v_kassa_card where id = v_id and jami = 0;
-  if v_n <> 1 then
-    raise exception 'TEST 4 XATO: yangi filialning jami qoldig''i 0 emas';
-  end if;
-  raise notice 'TEST 4 OK: v_kassa_card — 1 qator, jami = 0';
 
-  -- (e) Aros sinxroni tegmasin: mapping'da umuman bo'lmasin
-  select count(*) into v_n from v_filial_sync_mapping where kassa_id = v_id;
-  if v_n <> 0 then
-    raise exception 'TEST 5 XATO: v_filial_sync_mapping da % qator — Aros sinxroni bu filialga yozadi!', v_n;
-  end if;
-  raise notice 'TEST 5 OK: Aros sinxroni tegmaydi (filial_ref NULL)';
+-- ---------------------------------------------------------------------
+-- 2.2 (b) IDEMPOTENTLIK — ikkinchi chaqiruv YANGI ochmasin.
+--     Nom ataylab lower() bilan beriladi (katta/kichik harf sezgir emas).
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+r as (
+  -- ⚠️ t bo'sh bo'lsa funksiya UMUMAN chaqirilmaydi — aks holda bu bo'lak
+  --    2.1 ni bajarmasdan RUN qilinganda test filialni O'ZI ochib qo'yardi.
+  select case when (select id from t) is null then null::jsonb
+              else xarajat_filial_yarat(lower('ZZ Test filial (o''chiriladi)'), null)
+         end as res
+)
+select case
+         when t.id is null
+           then '❌ TEST 2 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when (r.res->>'yangi') <> 'false'
+              or (r.res->>'id') is distinct from t.id::text
+           then '❌ TEST 2 XATO: idempotent emas — ' || r.res::text
+         else '✅ TEST 2 OK: idempotent (yangi=false)'
+       end        as natija,
+       t.code     as test_filial,
+       r.res      as javob
+  from r left join t on true;
+-- ⬆⬆⬆  2.2 shu yergacha  ⬆⬆⬆
 
-  -- (f) valyuta bolasi paydo bo'lmadimi (parent_id NULL — tushmasligi kerak)
-  select count(*) into v_n from v_kassa_valyutalar where parent_id = v_id;
-  if v_n <> 0 then
-    raise exception 'TEST 6 XATO: v_kassa_valyutalar da % qator', v_n;
-  end if;
-  raise notice 'TEST 6 OK: valyuta bolasi yo''q';
 
-  -- (g) o'chirish ishlaydimi
-  v_r2 := xarajat_filial_ochir(v_id);
-  if (v_r2->>'ok') <> 'true' then
-    raise exception 'TEST 7 XATO: o''chirilmadi — %', v_r2;
-  end if;
-  select count(*) into v_n from v_filial_tanlov where id = v_id;
-  if v_n <> 0 then
-    raise exception 'TEST 7 XATO: o''chirilgandan keyin ham v_filial_tanlov da turibdi';
-  end if;
-  raise notice 'TEST 7 OK: passivlashtirildi, ro''yxatdan chiqdi';
+-- ---------------------------------------------------------------------
+-- 2.3 (c) v_filial_tanlov KO'RDIMI — view o'zgartirilmagani shu bilan
+--     tasdiqlanadi (hodim / professional / standart aynan shundan oladi).
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+v as (
+  select count(*) as n from v_filial_tanlov where id = (select id from t)
+)
+select case
+         when (select id from t) is null
+           then '❌ TEST 3 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when v.n <> 1
+           then '❌ TEST 3 XATO: v_filial_tanlov da ' || v.n
+                || ' qator (1 kutilgandi) — view sharti mos kelmadi'
+         else '✅ TEST 3 OK: v_filial_tanlov da ko''rinadi'
+       end        as natija,
+       v.n        as qator,
+       (select code from t) as test_filial
+  from v;
+-- ⬆⬆⬆  2.3 shu yergacha  ⬆⬆⬆
 
-  -- (h) TOZALASH: test filial `is_active=false` bo'lib qolsa 52xx kodi band
-  --     bo'lib qoladi va bu blok har RUN da bittadan kod yeydi (5299 gacha
-  --     97 ta joy bor). Shuning uchun butunlay o'chiramiz.
-  --     XAVFSIZ: hisob shu blokda endigina yaratildi va yuqoridagi
-  --     xarajat_filial_ochir() uning entry_line'i, entry.filial_ids tegi va
-  --     standart_xarajat limiti YO'Qligini allaqachon tekshirdi (bo'lganida
-  --     TEST 7 xato berardi). Ya'ni delete birorta yozuvni yetim qoldirmaydi.
-  --     Bola-hisob nazariy jihatdan ham yo'q, lekin FK xatosi bo'lmasin uchun
-  --     avval ular o'chiriladi.
-  delete from accounts where parent_id = v_id;
-  delete from accounts where id = v_id;
 
-  select count(*) into v_n from accounts where id = v_id;
-  if v_n <> 0 then
-    raise exception 'TEST 8 XATO: test filial o''chmadi (% ta qator qoldi)', v_n;
-  end if;
-  raise notice 'TEST 8 OK: test filial butunlay o''chirildi — % kodi bo''shadi', v_r->>'code';
+-- ---------------------------------------------------------------------
+-- 2.4 (d) KASSA KARTASI buzilmadimi: yangi filial BITTA qator, jami = 0.
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+k as (
+  select count(*)                            as n,
+         count(*) filter (where jami = 0)    as n0
+    from v_kassa_card where id = (select id from t)
+)
+select case
+         when (select id from t) is null
+           then '❌ TEST 4 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when k.n <> 1
+           then '❌ TEST 4 XATO: v_kassa_card da ' || k.n || ' qator (1 kutilgandi)'
+         when k.n0 <> 1
+           then '❌ TEST 4 XATO: yangi filialning jami qoldig''i 0 emas'
+         else '✅ TEST 4 OK: v_kassa_card — 1 qator, jami = 0'
+       end        as natija,
+       k.n        as qator,
+       k.n0       as jami_nol
+  from k;
+-- ⬆⬆⬆  2.4 shu yergacha  ⬆⬆⬆
 
-  raise notice '===== HAMMA TEST O''TDI. Test filial (%) jadvaldan o''chirildi, iz qolmadi. =====',
-    v_r->>'code';
-end
-$$;
--- ⬆⬆⬆⬆⬆⬆⬆⬆⬆  SHU QATORGACHA (`$$;` ham ichida) BELGILANG (2-BOSQICH tugadi)  ⬆⬆⬆⬆⬆⬆⬆⬆⬆
+
+-- ---------------------------------------------------------------------
+-- 2.5 (e) AROS SINXRONI TEGMASIN — mapping'da umuman bo'lmasin.
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+m as (
+  select count(*) as n from v_filial_sync_mapping where kassa_id = (select id from t)
+)
+select case
+         when (select id from t) is null
+           then '❌ TEST 5 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when m.n <> 0
+           then '❌ TEST 5 XATO: v_filial_sync_mapping da ' || m.n
+                || ' qator — Aros sinxroni bu filialga yozadi!'
+         else '✅ TEST 5 OK: Aros sinxroni tegmaydi (filial_ref NULL)'
+       end        as natija,
+       m.n        as qator
+  from m;
+-- ⬆⬆⬆  2.5 shu yergacha  ⬆⬆⬆
+
+
+-- ---------------------------------------------------------------------
+-- 2.6 (f) VALYUTA BOLASI paydo bo'lmadimi (parent_id NULL — tushmasligi kerak).
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+v as (
+  select count(*) as n from v_kassa_valyutalar where parent_id = (select id from t)
+)
+select case
+         when (select id from t) is null
+           then '❌ TEST 6 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when v.n <> 0
+           then '❌ TEST 6 XATO: v_kassa_valyutalar da ' || v.n || ' qator'
+         else '✅ TEST 6 OK: valyuta bolasi yo''q'
+       end        as natija,
+       v.n        as qator
+  from v;
+-- ⬆⬆⬆  2.6 shu yergacha  ⬆⬆⬆
+
+
+-- ---------------------------------------------------------------------
+-- 2.7 (g1) O'CHIRISH ishlaydimi — xarajat_filial_ochir() chaqiriladi.
+--      Bu bo'lak accounts ni O'ZGARTIRADI (is_active=false).
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+o as (
+  select case when (select id from t) is null then null::jsonb
+              else xarajat_filial_ochir((select id from t)) end as res
+)
+select case
+         when o.res is null
+           then '❌ TEST 7 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when (o.res->>'ok') <> 'true'
+           then '❌ TEST 7 XATO: o''chirilmadi — ' || o.res::text
+         else '✅ TEST 7 OK (1/2): passivlashtirildi — endi 2.7.1 ni RUN qiling'
+       end        as natija,
+       o.res      as javob
+  from o;
+-- ⬆⬆⬆  2.7 shu yergacha  ⬆⬆⬆
+
+-- ---------------------------------------------------------------------
+-- 2.7.1 (g2) O'chirilgandan keyin ro'yxatdan chiqdimi.
+--      ⚠️ ALOHIDA `select` bo'lishi SHART: bitta `select` ichida view
+--         hali o'chirishdan OLDINGI suratni ko'rar edi (statement snapshot).
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+with t as (
+  select id, code from accounts
+   where name ilike 'ZZ Test filial%'
+   order by code desc limit 1
+),
+v as (
+  select count(*) as n from v_filial_tanlov where id = (select id from t)
+)
+select case
+         when (select id from t) is null
+           then '❌ TEST 7 XATO: test filial topilmadi — 2.1 ni bajardingizmi?'
+         when v.n <> 0
+           then '❌ TEST 7 XATO: o''chirilgandan keyin ham v_filial_tanlov da turibdi'
+         else '✅ TEST 7 OK (2/2): passivlashtirildi, ro''yxatdan chiqdi'
+       end        as natija,
+       v.n        as qator
+  from v;
+-- ⬆⬆⬆  2.7.1 shu yergacha  ⬆⬆⬆
+
+
+-- ---------------------------------------------------------------------
+-- 2.8 (h) TOZALASH: test filial `is_active=false` bo'lib qolsa 52xx kodi
+--     band bo'lib qoladi va bu test har RUN da bittadan kod yeydi (5299
+--     gacha 97 ta joy bor). Shuning uchun butunlay o'chiramiz.
+--     XAVFSIZ: hisob 2.1 da endigina yaratildi va 2.7 dagi
+--     xarajat_filial_ochir() uning entry_line'i, entry.filial_ids tegi va
+--     standart_xarajat limiti YO'Qligini allaqachon tekshirdi (bo'lganida
+--     TEST 7 xato berardi). Ya'ni delete birorta yozuvni yetim qoldirmaydi.
+--     Bola-hisob nazariy jihatdan ham yo'q, lekin FK xatosi bo'lmasin uchun
+--     avval ular o'chiriladi.
+--     Qo'shimcha to'siq: `filial_ref is null` — Aros bilan bog'langan
+--     hisobga hech qachon tegmaydi.
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  IKKI `delete` NI BIRGA belgilab RUN qiling  ⬇⬇⬇
+delete from accounts
+ where parent_id in (select id from accounts
+                      where name ilike 'ZZ Test filial%'
+                        and filial_ref is null);
+
+delete from accounts
+ where name ilike 'ZZ Test filial%'
+   and filial_ref is null;
+-- ⬆⬆⬆  2.8 shu yergacha  ⬆⬆⬆
+
+-- ---------------------------------------------------------------------
+-- 2.8.1 Tozalash tasdig'i. Hammasi ✅ bo'lsa: HAMMA TEST O'TDI, test filial
+--       jadvaldan o'chirildi, iz qolmadi.
+-- ---------------------------------------------------------------------
+-- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
+select case when count(*) <> 0
+              then '❌ TEST 8 XATO: test filial o''chmadi (' || count(*) || ' ta qator qoldi)'
+              else '✅ TEST 8 OK: test filial butunlay o''chirildi — 52xx kodi bo''shadi'
+       end                        as natija,
+       count(*)                   as qolgan_qator
+  from accounts
+ where name ilike 'ZZ Test filial%';
+-- ⬆⬆⬆  2.8.1 shu yergacha (2-BOSQICH tugadi)  ⬆⬆⬆
 
 
 -- #####################################################################
@@ -515,8 +705,9 @@ select * from v_filial_tanlov order by name;
 -- ⬆⬆⬆  shu yergacha  ⬆⬆⬆
 
 -- 3.3 Test filialdan iz qolmaganini tekshirish — natija BO'SH bo'lishi kerak.
---     (Qator chiqsa: bu faylning ESKI versiyasi bilan RUN qilingan test —
---      is_active=false bo'lib qolgan. Qo'lda o'chirish: ROLLBACK (b).)
+--     (Qator chiqsa: 2.8 TOZALASH bajarilmagan, yoki eski versiya bilan
+--      RUN qilingan test is_active=false bo'lib qolgan. Yechim: 2.8 ni
+--      RUN qiling — u ROLLBACK (b) bilan bir xil ishni bajaradi.)
 -- ⬇⬇⬇  ALOHIDA belgilab RUN qiling  ⬇⬇⬇
 select code, name, is_active from accounts where name ilike 'ZZ Test filial%';
 -- ⬆⬆⬆  shu yergacha  ⬆⬆⬆
