@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aros Provodka — AI yordamchi</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal.html">
+<link rel="prefetch" href="professional.html">
+<link rel="prefetch" href="kassa.html">
+<link rel="prefetch" href="hisobot.html">
+<link rel="prefetch" href="cashflow.html">
+<link rel="prefetch" href="qarzdor.html">
+<link rel="prefetch" href="filial.html">
+<link rel="prefetch" href="yuklar.html">
+<link rel="prefetch" href="valyuta.html">
+<link rel="prefetch" href="konvert.html">
+<link rel="prefetch" href="sozlama.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
+<style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
+  .num{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  #app{display:none}.sidebar{display:none}
+  .main{padding:22px 26px 40px;max-width:900px;margin:0 auto}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side)}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
+  .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:800;font-size:16px;letter-spacing:-.02em;color:var(--primary)}.brand-name span{color:var(--muted);font-weight:500}
+  .side-nav{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .side-nav::-webkit-scrollbar{width:6px}
+  .side-nav::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .side-nav::-webkit-scrollbar-track{background:transparent}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:background .13s,color .13s}
+  .nav-item svg{width:19px;height:19px}.nav-item:hover{background:var(--surface-2);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .role-badge{font-size:11px;color:var(--muted);padding:4px 12px 8px;font-weight:500}
+  .side-foot{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:12px;flex:0 0 auto}
+  .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
+  .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .head-actions{display:flex;gap:4px;align-items:center}
+  .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
+  .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
+  .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
+  .authbox input{width:100%;height:50px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:0 15px;font-size:15px;font-family:inherit;margin-bottom:12px;outline:none;transition:border-color .13s,box-shadow .13s}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .authbox button{width:100%;height:50px;border:none;border-radius:12px;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,transform .12s}
+  .authbox button:hover{background:var(--primary-hover);transform:translateY(-1px)}
+  .autherr{color:var(--red);font-size:14px;margin-top:12px;text-align:center;min-height:18px}
+  .bnav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);text-decoration:none;padding:9px 0;cursor:pointer;transition:color .13s}
+  .bnav a svg{width:18px;height:18px}.bnav a.active{color:var(--primary)}
+  /* ===== AI chat (.ai-*) ===== */
+  /* Pufak/tugma uchun alohida yashil: --primary ustida oq matn atigi 3.0:1 beradi.
+     Qisqa yorliqda muammo emas, lekin uzun xabar matni uchun AA (4.5:1) kerak —
+     light'da --primary-hover (4.7:1), dark'da to'qroq yashil ishlatiladi. */
+  :root{--ai-me:var(--primary-hover);--ai-me-ink:#fff}
+  [data-theme="dark"]{--ai-me:#1c7a35;--ai-me-ink:#f0fff5}
+  /* Sahifa bitta ekran balandligida: scroll FAQAT xabarlar maydonida, body'da emas */
+  .ai-main{display:flex;flex-direction:column;min-height:0;height:100vh;height:100dvh;padding:22px 26px 0}
+  .ai-main .page-head{flex:0 0 auto;margin-bottom:16px}
+  .ai-main .banner{flex:0 0 auto}
+  .ai-newbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .ai-newbtn:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .ai-thread{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 16px;overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;box-shadow:var(--shadow);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ai-thread::-webkit-scrollbar{width:6px}
+  .ai-thread::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ai-thread::-webkit-scrollbar-track{background:transparent}
+  @media (prefers-reduced-motion:reduce){.ai-thread{scroll-behavior:auto}}
+  #aiList{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
+  /* bo'sh holat vertikal markazda. :has() yo'q brauzerda tepada qoladi — buzilmaydi */
+  #aiList:has(.ai-empty){flex:1 1 auto;justify-content:center}
+  .ai-row{display:flex;align-items:flex-start;gap:9px;max-width:100%}
+  .ai-row.me{justify-content:flex-end}
+  .ai-row:last-child{animation:aiIn .16s cubic-bezier(.2,.7,.3,1)}
+  @keyframes aiIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .ai-av{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .ai-av svg{width:15px;height:15px}
+  /* ketma-ket agent xabarlarida avatar takrorlanmasin (joyi saqlanadi) */
+  .ai-row.bot+.ai-row.bot .ai-av{opacity:0}
+  .ai-bd{display:flex;flex-direction:column;min-width:0;max-width:72%}
+  .ai-row.me .ai-bd{align-items:flex-end}
+  .ai-msg{padding:10px 14px;border-radius:16px;font-size:14.5px;line-height:1.5;letter-spacing:-.004em;white-space:pre-wrap;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .ai-row.me .ai-msg{background:var(--ai-me);color:var(--ai-me-ink);border-bottom-right-radius:6px}
+  .ai-row.bot .ai-msg{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:6px}
+  /* Xato pufagi — agent javobi EMAS (soxta javob ko'rsatilmaydi).
+     `.err` ataylab `.bot` klassisiz: aks holda ketma-ket bot qoidasi
+     (.ai-row.bot+.ai-row.bot .ai-av) uning avatarini yashirib qo'yardi. */
+  .ai-row.err .ai-av{background:var(--amber-soft);color:var(--amber)}
+  .ai-row.err .ai-msg{background:var(--amber-soft);border:1px solid var(--amber);color:var(--amber);border-bottom-left-radius:6px}
+  /* Manbalar (web_search) — bot javobi ostidagi kichik chiplar (3-bosqich).
+     Dizayn keyin pardozlanadi; hozir mavjud `.ai-*` tiliga mos minimal blok. */
+  .ai-src{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:7px 2px 0}
+  .ai-src-lbl{font-size:11px;color:var(--muted)}
+  .ai-src-a{display:inline-flex;align-items:center;max-width:100%;font-size:11.5px;line-height:1.3;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .13s,border-color .13s,background .13s}
+  .ai-src-a:hover{color:var(--primary);border-color:var(--primary);background:var(--primary-soft)}
+  /* ===== Oqim (streaming): jarayon qatori + fikrlash bloki + kursor — 4-bosqich =====
+     Uch element bir oila: jarayon qatori (nima qilinmoqda) → o'ylash bloki
+     (ikkinchi darajali, so'ldirilgan) → javob pufagi (asosiy, to'liq kontrast).
+     Ierarxiya ATAYLAB shunday: ko'z avval javobga tushsin.
+
+     🔴 `.ai-proc` ning `className` i JS da BUTUNLAY qayta yoziladi
+        (`'ai-proc'+(status?' on':'')`) — unga qo'shimcha klass BERILMAYDI.
+        Hamma holat `.on` va bolalar (`.ai-proc-d`/`.ai-proc-t`) orqali.
+     ⚠️ `.ai-msg:empty{display:none}` — oqim boshlanganda pufak BO'SH yaratiladi
+        (matn delta bilan to'ladi). Busiz ekranda bo'm-bo'sh quti turardi.
+        Istisno pastda: jarayon qatori O'CHGAN, matn esa hali yo'q bo'lsa pufak
+        kursor bilan ko'rinadi — aks holda "javob boshlandi" belgisi qolmasdi. */
+  :root{--ai-think-bg:rgba(16,24,40,.032);--ai-think-rail:#ced4dd}
+  /* ⚠️ Dark'da fon OQ emas, QORA qatlam: bot pufagi `--surface-2` (#1e232d),
+     unga oq qo'shsak fikrlash bloki pufak bilan bir xil bo'lib qolardi.
+     Qora qatlam esa uni "botiq" qiladi — ierarxiya saqlanadi. */
+  [data-theme="dark"]{--ai-think-bg:rgba(0,0,0,.22);--ai-think-rail:#3c4553}
+  .ai-msg:empty{display:none}
+  /* ---- Jarayon qatori: "🔍 Qidiryapman: 2026 QQS…" ---- */
+  .ai-proc{display:none;align-items:center;gap:8px;max-width:100%;margin:1px 2px 7px;color:var(--muted);font-size:12.5px;line-height:1.45;font-weight:500;letter-spacing:-.004em}
+  .ai-proc.on{display:flex}
+  .ai-proc-d{position:relative;width:7px;height:7px;border-radius:50%;background:var(--primary);flex:0 0 auto;animation:aiPulse 1.4s ease-in-out infinite}
+  /* tarqaladigan halqa — nozik "tirik" ishorasi (bezovta qilmaydigan 1.4s) */
+  /* ⚠️ Boshlang'ich holat (opacity .35) ATAYLAB — `prefers-reduced-motion` da
+     animatsiya butunlay o'chadi va halqa SHU ko'rinishda qotib qoladi. */
+  .ai-proc-d::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--primary);opacity:.35;animation:aiRing 1.4s ease-out infinite}
+  @keyframes aiPulse{0%,100%{opacity:.45;transform:scale(.82)}50%{opacity:1;transform:scale(1)}}
+  @keyframes aiRing{0%{transform:scale(.55);opacity:.5}70%,100%{transform:scale(1.4);opacity:0}}
+  /* uzun matn BIR QATORDA kesiladi (ellipsis) — jarayon qatori hech qachon o'smaydi */
+  .ai-proc-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Shimmer — matn ustidan yumshoq yorug'lik.
+     🔴 `background-clip:text` + `color:transparent` bo'lgani uchun animatsiya
+        O'CHIQ holatda matn KO'RINMAY qolishi mumkin edi. Shuning uchun butun
+        blok `prefers-reduced-motion:no-preference` ichida (reduced'da oddiy
+        `--muted` matn qoladi) va `@supports` bilan qo'shimcha himoyalangan. */
+  @media (prefers-reduced-motion:no-preference){
+    @supports ((-webkit-background-clip:text) or (background-clip:text)){
+      .ai-proc-t{background-image:linear-gradient(100deg,var(--muted) 34%,var(--ink) 50%,var(--muted) 66%);background-size:220% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:aiShim 1.4s linear infinite}
+    }
+  }
+  @keyframes aiShim{from{background-position:150% 0}to{background-position:-50% 0}}
+  /* ---- "O'ylash jarayoni" — native <details> (JS shart emas) ----
+     Javobdan vizual jihatdan AJRALADI: so'ldirilgan fon + chap chekkada ingichka
+     chiziq (`inset` soya — `::before` radius bilan to'g'ri o'tirmaydi), chegara YO'Q.
+     Diqqatni tortmaydi: kichikroq shrift, muted rang, kulrang chiziq. */
+  .ai-think{margin:0 2px 8px;border-radius:10px;background:var(--ai-think-bg);box-shadow:inset 2px 0 0 var(--ai-think-rail);overflow:hidden}
+  .ai-think[hidden]{display:none}
+  .ai-think>summary{cursor:pointer;list-style:none;padding:7px 11px 7px 13px;font-size:12px;font-weight:500;line-height:1.4;color:var(--muted);display:flex;align-items:center;gap:7px;-webkit-user-select:none;user-select:none;transition:color .13s,background .13s}
+  .ai-think>summary::-webkit-details-marker{display:none}
+  .ai-think>summary::marker{content:''}
+  .ai-think>summary:hover{color:var(--ink);background:var(--ai-think-bg)}
+  .ai-think>summary:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;color:var(--ink)}
+  .ai-think>summary svg{width:14px;height:14px;flex:0 0 auto;opacity:.85}
+  /* chevron — o'zimizniki (marker o'chirilgan), ochilganda buriladi */
+  .ai-think>summary::after{content:'';flex:0 0 auto;width:6px;height:6px;margin-left:auto;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;opacity:.65;transform:translateY(-2px) rotate(45deg);transition:transform .18s ease,opacity .13s}
+  .ai-think[open]>summary::after{transform:translateY(1px) rotate(-135deg)}
+  .ai-think>summary:hover::after{opacity:1}
+  .ai-think-bd{padding:0 12px 10px 13px;font-size:12.5px;line-height:1.6;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ai-think-bd::-webkit-scrollbar{width:6px}
+  .ai-think-bd::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ai-think-bd::-webkit-scrollbar-track{background:transparent}
+  /* Yopiq blok "o'ylayapti" deb tursin — FAQAT jarayon qatori yonganda
+     (`.ai-proc.on ~`), ya'ni model haqiqatan fikrlayotganda. Javob kela
+     boshlaganda (`.on` olib tashlanadi) shimmer ham o'zi to'xtaydi. */
+  @media (prefers-reduced-motion:no-preference){
+    @supports ((-webkit-background-clip:text) or (background-clip:text)){
+      .ai-proc.on ~ .ai-think:not([open])>summary>span{background-image:linear-gradient(100deg,var(--muted) 34%,var(--ink) 50%,var(--muted) 66%);background-size:220% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:aiShim 1.9s linear infinite}
+    }
+  }
+  /* ---- Yozilayotgan javob: matn oxirida kursor ----
+     `textContent` yangilanishi ::after ni O'CHIRMAYDI, shuning uchun kursor
+     har delta'da joyida qoladi. Oqim tugagach `body.ai-streaming` ketadi. */
+  body.ai-streaming #aiStMsg::after{content:'';display:inline-block;width:2px;height:1.05em;margin-left:2px;vertical-align:-.16em;border-radius:1px;background:currentColor;opacity:.8;animation:aiCaret 1.05s infinite}
+  @keyframes aiCaret{0%,45%{opacity:.85}46%,100%{opacity:0}}
+  /* Javob hali kelmagan, lekin jarayon qatori ham o'chgan holat: pufak
+     "yiqilib" ketmasin — bir qatorlik bo'sh pufak + kursor. */
+  body.ai-streaming .ai-proc:not(.on) ~ #aiStMsg:empty{display:flex;align-items:center;min-width:52px;min-height:41px}
+  /* Oqim davomida silliq scroll O'CHADI — har token'da sahifa "sakramasin" */
+  body.ai-streaming .ai-thread{scroll-behavior:auto}
+  .ai-time{font-size:11px;color:var(--muted);margin:5px 4px 0;font-variant-numeric:tabular-nums}
+  .ai-typing{display:none;align-items:flex-start;gap:9px;flex:0 0 auto}
+  .ai-dots{display:flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:6px;padding:13px 14px}
+  .ai-dots span{width:6px;height:6px;border-radius:50%;background:var(--muted);opacity:.3;animation:aiDot 1.2s ease-in-out infinite}
+  .ai-dots span:nth-child(2){animation-delay:.15s}
+  .ai-dots span:nth-child(3){animation-delay:.3s}
+  @keyframes aiDot{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:.9;transform:translateY(-3px)}}
+  .ai-empty{text-align:center;padding:10px 8px;margin:auto 0}
+  .ai-ava{width:54px;height:54px;margin:0 auto 14px;border-radius:18px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center}
+  .ai-ava svg{width:26px;height:26px}
+  .ai-empty h2{margin:0 0 6px;font-size:19px;font-weight:800;letter-spacing:-.02em}
+  .ai-empty p{margin:0 auto 18px;max-width:430px;color:var(--muted);font-size:13.5px;line-height:1.55}
+  .ai-sug{display:grid;grid-template-columns:1fr;gap:8px;max-width:520px;margin:0 auto;text-align:left}
+  .ai-sug button{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface-2);border:1px solid transparent;color:var(--ink);border-radius:12px;padding:11px 13px;font-size:13.5px;line-height:1.4;font-family:inherit;font-weight:500;text-align:left;cursor:pointer;transition:background .13s,border-color .13s,color .13s,box-shadow .13s,transform .13s}
+  .ai-sug button:hover{background:var(--surface);border-color:var(--primary);color:var(--primary);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+  .ai-sug button:active{transform:translateY(0)}
+  .ai-sug button svg{width:15px;height:15px;flex:0 0 auto;color:var(--muted);transition:color .13s,transform .13s}
+  .ai-sug button:hover svg{color:var(--primary);transform:translate(1px,-1px)}
+  .ai-note{display:inline-flex;align-items:center;gap:7px;margin-top:18px;color:var(--muted);font-size:12px;border:1px dashed var(--line);border-radius:999px;padding:6px 12px}
+  .ai-note svg{width:14px;height:14px;flex:0 0 auto}
+  .ai-dock{flex:0 0 auto;position:sticky;bottom:0;background:var(--bg);padding:12px 0 16px}
+  .ai-composer{display:flex;align-items:flex-end;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:6px 6px 6px 4px;box-shadow:var(--shadow);transition:border-color .13s,box-shadow .13s}
+  .ai-composer:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .ai-composer textarea{flex:1;min-width:0;border:none;outline:none;background:transparent;color:var(--ink);font-family:inherit;font-size:15.5px;line-height:1.5;padding:9px 6px 9px 12px;resize:none;max-height:160px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ai-composer textarea::placeholder{color:var(--muted)}
+  .ai-send{flex:0 0 auto;width:40px;height:40px;border:none;border-radius:50%;background:var(--ai-me);color:var(--ai-me-ink);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .13s,filter .13s,transform .12s}
+  .ai-send svg{width:18px;height:18px}
+  .ai-send:hover:not(:disabled){filter:brightness(1.12)}
+  .ai-send:active:not(:disabled){transform:scale(.94)}
+  .ai-send:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed;filter:none}
+  /* Oqim paytida tugma JS bilan `disabled` — uni "o'lik kulrang" emas,
+     ISHLAMOQDA holatida ko'rsatamiz: strelka o'chadi, o'rnida aylanuvchi yoy.
+     🔴 "To'xtatish" (kvadrat) belgisi ATAYLAB qo'yilmadi — bekor qilish mantiqi
+        yo'q, bosilmaydigan stop tugmasi yolg'on va'da bo'lardi (JS ga tegilmaydi). */
+  body.ai-streaming .ai-send:disabled{position:relative;background:var(--primary-soft);color:var(--primary);cursor:progress}
+  body.ai-streaming .ai-send:disabled svg{opacity:0}
+  body.ai-streaming .ai-send:disabled::after{content:'';position:absolute;inset:0;width:17px;height:17px;margin:auto;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;opacity:.9;animation:aiSpin .7s linear infinite}
+  @keyframes aiSpin{to{transform:rotate(360deg)}}
+  /* ⚠️ `.ai-composer` ga oqim uchun alohida chegara rangi BERILMAYDI — u
+     `:focus-within` (bir xil spetsifiklik, yuqorida) ni bosib, klaviatura
+     fokusi ko'rinmay qolardi. */
+  .ai-hint{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.5;text-align:center}
+  @media(min-width:640px){.ai-sug{grid-template-columns:1fr 1fr}}
+  @media(max-width:899px){
+    /* bnav 76px — kiritish paneli uning ostida qolmasin (body padding-bottom:76px) */
+    .ai-main{height:calc(100vh - 76px);height:calc(100dvh - 76px - env(safe-area-inset-bottom,0px));padding:18px 16px 0}
+    .ai-thread{padding:14px 12px;border-radius:16px}
+    .ai-bd{max-width:88%}
+    .ai-composer textarea{font-size:16px}   /* iOS 16px'dan kichik inputda sahifani zoom qiladi */
+    /* barmoq uchun kattaroq nishon (~44px) */
+    .ai-send{width:44px;height:44px}
+    .ai-main .head-actions .icon-btn{min-height:42px;min-width:42px;justify-content:center}
+    .ai-hint{font-size:11.5px}
+    /* Telefonda ekran past — fikrlash bloki javobni pastga surib yubormasin.
+       `summary` esa barmoq uchun balandroq (~40px). */
+    .ai-think>summary{padding:10px 11px 10px 13px}
+    .ai-think-bd{max-height:200px}
+  }
+  /* ===== Fayl / rasm biriktirish (.ai-att*, .ai-fl*, .ai-clip) — 3-bosqich, 3-ish =====
+     Ikki joy: (1) composer USTIDA tanlangan fayl chiplari (`.ai-fl` → `.ai-chip`);
+     (2) yuborilgan xabar pufagi ichida preview / fayl nomi (`.ai-att`).
+     ⚠️ `.ai-att` preview'i `URL.createObjectURL` ga tayanadi — u faqat SHU
+        sessiyada tirik. Suhbat qayta ochilganda rasm ko'rinmaydi (base64 DB ga
+        yozilmaydi — ataylab), matnda `[2 rasm]` belgisi qoladi. */
+  .ai-att{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;max-width:100%}
+  .ai-row.me .ai-att{justify-content:flex-end}
+  .ai-att-img{width:96px;height:96px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);display:block}
+  .ai-att-doc{display:inline-flex;align-items:center;gap:6px;max-width:230px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12.5px;color:var(--ink)}
+  .ai-att-doc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ai-att-doc svg{width:15px;height:15px;flex:0 0 auto;color:var(--muted)}
+  /* composer chiplari — `display` ni JS `.on` klassi bilan boshqaradi */
+  .ai-fl{display:none;flex-wrap:wrap;gap:8px;padding:0 4px 8px}
+  .ai-fl.on{display:flex}
+  .ai-chip{display:inline-flex;align-items:center;gap:8px;max-width:240px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 7px 6px 6px;box-shadow:var(--shadow)}
+  .ai-chip img{width:34px;height:34px;object-fit:cover;border-radius:8px;display:block;flex:0 0 auto;background:var(--surface-2)}
+  .ai-chip-ic{width:34px;height:34px;border-radius:8px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .ai-chip-ic svg{width:17px;height:17px}
+  .ai-chip-tx{display:flex;flex-direction:column;min-width:0;gap:1px}
+  .ai-chip-n{font-size:12.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ai-chip-s{font-size:11px;line-height:1.3;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ai-chip-x{flex:0 0 auto;width:24px;height:24px;border:none;border-radius:7px;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .13s,color .13s}
+  .ai-chip-x:hover{background:var(--red-soft);color:var(--red)}
+  .ai-chip-x svg{width:14px;height:14px}
+  .ai-clip{flex:0 0 auto;width:40px;height:40px;border:none;border-radius:50%;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .13s,color .13s}
+  .ai-clip:hover:not(:disabled){background:var(--surface-2);color:var(--ink)}
+  .ai-clip:disabled{opacity:.45;cursor:not-allowed}
+  .ai-clip svg{width:18px;height:18px}
+  /* Limit xatosi (10 rasm / 4 MB PDF / jami 6 MB) — jimgina yutilmaydi */
+  .ai-fx{display:none;color:var(--amber);background:var(--amber-soft);border-radius:10px;box-shadow:inset 3px 0 0 var(--amber);padding:8px 11px 8px 13px;font-size:12.5px;line-height:1.45;margin:0 4px 8px}
+  .ai-fx.on{display:block}
+  @media(max-width:899px){
+    .ai-clip{width:44px;height:44px}       /* barmoq uchun ~44px nishon */
+    .ai-att-img{width:84px;height:84px}
+  }
+  /* ===== Diagramma + jadval + Excel (.ach-*) — 5-bosqich, 2–3-ish =====
+     AI javobidagi ```chart bloki shu widgetga aylanadi (JS: `ach*`).
+
+     🔴 KUTUBXONA YO'Q — chart INLINE SVG: bog'liqlik nol, dark mavzuda ham
+        o'qiladi, chop etishda chiqadi, palitra to'liq nazoratda.
+     🔴 Ranglar CSS o'zgaruvchilarida (`--ach-1…8`), SVG `fill="var(--ach-3)"`
+        ni tushunadi — mavzu almashsa chart O'ZI almashadi, JS qayta chizmaydi.
+     ⚠️ Prefiks `.ach-` ataylab: `.ai-*` (chat) va `.aic-*` (suhbatlar) bilan
+        to'qnashmasin.
+     ⚠️ SVG ni JS QURADI (`fill`/`stroke`/`stroke-width`/`rx`/`r` — prezentatsiya
+        ATRIBUTLARI). Prezentatsiya atributi CSS dan kuchsiz, shuning uchun bu
+        yerdagi qoidalar ularni bemalol qayta yozadi (halqa qalinligi, burchak
+        radiusi, nuqta o'lchami…) — JS ga TEGILMAYDI. Brauzer geometriya
+        xossalarini (`rx`/`r`) tushunmasa, atributdagi qiymat qoladi (buzilmaydi).
+
+     ===== PALITRA (qaror) =====
+     • `--ach-1` = Aros yashili (brend). Line chart FAQAT shuni ishlatadi,
+       pie esa eng katta ulushga shu rangni beradi (ulushlar kamayish tartibida).
+     • Qolgan 7 tasi bir OILA: bir xil to'yinganlik/yorqinlik, faqat rang burchagi
+       aylanadi. 🔴 KETMA-KET raqamlar hech qachon qo'shni ton emas — har qadamda
+       tus >=80° siljiydi (yashil → ko'k → kehribar → binafsha → firuza →
+       atirgul → limon → orxideya → yana yashil). Pie segmentlari va bar
+       ustunlari `i%8` bilan shu tartibda kelgani uchun YONMA-YON bo'laklar
+       hech qachon qo'shilib ketmaydi.
+     • Light va dark — ALOHIDA qiymat: light'da to'qroq (oq fonda ko'rinsin),
+       dark'da ochroq va kamroq to'yingan (qora fonda "yonib" ketmasin).
+     • `--ach-other` ("Boshqa") ataylab NEYTRAL kulrang — u ma'lumot emas, qoldiq.
+     • `--ach-grid` — sokin setka; `--ach-rule` — kuchliroq chiziq (bar'dagi NOL
+       o'qi va jadvaldagi "Jami" ajratgichi bitta manbadan). */
+  :root{--ach-1:#1ea83a;--ach-2:#2f6fe0;--ach-3:#d98324;--ach-4:#8557e8;--ach-5:#0f9f9f;--ach-6:#d6455f;--ach-7:#7fa521;--ach-8:#a55bc4;--ach-other:#98a2b3;--ach-grid:#eceef2;--ach-rule:#c3cad5}
+  [data-theme="dark"]{--ach-1:#35cf55;--ach-2:#5b9cff;--ach-3:#f0a94a;--ach-4:#a98bff;--ach-5:#2bc4c4;--ach-6:#ff7a8f;--ach-7:#a6cf4b;--ach-8:#cd8ae0;--ach-other:#7b8493;--ach-grid:#242b38;--ach-rule:#46505f}
+  .ach{margin:8px 0 2px;max-width:100%;border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+  .ach-hd{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+  .ach-tt{flex:1 1 auto;min-width:0;font-size:14px;font-weight:700;line-height:1.35;letter-spacing:-.015em}
+  .ach-sub{display:block;font-size:11px;font-weight:500;line-height:1.4;color:var(--muted);margin-top:3px;letter-spacing:0}
+  /* Excel — IKKILAMCHI amal: javob matni bilan raqobat qilmasin (ko'rinmas
+     fon + neytral matn), lekin hover/fokusda brend yashiliga o'tadi. */
+  .ach-xls{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;letter-spacing:-.005em;cursor:pointer;transition:background .13s,border-color .13s,color .13s}
+  .ach-xls:hover:not(:disabled){background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .ach-xls:active:not(:disabled){background:var(--primary-soft);transform:translateY(1px)}
+  .ach-xls svg{width:14px;height:14px;flex:0 0 auto}
+  /* "Tayyorlanmoqda…" — so'ldirilgan emas, ISHLAMOQDA holati: ikonka o'rnida
+     aylanuvchi yoy (`.ai-send` bilan bir xil naqsh, `aiSpin` qayta ishlatiladi).
+     🔴 `opacity` bilan xiralashtirilmaydi — holat aniq o'qilishi kerak. */
+  .ach-xls:disabled{position:relative;opacity:1;background:var(--primary-soft);border-color:transparent;color:var(--primary);cursor:progress}
+  .ach-xls:disabled svg{opacity:0}
+  .ach-xls:disabled::before{content:'';position:absolute;left:12px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;border:1.6px solid currentColor;border-top-color:transparent;animation:aiSpin .7s linear infinite}
+  /* SVG idishga moslanadi (viewBox bilan) — `height:auto` shart */
+  .ach-svg{display:block;width:100%;height:auto}
+  .ach-svg text{font-family:inherit;font-size:12.5px;letter-spacing:-.01em;fill:var(--ink);font-variant-numeric:tabular-nums}
+  .ach-svg .ach-vl{font-size:11.5px;font-weight:500;fill:var(--muted)}
+  .ach-svg .ach-ax{font-size:11px;fill:var(--muted)}
+  .ach-svg .ach-ct{font-size:19px;font-weight:700;letter-spacing:-.02em;fill:var(--ink)}
+  .ach-svg .ach-cs{font-size:9.5px;font-weight:600;letter-spacing:.07em;fill:var(--muted);text-transform:uppercase}
+  /* ---- PIE (donut) ----
+     Halqa ingichkalashtirildi (atributdagi 30 → 26): markazdagi jami uchun
+     joy ochiladi va sxema yengil ko'rinadi. `stroke-dasharray` R=72 bo'yicha
+     hisoblangani uchun qalinlik ulushlarga TA'SIR QILMAYDI. */
+  .ach-pie circle{stroke-width:26;transition:stroke-width .16s cubic-bezier(.2,.7,.3,1),filter .13s}
+  .ach-pie circle:hover{filter:brightness(1.07)}
+  /* Hover'da segment "ko'tariladi" (ichkariga+tashqariga 3px o'sadi).
+     🔴 `transform` ISHLATILMAYDI — u SVG dagi `rotate(-90 …)` atributini
+        butunlay bosib, bo'laklarni joyidan uchirardi. */
+  @media (prefers-reduced-motion:no-preference){
+    .ach-pie circle:hover{stroke-width:32}
+  }
+  /* Pie: chap tomonda halqa, o'ngda legend; tor ekranda legend pastga tushadi */
+  .ach-pw{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .ach-pie{flex:0 0 auto;width:184px;max-width:100%}
+  .ach-lg{flex:1 1 210px;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .ach-lg-i{display:flex;align-items:center;gap:9px;min-width:0;font-size:12.5px;line-height:1.4}
+  .ach-dot{flex:0 0 auto;width:10px;height:10px;border-radius:3px}
+  .ach-lg-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Qiymat va foiz — ikkita TEKIS ustun (o'ngga tekislangan, tabular) */
+  .ach-lg-v{flex:0 0 auto;min-width:58px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ach-lg-p{flex:0 0 auto;min-width:46px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  /* ---- BAR (gorizontal) ----
+     Ustunlar yumshoqroq burchak bilan; hover'da butun qator yorishadi. */
+  .ach-svg rect{rx:4px;ry:4px}
+  .ach-svg g rect{transition:filter .13s}
+  .ach-svg g:hover rect{filter:brightness(1.08)}
+  /* NOL o'qi (faqat manfiy qiymat bo'lganda chiziladi) setkadan kuchliroq
+     bo'lsin — `:has(rect)` bilan bar SVG ajratiladi (line chart'da setka
+     chiziqlari sokin qoladi). `:has()` yo'q brauzerda ikkalasi ham `--ach-grid`. */
+  .ach-svg:has(rect) line{stroke:var(--ach-rule);stroke-width:1.25}
+  /* ---- LINE ----
+     Nuqtalar kichik va sokin, hover'da kattalashadi; area gradienti yengil
+     (fill'ni JS `var(--ach-1)` qilib beradi, bu yerda faqat shaffoflik va
+     pastga qarab so'nuvchi mask). Mask qo'llab-quvvatlanmasa — oddiy tekis
+     qatlam qoladi (`@supports` qorovuli). */
+  .ach-svg:not(.ach-pie) circle{r:2.8px;transition:r .12s}
+  .ach-svg:not(.ach-pie) circle:hover{r:5px}
+  .ach-svg path[fill="none"]{stroke-width:2.25}
+  .ach-svg path:not([fill="none"]){opacity:.16}
+  @supports (mask-image:linear-gradient(#000,#0000)){
+    .ach-svg path:not([fill="none"]){opacity:.22;mask-image:linear-gradient(to bottom,#000 6%,#0006 62%,#0000 100%)}
+  }
+  /* ---- Jadval ----
+     Zich, lekin o'qiladigan. Ko'p qatorda ichki scroll + STICKY sarlavha
+     (va sticky "Jami"): sarlavha ham, jami ham doim ko'z oldida.
+     ⚠️ `border-collapse:separate` ATAYLAB — `collapse` da sticky hujayraning
+        chegarasi yo'qoladi; chiziqlar `box-shadow` bilan chiziladi. */
+  .ach-tw{margin-top:12px;max-height:min(56vh,420px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ach-tw::-webkit-scrollbar{width:6px;height:6px}
+  .ach-tw::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ach-tw::-webkit-scrollbar-track{background:transparent}
+  .ach-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+  .ach-tbl th,.ach-tbl td{padding:7px 10px;text-align:left;white-space:nowrap}
+  .ach-tbl td{border-bottom:1px solid var(--line)}
+  .ach-tbl th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);box-shadow:inset 0 -1px 0 var(--line)}
+  .ach-tbl th:first-child{border-top-left-radius:8px}
+  .ach-tbl th:last-child{border-top-right-radius:8px}
+  .ach-tbl td.n,.ach-tbl th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .ach-tbl td.l{max-width:240px;overflow:hidden;text-overflow:ellipsis}
+  .ach-tbl tbody tr:last-child td{border-bottom:none}
+  .ach-tbl tbody tr:hover td{background:var(--surface-2)}
+  /* "Jami" — qalinroq, tepasida aniq chiziq, pastga yopishgan */
+  .ach-tbl tfoot td{position:sticky;bottom:0;z-index:2;font-size:13px;font-weight:700;color:var(--ink);background:var(--surface-2);border-bottom:none;box-shadow:inset 0 1.5px 0 var(--ach-rule)}
+  .ach-note{margin-top:9px;font-size:11.5px;line-height:1.45;color:var(--muted)}
+  /* Excel xatosi + CSV zaxirasi — jimgina yutilmaydi.
+     Kehribar oila: `.aic-warn` / `.ai-fx` bilan bir xil til (yumshoq fon +
+     chap chekkada 3px chiziq), qichqirmaydi. */
+  .ach-err{display:none;margin-top:10px;font-size:12.5px;line-height:1.45;color:var(--amber);background:var(--amber-soft);border-radius:10px;box-shadow:inset 3px 0 0 var(--amber);padding:9px 12px 9px 14px}
+  .ach-err.on{display:block}
+  .ach-csv{margin-top:9px;height:30px;padding:0 11px;border:1px solid var(--amber);border-radius:8px;background:transparent;color:var(--amber);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;transition:background .13s,box-shadow .13s}
+  .ach-csv:hover{background:var(--surface);box-shadow:var(--shadow)}
+  .ach-csv:active{transform:translateY(1px)}
+  /* Buzuq JSON — blok XOM MATN bo'lib ko'rsatilmaydi, o'rniga shu izoh
+     (xato emas, ogohlantirish — shuning uchun `.ach-err` bilan bir xil ruh) */
+  .ach-bad{margin:8px 0 2px;font-size:12.5px;line-height:1.45;color:var(--amber);background:var(--amber-soft);border-radius:10px;box-shadow:inset 3px 0 0 var(--amber);padding:9px 12px 9px 14px}
+  /* Chart bor pufak kengroq bo'lsin (jadval siqilmasin) va SVG ning `width:100%`
+     i aniq kenglikka tayansin — `flex:1 1 auto` busiz pufak "shrink-to-fit"
+     bo'lib, chart o'zining intrinsik (kichik) o'lchamida qolib ketardi.
+     Chat maydonidan oshmaydi: `min(100%,760px)`.
+     `:has()` yo'q brauzerda oddiy 72% qoladi — buzilmaydi. */
+  .ai-bd:has(.ach){flex:1 1 auto;max-width:min(100%,760px)}
+  @media(max-width:899px){
+    .ach{padding:11px 12px 12px}
+    .ach-hd{gap:10px;margin-bottom:10px}
+    .ach-pw{gap:12px}
+    .ach-pie{width:100%;max-width:210px;margin:0 auto}
+    .ach-tbl td.l{max-width:150px}
+    .ach-xls{height:36px;padding:0 13px}   /* barmoq uchun kattaroq nishon */
+    /* 🔴 Bar/line SVG viewBox'i 640 kenglikda — telefonda (~280px) u 0.44 ga
+       kichrayadi va yorliqlar 6px bo'lib o'qilmay qolardi. Ikki chora:
+       (1) shrift user-unit'da kattalashtiriladi; (2) SVG 440px dan tor
+       bo'lmaydi va KARTA gorizontal scroll bo'ladi. Sarlavha/jadval/izoh
+       `sticky left` bilan joyida qoladi — ya'ni faqat diagramma suriladi.
+       ⚠️ Pie bunga kirmaydi (u 210px gacha kichrayadi, scroll shart emas). */
+    .ach{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+    .ach::-webkit-scrollbar{height:6px}
+    .ach::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+    .ach::-webkit-scrollbar-track{background:transparent}
+    .ach-svg:not(.ach-pie){min-width:440px}
+    .ach>.ach-hd,.ach>.ach-pw,.ach>.ach-tw,.ach>.ach-err,.ach>.ach-note{position:sticky;left:0}
+    .ach-svg text{font-size:16px}
+    .ach-svg .ach-vl{font-size:15px}
+    .ach-svg .ach-ax{font-size:13px}
+    .ach-svg .ach-ct{font-size:17px}
+    .ach-svg .ach-cs{font-size:9px}
+  }
+  /* ===== AI suhbatlar paneli (.aic-*) — 3-bosqich, 2-ish =====
+     Prefiks ataylab `.aic-`: chat (`.ai-*`) va navigatsiya (`.sidebar`/`.nav-item`)
+     bilan to'qnashmasin.
+
+     🔴 IKKI REJIM, chegara 1000px (900 EMAS):
+        >=1000px — doimiy ikkinchi ustun (nav'dan o'ngda);
+        <=999px  — drawer (overlay), sarlavhadagi tugma ochadi.
+        Sabab: 900–999 oralig'ida nav (240) + panel (248) = 488px chap chekka
+        qolib, chat maydoni ~460px ga tushardi (pufaklar siqilardi). Endi u
+        oraliqda panel drawer bo'ladi → chat to'liq kenglikda (>=500px).
+        1000–1199 da panel ixchamroq (208px): 1000 - 240 - 208 - 52 (padding)
+        = 500px chat — eng tor ruxsat etilgan holat.
+     ⚠️ `.mobile-only` faqat <900px da ko'rinadi, shuning uchun 900–999 oralig'i
+        uchun ochish/yopish tugmalariga alohida override bor (pastda).
+     ⚠️ O'chirish tugmasi uchun alohida qizil (`--aic-del-*`): `--red` ustidagi
+        oq matn AA (4.5:1) bermaydi — `.ai-me` bilan bir xil sabab. */
+  :root{--aic-w:248px;--aic-del-bg:#d92d20;--aic-del-ink:#fff}
+  [data-theme="dark"]{--aic-del-bg:#c9372c;--aic-del-ink:#fff}
+  .aic-panel{display:flex;flex-direction:column;min-height:0;background:var(--surface);border-right:1px solid var(--line)}
+  /* Jadval yo'q (SQL RUN qilinmagan) → panel butunlay olib tashlanadi, chat o'z joyiga qaytadi */
+  body.aic-off .aic-panel{display:none}
+  /* Tepa blok — ro'yxatdan tashqarida, ya'ni scroll qilinmaydi (sticky effekti) */
+  .aic-top{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-bottom:12px}
+  .aic-new{flex:1 1 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 12px;border:1px solid transparent;border-radius:11px;background:var(--primary-soft);color:var(--primary);font-family:inherit;font-size:14px;font-weight:600;letter-spacing:-.01em;cursor:pointer;transition:border-color .13s,background .13s,transform .12s}
+  .aic-new span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .aic-new:hover{border-color:var(--primary)}
+  .aic-new:active{transform:translateY(1px)}
+  .aic-new svg{width:17px;height:17px;flex:0 0 auto}
+  .aic-x{flex:0 0 auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:none;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer;transition:background .13s,color .13s}
+  .aic-x:hover{background:var(--surface-2);color:var(--ink)}
+  .aic-x svg{width:18px;height:18px}
+  /* Ro'yxat sarlavhasi — bezak (JS unga tegmaydi) */
+  .aic-lbl{flex:0 0 auto;padding:2px 11px 7px;font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  /* Panel ichidagi ogohlantirish: chap chekkada kehribar chiziq (`.banner` ruhi,
+     lekin ixchamroq — panel tor) */
+  .aic-warn{display:none;flex:0 0 auto;font-size:11.5px;line-height:1.45;color:var(--amber);background:var(--amber-soft);border-radius:10px;box-shadow:inset 3px 0 0 var(--amber);padding:8px 10px 8px 13px;margin-bottom:10px}
+  .aic-list{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px;padding-bottom:8px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .aic-list::-webkit-scrollbar{width:6px}
+  .aic-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .aic-list::-webkit-scrollbar-track{background:transparent}
+  .aic-empty{color:var(--muted);font-size:12.5px;line-height:1.6;padding:6px 11px}
+  .aic-item{position:relative;display:flex;align-items:center;gap:2px;min-height:46px;border-radius:10px;transition:background .13s,box-shadow .13s}
+  .aic-item:hover{background:var(--surface-2)}
+  /* Faol suhbat: yumshoq fon + chap chekkada 3px chiziq.
+     `inset` soya ataylab — `::before` radius bilan to'g'ri o'tirmaydi. */
+  .aic-item.active{background:var(--primary-soft);box-shadow:inset 3px 0 0 var(--primary)}
+  .aic-open{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:transparent;border:none;padding:7px 4px 7px 11px;border-radius:10px;font-family:inherit;text-align:left;color:var(--ink);cursor:pointer}
+  .aic-open:focus-visible{outline-offset:-2px}
+  .aic-item.active .aic-open{color:var(--primary)}
+  .aic-t{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;font-weight:500;line-height:1.4;letter-spacing:-.005em}
+  .aic-item.active .aic-t{font-weight:600}
+  .aic-d{font-size:11px;line-height:1.35;color:var(--muted);font-variant-numeric:tabular-nums}
+  .aic-item.active .aic-d{color:var(--primary);opacity:.8}
+  /* O'chirish — odatda yashirin, qator hover/fokusida chiqadi (mobil'da doim) */
+  .aic-del{flex:0 0 auto;width:30px;height:30px;margin-right:5px;display:flex;align-items:center;justify-content:center;border:none;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;opacity:0;transition:opacity .13s,background .13s,color .13s}
+  .aic-item:hover .aic-del,.aic-item:focus-within .aic-del,.aic-del:focus-visible{opacity:1}
+  .aic-del:hover{background:var(--red-soft);color:var(--red)}
+  .aic-del svg{width:15px;height:15px}
+  /* Ikki bosqichli o'chirish tasdiqi — `confirm()` ISHLATILMAYDI (brauzerni bloklaydi).
+     ⚠️ Tugmalar 28px — qator balandligi (46px) o'zgarmaydi, ro'yxat sakramaydi.
+     ⚠️ `.pend` `.active` DAN KEYIN turishi shart (ikkalasi bo'lsa qizil ustun). */
+  .aic-item.pend{background:var(--red-soft);box-shadow:inset 3px 0 0 var(--aic-del-bg)}
+  .aic-item.pend .aic-open,.aic-item.pend .aic-t{color:var(--ink);font-weight:500}
+  .aic-cf{display:flex;align-items:center;gap:5px;padding-right:5px;flex:0 0 auto}
+  .aic-cf button{height:28px;border:none;border-radius:8px;padding:0 9px;font-family:inherit;font-size:11.5px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:filter .13s,background .13s}
+  .aic-yes{background:var(--aic-del-bg);color:var(--aic-del-ink)}
+  .aic-yes:hover{filter:brightness(1.08)}
+  .aic-no{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+  .aic-no:hover{background:var(--surface-2)}
+  /* Ingichka ogohlantirish (jadval yo'q / yozuv xatosi) — chat maydonining tepasida,
+     mobil'da drawer yopiq bo'lsa ham KO'RINADI.
+     ⚠️ `display` ni JS `block` qilib yozadi — bu yerda flex/grid ishlatilmaydi. */
+  .aic-note{display:none;flex:0 0 auto;background:var(--amber-soft);color:var(--amber);border-radius:12px;box-shadow:inset 3px 0 0 var(--amber);padding:11px 14px 11px 17px;font-size:13px;line-height:1.45;margin-bottom:12px}
+  .aic-ov{display:none}
+  @media(min-width:1000px){
+    /* top/bottom bilan cho'zilgan — balandlik layoutga o'zi mos (100dvh kerak emas) */
+    .aic-panel{position:fixed;top:0;left:var(--side);bottom:0;width:var(--aic-w);padding:16px 10px 12px;z-index:35}
+    .ai-main{margin-left:calc(var(--side) + var(--aic-w))}
+    body.aic-off .ai-main{margin-left:var(--side)}
+    /* Panelning o'z «Yangi suhbat» tugmasi bor — sarlavhada takrorlanmasin.
+       Panel yo'q bo'lsa (aic-off) sarlavhadagi tugma qaytadi. */
+    body:not(.aic-off) .ai-newbtn{display:none}
+  }
+  @media(min-width:1000px) and (max-width:1199px){:root{--aic-w:208px}}
+  @media(max-width:999px){
+    /* ⚠️ Yopiq drawer: `visibility:hidden` — aks holda ekrandan tashqaridagi
+       tugmalar Tab bilan fokusga tushardi. Soya ham FAQAT `.open` da —
+       aks holda yopiq panelning soyasi chap chekkada ingichka qora tasma
+       bo'lib ko'rinib turardi (blur qutidan tashqariga chiqadi). */
+    .aic-panel{position:fixed;top:0;left:0;bottom:0;width:min(312px,88vw);padding:16px 10px 12px;z-index:210;transform:translateX(-102%);visibility:hidden;transition:transform .2s cubic-bezier(.2,.7,.3,1),visibility 0s linear .2s}
+    .aic-panel.open{transform:none;visibility:visible;transition:transform .2s cubic-bezier(.2,.7,.3,1);box-shadow:8px 0 28px rgba(16,24,40,.16)}
+    [data-theme="dark"] .aic-panel.open{box-shadow:8px 0 28px rgba(0,0,0,.55)}
+    .aic-ov{display:block;position:fixed;inset:0;background:rgba(16,24,40,.34);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:205}
+    [data-theme="dark"] .aic-ov{background:rgba(0,0,0,.55)}
+    .aic-ov.open{opacity:1;pointer-events:auto}
+    .aic-del{opacity:1}                        /* hover yo'q — o'chirish tugmasi doim ko'rinadi */
+    .aic-item{min-height:52px}
+    .aic-open{padding:9px 4px 9px 12px}        /* barmoq uchun kattaroq nishon */
+    .ai-main .head-actions .aic-btn{min-height:44px;min-width:44px;justify-content:center}
+    body.aic-off .aic-btn{display:none!important}
+  }
+  /* 900–999: nav ko'rinadi (>=900), lekin panel drawer. `.mobile-only` bu
+     oraliqda yashiringani uchun ochish/yopish tugmalari majburan qaytariladi. */
+  @media(min-width:900px) and (max-width:999px){
+    .aic-btn.mobile-only{display:inline-flex!important}
+    .aic-x.mobile-only{display:flex!important}
+  }
+  /* ===== EMBED (`?embed=1`) — floating widget iframe'i ichida =====
+     Navigatsiya yashiriladi (u ota sahifada allaqachon bor), chat butun
+     oynani egallaydi. Suhbatlar paneli tor iframe'da ustun bo'lib sig'maydi
+     → doim drawer. Kenglikka bog'liq media query'lardan KEYIN turadi,
+     shuning uchun ularni bosadi (bir xil spetsifiklik + keyingi qoida). */
+  html.ai-embed .sidebar,
+  html.ai-embed .bnav,
+  html.ai-embed .mmodal{display:none!important}
+  html.ai-embed body{padding-bottom:0}
+  html.ai-embed .ai-main{margin-left:0!important;height:100dvh;padding:14px 14px 0}
+  html.ai-embed .page-head h1{font-size:20px}
+  html.ai-embed .aic-panel{position:fixed;top:0;left:0;bottom:0;width:min(288px,86vw);
+    padding:16px 10px 12px;z-index:210;transform:translateX(-102%);visibility:hidden;
+    box-shadow:none;transition:transform .2s cubic-bezier(.2,.7,.3,1),visibility 0s linear .2s}
+  html.ai-embed .aic-panel.open{transform:none;visibility:visible;transition-delay:0s;
+    box-shadow:0 18px 40px rgba(16,24,40,.18)}
+  html.ai-embed .aic-btn.mobile-only{display:inline-flex!important}
+  html.ai-embed .aic-x.mobile-only{display:flex!important}
+  /* ⚠️ Yuqoridagi qoida `body.aic-off .aic-btn{display:none}` (0,2,1) dan
+     kuchli (0,3,1) — SQL RUN qilinmagan holatda "Suhbatlar" tugmasi ko'rinib,
+     bosilganda hech narsa qilmasdi (o'lik tugma). Shuning uchun qaytaramiz. */
+  html.ai-embed body.aic-off .aic-btn.mobile-only{display:none!important}
+  /* Drawer qoplamasi: `.aic-ov` `display:block` ni faqat ≤999px media
+     query'dan oladi. Embed keng oynada ochilsa qoplama bo'lmay, tashqariga
+     bosib yopib bo'lmasdi (Esc va × ishlardi). */
+  html.ai-embed .aic-ov{display:block;position:fixed;inset:0;
+    background:rgba(16,24,40,.34);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+    opacity:0;pointer-events:none;transition:opacity .2s;z-index:205}
+  html.ai-embed .aic-ov.open{opacity:1;pointer-events:auto}
+  html[data-theme="dark"].ai-embed .aic-ov{background:rgba(0,0,0,.55)}
+  /* Sarlavhadagi "Yangi suhbat" — panelda o'zi bor. Lekin `aic-off` (SQL hali
+     RUN qilinmagan, panel yo'q) holatida u YAGONA yo'l, shuning uchun qoladi. */
+  html.ai-embed body:not(.aic-off) .ai-newbtn{display:none}
+  /* more-sheet */
+  .mmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .mmodal.open{display:flex}
+  .msheet{background:var(--surface);width:100%;border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+  .msheet h3{margin:0 0 14px;font-size:17px;font-weight:800}
+  .msheet a{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:11px;color:var(--ink);text-decoration:none;font-size:15px;font-weight:500;cursor:pointer;transition:background .13s}
+  .msheet a svg{width:19px;height:19px;color:var(--muted)}
+  .msheet a:hover{background:var(--surface-2)}
+  .msheet a.active{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .msheet a.active svg{color:var(--primary)}
+  .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
+  .msheet .close:hover{background:var(--line)}
+  /* /more-sheet */
+</style>
+</head>
+<body>
+<div id="gate" class="gate"><div class="authbox">
+  <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><h1>Aros Provodka</h1><p>Hisobingizga kiring</p>
+  <input id="email" type="email" placeholder="Email" autocomplete="username">
+  <input id="password" type="password" placeholder="Parol" autocomplete="current-password">
+  <button onclick="doLogin()">Kirish</button><div id="authErr" class="autherr"></div>
+</div></div>
+
+<div id="app" class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <nav class="side-nav">
+      <a class="nav-item" href="jurnal.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
+      <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
+      <a class="nav-item" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
+      <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
+      <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
+      <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
+      <a class="nav-item active" href="ai.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
+    </nav>
+    <div class="role-badge" id="roleBadge"></div>
+    <div class="side-foot">
+      <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Mavzu</span></button>
+      <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i><span>Chiqish</span></button>
+    </div>
+  </aside>
+
+  <!-- Suhbatlar paneli (.aic-*): ish stolida doimiy, mobil'da drawer -->
+  <aside class="aic-panel" id="aicPanel" aria-label="Suhbatlar">
+    <div class="aic-top">
+      <button type="button" class="aic-new" onclick="aiNew()"><i data-lucide="square-pen"></i><span>Yangi suhbat</span></button>
+      <button type="button" class="aic-x mobile-only" onclick="aicClose()" title="Yopish" aria-label="Panelni yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="aic-warn" id="aicWarn" role="alert"></div>
+    <div class="aic-lbl" aria-hidden="true">Suhbatlar</div>
+    <div class="aic-list" id="aicList"></div>
+  </aside>
+  <div class="aic-ov" id="aicOv" onclick="aicClose()" aria-hidden="true"></div>
+
+  <main class="main ai-main">
+    <div class="page-head">
+      <h1>AI yordamchi</h1>
+      <div class="head-actions">
+        <button class="icon-btn aic-btn mobile-only" onclick="aicToggle()" title="Suhbatlar" aria-label="Suhbatlar ro'yxati"><i data-lucide="messages-square"></i></button>
+        <button class="icon-btn ai-newbtn" onclick="aiNew()" title="Yangi suhbat"><i data-lucide="square-pen"></i><span class="desktop-only">Yangi suhbat</span></button>
+        <button class="icon-btn mobile-only" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+        <button class="icon-btn mobile-only" onclick="logout()"><i data-lucide="log-out"></i></button>
+      </div>
+    </div>
+    <div id="banner" class="banner"></div>
+    <div id="aicNote" class="aic-note" role="status"></div>
+
+    <div class="ai-thread" id="aiThread">
+      <div id="aiList" role="log" aria-live="polite" aria-label="Suhbat"></div>
+      <div class="ai-typing" id="aiTypingBox" aria-hidden="true">
+        <div class="ai-av"><i data-lucide="sparkles"></i></div>
+        <div class="ai-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="ai-dock">
+      <div id="aiFx" class="ai-fx" role="alert"></div>
+      <div id="aiFiles" class="ai-fl"></div>
+      <div class="ai-composer">
+        <!-- Fayl tanlash: yashirin input + 📎 tugma. `accept` — QULAYLIK filtri
+             (foydalanuvchi uni chetlab o'tishi mumkin), haqiqiy tekshiruv JS da
+             va Edge Function da. -->
+        <input type="file" id="aiFile" multiple accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" onchange="aiFilesPick(this)" hidden>
+        <button type="button" class="ai-clip" id="aiClip" onclick="aiFileOpen()" title="Rasm yoki PDF biriktirish" aria-label="Rasm yoki PDF biriktirish"><i data-lucide="paperclip"></i></button>
+        <textarea id="aiInp" rows="1" maxlength="4000" placeholder="Savolingizni yozing…" oninput="aiGrow()" aria-label="Savol matni"></textarea>
+        <button class="ai-send" id="aiSend" onclick="aiSend()" title="Yuborish" aria-label="Yuborish" disabled><i data-lucide="arrow-up"></i></button>
+      </div>
+      <div class="ai-hint">Enter — yuborish, Shift+Enter — yangi qator. Rasm (10 tagacha) va PDF biriktirish mumkin. <span id="aiHintSave">Suhbatlar hisobingizda saqlanadi.</span></div>
+    </div>
+  </main>
+
+  <nav class="bnav mobile-only">
+    <a href="jurnal.html"><i data-lucide="scroll-text"></i>Jurnal</a>
+    <a href="hisobot.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow.html"><i data-lucide="waves"></i>Cashflow</a>
+    <a href="qarzdor.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="filial.html"><i data-lucide="store"></i>Filial</a>
+    <a class="active" onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
+  </nav>
+
+  <!-- more-sheet -->
+  <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
+    <div class="msheet">
+      <h3>Ko'proq</h3>
+      <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa.html"><i data-lucide="wallet"></i>Kassa</a>
+      <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
+      <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
+      <a href="tannarx.html"><i data-lucide="receipt-text"></i>Tannarx</a>
+      <a href="ai.html" class="active"><i data-lucide="sparkles"></i>AI yordamchi</a>
+      <button class="close" onclick="closeMore()">Yopish</button>
+    </div>
+  </div>
+  <!-- /more-sheet -->
+</div>
+
+<script type="module">
+const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=id=>document.getElementById(id);
+const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+
+/* ── EMBED rejimi (`?embed=1`) ──────────────────────────────────────────
+   Floating AI tugmasi (`ai-widget.js`) shu sahifani IFRAME ichida ochadi.
+   🔴 Nega iframe: chat mantiqi (EF, suhbat tarixi, manbalar, fayl) BITTA
+      joyda qoladi — ikkinchi chat implementatsiyasi yozilsa CLAUDE.md dagi
+      "namoz moduli ikki marta yozildi" falokati takrorlanardi.
+   Bu yerda FAQAT KO'RINISH o'zgaradi (mantiq, ruxsat, EF — hammasi bir xil):
+   navigatsiya yashiriladi, chat butun iframe'ni egallaydi, suhbatlar paneli
+   tor oynada ustun bo'lib sig'maydi → doim drawer bo'lib ochiladi.
+   Klass `<html>` ga darrov qo'yiladi — CSS JS ni kutmasin. */
+const AI_EMBED=/(?:^|[?&])embed=1(?:&|$)/.test(location.search);
+if(AI_EMBED) document.documentElement.classList.add('ai-embed');
+/* Esc iframe ichidan ota hujjatga YETMAYDI — panelni yopish uchun xabar
+   yuboramiz (widget `{source:'aros-ai', type:'close'}` ni kutadi). */
+function aiEmbedClose(){
+  if(!AI_EMBED) return false;
+  try{ window.parent.postMessage({source:'aros-ai',type:'close'},location.origin); }
+  catch(e){ console.error('embed close:',e); }
+  return true;
+}
+// XSS: foydalanuvchi matni HAR DOIM shundan o'tadi — innerHTML ga xom matn tushmaydi.
+const escapeHtml=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Vaqt Toshkent bo'yicha (UTC+5) — CLAUDE.md qoidasi
+const nowHM=()=>new Date(Date.now()+5*3600*1000).toISOString().slice(11,16);
+let isAdmin=false, myName='';
+
+function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
+window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
+// permClear() shart: sessionStorage reload'dan keyin ham qoladi — yangi
+// foydalanuvchi eskisining ruxsatlari bilan ochilib ketmasin.
+window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+// more-sheet
+window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
+window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// /more-sheet
+$('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
+let appShown=false;
+// Ruxsatlar: keshdan darrov gate qilinadi, so'ng my_perms() bilan tasdiqlanadi.
+// Ruxsat yo'q bo'lsa init() umuman ishga tushmaydi.
+// ⚠️ Sahifa kaliti 'ai' (perms.js `page()` fayl nomidan oladi, `-dev` kesiladi).
+// PAGES massiviga 'ai' qo'shilmaguncha bu sahifa "cheklanmagan" deb o'tkaziladi.
+// ⚠️ Ruxsat yo'q bo'lsa `denyScreen()` FAQAT `main.main` ichini almashtiradi —
+//    suhbatlar paneli (main'dan tashqarida) osilib qolmasin: aicHidePanel().
+async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
+  if(!window.permGate()){ aicHidePanel(); return; }
+  await window.permLoad(sb);
+  if(!window.permGate()){ aicHidePanel(); return; }
+  init(); }
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  if(hasStoredSession()){
+    enterApp();
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ await sb.auth.signOut().catch(()=>{}); location.reload(); }
+  }else{
+    syncThemeIcon();
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) enterApp();
+  }
+}
+
+async function loadRole(){
+  const {data:{user}}=await sb.auth.getUser(); myName=user?.email||'foydalanuvchi';
+  const {data:p,error:pErr}= user ? await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle() : {data:null,error:null};
+  if(pErr) console.warn("profiles o'qilmadi:",pErr.message);   // ism/rol kelmasa — email fallback qoladi
+  if(p){ isAdmin=(p.role==='admin'); const fn=(p.full_name||'').trim(); if(fn) myName=fn; }
+  $('roleBadge').textContent=(isAdmin?'Admin · ':'Foydalanuvchi · ')+myName;
+}
+
+// =====================================================================
+//  AI CHAT — Edge Function (`ai-chat`) ga ulangan (2-bosqich)
+//            + web_search manbalari (3-bosqich, 1-ish)
+// ---------------------------------------------------------------------
+//  ✅ EF endi javob bilan birga `sources:[{title,url}]` qaytaradi (AI o'zi
+//     qidirib o'qigan sahifalar). Ular bot pufagi ostida chip bo'lib
+//     chiziladi (`srcHtml`) va xabar obyektida saqlanadi.
+//     🔴 Model qaytargan URL — ISHONCHSIZ ma'lumot: faqat http(s) sxemasi
+//        chiziladi va hammasi escapeHtml() dan o'tadi.
+//  ✅ 4-bosqich (1–2-ish): javob **OQIM** bo'lib keladi (SSE) — matn so'zma-so'z
+//     yoziladi, tepasida jarayon ("🔍 Qidiryapman: …") va yig'iladigan
+//     "O'ylash jarayoni" bloki ko'rinadi. `sb.functions.invoke` o'rniga
+//     `fetch` + `ReadableStream` (invoke SSE ni o'qiy olmaydi).
+//     🔴 Thinking matni DB GA YOZILMAYDI (tarix shishmasin) — u faqat oqim
+//        davomida ekranda turadi; suhbat qayta ochilganda javobning o'zi qoladi.
+//  🔴 API kaliti bu yerda YO'Q va hech qachon bo'lmaydi. Zanjir:
+//     brauzer → `fetch(<supabase>/functions/v1/ai-chat)` → Edge Function
+//     (ANTHROPIC_API_KEY faqat Supabase secret'ida) → Claude API.
+//     Deploy: EF_AI_CHAT_DEPLOY.txt.
+//  🔴 SOXTA JAVOB YOZILMAYDI — so'rov yiqilsa agent pufagi emas, kehribar
+//     XATO qatori chiqadi (`role:'err'`). Foydalanuvchi "javob keldi" deb
+//     o'ylab qolmasin.
+//  🔴 Ruxsat server tomonda ham tekshiriladi (`perm_has_page('ai')` VA
+//     `my_perms().allowed_pages`). Klientdagi permGate() — faqat UI.
+//  ✅ Suhbat tarixi endi DB da (`ai_conversations`/`ai_messages`, 3-bosqich
+//     2-ish) — pastdagi `aic*` moduli. `msgs` massivi faqat EKRAN nusxasi.
+//     SQL RUN qilinmagan bo'lsa modul jimgina XOTIRA rejimiga tushadi va
+//     chat aynan avvalgidek ishlaydi.
+//     Claude API stateless: HAR so'rovda butun suhbat qayta yuboriladi.
+// =====================================================================
+/* ── OQIM (SSE) — 4-bosqich, 1-ish ────────────────────────────────────
+   🔴 `sb.functions.invoke` STREAM QILA OLMAYDI (u javobni oxirigacha o'qib
+      bitta {data,error} qaytaradi), shuning uchun bu yerda `fetch` ishlatiladi.
+      Sarlavhalar QO'LDA: `Authorization: Bearer <access_token>` + `apikey`.
+   ⚠️ TIMEOUT MANTIQI O'ZGARDI: endi "javobni kutish" degan uzun pauza yo'q.
+      • AI_FIRST_MS — BIRINCHI baytgacha (ulanish/ruxsat bosqichi);
+      • AI_IDLE_MS  — oqim JIM QOLSA (EF har 15s `: ping` yuboradi, ya'ni
+        45s jimlik = ulanish o'lgan). Oqim kelayotgan bo'lsa UZILMAYDI;
+      • AI_TOTAL_MS — qattiq shift (EF byudjeti 150s dan ancha yuqori). */
+const AI_FN_URL=SUPABASE_URL+'/functions/v1/ai-chat';
+const AI_FIRST_MS=30000;
+const AI_IDLE_MS=45000;
+const AI_TOTAL_MS=200000;
+const AI_SRC_MAX=8;       // ko'rsatiladigan manba soni (EF ham 8 ta yuboradi)
+// Jarayon qatoridagi belgilar (EF `kind` ni yuboradi, matn ham EF dan keladi)
+// `tool` — Provodka DB asboblari (kassa/qarzdor/transfer, 4-bosqich 4-ish).
+// Noma'lum kind baribir '•' bilan ko'rsatiladi — chat buzilmaydi.
+const AI_ST_ICON={thinking:'💭',search:'🔍',read:'📖',tool:'💰'};
+const SUGGESTIONS=[
+  "2026-yilda QQS stavkasi necha foiz?",
+  "Yunusobod kassasida qancha pul bor?",
+  "Hodim xarajat kassasi nima?",
+  "Bu oyda qaysi xarajat eng ko'p bo'ldi?"
+];
+let msgs=[];          // [{role:'me'|'bot'|'err', text, at, src}] — faqat xotirada
+let busy=false;       // javob kutilmoqda (ikki marta yuborilmasin)
+let reqSeq=0;         // uchayotgan so'rovni eskirtirish (aiNew bosilsa)
+let curCtrl=null;     // joriy AbortController
+
+function threadEnd(){ const t=$('aiThread'); if(t) t.scrollTop=t.scrollHeight; }
+
+function emptyHtml(){
+  return '<div class="ai-empty">'
+    + '<div class="ai-ava"><i data-lucide="sparkles"></i></div>'
+    + '<h2>Nima bilan yordam beray?</h2>'
+    + '<p>Moliya, kassa qoldiqlari va O\'zbekiston soliq/buxgalteriya qonunchiligi bo\'yicha savol bering. '
+    + 'Javob har doim sizning ruxsatingiz doirasida bo\'ladi.</p>'
+    + '<div class="ai-sug">'
+    + SUGGESTIONS.map((s,i)=>'<button type="button" onclick="aiPick('+i+')"><span>'+escapeHtml(s)+'</span><i data-lucide="arrow-up-right"></i></button>').join('')
+    + '</div>'
+    + '<div class="ai-note"><i data-lucide="info"></i><span>AI qonun savollarida internetdan qidiradi va javob ostida manba havolasini ko\'rsatadi.</span></div>'
+    + '</div>';
+}
+
+/* Manbalar qatori (web_search natijalari).
+   🔴 XAVFSIZLIK: `sources` — MODEL qaytargan ma'lumot, ya'ni ishonchsiz.
+      (1) faqat `http://`/`https://` sxemasi chiziladi — `javascript:`/`data:`
+          havolasi butunlay tashlanadi;
+      (2) URL ham, sarlavha ham escapeHtml() dan o'tadi (atribut ichida ham). */
+function srcHost(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; } }
+function srcHtml(list){
+  if(!Array.isArray(list)||!list.length) return '';
+  const ok=list.filter(s=>s&&typeof s.url==='string'&&/^https?:\/\//i.test(s.url.trim())).slice(0,AI_SRC_MAX);
+  if(!ok.length) return '';
+  return '<div class="ai-src"><span class="ai-src-lbl">Manbalar:</span>'
+    + ok.map(s=>{
+        const u=s.url.trim();
+        const t=(typeof s.title==='string'&&s.title.trim())?s.title.trim():srcHost(u);
+        return '<a class="ai-src-a" href="'+escapeHtml(u)+'" target="_blank" rel="noopener noreferrer" title="'+escapeHtml(u)+'">'+escapeHtml(t.slice(0,70))+'</a>';
+      }).join('')
+    + '</div>';
+}
+
+/* Xabar pufagidagi biriktirmalar (rasm preview / fayl nomi).
+   ⚠️ Faqat SHU sessiyada yuborilgan xabarlarda bo'ladi — DB da base64 yo'q,
+      shuning uchun eski suhbatda `att` bo'lmaydi (matndagi `[2 rasm]` qoladi).
+   🔴 `url` — o'zimiz yaratgan `blob:` objectURL; fayl nomi esa foydalanuvchi
+      matni, shuning uchun escapeHtml() dan o'tadi. */
+function attHtml(list){
+  if(!Array.isArray(list)||!list.length) return '';
+  return '<div class="ai-att">'+list.map(a=>{
+    if(!a) return '';
+    const nm=escapeHtml(String(a.name||'fayl').slice(0,60));
+    if(a.kind==='image'&&a.url) return '<img class="ai-att-img" src="'+escapeHtml(a.url)+'" alt="'+nm+'" loading="lazy">';
+    return '<span class="ai-att-doc"><i data-lucide="file-text"></i><span>'+nm+'</span></span>';
+  }).join('')+'</div>';
+}
+
+/* "O'ylash jarayoni" — yig'iladigan blok (native <details>, JS shart emas).
+   🔴 Thinking matni ham ISHONCHSIZ (model chiqargan) → escapeHtml().
+   Oqim davomida (`st`) blok id bilan chiziladi va matni to'ldirilib boradi;
+   matn hali yo'q bo'lsa `hidden` — bo'sh "O'ylash jarayoni" ko'rinmasin. */
+function thinkHtml(m,st){
+  const t=String((m&&m.think)||'');
+  if(!st&&!t) return '';
+  return '<details class="ai-think"'+(st?' id="aiStThink"':'')+(t?'':' hidden')+'>'
+    + '<summary><i data-lucide="brain"></i><span>O\'ylash jarayoni</span></summary>'
+    + '<div class="ai-think-bd"'+(st?' id="aiStThinkBd"':'')+'>'+escapeHtml(t)+'</div>'
+    + '</details>';
+}
+
+// =====================================================================
+//  DIAGRAMMA + JADVAL + EXCEL (`ach*`)  ·  5-bosqich, 2–3-ish
+// ---------------------------------------------------------------------
+//  KONTRAKT (EF/model bilan kelishilgan, O'ZGARTIRILMAYDI):
+//    ```chart
+//    {"type":"pie","title":"…","unit":"so'm",
+//     "columns":["Xodim","Summa"],"rows":[["Ali",12500000]],"total":12500000}
+//    ```
+//    type: pie|bar|line (noma'lum → bar) · columns 2..6 (BIRINCHI = yorliq,
+//    OXIRGI = chart qiymati) · rows <=50 (ortig'i kesiladi va aytiladi).
+//
+//  🔴 BLOK MATNDAN O'CHIRILMAYDI — u `msgs[].text` da va DB da AYNAN qoladi.
+//     `render()` uni HAR SAFAR qaytadan tanib widget chizadi, ya'ni suhbat
+//     qayta ochilganda (DB dan) chart yana paydo bo'ladi. Oqim (`stream`)
+//     esa faqat KO'RINISHNI boshqaradi (pastdagi `achStreamText`).
+//  🔴 XAVFSIZLIK: `rows`/`columns`/`title` — MODEL matni, ya'ni ishonchsiz.
+//     Har yorliq `escapeHtml()` dan o'tadi (`<text>` ichida ham), SVG
+//     atributlariga esa FAQAT `achN()` dan o'tgan chekli raqam yoziladi
+//     (NaN/Infinity hech qachon chiqmaydi).
+//  🔴 Buzuq JSON chatni buzmaydi: blok xom matn bo'lib CHIQMAYDI, o'rniga
+//     kichik izoh + console.error (bir marta).
+//  🔴 SheetJS LAZY: sahifa boshida yuklanmaydi (<script> tegi YO'Q) — faqat
+//     "Excel" birinchi bosilganda dinamik qo'shiladi. Yuklanmasa (tarmoq)
+//     aniq xato + CSV zaxirasi (kutubxonasiz, UTF-8 BOM bilan).
+// =====================================================================
+const ACH_MAX_ROWS=50;      // kontrakt: ko'pi bilan 50 qator chiziladi
+const ACH_MAX_COLS=6;       // kontrakt: 2..6 ustun
+const ACH_PIE_MAX=8;        // pie: shundan ortig'i "Boshqa" ga yig'iladi
+const ACH_PIE_MIN=0.02;     // pie: 2% dan kichik ulush "Boshqa" ga
+const ACH_BAR_MAX=20;       // bar: diagrammada shuncha ustun (jadval to'liq)
+const ACH_HIST_KEEP=400;    // tarixda (EF) shundan uzun blok qisqartiriladi
+const ACH_XLSX_SRC='vendor/xlsx-0.18.5.min.js';
+const ACH_WAIT='📊 Diagramma tayyorlanmoqda…';
+const ACH_MARK='📊 Diagramma';
+// Yopilgan blok. `[\s\S]*?` — lazy, ya'ni eng yaqin yopilishgacha.
+const ACH_RE=/```[ \t]*chart[ \t]*\r?\n([\s\S]*?)\r?\n?[ \t]*```/g;
+let _achSeq=0;                      // widget id (render'lar bo'ylab O'SADI)
+let _achReg=Object.create(null);    // id → {d} — HAR render'da qaytadan quriladi
+let _achBad=Object.create(null);    // buzuq blok console'ga bir marta chiqsin
+
+/* SVG atributi uchun XAVFSIZ raqam. NaN/Infinity → zaxira qiymat. */
+function achN(v,fb){ const x=Number(v); return isFinite(x)?Math.round(x*100)/100:(fb===undefined?0:fb); }
+function achStr(v,max){ let s=String(v==null?'':v).replace(/\s+/g,' ').trim(); const n=max||120; return s.length>n?s.slice(0,n-1)+'…':s; }
+function achCut(s,n){ const t=String(s==null?'':s); return t.length>n?t.slice(0,n-1)+'…':t; }
+/* Pul formati — CLAUDE.md: probel bilan, kasr `,` bilan (`money()` naqshi). */
+function achMoney(n){
+  const x=Number(n); if(!isFinite(x)) return '';
+  const neg=x<0, v=Math.abs(x), r=Math.round(v*100)/100;
+  const ip=Math.floor(r), fp=Math.round((r-ip)*100);
+  let s=String(ip).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  if(fp>0) s+=','+(fp<10?'0'+fp:String(fp));
+  return (neg?'−':'')+s;
+}
+/* O'q/markaz uchun ixcham ko'rinish: 12 500 000 → "12,5 mln".
+   ⚠️ Bu yerda ortiqcha nol kesiladi ("1,20 mln" emas, "1,2 mln") — pul
+   ustunida esa achMoney ikki xonani SAQLAYDI (12 500,50 so'm). */
+function achDec1(s){ return String(s).replace(/,(\d)0$/,',$1'); }
+function achShort(n){
+  const x=Number(n); if(!isFinite(x)) return '';
+  const v=Math.abs(x);
+  if(v>=1e9) return achDec1(achMoney(Math.round(x/1e8)/10))+' mlrd';
+  if(v>=1e6) return achDec1(achMoney(Math.round(x/1e5)/10))+' mln';
+  if(v>=1e4) return achDec1(achMoney(Math.round(x/100)/10))+' ming';
+  return achMoney(x);
+}
+function achPct(x){
+  if(!isFinite(x)) return '';
+  const p=x*100;
+  if(p>0&&p<0.1) return '<0,1%';
+  return (Math.round(p*10)/10).toFixed(1).replace('.',',')+'%';
+}
+/* Raqam ajratish: "12 500 000", "12500,50", 12500 — hammasi bir xil o'qiladi.
+   Raqam bo'lmasa `null` (jadvalda matn bo'lib qoladi, chartda o'tkaziladi). */
+function achNum(v){
+  if(typeof v==='number') return isFinite(v)?v:null;
+  if(typeof v!=='string') return null;
+  let s=v.replace(/[\s\u00a0\u202f\u2009']/g,'');   // probel, uzilmas/ingichka probel, apostrof
+  if(!s) return null;
+  if(/,\d{1,2}$/.test(s)&&s.indexOf('.')<0) s=s.replace(',','.');
+  else s=s.replace(/,/g,'');
+  if(!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) return null;
+  const n=parseFloat(s);
+  return isFinite(n)?n:null;
+}
+
+/* JSON → normallashtirilgan model. Yaroqsiz bo'lsa `null`. */
+function achParse(raw){
+  const src=String(raw==null?'':raw).trim();
+  let o=null;
+  try{ o=JSON.parse(src); }
+  catch(e){ achBadLog(src,e); return null; }
+  if(!o||typeof o!=='object'||Array.isArray(o)){ achBadLog(src,'obyekt emas'); return null; }
+  const d=achNorm(o);
+  if(!d) achBadLog(src,'qator yo\'q yoki yaroqsiz');
+  return d;
+}
+function achBadLog(src,e){
+  const k=String(src).slice(0,80);
+  if(_achBad[k]) return;
+  _achBad[k]=1;
+  console.error('chart bloki o\'qilmadi:',e,String(src).slice(0,200));
+}
+function achNorm(o){
+  const raw=Array.isArray(o.rows)?o.rows.filter(r=>Array.isArray(r)):[];
+  if(!raw.length) return null;
+  let width=0;
+  for(const r of raw) if(r.length>width) width=r.length;
+  if(width<2) return null;                       // yorliq + qiymat kerak
+  let cols=Array.isArray(o.columns)?o.columns.map(c=>achStr(c,60)):[];
+  const n=Math.min(ACH_MAX_COLS,Math.max(2,width,cols.length));
+  while(cols.length<n) cols.push(cols.length?('Qiymat'+(cols.length>1?' '+cols.length:'')):'Nomi');
+  cols=cols.slice(0,n);
+  let rows=raw.map(r=>{ const a=r.slice(0,n); while(a.length<n) a.push(''); return a; });
+  let more=0;
+  if(rows.length>ACH_MAX_ROWS){ more=rows.length-ACH_MAX_ROWS; rows=rows.slice(0,ACH_MAX_ROWS); }
+  const labels=rows.map(r=>achStr(r[0],120)||'—');
+  const vals=rows.map(r=>achNum(r[n-1]));
+  let type=achStr(o.type,20).toLowerCase();
+  if(type==='pie'||type==='donut'||type==='doughnut') type='pie';
+  else if(type==='line'||type==='area') type='line';
+  else type='bar';                                // noma'lum tur → bar
+  // pie manfiy ulushni ifodalay olmaydi → bar
+  if(type==='pie'&&vals.some(v=>v!==null&&v<0)) type='bar';
+  let total=achNum(o.total);
+  if(total===null){
+    let s=0,has=false;
+    for(const v of vals){ if(v!==null){ s+=v; has=true; } }
+    total=has?s:null;
+  }
+  // "hammasi 0" / "raqam emas" → chart chizilmaydi (jadval qoladi)
+  const chartable=vals.some(v=>v!==null&&v!==0);
+  return {type:type,title:achStr(o.title,140),unit:achStr(o.unit,20),
+          cols:cols,rows:rows,labels:labels,vals:vals,total:total,more:more,chartable:chartable};
+}
+
+/* ---- matnni bo'laklash: [{kind:'text'|'chart'}] ---- */
+function achHas(s){ return String(s||'').indexOf('```')>=0; }
+function achSegments(s){
+  const t=String(s==null?'':s);
+  if(!achHas(t)) return [{kind:'text',text:t}];
+  const out=[]; let last=0,m;
+  ACH_RE.lastIndex=0;
+  while((m=ACH_RE.exec(t))){
+    if(m.index>last) out.push({kind:'text',text:t.slice(last,m.index)});
+    out.push({kind:'chart',data:achParse(m[1])});
+    last=m.index+m[0].length;
+  }
+  if(!out.length) return [{kind:'text',text:t}];
+  if(last<t.length) out.push({kind:'text',text:t.slice(last)});
+  return out;
+}
+/* Oqim: OCHIQ (hali yopilmagan) blokni topamiz.
+   Fence'lar ketma-ket sanaladi (toggle) — aks holda oldingi ```sql blokining
+   YOPILISH fence'i "ochiq chart" deb noto'g'ri o'qilardi. */
+function achOpenInfo(s){
+  const re=/```/g; let m,open=null;
+  while((m=re.exec(s))){
+    if(open){ open=null; continue; }
+    const rest=s.slice(m.index+3);
+    const nl=rest.indexOf('\n');
+    open={i:m.index,tag:(nl<0?rest:rest.slice(0,nl)).trim().toLowerCase(),named:nl>=0};
+  }
+  return open;
+}
+/* Oqim davomida ko'rsatiladigan matn:
+   • yopilgan blok → "📊 Diagramma" belgisi (xom JSON ko'rinmasin);
+   • ochilgan blok → o'sha joydan keyingi hamma narsa yashiriladi. */
+function achStreamText(s){
+  let t=String(s==null?'':s);
+  if(!achHas(t)) return t;
+  ACH_RE.lastIndex=0;
+  t=t.replace(ACH_RE,()=>ACH_MARK);
+  const op=achOpenInfo(t);
+  if(op && (op.named ? op.tag==='chart' : 'chart'.indexOf(op.tag)===0)) t=t.slice(0,op.i)+ACH_WAIT;
+  return t;
+}
+/* EF ga yuboriladigan TARIX uchun: uzun blok `[diagramma: nom]` ga siqiladi
+   (4000 belgi chegarasi butun javobni yeb qo'ymasin). Ekranda/DB da TO'LIQ. */
+function achForHistory(s){
+  const t=String(s==null?'':s);
+  if(!achHas(t)) return t;
+  ACH_RE.lastIndex=0;
+  // ⚠️ replace(re, FUNKSIYA) — string bo'lsa `$'` kabi naqshlar portlaydi (CLAUDE.md)
+  return t.replace(ACH_RE,(hit,body)=>{
+    if(hit.length<=ACH_HIST_KEEP) return hit;
+    let ttl='';
+    try{ const o=JSON.parse(String(body).trim()); if(o&&typeof o.title==='string') ttl=achStr(o.title,60); }
+    catch(e){ ttl=''; }
+    return ttl?('[diagramma: '+ttl+']'):'[diagramma]';
+  });
+}
+
+/* ---- SVG: PIE (donut) ---- */
+function achPieParts(d){
+  const items=[];
+  for(let i=0;i<d.rows.length;i++){ const v=d.vals[i]; if(v===null||v<=0) continue; items.push({l:d.labels[i],v:v}); }
+  let sum=0; for(const it of items) sum+=it.v;
+  if(!(sum>0)) return null;
+  const big=[],small=[];
+  for(const it of items){ (it.v/sum<ACH_PIE_MIN?small:big).push(it); }
+  if(small.length===1) big.push(small.pop());     // yolg'iz kichik ulush "Boshqa" bo'lib turmasin
+  big.sort((a,b)=>b.v-a.v);
+  let oth=0,othN=small.length;
+  for(const it of small) oth+=it.v;
+  while(big.length>ACH_PIE_MAX){ const x=big.pop(); oth+=x.v; othN++; }
+  const parts=big.map((it,i)=>({l:it.l,v:it.v,share:it.v/sum,c:'var(--ach-'+((i%8)+1)+')'}));
+  if(othN>0&&oth>0) parts.push({l:'Boshqa ('+othN+')',v:oth,share:oth/sum,c:'var(--ach-other)'});
+  return {parts:parts,sum:sum};
+}
+function achPieHtml(d){
+  const p=achPieParts(d);
+  if(!p) return '';
+  const R=72,SW=30,CX=100,CY=100,C=2*Math.PI*R;
+  const gap=p.parts.length>1?1.6:0;
+  let acc=0,seg='';
+  for(const it of p.parts){
+    const len=Math.max(0.6,it.share*C-gap);
+    seg+='<circle cx="'+CX+'" cy="'+CY+'" r="'+R+'" fill="none" stroke="'+it.c+'" stroke-width="'+SW+'"'
+       + ' stroke-dasharray="'+achN(len)+' '+achN(C-len,C)+'" stroke-dashoffset="'+achN(-acc)+'"'
+       + ' transform="rotate(-90 '+CX+' '+CY+')"><title>'+escapeHtml(it.l+' — '+achMoney(it.v)+' ('+achPct(it.share)+')')+'</title></circle>';
+    acc+=it.share*C;
+  }
+  const svg='<svg class="ach-svg ach-pie" viewBox="0 0 200 200" role="img" preserveAspectRatio="xMidYMid meet"'
+    + ' aria-label="'+escapeHtml(d.title||'Diagramma')+'">'+seg
+    + '<text class="ach-ct" x="'+CX+'" y="'+(CY-1)+'" text-anchor="middle">'+escapeHtml(achShort(p.sum))+'</text>'
+    + '<text class="ach-cs" x="'+CX+'" y="'+(CY+15)+'" text-anchor="middle">'+escapeHtml(d.unit||'Jami')+'</text>'
+    + '</svg>';
+  const lg='<div class="ach-lg">'+p.parts.map(it=>
+      '<span class="ach-lg-i"><span class="ach-dot" style="background:'+it.c+'"></span>'
+      + '<span class="ach-lg-n" title="'+escapeHtml(it.l)+'">'+escapeHtml(it.l)+'</span>'
+      + '<span class="ach-lg-v">'+escapeHtml(achShort(it.v))+'</span>'
+      + '<span class="ach-lg-p">'+escapeHtml(achPct(it.share))+'</span></span>').join('')+'</div>';
+  return '<div class="ach-pw">'+svg+lg+'</div>';
+}
+/* ---- SVG: BAR (gorizontal — uzun o'zbekcha yorliqlar sig'sin) ---- */
+function achBarHtml(d){
+  const items=[];
+  for(let i=0;i<d.rows.length;i++){ const v=d.vals[i]; if(v===null) continue; items.push({l:d.labels[i],v:v}); }
+  if(!items.length) return '';
+  let cut=0;
+  if(items.length>ACH_BAR_MAX){ cut=items.length-ACH_BAR_MAX; items.length=ACH_BAR_MAX; }
+  const W=640,LAB=178,VAL=150,PAD=6,RH=28;
+  const bx=LAB+10,bw=W-bx-VAL,H=PAD*2+items.length*RH;
+  let mn=0,mx=0,pos=0,allPos=true;
+  for(const it of items){ if(it.v<mn){ mn=it.v; allPos=false; } if(it.v>mx) mx=it.v; if(it.v>0) pos+=it.v; }
+  const rng=(mx-mn)||1;
+  const x0=bx+((0-mn)/rng)*bw;
+  let s='<svg class="ach-svg" viewBox="0 0 '+W+' '+achN(H,60)+'" role="img" preserveAspectRatio="xMinYMin meet"'
+      + ' aria-label="'+escapeHtml(d.title||'Diagramma')+'">';
+  if(!allPos) s+='<line x1="'+achN(x0)+'" y1="'+PAD+'" x2="'+achN(x0)+'" y2="'+achN(H-PAD)+'" stroke="var(--ach-grid)" stroke-width="1"/>';
+  for(let i=0;i<items.length;i++){
+    const it=items[i], y=PAD+i*RH, cy=y+RH/2;
+    const w=Math.max(1.5,(Math.abs(it.v)/rng)*bw);
+    const x=it.v>=0?x0:x0-w;
+    const pc=(allPos&&pos>0)?(' · '+achPct(it.v/pos)):'';
+    s+='<g><title>'+escapeHtml(it.l+' — '+achMoney(it.v)+(d.unit?' '+d.unit:'')+pc)+'</title>'
+     + '<text x="'+LAB+'" y="'+achN(cy)+'" text-anchor="end" dominant-baseline="middle">'+escapeHtml(achCut(it.l,26))+'</text>'
+     + '<rect x="'+achN(x,bx)+'" y="'+achN(y+6)+'" width="'+achN(w,1.5)+'" height="'+(RH-12)+'" rx="3" fill="var(--ach-'+((i%8)+1)+')"/>'
+     + '<text class="ach-vl" x="'+achN((it.v>=0?x+w:x0)+8)+'" y="'+achN(cy)+'" dominant-baseline="middle">'+escapeHtml(achShort(it.v)+pc)+'</text>'
+     + '</g>';
+  }
+  s+='</svg>';
+  if(cut) s+='<div class="ach-note">Diagrammada birinchi '+ACH_BAR_MAX+' qator ko\'rsatildi (yana '+cut+' qator jadvalda).</div>';
+  return s;
+}
+/* ---- SVG: LINE ---- */
+function achLineHtml(d){
+  const pts=[];
+  for(let i=0;i<d.rows.length;i++){ const v=d.vals[i]; if(v===null) continue; pts.push({l:d.labels[i],v:v}); }
+  if(pts.length<2) return achBarHtml(d);          // bitta nuqtadan chiziq chiqmaydi
+  const W=640,H=250,PL=64,PR=14,PT=12,PB=34;
+  const pw=W-PL-PR,ph=H-PT-PB;
+  let mn=0,mx=0;
+  for(const p of pts){ if(p.v<mn) mn=p.v; if(p.v>mx) mx=p.v; }
+  if(mx===mn) mx=mn+1;
+  const yOf=v=>PT+ph-((v-mn)/(mx-mn))*ph;
+  const xOf=i=>PL+(pts.length>1?(i*(pw/(pts.length-1))):pw/2);
+  let s='<svg class="ach-svg" viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMinYMin meet"'
+      + ' aria-label="'+escapeHtml(d.title||'Diagramma')+'">';
+  for(let g=0;g<=4;g++){
+    const v=mn+(mx-mn)*(g/4), y=achN(yOf(v),PT);
+    s+='<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="var(--ach-grid)" stroke-width="1"/>'
+     + '<text class="ach-ax" x="'+(PL-8)+'" y="'+y+'" text-anchor="end" dominant-baseline="middle">'+escapeHtml(achShort(v))+'</text>';
+  }
+  let line='',area='';
+  for(let i=0;i<pts.length;i++){
+    const x=achN(xOf(i),PL), y=achN(yOf(pts[i].v),PT);
+    line+=(i?' L ':'M ')+x+' '+y;
+    area+=(i?' L ':'M ')+x+' '+y;
+  }
+  area+=' L '+achN(xOf(pts.length-1),PL)+' '+achN(yOf(mn),PT+ph)+' L '+achN(xOf(0),PL)+' '+achN(yOf(mn),PT+ph)+' Z';
+  s+='<path d="'+area+'" fill="var(--ach-1)" opacity=".12"/>'
+   + '<path d="'+line+'" fill="none" stroke="var(--ach-1)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+  const step=Math.ceil(pts.length/6);
+  for(let i=0;i<pts.length;i++){
+    const x=achN(xOf(i),PL), y=achN(yOf(pts[i].v),PT);
+    s+='<circle cx="'+x+'" cy="'+y+'" r="3.2" fill="var(--ach-1)"><title>'+escapeHtml(pts[i].l+' — '+achMoney(pts[i].v)+(d.unit?' '+d.unit:''))+'</title></circle>';
+    if(i%step===0||i===pts.length-1)
+      s+='<text class="ach-ax" x="'+x+'" y="'+(H-12)+'" text-anchor="middle">'+escapeHtml(achCut(pts[i].l,11))+'</text>';
+  }
+  return s+'</svg>';
+}
+function achChartHtml(d){
+  if(!d.chartable) return '';                     // bo'sh/nol/raqamsiz → faqat jadval
+  if(d.type==='pie') return achPieHtml(d);
+  if(d.type==='line') return achLineHtml(d);
+  return achBarHtml(d);
+}
+/* ---- jadval ---- */
+function achTableHtml(d){
+  const n=d.cols.length;
+  const head=d.cols.slice();
+  if(d.unit) head[n-1]=head[n-1]+', '+d.unit;
+  let h='<div class="ach-tw"><table class="ach-tbl"><thead><tr>';
+  for(let c=0;c<n;c++) h+='<th'+(c===n-1?' class="n"':'')+'>'+escapeHtml(head[c])+'</th>';
+  h+='</tr></thead><tbody>';
+  for(const r of d.rows){
+    h+='<tr>';
+    for(let c=0;c<n;c++){
+      /* 🔴 FAQAT OXIRGI ustun raqam deb o'qiladi (kontrakt: "raqam OXIRGI").
+         Avval `c>0` edi — o'rtadagi HISOB KODI ustuni ham raqamga aylanib
+         `5403` → `5 403` bo'lardi (Excelda esa boshidagi nol yo'qolardi). */
+      const num=(c===n-1)?achNum(r[c]):null;
+      h+= num!==null
+        ? '<td class="n">'+escapeHtml(achMoney(num))+'</td>'
+        : '<td'+(c===0?' class="l"':'')+'>'+escapeHtml(achStr(r[c],120))+'</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  if(d.total!==null){
+    h+='<tfoot><tr><td>Jami</td>'
+     + (n>2?'<td colspan="'+(n-2)+'"></td>':'')
+     + '<td class="n">'+escapeHtml(achMoney(d.total))+'</td></tr></tfoot>';
+  }
+  return h+'</table></div>';
+}
+/* ---- widget ---- */
+function achWidgetHtml(d){
+  if(!d) return '<div class="ach-bad">📊 Diagramma o\'qilmadi (ma\'lumot buzilgan).</div>';
+  const id='ach'+(++_achSeq);
+  _achReg[id]={d:d};
+  const sub=[];
+  if(d.more) sub.push('yana '+d.more+' qator ko\'rsatilmadi');
+  if(!d.chartable) sub.push('diagramma uchun raqam yo\'q');
+  return '<div class="ach" id="'+id+'">'
+    + '<div class="ach-hd"><span class="ach-tt">'+escapeHtml(d.title||'Hisobot')
+    +   (sub.length?'<span class="ach-sub">'+escapeHtml(sub.join(' · '))+'</span>':'')+'</span>'
+    + '<button type="button" class="ach-xls" id="'+id+'x" onclick="achExcel(\''+id+'\')" title="Excel (.xlsx) yuklab olish">'
+    +   '<i data-lucide="download"></i><span>Excel</span></button></div>'
+    + achChartHtml(d)
+    + achTableHtml(d)
+    + '<div class="ach-err" id="'+id+'e" role="alert"></div>'
+    + '</div>';
+}
+/* Bot javobi: matn bo'laklari + chart widgetlari. Chart yo'q bo'lsa
+   xatti-harakat AVVALGIDEK (bitta `.ai-msg` pufagi). */
+function achBodyHtml(m){
+  const raw=String((m&&m.text)||'');
+  if(!achHas(raw)) return raw?'<div class="ai-msg">'+escapeHtml(raw)+'</div>':'';
+  const segs=achSegments(raw);
+  let out='';
+  for(const s of segs){
+    if(s.kind==='text'){ const t=s.text.trim(); if(t) out+='<div class="ai-msg">'+escapeHtml(t)+'</div>'; }
+    else out+=achWidgetHtml(s.data);
+  }
+  return out;
+}
+
+/* ---- EXCEL (SheetJS, LAZY) + CSV zaxirasi ---- */
+let _achXlsx=null;          // uchayotgan/tugagan yuklash va'dasi
+function achLoadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_achXlsx) return _achXlsx;
+  const p=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=ACH_XLSX_SRC; s.async=true;
+    s.onload=()=>{ if(window.XLSX) res(window.XLSX); else rej(new Error('kutubxona yuklandi, lekin topilmadi')); };
+    s.onerror=()=>rej(new Error('kutubxona yuklanmadi (tarmoq)'));
+    document.head.appendChild(s);
+  });
+  // Yiqilsa keyingi bosishda QAYTA urinish mumkin bo'lsin (kesh o'chadi).
+  p.catch(e=>{ _achXlsx=null; console.error('SheetJS:',e); });
+  _achXlsx=p;
+  return p;
+}
+/* Jadval → massivlar massivi: sarlavha + qatorlar + "Jami".
+   Raqamlar RAQAM bo'lib yoziladi (Excel'da yig'indi ishlasin). */
+function achAoa(d){
+  const n=d.cols.length;
+  const head=d.cols.slice();
+  if(d.unit) head[n-1]=head[n-1]+', '+d.unit;
+  const out=[head];
+  for(const r of d.rows){
+    const line=[];
+    // Jadval bilan bir xil qoida: faqat OXIRGI ustun raqam (kod matn bo'lib qolsin)
+    for(let c=0;c<n;c++){ const num=(c===n-1)?achNum(r[c]):null; line.push(num!==null?num:achStr(r[c],200)); }
+    out.push(line);
+  }
+  if(d.total!==null){
+    const t=[]; for(let c=0;c<n;c++) t.push('');
+    t[0]='Jami'; t[n-1]=d.total;
+    out.push(t);
+  }
+  return out;
+}
+function achWidths(aoa){
+  const w=[];
+  for(const r of aoa){
+    for(let c=0;c<r.length;c++){
+      const len=String(r[c]==null?'':(typeof r[c]==='number'?achMoney(r[c]):r[c])).length+2;
+      if(!w[c]||len>w[c]) w[c]=len;
+    }
+  }
+  return w.map(x=>({wch:Math.max(9,Math.min(42,x||9))}));
+}
+function achSlug(s){
+  const t=String(s||'').toLowerCase()
+    .replace(/[‘’ʻʼ'`"]/g,'')
+    .replace(/[^a-z0-9Ѐ-ӿ]+/g,'-')
+    .replace(/-+/g,'-').replace(/^-|-$/g,'');
+  return t.slice(0,40)||'hisobot';
+}
+// Sana Toshkent bo'yicha (UTC+5) — `nowHM` bilan bir xil naqsh
+function achFileName(d,ext){
+  const day=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+  return achSlug(d.title||'hisobot')+'-'+day+'.'+ext;
+}
+function achSheetName(d){
+  const t=String(d.title||'').replace(/[\\\/\?\*\[\]:]/g,' ').replace(/\s+/g,' ').trim();
+  return t?t.slice(0,31):'Hisobot';
+}
+function achBtn(id,txt,off){
+  const b=$(id+'x'); if(!b) return;
+  b.disabled=!!off;
+  const s=b.querySelector('span'); if(s) s.textContent=txt;
+}
+/* Xato/zaxira lentasi. `csv` — CSV tugmasi ko'rsatilsinmi. */
+function achErr(id,text,csv){
+  const el=$(id+'e'); if(!el){ console.error('ACH:',text); return; }
+  if(!text){ el.className='ach-err'; el.innerHTML=''; return; }
+  el.innerHTML=escapeHtml(text)
+    + (csv?'<div><button type="button" class="ach-csv" onclick="achCsv(\''+id+'\')">CSV yuklab olish</button></div>':'');
+  el.className='ach-err on';
+}
+function achDownload(blob,name){
+  const u=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=u; a.download=name; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{
+    try{ a.parentNode&&a.parentNode.removeChild(a); }catch(e){ console.error('havola olinmadi:',e); }
+    try{ URL.revokeObjectURL(u); }catch(e){ console.error('objectURL bo\'shatilmadi:',e); }
+  },1500);
+}
+window.achExcel=async id=>{
+  const e=_achReg[id]; if(!e) return;             // eskirgan widget (qayta chizilgan)
+  achErr(id,'');
+  achBtn(id,'Tayyorlanmoqda…',true);
+  try{
+    const X=await achLoadXlsx();
+    if(!X||!X.utils||!X.utils.book_new) throw new Error('kutubxona to\'liq emas');
+    const aoa=achAoa(e.d);
+    const ws=X.utils.aoa_to_sheet(aoa);
+    ws['!cols']=achWidths(aoa);
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb,ws,achSheetName(e.d));
+    X.writeFile(wb,achFileName(e.d,'xlsx'));
+    achBtn(id,'Excel',false);
+  }catch(ex){
+    console.error('Excel yaratilmadi:',ex);
+    achBtn(id,'Excel',false);
+    achErr(id,'Excel fayli tayyorlanmadi — '+((ex&&ex.message)||'noma\'lum xato')+'. CSV bilan yuklab olishingiz mumkin (Excel uni ochadi).',true);
+  }
+};
+/* CSV zaxirasi — kutubxonasiz. UTF-8 BOM + `sep=;` (Excel ustunlarga to'g'ri
+   bo'ladi, LibreOffice ham tushunadi). */
+window.achCsv=id=>{
+  const e=_achReg[id]; if(!e) return;
+  try{
+    const aoa=achAoa(e.d);
+    const q=v=>{ const s=String(v==null?'':v); return /[";\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    const txt='\ufeff'+'sep=;\r\n'+aoa.map(r=>r.map(q).join(';')).join('\r\n')+'\r\n';
+    achDownload(new Blob([txt],{type:'text/csv;charset=utf-8'}),achFileName(e.d,'csv'));
+    achErr(id,'');
+  }catch(ex){
+    console.error('CSV yaratilmadi:',ex);
+    achErr(id,'CSV ham yaratilmadi — '+((ex&&ex.message)||'noma\'lum xato')+'.',false);
+  }
+};
+
+function render(){
+  const list=$('aiList');
+  // Widget registri HAR render'da qaytadan quriladi (id lar o'sib boradi —
+  // eski id qolib ketsa `achExcel` uni topmaydi va jimgina chiqadi).
+  _achReg=Object.create(null);
+  // Eski suhbat DB dan o'qilayotganda bo'sh ekran o'rniga "Yuklanmoqda…" (aicLoadingHtml)
+  if(!msgs.length){ list.innerHTML=_aicLoadingMsgs?aicLoadingHtml():emptyHtml(); icons(); return; }
+  // XSS: matn HAR DOIM escapeHtml() dan o'tadi — Claude javobi ham xom matn.
+  list.innerHTML=msgs.map(m=>{
+    const cls=m.role==='me'?'me':(m.role==='err'?'err':'bot');
+    const ic=m.role==='err'?'triangle-alert':'sparkles';
+    /* Oqim pufagi: elementlar ID bilan chiziladi va delta'lar FAQAT o'sha
+       tugunlarni yangilaydi (butun ro'yxat qayta chizilmaydi — uzun suhbatda
+       sekinlashuv va scroll sakrashi bo'lmasin). */
+    const st=!!m.streaming;
+    return '<div class="ai-row '+cls+'">'
+      + (m.role==='me'?'':'<div class="ai-av"><i data-lucide="'+ic+'"></i></div>')
+      + '<div class="ai-bd">'
+      + attHtml(m.att)
+      + (st?'<div class="ai-proc'+(m.status?' on':'')+'" id="aiStProc"><span class="ai-proc-d"></span>'
+           + '<span class="ai-proc-t" id="aiStStatus">'+escapeHtml(m.status||'')+'</span></div>':'')
+      + thinkHtml(m,st)
+      // Faqat fayl yuborilgan bo'lsa (matn bo'sh) — bo'sh pufak chizilmaydi
+      // (oqimda esa pufak doim bor, lekin `.ai-msg:empty` uni yashiradi).
+      /* 🔴 Diagramma (```chart) FAQAT bot javobida qidiriladi — foydalanuvchi
+         xuddi shunday blok yozsa u XOM MATN bo'lib qoladi (widget emas).
+         Oqim davomida blok o'rniga "tayyorlanmoqda…" (`achStreamText`),
+         oqim tugagach `achBodyHtml` haqiqiy widget chizadi. */
+      + (st?'<div class="ai-msg" id="aiStMsg">'+escapeHtml(achStreamText(m.text||''))+'</div>'
+          :(m.role==='bot'?achBodyHtml(m)
+            :(m.text?'<div class="ai-msg">'+escapeHtml(m.text)+'</div>':'')))
+      + (st?'<div id="aiStSrc">'+srcHtml(m.src)+'</div>':srcHtml(m.src))
+      + '<div class="ai-time">'+escapeHtml(m.at)+'</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  icons();
+  if(_st) aiStreamBind();     // ID lar yangi DOM da — havolalarni qayta bog'laymiz
+  threadEnd();
+}
+
+// `src` — ixtiyoriy manbalar ro'yxati; xabar obyektida SAQLANADI, shuning
+// uchun keyingi render()larda (yangi savol qo'shilganda) yo'qolmaydi.
+/* `ex` — ixtiyoriy qo'shimcha: {att, note} (biriktirilgan fayllar).
+   `att` faqat EKRAN uchun (preview URL), `note` esa TARIX/DB uchun matn belgisi. */
+function push(role,text,src,ex){
+  msgs.push({role,text,at:nowHM(),src:src||null,att:(ex&&ex.att)||null,note:(ex&&ex.note)||null});
+  render();
+}
+
+// =====================================================================
+//  OQIM (SSE) — pufakni JOYIDA to'ldirish  ·  4-bosqich, 1–2-ish
+// ---------------------------------------------------------------------
+//  🔴 Har delta'da `render()` CHAQIRILMAYDI: butun ro'yxatni qayta chizish
+//     uzun suhbatda sekinlashadi va scroll sakraydi. O'rniga oqim pufagining
+//     tugunlari (`_stEl`) bir marta topiladi va `textContent` bilan
+//     yangilanadi — bu XSS uchun ham xavfsiz (HTML parse qilinmaydi).
+//  🔴 SCROLL: foydalanuvchi tepaga chiqib o'qiyotgan bo'lsa pastga TORTILMAYDI.
+// =====================================================================
+let _st=null;      // oqimdagi xabar obyekti (msgs ichida turadi)
+let _stEl=null;    // {proc,status,msg,think,thinkBd,src} — DOM havolalari
+
+function aiStreamBind(){
+  _stEl={proc:$('aiStProc'),status:$('aiStStatus'),msg:$('aiStMsg'),
+         think:$('aiStThink'),thinkBd:$('aiStThinkBd'),src:$('aiStSrc')};
+}
+// Pastga "yopishish": faqat foydalanuvchi allaqachon pastda bo'lsa ergashamiz.
+function aiAtBottom(){ const t=$('aiThread'); if(!t) return true;
+  return (t.scrollHeight-t.scrollTop-t.clientHeight)<80; }
+function aiFollow(was){ if(was) threadEnd(); }
+
+function aiStreamStart(){
+  _st={role:'bot',text:'',think:'',src:null,at:nowHM(),streaming:true,status:'💭 Ulanmoqda…'};
+  msgs.push(_st);
+  document.body.classList.add('ai-streaming');
+  render();            // ichida aiStreamBind() bor
+  threadEnd();
+}
+/* Oqim tugadi — pufak oddiy xabarga aylanadi (ID lar yo'qoladi). */
+function aiStreamEnd(){
+  document.body.classList.remove('ai-streaming');
+  if(!_st) return;
+  _st.streaming=false; _st.status=''; _st=null; _stEl=null; render();
+}
+/* Matn umuman kelmadi — pufakni butunlay olib tashlaymiz (bo'sh pufak qolmasin). */
+function aiStreamDrop(){
+  document.body.classList.remove('ai-streaming');
+  if(!_st){ _stEl=null; return; }
+  const i=msgs.indexOf(_st); if(i>=0) msgs.splice(i,1);
+  _st=null; _stEl=null; render();
+}
+/* Faqat holatni tozalaydi (pufakka tegmaydi) — `aiAbortFlight` uchun:
+   u yerda msgs baribir almashtiriladi yoki bo'shatiladi. */
+function aiStreamReset(){ document.body.classList.remove('ai-streaming'); _st=null; _stEl=null; }
+
+function aiStSetStatus(text){
+  if(!_st) return;
+  _st.status=text||'';
+  if(!_stEl||!_stEl.proc) return;
+  const was=aiAtBottom();
+  if(_stEl.status) _stEl.status.textContent=_st.status;
+  _stEl.proc.className='ai-proc'+(_st.status?' on':'');
+  aiFollow(was);
+}
+function aiStAddText(delta){
+  if(!_st||!delta) return;
+  const was=aiAtBottom();
+  _st.text+=delta;
+  /* 🔴 `_st.text` XOM saqlanadi (DB ga o'sha ketadi), ekranga esa
+     `achStreamText` beriladi: yarim kelgan ```chart bloki JSON bo'lib
+     ko'rinmasin — o'rniga "📊 Diagramma tayyorlanmoqda…". */
+  if(_stEl&&_stEl.msg) _stEl.msg.textContent=achStreamText(_st.text);
+  // Javob kela boshladi → jarayon qatori yo'qoladi (qidiruv qayta boshlansa qaytadi)
+  if(_st.status) aiStSetStatus('');
+  aiFollow(was);
+}
+function aiStAddThink(delta){
+  if(!_st||!delta) return;
+  const was=aiAtBottom();
+  _st.think+=delta;
+  if(_stEl&&_stEl.think) _stEl.think.hidden=false;
+  if(_stEl&&_stEl.thinkBd){
+    const bd=_stEl.thinkBd;
+    const stick=(bd.scrollHeight-bd.scrollTop-bd.clientHeight)<24;   // ochiq bo'lsa oxiriga ergashsin
+    bd.textContent=_st.think;
+    if(stick) bd.scrollTop=bd.scrollHeight;
+  }
+  aiFollow(was);
+}
+function aiStSetSrc(items){
+  if(!_st) return;
+  _st.src=Array.isArray(items)?items:null;
+  if(_stEl&&_stEl.src) _stEl.src.innerHTML=srcHtml(_st.src);   // srcHtml ichida escapeHtml
+}
+
+/* Bitta SSE bo'lagini (`data:` qatorlari) obyektga aylantiradi.
+   ⚠️ `: ping` (izoh) va `event:`/`id:` qatorlari TASHLANADI.
+   ⚠️ Buzuq JSON butun oqimni yiqitmaydi — console.error + o'tkazib yuborish. */
+function aiSseParse(chunk){
+  const lines=String(chunk).split('\n');
+  let data='';
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i];
+    if(!ln||ln.charAt(0)===':') continue;
+    if(ln.slice(0,5)!=='data:') continue;
+    const p=ln.slice(5);
+    data+=(data?'\n':'')+(p.charAt(0)===' '?p.slice(1):p);
+  }
+  if(!data) return null;
+  try{ const o=JSON.parse(data); return (o&&typeof o==='object')?o:null; }
+  catch(e){ console.error('SSE hodisasi o\'qilmadi:',e,data.slice(0,200)); return null; }
+}
+
+/* Jarayon matni: EF `kind` + `text` yuboradi, belgi mijozda qo'shiladi. */
+function aiStatusLine(ev){
+  const k=String((ev&&ev.kind)||'');
+  const tx=String((ev&&ev.text)||'').slice(0,160).trim();
+  return (AI_ST_ICON[k]||'•')+' '+(tx||'Ishlanmoqda…');
+}
+
+/* EF ga SSE so'rovi. Har hodisa `on(obj)` ga uzatiladi, `touch()` esa har
+   kelgan BO'LAKda (ping ham) chaqiriladi — jimlik taymeri qayta uriladi.
+   🔴 Xato holatlari (401/403/429/400/413) oqim BOSHLANMASDAN, oddiy JSON
+      bo'lib keladi — ular shu yerda `e._ai={t,code}` ga aylantiriladi. */
+async function aiStreamFetch(payload,ctrl,on,touch){
+  const {data:sess,error:sErr}=await sb.auth.getSession();
+  const token=sess&&sess.session&&sess.session.access_token;
+  if(sErr) console.error('Sessiya o\'qilmadi:',sErr);
+  if(!token){ const e=new Error('sessiya yo\'q'); e._ai={t:'Sessiya topilmadi. Qaytadan kiring.',code:'auth'}; throw e; }
+
+  const res=await fetch(AI_FN_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Accept':'text/event-stream',
+             'Authorization':'Bearer '+token,'apikey':SUPABASE_ANON_KEY},
+    body:JSON.stringify(payload),
+    signal:ctrl?ctrl.signal:undefined
+  });
+
+  if(!res.ok){
+    let t='',code='';
+    try{
+      const raw=await res.text();
+      if(raw){ try{ const b=JSON.parse(raw);
+        if(b&&typeof b.error==='string'&&b.error.trim()){ t=b.error.trim(); code=String(b.code||''); }
+      }catch(x){ console.error('EF xato tanasi JSON emas:',raw.slice(0,200)); } }
+    }catch(x){ console.error('EF xato tanasi o\'qilmadi:',x); }
+    if(!t){
+      if(res.status===401){ t='Sessiya tugagan. Qaytadan kiring.'; code='auth'; }
+      else if(res.status===403){ t="Sizda AI agent ruxsati yo'q."; code='forbidden'; }
+      else if(res.status===429){ t="Juda ko'p so'rov yuborildi. Biroz kuting."; code='rate'; }
+      else t="AI javob bermadi. Keyinroq urinib ko'ring.";
+    }
+    const e=new Error('EF '+res.status); e._ai={t:t,code:code}; throw e;
+  }
+
+  /* ⚠️ ZAXIRA: EF hali yangilanmagan bo'lsa (eski, stream'siz versiya) javob
+     JSON bo'lib keladi — uni bitta delta qilib ko'rsatamiz. Shu tufayli mijoz
+     EF deploy'idan OLDIN ham ishlayveradi (dev-first tartibi buzilmasin). */
+  const ct=String(res.headers.get('content-type')||'').toLowerCase();
+  if(ct.indexOf('text/event-stream')<0){
+    console.warn('EF SSE emas, JSON qaytardi — eski versiya deploy qilingan.');
+    let b=null;
+    try{ b=await res.json(); }catch(x){ console.error('JSON javob o\'qilmadi:',x); }
+    const rep=(b&&typeof b.reply==='string')?b.reply.trim():'';
+    if(!rep){ const e=new Error('bo\'sh javob'); e._ai={t:"Javob bo'sh keldi. Savolni qaytadan yozib ko'ring.",code:''}; throw e; }
+    on({type:'text',delta:rep});
+    if(b&&Array.isArray(b.sources)&&b.sources.length) on({type:'sources',items:b.sources});
+    on({type:'done',stop_reason:(b&&b.stop_reason)||'',model:(b&&b.model)||'',usage:(b&&b.usage)||null});
+    return;
+  }
+
+  if(!res.body||typeof res.body.getReader!=='function'){
+    const e=new Error('stream yo\'q'); e._ai={t:'Brauzer oqimni qo\'llab-quvvatlamaydi. Sahifani yangilang.',code:''}; throw e;
+  }
+  const reader=res.body.getReader();
+  const dec=new TextDecoder();
+  let buf='';
+  for(;;){
+    const r=await reader.read();
+    if(r.done) break;
+    if(touch) touch();
+    /* ⚠️ Bo'lak hodisaning O'RTASIDAN bo'linishi mumkin — tugallanmagan qism
+       buferda QOLADI. `\r\n` ni butun bufer bo'ylab normallashtiramiz: bo'lak
+       chekkasida qolgan yolg'iz `\r` keyingi bo'lak bilan qo'shilib to'g'rilanadi. */
+    buf=(buf+dec.decode(r.value,{stream:true})).replace(/\r\n/g,'\n');
+    let i;
+    while((i=buf.indexOf('\n\n'))>=0){
+      const chunk=buf.slice(0,i); buf=buf.slice(i+2);
+      const obj=aiSseParse(chunk);
+      if(obj) on(obj);
+    }
+  }
+  buf+=dec.decode();
+  const tail=buf.trim();               // oxirgi hodisa `\n\n` siz tugagan bo'lsa
+  if(tail){ const o=aiSseParse(tail); if(o) on(o); }
+}
+
+// =====================================================================
+//  FAYL / RASM BIRIKTIRISH (`af*`) — 3-bosqich, 3-ish
+// ---------------------------------------------------------------------
+//  Bitta savolga 10 tagacha rasm va 3 tagacha PDF. Rasm → Claude `image`
+//  bloki, PDF → `document` bloki (ikkalasi ham base64).
+//
+//  🔴 HAJM QARORI — kichraytirish MIJOZDA:
+//     base64 hajmni ~33% oshiradi va butun so'rov tanasi Edge Function'ga
+//     bitta JSON bo'lib boradi. Telefonda olingan 8 MB rasm base64 da
+//     ~11 MB bo'lib chegaraga urilardi. Shuning uchun HAR rasm yuborishdan
+//     oldin canvas bilan kichraytiriladi: uzun tomoni 1568px (Claude uchun
+//     optimal — kattasi baribir shu o'lchamga keltiriladi, faqat token va
+//     trafik yoqadi), JPEG sifat 0.85 → odatda ~200–400 KB.
+//     PDF ni siqib bo'lmaydi → bitta fayl 4 MB (base64 ~5.3 MB).
+//     Jami tana 6 MB (base64 hisobida) — mijozda ham, EF da ham tekshiriladi.
+//  ℹ️ Supabase Storage HOZIR SHART EMAS: kichraytirilgandan keyin 10 rasm
+//     ham ~3 MB atrofida qoladi. Kelajakda katta hujjat kerak bo'lsa yo'l
+//     shu — fayl Storage'ga yuklanadi, EF signed URL bilan o'qib base64 ga
+//     o'giradi (Claude'ga `url` manbasi berilmaydi — EF izohiga qara).
+//  🔴 DB GA BASE64 YOZILMAYDI: `ai_messages.content` ga faqat matn + qisqa
+//     belgi (`savol\n\n[2 rasm, chek.pdf]`). Aks holda tarix jadvali
+//     megabaytlarga shishib, suhbat ro'yxati sekinlashardi. Natijasi:
+//     suhbat qayta ochilganda rasmning O'ZI ko'rinmaydi — bu ATAYLAB,
+//     belgi esa nima biriktirilganini aytib turadi.
+//  ⚠️ `apiMsgs()` tarixdan FAQAT matn yuboradi — eski rasm qayta
+//     yuborilmaydi (narx va hajm). Faqat joriy savolning fayllari ketadi.
+// =====================================================================
+const AF_MAX_IMG=10;                 // bitta savolga rasm
+const AF_MAX_DOC=3;                  // bitta savolga PDF
+const AF_PDF_MAX=4*1024*1024;        // bitta PDF (xom bayt)
+const AF_B64_TOTAL=6*1024*1024;      // jami base64 (EF bilan bir xil)
+const AF_ONE_MAX=6*1024*1024;        // bitta blok base64 (EF bilan bir xil)
+const AF_IMG_TYPES=['image/jpeg','image/png','image/gif','image/webp'];
+const AF_MAX_DIM=1568;               // Claude uchun optimal uzun tomon
+const AF_JPEG_Q=0.85;
+const AF_KEEP_MAX=1200*1024;         // shu hajmgacha rasm ASL holida qoladi
+const AF_FX_MS=9000;                 // xato lentasi shuncha turadi
+
+let afFiles=[];      // [{id,kind:'image'|'doc',name,mime,b64,bytes,url}]
+let _afSeq=0;        // chip id
+let _afUrls=[];      // yaratilgan objectURL lar (pufak preview'lari ham ishlatadi)
+let _afBusy=false;   // fayl o'qilmoqda/siqilmoqda
+let _afFxTimer=null;
+
+function afBytesTxt(n){
+  const b=Number(n)||0;
+  if(b<1024) return b+' B';
+  if(b<1048576) return Math.round(b/1024)+' KB';
+  return (b/1048576).toFixed(1).replace(/\.0$/,'')+' MB';
+}
+/* Limit/xato xabari — JIMGINA YUTILMAYDI (CLAUDE.md 6-qoida ruhida):
+   fayl qo'shilmasa foydalanuvchi sababini ko'rishi shart. */
+function afFx(msg){
+  const el=$('aiFx');
+  if(!el){ console.error('AF:',msg); return; }
+  el.textContent=msg; el.className='ai-fx on';
+  if(_afFxTimer) clearTimeout(_afFxTimer);
+  _afFxTimer=setTimeout(()=>{ el.className='ai-fx'; el.textContent=''; },AF_FX_MS);
+}
+function afB64Total(){ return afFiles.reduce((s,f)=>s+f.b64.length,0); }
+function afCount(kind){ return afFiles.filter(f=>f.kind===kind).length; }
+
+/* objectURL ni FAQAT hech kim ishlatmayotgan bo'lsa bo'shatamiz: bitta URL
+   ham chipda, ham yuborilgan xabar pufagida turishi mumkin (xotira sizmasin,
+   lekin tirik preview ham o'lmasin). */
+function afUrlUsed(url){
+  if(!url) return false;
+  if(afFiles.some(f=>f.url===url)) return true;
+  return msgs.some(m=>Array.isArray(m.att)&&m.att.some(a=>a&&a.url===url));
+}
+function afReleaseUrl(url){
+  if(!url||afUrlUsed(url)) return;
+  try{ URL.revokeObjectURL(url); }catch(e){ console.error('objectURL bo\'shatilmadi:',e); }
+  _afUrls=_afUrls.filter(u=>u!==url);
+}
+/* Hammasini bo'shatish — FAQAT `msgs` tozalangandan keyin chaqiriladi
+   (yangi suhbat / boshqa suhbat ochish / joriy suhbatni o'chirish). */
+function afClearAll(){
+  afFiles=[];
+  for(const u of _afUrls){ try{ URL.revokeObjectURL(u); }catch(e){ console.error('objectURL bo\'shatilmadi:',e); } }
+  _afUrls=[];
+  afRender();
+}
+/* Yuborilgan fayllarni composer'dan olib tashlaydi (URL revoke QILINMAYDI —
+   ular endi pufak preview'ida ishlatiladi). Kutish paytida qo'shilgan YANGI
+   fayllar joyida qoladi (id bo'yicha aniq olib tashlaymiz). */
+function afDropSent(sent){
+  if(!sent.length) return;
+  const ids=sent.map(f=>f.id);
+  const rest=afFiles.filter(f=>ids.indexOf(f.id)<0);
+  if(rest.length===afFiles.length) return;
+  afFiles=rest; afRender();
+}
+
+/* Tarix/DB uchun belgi: `[2 rasm, chek.pdf]` */
+function afNote(list){
+  if(!list.length) return '';
+  const imgs=list.filter(f=>f.kind==='image').length;
+  const p=[];
+  if(imgs) p.push(imgs+' rasm');
+  for(const f of list){ if(f.kind==='doc') p.push(String(f.name||'fayl').slice(0,60)); }
+  return '['+p.join(', ')+']';
+}
+/* Claude uchun blokli massiv. 🔴 MATN OXIRIDA — media oldin, savol keyin
+   (Anthropic tavsiyasi: model avval rasmni ko'rib, keyin savolni o'qiydi). */
+function afBlocks(list,text){
+  const b=list.map(f=> f.kind==='image'
+    ? {type:'image',source:{type:'base64',media_type:f.mime,data:f.b64}}
+    : {type:'document',source:{type:'base64',media_type:'application/pdf',data:f.b64}});
+  if(text) b.push({type:'text',text:text});
+  return b;
+}
+
+function afReadB64(blob){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=()=>rej(new Error('fayl o\'qilmadi'));
+    r.onload=()=>{ const s=String(r.result||''); const i=s.indexOf(','); res(i<0?'':s.slice(i+1)); };
+    r.readAsDataURL(blob);
+  });
+}
+/* Rasmni ochish. `createImageBitmap` — EXIF burilishini o'zi to'g'rilaydi
+   (telefon rasmi yonboshlab ketmasin); bo'lmasa <img> zaxirasi. */
+async function afDecode(file){
+  if(typeof createImageBitmap==='function'){
+    try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }
+    catch(e){
+      try{ return await createImageBitmap(file); }
+      catch(e2){ console.error('createImageBitmap ishlamadi:',e2); }
+    }
+  }
+  return await new Promise((res,rej)=>{
+    const u=URL.createObjectURL(file); const im=new Image();
+    im.onload=()=>{ URL.revokeObjectURL(u); res(im); };
+    im.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error('rasm ochilmadi')); };
+    im.src=u;
+  });
+}
+/* Kichraytirish → {blob, mime}. Asl fayl SAQLANADI, agar u allaqachon
+   kichik bo'lsa: shunda PNG/WEBP shaffofligi va GIF asl holida qoladi
+   (canvas'ga chizib JPEG qilsak shaffof joy yo'qolardi). */
+async function afShrink(file){
+  const bmp=await afDecode(file);
+  const iw=bmp.width||bmp.naturalWidth||0, ih=bmp.height||bmp.naturalHeight||0;
+  if(!iw||!ih) throw new Error('rasm o\'lchami aniqlanmadi');
+  const k=Math.min(1,AF_MAX_DIM/Math.max(iw,ih));
+  if(k===1 && file.size<=AF_KEEP_MAX && AF_IMG_TYPES.indexOf(file.type)>=0){
+    if(bmp.close) bmp.close();
+    return {blob:file,mime:file.type};
+  }
+  const w=Math.max(1,Math.round(iw*k)), h=Math.max(1,Math.round(ih*k));
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const cx=cv.getContext('2d');
+  if(!cx||!cv.toBlob) throw new Error('canvas qo\'llab-quvvatlanmaydi');
+  // JPEG shaffoflikni bilmaydi — avval OQ fon (aks holda shaffof joy qora chiqadi)
+  cx.fillStyle='#ffffff'; cx.fillRect(0,0,w,h);
+  cx.drawImage(bmp,0,0,w,h);
+  if(bmp.close) bmp.close();
+  const blob=await new Promise(res=>cv.toBlob(b=>res(b),'image/jpeg',AF_JPEG_Q));
+  if(!blob) throw new Error('rasm siqilmadi');
+  return {blob:blob,mime:'image/jpeg'};
+}
+
+/* Bitta faylni qo'shish. Har rad etishda SABAB ko'rsatiladi. */
+async function afAdd(file){
+  const name=String((file&&file.name)||'fayl').slice(0,120);
+  const type=String((file&&file.type)||'').toLowerCase();
+  const isPdf=(type==='application/pdf')||/\.pdf$/i.test(name);
+  const isImg=/^image\//.test(type)&&!isPdf;
+  if(!isPdf&&!isImg){ afFx('«'+name+'» qo\'shilmadi — faqat rasm (JPEG, PNG, GIF, WEBP) yoki PDF.'); return; }
+  if(isImg&&afCount('image')>=AF_MAX_IMG){ afFx('Rasm chegarasi — bitta savolga ko\'pi bilan '+AF_MAX_IMG+' ta.'); return; }
+  if(isPdf&&afCount('doc')>=AF_MAX_DOC){ afFx('PDF chegarasi — bitta savolga ko\'pi bilan '+AF_MAX_DOC+' ta.'); return; }
+  if(isPdf&&file.size>AF_PDF_MAX){
+    afFx('«'+name+'» — '+afBytesTxt(file.size)+'. PDF ni siqib bo\'lmaydi, shuning uchun chegara '+afBytesTxt(AF_PDF_MAX)+'. Faylni bo\'lib yuboring.');
+    return;
+  }
+
+  let blob=file, mime=isPdf?'application/pdf':type;
+  if(isImg){
+    try{ const r=await afShrink(file); blob=r.blob; mime=r.mime; }
+    catch(e){ console.error('rasm tayyorlanmadi:',e); afFx('«'+name+'» ochilmadi yoki siqilmadi — boshqa rasm tanlang.'); return; }
+  }
+  let b64='';
+  try{ b64=await afReadB64(blob); }
+  catch(e){ console.error('fayl o\'qilmadi:',e); afFx('«'+name+'» o\'qilmadi.'); return; }
+  if(!b64){ afFx('«'+name+'» bo\'sh yoki o\'qilmadi.'); return; }
+  if(b64.length>AF_ONE_MAX){ afFx('«'+name+'» juda katta ('+afBytesTxt(blob.size)+').'); return; }
+  // ⚠️ Chegaralar `await` DAN KEYIN qayta tekshiriladi — o'sha paytda boshqa
+  //    fayl qo'shilgan bo'lishi mumkin (bir necha fayl birdan tanlanganda).
+  if(isImg&&afCount('image')>=AF_MAX_IMG){ afFx('Rasm chegarasi — ko\'pi bilan '+AF_MAX_IMG+' ta.'); return; }
+  if(isPdf&&afCount('doc')>=AF_MAX_DOC){ afFx('PDF chegarasi — ko\'pi bilan '+AF_MAX_DOC+' ta.'); return; }
+  if(afB64Total()+b64.length>AF_B64_TOTAL){
+    afFx('«'+name+'» qo\'shilmadi — jami hajm chegarasi (6 MB). Avval boshqa faylni olib tashlang.');
+    return;
+  }
+
+  let url='';
+  if(isImg){ try{ url=URL.createObjectURL(blob); _afUrls.push(url); }catch(e){ console.error('preview yaratilmadi:',e); url=''; } }
+  afFiles.push({id:'af'+(++_afSeq),kind:isImg?'image':'doc',name:name,mime:mime,b64:b64,bytes:blob.size,url:url});
+  afRender();
+}
+
+function afRender(){
+  const box=$('aiFiles'); if(!box) return;
+  box.className='ai-fl'+(afFiles.length?' on':'');
+  // XSS: fayl nomi FOYDALANUVCHINIKI — escapeHtml() majburiy (atribut ichida ham).
+  box.innerHTML=afFiles.map(f=>{
+    const nm=escapeHtml(String(f.name).slice(0,60));
+    const pv=(f.kind==='image'&&f.url)
+      ? '<img src="'+escapeHtml(f.url)+'" alt="">'
+      : '<span class="ai-chip-ic"><i data-lucide="file-text"></i></span>';
+    return '<div class="ai-chip">'+pv
+      + '<span class="ai-chip-tx"><span class="ai-chip-n" title="'+nm+'">'+nm+'</span>'
+      + '<span class="ai-chip-s">'+escapeHtml(afBytesTxt(f.bytes))+'</span></span>'
+      + '<button type="button" class="ai-chip-x" onclick="aiFileDrop(\''+escapeHtml(f.id)+'\')" title="Olib tashlash" aria-label="Faylni olib tashlash"><i data-lucide="x"></i></button>'
+      + '</div>';
+  }).join('');
+  icons();                 // innerHTML dan keyin — ikonkalar yo'qolmasin
+  window.aiGrow();         // "Yuborish" tugmasi holati fayl soniga ham bog'liq
+}
+
+window.aiFileOpen=()=>{ if(busy||_afBusy) return; const el=$('aiFile'); if(el) el.click(); };
+window.aiFileDrop=id=>{
+  const i=afFiles.findIndex(f=>f.id===id); if(i<0) return;
+  const f=afFiles[i]; afFiles.splice(i,1);
+  afReleaseUrl(f.url); afRender();
+};
+window.aiFilesPick=async inp=>{
+  const list=(inp&&inp.files)?Array.prototype.slice.call(inp.files):[];
+  if(inp) inp.value='';            // bir xil faylni qayta tanlash ishlasin
+  if(!list.length) return;
+  _afBusy=true; window.aiGrow();
+  try{ for(const f of list) await afAdd(f); }
+  catch(e){ console.error('fayl qo\'shilmadi:',e); afFx('Fayl qo\'shilmadi — qaytadan urinib ko\'ring.'); }
+  finally{ _afBusy=false; window.aiGrow(); }
+};
+
+// 2-bosqich uchun tayyor: javob kutilayotganda ko'rsatiladi.
+window.aiTyping=on=>{ const b=$('aiTypingBox'); if(!b) return;
+  b.style.display=on?'flex':'none'; b.setAttribute('aria-hidden',on?'false':'true'); if(on) threadEnd(); };
+
+// Textarea o'z-o'zidan o'sadi (CSS max-height 160px dan keyin scroll)
+// ⚠️ Yuborish faqat matn bilan emas, FAYL bilan ham mumkin (matn bo'sh bo'lsa).
+//    Fayl o'qilayotganda (`_afBusy`) ikkala tugma ham bloklanadi.
+window.aiGrow=()=>{ const el=$('aiInp'); if(!el) return;
+  el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,160)+'px';
+  const s=$('aiSend'); if(s) s.disabled = busy || _afBusy || (!el.value.trim() && !afFiles.length);
+  const c=$('aiClip'); if(c) c.disabled = busy || _afBusy; };
+
+window.aiPick=i=>{ const s=SUGGESTIONS[i]; if(s===undefined) return;
+  const el=$('aiInp'); el.value=s; el.focus(); window.aiGrow(); };
+
+/* Uchayotgan so'rovni bekor qiladi va ESKIRTIRADI (reqSeq) — kechikkan javob
+   bo'shatilgan/almashtirilgan suhbatga tushib qolmasin. `aiNew`, `aicOpenConv`
+   va joriy suhbatni o'chirish — uchalasi shu yerdan o'tadi. */
+function aiAbortFlight(){
+  reqSeq++;
+  if(curCtrl){ try{ curCtrl.abort(); }catch(e){ console.error('abort:',e); } curCtrl=null; }
+  busy=false; window.aiTyping(false);
+  /* Oqim holati ham tozalanadi — chaqiruvchilar (`aiNew`, `aicOpenConv`,
+     joriy suhbatni o'chirish) `msgs` ni baribir almashtiradi, shuning uchun
+     pufakni alohida o'chirish shart emas, faqat havolalar osilib qolmasin. */
+  aiStreamReset();
+}
+
+// Yangi suhbat: joriy suhbat YOPILADI (ro'yxatda qoladi — o'chirilmaydi),
+// ekran bo'shaydi, uchayotgan so'rov bekor qilinadi.
+window.aiNew=()=>{ aiAbortFlight();
+  curConv=null; _aicPend=null; _aicLoadingMsgs=false; msgs=[]; afClearAll(); render(); aicRender(); window.aicClose();
+  const el=$('aiInp'); if(el){ el.value=''; window.aiGrow(); el.focus(); } };
+
+/* Claude API stateless — har safar butun suhbat yuboriladi.
+   Xato qatorlari (`err`) TARIXGA KIRMAYDI: ular agent javobi emas.
+   ⚠️ Suhbat endi DB dan yuklanadi va uzun bo'lishi mumkin, EF chegarasi esa
+      qat'iy (<=20 xabar, <=20000 belgi, BIRINCHI xabar 'user'). Shuning uchun
+      oxirgi xabarlar KESIB olinadi — aks holda eski suhbatni davom ettirganda
+      EF `bad_input` qaytarardi. Qisqa suhbatda xatti-harakat o'zgarmaydi. */
+const AI_HIST_MAX=20;        // EF: ko'pi bilan 20 xabar
+const AI_HIST_CHARS=20000;   // EF: jami belgi chegarasi
+const AI_HIST_ONE=4000;      // EF: BITTA xabar chegarasi (HAR rol uchun)
+/* `blocks` — joriy savolning fayl bloklari (bo'lmasa null). Berilsa OXIRGI
+   `user` xabarining `content`i o'sha massiv bilan almashtiriladi (matn ham
+   ichida — `afBlocks`). Almashtirish EN OXIRIDA: yuqoridagi kesish hisoblari
+   `content.length` ga tayanadi, ya'ni STRING bo'lishi shart. */
+function apiMsgs(blocks){
+  let a=msgs.filter(m=>m.role==='me'||m.role==='bot')
+            .map(m=>{
+              let t=String(m.text==null?'':m.text);
+              /* 🔴 Diagramma bloki tarixda QISQARTIRILADI (`[diagramma: nom]`):
+                 u 4000 belgilik chegarani yolg'iz o'zi yeb qo'yishi mumkin va
+                 modelga o'z chizgan JSON'i xom holida qaytishi shart emas.
+                 ⚠️ Ekranda va DB da blok TO'LIQ qoladi (chart qayta chiziladi). */
+              if(m.role!=='me') t=achForHistory(t);
+              /* Eski xabarning FAYL BELGISI tarixga qo'shiladi (`[2 rasm]`):
+                 rasmning o'zi qayta yuborilmaydi (narx/hajm), lekin model
+                 "u yerda chek rasmi bor edi" kontekstini yo'qotmasin. */
+              if(m.role==='me'&&m.note) t=t?(t+'\n\n'+m.note):m.note;
+              return {role:m.role==='me'?'user':'assistant',content:t};
+            });
+  /* 🔴 HAR XABAR ALOHIDA KESILADI. EF `MSG_MAX_LEN=4000` ni HAR ROLGA
+     qo'llaydi (faqat user emas), `max_tokens` esa 8000 — ya'ni web_search
+     bilan 4000 belgidan uzun AI javobi ODATIY hol. Busiz shunday javobi bor
+     suhbat qayta ochilganda EF abadiy 400 `bad_input` berardi va chat
+     butunlay qotib qolardi (F5 ham qutqarmasdi — tarix endi DB da).
+     Kesilgan eski javob modelga kontekst sifatida yetarli. */
+  for(const m of a){
+    if(m.content.length>AI_HIST_ONE) m.content=m.content.slice(0,AI_HIST_ONE-1)+'…';
+  }
+  if(a.length>AI_HIST_MAX) a=a.slice(-AI_HIST_MAX);
+  while(a.length && a[0].role!=='user') a.shift();          // birinchi xabar 'user' bo'lsin
+  let tot=a.reduce((s,m)=>s+m.content.length,0);
+  while(a.length>1 && tot>AI_HIST_CHARS){                   // eng eskisidan kesamiz
+    tot-=a[0].content.length; a.shift();
+    while(a.length>1 && a[0].role!=='user'){ tot-=a[0].content.length; a.shift(); }
+  }
+  if(blocks && a.length && a[a.length-1].role==='user') a[a.length-1].content=blocks;
+  return a;
+}
+
+window.aiSend=async()=>{
+  if(busy||_afBusy) return;              // fayl hali o'qilmoqda bo'lsa ham kutamiz
+  const el=$('aiInp'); const text=(el.value||'').trim();
+  /* 🔴 Biriktirmalar SHU YERDA nusxalanadi (`sent`): javob kutilayotganda
+     foydalanuvchi yangi fayl qo'shishi mumkin, ular BU savolga tegishli emas. */
+  const sent=afFiles.slice();
+  if(!text && !sent.length) return;      // na matn, na fayl — yuborilmaydi
+  const note=afNote(sent);               // DB/tarix uchun belgi: `[2 rasm, chek.pdf]`
+  /* 🔴 DB ga base64 EMAS, matn + belgi yoziladi (tarix shishmasin).
+     `ai_messages.content` CHECK: 1..200000 belgi — matn bo'sh bo'lsa belgi qoladi. */
+  const dbText=text?(note?text+'\n\n'+note:text):note;
+  const att=sent.map(f=>({kind:f.kind,name:f.name,url:f.url}));
+  push('me',text,null,{att:att.length?att:null,note:note||null});
+  el.value=''; window.aiGrow(); el.focus();
+  busy=true; $('aiSend').disabled=true;
+
+  const my=++reqSeq;
+
+  /* 🔴 So'rov tanasi OQIM PUFAGIDAN OLDIN quriladi: `apiMsgs()` `msgs` dan
+     o'qiydi, oqim pufagi esa BO'SH matn bilan boshlanadi va tarixga
+     `{role:'assistant',content:''}` bo'lib tushib qolardi (EF uni `bad_input`
+     bilan rad etardi). */
+  const payload={messages:apiMsgs(sent.length?afBlocks(sent,text):null)};
+
+  /* ---- DB: suhbat + savol (PROVODKA_AI_CHAT.sql 9-BO'LIM shartnomasi) ----
+     Suhbat AYNAN SHU YERDA yaratiladi (sahifa ochilishida emas) — aks holda
+     har kirishda bo'sh suhbat yon panelni to'ldirardi.
+     🔴 DB xatosi chatni TO'XTATMAYDI: ogohlantirish ko'rsatiladi, savol
+        baribir AI ga ketadi (jimgina yutish yo'q — `aicNote` + console.error). */
+  let convId=curConv;
+  let savedUserId=null;          // `bad_input` da shu qator DB dan olib tashlanadi
+  if(!_aicMissing){
+    if(!convId){
+      // Sarlavha — YOZILGAN savoldan (fayl belgisisiz, u yerda o'rin band qilmasin);
+      // faqat matn bo'lmasa belgi ishlatiladi ("[2 rasm]").
+      convId=await aicCreateConv(text||note);
+      if(convId && my===reqSeq) curConv=convId;   // eskirgan bo'lsa joriy suhbatni almashtirmaymiz
+    }
+    if(convId){
+      savedUserId=await aicSaveMsg(convId,'user',dbText,null,null);
+      if(savedUserId) aicTouch(convId);
+    }
+    // «Yangi suhbat» yoki boshqa suhbat ochilgan bo'lsa — EF ga bormaymiz.
+    // (Savol DB da qoldi: u haqiqatan berilgan, tarixdan yo'qolmasin.)
+    if(my!==reqSeq) return;
+  }
+
+  const ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  curCtrl=ctrl;
+  /* ⏱ IKKI TAYMER (oqim uchun): jimlik va qattiq shift. Oqim kelayotgan
+     bo'lsa UZILMAYDI — har bo'lakda `armIdle` qayta uriladi (EF har 15s
+     `: ping` yuboradi, ya'ni tirik ulanish hech qachon jim qolmaydi). */
+  let timedOut=false;
+  let idleTimer=null;
+  const stopNow=()=>{ if(ctrl){ try{ ctrl.abort(); }catch(e){ console.error('AI so\'rovi bekor qilinmadi:',e); } } };
+  const armIdle=ms=>{ if(idleTimer) clearTimeout(idleTimer);
+    idleTimer=setTimeout(()=>{ timedOut=true; stopNow(); },ms); };
+  armIdle(AI_FIRST_MS);                                  // birinchi baytgacha
+  const hardTimer=setTimeout(()=>{ timedOut=true; stopNow(); },AI_TOTAL_MS);
+
+  aiStreamStart();                 // bo'sh bot pufagi + "💭 Ulanmoqda…"
+  const stMsg=_st;                 // `_st` abort/almashtirishda null bo'lishi mumkin
+  let streamErr=null;              // oqim ICHIDAN kelgan xato ({type:'error'})
+  let doneModel=null;
+
+  try{
+    await aiStreamFetch(payload,ctrl,ev=>{
+      const t=ev&&ev.type;
+      if(t==='text'&&typeof ev.delta==='string') aiStAddText(ev.delta);
+      else if(t==='thinking'&&typeof ev.delta==='string') aiStAddThink(ev.delta);
+      else if(t==='status') aiStSetStatus(aiStatusLine(ev));
+      else if(t==='sources'&&Array.isArray(ev.items)) aiStSetSrc(ev.items);
+      else if(t==='done'){ if(typeof ev.model==='string') doneModel=ev.model; aiStSetStatus(''); }
+      else if(t==='error'){
+        streamErr={t:(typeof ev.error==='string'&&ev.error.trim())?ev.error.trim()
+                     :"AI javob bermadi. Keyinroq urinib ko'ring.",
+                   code:String((ev&&ev.code)||'')};
+      }
+    },()=>armIdle(AI_IDLE_MS));
+
+    const reply=String((stMsg&&stMsg.text)||'').trim();
+    const src=(stMsg&&Array.isArray(stMsg.src))?stMsg.src:null;
+    /* Chiplar FAQAT haqiqiy javobdan keyin tozalanadi — xatoda fayllar
+       composer'da QOLADI, foydalanuvchi qayta yubora oladi (qayta tanlash
+       va qayta siqish shart emas). URL lar revoke QILINMAYDI: ular endi
+       yuborilgan xabar pufagidagi preview'da ishlatiladi. */
+    if(reply) afDropSent(sent);
+    /* Javobni saqlash — faqat HAQIQIY javob kelgach (soxta qator yozilmaydi).
+       🔴 DB ga DELTA emas, TUGAGAN javob yoziladi (bitta insert).
+       🔴 Saqlash EKRANDAN OLDIN: foydalanuvchi javob kutayotib boshqa suhbatga
+          o'tsa ham javob O'Z suhbatiga yoziladi. */
+    if(reply && convId && !_aicMissing){
+      const ok=await aicSaveMsg(convId,'assistant',reply,src,doneModel);
+      if(ok) aicTouch(convId);           // yon panelda tepaga (qayta so'rovsiz)
+    }
+    if(my!==reqSeq) return;              // boshqa suhbat ochilgan — EKRANGA tegmaymiz
+    if(reply) aiStreamEnd(); else aiStreamDrop();
+    // Oqim o'rtasidagi xato: matn bo'lsa u QOLADI, ustiga kehribar izoh qo'shiladi.
+    if(streamErr) push('err',streamErr.t);
+    else if(!reply) push('err',"Javob bo'sh keldi. Savolni qaytadan yozib ko'ring.");
+  }catch(e){
+    console.error('AI so\'rov xatosi:',e);
+    const partial=String((stMsg&&stMsg.text)||'').trim();
+    /* Yarim javob ham TO'LANGAN javob: vaqt tugab uzilsa uni DB da saqlab
+       qolamiz. Foydalanuvchi suhbatni ALMASHTIRGAN bo'lsa saqlamaymiz —
+       u boshqa oqimni bekor qilgan, bu javob unga kerak emas. */
+    if(timedOut && partial && convId && !_aicMissing){
+      const ok=await aicSaveMsg(convId,'assistant',
+        partial+"\n\n⚠️ Javob to'liq kelmadi (ulanish uzildi).",
+        (stMsg&&Array.isArray(stMsg.src))?stMsg.src:null,doneModel);
+      if(ok) aicTouch(convId);
+    }
+    if(my!==reqSeq) return;              // foydalanuvchi almashtirdi — jimgina chiqamiz
+    const r=timedOut
+      ? {t:partial?"Javob to'liq kelmadi — ulanish uzildi. Qaytadan urinib ko'ring."
+                  :"Javob kelmadi (vaqt tugadi). Qaytadan urinib ko'ring.",code:'timeout'}
+      : ((e&&e._ai)?e._ai:{t:"AI javob bermadi. Keyinroq urinib ko'ring.",code:''});
+    if(partial){ afDropSent(sent); aiStreamEnd(); } else aiStreamDrop();
+    push('err',r.t);
+    /* 🔴 Server RAD ETGAN xabar tarixda QOLMASIN: apiMsgs() uni har so'rovda
+       qayta yuborardi va chat butunlay qotib qolardi (har urinish o'sha 400).
+       Matn inputga qaytariladi — foydalanuvchi qisqartirib yubora oladi. */
+    if(r.code==='bad_input'){
+      for(let i=msgs.length-1;i>=0;i--){ if(msgs[i].role==='me'){ msgs.splice(i,1); break; } }
+      render();
+      if(el && !el.value){ el.value=text; window.aiGrow(); }
+      // DB dan ham olib tashlaymiz — aks holda har urinishda dublikat to'planardi.
+      if(savedUserId) aicDropMsg(savedUserId);
+    }
+  }finally{
+    clearTimeout(hardTimer);
+    if(idleTimer) clearTimeout(idleTimer);
+    if(curCtrl===ctrl) curCtrl=null;
+    // Har ehtimolga qarshi: erta `return` yo'lida pufak "oqimda" qolib ketmasin.
+    if(_st===stMsg) aiStreamEnd();
+    if(my===reqSeq){ busy=false; window.aiTyping(false); window.aiGrow(); }
+  }
+};
+
+$('aiInp').addEventListener('keydown',e=>{
+  if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); window.aiSend(); }
+});
+
+// =====================================================================
+//  SUHBAT TARIXI + YON PANEL (`aic*`) — 3-bosqich, 2-ish
+// ---------------------------------------------------------------------
+//  Sxema va so'rovlar: `PROVODKA_AI_CHAT.sql` 9-BO'LIM (MIJOZ SHARTNOMASI).
+//    ai_conversations(id, user_id, title, created_at, updated_at, is_deleted)
+//    ai_messages(id, conversation_id, user_id, role, content, sources, model, created_at)
+//
+//  🔴 Har so'rovda `{data,error}` — supabase-js THROW QILMAYDI (CLAUDE.md 6-qoida).
+//     Xato jimgina yutilmaydi: console.error + foydalanuvchiga o'zbekcha izoh.
+//  🔴 `user_id` MIJOZDAN YUBORILMAYDI — DB defaulti `auth.uid()` to'ldiradi
+//     (boshqa qiymat yuborilsa RLS 42501 bilan rad etadi).
+//  🔴 O'chirish — SOFT (`is_deleted=true`). `.delete()` ISHLATILMAYDI.
+//  🔴 SQL hali RUN qilinmagan bo'lishi mumkin: jadval yo'q xatosi aniqlansa
+//     `_aicMissing=true` → panel olib tashlanadi, chat XOTIRA rejimida
+//     avvalgidek ishlayveradi (hech narsa ishdan chiqmaydi).
+//  ⚠️ Ro'yxatda `.eq('user_id', ...)` YOZILMAYDI — RLS o'zi filtrlaydi.
+// =====================================================================
+const AIC_LIMIT=50;          // yon panelda ko'rsatiladigan suhbat soni
+const AIC_TITLE_MAX=60;      // sarlavha uzunligi (DB CHECK 200)
+const AIC_DEL_MS=6000;       // "O'chirish?" tasdiqi shuncha kutadi, keyin o'zi bekor bo'ladi
+const AIC_NOTE_MS=10000;     // ogohlantirish lentasi shuncha turadi
+
+let convs=[];                // [{id,title,updated_at}] — yon panel ro'yxati
+let curConv=null;            // joriy suhbat id (null = hali yaratilmagan)
+let _aicMissing=false;       // jadval yo'q → xotira rejimi
+let _aicLoadingMsgs=false;   // suhbat xabarlari o'qilmoqda
+let _aicSeq=0;               // suhbat almashtirishni eskirtirish
+let _aicPend=null;           // o'chirish tasdiqi kutayotgan suhbat id
+let _aicPendTimer=null;
+let _aicNoteTimer=null;
+
+/* Xato matni — 42501 (RLS) odam tiliga o'giriladi (perms.js `permErr`). */
+function aicErrText(e){
+  const code=String((e&&e.code)||'');
+  const raw=(e && (e.message||e.details))||String(e||'');
+  /* ⚠️ `permErr()` ISHLATILMAYDI: u 42501 ni "bu KASSADA amaliyot qilish
+     huquqingiz yo'q" ga aylantiradi — AI chatda "kassa" so'zi mantiqsiz
+     (u pul guardi uchun yozilgan). Bu yerda o'z matnimiz. */
+  if(code==='42501'||/row-level security|42501/i.test(raw)) return "Ruxsat yo'q (suhbat tarixi).";
+  if(/failed to fetch|networkerror|load failed/i.test(raw)) return "Tarmoq xatosi. Internetni tekshiring.";
+  return raw;
+}
+
+/* Jadval yo'qmi? PostgREST sxema keshida topilmasa PGRST205, SQL darajasida 42P01. */
+function aicIsMissing(e){
+  const code=String((e&&e.code)||'');
+  if(code==='42P01'||code==='PGRST205'||code==='PGRST106') return true;
+  // ⚠️ PGRST204 = USTUN topilmadi (jadval BOR) — xotira rejimiga tushirmaydi,
+  //    aks holda "schema cache" so'zi tufayli har ustun xatosi panelni o'chirardi.
+  if(code==='PGRST204'||code==='42501') return false;
+  const m=String((e&&(e.message||e.details||e.hint))||'');
+  return /could not find the table|relation .* does not exist/i.test(m);
+}
+
+/* Ingichka ogohlantirish lentasi (chat maydonining tepasida — mobil'da drawer
+   yopiq bo'lsa ham ko'rinadi). `sticky` — o'zi yo'qolmaydi. */
+function aicNote(text,sticky){
+  const el=$('aicNote'); if(!el) return;
+  el.textContent=text; el.style.display='block';
+  if(_aicNoteTimer){ clearTimeout(_aicNoteTimer); _aicNoteTimer=null; }
+  if(!sticky) _aicNoteTimer=setTimeout(()=>{ if(_aicMissing) return; el.style.display='none'; el.textContent=''; },AIC_NOTE_MS);
+}
+/* Panel ichidagi ogohlantirish (ro'yxat o'qilmagan holat) */
+function aicWarn(text){
+  const el=$('aicWarn'); if(!el) return;
+  if(!text){ el.style.display='none'; el.textContent=''; return; }
+  el.textContent=text; el.style.display='block';
+}
+
+/* Panelni butunlay olib tashlash (chat o'z joyiga qaytadi).
+   Ikki holatda: jadval yo'q (aicOff) va "Ruxsat yo'q" ekrani (enterApp). */
+function aicHidePanel(){
+  document.body.classList.add('aic-off');
+  const p=$('aicPanel'); if(p){ p.classList.remove('open'); p.style.display='none'; }
+  const ov=$('aicOv'); if(ov) ov.classList.remove('open');
+}
+
+/* XOTIRA REJIMI — SQL ishga tushirilmagan. Panel yo'qoladi, chat ishlayveradi. */
+function aicOff(){
+  if(_aicMissing) return;
+  _aicMissing=true; convs=[]; curConv=null; _aicPend=null;
+  aicHidePanel();
+  const h=$('aiHintSave'); if(h) h.textContent='Suhbat faqat shu oyna ochiq turganda saqlanadi.';
+  aicNote("Suhbat tarixi yoqilmagan — PROVODKA_AI_CHAT.sql ishga tushirilmagan. Chat ishlayveradi, lekin suhbatlar saqlanmaydi.",true);
+  console.warn('ai_conversations/ai_messages topilmadi — suhbat tarixi XOTIRA rejimida.');
+}
+
+/* Inline handler'ga tushadigan id — faqat uuid shakli o'tadi (qo'shimcha qorovul). */
+function aicSafeId(id){ const s=String(id||''); return /^[0-9a-f-]{20,40}$/i.test(s)?s:''; }
+
+/* Sarlavha — birinchi savoldan, bir qatorga siqilib ~60 belgi (DB CHECK 200). */
+function aicTitle(q){
+  let t=String(q==null?'':q).replace(/\s+/g,' ').trim();
+  if(!t) return 'Yangi suhbat';
+  if(t.length>AIC_TITLE_MAX) t=t.slice(0,AIC_TITLE_MAX-1).trim()+'…';
+  return t.slice(0,200);
+}
+
+// Vaqt — Toshkent (UTC+5), `nowHM` bilan bir xil naqsh
+function aicTz(ms){ return new Date(ms+5*3600*1000).toISOString(); }
+function aicHM(iso){ const t=Date.parse(iso); return isNaN(t)?nowHM():aicTz(t).slice(11,16); }
+function aicWhen(iso){
+  const t=Date.parse(iso); if(isNaN(t)) return '';
+  const d=aicTz(t).slice(0,10), now=aicTz(Date.now()), today=now.slice(0,10);
+  if(d===today) return aicTz(t).slice(11,16);
+  if(d===aicTz(Date.now()-86400000).slice(0,10)) return 'kecha';
+  return d.slice(8,10)+'.'+d.slice(5,7)+(d.slice(0,4)!==today.slice(0,4)?'.'+d.slice(2,4):'');
+}
+
+function aicLoadingHtml(){
+  return '<div class="ai-empty"><div class="ai-ava"><i data-lucide="sparkles"></i></div>'
+    + '<h2>Yuklanmoqda…</h2><p>Suhbat xabarlari o\'qilmoqda.</p></div>';
+}
+
+// ---- ro'yxat -------------------------------------------------------------
+async function aicLoad(){
+  if(_aicMissing) return;
+  try{
+    const {data,error}=await sb.from('ai_conversations')
+      .select('id, title, updated_at')
+      .eq('is_deleted',false)
+      .order('updated_at',{ascending:false})
+      .limit(AIC_LIMIT);
+    if(error){
+      if(aicIsMissing(error)){ aicOff(); return; }
+      console.error("Suhbatlar ro'yxati o'qilmadi:",error);
+      aicWarn("Ro'yxat o'qilmadi: "+aicErrText(error));
+      return;
+    }
+    aicWarn('');
+    convs=Array.isArray(data)?data:[];
+    aicRender();
+  }catch(e){
+    console.error("Suhbatlar ro'yxati o'qilmadi (kutilmagan):",e);
+    aicWarn("Ro'yxat o'qilmadi: "+aicErrText(e));
+  }
+}
+
+function aicRender(){
+  const box=$('aicList'); if(!box||_aicMissing) return;
+  if(!convs.length){
+    box.innerHTML='<div class="aic-empty">Hozircha suhbat yo\'q. Savol yozing — suhbat shu yerda saqlanadi.</div>';
+    icons(); return;
+  }
+  // XSS: sarlavha ham, id ham escapeHtml() dan o'tadi; id qo'shimcha uuid filtridan ham.
+  box.innerHTML=convs.map(c=>{
+    const id=aicSafeId(c.id); if(!id) return '';
+    const t=c.title||'Yangi suhbat';
+    const act=(id===curConv)?' active':'';
+    const pend=(id===_aicPend);
+    return '<div class="aic-item'+act+(pend?' pend':'')+'">'
+      + '<button type="button" class="aic-open" onclick="aicOpenConv(\''+escapeHtml(id)+'\')" title="'+escapeHtml(t)+'">'
+      +   '<span class="aic-t">'+escapeHtml(t)+'</span>'
+      +   '<span class="aic-d">'+escapeHtml(aicWhen(c.updated_at))+'</span>'
+      + '</button>'
+      + (pend
+          ? '<span class="aic-cf"><button type="button" class="aic-yes" onclick="aicDelDo(\''+escapeHtml(id)+'\')">O\'chirish</button>'
+            + '<button type="button" class="aic-no" onclick="aicDelCancel()">Bekor</button></span>'
+          : '<button type="button" class="aic-del" onclick="aicDelAsk(\''+escapeHtml(id)+'\')" title="O\'chirish" aria-label="Suhbatni o\'chirish"><i data-lucide="trash-2"></i></button>')
+      + '</div>';
+  }).join('');
+  icons();   // innerHTML dan keyin — panel ikonkalari yo'qolmasin
+}
+
+/* Suhbatni ro'yxat TEPASIGA ko'chiradi (server `updated_at` ni trigger bilan
+   yangilaydi — ro'yxat QAYTA SO'RALMAYDI). */
+function aicTouch(id){
+  const i=convs.findIndex(c=>c.id===id); if(i<0) return;
+  const row=convs[i]; row.updated_at=new Date().toISOString();
+  convs.splice(i,1); convs.unshift(row); aicRender();
+}
+
+// ---- suhbatni ochish -----------------------------------------------------
+window.aicOpenConv=async id=>{
+  id=aicSafeId(id); if(!id||_aicMissing) return;
+  window.aicClose(); window.aicDelCancel();
+  if(id===curConv && msgs.length){ aicRender(); return; }
+  aiAbortFlight();                       // uchayotgan javob eski suhbatga tegishli
+  const my=++_aicSeq;
+  // Biriktirilgan (hali yuborilmagan) fayllar oldingi suhbatga tegishli — tozalanadi.
+  curConv=id; msgs=[]; afClearAll(); _aicLoadingMsgs=true; render(); aicRender(); window.aiGrow();
+  const {data,error}=await sb.from('ai_messages')
+    .select('id, role, content, sources, model, created_at')
+    .eq('conversation_id',id)
+    .order('created_at',{ascending:true});
+  if(my!==_aicSeq) return;               // boshqa suhbat ochildi — javob eskirdi
+  _aicLoadingMsgs=false;
+  if(error){
+    if(aicIsMissing(error)){ aicOff(); render(); return; }
+    console.error("Suhbat xabarlari o'qilmadi:",error);
+    msgs=[]; render();
+    push('err',"Suhbat ochilmadi: "+aicErrText(error));
+    return;
+  }
+  msgs=(Array.isArray(data)?data:[]).map(r=>({
+    role:(r.role==='user')?'me':'bot',
+    text:String(r.content==null?'':r.content),
+    at:aicHM(r.created_at),
+    src:Array.isArray(r.sources)?r.sources:null
+  }));
+  render(); window.aiGrow();
+};
+
+// ---- yozish --------------------------------------------------------------
+/* Suhbat BIRINCHI savol yuborilganda yaratiladi (sahifa ochilishida emas) —
+   bo'sh suhbatlar yon panelni to'ldirmasin. `user_id` YUBORILMAYDI. */
+async function aicCreateConv(firstQ){
+  if(_aicMissing) return null;
+  const {data,error}=await sb.from('ai_conversations')
+    .insert({title:aicTitle(firstQ)})
+    .select('id, title, updated_at')
+    .single();
+  if(error){
+    if(aicIsMissing(error)){ aicOff(); return null; }
+    console.error('Suhbat yaratilmadi:',error);
+    aicNote("Suhbat saqlanmadi: "+aicErrText(error)+" — javob baribir keladi, lekin bu suhbat tarixga tushmaydi.");
+    return null;
+  }
+  if(!data||!data.id){
+    console.error("Suhbat yaratilmadi: bo'sh javob");
+    aicNote("Suhbat saqlanmadi — server bo'sh javob qaytardi.");
+    return null;
+  }
+  convs.unshift({id:data.id,title:data.title||aicTitle(firstQ),updated_at:data.updated_at||new Date().toISOString()});
+  if(convs.length>AIC_LIMIT) convs.length=AIC_LIMIT;
+  aicRender();
+  return data.id;
+}
+
+/* Bitta xabar. `sources`/`model` faqat assistant'da bo'ladi, aks holda null. */
+async function aicSaveMsg(convId,role,content,src,model){
+  if(_aicMissing||!convId) return false;
+  const text=String(content==null?'':content);
+  if(!text) return false;                                  // DB CHECK: bo'sh matn yozilmaydi
+  const {data,error}=await sb.from('ai_messages').insert({
+    conversation_id:convId,
+    role:role,
+    content:text.slice(0,200000),
+    sources:(Array.isArray(src)&&src.length)?src:null,
+    model:model||null
+  }).select('id').single();
+  if(error){
+    if(aicIsMissing(error)){ aicOff(); return false; }
+    console.error('Xabar saqlanmadi:',error);
+    aicNote((role==='user'?'Savol':'Javob')+" tarixga yozilmadi: "+aicErrText(error));
+    return false;
+  }
+  // Qator id qaytadi (truthy) — chaqiruvchilar uni `if(ok)` deb ham ishlata oladi.
+  return (data && data.id) ? data.id : true;
+}
+
+/* Server RAD ETGAN savolni tarixdan olib tashlaydi.
+   🔴 Nega kerak: savol EF dan OLDIN yoziladi (yo'qolmasin uchun). EF uni
+   `bad_input` bilan rad etsa, foydalanuvchi tuzatib qayta yuboradi va DB da
+   IKKI nusxa qolardi — har urinishda yana bittadan. Bu qator hech qachon
+   qabul qilinmagan, shuning uchun soft-delete emas, haqiqiy o'chirish
+   ("hech narsa o'chirilmaydi" qoidasi buxgalteriya yozuvlariga tegishli). */
+async function aicDropMsg(id){
+  if(_aicMissing||!id||typeof id!=='string') return;
+  const {error}=await sb.from('ai_messages').delete().eq('id',id).select('id');
+  if(error) console.error('Rad etilgan savol tarixdan olinmadi:',error);
+}
+
+// ---- o'chirish (SOFT) ----------------------------------------------------
+window.aicDelAsk=id=>{
+  id=aicSafeId(id); if(!id||_aicMissing) return;
+  _aicPend=id; aicRender();
+  if(_aicPendTimer) clearTimeout(_aicPendTimer);
+  _aicPendTimer=setTimeout(()=>{ if(_aicPend===id) aicDelCancel(); },AIC_DEL_MS);
+};
+window.aicDelCancel=()=>{
+  if(_aicPendTimer){ clearTimeout(_aicPendTimer); _aicPendTimer=null; }
+  if(!_aicPend) return;
+  _aicPend=null; aicRender();
+};
+window.aicDelDo=async id=>{
+  id=aicSafeId(id); if(!id||_aicMissing) return;
+  window.aicDelCancel();
+  const {data,error}=await sb.from('ai_conversations')
+    .update({is_deleted:true})            // 🔴 SOFT — `.delete()` emas
+    .eq('id',id)
+    .select('id');
+  if(error){
+    if(aicIsMissing(error)){ aicOff(); return; }
+    console.error("Suhbat o'chirilmadi:",error);
+    aicNote("Suhbat o'chirilmadi: "+aicErrText(error));
+    return;
+  }
+  // 🔴 Bo'sh massiv = qator YANGILANMAGAN (RLS to'sdi yoki id boshqa) — "o'chirildi" demaymiz.
+  if(!Array.isArray(data)||!data.length){
+    console.error("Suhbat o'chirilmadi: qator yangilanmadi (RLS yoki noto'g'ri id)");
+    aicNote("Suhbat o'chirilmadi — qator topilmadi yoki ruxsat yo'q.");
+    return;
+  }
+  convs=convs.filter(c=>c.id!==id);
+  if(curConv===id){ aiAbortFlight(); curConv=null; _aicLoadingMsgs=false; msgs=[]; afClearAll(); render(); window.aiGrow(); }
+  aicRender();
+};
+
+// ---- mobil drawer --------------------------------------------------------
+window.aicOpen=()=>{
+  if(_aicMissing) return;
+  const p=$('aicPanel'); const ov=$('aicOv');
+  if(p) p.classList.add('open'); if(ov) ov.classList.add('open');
+};
+window.aicClose=()=>{
+  const p=$('aicPanel'); const ov=$('aicOv');
+  if(p) p.classList.remove('open'); if(ov) ov.classList.remove('open');
+};
+window.aicToggle=()=>{
+  const p=$('aicPanel'); if(!p||_aicMissing) return;
+  if(p.classList.contains('open')) window.aicClose(); else window.aicOpen();
+};
+
+// Esc — avval drawer, keyin o'chirish tasdiqi, oxirida (embed'da) widget panelini yopish
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  const p=$('aicPanel');
+  if(p && p.classList.contains('open')){ window.aicClose(); return; }
+  if(_aicPend){ window.aicDelCancel(); return; }
+  aiEmbedClose();          // iframe ichida: ota sahifadagi panelni yopadi
+});
+
+async function init(){
+  render();
+  window.aiGrow();
+  await Promise.all([loadRole(), aicLoad()]);
+}
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
+// Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
+// const/let'lar hali initsializatsiya bo'lmagan bo'ladi (TDZ: "Cannot access X before initialization").
+boot();
+</script>
+</body>
+</html>
