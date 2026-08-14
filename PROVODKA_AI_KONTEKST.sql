@@ -880,7 +880,8 @@ $tekshir$;
 select p.proname                                   as funksiya,
        pg_get_function_arguments(p.oid)            as argumentlar,
        case when p.prosecdef then '✅ definer' else '❌ invoker' end as xavfsizlik,
-       case when p.provolatile = 's' then '✅ stable' else '❌ ' || p.provolatile end as turg_unlik,
+       -- provolatile "char" tipida: || uchun aniq text cast shart, aks holda operator noaniq (42725)
+       case when p.provolatile = 's' then '✅ stable' else '❌ ' || p.provolatile::text end as turg_unlik,
        case when exists (select 1 from pg_roles where rolname='anon')
                  and has_function_privilege('anon', p.oid, 'execute')
             then '❌ anon OCHIQ' else '✅ anon yopiq' end as anon,
