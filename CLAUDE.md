@@ -430,6 +430,34 @@ Qolgani: 3 — web_search bilan real-time qonunchilik, 4 — Provodka DB konteks
   (`perm_has_page` o'sha yerda) + `PROVODKA_AI_AGENT.sql`. Birinchi so'rovdan keyin
   `supabase functions logs ai-chat` — 400 kelsa `thinking`/`output_config` qatorlarini olib tashlash.
 
+### 4-bosqich (2026-08-14) — `BRIEF_PROVODKA_AI_4.md`, 4 ish
+**1–2. SSE streaming + thinking**: EF `text/event-stream` qaytaradi. Hodisalar: `status`
+(`thinking|search|read|tool`) · `thinking` · `text` · `sources` · `done` · `error`, har 15s `: ping`.
+🔴 Auth/ruxsat/rate-limit/validatsiya **stream boshlanishidan OLDIN** — ular hamon JSON 401/403/429/400.
+Oqim boshlangach HTTP statusni o'zgartirib bo'lmaydi → xato `{type:'error'}` hodisasi bo'lib boradi.
+`pause_turn` va `tool_use` **bitta oqim ichida** davom etadi (yangi pufak ochilmaydi). Mijoz
+`sb.functions.invoke` dan **`fetch` + `ReadableStream`** ga o'tdi (invoke stream qila olmaydi);
+delta'da butun ro'yxat qayta chizilmaydi — faqat oqim pufagining tugunlari. Eski JSON javob uchun
+mijozda **zaxira** bor (EF deploy qilinmagan bo'lsa ham chat ishlaydi).
+`thinking.display:'summarized'` yoqilgan (avval bo'sh kelardi) — qo'shimcha token, `AI_THINKING_DISPLAY=omitted`
+bilan o'chadi; API rad etsa tur avtomat `display` siz qayta chaqiriladi. **`AI_EFFORT` endi CHEGARA**
+(ceiling), `pickEffort()` savolga qarab tanlaydi: salom→low, oddiy→medium, hisob/tahlil/qonun/uzun/rasm→high.
+**3. Aros konteksti**: 24 filial, avto ehtiyot + elektronika, double-entry, kassa/pul turi/valyuta/
+transfer, 4010/6010. 🔴 "MAJBURAN BOG'LAMA" bandi — aloqasi bo'lmasa Aros tilga olinmaydi.
+**4. Provodka DB — tool calling**: `PROVODKA_AI_KONTEKST.sql` (**RUN kutilmoqda**) — 3 ta RPC
+(`ai_ctx_kassa`, `ai_ctx_qarzdor`, `ai_ctx_transfer`), hammasi `security definer`, **foydalanuvchi ID
+argumenti YO'Q** (faqat `auth.uid()`), `auth.uid() is null` → **bo'sh** (mavjud `perm_has_page` ning
+fail-OPEN naqshi ataylab takrorlanmagan). Kassa filtri `perm_op_key()` — mijozdagi `keyOf()` bilan
+bir xil qoida (valyuta/pul turi bolalari ruxsatni parentdan oladi). Transferda begona tomonning
+kodi/nomi **va izohi** yashiriladi (izohda kassa nomi turadi). 🔴 **Sahifa qorovuli uchala RPC da**
+(Asilbek qarori): kassa→`'kassa'`, transfer→`'jurnal'`, qarzdor→`'qarzdor'` — busiz faqat `'ai'`
+ruxsatli va `kassa_scope='all'` (DEFAULT) user UI'da yopiq sahifaning ma'lumotini AI orqali olardi.
+EF tomonda: RPC'lar **foydalanuvchi JWT si** bilan (service_role YO'Q), model bergan sana regex **va
+kalendar** bilan tekshiriladi, RPC xatosi modelga **"XATO"** bo'lib boradi (hech qachon "ma'lumot yo'q"
+ga aylanmaydi — aks holda AI raqam to'qiydi), parallel `tool_use` lar **bitta** user xabarida qaytadi,
+`MAX_TOOL_ROUNDS=4` (`MAX_CONTINUATIONS` dan **alohida** hisoblagich).
+⚠️ Konvert (5011→5611, bitta kassa ichida) transfer deb **sanalmaydi** (`perm_op_key` ildizi bir xil).
+
 ### 3-bosqich (2026-08-13/14) — `BRIEF_PROVODKA_AI_3.md`, 4 ish
 **1-ish — web_search** (EF): tool `web_search_20260209` (briefdagi `_20250305` emas — Sonnet 5 da
 dynamic filtering bor; qaytarish `AI_SEARCH_TOOL` env bilan). 🔴 `thinking:adaptive` + `effort:high` —

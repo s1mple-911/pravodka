@@ -106,6 +106,85 @@
   .ai-src-lbl{font-size:11px;color:var(--muted)}
   .ai-src-a{display:inline-flex;align-items:center;max-width:100%;font-size:11.5px;line-height:1.3;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .13s,border-color .13s,background .13s}
   .ai-src-a:hover{color:var(--primary);border-color:var(--primary);background:var(--primary-soft)}
+  /* ===== Oqim (streaming): jarayon qatori + fikrlash bloki + kursor — 4-bosqich =====
+     Uch element bir oila: jarayon qatori (nima qilinmoqda) → o'ylash bloki
+     (ikkinchi darajali, so'ldirilgan) → javob pufagi (asosiy, to'liq kontrast).
+     Ierarxiya ATAYLAB shunday: ko'z avval javobga tushsin.
+
+     🔴 `.ai-proc` ning `className` i JS da BUTUNLAY qayta yoziladi
+        (`'ai-proc'+(status?' on':'')`) — unga qo'shimcha klass BERILMAYDI.
+        Hamma holat `.on` va bolalar (`.ai-proc-d`/`.ai-proc-t`) orqali.
+     ⚠️ `.ai-msg:empty{display:none}` — oqim boshlanganda pufak BO'SH yaratiladi
+        (matn delta bilan to'ladi). Busiz ekranda bo'm-bo'sh quti turardi.
+        Istisno pastda: jarayon qatori O'CHGAN, matn esa hali yo'q bo'lsa pufak
+        kursor bilan ko'rinadi — aks holda "javob boshlandi" belgisi qolmasdi. */
+  :root{--ai-think-bg:rgba(16,24,40,.032);--ai-think-rail:#ced4dd}
+  /* ⚠️ Dark'da fon OQ emas, QORA qatlam: bot pufagi `--surface-2` (#1e232d),
+     unga oq qo'shsak fikrlash bloki pufak bilan bir xil bo'lib qolardi.
+     Qora qatlam esa uni "botiq" qiladi — ierarxiya saqlanadi. */
+  [data-theme="dark"]{--ai-think-bg:rgba(0,0,0,.22);--ai-think-rail:#3c4553}
+  .ai-msg:empty{display:none}
+  /* ---- Jarayon qatori: "🔍 Qidiryapman: 2026 QQS…" ---- */
+  .ai-proc{display:none;align-items:center;gap:8px;max-width:100%;margin:1px 2px 7px;color:var(--muted);font-size:12.5px;line-height:1.45;font-weight:500;letter-spacing:-.004em}
+  .ai-proc.on{display:flex}
+  .ai-proc-d{position:relative;width:7px;height:7px;border-radius:50%;background:var(--primary);flex:0 0 auto;animation:aiPulse 1.4s ease-in-out infinite}
+  /* tarqaladigan halqa — nozik "tirik" ishorasi (bezovta qilmaydigan 1.4s) */
+  /* ⚠️ Boshlang'ich holat (opacity .35) ATAYLAB — `prefers-reduced-motion` da
+     animatsiya butunlay o'chadi va halqa SHU ko'rinishda qotib qoladi. */
+  .ai-proc-d::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--primary);opacity:.35;animation:aiRing 1.4s ease-out infinite}
+  @keyframes aiPulse{0%,100%{opacity:.45;transform:scale(.82)}50%{opacity:1;transform:scale(1)}}
+  @keyframes aiRing{0%{transform:scale(.55);opacity:.5}70%,100%{transform:scale(1.4);opacity:0}}
+  /* uzun matn BIR QATORDA kesiladi (ellipsis) — jarayon qatori hech qachon o'smaydi */
+  .ai-proc-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Shimmer — matn ustidan yumshoq yorug'lik.
+     🔴 `background-clip:text` + `color:transparent` bo'lgani uchun animatsiya
+        O'CHIQ holatda matn KO'RINMAY qolishi mumkin edi. Shuning uchun butun
+        blok `prefers-reduced-motion:no-preference` ichida (reduced'da oddiy
+        `--muted` matn qoladi) va `@supports` bilan qo'shimcha himoyalangan. */
+  @media (prefers-reduced-motion:no-preference){
+    @supports ((-webkit-background-clip:text) or (background-clip:text)){
+      .ai-proc-t{background-image:linear-gradient(100deg,var(--muted) 34%,var(--ink) 50%,var(--muted) 66%);background-size:220% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:aiShim 1.4s linear infinite}
+    }
+  }
+  @keyframes aiShim{from{background-position:150% 0}to{background-position:-50% 0}}
+  /* ---- "O'ylash jarayoni" — native <details> (JS shart emas) ----
+     Javobdan vizual jihatdan AJRALADI: so'ldirilgan fon + chap chekkada ingichka
+     chiziq (`inset` soya — `::before` radius bilan to'g'ri o'tirmaydi), chegara YO'Q.
+     Diqqatni tortmaydi: kichikroq shrift, muted rang, kulrang chiziq. */
+  .ai-think{margin:0 2px 8px;border-radius:10px;background:var(--ai-think-bg);box-shadow:inset 2px 0 0 var(--ai-think-rail);overflow:hidden}
+  .ai-think[hidden]{display:none}
+  .ai-think>summary{cursor:pointer;list-style:none;padding:7px 11px 7px 13px;font-size:12px;font-weight:500;line-height:1.4;color:var(--muted);display:flex;align-items:center;gap:7px;-webkit-user-select:none;user-select:none;transition:color .13s,background .13s}
+  .ai-think>summary::-webkit-details-marker{display:none}
+  .ai-think>summary::marker{content:''}
+  .ai-think>summary:hover{color:var(--ink);background:var(--ai-think-bg)}
+  .ai-think>summary:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;color:var(--ink)}
+  .ai-think>summary svg{width:14px;height:14px;flex:0 0 auto;opacity:.85}
+  /* chevron — o'zimizniki (marker o'chirilgan), ochilganda buriladi */
+  .ai-think>summary::after{content:'';flex:0 0 auto;width:6px;height:6px;margin-left:auto;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;opacity:.65;transform:translateY(-2px) rotate(45deg);transition:transform .18s ease,opacity .13s}
+  .ai-think[open]>summary::after{transform:translateY(1px) rotate(-135deg)}
+  .ai-think>summary:hover::after{opacity:1}
+  .ai-think-bd{padding:0 12px 10px 13px;font-size:12.5px;line-height:1.6;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ai-think-bd::-webkit-scrollbar{width:6px}
+  .ai-think-bd::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ai-think-bd::-webkit-scrollbar-track{background:transparent}
+  /* Yopiq blok "o'ylayapti" deb tursin — FAQAT jarayon qatori yonganda
+     (`.ai-proc.on ~`), ya'ni model haqiqatan fikrlayotganda. Javob kela
+     boshlaganda (`.on` olib tashlanadi) shimmer ham o'zi to'xtaydi. */
+  @media (prefers-reduced-motion:no-preference){
+    @supports ((-webkit-background-clip:text) or (background-clip:text)){
+      .ai-proc.on ~ .ai-think:not([open])>summary>span{background-image:linear-gradient(100deg,var(--muted) 34%,var(--ink) 50%,var(--muted) 66%);background-size:220% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:aiShim 1.9s linear infinite}
+    }
+  }
+  /* ---- Yozilayotgan javob: matn oxirida kursor ----
+     `textContent` yangilanishi ::after ni O'CHIRMAYDI, shuning uchun kursor
+     har delta'da joyida qoladi. Oqim tugagach `body.ai-streaming` ketadi. */
+  body.ai-streaming #aiStMsg::after{content:'';display:inline-block;width:2px;height:1.05em;margin-left:2px;vertical-align:-.16em;border-radius:1px;background:currentColor;opacity:.8;animation:aiCaret 1.05s infinite}
+  @keyframes aiCaret{0%,45%{opacity:.85}46%,100%{opacity:0}}
+  /* Javob hali kelmagan, lekin jarayon qatori ham o'chgan holat: pufak
+     "yiqilib" ketmasin — bir qatorlik bo'sh pufak + kursor. */
+  body.ai-streaming .ai-proc:not(.on) ~ #aiStMsg:empty{display:flex;align-items:center;min-width:52px;min-height:41px}
+  /* Oqim davomida silliq scroll O'CHADI — har token'da sahifa "sakramasin" */
+  body.ai-streaming .ai-thread{scroll-behavior:auto}
   .ai-time{font-size:11px;color:var(--muted);margin:5px 4px 0;font-variant-numeric:tabular-nums}
   .ai-typing{display:none;align-items:flex-start;gap:9px;flex:0 0 auto}
   .ai-dots{display:flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:6px;padding:13px 14px}
@@ -136,6 +215,17 @@
   .ai-send:hover:not(:disabled){filter:brightness(1.12)}
   .ai-send:active:not(:disabled){transform:scale(.94)}
   .ai-send:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed;filter:none}
+  /* Oqim paytida tugma JS bilan `disabled` — uni "o'lik kulrang" emas,
+     ISHLAMOQDA holatida ko'rsatamiz: strelka o'chadi, o'rnida aylanuvchi yoy.
+     🔴 "To'xtatish" (kvadrat) belgisi ATAYLAB qo'yilmadi — bekor qilish mantiqi
+        yo'q, bosilmaydigan stop tugmasi yolg'on va'da bo'lardi (JS ga tegilmaydi). */
+  body.ai-streaming .ai-send:disabled{position:relative;background:var(--primary-soft);color:var(--primary);cursor:progress}
+  body.ai-streaming .ai-send:disabled svg{opacity:0}
+  body.ai-streaming .ai-send:disabled::after{content:'';position:absolute;inset:0;width:17px;height:17px;margin:auto;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;opacity:.9;animation:aiSpin .7s linear infinite}
+  @keyframes aiSpin{to{transform:rotate(360deg)}}
+  /* ⚠️ `.ai-composer` ga oqim uchun alohida chegara rangi BERILMAYDI — u
+     `:focus-within` (bir xil spetsifiklik, yuqorida) ni bosib, klaviatura
+     fokusi ko'rinmay qolardi. */
   .ai-hint{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.5;text-align:center}
   @media(min-width:640px){.ai-sug{grid-template-columns:1fr 1fr}}
   @media(max-width:899px){
@@ -148,6 +238,10 @@
     .ai-send{width:44px;height:44px}
     .ai-main .head-actions .icon-btn{min-height:42px;min-width:42px;justify-content:center}
     .ai-hint{font-size:11.5px}
+    /* Telefonda ekran past — fikrlash bloki javobni pastga surib yubormasin.
+       `summary` esa barmoq uchun balandroq (~40px). */
+    .ai-think>summary{padding:10px 11px 10px 13px}
+    .ai-think-bd{max-height:200px}
   }
   /* ===== Fayl / rasm biriktirish (.ai-att*, .ai-fl*, .ai-clip) — 3-bosqich, 3-ish =====
      Ikki joy: (1) composer USTIDA tanlangan fayl chiplari (`.ai-fl` → `.ai-chip`);
@@ -543,8 +637,14 @@ async function loadRole(){
 //     chiziladi (`srcHtml`) va xabar obyektida saqlanadi.
 //     🔴 Model qaytargan URL — ISHONCHSIZ ma'lumot: faqat http(s) sxemasi
 //        chiziladi va hammasi escapeHtml() dan o'tadi.
+//  ✅ 4-bosqich (1–2-ish): javob **OQIM** bo'lib keladi (SSE) — matn so'zma-so'z
+//     yoziladi, tepasida jarayon ("🔍 Qidiryapman: …") va yig'iladigan
+//     "O'ylash jarayoni" bloki ko'rinadi. `sb.functions.invoke` o'rniga
+//     `fetch` + `ReadableStream` (invoke SSE ni o'qiy olmaydi).
+//     🔴 Thinking matni DB GA YOZILMAYDI (tarix shishmasin) — u faqat oqim
+//        davomida ekranda turadi; suhbat qayta ochilganda javobning o'zi qoladi.
 //  🔴 API kaliti bu yerda YO'Q va hech qachon bo'lmaydi. Zanjir:
-//     brauzer → `sb.functions.invoke('ai-chat')` → Edge Function
+//     brauzer → `fetch(<supabase>/functions/v1/ai-chat)` → Edge Function
 //     (ANTHROPIC_API_KEY faqat Supabase secret'ida) → Claude API.
 //     Deploy: EF_AI_CHAT_DEPLOY.txt.
 //  🔴 SOXTA JAVOB YOZILMAYDI — so'rov yiqilsa agent pufagi emas, kehribar
@@ -558,13 +658,24 @@ async function loadRole(){
 //     chat aynan avvalgidek ishlaydi.
 //     Claude API stateless: HAR so'rovda butun suhbat qayta yuboriladi.
 // =====================================================================
-/* ms — "yozmoqda…" cheksiz qolib ketmasin.
-   ⚠️ 3-bosqichda 60s → 120s: EF endi web_search bilan ishlaydi (qidiruv +
-   sahifalarni o'qish sekin, `pause_turn` bo'lsa bir necha tur). EF ichidagi
-   bitta Anthropic chaqiruvi 90s, shuning uchun mijoz undan uzoqroq kutadi —
-   aks holda javob tayyor bo'lganda mijoz allaqachon uzib bo'lgan bo'lardi. */
-const AI_TIMEOUT=120000;
+/* ── OQIM (SSE) — 4-bosqich, 1-ish ────────────────────────────────────
+   🔴 `sb.functions.invoke` STREAM QILA OLMAYDI (u javobni oxirigacha o'qib
+      bitta {data,error} qaytaradi), shuning uchun bu yerda `fetch` ishlatiladi.
+      Sarlavhalar QO'LDA: `Authorization: Bearer <access_token>` + `apikey`.
+   ⚠️ TIMEOUT MANTIQI O'ZGARDI: endi "javobni kutish" degan uzun pauza yo'q.
+      • AI_FIRST_MS — BIRINCHI baytgacha (ulanish/ruxsat bosqichi);
+      • AI_IDLE_MS  — oqim JIM QOLSA (EF har 15s `: ping` yuboradi, ya'ni
+        45s jimlik = ulanish o'lgan). Oqim kelayotgan bo'lsa UZILMAYDI;
+      • AI_TOTAL_MS — qattiq shift (EF byudjeti 150s dan ancha yuqori). */
+const AI_FN_URL=SUPABASE_URL+'/functions/v1/ai-chat';
+const AI_FIRST_MS=30000;
+const AI_IDLE_MS=45000;
+const AI_TOTAL_MS=200000;
 const AI_SRC_MAX=8;       // ko'rsatiladigan manba soni (EF ham 8 ta yuboradi)
+// Jarayon qatoridagi belgilar (EF `kind` ni yuboradi, matn ham EF dan keladi)
+// `tool` — Provodka DB asboblari (kassa/qarzdor/transfer, 4-bosqich 4-ish).
+// Noma'lum kind baribir '•' bilan ko'rsatiladi — chat buzilmaydi.
+const AI_ST_ICON={thinking:'💭',search:'🔍',read:'📖',tool:'💰'};
 const SUGGESTIONS=[
   "2026-yilda QQS stavkasi necha foiz?",
   "Yunusobod kassasida qancha pul bor?",
@@ -625,6 +736,19 @@ function attHtml(list){
   }).join('')+'</div>';
 }
 
+/* "O'ylash jarayoni" — yig'iladigan blok (native <details>, JS shart emas).
+   🔴 Thinking matni ham ISHONCHSIZ (model chiqargan) → escapeHtml().
+   Oqim davomida (`st`) blok id bilan chiziladi va matni to'ldirilib boradi;
+   matn hali yo'q bo'lsa `hidden` — bo'sh "O'ylash jarayoni" ko'rinmasin. */
+function thinkHtml(m,st){
+  const t=String((m&&m.think)||'');
+  if(!st&&!t) return '';
+  return '<details class="ai-think"'+(st?' id="aiStThink"':'')+(t?'':' hidden')+'>'
+    + '<summary><i data-lucide="brain"></i><span>O\'ylash jarayoni</span></summary>'
+    + '<div class="ai-think-bd"'+(st?' id="aiStThinkBd"':'')+'>'+escapeHtml(t)+'</div>'
+    + '</details>';
+}
+
 function render(){
   const list=$('aiList');
   // Eski suhbat DB dan o'qilayotganda bo'sh ekran o'rniga "Yuklanmoqda…" (aicLoadingHtml)
@@ -633,18 +757,29 @@ function render(){
   list.innerHTML=msgs.map(m=>{
     const cls=m.role==='me'?'me':(m.role==='err'?'err':'bot');
     const ic=m.role==='err'?'triangle-alert':'sparkles';
+    /* Oqim pufagi: elementlar ID bilan chiziladi va delta'lar FAQAT o'sha
+       tugunlarni yangilaydi (butun ro'yxat qayta chizilmaydi — uzun suhbatda
+       sekinlashuv va scroll sakrashi bo'lmasin). */
+    const st=!!m.streaming;
     return '<div class="ai-row '+cls+'">'
       + (m.role==='me'?'':'<div class="ai-av"><i data-lucide="'+ic+'"></i></div>')
       + '<div class="ai-bd">'
       + attHtml(m.att)
-      // Faqat fayl yuborilgan bo'lsa (matn bo'sh) — bo'sh pufak chizilmaydi.
-      + (m.text?'<div class="ai-msg">'+escapeHtml(m.text)+'</div>':'')
-      + srcHtml(m.src)
+      + (st?'<div class="ai-proc'+(m.status?' on':'')+'" id="aiStProc"><span class="ai-proc-d"></span>'
+           + '<span class="ai-proc-t" id="aiStStatus">'+escapeHtml(m.status||'')+'</span></div>':'')
+      + thinkHtml(m,st)
+      // Faqat fayl yuborilgan bo'lsa (matn bo'sh) — bo'sh pufak chizilmaydi
+      // (oqimda esa pufak doim bor, lekin `.ai-msg:empty` uni yashiradi).
+      + (st?'<div class="ai-msg" id="aiStMsg">'+escapeHtml(m.text||'')+'</div>'
+          :(m.text?'<div class="ai-msg">'+escapeHtml(m.text)+'</div>':''))
+      + (st?'<div id="aiStSrc">'+srcHtml(m.src)+'</div>':srcHtml(m.src))
       + '<div class="ai-time">'+escapeHtml(m.at)+'</div>'
       + '</div>'
       + '</div>';
   }).join('');
-  icons(); threadEnd();
+  icons();
+  if(_st) aiStreamBind();     // ID lar yangi DOM da — havolalarni qayta bog'laymiz
+  threadEnd();
 }
 
 // `src` — ixtiyoriy manbalar ro'yxati; xabar obyektida SAQLANADI, shuning
@@ -654,6 +789,190 @@ function render(){
 function push(role,text,src,ex){
   msgs.push({role,text,at:nowHM(),src:src||null,att:(ex&&ex.att)||null,note:(ex&&ex.note)||null});
   render();
+}
+
+// =====================================================================
+//  OQIM (SSE) — pufakni JOYIDA to'ldirish  ·  4-bosqich, 1–2-ish
+// ---------------------------------------------------------------------
+//  🔴 Har delta'da `render()` CHAQIRILMAYDI: butun ro'yxatni qayta chizish
+//     uzun suhbatda sekinlashadi va scroll sakraydi. O'rniga oqim pufagining
+//     tugunlari (`_stEl`) bir marta topiladi va `textContent` bilan
+//     yangilanadi — bu XSS uchun ham xavfsiz (HTML parse qilinmaydi).
+//  🔴 SCROLL: foydalanuvchi tepaga chiqib o'qiyotgan bo'lsa pastga TORTILMAYDI.
+// =====================================================================
+let _st=null;      // oqimdagi xabar obyekti (msgs ichida turadi)
+let _stEl=null;    // {proc,status,msg,think,thinkBd,src} — DOM havolalari
+
+function aiStreamBind(){
+  _stEl={proc:$('aiStProc'),status:$('aiStStatus'),msg:$('aiStMsg'),
+         think:$('aiStThink'),thinkBd:$('aiStThinkBd'),src:$('aiStSrc')};
+}
+// Pastga "yopishish": faqat foydalanuvchi allaqachon pastda bo'lsa ergashamiz.
+function aiAtBottom(){ const t=$('aiThread'); if(!t) return true;
+  return (t.scrollHeight-t.scrollTop-t.clientHeight)<80; }
+function aiFollow(was){ if(was) threadEnd(); }
+
+function aiStreamStart(){
+  _st={role:'bot',text:'',think:'',src:null,at:nowHM(),streaming:true,status:'💭 Ulanmoqda…'};
+  msgs.push(_st);
+  document.body.classList.add('ai-streaming');
+  render();            // ichida aiStreamBind() bor
+  threadEnd();
+}
+/* Oqim tugadi — pufak oddiy xabarga aylanadi (ID lar yo'qoladi). */
+function aiStreamEnd(){
+  document.body.classList.remove('ai-streaming');
+  if(!_st) return;
+  _st.streaming=false; _st.status=''; _st=null; _stEl=null; render();
+}
+/* Matn umuman kelmadi — pufakni butunlay olib tashlaymiz (bo'sh pufak qolmasin). */
+function aiStreamDrop(){
+  document.body.classList.remove('ai-streaming');
+  if(!_st){ _stEl=null; return; }
+  const i=msgs.indexOf(_st); if(i>=0) msgs.splice(i,1);
+  _st=null; _stEl=null; render();
+}
+/* Faqat holatni tozalaydi (pufakka tegmaydi) — `aiAbortFlight` uchun:
+   u yerda msgs baribir almashtiriladi yoki bo'shatiladi. */
+function aiStreamReset(){ document.body.classList.remove('ai-streaming'); _st=null; _stEl=null; }
+
+function aiStSetStatus(text){
+  if(!_st) return;
+  _st.status=text||'';
+  if(!_stEl||!_stEl.proc) return;
+  const was=aiAtBottom();
+  if(_stEl.status) _stEl.status.textContent=_st.status;
+  _stEl.proc.className='ai-proc'+(_st.status?' on':'');
+  aiFollow(was);
+}
+function aiStAddText(delta){
+  if(!_st||!delta) return;
+  const was=aiAtBottom();
+  _st.text+=delta;
+  if(_stEl&&_stEl.msg) _stEl.msg.textContent=_st.text;
+  // Javob kela boshladi → jarayon qatori yo'qoladi (qidiruv qayta boshlansa qaytadi)
+  if(_st.status) aiStSetStatus('');
+  aiFollow(was);
+}
+function aiStAddThink(delta){
+  if(!_st||!delta) return;
+  const was=aiAtBottom();
+  _st.think+=delta;
+  if(_stEl&&_stEl.think) _stEl.think.hidden=false;
+  if(_stEl&&_stEl.thinkBd){
+    const bd=_stEl.thinkBd;
+    const stick=(bd.scrollHeight-bd.scrollTop-bd.clientHeight)<24;   // ochiq bo'lsa oxiriga ergashsin
+    bd.textContent=_st.think;
+    if(stick) bd.scrollTop=bd.scrollHeight;
+  }
+  aiFollow(was);
+}
+function aiStSetSrc(items){
+  if(!_st) return;
+  _st.src=Array.isArray(items)?items:null;
+  if(_stEl&&_stEl.src) _stEl.src.innerHTML=srcHtml(_st.src);   // srcHtml ichida escapeHtml
+}
+
+/* Bitta SSE bo'lagini (`data:` qatorlari) obyektga aylantiradi.
+   ⚠️ `: ping` (izoh) va `event:`/`id:` qatorlari TASHLANADI.
+   ⚠️ Buzuq JSON butun oqimni yiqitmaydi — console.error + o'tkazib yuborish. */
+function aiSseParse(chunk){
+  const lines=String(chunk).split('\n');
+  let data='';
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i];
+    if(!ln||ln.charAt(0)===':') continue;
+    if(ln.slice(0,5)!=='data:') continue;
+    const p=ln.slice(5);
+    data+=(data?'\n':'')+(p.charAt(0)===' '?p.slice(1):p);
+  }
+  if(!data) return null;
+  try{ const o=JSON.parse(data); return (o&&typeof o==='object')?o:null; }
+  catch(e){ console.error('SSE hodisasi o\'qilmadi:',e,data.slice(0,200)); return null; }
+}
+
+/* Jarayon matni: EF `kind` + `text` yuboradi, belgi mijozda qo'shiladi. */
+function aiStatusLine(ev){
+  const k=String((ev&&ev.kind)||'');
+  const tx=String((ev&&ev.text)||'').slice(0,160).trim();
+  return (AI_ST_ICON[k]||'•')+' '+(tx||'Ishlanmoqda…');
+}
+
+/* EF ga SSE so'rovi. Har hodisa `on(obj)` ga uzatiladi, `touch()` esa har
+   kelgan BO'LAKda (ping ham) chaqiriladi — jimlik taymeri qayta uriladi.
+   🔴 Xato holatlari (401/403/429/400/413) oqim BOSHLANMASDAN, oddiy JSON
+      bo'lib keladi — ular shu yerda `e._ai={t,code}` ga aylantiriladi. */
+async function aiStreamFetch(payload,ctrl,on,touch){
+  const {data:sess,error:sErr}=await sb.auth.getSession();
+  const token=sess&&sess.session&&sess.session.access_token;
+  if(sErr) console.error('Sessiya o\'qilmadi:',sErr);
+  if(!token){ const e=new Error('sessiya yo\'q'); e._ai={t:'Sessiya topilmadi. Qaytadan kiring.',code:'auth'}; throw e; }
+
+  const res=await fetch(AI_FN_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Accept':'text/event-stream',
+             'Authorization':'Bearer '+token,'apikey':SUPABASE_ANON_KEY},
+    body:JSON.stringify(payload),
+    signal:ctrl?ctrl.signal:undefined
+  });
+
+  if(!res.ok){
+    let t='',code='';
+    try{
+      const raw=await res.text();
+      if(raw){ try{ const b=JSON.parse(raw);
+        if(b&&typeof b.error==='string'&&b.error.trim()){ t=b.error.trim(); code=String(b.code||''); }
+      }catch(x){ console.error('EF xato tanasi JSON emas:',raw.slice(0,200)); } }
+    }catch(x){ console.error('EF xato tanasi o\'qilmadi:',x); }
+    if(!t){
+      if(res.status===401){ t='Sessiya tugagan. Qaytadan kiring.'; code='auth'; }
+      else if(res.status===403){ t="Sizda AI agent ruxsati yo'q."; code='forbidden'; }
+      else if(res.status===429){ t="Juda ko'p so'rov yuborildi. Biroz kuting."; code='rate'; }
+      else t="AI javob bermadi. Keyinroq urinib ko'ring.";
+    }
+    const e=new Error('EF '+res.status); e._ai={t:t,code:code}; throw e;
+  }
+
+  /* ⚠️ ZAXIRA: EF hali yangilanmagan bo'lsa (eski, stream'siz versiya) javob
+     JSON bo'lib keladi — uni bitta delta qilib ko'rsatamiz. Shu tufayli mijoz
+     EF deploy'idan OLDIN ham ishlayveradi (dev-first tartibi buzilmasin). */
+  const ct=String(res.headers.get('content-type')||'').toLowerCase();
+  if(ct.indexOf('text/event-stream')<0){
+    console.warn('EF SSE emas, JSON qaytardi — eski versiya deploy qilingan.');
+    let b=null;
+    try{ b=await res.json(); }catch(x){ console.error('JSON javob o\'qilmadi:',x); }
+    const rep=(b&&typeof b.reply==='string')?b.reply.trim():'';
+    if(!rep){ const e=new Error('bo\'sh javob'); e._ai={t:"Javob bo'sh keldi. Savolni qaytadan yozib ko'ring.",code:''}; throw e; }
+    on({type:'text',delta:rep});
+    if(b&&Array.isArray(b.sources)&&b.sources.length) on({type:'sources',items:b.sources});
+    on({type:'done',stop_reason:(b&&b.stop_reason)||'',model:(b&&b.model)||'',usage:(b&&b.usage)||null});
+    return;
+  }
+
+  if(!res.body||typeof res.body.getReader!=='function'){
+    const e=new Error('stream yo\'q'); e._ai={t:'Brauzer oqimni qo\'llab-quvvatlamaydi. Sahifani yangilang.',code:''}; throw e;
+  }
+  const reader=res.body.getReader();
+  const dec=new TextDecoder();
+  let buf='';
+  for(;;){
+    const r=await reader.read();
+    if(r.done) break;
+    if(touch) touch();
+    /* ⚠️ Bo'lak hodisaning O'RTASIDAN bo'linishi mumkin — tugallanmagan qism
+       buferda QOLADI. `\r\n` ni butun bufer bo'ylab normallashtiramiz: bo'lak
+       chekkasida qolgan yolg'iz `\r` keyingi bo'lak bilan qo'shilib to'g'rilanadi. */
+    buf=(buf+dec.decode(r.value,{stream:true})).replace(/\r\n/g,'\n');
+    let i;
+    while((i=buf.indexOf('\n\n'))>=0){
+      const chunk=buf.slice(0,i); buf=buf.slice(i+2);
+      const obj=aiSseParse(chunk);
+      if(obj) on(obj);
+    }
+  }
+  buf+=dec.decode();
+  const tail=buf.trim();               // oxirgi hodisa `\n\n` siz tugagan bo'lsa
+  if(tail){ const o=aiSseParse(tail); if(o) on(o); }
 }
 
 // =====================================================================
@@ -915,6 +1234,10 @@ function aiAbortFlight(){
   reqSeq++;
   if(curCtrl){ try{ curCtrl.abort(); }catch(e){ console.error('abort:',e); } curCtrl=null; }
   busy=false; window.aiTyping(false);
+  /* Oqim holati ham tozalanadi — chaqiruvchilar (`aiNew`, `aicOpenConv`,
+     joriy suhbatni o'chirish) `msgs` ni baribir almashtiradi, shuning uchun
+     pufakni alohida o'chirish shart emas, faqat havolalar osilib qolmasin. */
+  aiStreamReset();
 }
 
 // Yangi suhbat: joriy suhbat YOPILADI (ro'yxatda qoladi — o'chirilmaydi),
@@ -966,24 +1289,6 @@ function apiMsgs(blocks){
   return a;
 }
 
-/* EF xatosini odam o'qiydigan matnga aylantiradi.
-   🔴 functions.invoke {data,error} qaytaradi va THROW QILMAYDI — `error`
-      albatta tekshiriladi (CLAUDE.md 6-qoida ruhida).
-   FunctionsHttpError bo'lsa tanasida bizning {error, code} turadi. */
-async function aiErrText(e){
-  const st=e && e.context && e.context.status;
-  try{
-    if(e && e.name==='FunctionsHttpError' && e.context && typeof e.context.json==='function'){
-      const b=await e.context.json();
-      if(b && typeof b.error==='string' && b.error.trim()) return {t:b.error.trim(),code:b.code||''};
-    }
-  }catch(x){ console.error("EF xato tanasi o'qilmadi:",x); }
-  if(st===401) return {t:'Sessiya tugagan. Qaytadan kiring.',code:'auth'};
-  if(st===403) return {t:"Sizda AI agent ruxsati yo'q.",code:'forbidden'};
-  if(st===429) return {t:"Juda ko'p so'rov yuborildi. Biroz kuting.",code:'rate'};
-  return {t:"AI javob bermadi. Keyinroq urinib ko'ring.",code:''};
-}
-
 window.aiSend=async()=>{
   if(busy||_afBusy) return;              // fayl hali o'qilmoqda bo'lsa ham kutamiz
   const el=$('aiInp'); const text=(el.value||'').trim();
@@ -999,9 +1304,14 @@ window.aiSend=async()=>{
   push('me',text,null,{att:att.length?att:null,note:note||null});
   el.value=''; window.aiGrow(); el.focus();
   busy=true; $('aiSend').disabled=true;
-  window.aiTyping(true);
 
   const my=++reqSeq;
+
+  /* 🔴 So'rov tanasi OQIM PUFAGIDAN OLDIN quriladi: `apiMsgs()` `msgs` dan
+     o'qiydi, oqim pufagi esa BO'SH matn bilan boshlanadi va tarixga
+     `{role:'assistant',content:''}` bo'lib tushib qolardi (EF uni `bad_input`
+     bilan rad etardi). */
+  const payload={messages:apiMsgs(sent.length?afBlocks(sent,text):null)};
 
   /* ---- DB: suhbat + savol (PROVODKA_AI_CHAT.sql 9-BO'LIM shartnomasi) ----
      Suhbat AYNAN SHU YERDA yaratiladi (sahifa ochilishida emas) — aks holda
@@ -1028,41 +1338,75 @@ window.aiSend=async()=>{
 
   const ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
   curCtrl=ctrl;
+  /* ⏱ IKKI TAYMER (oqim uchun): jimlik va qattiq shift. Oqim kelayotgan
+     bo'lsa UZILMAYDI — har bo'lakda `armIdle` qayta uriladi (EF har 15s
+     `: ping` yuboradi, ya'ni tirik ulanish hech qachon jim qolmaydi). */
   let timedOut=false;
-  const timer=setTimeout(()=>{ timedOut=true;
-    if(ctrl){ try{ ctrl.abort(); }catch(e){ console.error('AI so\'rovi bekor qilinmadi:',e); } } },AI_TIMEOUT);
+  let idleTimer=null;
+  const stopNow=()=>{ if(ctrl){ try{ ctrl.abort(); }catch(e){ console.error('AI so\'rovi bekor qilinmadi:',e); } } };
+  const armIdle=ms=>{ if(idleTimer) clearTimeout(idleTimer);
+    idleTimer=setTimeout(()=>{ timedOut=true; stopNow(); },ms); };
+  armIdle(AI_FIRST_MS);                                  // birinchi baytgacha
+  const hardTimer=setTimeout(()=>{ timedOut=true; stopNow(); },AI_TOTAL_MS);
+
+  aiStreamStart();                 // bo'sh bot pufagi + "💭 Ulanmoqda…"
+  const stMsg=_st;                 // `_st` abort/almashtirishda null bo'lishi mumkin
+  let streamErr=null;              // oqim ICHIDAN kelgan xato ({type:'error'})
+  let doneModel=null;
 
   try{
-    const opts={body:{messages:apiMsgs(sent.length?afBlocks(sent,text):null)}};
-    if(ctrl) opts.signal=ctrl.signal;
-    const {data,error}=await sb.functions.invoke('ai-chat',opts);
-    if(error) throw error;
-    const reply=(data && typeof data.reply==='string')?data.reply.trim():'';
-    if(!reply) throw new Error("javob bo'sh keldi");
+    await aiStreamFetch(payload,ctrl,ev=>{
+      const t=ev&&ev.type;
+      if(t==='text'&&typeof ev.delta==='string') aiStAddText(ev.delta);
+      else if(t==='thinking'&&typeof ev.delta==='string') aiStAddThink(ev.delta);
+      else if(t==='status') aiStSetStatus(aiStatusLine(ev));
+      else if(t==='sources'&&Array.isArray(ev.items)) aiStSetSrc(ev.items);
+      else if(t==='done'){ if(typeof ev.model==='string') doneModel=ev.model; aiStSetStatus(''); }
+      else if(t==='error'){
+        streamErr={t:(typeof ev.error==='string'&&ev.error.trim())?ev.error.trim()
+                     :"AI javob bermadi. Keyinroq urinib ko'ring.",
+                   code:String((ev&&ev.code)||'')};
+      }
+    },()=>armIdle(AI_IDLE_MS));
+
+    const reply=String((stMsg&&stMsg.text)||'').trim();
+    const src=(stMsg&&Array.isArray(stMsg.src))?stMsg.src:null;
     /* Chiplar FAQAT haqiqiy javobdan keyin tozalanadi — xatoda fayllar
        composer'da QOLADI, foydalanuvchi qayta yubora oladi (qayta tanlash
        va qayta siqish shart emas). URL lar revoke QILINMAYDI: ular endi
        yuborilgan xabar pufagidagi preview'da ishlatiladi. */
-    afDropSent(sent);
-    const src=(data && Array.isArray(data.sources))?data.sources:null;
+    if(reply) afDropSent(sent);
     /* Javobni saqlash — faqat HAQIQIY javob kelgach (soxta qator yozilmaydi).
+       🔴 DB ga DELTA emas, TUGAGAN javob yoziladi (bitta insert).
        🔴 Saqlash EKRANDAN OLDIN: foydalanuvchi javob kutayotib boshqa suhbatga
-          o'tsa ham javob O'Z suhbatiga yoziladi. Avval `my!==reqSeq` da darrov
-          `return` qilinardi — token va qidiruv puli to'langan javob yo'qolib,
-          suhbat DB da javobsiz savol bilan qolardi. */
-    if(convId && !_aicMissing){
-      const ok=await aicSaveMsg(convId,'assistant',reply,src,(data && typeof data.model==='string')?data.model:null);
+          o'tsa ham javob O'Z suhbatiga yoziladi. */
+    if(reply && convId && !_aicMissing){
+      const ok=await aicSaveMsg(convId,'assistant',reply,src,doneModel);
       if(ok) aicTouch(convId);           // yon panelda tepaga (qayta so'rovsiz)
     }
-    if(my!==reqSeq) return;              // boshqa suhbat ochilgan — EKRANGA chizmaymiz
-    push('bot',reply,src);
+    if(my!==reqSeq) return;              // boshqa suhbat ochilgan — EKRANGA tegmaymiz
+    if(reply) aiStreamEnd(); else aiStreamDrop();
+    // Oqim o'rtasidagi xato: matn bo'lsa u QOLADI, ustiga kehribar izoh qo'shiladi.
+    if(streamErr) push('err',streamErr.t);
+    else if(!reply) push('err',"Javob bo'sh keldi. Savolni qaytadan yozib ko'ring.");
   }catch(e){
     console.error('AI so\'rov xatosi:',e);
-    if(my!==reqSeq) return;
+    const partial=String((stMsg&&stMsg.text)||'').trim();
+    /* Yarim javob ham TO'LANGAN javob: vaqt tugab uzilsa uni DB da saqlab
+       qolamiz. Foydalanuvchi suhbatni ALMASHTIRGAN bo'lsa saqlamaymiz —
+       u boshqa oqimni bekor qilgan, bu javob unga kerak emas. */
+    if(timedOut && partial && convId && !_aicMissing){
+      const ok=await aicSaveMsg(convId,'assistant',
+        partial+"\n\n⚠️ Javob to'liq kelmadi (ulanish uzildi).",
+        (stMsg&&Array.isArray(stMsg.src))?stMsg.src:null,doneModel);
+      if(ok) aicTouch(convId);
+    }
+    if(my!==reqSeq) return;              // foydalanuvchi almashtirdi — jimgina chiqamiz
     const r=timedOut
-      ? {t:"Javob 2 daqiqada kelmadi. Qaytadan urinib ko'ring.",code:'timeout'}
-      : await aiErrText(e);
-    if(my!==reqSeq) return;
+      ? {t:partial?"Javob to'liq kelmadi — ulanish uzildi. Qaytadan urinib ko'ring."
+                  :"Javob kelmadi (vaqt tugadi). Qaytadan urinib ko'ring.",code:'timeout'}
+      : ((e&&e._ai)?e._ai:{t:"AI javob bermadi. Keyinroq urinib ko'ring.",code:''});
+    if(partial){ afDropSent(sent); aiStreamEnd(); } else aiStreamDrop();
     push('err',r.t);
     /* 🔴 Server RAD ETGAN xabar tarixda QOLMASIN: apiMsgs() uni har so'rovda
        qayta yuborardi va chat butunlay qotib qolardi (har urinish o'sha 400).
@@ -1075,8 +1419,11 @@ window.aiSend=async()=>{
       if(savedUserId) aicDropMsg(savedUserId);
     }
   }finally{
-    clearTimeout(timer);
+    clearTimeout(hardTimer);
+    if(idleTimer) clearTimeout(idleTimer);
     if(curCtrl===ctrl) curCtrl=null;
+    // Har ehtimolga qarshi: erta `return` yo'lida pufak "oqimda" qolib ketmasin.
+    if(_st===stMsg) aiStreamEnd();
     if(my===reqSeq){ busy=false; window.aiTyping(false); window.aiGrow(); }
   }
 };
