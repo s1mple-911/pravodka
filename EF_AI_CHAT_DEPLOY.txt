@@ -197,6 +197,24 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
     Xatolar console.error bilan to'liq yoziladi; API kaliti loglarga
     HECH QACHON tushmaydi.
 
+[5.4b] LOGDA "Request timed out" (status `null`) KO'RINSA
+    Namuna:  ai-chat: Anthropic xato (tur 0 ): null Request timed out.
+    Mijozda: "AI xizmatiga ulanib bo'lmadi" (eski matn) yoki endi
+             "AI javobi juda uzoq kelmadi (qidiruv sekin)".
+    🔴 Bu 400 EMAS — ya'ni web_search FORMATI to'g'ri, so'rov qabul qilingan.
+       Muammo faqat VAQT: qidiruv + adaptive thinking + effort `high` bilan
+       bitta tur uzoq davom etadi.
+    Tuzatildi (2026-08-14): bitta turga 45 soniya chegarasi bor edi (u
+    2-bosqichdan, qidiruvsiz chatdan qolgan) — endi tur umumiy byudjetning
+    (105s) hammasini ishlata oladi. **Shu tuzatish uchun qayta deploy kerak.**
+    Agar shundan keyin ham timeout bo'lsa — tezlashtirish tugmalari
+    (deploy shart emas, secret yetadi):
+        supabase secrets set AI_EFFORT=medium              (eng katta ta'sir)
+        supabase secrets set AI_SEARCH_MAX_USES=3          (kamroq qidiruv)
+        supabase secrets set AI_SEARCH_TOOL=web_search_20250305
+            (dynamic filtering o'chadi — qidiruv yengilroq va tezroq,
+             javob sifati biroz pasayishi mumkin)
+
 [5.5] BIRINCHI SO'ROVDAN KEYIN LOGNI ALBATTA KO'RING.
     Agar HAR so'rov "AI xizmatiga ulanib bo'lmadi" (502) bersa va logda
     Anthropic 400 (`invalid_request_error`) ko'rinsa — xato matnida qaysi

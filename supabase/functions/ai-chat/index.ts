@@ -706,8 +706,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
      Bitta chaqiruvga timeout qo'yish YETARLI EMAS: `pause_turn` sikli 4 marta
      chaqirishi mumkin → 4 × 90s = 360s, mijoz esa 120s da uzadi.
      Shuning uchun byudjet TURLAR BO'YLAB umumiy hisoblanadi. */
-  const TOTAL_BUDGET_MS = 100_000;        // mijoz 120_000 da uzadi
-  const MIN_TURN_MS = 8_000;              // bundan kam qolganda yangi tur boshlanmaydi
+  const TOTAL_BUDGET_MS = 105_000;        // mijoz 120_000 da uzadi
+  /* ⚠️ MIN_TURN_MS > TURN_MARGIN_MS + 10_000 (pastdagi floor) bo'lishi SHART —
+     aks holda `Math.max(left - margin, 10_000)` byudjetdan oshib ketardi
+     ("qolgan byudjetdan oshmaydi" invarianti buzilardi). */
+  const MIN_TURN_MS = 12_000;             // bundan kam qolganda yangi tur boshlanmaydi
+  const TURN_MARGIN_MS = 2_000;           // xatoni qaytarishga vaqt qoldiramiz
   const deadline = Date.now() + TOTAL_BUDGET_MS;
 
   /* ⚠️ `temperature`/`top_p`/`top_k` va `budget_tokens` ISHLATILMAYDI.
@@ -754,7 +758,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       msg = await anthropic.messages.create(
         // deno-lint-ignore no-explicit-any
         { ...baseParams, messages: convo } as any,
-        { timeout: Math.min(left, 45_000) },   // qolgan byudjetdan oshmaydi
+        /* 🔴 2026-08-14 TUZATISH: bu yerda `Math.min(left, 45_000)` edi va
+           HAR SO'ROV timeout bilan yiqilardi ("Request timed out", status null
+           → mijozda "AI xizmatiga ulanib bo'lmadi").
+           Sabab: web_search + `thinking:adaptive` + `effort:high` bilan BITTA
+           tur 45 soniyadan uzoq davom etadi (dynamic filtering qidiruv
+           natijalarini server tomonda kod bilan filtrlaydi — bu ham vaqt).
+           45s cheklovi 2-bosqichdan (qidiruvsiz chat) qolgan edi.
+           Endi tur qolgan byudjetning HAMMASINI ishlata oladi; umumiy
+           chegara `deadline` bo'lib qoladi (mijoz 120s da uzadi). */
+        { timeout: Math.max(left - TURN_MARGIN_MS, 10_000) },
       ) as unknown as ClaudeReply;
     } catch (e) {
       const st = errStatus(e);
@@ -771,7 +784,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
           || st === 401 || st === 403) {
         return fail(500, "upstream_auth", "AI xizmati sozlamasida muammo. Administratorga xabar bering.", origin);
       }
-      // Tarmoq, timeout, 4xx/5xx — hammasi 502. Xom matn foydalanuvchiga chiqmaydi.
+      /* ⏱ TIMEOUT alohida xabar: "ulanib bo'lmadi" noto'g'ri tashxis berardi
+         (aslida ulanish bor, javob uzoq kelyapti). Foydalanuvchi ham,
+         admin ham sababni darrov bilsin. */
+      /* ⚠️ Matn regexi STATUSGA bog'langan: aks holda "timeout" so'zi bor
+         HAR QANDAY 400/500 (masalan `unknown field "timeout"`) "qidiruv sekin"
+         deb noto'g'ri tashxis berardi — aynan shu tuzatish oldini olmoqchi
+         bo'lgan xato turi. Haqiqiy timeout'da status YO'Q (null) yoki 408/504. */
+      if (isSdkError(e, "APIConnectionTimeoutError")
+          || ((st === null || st === 408 || st === 504)
+              && /timed?\s*out|timeout/i.test(detail))) {
+        return fail(504, "upstream_timeout",
+          "AI javobi juda uzoq kelmadi (qidiruv sekin). Savolni aniqroq/kichikroq "
+          + "qilib qayta bering yoki bir ozdan keyin urinib ko'ring.", origin);
+      }
+      // Tarmoq, 4xx/5xx — 502. Xom matn foydalanuvchiga chiqmaydi.
       return fail(502, "upstream", "AI xizmatiga ulanib bo'lmadi. Keyinroq urinib ko'ring.", origin);
     }
 
