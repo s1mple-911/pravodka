@@ -442,6 +442,19 @@ qaytariladi (tahrirlangan thinking bloki 400 beradi). Manbalar `sources:[{title,
 **va** `AI_SEARCH_TOTAL_MAX` (turlar bo'ylab — busiz 4×5=20 qidiruv ≈ $0.20), umumiy **100s deadline**
 (mijoz 120s; EF mijozdan keyin ishlab token yoqmasin).
 
+🔴 **VAQT BYUDJETI — 2026-08-14 dagi prod nosozligi saboqi.** Deploy'dan keyin HAR so'rov yiqildi:
+`ai-chat: Anthropic xato (tur 0 ): null Request timed out.` Sabab **web_search formati EMAS** (format
+xato bo'lsa **400** kelardi; `status null` = HTTP javob umuman kelmagan) — kodda bitta turga
+`Math.min(left, 45_000)` chegarasi bor edi, u **2-bosqichdan** (qidiruvsiz chat: `thinking:disabled`,
+`effort:medium`, `max_tokens:4000` → javob 10–15s) qolgan. `thinking:adaptive` + `effort:high` +
+`max_tokens:8000` bilan faqat generatsiya 100s+ bo'lishi mumkin. Endi tur qolgan byudjetning hammasini
+oladi (`TOTAL_BUDGET_MS=105s`, mijoz 120s). ⚠️ Invariant: **`MIN_TURN_MS > TURN_MARGIN_MS + floor(10s)`**
+— aks holda tur byudjetdan oshadi. ⚠️ Timeout aniqlagich **statusga bog'langan** (`null|408|504`) —
+aks holda matnida "timeout" so'zi bor har qanday 400 noto'g'ri tashxis berardi.
+Tezlashtirish (deploy'siz, ta'sir tartibida): `AI_EFFORT=medium` → `AI_SEARCH_MAX_USES=3` →
+`AI_SEARCH_TOOL=web_search_20250305`. Streaming (SSE) muammoni butunlay yechadi, lekin mijoz+EF+
+`pause_turn`+manba yig'ish qayta yozilishini talab qiladi — 4-bosqich bilan birga rejalashtirilsin.
+
 **2-ish — suhbat tarixi DB'da**: `PROVODKA_AI_CHAT.sql` (**RUN kutilmoqda**) — `ai_conversations`
 (soft-delete) + `ai_messages` (`sources jsonb`, `model`). RLS: 4+4 policy, `user_id = (select auth.uid())`;
 🔴 `ai_messages` insert/update `with check` ichida **`exists(... ai_conversations ...)`** — `user_id` ni
