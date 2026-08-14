@@ -430,6 +430,47 @@ Qolgani: 3 — web_search bilan real-time qonunchilik, 4 — Provodka DB konteks
   (`perm_has_page` o'sha yerda) + `PROVODKA_AI_AGENT.sql`. Birinchi so'rovdan keyin
   `supabase functions logs ai-chat` — 400 kelsa `thinking`/`output_config` qatorlarini olib tashlash.
 
+### 5-bosqich (2026-08-14/15) — `BRIEF_PROVODKA_AI_5.md`, moliyaviy tahlilchi
+**1. 5 analitika RPC** — `PROVODKA_AI_HISOBOT.sql` (**RUN kutilmoqda**): `ai_rep_xarajat`
+(`xodim|kategoriya|filial`), `ai_rep_kirim` (`manba|filial`), `ai_rep_cashflow`, `ai_rep_balans`,
+`ai_rep_jurnal`. 🔴 **Mavjud hisobot mantiqi QAYTA YOZILMAYDI — o'raladi**: `balans()`,
+`cashflow_kassa()/pul_qoldiq_kassa()` (davr boshi = `p_from−1` — `cashflow-dev.html` bilan bir xil),
+`jurnal()`, `pnl()` zinapoyasi. Sabab: nusxa ko'chirilsa hisobot sahifasi o'zgarganda **AI boshqa
+raqam aytadi**. Sahifa qorovuli: xarajat/kirim→`hisobot`, cashflow→`cashflow`, balans→`balans`,
+jurnal→`jurnal`. `pnl_bolim` (butun kompaniya foydasi) kassa cheklovi bor userga **berilmaydi**.
+🔴 **Ikki sizish topildi va tuzatildi (2026-08-15)**:
+  (a) **Summa orqali sizish** — qorovul YOZUV darajasida edi ("kamida bitta satr meniki"), summa esa
+      butun yozuvniki. `professional.html` ko'p satrli yozuv yozadi (Dt Ijara 10 mln / Kt meniki 1 mln /
+      Kt begona 9 mln) → kategoriya qatoriga 10 mln tushib begona pul `jami` orqali sizardi va
+      `xodim` kesimi 1 mln deb **zid** raqam berardi. Yechim **fail-closed**: yozuvda begona pul satri
+      bo'lsa u umuman hisobga olinmaydi (pro-rata ataylab tanlanmadi — taxminiy raqam berardi).
+  (b) **`root_ids` ruxsatni kengaytirardi** — `view_kassa_ids` da yolg'iz bola-hisob (56xx USD,
+      Click bolasi) tursa `perm_op_key` uni parentga ko'tarib, cashflow **butun oilani** berardi;
+      mijozdagi `keyOf()` esa hech narsa ko'rsatmaydi. Endi manba `pul_ids` (u allaqachon
+      `perm_op_key(a.id)=any(view_kassa_ids)` dan o'tgan) — UI haqiqati bilan bir xil.
+🔴 **`ai_rep_jurnal` maskalashi FAIL-CLOSED** (Asilbek talabi 2026-08-15): u `jurnal()` javobidagi
+`section`/`account_id`/`is_deleted` **kalit nomlariga** tayanadi. Avval kalit yo'q bo'lsa `false`
+(= "begona emas") deb hisoblanardi, ya'ni RPC kontrakti o'zgarsa himoya **jimgina ochilib** begona
+kassa nomi/kodi ko'rinardi. Endi 4 joyda teskari: `begona_raw`/`shubha`/`dt_y`/`kt_y` — kalit yo'q,
+`uuid` shaklida emas yoki `lines` bo'sh bo'lsa **maskalanadi**; `is_deleted` yo'q bo'lsa yozuv
+**o'chirilgan** deb hisoblanadi. Javobda `shakl_shubhali` bayrog'i qaytadi — model "ma'lumot yo'q"
+demasin, "kontrakt o'zgargan" deb tushuntirsin (jimgina kam ko'rsatish ham xato manbai).
+⚠️ `uuid` cast `case ... ~ '^[0-9a-fA-F-]{36}$'` bilan o'ralgan — buzuq qiymat 22P02 bilan butun
+so'rovni yiqitmasin.
+
+**2. Chart** — javobdagi ```` ```chart ```` bloki (`type/columns/rows/total`, yorliq birinchi,
+**raqam oxirgi**): mijozda **inline SVG** (pie/bar/line) + jadval + Excel. Chart.js **yo'q** —
+bog'liqlik nol, dark/print ishlaydi, palitrada har qadam ≥80° tus siljishi (pie'da qo'shni segmentlar
+qo'shilib ketmasin). Blok DB'da **saqlanadi** (suhbat qayta ochilganda chart qayta chiziladi), lekin
+EF'ga yuboriladigan tarixda `[diagramma]` ga siqiladi (4000 belgi chegarasi chatni qotirardi).
+**3. Excel** — `vendor/xlsx-0.18.5.min.js` (SheetJS), 🔴 **LAZY**: `<script>` tegi yo'q, faqat
+"📥 Excel" birinchi bosilganda yuklanadi; yiqilsa CSV zaxirasi (BOM + `sep=;`). Raqamlar Excel'da
+**raqam** bo'lib yoziladi. ⚠️ Faqat OXIRGI ustun raqam deb o'qiladi — aks holda hisob kodi
+`5403` → `5 403` bo'lib ketardi.
+**EF**: 8 tool (3 + 5), `MAX_TOOL_ROUNDS` 4→6, `TOOL_RESULT_MAX` 20k→30k. `p_kesim` noto'g'ri bo'lsa
+**jimgina sukutga tushmaydi, XATO qaytaradi** (aks holda "filial kesimi" so'ralib "xodim kesimi"
+javob berilardi). ⚠️ Xom `sqlerrm` modelga **berilmaydi** (ichki tuzilma sizmasin) — server logida qoladi.
+
 ### 4-bosqich (2026-08-14) — `BRIEF_PROVODKA_AI_4.md`, 4 ish
 **1–2. SSE streaming + thinking**: EF `text/event-stream` qaytaradi. Hodisalar: `status`
 (`thinking|search|read|tool`) · `thinking` · `text` · `sources` · `done` · `error`, har 15s `: ping`.

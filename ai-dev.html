@@ -279,6 +279,167 @@
     .ai-clip{width:44px;height:44px}       /* barmoq uchun ~44px nishon */
     .ai-att-img{width:84px;height:84px}
   }
+  /* ===== Diagramma + jadval + Excel (.ach-*) — 5-bosqich, 2–3-ish =====
+     AI javobidagi ```chart bloki shu widgetga aylanadi (JS: `ach*`).
+
+     🔴 KUTUBXONA YO'Q — chart INLINE SVG: bog'liqlik nol, dark mavzuda ham
+        o'qiladi, chop etishda chiqadi, palitra to'liq nazoratda.
+     🔴 Ranglar CSS o'zgaruvchilarida (`--ach-1…8`), SVG `fill="var(--ach-3)"`
+        ni tushunadi — mavzu almashsa chart O'ZI almashadi, JS qayta chizmaydi.
+     ⚠️ Prefiks `.ach-` ataylab: `.ai-*` (chat) va `.aic-*` (suhbatlar) bilan
+        to'qnashmasin.
+     ⚠️ SVG ni JS QURADI (`fill`/`stroke`/`stroke-width`/`rx`/`r` — prezentatsiya
+        ATRIBUTLARI). Prezentatsiya atributi CSS dan kuchsiz, shuning uchun bu
+        yerdagi qoidalar ularni bemalol qayta yozadi (halqa qalinligi, burchak
+        radiusi, nuqta o'lchami…) — JS ga TEGILMAYDI. Brauzer geometriya
+        xossalarini (`rx`/`r`) tushunmasa, atributdagi qiymat qoladi (buzilmaydi).
+
+     ===== PALITRA (qaror) =====
+     • `--ach-1` = Aros yashili (brend). Line chart FAQAT shuni ishlatadi,
+       pie esa eng katta ulushga shu rangni beradi (ulushlar kamayish tartibida).
+     • Qolgan 7 tasi bir OILA: bir xil to'yinganlik/yorqinlik, faqat rang burchagi
+       aylanadi. 🔴 KETMA-KET raqamlar hech qachon qo'shni ton emas — har qadamda
+       tus >=80° siljiydi (yashil → ko'k → kehribar → binafsha → firuza →
+       atirgul → limon → orxideya → yana yashil). Pie segmentlari va bar
+       ustunlari `i%8` bilan shu tartibda kelgani uchun YONMA-YON bo'laklar
+       hech qachon qo'shilib ketmaydi.
+     • Light va dark — ALOHIDA qiymat: light'da to'qroq (oq fonda ko'rinsin),
+       dark'da ochroq va kamroq to'yingan (qora fonda "yonib" ketmasin).
+     • `--ach-other` ("Boshqa") ataylab NEYTRAL kulrang — u ma'lumot emas, qoldiq.
+     • `--ach-grid` — sokin setka; `--ach-rule` — kuchliroq chiziq (bar'dagi NOL
+       o'qi va jadvaldagi "Jami" ajratgichi bitta manbadan). */
+  :root{--ach-1:#1ea83a;--ach-2:#2f6fe0;--ach-3:#d98324;--ach-4:#8557e8;--ach-5:#0f9f9f;--ach-6:#d6455f;--ach-7:#7fa521;--ach-8:#a55bc4;--ach-other:#98a2b3;--ach-grid:#eceef2;--ach-rule:#c3cad5}
+  [data-theme="dark"]{--ach-1:#35cf55;--ach-2:#5b9cff;--ach-3:#f0a94a;--ach-4:#a98bff;--ach-5:#2bc4c4;--ach-6:#ff7a8f;--ach-7:#a6cf4b;--ach-8:#cd8ae0;--ach-other:#7b8493;--ach-grid:#242b38;--ach-rule:#46505f}
+  .ach{margin:8px 0 2px;max-width:100%;border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+  .ach-hd{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+  .ach-tt{flex:1 1 auto;min-width:0;font-size:14px;font-weight:700;line-height:1.35;letter-spacing:-.015em}
+  .ach-sub{display:block;font-size:11px;font-weight:500;line-height:1.4;color:var(--muted);margin-top:3px;letter-spacing:0}
+  /* Excel — IKKILAMCHI amal: javob matni bilan raqobat qilmasin (ko'rinmas
+     fon + neytral matn), lekin hover/fokusda brend yashiliga o'tadi. */
+  .ach-xls{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;letter-spacing:-.005em;cursor:pointer;transition:background .13s,border-color .13s,color .13s}
+  .ach-xls:hover:not(:disabled){background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .ach-xls:active:not(:disabled){background:var(--primary-soft);transform:translateY(1px)}
+  .ach-xls svg{width:14px;height:14px;flex:0 0 auto}
+  /* "Tayyorlanmoqda…" — so'ldirilgan emas, ISHLAMOQDA holati: ikonka o'rnida
+     aylanuvchi yoy (`.ai-send` bilan bir xil naqsh, `aiSpin` qayta ishlatiladi).
+     🔴 `opacity` bilan xiralashtirilmaydi — holat aniq o'qilishi kerak. */
+  .ach-xls:disabled{position:relative;opacity:1;background:var(--primary-soft);border-color:transparent;color:var(--primary);cursor:progress}
+  .ach-xls:disabled svg{opacity:0}
+  .ach-xls:disabled::before{content:'';position:absolute;left:12px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;border:1.6px solid currentColor;border-top-color:transparent;animation:aiSpin .7s linear infinite}
+  /* SVG idishga moslanadi (viewBox bilan) — `height:auto` shart */
+  .ach-svg{display:block;width:100%;height:auto}
+  .ach-svg text{font-family:inherit;font-size:12.5px;letter-spacing:-.01em;fill:var(--ink);font-variant-numeric:tabular-nums}
+  .ach-svg .ach-vl{font-size:11.5px;font-weight:500;fill:var(--muted)}
+  .ach-svg .ach-ax{font-size:11px;fill:var(--muted)}
+  .ach-svg .ach-ct{font-size:19px;font-weight:700;letter-spacing:-.02em;fill:var(--ink)}
+  .ach-svg .ach-cs{font-size:9.5px;font-weight:600;letter-spacing:.07em;fill:var(--muted);text-transform:uppercase}
+  /* ---- PIE (donut) ----
+     Halqa ingichkalashtirildi (atributdagi 30 → 26): markazdagi jami uchun
+     joy ochiladi va sxema yengil ko'rinadi. `stroke-dasharray` R=72 bo'yicha
+     hisoblangani uchun qalinlik ulushlarga TA'SIR QILMAYDI. */
+  .ach-pie circle{stroke-width:26;transition:stroke-width .16s cubic-bezier(.2,.7,.3,1),filter .13s}
+  .ach-pie circle:hover{filter:brightness(1.07)}
+  /* Hover'da segment "ko'tariladi" (ichkariga+tashqariga 3px o'sadi).
+     🔴 `transform` ISHLATILMAYDI — u SVG dagi `rotate(-90 …)` atributini
+        butunlay bosib, bo'laklarni joyidan uchirardi. */
+  @media (prefers-reduced-motion:no-preference){
+    .ach-pie circle:hover{stroke-width:32}
+  }
+  /* Pie: chap tomonda halqa, o'ngda legend; tor ekranda legend pastga tushadi */
+  .ach-pw{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .ach-pie{flex:0 0 auto;width:184px;max-width:100%}
+  .ach-lg{flex:1 1 210px;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .ach-lg-i{display:flex;align-items:center;gap:9px;min-width:0;font-size:12.5px;line-height:1.4}
+  .ach-dot{flex:0 0 auto;width:10px;height:10px;border-radius:3px}
+  .ach-lg-n{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Qiymat va foiz — ikkita TEKIS ustun (o'ngga tekislangan, tabular) */
+  .ach-lg-v{flex:0 0 auto;min-width:58px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ach-lg-p{flex:0 0 auto;min-width:46px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+  /* ---- BAR (gorizontal) ----
+     Ustunlar yumshoqroq burchak bilan; hover'da butun qator yorishadi. */
+  .ach-svg rect{rx:4px;ry:4px}
+  .ach-svg g rect{transition:filter .13s}
+  .ach-svg g:hover rect{filter:brightness(1.08)}
+  /* NOL o'qi (faqat manfiy qiymat bo'lganda chiziladi) setkadan kuchliroq
+     bo'lsin — `:has(rect)` bilan bar SVG ajratiladi (line chart'da setka
+     chiziqlari sokin qoladi). `:has()` yo'q brauzerda ikkalasi ham `--ach-grid`. */
+  .ach-svg:has(rect) line{stroke:var(--ach-rule);stroke-width:1.25}
+  /* ---- LINE ----
+     Nuqtalar kichik va sokin, hover'da kattalashadi; area gradienti yengil
+     (fill'ni JS `var(--ach-1)` qilib beradi, bu yerda faqat shaffoflik va
+     pastga qarab so'nuvchi mask). Mask qo'llab-quvvatlanmasa — oddiy tekis
+     qatlam qoladi (`@supports` qorovuli). */
+  .ach-svg:not(.ach-pie) circle{r:2.8px;transition:r .12s}
+  .ach-svg:not(.ach-pie) circle:hover{r:5px}
+  .ach-svg path[fill="none"]{stroke-width:2.25}
+  .ach-svg path:not([fill="none"]){opacity:.16}
+  @supports (mask-image:linear-gradient(#000,#0000)){
+    .ach-svg path:not([fill="none"]){opacity:.22;mask-image:linear-gradient(to bottom,#000 6%,#0006 62%,#0000 100%)}
+  }
+  /* ---- Jadval ----
+     Zich, lekin o'qiladigan. Ko'p qatorda ichki scroll + STICKY sarlavha
+     (va sticky "Jami"): sarlavha ham, jami ham doim ko'z oldida.
+     ⚠️ `border-collapse:separate` ATAYLAB — `collapse` da sticky hujayraning
+        chegarasi yo'qoladi; chiziqlar `box-shadow` bilan chiziladi. */
+  .ach-tw{margin-top:12px;max-height:min(56vh,420px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ach-tw::-webkit-scrollbar{width:6px;height:6px}
+  .ach-tw::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ach-tw::-webkit-scrollbar-track{background:transparent}
+  .ach-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+  .ach-tbl th,.ach-tbl td{padding:7px 10px;text-align:left;white-space:nowrap}
+  .ach-tbl td{border-bottom:1px solid var(--line)}
+  .ach-tbl th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);box-shadow:inset 0 -1px 0 var(--line)}
+  .ach-tbl th:first-child{border-top-left-radius:8px}
+  .ach-tbl th:last-child{border-top-right-radius:8px}
+  .ach-tbl td.n,.ach-tbl th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .ach-tbl td.l{max-width:240px;overflow:hidden;text-overflow:ellipsis}
+  .ach-tbl tbody tr:last-child td{border-bottom:none}
+  .ach-tbl tbody tr:hover td{background:var(--surface-2)}
+  /* "Jami" — qalinroq, tepasida aniq chiziq, pastga yopishgan */
+  .ach-tbl tfoot td{position:sticky;bottom:0;z-index:2;font-size:13px;font-weight:700;color:var(--ink);background:var(--surface-2);border-bottom:none;box-shadow:inset 0 1.5px 0 var(--ach-rule)}
+  .ach-note{margin-top:9px;font-size:11.5px;line-height:1.45;color:var(--muted)}
+  /* Excel xatosi + CSV zaxirasi — jimgina yutilmaydi.
+     Kehribar oila: `.aic-warn` / `.ai-fx` bilan bir xil til (yumshoq fon +
+     chap chekkada 3px chiziq), qichqirmaydi. */
+  .ach-err{display:none;margin-top:10px;font-size:12.5px;line-height:1.45;color:var(--amber);background:var(--amber-soft);border-radius:10px;box-shadow:inset 3px 0 0 var(--amber);padding:9px 12px 9px 14px}
+  .ach-err.on{display:block}
+  .ach-csv{margin-top:9px;height:30px;padding:0 11px;border:1px solid var(--amber);border-radius:8px;background:transparent;color:var(--amber);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;transition:background .13s,box-shadow .13s}
+  .ach-csv:hover{background:var(--surface);box-shadow:var(--shadow)}
+  .ach-csv:active{transform:translateY(1px)}
+  /* Buzuq JSON — blok XOM MATN bo'lib ko'rsatilmaydi, o'rniga shu izoh
+     (xato emas, ogohlantirish — shuning uchun `.ach-err` bilan bir xil ruh) */
+  .ach-bad{margin:8px 0 2px;font-size:12.5px;line-height:1.45;color:var(--amber);background:var(--amber-soft);border-radius:10px;box-shadow:inset 3px 0 0 var(--amber);padding:9px 12px 9px 14px}
+  /* Chart bor pufak kengroq bo'lsin (jadval siqilmasin) va SVG ning `width:100%`
+     i aniq kenglikka tayansin — `flex:1 1 auto` busiz pufak "shrink-to-fit"
+     bo'lib, chart o'zining intrinsik (kichik) o'lchamida qolib ketardi.
+     Chat maydonidan oshmaydi: `min(100%,760px)`.
+     `:has()` yo'q brauzerda oddiy 72% qoladi — buzilmaydi. */
+  .ai-bd:has(.ach){flex:1 1 auto;max-width:min(100%,760px)}
+  @media(max-width:899px){
+    .ach{padding:11px 12px 12px}
+    .ach-hd{gap:10px;margin-bottom:10px}
+    .ach-pw{gap:12px}
+    .ach-pie{width:100%;max-width:210px;margin:0 auto}
+    .ach-tbl td.l{max-width:150px}
+    .ach-xls{height:36px;padding:0 13px}   /* barmoq uchun kattaroq nishon */
+    /* 🔴 Bar/line SVG viewBox'i 640 kenglikda — telefonda (~280px) u 0.44 ga
+       kichrayadi va yorliqlar 6px bo'lib o'qilmay qolardi. Ikki chora:
+       (1) shrift user-unit'da kattalashtiriladi; (2) SVG 440px dan tor
+       bo'lmaydi va KARTA gorizontal scroll bo'ladi. Sarlavha/jadval/izoh
+       `sticky left` bilan joyida qoladi — ya'ni faqat diagramma suriladi.
+       ⚠️ Pie bunga kirmaydi (u 210px gacha kichrayadi, scroll shart emas). */
+    .ach{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+    .ach::-webkit-scrollbar{height:6px}
+    .ach::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+    .ach::-webkit-scrollbar-track{background:transparent}
+    .ach-svg:not(.ach-pie){min-width:440px}
+    .ach>.ach-hd,.ach>.ach-pw,.ach>.ach-tw,.ach>.ach-err,.ach>.ach-note{position:sticky;left:0}
+    .ach-svg text{font-size:16px}
+    .ach-svg .ach-vl{font-size:15px}
+    .ach-svg .ach-ax{font-size:13px}
+    .ach-svg .ach-ct{font-size:17px}
+    .ach-svg .ach-cs{font-size:9px}
+  }
   /* ===== AI suhbatlar paneli (.aic-*) — 3-bosqich, 2-ish =====
      Prefiks ataylab `.aic-`: chat (`.ai-*`) va navigatsiya (`.sidebar`/`.nav-item`)
      bilan to'qnashmasin.
@@ -749,8 +910,502 @@ function thinkHtml(m,st){
     + '</details>';
 }
 
+// =====================================================================
+//  DIAGRAMMA + JADVAL + EXCEL (`ach*`)  ·  5-bosqich, 2–3-ish
+// ---------------------------------------------------------------------
+//  KONTRAKT (EF/model bilan kelishilgan, O'ZGARTIRILMAYDI):
+//    ```chart
+//    {"type":"pie","title":"…","unit":"so'm",
+//     "columns":["Xodim","Summa"],"rows":[["Ali",12500000]],"total":12500000}
+//    ```
+//    type: pie|bar|line (noma'lum → bar) · columns 2..6 (BIRINCHI = yorliq,
+//    OXIRGI = chart qiymati) · rows <=50 (ortig'i kesiladi va aytiladi).
+//
+//  🔴 BLOK MATNDAN O'CHIRILMAYDI — u `msgs[].text` da va DB da AYNAN qoladi.
+//     `render()` uni HAR SAFAR qaytadan tanib widget chizadi, ya'ni suhbat
+//     qayta ochilganda (DB dan) chart yana paydo bo'ladi. Oqim (`stream`)
+//     esa faqat KO'RINISHNI boshqaradi (pastdagi `achStreamText`).
+//  🔴 XAVFSIZLIK: `rows`/`columns`/`title` — MODEL matni, ya'ni ishonchsiz.
+//     Har yorliq `escapeHtml()` dan o'tadi (`<text>` ichida ham), SVG
+//     atributlariga esa FAQAT `achN()` dan o'tgan chekli raqam yoziladi
+//     (NaN/Infinity hech qachon chiqmaydi).
+//  🔴 Buzuq JSON chatni buzmaydi: blok xom matn bo'lib CHIQMAYDI, o'rniga
+//     kichik izoh + console.error (bir marta).
+//  🔴 SheetJS LAZY: sahifa boshida yuklanmaydi (<script> tegi YO'Q) — faqat
+//     "Excel" birinchi bosilganda dinamik qo'shiladi. Yuklanmasa (tarmoq)
+//     aniq xato + CSV zaxirasi (kutubxonasiz, UTF-8 BOM bilan).
+// =====================================================================
+const ACH_MAX_ROWS=50;      // kontrakt: ko'pi bilan 50 qator chiziladi
+const ACH_MAX_COLS=6;       // kontrakt: 2..6 ustun
+const ACH_PIE_MAX=8;        // pie: shundan ortig'i "Boshqa" ga yig'iladi
+const ACH_PIE_MIN=0.02;     // pie: 2% dan kichik ulush "Boshqa" ga
+const ACH_BAR_MAX=20;       // bar: diagrammada shuncha ustun (jadval to'liq)
+const ACH_HIST_KEEP=400;    // tarixda (EF) shundan uzun blok qisqartiriladi
+const ACH_XLSX_SRC='vendor/xlsx-0.18.5.min.js';
+const ACH_WAIT='📊 Diagramma tayyorlanmoqda…';
+const ACH_MARK='📊 Diagramma';
+// Yopilgan blok. `[\s\S]*?` — lazy, ya'ni eng yaqin yopilishgacha.
+const ACH_RE=/```[ \t]*chart[ \t]*\r?\n([\s\S]*?)\r?\n?[ \t]*```/g;
+let _achSeq=0;                      // widget id (render'lar bo'ylab O'SADI)
+let _achReg=Object.create(null);    // id → {d} — HAR render'da qaytadan quriladi
+let _achBad=Object.create(null);    // buzuq blok console'ga bir marta chiqsin
+
+/* SVG atributi uchun XAVFSIZ raqam. NaN/Infinity → zaxira qiymat. */
+function achN(v,fb){ const x=Number(v); return isFinite(x)?Math.round(x*100)/100:(fb===undefined?0:fb); }
+function achStr(v,max){ let s=String(v==null?'':v).replace(/\s+/g,' ').trim(); const n=max||120; return s.length>n?s.slice(0,n-1)+'…':s; }
+function achCut(s,n){ const t=String(s==null?'':s); return t.length>n?t.slice(0,n-1)+'…':t; }
+/* Pul formati — CLAUDE.md: probel bilan, kasr `,` bilan (`money()` naqshi). */
+function achMoney(n){
+  const x=Number(n); if(!isFinite(x)) return '';
+  const neg=x<0, v=Math.abs(x), r=Math.round(v*100)/100;
+  const ip=Math.floor(r), fp=Math.round((r-ip)*100);
+  let s=String(ip).replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  if(fp>0) s+=','+(fp<10?'0'+fp:String(fp));
+  return (neg?'−':'')+s;
+}
+/* O'q/markaz uchun ixcham ko'rinish: 12 500 000 → "12,5 mln".
+   ⚠️ Bu yerda ortiqcha nol kesiladi ("1,20 mln" emas, "1,2 mln") — pul
+   ustunida esa achMoney ikki xonani SAQLAYDI (12 500,50 so'm). */
+function achDec1(s){ return String(s).replace(/,(\d)0$/,',$1'); }
+function achShort(n){
+  const x=Number(n); if(!isFinite(x)) return '';
+  const v=Math.abs(x);
+  if(v>=1e9) return achDec1(achMoney(Math.round(x/1e8)/10))+' mlrd';
+  if(v>=1e6) return achDec1(achMoney(Math.round(x/1e5)/10))+' mln';
+  if(v>=1e4) return achDec1(achMoney(Math.round(x/100)/10))+' ming';
+  return achMoney(x);
+}
+function achPct(x){
+  if(!isFinite(x)) return '';
+  const p=x*100;
+  if(p>0&&p<0.1) return '<0,1%';
+  return (Math.round(p*10)/10).toFixed(1).replace('.',',')+'%';
+}
+/* Raqam ajratish: "12 500 000", "12500,50", 12500 — hammasi bir xil o'qiladi.
+   Raqam bo'lmasa `null` (jadvalda matn bo'lib qoladi, chartda o'tkaziladi). */
+function achNum(v){
+  if(typeof v==='number') return isFinite(v)?v:null;
+  if(typeof v!=='string') return null;
+  let s=v.replace(/[\s\u00a0\u202f\u2009']/g,'');   // probel, uzilmas/ingichka probel, apostrof
+  if(!s) return null;
+  if(/,\d{1,2}$/.test(s)&&s.indexOf('.')<0) s=s.replace(',','.');
+  else s=s.replace(/,/g,'');
+  if(!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) return null;
+  const n=parseFloat(s);
+  return isFinite(n)?n:null;
+}
+
+/* JSON → normallashtirilgan model. Yaroqsiz bo'lsa `null`. */
+function achParse(raw){
+  const src=String(raw==null?'':raw).trim();
+  let o=null;
+  try{ o=JSON.parse(src); }
+  catch(e){ achBadLog(src,e); return null; }
+  if(!o||typeof o!=='object'||Array.isArray(o)){ achBadLog(src,'obyekt emas'); return null; }
+  const d=achNorm(o);
+  if(!d) achBadLog(src,'qator yo\'q yoki yaroqsiz');
+  return d;
+}
+function achBadLog(src,e){
+  const k=String(src).slice(0,80);
+  if(_achBad[k]) return;
+  _achBad[k]=1;
+  console.error('chart bloki o\'qilmadi:',e,String(src).slice(0,200));
+}
+function achNorm(o){
+  const raw=Array.isArray(o.rows)?o.rows.filter(r=>Array.isArray(r)):[];
+  if(!raw.length) return null;
+  let width=0;
+  for(const r of raw) if(r.length>width) width=r.length;
+  if(width<2) return null;                       // yorliq + qiymat kerak
+  let cols=Array.isArray(o.columns)?o.columns.map(c=>achStr(c,60)):[];
+  const n=Math.min(ACH_MAX_COLS,Math.max(2,width,cols.length));
+  while(cols.length<n) cols.push(cols.length?('Qiymat'+(cols.length>1?' '+cols.length:'')):'Nomi');
+  cols=cols.slice(0,n);
+  let rows=raw.map(r=>{ const a=r.slice(0,n); while(a.length<n) a.push(''); return a; });
+  let more=0;
+  if(rows.length>ACH_MAX_ROWS){ more=rows.length-ACH_MAX_ROWS; rows=rows.slice(0,ACH_MAX_ROWS); }
+  const labels=rows.map(r=>achStr(r[0],120)||'—');
+  const vals=rows.map(r=>achNum(r[n-1]));
+  let type=achStr(o.type,20).toLowerCase();
+  if(type==='pie'||type==='donut'||type==='doughnut') type='pie';
+  else if(type==='line'||type==='area') type='line';
+  else type='bar';                                // noma'lum tur → bar
+  // pie manfiy ulushni ifodalay olmaydi → bar
+  if(type==='pie'&&vals.some(v=>v!==null&&v<0)) type='bar';
+  let total=achNum(o.total);
+  if(total===null){
+    let s=0,has=false;
+    for(const v of vals){ if(v!==null){ s+=v; has=true; } }
+    total=has?s:null;
+  }
+  // "hammasi 0" / "raqam emas" → chart chizilmaydi (jadval qoladi)
+  const chartable=vals.some(v=>v!==null&&v!==0);
+  return {type:type,title:achStr(o.title,140),unit:achStr(o.unit,20),
+          cols:cols,rows:rows,labels:labels,vals:vals,total:total,more:more,chartable:chartable};
+}
+
+/* ---- matnni bo'laklash: [{kind:'text'|'chart'}] ---- */
+function achHas(s){ return String(s||'').indexOf('```')>=0; }
+function achSegments(s){
+  const t=String(s==null?'':s);
+  if(!achHas(t)) return [{kind:'text',text:t}];
+  const out=[]; let last=0,m;
+  ACH_RE.lastIndex=0;
+  while((m=ACH_RE.exec(t))){
+    if(m.index>last) out.push({kind:'text',text:t.slice(last,m.index)});
+    out.push({kind:'chart',data:achParse(m[1])});
+    last=m.index+m[0].length;
+  }
+  if(!out.length) return [{kind:'text',text:t}];
+  if(last<t.length) out.push({kind:'text',text:t.slice(last)});
+  return out;
+}
+/* Oqim: OCHIQ (hali yopilmagan) blokni topamiz.
+   Fence'lar ketma-ket sanaladi (toggle) — aks holda oldingi ```sql blokining
+   YOPILISH fence'i "ochiq chart" deb noto'g'ri o'qilardi. */
+function achOpenInfo(s){
+  const re=/```/g; let m,open=null;
+  while((m=re.exec(s))){
+    if(open){ open=null; continue; }
+    const rest=s.slice(m.index+3);
+    const nl=rest.indexOf('\n');
+    open={i:m.index,tag:(nl<0?rest:rest.slice(0,nl)).trim().toLowerCase(),named:nl>=0};
+  }
+  return open;
+}
+/* Oqim davomida ko'rsatiladigan matn:
+   • yopilgan blok → "📊 Diagramma" belgisi (xom JSON ko'rinmasin);
+   • ochilgan blok → o'sha joydan keyingi hamma narsa yashiriladi. */
+function achStreamText(s){
+  let t=String(s==null?'':s);
+  if(!achHas(t)) return t;
+  ACH_RE.lastIndex=0;
+  t=t.replace(ACH_RE,()=>ACH_MARK);
+  const op=achOpenInfo(t);
+  if(op && (op.named ? op.tag==='chart' : 'chart'.indexOf(op.tag)===0)) t=t.slice(0,op.i)+ACH_WAIT;
+  return t;
+}
+/* EF ga yuboriladigan TARIX uchun: uzun blok `[diagramma: nom]` ga siqiladi
+   (4000 belgi chegarasi butun javobni yeb qo'ymasin). Ekranda/DB da TO'LIQ. */
+function achForHistory(s){
+  const t=String(s==null?'':s);
+  if(!achHas(t)) return t;
+  ACH_RE.lastIndex=0;
+  // ⚠️ replace(re, FUNKSIYA) — string bo'lsa `$'` kabi naqshlar portlaydi (CLAUDE.md)
+  return t.replace(ACH_RE,(hit,body)=>{
+    if(hit.length<=ACH_HIST_KEEP) return hit;
+    let ttl='';
+    try{ const o=JSON.parse(String(body).trim()); if(o&&typeof o.title==='string') ttl=achStr(o.title,60); }
+    catch(e){ ttl=''; }
+    return ttl?('[diagramma: '+ttl+']'):'[diagramma]';
+  });
+}
+
+/* ---- SVG: PIE (donut) ---- */
+function achPieParts(d){
+  const items=[];
+  for(let i=0;i<d.rows.length;i++){ const v=d.vals[i]; if(v===null||v<=0) continue; items.push({l:d.labels[i],v:v}); }
+  let sum=0; for(const it of items) sum+=it.v;
+  if(!(sum>0)) return null;
+  const big=[],small=[];
+  for(const it of items){ (it.v/sum<ACH_PIE_MIN?small:big).push(it); }
+  if(small.length===1) big.push(small.pop());     // yolg'iz kichik ulush "Boshqa" bo'lib turmasin
+  big.sort((a,b)=>b.v-a.v);
+  let oth=0,othN=small.length;
+  for(const it of small) oth+=it.v;
+  while(big.length>ACH_PIE_MAX){ const x=big.pop(); oth+=x.v; othN++; }
+  const parts=big.map((it,i)=>({l:it.l,v:it.v,share:it.v/sum,c:'var(--ach-'+((i%8)+1)+')'}));
+  if(othN>0&&oth>0) parts.push({l:'Boshqa ('+othN+')',v:oth,share:oth/sum,c:'var(--ach-other)'});
+  return {parts:parts,sum:sum};
+}
+function achPieHtml(d){
+  const p=achPieParts(d);
+  if(!p) return '';
+  const R=72,SW=30,CX=100,CY=100,C=2*Math.PI*R;
+  const gap=p.parts.length>1?1.6:0;
+  let acc=0,seg='';
+  for(const it of p.parts){
+    const len=Math.max(0.6,it.share*C-gap);
+    seg+='<circle cx="'+CX+'" cy="'+CY+'" r="'+R+'" fill="none" stroke="'+it.c+'" stroke-width="'+SW+'"'
+       + ' stroke-dasharray="'+achN(len)+' '+achN(C-len,C)+'" stroke-dashoffset="'+achN(-acc)+'"'
+       + ' transform="rotate(-90 '+CX+' '+CY+')"><title>'+escapeHtml(it.l+' — '+achMoney(it.v)+' ('+achPct(it.share)+')')+'</title></circle>';
+    acc+=it.share*C;
+  }
+  const svg='<svg class="ach-svg ach-pie" viewBox="0 0 200 200" role="img" preserveAspectRatio="xMidYMid meet"'
+    + ' aria-label="'+escapeHtml(d.title||'Diagramma')+'">'+seg
+    + '<text class="ach-ct" x="'+CX+'" y="'+(CY-1)+'" text-anchor="middle">'+escapeHtml(achShort(p.sum))+'</text>'
+    + '<text class="ach-cs" x="'+CX+'" y="'+(CY+15)+'" text-anchor="middle">'+escapeHtml(d.unit||'Jami')+'</text>'
+    + '</svg>';
+  const lg='<div class="ach-lg">'+p.parts.map(it=>
+      '<span class="ach-lg-i"><span class="ach-dot" style="background:'+it.c+'"></span>'
+      + '<span class="ach-lg-n" title="'+escapeHtml(it.l)+'">'+escapeHtml(it.l)+'</span>'
+      + '<span class="ach-lg-v">'+escapeHtml(achShort(it.v))+'</span>'
+      + '<span class="ach-lg-p">'+escapeHtml(achPct(it.share))+'</span></span>').join('')+'</div>';
+  return '<div class="ach-pw">'+svg+lg+'</div>';
+}
+/* ---- SVG: BAR (gorizontal — uzun o'zbekcha yorliqlar sig'sin) ---- */
+function achBarHtml(d){
+  const items=[];
+  for(let i=0;i<d.rows.length;i++){ const v=d.vals[i]; if(v===null) continue; items.push({l:d.labels[i],v:v}); }
+  if(!items.length) return '';
+  let cut=0;
+  if(items.length>ACH_BAR_MAX){ cut=items.length-ACH_BAR_MAX; items.length=ACH_BAR_MAX; }
+  const W=640,LAB=178,VAL=150,PAD=6,RH=28;
+  const bx=LAB+10,bw=W-bx-VAL,H=PAD*2+items.length*RH;
+  let mn=0,mx=0,pos=0,allPos=true;
+  for(const it of items){ if(it.v<mn){ mn=it.v; allPos=false; } if(it.v>mx) mx=it.v; if(it.v>0) pos+=it.v; }
+  const rng=(mx-mn)||1;
+  const x0=bx+((0-mn)/rng)*bw;
+  let s='<svg class="ach-svg" viewBox="0 0 '+W+' '+achN(H,60)+'" role="img" preserveAspectRatio="xMinYMin meet"'
+      + ' aria-label="'+escapeHtml(d.title||'Diagramma')+'">';
+  if(!allPos) s+='<line x1="'+achN(x0)+'" y1="'+PAD+'" x2="'+achN(x0)+'" y2="'+achN(H-PAD)+'" stroke="var(--ach-grid)" stroke-width="1"/>';
+  for(let i=0;i<items.length;i++){
+    const it=items[i], y=PAD+i*RH, cy=y+RH/2;
+    const w=Math.max(1.5,(Math.abs(it.v)/rng)*bw);
+    const x=it.v>=0?x0:x0-w;
+    const pc=(allPos&&pos>0)?(' · '+achPct(it.v/pos)):'';
+    s+='<g><title>'+escapeHtml(it.l+' — '+achMoney(it.v)+(d.unit?' '+d.unit:'')+pc)+'</title>'
+     + '<text x="'+LAB+'" y="'+achN(cy)+'" text-anchor="end" dominant-baseline="middle">'+escapeHtml(achCut(it.l,26))+'</text>'
+     + '<rect x="'+achN(x,bx)+'" y="'+achN(y+6)+'" width="'+achN(w,1.5)+'" height="'+(RH-12)+'" rx="3" fill="var(--ach-'+((i%8)+1)+')"/>'
+     + '<text class="ach-vl" x="'+achN((it.v>=0?x+w:x0)+8)+'" y="'+achN(cy)+'" dominant-baseline="middle">'+escapeHtml(achShort(it.v)+pc)+'</text>'
+     + '</g>';
+  }
+  s+='</svg>';
+  if(cut) s+='<div class="ach-note">Diagrammada birinchi '+ACH_BAR_MAX+' qator ko\'rsatildi (yana '+cut+' qator jadvalda).</div>';
+  return s;
+}
+/* ---- SVG: LINE ---- */
+function achLineHtml(d){
+  const pts=[];
+  for(let i=0;i<d.rows.length;i++){ const v=d.vals[i]; if(v===null) continue; pts.push({l:d.labels[i],v:v}); }
+  if(pts.length<2) return achBarHtml(d);          // bitta nuqtadan chiziq chiqmaydi
+  const W=640,H=250,PL=64,PR=14,PT=12,PB=34;
+  const pw=W-PL-PR,ph=H-PT-PB;
+  let mn=0,mx=0;
+  for(const p of pts){ if(p.v<mn) mn=p.v; if(p.v>mx) mx=p.v; }
+  if(mx===mn) mx=mn+1;
+  const yOf=v=>PT+ph-((v-mn)/(mx-mn))*ph;
+  const xOf=i=>PL+(pts.length>1?(i*(pw/(pts.length-1))):pw/2);
+  let s='<svg class="ach-svg" viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMinYMin meet"'
+      + ' aria-label="'+escapeHtml(d.title||'Diagramma')+'">';
+  for(let g=0;g<=4;g++){
+    const v=mn+(mx-mn)*(g/4), y=achN(yOf(v),PT);
+    s+='<line x1="'+PL+'" y1="'+y+'" x2="'+(W-PR)+'" y2="'+y+'" stroke="var(--ach-grid)" stroke-width="1"/>'
+     + '<text class="ach-ax" x="'+(PL-8)+'" y="'+y+'" text-anchor="end" dominant-baseline="middle">'+escapeHtml(achShort(v))+'</text>';
+  }
+  let line='',area='';
+  for(let i=0;i<pts.length;i++){
+    const x=achN(xOf(i),PL), y=achN(yOf(pts[i].v),PT);
+    line+=(i?' L ':'M ')+x+' '+y;
+    area+=(i?' L ':'M ')+x+' '+y;
+  }
+  area+=' L '+achN(xOf(pts.length-1),PL)+' '+achN(yOf(mn),PT+ph)+' L '+achN(xOf(0),PL)+' '+achN(yOf(mn),PT+ph)+' Z';
+  s+='<path d="'+area+'" fill="var(--ach-1)" opacity=".12"/>'
+   + '<path d="'+line+'" fill="none" stroke="var(--ach-1)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+  const step=Math.ceil(pts.length/6);
+  for(let i=0;i<pts.length;i++){
+    const x=achN(xOf(i),PL), y=achN(yOf(pts[i].v),PT);
+    s+='<circle cx="'+x+'" cy="'+y+'" r="3.2" fill="var(--ach-1)"><title>'+escapeHtml(pts[i].l+' — '+achMoney(pts[i].v)+(d.unit?' '+d.unit:''))+'</title></circle>';
+    if(i%step===0||i===pts.length-1)
+      s+='<text class="ach-ax" x="'+x+'" y="'+(H-12)+'" text-anchor="middle">'+escapeHtml(achCut(pts[i].l,11))+'</text>';
+  }
+  return s+'</svg>';
+}
+function achChartHtml(d){
+  if(!d.chartable) return '';                     // bo'sh/nol/raqamsiz → faqat jadval
+  if(d.type==='pie') return achPieHtml(d);
+  if(d.type==='line') return achLineHtml(d);
+  return achBarHtml(d);
+}
+/* ---- jadval ---- */
+function achTableHtml(d){
+  const n=d.cols.length;
+  const head=d.cols.slice();
+  if(d.unit) head[n-1]=head[n-1]+', '+d.unit;
+  let h='<div class="ach-tw"><table class="ach-tbl"><thead><tr>';
+  for(let c=0;c<n;c++) h+='<th'+(c===n-1?' class="n"':'')+'>'+escapeHtml(head[c])+'</th>';
+  h+='</tr></thead><tbody>';
+  for(const r of d.rows){
+    h+='<tr>';
+    for(let c=0;c<n;c++){
+      /* 🔴 FAQAT OXIRGI ustun raqam deb o'qiladi (kontrakt: "raqam OXIRGI").
+         Avval `c>0` edi — o'rtadagi HISOB KODI ustuni ham raqamga aylanib
+         `5403` → `5 403` bo'lardi (Excelda esa boshidagi nol yo'qolardi). */
+      const num=(c===n-1)?achNum(r[c]):null;
+      h+= num!==null
+        ? '<td class="n">'+escapeHtml(achMoney(num))+'</td>'
+        : '<td'+(c===0?' class="l"':'')+'>'+escapeHtml(achStr(r[c],120))+'</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  if(d.total!==null){
+    h+='<tfoot><tr><td>Jami</td>'
+     + (n>2?'<td colspan="'+(n-2)+'"></td>':'')
+     + '<td class="n">'+escapeHtml(achMoney(d.total))+'</td></tr></tfoot>';
+  }
+  return h+'</table></div>';
+}
+/* ---- widget ---- */
+function achWidgetHtml(d){
+  if(!d) return '<div class="ach-bad">📊 Diagramma o\'qilmadi (ma\'lumot buzilgan).</div>';
+  const id='ach'+(++_achSeq);
+  _achReg[id]={d:d};
+  const sub=[];
+  if(d.more) sub.push('yana '+d.more+' qator ko\'rsatilmadi');
+  if(!d.chartable) sub.push('diagramma uchun raqam yo\'q');
+  return '<div class="ach" id="'+id+'">'
+    + '<div class="ach-hd"><span class="ach-tt">'+escapeHtml(d.title||'Hisobot')
+    +   (sub.length?'<span class="ach-sub">'+escapeHtml(sub.join(' · '))+'</span>':'')+'</span>'
+    + '<button type="button" class="ach-xls" id="'+id+'x" onclick="achExcel(\''+id+'\')" title="Excel (.xlsx) yuklab olish">'
+    +   '<i data-lucide="download"></i><span>Excel</span></button></div>'
+    + achChartHtml(d)
+    + achTableHtml(d)
+    + '<div class="ach-err" id="'+id+'e" role="alert"></div>'
+    + '</div>';
+}
+/* Bot javobi: matn bo'laklari + chart widgetlari. Chart yo'q bo'lsa
+   xatti-harakat AVVALGIDEK (bitta `.ai-msg` pufagi). */
+function achBodyHtml(m){
+  const raw=String((m&&m.text)||'');
+  if(!achHas(raw)) return raw?'<div class="ai-msg">'+escapeHtml(raw)+'</div>':'';
+  const segs=achSegments(raw);
+  let out='';
+  for(const s of segs){
+    if(s.kind==='text'){ const t=s.text.trim(); if(t) out+='<div class="ai-msg">'+escapeHtml(t)+'</div>'; }
+    else out+=achWidgetHtml(s.data);
+  }
+  return out;
+}
+
+/* ---- EXCEL (SheetJS, LAZY) + CSV zaxirasi ---- */
+let _achXlsx=null;          // uchayotgan/tugagan yuklash va'dasi
+function achLoadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_achXlsx) return _achXlsx;
+  const p=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=ACH_XLSX_SRC; s.async=true;
+    s.onload=()=>{ if(window.XLSX) res(window.XLSX); else rej(new Error('kutubxona yuklandi, lekin topilmadi')); };
+    s.onerror=()=>rej(new Error('kutubxona yuklanmadi (tarmoq)'));
+    document.head.appendChild(s);
+  });
+  // Yiqilsa keyingi bosishda QAYTA urinish mumkin bo'lsin (kesh o'chadi).
+  p.catch(e=>{ _achXlsx=null; console.error('SheetJS:',e); });
+  _achXlsx=p;
+  return p;
+}
+/* Jadval → massivlar massivi: sarlavha + qatorlar + "Jami".
+   Raqamlar RAQAM bo'lib yoziladi (Excel'da yig'indi ishlasin). */
+function achAoa(d){
+  const n=d.cols.length;
+  const head=d.cols.slice();
+  if(d.unit) head[n-1]=head[n-1]+', '+d.unit;
+  const out=[head];
+  for(const r of d.rows){
+    const line=[];
+    // Jadval bilan bir xil qoida: faqat OXIRGI ustun raqam (kod matn bo'lib qolsin)
+    for(let c=0;c<n;c++){ const num=(c===n-1)?achNum(r[c]):null; line.push(num!==null?num:achStr(r[c],200)); }
+    out.push(line);
+  }
+  if(d.total!==null){
+    const t=[]; for(let c=0;c<n;c++) t.push('');
+    t[0]='Jami'; t[n-1]=d.total;
+    out.push(t);
+  }
+  return out;
+}
+function achWidths(aoa){
+  const w=[];
+  for(const r of aoa){
+    for(let c=0;c<r.length;c++){
+      const len=String(r[c]==null?'':(typeof r[c]==='number'?achMoney(r[c]):r[c])).length+2;
+      if(!w[c]||len>w[c]) w[c]=len;
+    }
+  }
+  return w.map(x=>({wch:Math.max(9,Math.min(42,x||9))}));
+}
+function achSlug(s){
+  const t=String(s||'').toLowerCase()
+    .replace(/[‘’ʻʼ'`"]/g,'')
+    .replace(/[^a-z0-9Ѐ-ӿ]+/g,'-')
+    .replace(/-+/g,'-').replace(/^-|-$/g,'');
+  return t.slice(0,40)||'hisobot';
+}
+// Sana Toshkent bo'yicha (UTC+5) — `nowHM` bilan bir xil naqsh
+function achFileName(d,ext){
+  const day=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+  return achSlug(d.title||'hisobot')+'-'+day+'.'+ext;
+}
+function achSheetName(d){
+  const t=String(d.title||'').replace(/[\\\/\?\*\[\]:]/g,' ').replace(/\s+/g,' ').trim();
+  return t?t.slice(0,31):'Hisobot';
+}
+function achBtn(id,txt,off){
+  const b=$(id+'x'); if(!b) return;
+  b.disabled=!!off;
+  const s=b.querySelector('span'); if(s) s.textContent=txt;
+}
+/* Xato/zaxira lentasi. `csv` — CSV tugmasi ko'rsatilsinmi. */
+function achErr(id,text,csv){
+  const el=$(id+'e'); if(!el){ console.error('ACH:',text); return; }
+  if(!text){ el.className='ach-err'; el.innerHTML=''; return; }
+  el.innerHTML=escapeHtml(text)
+    + (csv?'<div><button type="button" class="ach-csv" onclick="achCsv(\''+id+'\')">CSV yuklab olish</button></div>':'');
+  el.className='ach-err on';
+}
+function achDownload(blob,name){
+  const u=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=u; a.download=name; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{
+    try{ a.parentNode&&a.parentNode.removeChild(a); }catch(e){ console.error('havola olinmadi:',e); }
+    try{ URL.revokeObjectURL(u); }catch(e){ console.error('objectURL bo\'shatilmadi:',e); }
+  },1500);
+}
+window.achExcel=async id=>{
+  const e=_achReg[id]; if(!e) return;             // eskirgan widget (qayta chizilgan)
+  achErr(id,'');
+  achBtn(id,'Tayyorlanmoqda…',true);
+  try{
+    const X=await achLoadXlsx();
+    if(!X||!X.utils||!X.utils.book_new) throw new Error('kutubxona to\'liq emas');
+    const aoa=achAoa(e.d);
+    const ws=X.utils.aoa_to_sheet(aoa);
+    ws['!cols']=achWidths(aoa);
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb,ws,achSheetName(e.d));
+    X.writeFile(wb,achFileName(e.d,'xlsx'));
+    achBtn(id,'Excel',false);
+  }catch(ex){
+    console.error('Excel yaratilmadi:',ex);
+    achBtn(id,'Excel',false);
+    achErr(id,'Excel fayli tayyorlanmadi — '+((ex&&ex.message)||'noma\'lum xato')+'. CSV bilan yuklab olishingiz mumkin (Excel uni ochadi).',true);
+  }
+};
+/* CSV zaxirasi — kutubxonasiz. UTF-8 BOM + `sep=;` (Excel ustunlarga to'g'ri
+   bo'ladi, LibreOffice ham tushunadi). */
+window.achCsv=id=>{
+  const e=_achReg[id]; if(!e) return;
+  try{
+    const aoa=achAoa(e.d);
+    const q=v=>{ const s=String(v==null?'':v); return /[";\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    const txt='\ufeff'+'sep=;\r\n'+aoa.map(r=>r.map(q).join(';')).join('\r\n')+'\r\n';
+    achDownload(new Blob([txt],{type:'text/csv;charset=utf-8'}),achFileName(e.d,'csv'));
+    achErr(id,'');
+  }catch(ex){
+    console.error('CSV yaratilmadi:',ex);
+    achErr(id,'CSV ham yaratilmadi — '+((ex&&ex.message)||'noma\'lum xato')+'.',false);
+  }
+};
+
 function render(){
   const list=$('aiList');
+  // Widget registri HAR render'da qaytadan quriladi (id lar o'sib boradi —
+  // eski id qolib ketsa `achExcel` uni topmaydi va jimgina chiqadi).
+  _achReg=Object.create(null);
   // Eski suhbat DB dan o'qilayotganda bo'sh ekran o'rniga "Yuklanmoqda…" (aicLoadingHtml)
   if(!msgs.length){ list.innerHTML=_aicLoadingMsgs?aicLoadingHtml():emptyHtml(); icons(); return; }
   // XSS: matn HAR DOIM escapeHtml() dan o'tadi — Claude javobi ham xom matn.
@@ -770,8 +1425,13 @@ function render(){
       + thinkHtml(m,st)
       // Faqat fayl yuborilgan bo'lsa (matn bo'sh) — bo'sh pufak chizilmaydi
       // (oqimda esa pufak doim bor, lekin `.ai-msg:empty` uni yashiradi).
-      + (st?'<div class="ai-msg" id="aiStMsg">'+escapeHtml(m.text||'')+'</div>'
-          :(m.text?'<div class="ai-msg">'+escapeHtml(m.text)+'</div>':''))
+      /* 🔴 Diagramma (```chart) FAQAT bot javobida qidiriladi — foydalanuvchi
+         xuddi shunday blok yozsa u XOM MATN bo'lib qoladi (widget emas).
+         Oqim davomida blok o'rniga "tayyorlanmoqda…" (`achStreamText`),
+         oqim tugagach `achBodyHtml` haqiqiy widget chizadi. */
+      + (st?'<div class="ai-msg" id="aiStMsg">'+escapeHtml(achStreamText(m.text||''))+'</div>'
+          :(m.role==='bot'?achBodyHtml(m)
+            :(m.text?'<div class="ai-msg">'+escapeHtml(m.text)+'</div>':'')))
       + (st?'<div id="aiStSrc">'+srcHtml(m.src)+'</div>':srcHtml(m.src))
       + '<div class="ai-time">'+escapeHtml(m.at)+'</div>'
       + '</div>'
@@ -849,7 +1509,10 @@ function aiStAddText(delta){
   if(!_st||!delta) return;
   const was=aiAtBottom();
   _st.text+=delta;
-  if(_stEl&&_stEl.msg) _stEl.msg.textContent=_st.text;
+  /* 🔴 `_st.text` XOM saqlanadi (DB ga o'sha ketadi), ekranga esa
+     `achStreamText` beriladi: yarim kelgan ```chart bloki JSON bo'lib
+     ko'rinmasin — o'rniga "📊 Diagramma tayyorlanmoqda…". */
+  if(_stEl&&_stEl.msg) _stEl.msg.textContent=achStreamText(_st.text);
   // Javob kela boshladi → jarayon qatori yo'qoladi (qidiruv qayta boshlansa qaytadi)
   if(_st.status) aiStSetStatus('');
   aiFollow(was);
@@ -1263,6 +1926,11 @@ function apiMsgs(blocks){
   let a=msgs.filter(m=>m.role==='me'||m.role==='bot')
             .map(m=>{
               let t=String(m.text==null?'':m.text);
+              /* 🔴 Diagramma bloki tarixda QISQARTIRILADI (`[diagramma: nom]`):
+                 u 4000 belgilik chegarani yolg'iz o'zi yeb qo'yishi mumkin va
+                 modelga o'z chizgan JSON'i xom holida qaytishi shart emas.
+                 ⚠️ Ekranda va DB da blok TO'LIQ qoladi (chart qayta chiziladi). */
+              if(m.role!=='me') t=achForHistory(t);
               /* Eski xabarning FAYL BELGISI tarixga qo'shiladi (`[2 rasm]`):
                  rasmning o'zi qayta yuborilmaydi (narx/hajm), lekin model
                  "u yerda chek rasmi bor edi" kontekstini yo'qotmasin. */
