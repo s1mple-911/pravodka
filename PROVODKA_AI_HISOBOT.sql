@@ -577,7 +577,11 @@ stable
 set search_path = public
 as $ai_top$
 declare
-  v_all    jsonb := coalesce(p_all, '[]'::jsonb);
+  /* 🔴 `coalesce` YETARLI EMAS: jsonb 'null' (JSON null) SQL NULL EMAS —
+     coalesce uni o'tkazib yuboradi va `jsonb_array_elements` "cannot extract
+     elements from a scalar" (22023) bilan yiqiladi. Shuning uchun TUR
+     tekshiriladi (2026-08-15 nosozligi). */
+  v_all    jsonb := case when jsonb_typeof(p_all) = 'array' then p_all else '[]'::jsonb end;
   v_lim    int   := greatest(coalesce(p_limit, 40), 1);
   v_n      int;
   v_jami   numeric;
@@ -979,8 +983,8 @@ begin
     'kesildi',  v_top -> 'kesildi',
     'jami',     v_top -> 'jami',
     'columns',  v_cols,
-    'rows',     v_top -> 'rows',
-    'qatorlar', v_top -> 'qatorlar',
+    'rows',     coalesce(v_top -> 'rows', '[]'::jsonb),
+    'qatorlar', coalesce(v_top -> 'qatorlar', '[]'::jsonb),
     'taqsimlangan', (v_kesim = 'filial'),
     'filial_cheklangan', case when v_kesim = 'filial' then coalesce(v_fchek, false) else null end,
     'pnl_bolim', v_pnl,
@@ -1184,8 +1188,8 @@ begin
     'kesildi',  v_top -> 'kesildi',
     'jami',     v_top -> 'jami',
     'columns',  v_cols,
-    'rows',     v_top -> 'rows',
-    'qatorlar', v_top -> 'qatorlar',
+    'rows',     coalesce(v_top -> 'rows', '[]'::jsonb),
+    'qatorlar', coalesce(v_top -> 'qatorlar', '[]'::jsonb),
     'izoh',     v_izoh);
 end
 $ai_kir$;
@@ -1377,14 +1381,14 @@ begin
                  jsonb_build_array('Davr oxiri', v_oxiri)),
     'kirim_taqsimot', jsonb_build_object(
         'columns',  jsonb_build_array('Modda', 'Kod', 'Summa'),
-        'rows',     v_kir_top -> 'rows',
-        'qatorlar', v_kir_top -> 'qatorlar',
+        'rows',     coalesce(v_kir_top -> 'rows', '[]'::jsonb),
+        'qatorlar', coalesce(v_kir_top -> 'qatorlar', '[]'::jsonb),
         'soni',     v_kir_top -> 'soni',
         'kesildi',  v_kir_top -> 'kesildi'),
     'chiqim_taqsimot', jsonb_build_object(
         'columns',  jsonb_build_array('Modda', 'Kod', 'Summa'),
-        'rows',     v_chi_top -> 'rows',
-        'qatorlar', v_chi_top -> 'qatorlar',
+        'rows',     coalesce(v_chi_top -> 'rows', '[]'::jsonb),
+        'qatorlar', coalesce(v_chi_top -> 'qatorlar', '[]'::jsonb),
         'soni',     v_chi_top -> 'soni',
         'kesildi',  v_chi_top -> 'kesildi'),
     'izoh',    'Manba: cashflow_kassa() va pul_qoldiq_kassa() — cashflow sahifasining AYNAN oz RPClari. '
@@ -1715,7 +1719,10 @@ begin
                 p_offset   => 0)
     into v_raw;
 
-  v_raw  := coalesce(v_raw, '[]'::jsonb);
+  /* 🔴 TUR TEKSHIRUVI (2026-08-15): `jurnal()` massiv qaytaradi, lekin
+     kontrakt o'zgarsa (obyekt/skalyar/JSON null) `coalesce` uni ushlamaydi va
+     `jsonb_array_length` 22023 bilan yiqilardi. Fail-closed: bo'sh ro'yxat. */
+  v_raw  := case when jsonb_typeof(v_raw) = 'array' then v_raw else '[]'::jsonb end;
   v_olin := jsonb_array_length(v_raw);
 
   with j as (
@@ -1726,7 +1733,9 @@ begin
               `is_deleted` nomi almashsa soft-delete qilingan yozuvlar jimgina
               chiqib ketardi. Endi teskarisi: shubha bo'lsa KO'RSATMAYMIZ. */
            coalesce((z.el ->> 'is_deleted')::boolean, true)  as ochirilgan,
-           coalesce(z.el -> 'lines', '[]'::jsonb)            as lines
+           -- 🔴 tur tekshiruvi: `lines` JSON null bo'lsa coalesce ushlamaydi
+           case when jsonb_typeof(z.el -> 'lines') = 'array'
+                then z.el -> 'lines' else '[]'::jsonb end    as lines
       from jsonb_array_elements(v_raw) as z(el)
   ),
   x as (
@@ -2189,22 +2198,37 @@ begin
   -- =================== A) auth.uid() NULL ===================
   if auth.uid() is null then
     v_js := ai_rep_xarajat(current_date - 30, current_date, 'xodim');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || 'auth.uid() NULL da ai_rep_xarajat() malumot berdi (service_role tesigi!)'::text;
     end if;
     v_js := ai_rep_kirim(current_date - 30, current_date, 'manba');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_kirim qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || 'auth.uid() NULL da ai_rep_kirim() malumot berdi'::text;
     end if;
     v_js := ai_rep_cashflow(current_date - 30, current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_cashflow qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || 'auth.uid() NULL da ai_rep_cashflow() malumot berdi'::text;
     end if;
     v_js := ai_rep_balans(current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_balans qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || 'auth.uid() NULL da ai_rep_balans() malumot berdi'::text;
     end if;
     v_js := ai_rep_jurnal(current_date - 30, current_date, null::text, null::numeric, null::numeric);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_jurnal qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || 'auth.uid() NULL da ai_rep_jurnal() malumot berdi'::text;
     end if;
@@ -2232,6 +2256,9 @@ begin
 
     -- ---------- B0) SAHIFA QOROVULI: hammasi YOPIQ bo'lsin ----------
     v_js := ai_rep_xarajat(current_date - 30, current_date, 'xodim');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || '🔴 SIZISH: hisobot sahifasi ruxsatda yoq, lekin ai_rep_xarajat() malumot berdi'::text;
     end if;
@@ -2240,11 +2267,17 @@ begin
     end if;
 
     v_js := ai_rep_kirim(current_date - 30, current_date, 'manba');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_kirim qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || '🔴 SIZISH: hisobot sahifasi ruxsatda yoq, lekin ai_rep_kirim() malumot berdi'::text;
     end if;
 
     v_js := ai_rep_cashflow(current_date - 30, current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_cashflow qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || '🔴 SIZISH: cashflow sahifasi ruxsatda yoq, lekin ai_rep_cashflow() malumot berdi'::text;
     end if;
@@ -2253,6 +2286,9 @@ begin
     end if;
 
     v_js := ai_rep_balans(current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_balans qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || '🔴 SIZISH: balans sahifasi ruxsatda yoq, lekin ai_rep_balans() malumot berdi'::text;
     end if;
@@ -2261,6 +2297,9 @@ begin
     end if;
 
     v_js := ai_rep_jurnal(current_date - 30, current_date, null::text, null::numeric, null::numeric);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_jurnal qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || '🔴 SIZISH: jurnal sahifasi ruxsatda yoq, lekin ai_rep_jurnal() malumot berdi'::text;
     end if;
@@ -2277,6 +2316,9 @@ begin
 
     -- ---------- B1) ai_rep_xarajat (xodim) ----------
     v_js := ai_rep_xarajat(current_date - 92, current_date, 'xodim');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
 
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Sahifa berilgach ham ai_rep_xarajat() yopiq qoldi: '
@@ -2290,7 +2332,7 @@ begin
     end if;
 
     select count(*) into v_n
-      from jsonb_array_elements(coalesce(v_js -> 'qatorlar', '[]'::jsonb)) x
+      from jsonb_array_elements(case when jsonb_typeof(v_js -> 'qatorlar') = 'array' then v_js -> 'qatorlar' else '[]'::jsonb end) x
      where x ->> 'kod' = v_k2_kod;
     if v_n <> 0 then
       v_xato := v_xato || ('🔴 SIZISH: taqiqlangan kassa ' || v_k2_kod || ' ai_rep_xarajat(xodim) da chiqdi');
@@ -2303,6 +2345,9 @@ begin
 
     -- ---------- B2) kategoriya kesimi: P&L bloki BERILMASIN ----------
     v_js := ai_rep_xarajat(current_date - 92, current_date, 'kategoriya');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if (v_js -> 'pnl_bolim') is not null and jsonb_typeof(v_js -> 'pnl_bolim') <> 'null' then
       v_xato := v_xato || '🔴 SIZISH: kassa cheklovi bor userga butun kompaniya P&L bloki berildi'::text;
     end if;
@@ -2312,18 +2357,24 @@ begin
 
     -- ---------- B3) noto'g'ri kesim ----------
     v_js := ai_rep_xarajat(current_date - 30, current_date, 'bunday_kesim_yoq');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if coalesce((v_js ->> 'ok')::boolean, true) then
       v_xato := v_xato || 'Notogri p_kesim qabul qilindi — faqat xodim|kategoriya|filial bolishi kerak'::text;
     end if;
 
     -- ---------- B4) ai_rep_kirim ----------
     v_js := ai_rep_kirim(current_date - 92, current_date, 'filial');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_kirim qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Sahifa berilgach ham ai_rep_kirim() yopiq qoldi: '
                            || coalesce(v_js ->> 'sabab', '?'));
     end if;
     select count(*) into v_n
-      from jsonb_array_elements(coalesce(v_js -> 'qatorlar', '[]'::jsonb)) x
+      from jsonb_array_elements(case when jsonb_typeof(v_js -> 'qatorlar') = 'array' then v_js -> 'qatorlar' else '[]'::jsonb end) x
      where x ->> 'kod' = v_k2_kod;
     if v_n <> 0 then
       v_xato := v_xato || ('🔴 SIZISH: taqiqlangan kassa ' || v_k2_kod || ' ai_rep_kirim(filial) da chiqdi');
@@ -2334,6 +2385,9 @@ begin
 
     -- ---------- B5) ai_rep_cashflow ----------
     v_js := ai_rep_cashflow(current_date - 92, current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_cashflow qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Sahifa berilgach ham ai_rep_cashflow() yopiq qoldi: '
                            || coalesce(v_js ->> 'sabab', '?'));
@@ -2342,10 +2396,10 @@ begin
       v_xato := v_xato || ('ai_rep_cashflow qamrov notogri: ' || coalesce(v_js ->> 'qamrov', 'null'));
     end if;
     select count(*) into v_n
-      from jsonb_array_elements(coalesce(v_js -> 'kirim_taqsimot' -> 'qatorlar', '[]'::jsonb)) x
+      from jsonb_array_elements(case when jsonb_typeof(v_js -> 'kirim_taqsimot' -> 'qatorlar') = 'array' then v_js -> 'kirim_taqsimot' -> 'qatorlar' else '[]'::jsonb end) x
      where x ->> 'kod' = v_k2_kod;
     select v_n + count(*) into v_n
-      from jsonb_array_elements(coalesce(v_js -> 'chiqim_taqsimot' -> 'qatorlar', '[]'::jsonb)) x
+      from jsonb_array_elements(case when jsonb_typeof(v_js -> 'chiqim_taqsimot' -> 'qatorlar') = 'array' then v_js -> 'chiqim_taqsimot' -> 'qatorlar' else '[]'::jsonb end) x
      where x ->> 'kod' = v_k2_kod;
     if v_n <> 0 then
       v_xato := v_xato || ('🔴 SIZISH: taqiqlangan kassa kodi ' || v_k2_kod || ' cashflow taqsimotida chiqdi');
@@ -2359,12 +2413,15 @@ begin
 
     -- ---------- B6) ai_rep_jurnal (maskalash + qidiruv naqshi) ----------
     v_js := ai_rep_jurnal(current_date - 92, current_date, null::text, null::numeric, null::numeric);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_jurnal qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Sahifa berilgach ham ai_rep_jurnal() yopiq qoldi: '
                            || coalesce(v_js ->> 'sabab', '?'));
     end if;
     select count(*) into v_n
-      from jsonb_array_elements(coalesce(v_js -> 'qatorlar', '[]'::jsonb)) x
+      from jsonb_array_elements(case when jsonb_typeof(v_js -> 'qatorlar') = 'array' then v_js -> 'qatorlar' else '[]'::jsonb end) x
      where x ->> 'dt_kod' = v_k2_kod or x ->> 'kt_kod' = v_k2_kod;
     if v_n <> 0 then
       v_xato := v_xato || ('🔴 SIZISH: jurnalda taqiqlangan kassa kodi ' || v_k2_kod || ' chiqdi');
@@ -2376,12 +2433,18 @@ begin
 
     -- Qidiruv naqshi portlamasin (% va _ escape qilingan)
     v_js := ai_rep_jurnal(current_date - 30, current_date, '%_%'::text, null::numeric, null::numeric);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_jurnal qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Qidiruv naqshi (% va _) RPC ni yiqitdi: ' || coalesce(v_js ->> 'sabab', '?'));
     end if;
 
     -- ---------- B7) 400 kundan uzun davr QISQARTIRILSIN ----------
     v_js := ai_rep_xarajat(current_date - 900, current_date, 'xodim');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js -> 'davr' ->> 'qisqartirildi')::boolean, false) then
       v_xato := v_xato || '900 kunlik davr qisqartirilmadi (maks 400 kun cheklovi ishlamadi)'::text;
     end if;
@@ -2393,6 +2456,9 @@ begin
     --  ⚠️ Bu yerda "begona kassa nomi yoq" DEB TEKSHIRILMAYDI — balans
     --     butun kompaniya hisoboti (5-BO'LIM izohi).
     v_js := ai_rep_balans(current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_balans qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Balans sahifasi berilgach ham ai_rep_balans() yopiq qoldi: '
                            || coalesce(v_js ->> 'sabab', '?'));
@@ -2409,6 +2475,9 @@ begin
     execute 'set local role authenticated';
 
     v_js := ai_rep_xarajat(current_date - 92, current_date, 'xodim');
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_xarajat qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if (v_js ->> 'ruxsat') is distinct from 'admin' then
       v_xato := v_xato || ('Admin rejimi admin emas: ' || coalesce(v_js ->> 'ruxsat', 'null'));
     end if;
@@ -2417,6 +2486,9 @@ begin
     end if;
 
     v_js := ai_rep_cashflow(current_date - 92, current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_cashflow qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Admin ai_rep_cashflow() dan ok=false oldi: ' || coalesce(v_js ->> 'sabab', '?'));
     end if;
@@ -2426,11 +2498,17 @@ begin
     end if;
 
     v_js := ai_rep_balans(current_date);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_balans qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Admin ai_rep_balans() dan ok=false oldi: ' || coalesce(v_js ->> 'sabab', '?'));
     end if;
 
     v_js := ai_rep_jurnal(current_date - 92, current_date, null::text, null::numeric, null::numeric);
+    if v_js ? 'qatorlar' and jsonb_typeof(v_js -> 'qatorlar') <> 'array' then
+      v_xato := v_xato || ('SHAKL: ai_rep_jurnal qatorlar massiv emas (' || coalesce(jsonb_typeof(v_js -> 'qatorlar'), 'yoq') || ')');
+    end if;
     if not coalesce((v_js ->> 'ok')::boolean, false) then
       v_xato := v_xato || ('Admin ai_rep_jurnal() dan ok=false oldi: ' || coalesce(v_js ->> 'sabab', '?'));
     end if;
