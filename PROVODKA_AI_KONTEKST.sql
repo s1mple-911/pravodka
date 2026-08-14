@@ -998,15 +998,15 @@ begin
   if auth.uid() is null then
     v_js := ai_ctx_kassa();
     if coalesce((v_js ->> 'ok')::boolean, true) then
-      v_xato := v_xato || 'auth.uid() NULL da ai_ctx_kassa() malumot berdi (service_role tesigi!)';
+      v_xato := v_xato || 'auth.uid() NULL da ai_ctx_kassa() malumot berdi (service_role tesigi!)'::text;
     end if;
     v_js := ai_ctx_qarzdor();
     if coalesce((v_js ->> 'ok')::boolean, true) then
-      v_xato := v_xato || 'auth.uid() NULL da ai_ctx_qarzdor() malumot berdi';
+      v_xato := v_xato || 'auth.uid() NULL da ai_ctx_qarzdor() malumot berdi'::text;
     end if;
     v_js := ai_ctx_transfer(current_date - 30, current_date);
     if coalesce((v_js ->> 'ok')::boolean, true) then
-      v_xato := v_xato || 'auth.uid() NULL da ai_ctx_transfer() malumot berdi';
+      v_xato := v_xato || 'auth.uid() NULL da ai_ctx_transfer() malumot berdi'::text;
     end if;
   else
     raise notice 'INFO: sessiyada auth.uid() bor — "service_role bosh natija" qadami otkazildi.';
@@ -1027,6 +1027,32 @@ begin
            view_kassa_ids = excluded.view_kassa_ids,
            op_kassa_ids   = excluded.op_kassa_ids;
 
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', v_user::text, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+
+    /* B0) SAHIFA QOROVULI (Asilbek qarori 2026-08-14).
+       `allowed_pages` bo'sh: kassa va transfer ham YOPIQ bo'lishi kerak.
+       Busiz faqat 'ai' ruxsatli va `kassa_scope='all'` (DEFAULT) user UI da
+       yopiq sahifaning ma'lumotini AI orqali olardi. */
+    v_js := ai_ctx_kassa();
+    if coalesce((v_js ->> 'ok')::boolean, true) then
+      v_xato := v_xato || 'SIZISH: kassa sahifasi ruxsatda yoq, lekin ai_ctx_kassa() malumot berdi'::text;
+    end if;
+    if jsonb_array_length(coalesce(v_js -> 'kassalar', '[]'::jsonb)) <> 0 then
+      v_xato := v_xato || 'SIZISH: sahifa ruxsatisiz kassa royxati qaytdi'::text;
+    end if;
+
+    v_js := ai_ctx_transfer(null::date, null::date);   -- tur aniq: chaqiruv noaniq bo'lmasin
+    if coalesce((v_js ->> 'ok')::boolean, true) then
+      v_xato := v_xato || 'SIZISH: jurnal sahifasi ruxsatda yoq, lekin ai_ctx_transfer() malumot berdi'::text;
+    end if;
+
+    /* Endi kassa/jurnal sahifalarini beramiz — B1..B6 aynan KASSA DARAJASIDAGI
+       filtrni sinaydi (sahifa qorovuli yuqorida alohida sinaldi). */
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    update user_perms set allowed_pages = array['kassa','jurnal']::text[] where user_id = v_user;
     perform set_config('request.jwt.claims',
       json_build_object('sub', v_user::text, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
@@ -1079,7 +1105,8 @@ begin
     -- B6) Transferlarda begona tomon yashirinsin
     v_js := ai_ctx_transfer(current_date - 92, current_date);
     if not coalesce((v_js ->> 'ok')::boolean, false) then
-      v_xato := v_xato || 'Cheklangan user ai_ctx_transfer() dan ok=false oldi';
+      v_xato := v_xato || ('Cheklangan user ai_ctx_transfer() dan ok=false oldi: '
+                           || coalesce(v_js ->> 'sabab', '?'));
     end if;
 
     select count(*) into v_n
@@ -1099,17 +1126,18 @@ begin
     -- B7) Qarzdor: sahifa ruxsati YO'Q -> bo'sh
     v_js := ai_ctx_qarzdor();
     if coalesce((v_js ->> 'ok')::boolean, true) then
-      v_xato := v_xato || '🔴 SIZISH: qarzdor sahifasi ruxsatida yoq, lekin ai_ctx_qarzdor() malumot berdi';
+      v_xato := v_xato || '🔴 SIZISH: qarzdor sahifasi ruxsatida yoq, lekin ai_ctx_qarzdor() malumot berdi'::text;
     end if;
     if (v_js ->> 'debitor_4010') is not null then
-      v_xato := v_xato || '🔴 SIZISH: ruxsatsiz holatda debitor_4010 raqami qaytdi';
+      v_xato := v_xato || '🔴 SIZISH: ruxsatsiz holatda debitor_4010 raqami qaytdi'::text;
     end if;
 
     -- B8) Sahifa berilsa -> ochiladi (fail-closed haddan tashqari qattiq emasligi)
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
 
-    update user_perms set allowed_pages = array['qarzdor']::text[] where user_id = v_user;
+    -- ⚠️ kassa/jurnal SAQLANADI (B1..B6 ular bilan o'tgan), ustiga qarzdor qo'shiladi
+    update user_perms set allowed_pages = array['kassa','jurnal','qarzdor']::text[] where user_id = v_user;
 
     perform set_config('request.jwt.claims',
       json_build_object('sub', v_user::text, 'role', 'authenticated')::text, true);
