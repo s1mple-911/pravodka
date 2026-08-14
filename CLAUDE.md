@@ -85,10 +85,23 @@ keladi (DNS/TLS yo'q, brauzer keshlaydi). CDN (`jsdelivr`/`unpkg`/Google Fonts) 
 
 Head tartibi (hamma faylda): `<link rel=icon>` → supabase `preconnect` → 10-11 ta `prefetch`
 (qolgan sahifalar) → `<script src="vendor/lucide...defer">` → `<script src="vendor/supabase...defer">`
-→ `<script src="perms.js" defer>` (dev fayllarda **`perms-dev.js`**) → `<style>`.
+→ `<script src="perms.js" defer>` (dev fayllarda **`perms-dev.js`**)
+→ `<script src="ai-widget.js" defer>` (dev fayllarda **`ai-widget-dev.js`**) → `<style>`.
 Vendor skriptlar `defer`, module skript ham defer (implicit) — shuning uchun module ishga tushganda
-`window.supabase`/`window.lucide`/`window.perm*` tayyor bo'ladi. **Endi har faylda aniq 4 ta `</script>`**
-(lucide + supabase + perms + module) — avvalgi 3 emas. 4 dan farq bo'lsa fayl buzilgan.
+`window.supabase`/`window.lucide`/`window.perm*` tayyor bo'ladi.
+**Skript soni (2026-08-14 dan): 15 navigatsiyali DEV faylda aniq 5 ta `</script>`**
+(lucide + supabase + perms + **ai-widget** + module). Istisnolar: `ai-dev.html` va
+`hodim-dev.html` da widget YO'Q → **4 ta**. Prod fayllar promote'gacha **4 ta**.
+Kutilgandan farq bo'lsa fayl buzilgan.
+
+**`ai-widget.js` / `ai-widget-dev.js`** (2026-08-14) — ikkinchi umumiy klient fayli: har sahifadagi
+floating AI tugmasi. Tugma **faqat** `PERMS.is_admin` yoki `allowed_pages ∋ 'ai'` bo'lganda chiziladi
+(sukut YASHIRIN — `perms.js` ning "yuklanmaguncha ochiq" semantikasi bu yerda **takrorlanmaydi**);
+ruxsat kech kelsa 400ms×20 poll bilan paydo bo'ladi. Panel ichida **`ai-dev.html?embed=1` iframe** —
+🔴 chat mantiqi (EF, tarix, manbalar, fayl) BITTA joyda qoladi; ikkinchi chat implementatsiyasi
+yozilsa "namoz moduli ikki marta" falokati takrorlanardi. Prefiks `.aiw-*`, z-index: tugma 60 ·
+overlay 145 · panel 150 (sahifaning o'z modali 200 baribir ustun). `promote.sh` endi **ikkita**
+umumiy faylni ko'chiradi (`perms-dev.js`, `ai-widget-dev.js`).
 
 `perms.js` (prod) / `perms-dev.js` (dev) — repodagi yagona **umumiy** klient fayli (vendor emas,
 o'zimizniki). Ruxsat tizimi xavfsizlikka tegishli, shuning uchun u 15 marta ko'chirilmaydi:
@@ -417,6 +430,43 @@ Qolgani: 3 — web_search bilan real-time qonunchilik, 4 — Provodka DB konteks
   (`perm_has_page` o'sha yerda) + `PROVODKA_AI_AGENT.sql`. Birinchi so'rovdan keyin
   `supabase functions logs ai-chat` — 400 kelsa `thinking`/`output_config` qatorlarini olib tashlash.
 
+### 3-bosqich (2026-08-13/14) — `BRIEF_PROVODKA_AI_3.md`, 4 ish
+**1-ish — web_search** (EF): tool `web_search_20260209` (briefdagi `_20250305` emas — Sonnet 5 da
+dynamic filtering bor; qaytarish `AI_SEARCH_TOOL` env bilan). 🔴 `thinking:adaptive` + `effort:high` —
+Sonnet 5 thinking o'chiq holatda **asbobni kam chaqiradi**, ya'ni qidirmasdan javob berardi.
+🔴 **`pause_turn` sikli** (`MAX_CONTINUATIONS=3`): server tool uzoq ishlaganda javob shu bilan
+tugaydi — busiz foydalanuvchi **yarim javobni to'liq deb** o'qirdi; assistant turi **o'zgartirilmasdan**
+qaytariladi (tahrirlangan thinking bloki 400 beradi). Manbalar `sources:[{title,url}]` (faqat `http(s)`,
+≤8, dublikatsiz) → chatda chip. ⚠️ `web_search_tool_result.content` **xatoda massiv emas, obyekt** —
+`Array.isArray` indekslashdan oldin. Narx/vaqt qorovullari: `AI_SEARCH_MAX_USES` (bitta so'rovga)
+**va** `AI_SEARCH_TOTAL_MAX` (turlar bo'ylab — busiz 4×5=20 qidiruv ≈ $0.20), umumiy **100s deadline**
+(mijoz 120s; EF mijozdan keyin ishlab token yoqmasin).
+
+**2-ish — suhbat tarixi DB'da**: `PROVODKA_AI_CHAT.sql` (**RUN kutilmoqda**) — `ai_conversations`
+(soft-delete) + `ai_messages` (`sources jsonb`, `model`). RLS: 4+4 policy, `user_id = (select auth.uid())`;
+🔴 `ai_messages` insert/update `with check` ichida **`exists(... ai_conversations ...)`** — `user_id` ni
+to'g'ri qo'yishning o'zi yetarli emas, begona suhbatga yozib bo'lmaydi. Trigger `security definer` EMAS.
+Mijozda yon panel (`.aic-*`, ChatGPT uslubi, mobil'da drawer); suhbat **birinchi savolda** yaratiladi;
+`user_id` mijozdan **yuborilmaydi** (DB default). 🔴 **Jadval yo'q bo'lsa** (`42P01`/`PGRST205`) panel
+yashirinadi va chat **xotira rejimida** avvalgidek ishlaydi — SQL run qilinmaguncha ham buzilmaydi.
+🔴 `apiMsgs()` tarixni EF chegaralariga moslaydi: ≤20 xabar, ≤20000 jami **va ≤4000 HAR XABAR** —
+oxirgisi bo'lmasa 4000+ belgilik AI javobi bor suhbat qayta ochilganda EF **abadiy 400** berardi
+(tarix DB'da bo'lgani uchun F5 ham qutqarmasdi). Rad etilgan savol DB'dan `aicDropMsg` bilan olinadi.
+
+**3-ish — rasm/fayl**: mijozda rasm `canvas` bilan 1568px ga kichraytiriladi, PDF ≤4 MB, jami ≤6 MB;
+EF blok turlarini **whitelist** bilan qayta quradi (`text|image|document`, faqat `base64`;
+`image.source.type='url'` **rad etiladi** — SSRF). 🔴 DB'ga base64 **yozilmaydi** (tarix shishmasin) —
+faqat matn + `[2 rasm, chek.pdf]` belgisi.
+
+**4-ish — floating tugma**: yuqoridagi `ai-widget-dev.js` bo'limiga qara.
+**`?embed=1`** (`ai-dev.html`): widget iframe'i uchun ko'rinish rejimi — nav/bnav/sheet yashiriladi,
+chat butun oynani egallaydi, suhbatlar paneli **doim drawer** (tor iframe'da ustun sig'maydi).
+Mantiq, ruxsat, EF — **bir xil**. Esc iframe ichidan otaga yetmagani uchun
+`postMessage({source:'aros-ai',type:'close'}, location.origin)` yuboriladi; widget uni
+**`e.origin` VA `e.source === frame.contentWindow`** bilan tekshiradi (begona sahifa yopolmaydi).
+⚠️ CSS: `html.ai-embed …` qoidalari kenglik media query'laridan kuchli (0,2,1 > 0,1,0) —
+yangi qoida qo'shsangiz `body.aic-off` holatini ham tekshiring (o'lik tugma chiqib qolmasin).
+
 ### 1-bosqich (interfeys + ruxsat)
 
 - **Alohida sahifa, widget emas** — har sahifa mustaqil bo'lgani uchun chat 15 faylga ko'chirilmadi;
@@ -521,8 +571,9 @@ Boshqa workflowlar: `aros-filial-live` + `aros-currencies` (`lco21f7pUcKPpNVU`),
   node --check /tmp/x.mjs
   ```
   **Diqqat:** bu `sed` faqat BIRINCHI `</script>` gacha o'qiydi — undan keyingi buzilgan qismni
-  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **har faylda aniq 4 ta**
-  (`vendor/lucide` + `vendor/supabase` + `perms.js` + module). 4 dan farq bo'lsa fayl buzilgan.
+  ko'rmaydi. Shuning uchun `</script>` sonini ham tekshir: **15 navigatsiyali dev faylda 5 ta**
+  (`vendor/lucide` + `vendor/supabase` + `perms-dev.js` + `ai-widget-dev.js` + module),
+  `ai-dev.html`/`hodim-dev.html` va prod fayllarda **4 ta**. Farq bo'lsa fayl buzilgan.
 - **Skript bilan ommaviy tahrir qilganda `str.replace(re, string)` ISHLATMA — `replace(re, () => string)`
   ishlat.** String almashtirishda `$'` "moslikdan keyingi hamma narsa", `$&` "moslikning o'zi",
   `$1` guruh degani. Kodimizda `+' $':money(...)` bor — ya'ni `$'` — va u jimgina faylning butun

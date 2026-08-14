@@ -11,6 +11,11 @@
 # perms.js hamma prod sahifa uchun BITTA — u ko'chishi bilan ruxsat
 # semantikasi HAMMA prod sahifada bir vaqtda o'zgaradi (tanlab bo'lmaydi).
 #
+# `ai-widget-dev.js` (floating AI tugmasi) ham xuddi shunday umumiy fayl —
+# `ai-widget.js` ustiga ko'chiriladi va havolasi qaytariladi. U SAHIFA EMAS,
+# shuning uchun `PAGES` ro'yxatiga QO'SHILMAYDI (`ai` u yerda allaqachon bor
+# va u `ai-dev.html` sahifasiga tegishli — ikkalasi boshqa-boshqa narsa).
+#
 # Ishlatish:
 #   bash promote.sh              # hamma dev faylni prod'ga ko'chiradi
 #   bash promote.sh hodim kassa  # faqat tanlanganlarini
@@ -39,8 +44,11 @@ expr=""
 for p in $PAGES; do
   expr="${expr}s/\\Q${p}-dev.html\\E/${p}.html/g;"
 done
-# Umumiy klient fayli (sahifa emas — ro'yxatga kirmaydi, alohida qatorda)
+# Umumiy klient fayllari (sahifa emas — ro'yxatga kirmaydi, alohida qatorda).
+# Tartib muhim emas: bu ikki naqsh yuqoridagi `NAME-dev.html` naqshlari bilan
+# kesishmaydi (`.js` va `.html` — boshqa qo'shimcha).
 expr="${expr}s/\\Qperms-dev.js\\E/perms.js/g;"
+expr="${expr}s/\\Qai-widget-dev.js\\E/ai-widget.js/g;"
 
 promoted=0
 for t in $targets; do
@@ -70,6 +78,17 @@ if [ -f "perms-dev.js" ]; then
   echo "      Sahifa ro'yxati bo'sh userlar hodim.html ga yo'naltiriladi."
   echo "      Orqaga qaytarish: PROVODKA_PAGES_EMPTY.sql 8-BO'LIM (rollback)."
   echo ""
+fi
+
+# ---------------------------------------------------------------------
+# ai-widget-dev.js -> ai-widget.js
+# ---------------------------------------------------------------------
+# Floating AI tugmasi — 15 sahifa uchun BITTA umumiy fayl (perms.js naqshi).
+# Ichida `NAME-dev.html` matni yo'q (havola suf() bilan quriladi), shuning
+# uchun nusxa amalda bayt-ma-bayt bir xil chiqadi.
+if [ -f "ai-widget-dev.js" ]; then
+  perl -pe "$expr" "ai-widget-dev.js" > "ai-widget.js"
+  echo "PROMOTED: ai-widget-dev.js -> ai-widget.js"
 fi
 
 echo "---"
