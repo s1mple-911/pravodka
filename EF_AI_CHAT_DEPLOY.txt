@@ -10,7 +10,8 @@
  EF `ai-chat` — DEPLOY QO'LLANMASI (Asilbek uchun)
  Provodka · Supabase project: kxzerccdpcltmzrxutlo
  Fayl: supabase/functions/ai-chat/index.ts
- Bosqich: BRIEF_PROVODKA_AGENT.md — 2-BOSQICH (Claude API proxy)
+ Bosqich: 2-BOSQICH (Claude API proxy)
+        + 3-BOSQICH, 1-ISH (web_search) — BRIEF_PROVODKA_AI_3.md
 =====================================================================
 
 NIMA QILADI
@@ -19,9 +20,14 @@ NIMA QILADI
 javobni qaytaradi. Claude API kaliti FAQAT Edge Function ichida
 (Supabase secret) — brauzerga hech qachon tushmaydi.
 
-Bu bosqichda web qidiruv (web_search) va Provodka DB konteksti YO'Q —
-ular 3 va 4-bosqichda. Agent kassa/qoldiq savoliga "bu imkoniyat hali
-ulanmagan" deb javob beradi va raqam o'ylab topmaydi.
+YANGI (3-bosqich, 1-ish): **web_search**. AI endi "lex.uz'ga boring"
+deb maslahat bermaydi — o'zi qidirib, o'qib, javob oxirida MANBA
+havolasini beradi. Qidiruvni Anthropic o'z serverida bajaradi; bizga
+qo'shimcha API/kalit kerak emas. Javob bilan birga `sources:[{title,url}]`
+qaytadi va chat oynasida chip bo'lib ko'rinadi.
+
+Provodka DB konteksti (kassa, qoldiq) hamon YO'Q — u 4-bosqich. Agent
+bunday savolga "bu imkoniyat hali ulanmagan" deydi va raqam o'ylab topmaydi.
 
 
 0) OLDIN NIMA BO'LISHI KERAK
@@ -86,6 +92,43 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
         qo'shilsa — shu secret'ga yozing, kodga tegish shart emas.
         `*` ATAYLAB ishlatilmagan (endpoint pul turadi).
 
+    supabase secrets set AI_SEARCH_TOOL=web_search_20260209
+        Qidiruv asbobining VARIANTI. Kod sukuti ham shu — secret QO'YILMASA
+        ham to'g'ri variant ketadi.
+        Nega `web_search_20260209` (BRIEF da `web_search_20250305` edi):
+        modelimiz `claude-sonnet-5` yangi variantni qo'llab-quvvatlaydi va
+        unda **dynamic filtering** bor — natijalar model kontekstiga
+        tushishidan OLDIN filtrlanadi (aniqroq javob, kamroq token).
+        QAYTARISH (1 soniya, deploy shart emas):
+            supabase secrets set AI_SEARCH_TOOL=web_search_20250305
+        Logda `invalid_request_error` + "tools.0.type" ko'rinsa aynan shu
+        qatorni almashtiring.
+        ⚠️ `code_execution` ATAYLAB qo'shilmagan — `_20260209` ichida u
+           allaqachon bor, ikkinchisi modelni chalg'itadi.
+        ⚠️ `allowed_domains` ATAYLAB yo'q: lex.uz/soliq.uz bilan cheklansa
+           ko'p savolga umuman natija topilmaydi. Yo'naltirish system
+           prompt orqali ("ustuvor manbalar"), qidiruv bo'g'ilmaydi.
+
+    supabase secrets set AI_SEARCH_MAX_USES=5
+        Bitta so'rovda AI ko'pi bilan necha marta qidira oladi.
+        Sukut 5, ruxsat etilgan oraliq 1..10 (noto'g'ri qiymat → 5).
+        🔴 NARX: har qidiruv ~$0.01 ($10 / 1000 qidiruv) va u Claude
+           tokenlaridan ALOHIDA to'lanadi. 5 = eng yomon holatda bitta
+           savol ~$0.05 qidiruv + tokenlar. Narx yuqori ko'rinsa 2-3 ga
+           tushiring (javob sifati biroz pasayadi).
+        Har javobda amaldagi son ko'rinadi: EF `usage.server_tool_use.
+        web_search_requests` qaytaradi (log/DevTools da ko'rish mumkin).
+
+    supabase secrets set AI_EFFORT=high
+        Model qanchalik chuqur ishlashi: low | medium | high | xhigh | max.
+        Sukut `high` (noto'g'ri qiymat ham `high` ga tushadi).
+        🔴 Nega `medium` emas: Sonnet 5 past effort va thinking o'chiq
+           holatda ASBOBNI KAM CHAQIRADI — ya'ni qidirmasdan xotiradan
+           javob berib qo'yadi (real-time qonunchilikda eng yomon xato).
+           Shuning uchun kodda `thinking:{type:"adaptive"}` + effort `high`.
+        Narx/kechikish muhimroq bo'lsa `medium` qiling — lekin qidiruv
+        kamayishini kuting.
+
     supabase secrets set AI_SUPABASE_ANON_KEY=sb_publishable_...
         FAQAT kerak bo'lsa. EF ruxsat RPC larini anon/publishable kalit +
         foydalanuvchi JWT si bilan chaqiradi. Supabase odatda kalitni o'zi
@@ -140,8 +183,14 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
 
 [5.3] Ruxsatli foydalanuvchi:
     ai-dev.html → "2026-yilda QQS stavkasi necha foiz?" → javob keladi.
+    🔴 QIDIRUV TEKSHIRUVI: javob ostida "Manbalar: …" chiplari (lex.uz,
+       soliq.uz, buxgalter.uz …) CHIQISHI KERAK va javob matnida qonun
+       nomi/sanasi + URL bo'lishi kerak. Agar "lex.uz saytiga murojaat
+       qiling" turidagi maslahat chiqsa va manba chiplari BO'LMASA —
+       qidiruv ishlamayapti, logni ko'ring (5.5).
     "Yunusobod kassasida qancha pul bor?" → "bu imkoniyat hali ulanmagan"
     turidagi javob (raqam O'YLAB TOPILMAYDI — 4-bosqichgacha shunday).
+    Bunday savolda manba chiplari BO'LMASLIGI normal.
 
 [5.4] Loglar:
     supabase functions logs ai-chat
@@ -150,14 +199,27 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
 
 [5.5] BIRINCHI SO'ROVDAN KEYIN LOGNI ALBATTA KO'RING.
     Agar HAR so'rov "AI xizmatiga ulanib bo'lmadi" (502) bersa va logda
-    Anthropic 400 (`invalid_request_error`) ko'rinsa — sabab deyarli har
-    doim `index.ts` dagi ikki qator:
-        thinking: { type: "disabled" },
-        output_config: { effort: "medium" },
-    Model ularni qabul qilmasa — shu ikki qatorni o'chirib qayta deploy
-    qiling (qolgan hammasi o'zgarishsiz ishlaydi; javob biroz sekinroq va
-    qimmatroq bo'lishi mumkin, xolos). Bu ikkovi faqat narx/kechikish
-    sozlamasi — xavfsizlikka aloqasi YO'Q.
+    Anthropic 400 (`invalid_request_error`) ko'rinsa — xato matnida qaysi
+    maydon aytilganiga qarang:
+      • "tools.0.type"  → qidiruv varianti mos emas:
+            supabase secrets set AI_SEARCH_TOOL=web_search_20250305
+        (deploy shart emas, keyingi so'rovdan kuchga kiradi)
+      • "thinking" yoki "output_config" → `index.ts` dagi ikki qator:
+            thinking: { type: "adaptive" },
+            output_config: { effort: EFFORT },
+        Model ularni qabul qilmasa — shu ikki qatorni o'chirib qayta
+        deploy qiling. ⚠️ Lekin unda model qidiruvni KAM chaqiradi
+        (Sonnet 5 thinking o'chiq holatda asbobni kam ishlatadi) —
+        3-bosqichning ma'nosi shu ikki qatorda.
+      • "max_uses" → `AI_SEARCH_MAX_USES` ni 1..10 oralig'iga qo'ying.
+    Bu sozlamalarning hech biri xavfsizlikka tegishli EMAS (auth/ruxsat/
+    CORS bloklari alohida va ularga tegilmagan).
+
+[5.6] Logda `ai-chat: web_search xatosi: <kod>` ko'rinsa — qidiruvning
+    o'zi xato bergan (masalan `max_uses_exceeded`, `too_many_requests`).
+    EF yiqilmaydi: shunchaki o'sha natija manbalar ro'yxatiga qo'shilmaydi,
+    javob baribir qaytadi. Tez-tez takrorlansa `AI_SEARCH_MAX_USES` ni
+    oshiring.
 
 
 6) EF ICHIDAGI HIMOYA QATLAMLARI (nima uchun shunday)
@@ -191,11 +253,53 @@ Tekshirish (qiymat KO'RSATILMAYDI, faqat ro'yxat va hash):
     matni chiqmaydi (u faqat console.error da).
 
 
-7) NARX / CHEGARA ESLATMASI
----------------------------
-max_tokens = 4000, `thinking: disabled`, `output_config.effort: medium`.
-Stream YO'Q (keyingi bosqich) — javob to'liq tayyor bo'lgach keladi,
-klientda 60 soniyalik timeout bor.
+7) NARX / VAQT / CHEGARA ESLATMASI
+----------------------------------
+Sozlama:  max_tokens = 8000 · thinking: adaptive · effort: high (env)
+          web_search: max_uses = 5 (env)
+
+NARX ikki qismdan iborat:
+  [a] Tokenlar — model narxi bo'yicha ($2/$10 intro, keyin $3/$15 per 1M).
+      ⚠️ `max_tokens` 6000 → 8000 qilindi, chunki u thinking + qidiruv
+         natijalari + javobni BIRGA qamraydi. Bu CHEGARA, xarajat emas —
+         faqat haqiqatan yozilgan token to'lanadi. Lekin adaptive thinking
+         va o'qilgan sahifalar tufayli o'rtacha so'rov 2-bosqichdagidan
+         qimmatroq (taxminan 1.5–3×).
+  [b] Qidiruv — **$10 / 1000 qidiruv (~$0.01 har biri)**, tokenlardan
+      alohida.
+      🔴 DIQQAT: `AI_SEARCH_MAX_USES` (sukut 5) FAQAT BITTA API so'roviga
+         tegishli. `pause_turn` davomi — yangi so'rov, ya'ni yangi 5 ta.
+         Shuning uchun kodda TURLAR BO'YLAB umumiy chegara bor:
+             AI_SEARCH_TOTAL_MAX   (sukut = max_uses × 2, ko'pi bilan 20)
+         Eng yomon holat: 10 qidiruv ≈ **$0.10** bitta savolga (avval bu
+         chegara yo'q edi va 20 ≈ $0.20 bo'lishi mumkin edi).
+         Rate-limit 8 so'rov/daqiqa bilan bitta foydalanuvchi nazariy
+         maksimumi ~$0.8/daqiqa. Kamaytirish:
+             supabase secrets set AI_SEARCH_MAX_USES=3
+             supabase secrets set AI_SEARCH_TOTAL_MAX=5
+Har javobda haqiqiy son EF javobida ko'rinadi:
+`usage.server_tool_use.web_search_requests` va `usage.turns`.
+
+VAQT byudjeti (3-bosqichda oshdi — qidiruv sekin):
+  mijoz (ai-dev.html)  120s  ← avval 60s
+  EF umumiy byudjet    100s  ← TURLAR BO'YLAB (pause_turn sikli bilan birga)
+  bitta chaqiruv       ko'pi bilan 45s, lekin qolgan byudjetdan oshmaydi
+  `maxRetries: 0`      — uzoq qidiruvni qayta urinish narxni ikkilantiradi
+  🔴 Qoida: EF mijozdan KEYIN ishlab turmasin. Byudjet mijoz timeout'idan
+     (120s) past bo'lishi shart — aks holda javobni hech kim ko'rmaydi,
+     lekin token ham, qidiruv puli ham to'lanadi.
+       (qayta urinish narxni ikkilantirardi, shuning uchun O'CHIQ)
+  Supabase EF devor-soat chegarasi: **400s**, CPU vaqti 2s
+       (CPU faqat hisoblashga tegishli — tarmoq kutishi kirmaydi).
+  Ya'ni eng yomon holat ham Supabase chegarasidan ancha past.
+
+`pause_turn` — server tomon qidiruvi uzoq ishlaganda Claude javobni
+TUGALLANMAGAN holda `stop_reason:"pause_turn"` bilan qaytaradi. EF uni
+avtomatik davom ettiradi (ko'pi bilan 3 marta), matn va manbalar butun
+sikl bo'ylab yig'iladi. Chegaraga yetilsa javob oxiriga "Javob to'liq
+tugamadi" izohi qo'shiladi — yarim javob JIMGINA berilmaydi.
+
+Stream YO'Q (keyingi bosqich) — javob to'liq tayyor bo'lgach keladi.
 Har so'rovda BUTUN suhbat qayta yuboriladi (Claude API stateless), ya'ni
 uzun suhbat qimmatroq — "Yangi suhbat" tugmasi shuning uchun ham kerak.
 
@@ -210,4 +314,11 @@ chiqadi ("AI javob bermadi...") — sahifaning qolgan qismi va boshqa
 qanday ta'sir yo'q.
 Kalitni olib tashlash:
     supabase secrets unset ANTHROPIC_API_KEY
+
+FAQAT QIDIRUVNI qaytarish (chat ishlab tursin):
+    • boshqa variantga o'tish  → AI_SEARCH_TOOL (yuqorida, 3-band)
+    • qidiruvni kamaytirish    → AI_SEARCH_MAX_USES=1, AI_EFFORT=medium
+    • butunlay o'chirish       → `index.ts` dagi `tools: [...]` qatorini
+      olib tashlab qayta deploy (kod boshqa hech qayerda o'zgarmaydi:
+      `sources` bo'sh massiv bo'lib qaytadi, mijoz chip chizmaydi).
 =====================================================================
