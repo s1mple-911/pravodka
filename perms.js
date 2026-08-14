@@ -20,12 +20,12 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (15 ta).
+  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (16 ta).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx'];
+               'tannarx', 'ai'];
   var HOME  = 'jurnal';           // bosh sahifa (ildiz "/" ham shu)
 
   /* Havola qo'shimchasi joriy fayl nomidan olinadi: dev sahifada `-dev.html`,
@@ -131,10 +131,17 @@
     if (PAGES.indexOf(k) < 0) return true;   // ro'yxatga kirmaydigan sahifa (hodim) — erkin
     return p.allowed_pages.indexOf(k) >= 0;  // BO'SH = hech narsa (yangi semantika)
   }
+  /* Birinchi ochiq sahifa. Konvert ruxsati yo'q bo'lsa konvert O'TKAZIB YUBORILADI —
+     aks holda gate() uni tanlab, foydalanuvchini yana "Ruxsat yo'q" ekraniga olib borardi. */
   function firstAllowed() {
     var p = get();
     if (p.is_admin) return HOME;
-    for (var i = 0; i < PAGES.length; i++) if (p.allowed_pages.indexOf(PAGES[i]) >= 0) return PAGES[i];
+    for (var i = 0; i < PAGES.length; i++) {
+      var k = PAGES[i];
+      if (p.allowed_pages.indexOf(k) < 0) continue;
+      if (k === 'konvert' && !p.can_convert) continue;
+      return k;
+    }
     return null;
   }
 
@@ -214,7 +221,17 @@
       if (k === HOME) { location.replace(hodimUrl()); return false; }
       denyScreen(); return false;
     }
-    if (!pageOk(k) || (k === 'konvert' && !p.can_convert)) { denyScreen(); return false; }
+    if (!pageOk(k) || (k === 'konvert' && !p.can_convert)) {
+      /* Bosh sahifa yopiq bo'lsa — "Ruxsat yo'q" ekrani o'rniga birinchi OCHIQ bo'limga
+         jimgina o'tkazamiz. Masalan faqat 'ai' ruxsati bor user ildizga/jurnalga kirsa
+         darrov AI sahifasiga tushadi (avval bitta ortiqcha klik kerak edi).
+         Sikl xavfi yo'q: `to !== HOME` va o'sha sahifada pageOk() true bo'ladi. */
+      if (k === HOME) {
+        var to = firstAllowed();
+        if (to && to !== HOME) { location.replace(to + suf()); return false; }
+      }
+      denyScreen(); return false;
+    }
     return true;
   }
 
