@@ -91,7 +91,9 @@ Vendor skriptlar `defer`, module skript ham defer (implicit) — shuning uchun m
 `window.supabase`/`window.lucide`/`window.perm*` tayyor bo'ladi.
 **Skript soni (2026-08-14 dan): 15 navigatsiyali DEV faylda aniq 5 ta `</script>`**
 (lucide + supabase + perms + **ai-widget** + module). Istisnolar: `ai-dev.html` va
-`hodim-dev.html` da widget YO'Q → **4 ta**. Prod fayllar promote'gacha **4 ta**.
+`hodim-dev.html` da widget YO'Q → **4 ta**. **`index-dev.html` da ham 5 ta, lekin BOSHQA
+tarkib**: lucide + supabase + perms + **inline sinxron skript** + module (widget yo'q,
+navigatsiya yo'q). Prod fayllar promote'gacha **4 ta**.
 Kutilgandan farq bo'lsa fayl buzilgan.
 
 **`ai-widget.js` / `ai-widget-dev.js`** (2026-08-14) — ikkinchi umumiy klient fayli: har sahifadagi
@@ -129,6 +131,7 @@ bitta joyda tuzatiladi. Ikki nusxa vaqtinchalik — `promote.sh` dev'ni prod ust
 
 | Fayl | Vazifa |
 |------|--------|
+| `index.html` | **Kirish yuzi**: login + dashboard (ruxsatli bo'limlar). `pravodka.com` ildizi |
 | `jurnal.html` | Jurnal: sana/hisob/tur/qidiruv filtri + tahrir/o'chirish (`jurnal()`) |
 | `provodka.html` | Kiritish: Kirim / Chiqim / Transfer + jurnal — **navigatsiyadan yashirilgan** |
 | `professional.html` | Qo'lda ko'p satrli Dt/Kt yozuv |
@@ -162,6 +165,51 @@ bo'lsa, "Ko'proq" o'zi `active` bo'ladi.
 
 Sheet CSS'i ataylab `.mmodal`/`.msheet` deb nomlangan — `provodka.html`/`valyuta.html`dagi
 mavjud `.modal`/`.sheet` bilan to'qnashmasligi uchun.
+
+### `index.html` — login + dashboard hub (2026-08-18)
+
+`pravodka.com` ildizi. Avval `index.html` umuman yo'q edi (404) va har sahifa o'z login
+gate'ini ko'rsatardi. Endi kirish **bitta yuzdan** boshlanadi.
+
+- **Ikki ekran, bitta fayl**: `#gate` (login) va `#dash` (dashboard). Ikkalasi ham CSS'da
+  `display:none`; `boot()` qaysi birini ochishini hal qiladi (sessiyali user login ekranini
+  ko'rmaydi). 🔴 `<head>` dagi **inline sinxron skript** `<html>` ga `has-sess`/`no-sess`
+  klassini va mavzuni (`prov-theme`) qo'yadi — module yiqilsa (vendor 404) ildiz **oq ekran**
+  qolmasin va dark user oq kadr ko'rmasin. `.no-sess #gate{display:flex}` / `.has-sess #dash{display:block}`
+  faqat BIRINCHI kadr uchun; module keyin `style.display` bilan aniq holatni qo'yadi.
+- **Navigatsiya YO'Q** (sidebar/bnav/sheet), **ai-widget ham yo'q** — u hub, sahifa emas.
+- 🔴 **Yangi sahifa qo'shilsa u endi UCH joyga yoziladi**: `perm_pages()` (SQL) = `perms-dev.js`
+  dagi `PAGES` = `index-dev.html` dagi `CARDS`. Birortasida yo'q bo'lsa sahifa jimgina
+  ko'rinmay qoladi (dashboard'da karta chiqmaydi yoki ruxsat kaliti tashlab yuboriladi).
+  Ataylab farqlar: `provodka` kartasi YO'Q (u navigatsiyadan yashirilgan), `hodim` esa
+  `PAGES` da yo'q bo'lsa ham dashboard'da HAR DOIM birinchi karta.
+- **Kartalar faqat `permLoad()` javobidan keyin** chiziladi (aks holda "yuklanmaguncha ochiq"
+  semantikasi tufayli bir zumga HAMMA karta ko'rinardi); `showLogin()`/`enterApp()` `#cards` ni
+  "Yuklanmoqda…" ga qaytaradi — tabda user almashganda eski ro'yxat qolib ketmasin.
+- **Logout/login `swrClear()` qiladi** (`prov-swr:` sessionStorage keshi) — yangi foydalanuvchi
+  eskisining raqamlarini ko'rmasin. `permClear()` bilan birga, ikkalasi ham majburiy.
+
+**GUARD — `perms-dev.js` da, 15 sahifaga tegilmagan** (busiz 15 faylni tahrirlash kerak bo'lardi):
+- `loginGuard()` — sessiya tokeni (`sb-…-auth-token`) YO'Q bo'lsa `index{suf}` ga `location.replace`.
+  Index sahifasining o'zida ishlamaydi (sikl). localStorage bloklangan (Safari private) → **redirect yo'q**,
+  sahifaning eski gate'i ishlayveradi. Bu QO'SHIMCHA qatlam: "token bor, lekin muddati o'tgan"
+  holatni hamon har sahifaning o'z `boot()` i ushlaydi — eski auth olib tashlanmagan.
+- `gate()` da sahifa yopiq bo'lsa endi "Ruxsat yo'q" ekrani o'rniga **dashboard**ga yuboriladi.
+  🔴 `!hasProvodka()` shoxi (bosh sahifada `hodim` ga redirect, boshqa sahifada `denyScreen()`)
+  va `loaded===false` → hech narsa to'silmaydi qoidasi **TEGILMAGAN**.
+- `page()` da ildiz `/` endi `jurnal` emas, **`index`** qaytaradi. `index` `PAGES` da YO'Q — hub
+  ruxsat bilan cheklanmaydi (u o'zi ruxsatli bo'limlarni chizadi).
+
+**CNAME + promote:**
+- Repo ildizidagi `CNAME` (`pravodka.com`, LF, BOM yo'q) — GitHub Pages custom domeni shundan o'qiladi.
+  `promote.sh` unga **hech qachon tegmaydi** (sahifa emas), lekin har promote'da borligini tekshirib
+  ogohlantiradi. 🔴 DNS tayyor bo'lmasa CNAME qo'shish `*.github.io` ni domenga 301 qiladi va
+  jonli userlarni uzadi — avval DNS, keyin push.
+- `promote.sh` `PAGES` ga `index` qo'shilgan. 🔴 `perms-dev.js → perms.js` **argumentdan qat'i nazar**
+  ko'chadi, ya'ni har qanday promote prod'ga login guardni olib chiqadi — shuning uchun skript
+  `index.html` yo'q bo'lsa `index` ni targets'ga **o'zi qo'shadi** (ikkalasi ham yo'q bo'lsa `exit 1`).
+  Commit ham birga: `perms.js` va `index.html` **bitta commitda** ketmasa prod mavjud bo'lmagan
+  sahifaga yo'naltiradi.
 
 ## Baza modeli
 

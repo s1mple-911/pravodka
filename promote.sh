@@ -28,13 +28,39 @@ set -euo pipefail
 #  1) ro'yxatda yo'q sahifa umuman prod'ga ko'chmaydi;
 #  2) undan ham xatarlisi — boshqa fayllardagi `NAME-dev.html` havolalari
 #     qaytarilmaydi, ya'ni PROD sahifalar DEV fayllarga havola qilib qoladi.
-PAGES="kassa jurnal professional hodim hisobot balans cashflow qarzdor filial valyuta konvert sozlama provodka standart yuklar tannarx ai"
+#
+# `index` — login + dashboard hub sahifasi (pravodka.com ning birinchi yuzi).
+# U ham oddiy sahifa: `index-dev.html` -> `index.html`.
+PAGES="index kassa jurnal professional hodim hisobot balans cashflow qarzdor filial valyuta konvert sozlama provodka standart yuklar tannarx ai"
 
 # Ko'chiriladigan sahifalar: argument berilsa o'shalar, aks holda hammasi.
 if [ "$#" -gt 0 ]; then
   targets="$*"
 else
   targets="$PAGES"
+fi
+
+# ---------------------------------------------------------------------
+# 🔴 index.html KAFOLATI — perms.js login guard bilan bog'liq
+# ---------------------------------------------------------------------
+# `perms-dev.js -> perms.js` pastda TARGETS'dan QAT'I NAZAR bajariladi (u sahifa
+# emas, umumiy fayl). Yangi perms.js da login guard bor: sessiya tokeni yo'q
+# bo'lsa HAR prod sahifa `index.html` ga yo'naltiradi. Ya'ni tanlab ko'chirishda
+# (masalan `bash promote.sh jurnal`) index.html yo'q bo'lsa BUTUN PROD uziladi.
+# Shuning uchun kerak bo'lsa `index` ni targets'ga o'zimiz qo'shamiz.
+if [ -f "perms-dev.js" ] && [ ! -f "index.html" ]; then
+  if [ -f "index-dev.html" ]; then
+    case " $targets " in
+      *" index "*) ;;                       # allaqachon ro'yxatda
+      *) targets="index $targets"
+         echo "QO'SHILDI: index (perms.js login guard index.html'siz prodni uzardi)" ;;
+    esac
+  else
+    echo "XATO: perms-dev.js login guard bilan ko'chiriladi, lekin index.html ham,"
+    echo "      index-dev.html ham yo'q. Prod sahifalar mavjud bo'lmagan index.html"
+    echo "      ga yo'naltirilardi — to'xtatildi."
+    exit 1
+  fi
 fi
 
 # Barcha sahifa nomlari uchun: NAME-dev.html -> NAME.html
@@ -78,6 +104,17 @@ if [ -f "perms-dev.js" ]; then
   echo "      Sahifa ro'yxati bo'sh userlar hodim.html ga yo'naltiriladi."
   echo "      Orqaga qaytarish: PROVODKA_PAGES_EMPTY.sql 8-BO'LIM (rollback)."
   echo ""
+  echo "  !!! DIQQAT — perms.js endi LOGIN GUARD bilan keladi: sessiya tokeni yo'q"
+  echo "      bo'lsa HAR prod sahifa index.html ga yo'naltiradi. Shuning uchun"
+  echo "      index.html SHU PROMOTE'da ko'chirilishi SHART (bash promote.sh"
+  echo "      argumentsiz, yoki ro'yxatga 'index' qo'shib). Aks holda prod"
+  echo "      sahifalar mavjud bo'lmagan index.html ga yuboradi — BUTUN SAYT ISHLAMAYDI."
+  echo ""
+  if [ ! -f "index.html" ]; then
+    echo "  XATO: index.html YO'Q, lekin perms.js login guard bilan ko'chirildi!"
+    echo "        Darhol ishga tushiring:  bash promote.sh index"
+    echo ""
+  fi
 fi
 
 # ---------------------------------------------------------------------
@@ -89,6 +126,25 @@ fi
 if [ -f "ai-widget-dev.js" ]; then
   perl -pe "$expr" "ai-widget-dev.js" > "ai-widget.js"
   echo "PROMOTED: ai-widget-dev.js -> ai-widget.js"
+fi
+
+# ---------------------------------------------------------------------
+# CNAME tekshiruvi (faqat OGOHLANTIRISH — fayl yaratilmaydi/o'chirilmaydi)
+# ---------------------------------------------------------------------
+# Bu skript CNAME faylga HECH QACHON TEGMAYDI: u yuqoridagi `PAGES` ro'yxatiga
+# kirmaydi (u sahifa emas) va alohida nusxalanmaydi ham. Ya'ni promote domenni
+# uzmaydi. Lekin CNAME repo'dan tasodifan o'chib ketsa GitHub Pages custom
+# domenni tashlab yuboradi (pravodka.com ishlamay qoladi) — shuning uchun
+# har promote'da borligini tekshirib, ko'rinarli ogohlantirish beramiz.
+# Faylni O'ZI YARATMAYDI: domen sozlamasi qo'lda, ongli ravishda qo'yiladi.
+if [ ! -f "CNAME" ]; then
+  echo ""
+  echo "  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "  !!! CNAME fayli YO'Q — pravodka.com uzilishi mumkin!"
+  echo "  !!! GitHub Pages custom domen shu fayldan o'qiladi."
+  echo "  !!! Repo ildizida CNAME yarating, ichida bitta qator: pravodka.com"
+  echo "  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo ""
 fi
 
 echo "---"
