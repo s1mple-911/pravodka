@@ -135,17 +135,30 @@
     if (had) { fetchFresh(sb); return had; }
     return await fetchFresh(sb);
   }
-  async function fetchFresh(sb) {
+  /* 🔴 QAYTA URINISH (2026-08-18, prod bug) — login'dan KEYINGI birinchi chaqiruv poygasi.
+     supabase-js Authorization sarlavhasini `SIGNED_IN` auth hodisasidan yangilaydi va bu
+     hodisa ASINXRON keladi. `signInWithPassword` qaytishi bilan darrov `rpc('my_perms')`
+     yuborilsa u hali ANON kalit bilan ketadi -> `auth.uid()` null -> xato/bo'sh javob ->
+     `loaded` false qolib ketadi -> "yuklanmaguncha ochiq" qoidasi bo'yicha HAMMA sahifa
+     ochiq ko'rinadi. Foydalanuvchi F5 bosgach to'g'rilanardi (o'shanda klient token bilan
+     ishga tushadi). Shuning uchun xato/bo'sh javobda bir necha marta qayta uriniladi. */
+  var RETRY_MS = [250, 600, 1200];
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function fetchFresh(sb, tries) {
+    tries = tries || 0;
+    var fresh = null;
     try {
       var res = await sb.rpc('my_perms');
-      if (res.error) { return get(); }
-      var fresh = norm(res.data);
-      if (!fresh) return get();
-      var changed = JSON.stringify(fresh) !== JSON.stringify(P);
-      setP(fresh); toCache(fresh);
-      if (changed && applied) { applied = false; gate(); }
-      return fresh;
-    } catch (e) { return get(); }
+      if (!res.error) fresh = norm(res.data);
+    } catch (e) { fresh = null; }
+    if (!fresh) {
+      if (tries < RETRY_MS.length) { await sleep(RETRY_MS[tries]); return fetchFresh(sb, tries + 1); }
+      return get();                      // urinishlar tugadi — eski xatti-harakat (ochiq qoladi)
+    }
+    var changed = JSON.stringify(fresh) !== JSON.stringify(P);
+    setP(fresh); toCache(fresh);
+    if (changed && applied) { applied = false; gate(); }
+    return fresh;
   }
 
   // ---- sahifalar ------------------------------------------------------
@@ -332,6 +345,11 @@
   window.permHideNav   = hideNav;
   window.permPageOk    = pageOk;
   window.permHasProvodka = hasProvodka;
+  /* my_perms() javobi HAQIQATAN keldimi. Sahifalar buni bilishi SHART EMAS (ular uchun
+     "yuklanmaguncha ochiq" qoidasi kuchda), lekin `index.html` dashboardi TESKARI ishlaydi:
+     ruxsat noma'lum bo'lsa karta CHIZMAYDI — aks holda yangi user bir zumga hamma bo'limni
+     ko'rib qolardi (2026-08-18 dagi prod bug). */
+  window.permLoaded    = function () { return loaded; };
   window.permViewOk    = viewOk;
   window.permOpOk      = opOk;
   window.permFilterView = filterView;

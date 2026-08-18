@@ -186,6 +186,22 @@ gate'ini ko'rsatardi. Endi kirish **bitta yuzdan** boshlanadi.
 - **Kartalar faqat `permLoad()` javobidan keyin** chiziladi (aks holda "yuklanmaguncha ochiq"
   semantikasi tufayli bir zumga HAMMA karta ko'rinardi); `showLogin()`/`enterApp()` `#cards` ni
   "Yuklanmoqda…" ga qaytaradi — tabda user almashganda eski ro'yxat qolib ketmasin.
+
+🔴 **LOGIN POYGASI — 2026-08-18 dagi prod bug (uch qavatli tuzatish).** Yangi foydalanuvchi
+kirganda dashboard'da HAMMA bo'lim ko'rinardi, F5 dan keyin to'g'rilanardi. Sabab: supabase-js
+`Authorization` sarlavhasini **asinxron** `SIGNED_IN` hodisasida yangilaydi — `signInWithPassword`
+qaytishi bilan darrov yuborilgan `my_perms()` hali **anon kalit** bilan ketardi (`auth.uid()` null),
+xato qaytardi va `perms.js` da `loaded=false` qolib ketardi → "yuklanmaguncha ochiq" qoidasi
+bo'yicha hamma sahifa ochiq ko'rinardi. Tuzatish (uchalasi ham saqlansin):
+1. `perms.js` `fetchFresh()` — xato/bo'sh javobda **qayta urinish** (250/600/1200 ms). Bu 15 sahifaga
+   ham tegishli: ularda ham birinchi login'dan keyin sidebar hamma havolani ko'rsatardi.
+2. `index.html` `renderCards()` — **fail-CLOSED**: `permLoaded()` false bo'lsa karta CHIZILMAYDI
+   ("Yuklanmoqda…", urinishlar tugagach "Qayta urinish"). Nav uchun "ochiq" to'g'ri, dashboard
+   uchun teskari — u ro'yxatning o'zi.
+3. `index.html` login muvaffaqiyatli bo'lsa **`location.reload()`** (avval `enterApp()` edi) — bu
+   foydalanuvchi qo'lda bosadigan F5 ning o'zi, poygani butunlay yo'q qiladi. Token reload'dan
+   oldin localStorage'da bo'ladi, `has-sess` inline klassi tufayli login ekrani miltillamaydi.
+`window.permLoaded()` — shu ish bilan qo'shilgan yangi eksport (sahifalar uni ishlatishi shart emas).
 - **Logout/login `swrClear()` qiladi** (`prov-swr:` sessionStorage keshi) — yangi foydalanuvchi
   eskisining raqamlarini ko'rmasin. `permClear()` bilan birga, ikkalasi ham majburiy.
 
