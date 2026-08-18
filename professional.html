@@ -313,11 +313,37 @@
   .tacts button{flex:1;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
   .tacts button.primary{border:none;background:var(--primary);color:#fff}
   .tacts button.primary:disabled{opacity:.5;cursor:not-allowed}
+  /* Modda tanlash (qidiruvli modal) — .ymodal naqshidan, prefiks .mdl-* */
+  .mdl-btn{width:100%;min-height:46px;display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:0 13px;font-size:15px;font-family:inherit;text-align:left;cursor:pointer;margin-bottom:15px}
+  .mdl-btn:hover{border-color:var(--primary)}
+  .mdl-btn .mdl-lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mdl-btn.empty .mdl-lbl{color:var(--muted)}
+  .mdl-btn svg{width:18px;height:18px;flex:none;color:var(--muted)}
+  .mdl-wrap{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:18px;z-index:200}
+  .mdl-wrap.open{display:flex}
+  .mdl-box{background:var(--surface);width:100%;max-width:520px;max-height:86vh;display:flex;flex-direction:column;border-radius:18px;padding:18px;box-shadow:var(--shadow-hover);overflow:hidden}
+  .mdl-box>h3{margin:0 0 12px;font-size:17px;font-weight:800;flex:0 0 auto}
+  .mdl-box .txt{flex:0 0 auto;height:42px;margin-bottom:10px}
+  .mdl-list{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .mdl-list::-webkit-scrollbar{width:6px}
+  .mdl-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .mdl-list::-webkit-scrollbar-track{background:transparent}
+  .mdl-grp{font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:12px 8px 5px}
+  .mdl-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:transparent;border-radius:11px;padding:11px 8px;cursor:pointer;font-family:inherit;color:var(--ink);border-bottom:1px solid var(--line)}
+  .mdl-row:hover{background:var(--surface-2)}
+  .mdl-row.on{background:var(--primary-soft)}
+  .mdl-row .mdl-main{flex:1;min-width:0}
+  .mdl-row .mdl-l1{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mdl-row .mdl-l2{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mdl-row .mdl-tick{width:19px;flex:none;text-align:center;font-weight:800;color:var(--primary);font-size:15px}
+  .mdl-empty{padding:22px 8px;text-align:center;color:var(--muted);font-size:14px}
+  .mdl-acts{display:flex;gap:9px;margin-top:12px;flex:0 0 auto}
+  .mdl-acts button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer}
   /* Telefon: modal pastdan chiquvchi varaq — tugmalar doim barmoq zonasida */
   @media(max-width:560px){
-    .ymodal,.tmodal{align-items:flex-end;padding:0}
-    .ymbox,.tbox{max-width:none;max-height:92vh;border-radius:18px 18px 0 0}
-    .ymbox{padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+    .ymodal,.tmodal,.mdl-wrap{align-items:flex-end;padding:0}
+    .ymbox,.tbox,.mdl-box{max-width:none;max-height:92vh;border-radius:18px 18px 0 0}
+    .ymbox,.mdl-box{padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
     .tbox{padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
   }
 </style>
@@ -380,7 +406,10 @@
         <div id="kassaChips" class="chips"></div>
         <div id="curSeg" class="curseg" style="display:none"></div>
         <label>Modda</label>
-        <select class="txt" id="modda" onchange="onModda()"><option value="">— modda tanlang —</option></select>
+        <!-- select QOLADI (holat manbai — kodning ~12 joyi $('modda').value bilan ishlaydi),
+             faqat ekrandan yashiriladi; tanlash #moddaModal (qidiruvli) orqali. -->
+        <select class="txt" id="modda" onchange="onModda()" style="display:none"><option value="">— modda tanlang —</option></select>
+        <button type="button" class="mdl-btn empty" id="moddaBtn" onclick="openModda()"><span class="mdl-lbl" id="moddaBtnLbl">— modda tanlang —</span><i data-lucide="chevron-down"></i></button>
         <div id="kommChipWrap" style="display:none;margin:-6px 0 15px"><button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt"></span><i data-lucide="pencil"></i></button></div>
         <label id="summaLbl">Summa</label>
         <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
@@ -509,6 +538,17 @@
     <h3>Qaysi kommunal?</h3>
     <div class="kbtns" id="kommBtns"></div>
     <button type="button" class="kcancel" onclick="cancelKomm()">Bekor</button>
+  </div>
+</div>
+
+<!-- Modda tanlash — qidiruvli modal (#yukModal naqshi) -->
+<div class="mdl-wrap" id="moddaModal" onclick="if(event.target===this)closeModda()">
+  <div class="mdl-box">
+    <h3>Modda tanlash</h3>
+    <!-- autofocus ATAYLAB yo'q — mobil'da klaviatura sakramasin -->
+    <input class="txt" id="moddaSearch" placeholder="Qidirish (kod yoki nom)" autocomplete="off" oninput="renderModdaList()">
+    <div id="moddaList" class="mdl-list"></div>
+    <div class="mdl-acts"><button type="button" onclick="closeModda()">Yopish</button></div>
   </div>
 </div>
 
@@ -1291,6 +1331,77 @@ function moddaOptions(){
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
+// ---- Modda tanlash: qidiruvli modal (#moddaModal) ----
+// <select id="modda"> HOLAT MANBAI bo'lib qoladi (yashirin) — kodning boshqa
+// joylaridagi $('modda').value o'qish/yozishlari umuman o'zgarmadi.
+// Guruhlash va tartib moddaOptions() bilan AYNAN bir xil.
+function moddaGroups(){
+  return [
+    ['Xarajatlar', accounts.filter(modaShow)],
+    ['Daromadlar', accounts.filter(a=>a.type==='daromad')],
+    ['Boshqa',     accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad')]
+  ];
+}
+// Qidiruv: kod ham, nom ham (+subtitle), registr farqsiz.
+// Bir nechta so'z kiritilsa — HAMMASI mos kelishi kerak (AND).
+function moddaMatch(a,words){
+  if(!words.length) return true;
+  const hay=(accLbl(a)+' '+(a.code||'')+' '+(a.name||'')+' '+(a.subtitle||'')).toLowerCase();
+  return words.every(w=>hay.includes(w));
+}
+window.renderModdaList=()=>{
+  const box=$('moddaList'); if(!box) return;
+  const q=($('moddaSearch')?$('moddaSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const cur=$('modda').value||'';
+  let html='', n=0;
+  // "Tozalash" varianti — faqat qidiruv bo'sh bo'lganda, ro'yxat tepasida
+  if(!words.length){
+    html+='<button type="button" class="mdl-row'+(cur?'':' on')+'" onclick="pickModda(\'\')">'
+      +'<span class="mdl-tick">'+(cur?'':'\u2713')+'</span><span class="mdl-main">'
+      +'<span class="mdl-l1">— modda tanlang —</span>'
+      +'<span class="mdl-l2">Tanlovni tozalash</span></span></button>';
+  }
+  moddaGroups().forEach(g=>{
+    const list=g[1].filter(a=>moddaMatch(a,words));
+    if(!list.length) return;
+    n+=list.length;
+    html+='<div class="mdl-grp">'+esc(g[0])+'</div>';
+    html+=list.map(a=>'<button type="button" class="mdl-row'+(a.id===cur?' on':'')+'" onclick="pickModda(\''+a.id+'\')">'
+      +'<span class="mdl-tick">'+(a.id===cur?'\u2713':'')+'</span><span class="mdl-main">'
+      +'<span class="mdl-l1">'+esc(a.name)+'</span>'
+      +'<span class="mdl-l2">'+esc(a.code+(a.subtitle?' \u00b7 '+a.subtitle:''))+'</span></span></button>').join('');
+  });
+  if(!n && words.length) html+='<div class="mdl-empty">Topilmadi</div>';
+  box.innerHTML=html; icons();
+};
+// Tugma yorlig'i. updateSimple() boshida chaqiriladi — kod ba'zi joylarda
+// $('modda').value ni to'g'ridan o'zgartiradi (tozalash, saqlashdan keyin, applyPrefill),
+// updateSimple esa deyarli har yo'ldan keyin chaqiriladi → yorliq eskirmaydi.
+function syncModdaBtn(){
+  const b=$('moddaBtn'), l=$('moddaBtnLbl'); if(!b||!l) return;
+  const m=accounts.find(a=>a.id===$('modda').value);
+  l.textContent = m ? accLbl(m) : '— modda tanlang —';
+  b.classList.toggle('empty', !m);
+}
+window.openModda=()=>{
+  const s=$('moddaSearch'); if(s) s.value='';
+  window.renderModdaList();
+  $('moddaModal').classList.add('open');
+  /* Fokus FAQAT keng ekranda: desktopda darrov yozib qidirish qulay, telefonda esa
+     klaviatura sakrab ro'yxatning yarmini yopib qo'yardi (shu sababli autofocus yo'q). */
+  if(s && window.matchMedia && window.matchMedia('(min-width:900px)').matches){ try{ s.focus(); }catch(e){} }
+};
+window.closeModda=()=>{ $('moddaModal').classList.remove('open'); };
+window.pickModda=id=>{
+  $('modda').value=id||'';
+  window.closeModda();          // avval yopamiz — 9413 kommunal modali ustidan ochilsin
+  window.onModda();             // mavjud mantiq: kommunal / davr / chek / izoh — hammasi o'sha yerda
+  syncModdaBtn();
+};
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ const m=$('moddaModal'); if(m&&m.classList.contains('open')) window.closeModda(); }
+});
 // ⚠️ AVTOMAT "000" faqat SO'M uchun. Valyuta hisobi tanlanganda summa
 // valyutada o'qiladi (7 800 $) — "7" tersa "7 000" bo'lib qolishi 1000 barobar
 // xato degani. Shuning uchun valyutada oddiy minglik ajratgich, nol qo'shilmaydi
@@ -1313,6 +1424,7 @@ function simpleDir(){
   return {modda,kassa,income};
 }
 window.updateSimple=()=>{
+  syncModdaBtn();                                    // modda tugmasi yorlig'i har doim yangi
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
   const h=$('dirHint');
@@ -1844,6 +1956,7 @@ async function init(){
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
   // Oddiy rejim: modda ro'yxati + kassa chiplari + filial multiselect
   $('modda').innerHTML=moddaOptions();
+  window.renderModdaList(); syncModdaBtn();          // qidiruvli modal ro'yxati + tugma yorlig'i
   await loadFilials(); renderFilials();
   $('izoh').addEventListener('input',updateSimple);
   renderChips(); fetchSubBal(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi

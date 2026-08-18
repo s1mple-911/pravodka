@@ -362,7 +362,17 @@ async function onLogin(ev){
      masalan sessiya tugagach) eskisining raqamlari keshda qolib ketardi. */
   window.permClear(); swrClear();
   $('password').value='';
-  enterApp();                                // reload SHART EMAS — dashboard shu sahifada
+  /* 🔴 RELOAD (2026-08-18 prod bug tuzatishi). Avval `enterApp()` chaqirilardi, ya'ni
+     `my_perms()` login'dan keyin DARROV yuborilardi — supabase-js esa Authorization
+     sarlavhasini asinxron `SIGNED_IN` hodisasida yangilaydi, shuning uchun o'sha birinchi
+     so'rov ANON kalit bilan ketib xato qaytarardi va dashboard hamma bo'limni ko'rsatardi
+     (F5 dan keyin to'g'rilanardi). Reload — foydalanuvchi qo'lda bosadigan F5 ning o'zi:
+     klient token bilan ishga tushadi, poyga umuman qolmaydi. Token allaqachon
+     localStorage'da (signInWithPassword qaytishidan oldin yoziladi), shuning uchun
+     <head> dagi inline skript darrov `has-sess` qo'yadi — login ekrani miltillamaydi.
+     ⚠️ perms.js dagi qayta urinish va dashboardning fail-closed rendering'i baribir
+     saqlanadi: ular boshqa yo'llarni (kesh, boshqa tab, sekin tarmoq) qoplaydi. */
+  location.reload();
 }
 
 /* ================= DASHBOARD ================= */
@@ -397,6 +407,12 @@ function cardHtml(c){
     +'<i class="parr" data-lucide="chevron-right"></i></a>';
 }
 function renderCards(){
+  /* 🔴 FAIL-CLOSED (2026-08-18 prod bug): ruxsat HALI ma'lum bo'lmasa (my_perms()
+     javobi kelmagan yoki xato bergan) karta CHIZILMAYDI. perms.js ning "yuklanmaguncha
+     ochiq" qoidasi nav uchun to'g'ri, dashboard uchun esa TESKARI natija berardi —
+     yangi user hamma bo'limni ko'rib, F5 dan keyin ular yo'qolardi.
+     Bosilsa baribir gate() qaytarib yuborardi, ya'ni ro'yxat yolg'on edi. */
+  if(window.permLoaded && !window.permLoaded()){ showCardsWait(); return; }
   /* permPageOk() adminni o'zi o'tkazadi (is_admin -> hammasi true) — qo'shimcha
      `is_admin` sharti yozilmaydi, mantiq bitta joyda (perms.js) qolsin. */
   const list=CARDS.filter(c=>{
@@ -419,6 +435,27 @@ function renderCards(){
   box.innerHTML='<div class="cards-grid">'+[HODIM].concat(list).map(cardHtml).join('')+'</div>';
   icons();
 }
+/* Ruxsat kelmaguncha ko'rinadigan holat. `permWaited` — perms.js o'z qayta urinishlarini
+   tugatgandan keyin ham javob bo'lmasa (tarmoq uzilgan) foydalanuvchi "Yuklanmoqda…" da
+   qotib qolmasin: qo'lda "Qayta urinish" tugmasi beriladi. */
+let permWaited=false;
+function showCardsWait(){
+  const box=$('cards'); if(!box) return;
+  box.innerHTML = permWaited
+    ? '<div class="pempty">'
+      +'<div class="pempty-ico"><i data-lucide="wifi-off"></i></div>'
+      +'<h2>Ruxsatlar yuklanmadi</h2>'
+      +'<p>Internet aloqasi uzilgan bo\'lishi mumkin. Qayta urinib ko\'ring.</p>'
+      +'<button type="button" class="pbtn" onclick="retryPerms()"><i data-lucide="refresh-cw"></i>Qayta urinish</button>'
+      +'</div>'
+    : '<div class="loading">Yuklanmoqda…</div>';
+  icons();
+}
+window.retryPerms=async()=>{
+  permWaited=false; showCardsWait();
+  try{ await window.permLoad(sb); }catch(e){ console.error('permLoad xato:',e); }
+  permWaited=true; renderCards();
+};
 /* my_perms() javobi kartalar chizilgandan KEYIN yangilanishi mumkin (kesh bilan
    ochilgan holat). ai-widget.js naqshi: 400ms x 20 poll, o'zgargan bo'lsa
    jimgina qayta chizamiz. */
@@ -459,7 +496,7 @@ let appShown=false;
    (`loaded=false` -> permPageOk hammaga `true`). permsSnap ham tozalanadi, aks holda
    watchPerms "o'zgarmadi" deb qayta chizmasdi. */
 function resetCards(){
-  permsSnap='';
+  permsSnap=''; permWaited=false;        // yangi kutish sikli — "Qayta urinish" ekrani qolib ketmasin
   var box=$('cards'); if(box) box.innerHTML='<div class="loading">Yuklanmoqda…</div>';
 }
 function showLogin(){
@@ -484,11 +521,14 @@ async function enterApp(){
   await Promise.all([
     loadUser(),
     window.permLoad(sb)
-      .then(()=>{ permsSnap=JSON.stringify(window.PERMS||{}); renderCards(); watchPerms(); })
+      /* permWaited=true — permLoad o'z qayta urinishlarini tugatdi. Shundan keyin ham
+         ruxsat kelmagan bo'lsa renderCards() "Qayta urinish" ekranini ko'rsatadi
+         (hamma kartani emas). */
+      .then(()=>{ permWaited=true; permsSnap=JSON.stringify(window.PERMS||{}); renderCards(); watchPerms(); })
       /* Kutilmagan xato bo'lsa ham dashboard "Yuklanmoqda…" da qotib qolmasin:
          perms.js ning "yuklanmaguncha ochiq" qoidasi bo'yicha kartalar
          chiziladi (haqiqiy to'siq baribir server tomonda). */
-      .catch(e=>{ console.error('permLoad xato:',e); renderCards(); })
+      .catch(e=>{ console.error('permLoad xato:',e); permWaited=true; renderCards(); })
   ]);
 }
 /* 14 sahifa `sessionStorage` ga `prov-swr:<sahifa>:<n>` keshini yozadi va u reload'dan
