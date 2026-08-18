@@ -26,7 +26,11 @@
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
                'tannarx', 'ai'];
-  var HOME  = 'jurnal';           // bosh sahifa (ildiz "/" ham shu)
+  var HOME  = 'jurnal';           // Provodka'ning bosh bo'limi (login'dan keyingi ish sahifasi)
+  // Login/dashboard hub sahifasi. PAGES ichida ATAYLAB yo'q — u ruxsat bilan
+  // cheklanmaydi (o'zi ruxsatli bo'limlar ro'yxatini chizadi).
+  var INDEX = 'index';
+  var AUTH_KEY = 'sb-kxzerccdpcltmzrxutlo-auth-token';   // Supabase sessiya kaliti (localStorage)
 
   /* Havola qo'shimchasi joriy fayl nomidan olinadi: dev sahifada `-dev.html`,
      prod sahifada `.html`. Shu tufayli bu faylda birorta ham `NAME-dev.html`
@@ -34,6 +38,29 @@
      prod hech qachon dev sahifaga havola qilib qolmaydi. */
   function suf() { return /-dev\.html$/.test(location.pathname) ? '-dev.html' : '.html'; }
   function hodimUrl() { return 'hodim' + suf(); }
+  function indexUrl() { return INDEX + suf(); }
+
+  /* ---- LOGIN GUARD (2026-08-18) ---------------------------------------
+     index sahifasi — yagona kirish yuzi (login + dashboard). Sessiya tokeni
+     UMUMAN bo'lmasa boshqa sahifani ochish ma'nosiz: Supabase javobini kutib
+     turgan bo'sh ekran o'rniga darrov login'ga yuboramiz.
+
+     🔴 Bu QO'SHIMCHA qatlam. Har sahifadagi eski auth gate (boot() +
+     getSession() + signOut/reload) FALLBACK sifatida joyida qoladi va
+     olib tashlanmaydi — "token bor, lekin yaroqsiz/muddati o'tgan" holatni
+     faqat o'sha ushlaydi, bu yerda faqat tokenning BORLIGI tekshiriladi.
+
+     localStorage bloklangan brauzerda (Safari private, korporativ policy)
+     getItem istisno tashlaydi — bunday holatda REDIRECT QILMAYMIZ: sahifa
+     o'z gate'i bilan ishlayversin (aks holda hech kim kira olmasdi). */
+  function loginGuard() {
+    try {
+      if (page() === INDEX) return;                    // login sahifasining o'zi
+      if (localStorage.getItem(AUTH_KEY)) return;      // token bor — tekshiruvni sahifa davom ettiradi
+      location.replace(indexUrl());
+    } catch (e) { /* localStorage yo'q — jimgina o'tkazamiz */ }
+  }
+  loginGuard();
 
   /* Ruxsat MA'LUM BO'LMAGAN holat (RPC hali javob bermagan yoki xato bergan).
      Ataylab OCHIQ: bir martalik tarmoq nosozligi hech kimni sahifadan
@@ -78,7 +105,11 @@
   function page() {
     var f = (location.pathname.split('/').pop() || '').replace('.html', '');
     f = f.replace(/-dev$/, '');
-    return f || HOME;
+    /* Ildiz "/" endi index.html ni beradi (login + dashboard hub), shuning uchun
+       bo'sh nom HOME emas, 'index' kaliti. 'index' PAGES da yo'q => gate() uni
+       cheklamaydi (hub o'zi ruxsatli bo'limlarni chizadi) va login guard uni
+       o'ziga qayta yo'naltirmaydi. */
+    return f || INDEX;
   }
 
   // ---- kesh (sessiya davomida) ---------------------------------------
@@ -230,7 +261,13 @@
         var to = firstAllowed();
         if (to && to !== HOME) { location.replace(to + suf()); return false; }
       }
-      denyScreen(); return false;
+      /* Sahifa yopiq -> "Ruxsat yo'q" ekrani o'rniga DASHBOARD (index).
+         Sabab: index endi hub — user o'ziga OCHIQ bo'limlar ro'yxatini darrov
+         ko'radi, boshi berk ekranda qolmaydi. Sikl xavfi yo'q: 'index' PAGES
+         da yo'q, ya'ni gate() u yerda yuqorida `return true` bilan chiqadi.
+         ⚠️ `!hasProvodka()` shoxi (hodim redirect + denyScreen) TEGILMAGAN —
+         80% user o'sha yo'ldan yuradi. */
+      location.replace(indexUrl()); return false;
     }
     return true;
   }

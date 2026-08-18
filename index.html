@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aros Provodka — Kirish</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
+<link rel="prefetch" href="jurnal.html">
+<link rel="prefetch" href="hodim.html">
+<link rel="prefetch" href="kassa.html">
+<link rel="prefetch" href="hisobot.html">
+<script src="vendor/lucide-1.24.0.js" defer></script>
+<script src="vendor/supabase-2.110.6.js" defer></script>
+<script src="perms.js" defer></script>
+<!-- ⚠️ BU SAHIFADA 5 ta <script> (boshqa dev sahifalarda 4-5, lekin bu boshqacha):
+     lucide + supabase + perms-dev + SHU INLINE + module. Inline skript ATAYLAB
+     `defer` EMAS va module ham emas — u BIRINCHI KADRDAN oldin ishlashi kerak.
+
+     Nima qiladi va nega:
+       1) Sessiya tokeni bor-yo'qligiga qarab <html> ga `has-sess`/`no-sess` klassi.
+          Sababi: #gate va #dash ikkalasi ham sukut bo'yicha `display:none` —
+          module yiqilsa (vendor 404, tarmoq, kelajakdagi xato) domen ILDIZI
+          butunlay OQ qolardi. Bu klass hech bo'lmaganda to'g'ri ekranni ochadi.
+          Module baribir keyin aniq holatni `style.display` bilan qo'yadi.
+       2) Mavzuni (prov-theme) shu yerda qo'llaydi — module ichida qo'llansa
+          dark foydalanuvchi bir kadr oq ekran ko'rardi (index — birinchi yuz).
+     localStorage bloklangan brauzerda (Safari private) — `no-sess`, ya'ni login. -->
+<script>
+(function(){
+  var d=document.documentElement, t=null, th=null;
+  try{ t=localStorage.getItem('sb-kxzerccdpcltmzrxutlo-auth-token'); th=localStorage.getItem('prov-theme'); }catch(e){}
+  d.classList.add(t?'has-sess':'no-sess');
+  if(th==='dark') d.setAttribute('data-theme','dark');
+})();
+</script>
+<style>
+  @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
+  /* ================= DIZAYN TOKENLARI (hodim.html bilan bir xil) =================
+     BREND: Aros yashil #1ea83a. Uch pog'ona — hammasi bir tus:
+       --primary        #1ea83a  ramka/ikon/grafika (katta yuza uchun AA)
+       --primary-strong #17862f  OQ matnli CTA foni (4.7:1 — kichik matn uchun ham AA)
+       --primary-ink    #136a26  och fonda YASHIL MATN (6.0:1)
+     Spacing 4/8 shkalasi: 4 8 12 16 20 24 32. Radius: 10 12 16 20. */
+  :root{
+    --bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--surface-3:#e7eaef;
+    --ink:#101828;--ink-2:#344054;--muted:#667085;--line:#e6e8ec;
+    --primary:#1ea83a;--primary-hover:#17862f;--primary-strong:#17862f;--primary-press:#126a26;
+    --primary-ink:#136a26;--primary-soft:#e6f6ea;--primary-ring:rgba(30,168,58,.22);--on-primary:#fff;
+    --green:#1ea83a;--green-soft:#e7f7ef;
+    --red:#d92d20;--red-soft:#fef3f2;--red-ink:#b42318;--red-line:rgba(217,45,32,.20);
+    --cta-shadow:0 4px 14px rgba(23,134,47,.24);--cta-shadow-hover:0 8px 20px rgba(23,134,47,.28);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+    --shadow-hover:0 6px 16px rgba(16,24,40,.10);--shadow-lg:0 16px 40px rgba(16,24,40,.14);
+    --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s7:32px;
+    --r-sm:10px;--r-md:12px;--r-lg:16px;--r-xl:20px;--radius:14px;
+    --col:1120px;
+    --ic-alert:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E")
+  }
+  [data-theme="dark"]{
+    --bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--surface-3:#272e3a;
+    --ink:#e6e9ef;--ink-2:#c4cad5;--muted:#8a93a3;--line:#252b36;
+    --primary:#2ec24a;--primary-hover:#45d160;--primary-strong:#2ec24a;--primary-press:#45d160;
+    --primary-ink:#5fd97b;--primary-soft:#12281a;--primary-ring:rgba(46,194,74,.28);--on-primary:#07130b;
+    --green:#2ec24a;--green-soft:#0f2a1e;
+    --red:#ff6259;--red-soft:#33150f;--red-ink:#ff8a82;--red-line:rgba(255,98,89,.28);
+    --cta-shadow:0 4px 14px rgba(0,0,0,.45);--cta-shadow-hover:0 8px 20px rgba(0,0,0,.55);
+    --shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55);--shadow-lg:0 18px 44px rgba(0,0,0,.6)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  ::selection{background:var(--primary-soft);color:var(--primary-ink)}
+  /* Lucide ikonkalari: bir xil qalinlik, flex ichida siqilmasin */
+  svg.lucide{flex:none;stroke-width:2}
+  /* Fokus: sichqonchada halqa yo'q, klaviaturada — aniq brend halqa */
+  :focus{outline:none}
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  /* Ikkala ekran ham SUKUT BO'YICHA yashirin — qaysi biri ochilishini boot() hal
+     qiladi. Shu tufayli sessiyali foydalanuvchi login ekranini bir zumga ham ko'rmaydi. */
+  #gate{display:none}
+  #dash{display:none}
+  /* …lekin module umuman ishga tushmasa (vendor 404, xato) oq ekran qolardi.
+     <head> dagi inline skript qo'ygan klass BIRINCHI KADRDAN to'g'ri ekranni ochadi;
+     module keyin baribir `style.display` bilan aniq holatni qo'yadi (u kuchliroq). */
+  .no-sess #gate{display:flex}
+  .has-sess #dash{display:block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+  /* ================= LOGIN ================= */
+  /* JS `display:'flex'` qiladi — bu yerda display YOZILMAYDI (yuqoridagi none saqlanadi) */
+  #gate{position:fixed;inset:0;overflow:auto;background:var(--bg);align-items:center;justify-content:center;
+    padding:var(--s6) var(--s4) calc(var(--s6) + env(safe-area-inset-bottom));z-index:100}
+  /* Juda nozik brend yorug'i — bezak emas, chuqurlik uchun */
+  #gate::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(110% 60% at 50% -8%,var(--primary-ring),transparent 62%);opacity:.6}
+  @media(max-height:660px){#gate{align-items:flex-start}}
+  .authwrap{position:relative;z-index:1;width:100%;max-width:400px;margin:auto}
+  .authbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);
+    padding:var(--s7) var(--s6) var(--s6);box-shadow:var(--shadow-lg)}
+  @media(max-width:400px){.authbox{padding:var(--s6) var(--s5)}}
+  .authhead{text-align:center;margin-bottom:var(--s6)}
+  .authbox .logo{width:52px;height:52px;border-radius:var(--r-lg);background:var(--primary-soft);color:var(--primary-ink);
+    margin:0 auto var(--s4);display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 0 1px var(--primary-ring)}
+  .authbox .logo svg{width:26px;height:31px;display:block}
+  .authbox h1{font-size:24px;margin:0 0 var(--s1);font-weight:700;letter-spacing:-.025em;line-height:1.2}
+  .authbox .sub{color:var(--muted);margin:0;font-size:14px;line-height:1.5}
+  .fld{margin-bottom:var(--s3)}
+  .fld label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 6px 2px}
+  /* font-size 16px — iOS Safari kichikroq shriftli inputga fokuslanganda sahifani zumlaydi */
+  .authbox input{width:100%;height:52px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-md);padding:0 var(--s4);font-size:16px;font-family:inherit;outline:none;
+    transition:border-color .15s,box-shadow .15s,background .15s}
+  .authbox input::placeholder{color:var(--muted);opacity:.62}
+  @media(hover:hover){.authbox input:hover:not(:disabled):not(:focus){border-color:var(--surface-3)}}
+  .authbox input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  .authbox input:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  /* xato holati — hoshiya qizil, lekin ohang "diqqat", "falokat" emas */
+  .authbox input.err{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+  .authbox button{width:100%;height:52px;margin-top:var(--s5);border:none;border-radius:var(--r-md);
+    background:var(--primary-strong);color:var(--on-primary);font-size:16px;font-weight:700;font-family:inherit;
+    letter-spacing:-.01em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:var(--s2);
+    box-shadow:var(--cta-shadow);transition:background .15s,transform .12s,box-shadow .15s,opacity .15s}
+  @media(hover:hover){.authbox button:hover:not(:disabled){background:var(--primary-press);transform:translateY(-1px);box-shadow:var(--cta-shadow-hover)}}
+  .authbox button:active:not(:disabled){transform:translateY(0) scale(.995);box-shadow:var(--shadow)}
+  /* Yuklanish: tugma "o'lik" emas — matn setBusy() dan keladi, aylanma ::before dan
+     (textContent faqat matn tugunini almashtiradi, pseudo-element qoladi) */
+  .authbox button:disabled{cursor:progress;opacity:.9;transform:none;box-shadow:none}
+  .authbox button:disabled::before{content:'';width:17px;height:17px;flex:none;border-radius:50%;
+    border:2px solid currentColor;border-top-color:transparent;animation:spin .7s linear infinite}
+  /* Bo'sh bo'lsa umuman ko'rinmaydi (aria-live tuguni DOM'da qoladi) */
+  .autherr{display:flex;align-items:flex-start;gap:var(--s2);margin-top:var(--s4);
+    background:var(--red-soft);color:var(--red-ink);border:1px solid var(--red-line);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);font-size:13.5px;font-weight:600;line-height:1.45;animation:reveal .2s ease}
+  .autherr:empty{display:none}
+  .autherr::before{content:'';flex:none;width:17px;height:17px;margin-top:1px;background:currentColor;
+    -webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  .gfoot{margin:var(--s5) auto 0;max-width:320px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.55}
+
+  /* ================= DASHBOARD ================= */
+  /* viewport-fit=cover — notchli qurilmada gorizontal xavfsiz zona ham hisobga olinadi */
+  .top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+    padding:calc(var(--s3) + env(safe-area-inset-top)) max(var(--s5),env(safe-area-inset-right)) var(--s3) max(var(--s5),env(safe-area-inset-left))}
+  .topin{max-width:var(--col);margin:0 auto;display:flex;align-items:center;gap:var(--s3)}
+  .brand{display:flex;align-items:center;gap:var(--s3);min-width:0}
+  .brand .logo{width:24px;height:28px;flex:none;color:var(--primary)}
+  .brand .logo svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--primary-ink);white-space:nowrap}
+  .brand-name span{color:var(--muted);font-weight:500}
+  .who{display:flex;align-items:center;gap:var(--s3);margin-left:auto;min-width:0}
+  .uav{width:36px;height:36px;flex:none;border-radius:50%;background:var(--primary-soft);color:var(--primary-ink);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14.5px;
+    box-shadow:inset 0 0 0 1px var(--primary-ring)}
+  .uinfo{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+  .uname{font-weight:600;font-size:14px;line-height:1.25;max-width:32vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Rol — chip. Admin brend yashil, oddiy foydalanuvchi neytral. */
+  .urole{font-size:11px;font-weight:700;letter-spacing:.02em;line-height:16px;padding:0 var(--s2);
+    border-radius:999px;color:var(--muted);background:var(--surface-2);white-space:nowrap}
+  .urole.admin{color:var(--primary-ink);background:var(--primary-soft)}
+  .acts{display:flex;align-items:center;gap:var(--s1);flex:none;margin-left:var(--s1)}
+  .icon-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);background:transparent;border:none;
+    color:var(--muted);border-radius:var(--r-md);min-height:40px;padding:0 var(--s3);font-size:14px;font-weight:600;
+    font-family:inherit;cursor:pointer;transition:background .15s,color .15s}
+  .icon-btn svg{width:19px;height:19px}
+  @media(hover:hover){.icon-btn:hover{background:var(--surface-2);color:var(--ink)}}
+  .icon-btn:active{background:var(--surface-3);color:var(--ink)}
+  /* Telefon: yorliqsiz, lekin barmoqbop (44px) */
+  @media(max-width:640px){.icon-btn .lbl{display:none}.icon-btn{width:44px;height:44px;padding:0}
+    .urole{display:none}.uname{max-width:26vw}}
+  @media(max-width:400px){.uinfo{display:none}}
+  .main{max-width:var(--col);margin:0 auto;
+    padding:var(--s6) max(var(--s5),env(safe-area-inset-right)) calc(var(--s7) + env(safe-area-inset-bottom)) max(var(--s5),env(safe-area-inset-left))}
+  @media(max-width:560px){
+    .top{padding-left:max(var(--s4),env(safe-area-inset-left));padding-right:max(var(--s4),env(safe-area-inset-right))}
+    .main{padding:var(--s5) max(var(--s4),env(safe-area-inset-right)) calc(var(--s7) + env(safe-area-inset-bottom)) max(var(--s4),env(safe-area-inset-left))}}
+  .hello{margin-bottom:var(--s5)}
+  .hello h1{font-size:26px;font-weight:700;letter-spacing:-.025em;margin:0 0 var(--s1);line-height:1.2}
+  .hello p{margin:0;color:var(--muted);font-size:14px}
+  /* 1 → 2 → 3 → 4 ustun. 1024/1280/1366 da gorizontal scroll yo'q. */
+  .cards-grid{display:grid;grid-template-columns:1fr;gap:var(--s3)}
+  @media(min-width:600px){.cards-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:960px){.cards-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(min-width:1240px){.cards-grid{grid-template-columns:repeat(4,1fr)}}
+  .pcard{display:flex;align-items:center;gap:var(--s3);min-height:74px;background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s4);text-decoration:none;color:var(--ink);
+    box-shadow:var(--shadow);transition:box-shadow .16s,transform .14s,border-color .16s,background .16s}
+  @media(hover:hover){
+    .pcard:hover{box-shadow:var(--shadow-hover);transform:translateY(-2px);border-color:var(--primary)}
+    .pcard:hover .pico{background:var(--primary);color:var(--on-primary)}
+    .pcard:hover .parr{color:var(--primary);opacity:1;transform:translateX(2px)}}
+  .pcard:active{transform:translateY(0);box-shadow:var(--shadow)}
+  .pico{width:42px;height:42px;flex:none;border-radius:var(--r-md);background:var(--primary-soft);color:var(--primary-ink);
+    display:flex;align-items:center;justify-content:center;transition:background .16s,color .16s}
+  .pico svg{width:20px;height:20px}
+  .ptxt{min-width:0;display:flex;flex-direction:column;gap:2px}
+  .pt{font-weight:700;font-size:15px;letter-spacing:-.015em;line-height:1.3}
+  .pd{font-size:12.5px;color:var(--muted);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Lucide `<i class="parr">` ni SVG bilan ALMASHTIRADI va klassni ko'chiradi —
+     shuning uchun o'lcham `.parr` ning O'ZIDA (`.parr svg` faqat zaxira). */
+  .parr{margin-left:auto;flex:none;width:18px;height:18px;color:var(--muted);opacity:.65;display:block;
+    transition:color .16s,transform .16s,opacity .16s}
+  .parr svg{width:100%;height:100%;display:block}
+  /* Birlamchi amal — "Xarajat kiritish" (JS uni HAR DOIM birinchi qo'yadi) */
+  .cards-grid>.pcard:first-child{background:var(--primary-soft);border-color:transparent;
+    box-shadow:0 0 0 1px var(--primary-ring),0 2px 10px rgba(23,134,47,.10)}
+  .cards-grid>.pcard:first-child .pico{background:var(--primary-strong);color:var(--on-primary)}
+  .cards-grid>.pcard:first-child .pt{color:var(--primary-ink)}
+  .cards-grid>.pcard:first-child .pd{color:var(--primary-ink);opacity:.8}
+  .cards-grid>.pcard:first-child .parr{color:var(--primary-ink);opacity:.75}
+  @media(hover:hover){
+    .cards-grid>.pcard:first-child:hover{border-color:transparent;
+      box-shadow:0 0 0 1px var(--primary),0 8px 20px rgba(23,134,47,.16)}
+    .cards-grid>.pcard:first-child:hover .pico{background:var(--primary-press)}
+    .cards-grid>.pcard:first-child:hover .parr{color:var(--primary-ink);opacity:1}}
+  /* Bo'sh holat — xato emas, shuning uchun ohang mehribon */
+  .pempty{max-width:460px;margin:var(--s7) auto;text-align:center;padding:var(--s7) var(--s6);
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);box-shadow:var(--shadow)}
+  @media(max-width:480px){.pempty{padding:var(--s6) var(--s5);margin:var(--s5) auto}}
+  .pempty-ico{width:56px;height:56px;border-radius:var(--r-lg);background:var(--surface-2);color:var(--muted);
+    display:flex;align-items:center;justify-content:center;margin:0 auto var(--s4)}
+  .pempty-ico svg{width:24px;height:24px}
+  .pempty h2{margin:0 0 var(--s2);font-size:18px;font-weight:700;letter-spacing:-.015em;line-height:1.35}
+  .pempty p{margin:0 0 var(--s5);color:var(--muted);font-size:14px;line-height:1.55}
+  .pbtn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:48px;padding:0 var(--s5);
+    border-radius:var(--r-md);background:var(--primary-strong);color:var(--on-primary);text-decoration:none;
+    font-weight:700;font-size:15px;box-shadow:var(--cta-shadow);transition:background .15s,transform .12s,box-shadow .15s}
+  .pbtn svg{width:18px;height:18px}
+  @media(hover:hover){.pbtn:hover{background:var(--primary-press);transform:translateY(-1px);box-shadow:var(--cta-shadow-hover)}}
+  .pbtn:active{transform:translateY(0);box-shadow:var(--shadow)}
+  .loading{display:flex;align-items:center;justify-content:center;gap:var(--s2);
+    color:var(--muted);font-size:14px;padding:var(--s7) 0}
+  .loading::before{content:'';width:16px;height:16px;flex:none;border-radius:50%;
+    border:2px solid var(--line);border-top-color:var(--muted);animation:spin .7s linear infinite}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="gate">
+  <div class="authwrap">
+    <form id="loginForm" class="authbox" novalidate>
+      <div class="authhead">
+        <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div>
+        <h1>Aros Provodka</h1>
+        <p class="sub">Hisobingizga kiring</p>
+      </div>
+      <div class="fld">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus placeholder="ism@aros.uz">
+      </div>
+      <div class="fld">
+        <label for="password">Parol</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Parolingiz">
+      </div>
+      <button id="loginBtn" type="submit">Kirish</button>
+      <div id="authErr" class="autherr" role="alert" aria-live="polite"></div>
+    </form>
+    <div class="gfoot">Parolni unutdingizmi? Administratorga murojaat qiling.</div>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div id="dash">
+  <header class="top">
+    <div class="topin">
+      <div class="brand">
+        <div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div>
+        <div class="brand-name">aros <span>Provodka</span></div>
+      </div>
+      <div class="who">
+        <div class="uav" id="uav">·</div>
+        <div class="uinfo">
+          <div class="uname" id="uname">—</div>
+          <div class="urole" id="urole">—</div>
+        </div>
+        <div class="acts">
+          <button class="icon-btn" onclick="toggleTheme()" aria-label="Mavzu"><i data-lucide="moon"></i></button>
+          <button class="icon-btn" onclick="logout()" aria-label="Chiqish"><i data-lucide="log-out"></i><span class="lbl">Chiqish</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="hello">
+      <h1>Bo'limlar</h1>
+      <p>Sizga ochiq bo'limlar quyida. Kerakli bo'limni tanlang.</p>
+    </div>
+    <div id="cards"><div class="loading">Yuklanmoqda…</div></div>
+  </main>
+</div>
+
+<script type="module">
+const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
+const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=id=>document.getElementById(id);
+const icons=()=>{ if(window.lucide) lucide.createIcons(); };
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---- Mavzu — boshqa sahifalar bilan AYNAN bir xil kalit (prov-theme) ---- */
+function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
+window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark'); localStorage.setItem('prov-theme',d?'light':'dark'); syncThemeIcon(); };
+if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
+
+/* ================= LOGIN ================= */
+/* Xato matni O'ZBEKCHA va umumiy — xom Supabase matni foydalanuvchiga
+   ko'rsatilmaydi (inglizcha va ichki tafsilot sizdiradi), lekin console.error
+   ga to'liq yoziladi: qo'llab-quvvatlash uchun kerak. */
+function loginErrText(e){
+  const m=String((e&&(e.message||e.error_description))||'');
+  const st=Number(e&&e.status)||0;
+  if(/invalid.?login|invalid.?credentials|invalid.?grant/i.test(m)) return 'Email yoki parol noto\'g\'ri';
+  if(/email not confirmed/i.test(m)) return 'Email tasdiqlanmagan — administratorga murojaat qiling';
+  if(/too many|rate limit/i.test(m)||st===429) return 'Juda ko\'p urinish. Bir daqiqadan keyin qayta urinib ko\'ring';
+  if(/user not found/i.test(m)) return 'Bunday foydalanuvchi topilmadi';
+  if(/failed to fetch|network|load failed|timeout|aborted/i.test(m)||st===0)
+    return 'Internetga ulanmadi. Aloqani tekshirib, qayta urinib ko\'ring';
+  return 'Kirishda xato yuz berdi. Qayta urinib ko\'ring';
+}
+function setErr(t){ $('authErr').textContent=t||''; }
+/* So'rov ketayotganda tugma ham, maydonlar ham bloklanadi (ikki marta yuborilmasin). */
+function setBusy(b){
+  $('loginBtn').disabled=b; $('loginBtn').textContent=b?'Kirilmoqda…':'Kirish';
+  $('email').disabled=b; $('password').disabled=b;
+}
+/* Xatodan keyin fokus AYBDOR maydonga qaytadi — user qayerni tuzatishni bilsin. */
+function focusFor(e){
+  const m=String((e&&e.message)||'');
+  if(/user not found/i.test(m)){ $('email').focus(); $('email').select(); return; }
+  $('password').focus(); $('password').select();
+}
+async function onLogin(ev){
+  ev.preventDefault();                       // <form> — Enter ishlaydi, sahifa qayta yuklanmaydi
+  const email=$('email').value.trim(), password=$('password').value;
+  setErr('');
+  if(!email){ setErr('Email kiriting'); $('email').focus(); return; }
+  if(!password){ setErr('Parolni kiriting'); $('password').focus(); return; }
+  setBusy(true);
+  let res;
+  /* supabase-js {data,error} qaytaradi (throw QILMAYDI) — error MAJBURIY tekshiriladi.
+     try/catch esa faqat tarmoq/DNS darajasidagi istisno uchun (fetch reject). */
+  try{ res=await sb.auth.signInWithPassword({email,password}); }
+  catch(ex){ res={error:ex}; }
+  if(res.error){
+    console.error('Login xato:',res.error);
+    setBusy(false); setErr(loginErrText(res.error)); focusFor(res.error);
+    return;
+  }
+  setBusy(false); setErr('');
+  /* permClear() MAJBURIY: sessionStorage'dagi eski ruxsatlar reload'siz ham
+     qolib ketadi — yangi foydalanuvchi eskisining ruxsati bilan ochilmasin.
+     swrClear() ham shart: boshqa foydalanuvchi O'SHA TABDA kirsa (chiqishsiz —
+     masalan sessiya tugagach) eskisining raqamlari keshda qolib ketardi. */
+  window.permClear(); swrClear();
+  $('password').value='';
+  enterApp();                                // reload SHART EMAS — dashboard shu sahifada
+}
+
+/* ================= DASHBOARD ================= */
+/* Kartalar. `href` ATAYLAB to'liq literal ('jurnal.html') — promote.sh faqat
+   literal `NAME-dev.html` matnini `NAME.html` ga almashtiradi. Havolani JS'da
+   `k+'-dev.html'` deb yig'sak, prod nusxa dev fayllarga havola qilib qolardi. */
+const HODIM={k:'hodim',href:'hodim.html',t:'Xarajat kiritish',i:'wallet',d:'Hodim xarajatini kiritish'};
+const CARDS=[
+  {k:'jurnal',       href:'jurnal.html',       t:'Jurnal',              i:'scroll-text',      d:'Provodkalar tarixi, filtr, tahrir'},
+  {k:'professional', href:'professional.html', t:'Professional',        i:'list-plus',        d:"Ko'p satrli qo'lda yozuv"},
+  {k:'kassa',        href:'kassa.html',        t:'Kassa',               i:'wallet',           d:"Kassalar qoldig'i va konvert"},
+  {k:'hisobot',      href:'hisobot.html',      t:'Hisobot',             i:'chart-column',     d:'Foyda-zarar, xarajat taqsimoti'},
+  {k:'balans',       href:'balans.html',       t:'Balans',              i:'scale',            d:'Aktiv va passiv sanaga'},
+  {k:'cashflow',     href:'cashflow.html',     t:'Cashflow',            i:'waves',            d:'Pul oqimi: kirim va chiqim'},
+  {k:'qarzdor',      href:'qarzdor.html',      t:'Qarzdor',             i:'hand-coins',       d:'Debitor va kreditor qarzlar'},
+  {k:'filial',       href:'filial.html',       t:'Filial',              i:'store',            d:'Filiallardagi jonli pul'},
+  {k:'valyuta',      href:'valyuta.html',      t:'Valyuta',             i:'banknote',         d:'Valyuta kurslari'},
+  {k:'konvert',      href:'konvert.html',      t:'Konvert',             i:'arrow-right-left', d:"Konvert so'rovlari va tasdiq"},
+  {k:'sozlama',      href:'sozlama.html',      t:'Sozlamalar',          i:'settings',         d:'Hisob rejasi boshqaruvi'},
+  {k:'standart',     href:'standart.html',     t:'Standart xarajatlar', i:'gauge',            d:"Takrorlanuvchi xarajat me'yorlari"},
+  {k:'yuklar',       href:'yuklar.html',       t:'Yuklar',              i:'package',          d:'Yuk partiyalari'},
+  {k:'tannarx',      href:'tannarx.html',      t:'Tannarx',             i:'receipt-text',     d:'Tovar tannarxi hisobi'},
+  {k:'ai',           href:'ai.html',           t:'AI yordamchi',        i:'sparkles',         d:'Moliyaviy savol-javob'}
+];
+/* `provodka` sahifasi ATAYLAB yo'q: u navigatsiyadan yashirilgan (CLAUDE.md),
+   faqat to'g'ridan URL bilan ochiladi. */
+
+function cardHtml(c){
+  return '<a class="pcard" href="'+c.href+'">'
+    +'<span class="pico"><i data-lucide="'+c.i+'"></i></span>'
+    +'<span class="ptxt"><span class="pt">'+esc(c.t)+'</span><span class="pd">'+esc(c.d)+'</span></span>'
+    +'<i class="parr" data-lucide="chevron-right"></i></a>';
+}
+function renderCards(){
+  /* permPageOk() adminni o'zi o'tkazadi (is_admin -> hammasi true) — qo'shimcha
+     `is_admin` sharti yozilmaydi, mantiq bitta joyda (perms.js) qolsin. */
+  const list=CARDS.filter(c=>{
+    if(!window.permPageOk(c.k)) return false;
+    if(c.k==='konvert' && !window.permConvert()) return false;   // konvertga QO'SHIMCHA shart
+    return true;
+  });
+  const box=$('cards');
+  if(!list.length){
+    /* Faqat hodim ochiq (userlarning ~80% i shunday) — bu XATO emas, shuning
+       uchun matn mehribon va yo'l ko'rsatadi. */
+    box.innerHTML='<div class="pempty">'
+      +'<div class="pempty-ico"><i data-lucide="lock"></i></div>'
+      +'<h2>Sizga Provodka bo\'limlari ochilmagan</h2>'
+      +'<p>Xarajat kiritish uchun quyidagi tugmadan foydalaning. Boshqa bo\'lim kerak bo\'lsa administratorga murojaat qiling.</p>'
+      +'<a class="pbtn" href="hodim.html"><i data-lucide="wallet"></i>Xarajat kiritish</a>'
+      +'</div>';
+    icons(); return;                            // innerHTML'dan keyin ikonkalar qayta chiziladi
+  }
+  box.innerHTML='<div class="cards-grid">'+[HODIM].concat(list).map(cardHtml).join('')+'</div>';
+  icons();
+}
+/* my_perms() javobi kartalar chizilgandan KEYIN yangilanishi mumkin (kesh bilan
+   ochilgan holat). ai-widget.js naqshi: 400ms x 20 poll, o'zgargan bo'lsa
+   jimgina qayta chizamiz. */
+let permsSnap='';
+function watchPerms(){
+  let n=0;
+  const t=setInterval(()=>{
+    const cur=JSON.stringify(window.PERMS||{});
+    if(cur!==permsSnap){ permsSnap=cur; renderCards(); }
+    if(++n>=20) clearInterval(t);
+  },400);
+}
+/* Foydalanuvchi ismi/roli. profiles o'qilmasa (RLS, tarmoq) sahifa BUZILMAYDI —
+   email fallback, rol esa PERMS.is_admin dan olinadi. */
+async function loadUser(){
+  const {data,error}=await sb.auth.getSession();
+  if(error) console.error('getSession xato:',error);
+  const user=data&&data.session&&data.session.user;
+  if(!user) return;
+  let full=null, role=null;
+  const res=await sb.from('profiles').select('full_name,role').eq('id',user.id).maybeSingle();
+  if(res.error) console.error('profiles o\'qilmadi:',res.error);
+  else if(res.data){ full=res.data.full_name; role=res.data.role; }
+  const nm=String(full||user.email||'');
+  $('uname').textContent=nm;
+  $('uname').title=user.email||'';
+  const admin = role ? role==='admin' : !!(window.PERMS&&window.PERMS.is_admin);
+  $('urole').textContent=admin?'Admin':'Foydalanuvchi';
+  $('urole').classList.toggle('admin',admin);
+  $('uav').textContent=(nm.trim().charAt(0)||'?').toUpperCase();
+}
+
+/* ================= EKRANLAR / BOOT ================= */
+let appShown=false;
+/* Kartalarni boshlang'ich holatga qaytaradi. MAJBURIY: bir tabda foydalanuvchi
+   almashganda (sessiya tugadi -> qayta login) eski ro'yxat DOM'da qolib ketardi va
+   yangi user `my_perms()` javobigacha ESKISINING kartalarini ko'rar edi
+   (`loaded=false` -> permPageOk hammaga `true`). permsSnap ham tozalanadi, aks holda
+   watchPerms "o'zgarmadi" deb qayta chizmasdi. */
+function resetCards(){
+  permsSnap='';
+  var box=$('cards'); if(box) box.innerHTML='<div class="loading">Yuklanmoqda…</div>';
+}
+function showLogin(){
+  appShown=false;                       // keyingi muvaffaqiyatli login enterApp() ni qayta ochsin
+  $('dash').style.display='none';
+  $('gate').style.display='flex';
+  resetCards();                         // eski user kartalari qolib ketmasin
+  syncThemeIcon();
+  setBusy(false);
+  try{ $('email').focus(); }catch(e){}
+}
+async function enterApp(){
+  if(appShown) return; appShown=true;
+  $('gate').style.display='none';
+  $('dash').style.display='block';
+  resetCards();                         // ruxsat kelguncha "Yuklanmoqda…" (eski ro'yxat emas)
+  syncThemeIcon();
+  /* Kartalar FAQAT ruxsat ma'lum bo'lgach chiziladi: permPageOk() ruxsat
+     yuklanmaguncha `true` qaytaradi (perms.js qoidasi) — busiz bir zumga
+     HAMMA karta ko'rinib, keyin yo'qolardi. Keshda ruxsat bo'lsa permLoad
+     tarmoqni kutmaydi, ya'ni kechikish sezilmaydi. */
+  await Promise.all([
+    loadUser(),
+    window.permLoad(sb)
+      .then(()=>{ permsSnap=JSON.stringify(window.PERMS||{}); renderCards(); watchPerms(); })
+      /* Kutilmagan xato bo'lsa ham dashboard "Yuklanmoqda…" da qotib qolmasin:
+         perms.js ning "yuklanmaguncha ochiq" qoidasi bo'yicha kartalar
+         chiziladi (haqiqiy to'siq baribir server tomonda). */
+      .catch(e=>{ console.error('permLoad xato:',e); renderCards(); })
+  ]);
+}
+/* 14 sahifa `sessionStorage` ga `prov-swr:<sahifa>:<n>` keshini yozadi va u reload'dan
+   keyin ham qoladi. Dashboard endi asosiy chiqish joyi: user A chiqib, user B O'SHA
+   TABDA kirsa, kassa/jurnal ochganda bir zumga A ning raqamlarini ko'rardi.
+   `hodim.html` dagi swrClear() naqshi. */
+function swrClear(){ try{
+  Object.keys(sessionStorage).filter(k=>k.indexOf('prov-swr:')===0)
+    .forEach(k=>sessionStorage.removeItem(k));
+}catch(e){} }
+window.logout=async()=>{ window.permClear(); swrClear(); await sb.auth.signOut(); location.reload(); };
+
+const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
+async function boot(){
+  $('loginForm').addEventListener('submit',onLogin);
+  if(hasStoredSession()){
+    /* Token bor — dashboardni DARROV ko'rsatamiz (ekran miltillamasin), sessiyani
+       fonda tekshiramiz. Yaroqsiz bo'lsa login ekraniga qaytamiz (reload SHART
+       EMAS: login shu sahifaning o'zida). */
+    enterApp();
+    const {data,error}=await sb.auth.getSession();
+    if(error) console.error('getSession xato:',error);
+    if(!data||!data.session){
+      await sb.auth.signOut().catch(()=>{});
+      window.permClear();
+      showLogin();
+      setErr('Sessiya tugagan. Qaytadan kiring.');
+    }
+  }else{
+    /* Token yo'q — login. getSession() baribir tekshiriladi: boshqa tabda kirgan
+       bo'lishi (yoki token endigina yozilgan bo'lishi) mumkin. */
+    showLogin();
+    const {data}=await sb.auth.getSession();
+    if(data&&data.session) enterApp();
+  }
+}
+
+// boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin (TDZ:
+// yuqorida chaqirilsa pastdagi const/let'lar hali initsializatsiya bo'lmagan bo'ladi).
+boot();
+</script>
+</body>
+</html>

@@ -71,6 +71,14 @@
   .seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
   .count{font-size:13px;color:var(--muted);margin:0 2px 12px;font-weight:500}
   .count b{color:var(--ink);font-weight:700}
+  /* Sanoq satri + Excel tugmasi bitta qatorda (mobil'da o'ralib tushadi) */
+  .cbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .xlsbtn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;margin:0 2px 12px;
+          border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;
+          font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,border-color .13s}
+  .xlsbtn:hover:not(:disabled){background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .xlsbtn:disabled{opacity:.6;cursor:default}
+  .xlsbtn svg{width:15px;height:15px}
   /* jurnal satrlari */
   .je{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:13px;transition:background .13s}
   .je:hover{background:var(--surface-2)}
@@ -236,6 +244,14 @@
   .chekhd button svg{width:20px;height:20px}
   .chekimg{padding:12px;overflow:auto;display:flex;justify-content:center;align-items:center;min-height:120px}
   .chekimg img{max-width:100%;height:auto;border-radius:8px}
+  /* PDF/hujjat ko'rinishi — rasm bo'lmagan chek (professional.html ixtiyoriy fayli) */
+  .chekdoc{display:flex;flex-direction:column;gap:10px;width:100%;align-items:center}
+  .chekdoc iframe{width:100%;height:62vh;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .chekfn{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink);padding:18px 6px;word-break:break-all}
+  .chekfn svg{width:18px;height:18px;color:var(--muted);flex:none}
+  .chekdl{display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border-radius:10px;
+          padding:9px 15px;font-size:13.5px;font-weight:600;text-decoration:none}
+  .chekdl svg{width:16px;height:16px}
   /* ko'p satrli yozuv */
   .je.multi{align-items:flex-start}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
@@ -383,7 +399,13 @@
       </div>
     </div>
 
-    <div class="count" id="count">—</div>
+    <div class="cbar">
+      <div class="count" id="count">—</div>
+      <!-- Excel — filtrlar bo'yicha BUTUN davr (ekranga yuklangan qism emas) -->
+      <button type="button" class="xlsbtn" id="xlsBtn" onclick="exportExcel()" title="Filtr bo'yicha hamma yozuvni Excel'ga yuklab olish">
+        <i data-lucide="download"></i><span id="xlsTxt">Excel</span>
+      </button>
+    </div>
     <div id="journal"><div class="empty">—</div></div>
     <button class="more" id="moreBtn" onclick="loadMore()" style="display:none"><i data-lucide="chevron-down"></i>Ko'proq yuklash</button>
   </main>
@@ -419,7 +441,7 @@
   <!-- chek rasm modali -->
   <div class="chekov" id="chekModal" onclick="if(event.target===this)closeChek()">
     <div class="chekbox">
-      <div class="chekhd"><span>Chek surati</span><button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+      <div class="chekhd"><span>Chek / hujjat</span><button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
       <div class="chekimg" id="chekImg"></div>
     </div>
   </div>
@@ -695,31 +717,44 @@ const sumDt=e=>(e.lines||[]).reduce((a,l)=>a+(Number(l.debit)||0),0);
 const accSub=id=>{ const a=accounts.find(x=>x.id===id); return a&&a.subtitle?a.subtitle:''; };
 function withSub(line){ if(!line) return ''; const s=accSub(line.account_id); return esc(line.name||'')+(s?' · '+esc(s):''); }
 
-// --- Chek rasmi (xarajat-cheklari/{kassa_id}/{entry_id}.jpg) ---
-// Yozuvning pul kassasi (Kt tomon, section='pul') — chek shu kassa papkasida.
-let chekKeys=new Set();  // "kassaId/entryId" — chek bor bo'lgan yozuvlar
+// --- Chek / hujjat (xarajat-cheklari/{kassa_id}/{entry_id}.{kengaytma}) ---
+// Yozuvning pul kassasi (Kt tomon, section='pul') — fayl shu kassa papkasida.
+// professional.html endi PDF/hujjat ham yuklaydi, shuning uchun kengaytma
+// qat'iy '.jpg' emas: papka ro'yxatidan HAQIQIY fayl nomi eslab qolinadi.
+let chekKeys=new Map();  // "kassaId/entryId" → fayl nomi ("<uuid>.pdf")
 function kassaOf(e){ const l=(e.lines||[]).find(x=>x.section==='pul'&&Number(x.credit)>0); return l?l.account_id:null; }
 // Yuklangan qatorlardagi kassalar papkalarini bir marta ro'yxatlab, chek bor yozuvlarni belgilaydi.
 // Perms: cheklangan user faqat o'z kassalari qatnashgan qatorlarni ko'radi (jurnal filtri) → o'z cheklari.
 async function refreshCheks(){
   const ids=[...new Set(rows.map(kassaOf).filter(Boolean))];
-  const next=new Set();
+  const next=new Map();
   await Promise.all(ids.map(async kid=>{
     try{
       const {data,error}=await sb.storage.from('xarajat-cheklari').list(kid,{limit:1000});
       if(error||!data) return;
-      data.forEach(f=>{ const eid=String(f.name||'').replace(/\.jpg$/i,''); if(eid) next.add(kid+'/'+eid); });
+      // Fayl nomi = "<entry_id>.<kengaytma>". Kengaytmasiz nom ham (eski fayl) qabul qilinadi.
+      data.forEach(f=>{ const nm=String(f.name||''); const eid=nm.replace(/\.[a-z0-9]{1,5}$/i,''); if(eid) next.set(kid+'/'+eid,nm); });
     }catch(e){}
   }));
   chekKeys=next; render();
 }
+const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
 window.openChek=async(kassaId,entryId)=>{
   const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
   $('chekModal').classList.add('open');
+  const nm=chekKeys.get(kassaId+'/'+entryId)||(entryId+'.jpg');   // ro'yxat kelmagan bo'lsa eski naqsh
+  const ext=(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
   try{
-    const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kassaId}/${entryId}.jpg`,300);
-    if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Chek topilmadi</div>'; return; }
-    box.innerHTML=`<img src="${esc(data.signedUrl)}" alt="chek">`;
+    const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kassaId}/${nm}`,300);
+    if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; return; }
+    const url=esc(data.signedUrl);
+    if(!ext||CHEK_IMG.indexOf(ext)>=0){ box.innerHTML=`<img src="${url}" alt="chek">`; return; }
+    // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
+    if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
+      +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada ochish</a></div>`;
+    else box.innerHTML=`<div class="chekdoc"><div class="chekfn"><i data-lucide="file-text"></i>${esc(nm)}</div>`
+      +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="download"></i>Yuklab olish</a></div>`;
+    icons();
   }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
 };
 window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; };
@@ -933,7 +968,12 @@ function maqsadHtml(e,k,multi){
   else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
-  if(kid&&chekKeys.has(kid+'/'+e.id)) parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>Chek</button>`);
+  if(kid&&chekKeys.has(kid+'/'+e.id)){
+    // Rasm → "Chek", pdf/hujjat → "Hujjat" (professional.html ixtiyoriy fayl yuklaydi)
+    const nm=String(chekKeys.get(kid+'/'+e.id)||''), x=(nm.toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
+    const lbl=(!x||CHEK_IMG.indexOf(x)>=0)?'Chek':'Hujjat';
+    parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>${lbl}</button>`);
+  }
   if(e.edited_at) parts.push(`<div class="jedited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`);
   if(multi) parts.push(`<div class="jlines">${e.lines.map(lineRow).join('')}</div>`);
   return parts.join('');
@@ -1173,6 +1213,197 @@ window.saveEdit=async()=>{
   if(e3){ alert('Summa va hisoblar saqlandi, lekin sana/izoh saqlanmadi: '+err(e3)); await load(); return; }
   closeEdit(); await load();
 };
+
+/* ==================== EXCEL EKSPORT (SheetJS, LAZY) ====================
+   🔴 Filtrlar AYNAN ekrandagidek:
+     · sana + filial/hodim/hisob → args() (serverga ketadi, load() bilan BITTA manba),
+     · tur segmenti + izoh qidiruvi → klientda, render() dagi qoidaning O'ZI.
+   Farq faqat hajmda: ekranda "Ko'proq yuklash" bilan qancha yuklangani muhim emas —
+   eksport butun davrni sahifalab (XLS_PAGE) serverdan oladi.
+   🔴 SheetJS LAZY: <script> tegi yo'q, faqat tugma birinchi bosilganda yuklanadi
+   (ai.html naqshi). Yiqilsa CSV zaxirasi beriladi — Excel uni ochadi. */
+const XLS_SRC='vendor/xlsx-0.18.5.min.js';
+const XLS_PAGE=500;      // bitta jurnal() chaqiruvi
+const XLS_MAX=20000;     // xavfsizlik chegarasi (brauzer xotirasi) — oshsa ogohlantiramiz
+const XLS_FOLDERS=80;    // chek papkalarini ro'yxatlash chegarasi
+let _xlsLib=null;
+function loadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_xlsLib) return _xlsLib;
+  const p=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=XLS_SRC; s.async=true;
+    s.onload=()=>{ if(window.XLSX) res(window.XLSX); else rej(new Error('kutubxona yuklandi, lekin topilmadi')); };
+    s.onerror=()=>rej(new Error('kutubxona yuklanmadi'));
+    document.head.appendChild(s);
+  });
+  p.catch(e=>{ _xlsLib=null; console.error('SheetJS:',e); });
+  _xlsLib=p; return p;
+}
+const fmtDT=x=>{ if(!x) return ''; try{ return new Date(x).toLocaleString('ru-RU'); }catch(e){ return ''; } };
+const TUR_NOM={in:'Kirim',out:'Chiqim',tr:'Transfer',nt:'Boshqa'};
+// Butun davrni sahifalab oladi (jurnal RPC — load() bilan bir xil argumentlar).
+async function xlsFetchAll(a,onProg){
+  const out=[];
+  for(;;){
+    const {data,error}=await sb.rpc('jurnal',{...a,p_limit:XLS_PAGE,p_offset:out.length});
+    if(error) throw new Error(error.message);
+    const batch=data||[];
+    for(const r of batch) out.push(r);
+    onProg&&onProg(out.length);
+    if(batch.length<XLS_PAGE || out.length>=XLS_MAX) break;
+  }
+  return out;
+}
+// Metadata (filial/davr/yuk/kommunal) — jurnal() qaytarmaydi, entry'dan bo'lak-bo'lak o'qiladi.
+// Xato bo'lsa (RLS/ustun yo'q) eksport TO'XTAMAYDI, faqat shu ustunlar bo'sh qoladi.
+async function xlsMeta(ids){
+  const meta={}, ey={};
+  const chunks=[]; for(let i=0;i<ids.length;i+=120) chunks.push(ids.slice(i,i+120));   // 120 ta uuid ≈ 5 KB URL — PostgREST GET chegarasidan xavfsiz uzoq
+  // Bo'laklar 4 talab parallel — ketma-ket bo'lsa katta davr (10k+ yozuv) daqiqalab cho'zilardi.
+  for(let i=0;i<chunks.length;i+=4){
+    await Promise.all(chunks.slice(i,i+4).map(async part=>{
+      try{
+        const [m,y]=await Promise.all([
+          sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',part),
+          sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',part)
+        ]);
+        (m.data||[]).forEach(r=>{ meta[r.id]=r; });
+        (y.data||[]).forEach(r=>{ (ey[r.entry_id]||(ey[r.entry_id]=[])).push(r); });
+      }catch(e){}
+    }));
+  }
+  return {meta,ey};
+}
+// Chek/hujjat bor-yo'qligi — kassa papkalarini ro'yxatlab (refreshCheks bilan bir xil qoida).
+// `seen` — papkasi ISHONCHLI ro'yxatlangan kassalar. Ro'yxatlanmagan (chegaradan tashqari,
+// xato bergan yoki 1000 fayldan oshgan) kassa uchun ustun BO'SH qoladi — "Yo'q" deb yozish
+// jimgina noto'g'ri ma'lumot berardi (buxgalter "chek yo'q" deb hisobot qilardi).
+async function xlsCheks(list){
+  const all=[...new Set(list.map(kassaOf).filter(Boolean))];
+  const ids=all.slice(0,XLS_FOLDERS);
+  const map=new Map(), seen=new Set();
+  await Promise.all(ids.map(async kid=>{
+    try{
+      const {data,error}=await sb.storage.from('xarajat-cheklari').list(kid,{limit:1000});
+      if(error||!data||data.length>=1000) return;
+      data.forEach(f=>{ const nm=String(f.name||''); const eid=nm.replace(/\.[a-z0-9]{1,5}$/i,''); if(eid) map.set(kid+'/'+eid,nm); });
+      seen.add(kid);
+    }catch(e){}
+  }));
+  return {map,seen};
+}
+function xlsFileName(a,ext){ return `jurnal_${a.p_from||''}_${a.p_to||''}.${ext}`; }
+// Bitta yozuv → "Yozuvlar" varag'ining bitta qatori (ustunlar tartibi XLS_HEAD bilan bir xil)
+const XLS_HEAD=['№','Sana','Tur','Kt kodi','Kt hisob (qayerdan)','Dt kodi','Dt hisob (qayerga)','Summa (so\'m)',
+  'Valyuta','Valyuta summa','Izoh','Davr boshi','Davr oxiri','Filial(lar)','Kommunal','Yuklar','Yo\'ldagi tovar',
+  'Manba','Satrlar','Chek/hujjat','Holat','O\'chirdi','O\'chirilgan','Tahrirladi','Tahrirlangan','Yaratilgan','Yozuv ID'];
+const XLS_LINE_HEAD=['№','Sana','Yozuv ID','Hisob kodi','Hisob nomi','Bo\'lim','Debet','Kredit','Valyuta','Valyuta summa','Izoh','Holat'];
+function xlsRow(e,i,meta,ey,cheks){
+  const k=klass(e), ls=e.lines||[];
+  const dts=ls.filter(l=>Number(l.debit)>0), kts=ls.filter(l=>Number(l.credit)>0);
+  const nm=l=>{ const s=accSub(l.account_id); return (l.name||'')+(s?' · '+s:''); };
+  const m=meta[e.id]||{};
+  const fc=ls.filter(l=>String(l.currency||'UZS').toUpperCase()!=='UZS'&&Number(l.fc_amount));
+  const cur=[...new Set(fc.map(l=>String(l.currency).toUpperCase()))].join(', ');
+  const fcSum=fc.reduce((s,l)=>s+Math.abs(Number(l.fc_amount)||0),0);
+  const fils=(m.filial_ids||[]).map(filName).filter(Boolean).join(', ');
+  const eyr=ey[e.id]||[];
+  const yuk=eyr.length?eyr.map(r=>'#'+r.yuk_id+' ('+money(r.summa_uzs)+')').join(' · ')
+                      :(m.yuk_ids||[]).filter(x=>x!=null).map(x=>'#'+x).join(', ');
+  const kid=kassaOf(e);
+  const chek=(kid&&cheks.seen.has(kid))?(cheks.map.has(kid+'/'+e.id)?'Ha':'Yo\'q'):'';
+  return [ i+1, e.entry_date||'', TUR_NOM[k.kind]||'',
+    kts.map(l=>l.code||'').join('; '), kts.map(nm).join('; '),
+    dts.map(l=>l.code||'').join('; '), dts.map(nm).join('; '),
+    sumDt(e), cur, fcSum||'', e.description||'',
+    m.davr_start||'', m.davr_end||'', fils, m.kommunal_turi||'', yuk, m.yuk_kutilmoqda?'Ha':'',
+    e.source||'', ls.length, chek,
+    e.is_deleted?'O\'chirilgan':'Faol', e.deleted_by_name||'', fmtDT(e.deleted_at),
+    e.edited_by_name||'', fmtDT(e.edited_at), fmtDT(e.created_at), e.id ];
+}
+function xlsLineRows(list){
+  const out=[]; let n=0;
+  list.forEach(e=>{ (e.lines||[]).forEach(l=>{ n++;
+    const fcv=Number(l.fc_amount)||0;
+    out.push([ n, e.entry_date||'', e.id, l.code||'', l.name||'', l.section||'',
+      Number(l.debit)||0, Number(l.credit)||0,
+      String(l.currency||'UZS').toUpperCase(), fcv||'', e.description||'',
+      e.is_deleted?'O\'chirilgan':'Faol' ]);
+  }); });
+  return out;
+}
+function xlsBtn(txt,busy){ const b=$('xlsBtn'); if(!b) return; b.disabled=!!busy; $('xlsTxt').textContent=txt; }
+window.exportExcel=async()=>{
+  const a=args();
+  if(a.p_accounts && a.p_accounts.length===0){ alert('Ko\'rish uchun ruxsat etilgan hisob yo\'q'); return; }
+  xlsBtn('Yuklanmoqda…',true);
+  try{
+    const all=await xlsFetchAll(a,n=>xlsBtn('Yuklanmoqda… '+n,true));
+    // Ekrandagi tur/qidiruv filtri — render() dagi shart bilan bir xil
+    const q=$('q').value.trim().toLowerCase();
+    const list=all.filter(e=>{
+      if(tur!=='all' && klass(e).kind!==tur) return false;
+      if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
+      return true;
+    });
+    if(!list.length){ xlsBtn('Excel',false); alert('Bu shartlarga mos yozuv yo\'q'); return; }
+    xlsBtn('Tayyorlanmoqda…',true);
+    const {meta,ey}=await xlsMeta(list.map(e=>e.id));
+    const cheks=await xlsCheks(list);
+    const head=list.map((e,i)=>xlsRow(e,i,meta,ey,cheks));
+    const lineRows=xlsLineRows(list);
+    const X=await loadXlsx();
+    const wb=X.utils.book_new();
+    const ws1=X.utils.aoa_to_sheet([XLS_HEAD,...head]);
+    ws1['!cols']=[{wch:5},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
+      {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
+      {wch:16},{wch:17},{wch:17},{wch:38}];
+    xlsNumFmt(X,ws1,{7:'#,##0',9:'#,##0.00'},head.length);
+    const ws2=X.utils.aoa_to_sheet([XLS_LINE_HEAD,...lineRows]);
+    ws2['!cols']=[{wch:6},{wch:11},{wch:38},{wch:10},{wch:28},{wch:10},{wch:15},{wch:15},{wch:8},{wch:13},{wch:34},{wch:12}];
+    xlsNumFmt(X,ws2,{6:'#,##0',7:'#,##0',9:'#,##0.00'},lineRows.length);
+    X.utils.book_append_sheet(wb,ws1,'Yozuvlar');
+    X.utils.book_append_sheet(wb,ws2,'Satrlar');
+    X.writeFile(wb,xlsFileName(a,'xlsx'));
+    xlsBtn('Excel',false);
+    if(all.length>=XLS_MAX) alert('Diqqat: eksport '+XLS_MAX+' ta yozuv bilan cheklandi. Davrni qisqartiring.');
+  }catch(ex){
+    console.error('Excel:',ex);
+    xlsBtn('Excel',false);
+    // Kutubxona yoki tarmoq yiqildi — ma'lumot baribir berilsin (CSV, Excel ochadi)
+    try{ await exportCsvFallback(a); alert('Excel tayyorlanmadi ('+((ex&&ex.message)||'xato')+') — CSV yuklab olindi, Excel uni ochadi.'); }
+    catch(e2){ alert('Eksport bo\'lmadi: '+((ex&&ex.message)||'xato')); }
+  }
+};
+// Ustunga raqam formati (yig'indi Excel'da ishlasin — matn bo'lib qolmasin)
+function xlsNumFmt(X,ws,fmts,rowCount){
+  Object.keys(fmts).forEach(c=>{
+    for(let r=1;r<=rowCount;r++){
+      const ref=X.utils.encode_cell({c:Number(c),r});
+      const cell=ws[ref];
+      if(cell && cell.t==='n') cell.z=fmts[c];
+    }
+  });
+}
+// CSV zaxirasi — kutubxonasiz. BOM + `sep=;` (Excel ustunlarga to'g'ri ajratsin).
+async function exportCsvFallback(a){
+  const all=await xlsFetchAll(a);
+  const q=$('q').value.trim().toLowerCase();
+  const list=all.filter(e=>{
+    if(tur!=='all' && klass(e).kind!==tur) return false;
+    if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const {meta,ey}=await xlsMeta(list.map(e=>e.id));
+  const cheks=await xlsCheks(list);
+  const cel=v=>{ const s=String(v==null?'':v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const body=[XLS_HEAD,...list.map((e,i)=>xlsRow(e,i,meta,ey,cheks))].map(r=>r.map(cel).join(';')).join('\r\n');
+  const blob=new Blob(['﻿'+'sep=;\r\n'+body],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob), aEl=document.createElement('a');
+  aEl.href=url; aEl.download=xlsFileName(a,'csv'); document.body.appendChild(aEl); aEl.click();
+  aEl.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
 
 async function init(){
   const n=nowUz();
