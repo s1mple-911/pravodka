@@ -139,8 +139,17 @@
            background:var(--surface-2);color:var(--muted);border-radius:12px;font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer}
   .chekbtn:hover{background:var(--primary-soft);border-color:var(--primary)}
   .chekbtn svg{width:18px;height:18px}
+  /* Ikki tugma yonma-yon: 📷 Surat (kamera) va 📎 Fayl (pdf/rasm/hujjat) */
+  .chekrow{display:flex;gap:8px}
+  .chekrow .chekbtn{width:auto;flex:1;min-width:0}
   .chekprev{display:flex;align-items:center;gap:12px;margin-top:10px}
   .chekprev img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  /* Rasm bo'lmagan fayl (pdf/hujjat) — nom + hajm chipi */
+  .chekdoc{display:flex;align-items:center;gap:10px;min-width:0;border:1px solid var(--line);background:var(--surface-2);
+           border-radius:10px;padding:9px 12px;font-size:13.5px;font-weight:600;color:var(--ink)}
+  .chekdoc svg{width:18px;height:18px;color:var(--muted);flex:none}
+  .chekdoc .fnm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px}
+  .chekdoc .fsz{color:var(--muted);font-weight:500;flex:none}
   .chekrm{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--red);
           border-radius:10px;padding:7px 12px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
   .chekrm svg{width:15px;height:15px}
@@ -396,15 +405,24 @@
         <!-- Chek surati — modda chek_majburiy bo'lsa MAJBURIY. Avval professional'da
              bu maydon umuman yo'q edi: chek majburiy modda tanlansa hech narsa
              so'ralmasdi (hodim-dev.html'da so'raladi) — ikki sahifa bir xil bo'lsin. -->
-        <div id="chekSect" style="margin-bottom:16px">
-          <label id="chekLbl">📷 Chek (ixtiyoriy)</label>
-          <label class="chekbtn">
-            <input type="file" accept="image/*" capture="environment" id="chekFile" hidden onchange="onChekFile(this)">
-            <i data-lucide="camera"></i><span>Chek suratini olish</span>
-          </label>
+        <!-- Fayl IKKI yo'l bilan: 📷 kamera (capture — telefonda darrov suratga oladi)
+             va 📎 fayl tanlash (pdf/rasm/hujjat). Bitta inputga `capture` qo'yilsa
+             telefonda FAQAT kamera ochiladi — shuning uchun ikkita alohida input. -->
+        <div id="chekSlotSimple"><div id="chekSect" style="margin-bottom:16px">
+          <label id="chekLbl">📎 Chek / hujjat (ixtiyoriy)</label>
+          <div class="chekrow">
+            <label class="chekbtn">
+              <input type="file" accept="image/*" capture="environment" id="chekCam" hidden onchange="onChekFile(this)">
+              <i data-lucide="camera"></i><span>Surat</span>
+            </label>
+            <label class="chekbtn">
+              <input type="file" accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" id="chekFile" hidden onchange="onChekFile(this)">
+              <i data-lucide="paperclip"></i><span>Fayl tanlash</span>
+            </label>
+          </div>
           <div id="chekPrev" class="chekprev" style="display:none"></div>
-          <div id="chekReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Bu modda uchun chek surati shart</div>
-        </div>
+          <div id="chekReq" class="simplewarn" style="display:none;text-align:left;margin:8px 0 0 2px">Bu modda uchun chek yoki hujjat shart</div>
+        </div></div>
 
         <!-- Izoh — HAR DOIM ko'rinadi, Saqlash tugmasining ustida. Avval bu maydon
              sahifa boshida, rejim tanlagichdan ham yuqorida turardi: modda "izoh
@@ -424,6 +442,7 @@
       <!-- KENGAYTIRILGAN: qo'lda ko'p satrli Dt/Kt (mavjud rejim) -->
       <div id="advBox" style="display:none">
         <div id="izohSlotAdv"></div>   <!-- setMode('adv') izohWrap'ni shu yerga ko'chiradi -->
+        <div id="chekSlotAdv"></div>   <!-- setMode('adv') chekSect'ni ham shu yerga ko'chiradi -->
         <div id="lines"></div>
         <button class="addline" onclick="addLine()"><i data-lucide="plus"></i>Satr qo'shish</button>
         <div class="totbox">
@@ -860,11 +879,14 @@ function updateTotals(){
       kw.style.display=u.length?'block':'none';
       kw.textContent=u.length?(u.join(', ')+" kursi yo'q \u2014 Valyuta bo'limida kurs qo'shing (saqlash yopiq)"):''; } }
   advWarn();   // qoldiq ogohlantirishi jonli yangilanadi (saqlashni to'smaydi)
+  if(curMode==='adv') updateChekUI();   // "fayl biriktirilmaydi" ogohlantirishi satrlarga bog'liq
 }
 // ---- ODDIY rejim -----------------------------------------------------
 // Rejim almashtirish: oddiy (kassa chip + modda + summa) yoki kengaytirilgan (mavjud ko'p satrli).
+let curMode='simple';
 window.setMode=m=>{
   const simple=m!=='adv';
+  curMode=simple?'simple':'adv';
   $('mSimple').className=simple?'on':''; $('mAdv').className=simple?'':'on';
   $('simpleBox').style.display=simple?'block':'none';
   $('advBox').style.display=simple?'none':'block';
@@ -872,10 +894,15 @@ window.setMode=m=>{
   // shunda u yashirilgan blok ichida qolib ketmaydi.
   const slot=simple?$('izohSlotSimple'):$('izohSlotAdv'), wrap=$('izohWrap');
   if(slot&&wrap&&wrap.parentNode!==slot) slot.appendChild(wrap);
+  // Chek/hujjat maydoni ham BITTA (izoh bilan bir xil naqsh) — tanlangan fayl rejim
+  // almashtirilganda yo'qolmaydi, faqat DOM'da ko'chadi.
+  const cslot=simple?$('chekSlotSimple'):$('chekSlotAdv'), csect=$('chekSect');
+  if(cslot&&csect&&csect.parentNode!==cslot) cslot.appendChild(csect);
   if(!simple){                                     // adv rejimda modda yo'q — majburiylik ham yo'q
     $('izohReq').style.display='none';
     $('izohLbl').innerHTML='Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
     $('izoh').placeholder='ixtiyoriy izoh';
+    updateChekUI();
   }
   else updateSimple();
 };
@@ -970,12 +997,41 @@ function updateIzohUI(){
   $('izoh').placeholder = req ? 'Bu modda uchun izoh shart' : 'ixtiyoriy izoh';
   $('izohReq').style.display = (req && bosh) ? 'block' : 'none';
 }
-// --- Chek surati (hodim-dev.html naqshi) ---
-let chekBlob=null;
+// --- Chek / hujjat (hodim-dev.html naqshi + IXTIYORIY FAYL) ---
+// Rasm — kanvasda siqiladi va .jpg bo'lib ketadi (eski xatti-harakat, o'zgarmagan).
+// Boshqa fayl (pdf/hujjat) — o'zgarishsiz, o'z kengaytmasi bilan yuklanadi.
+// Yo'l naqshi ATAYLAB o'zgartirilmadi: {kassa_id}/{entry_id}.{kengaytma}
+//   · storage RLS 1-papkani kassa id deb tekshiradi (PROVODKA_HODIM_V3.sql) → kassa MAJBURIY,
+//   · jurnal-dev.html papkani ro'yxatlab 📎 belgisini shu nomdan topadi (SQL kerak emas).
+let chekBlob=null, chekExt='jpg', chekType='image/jpeg', chekName='';
+const CHEK_MAX=15*1024*1024;                 // rasm bo'lmagan fayl chegarasi
+const CHEK_EXT=['pdf','doc','docx','xls','xlsx','csv','txt','jpg','jpeg','png','webp','heic','heif'];
+const IMG_EXT=['jpg','jpeg','png','webp','heic','heif'];
+const fileExt=n=>{ const m=String(n||'').toLowerCase().match(/\.([a-z0-9]{1,5})$/); return m?m[1]:''; };
+const fmtSize=b=>{ b=Number(b)||0; return b<1024?(b+' B'):(b<1048576?((b/1024).toFixed(0)+' KB'):((b/1048576).toFixed(1)+' MB')); };
+// Chek MAJBURIYLIGI faqat oddiy rejimda ma'noga ega (u modda flagidan keladi);
+// kengaytirilgan rejimda modda tushunchasi yo'q — fayl har doim ixtiyoriy.
+// Kengaytirilgan rejimda fayl qaysi kassa papkasiga tushadi? Qoida jurnal-dev.html
+// dagi kassaOf() bilan AYNAN bir xil — Kt (chiqim) tomonidagi pul hisobi. Bunday satr
+// bo'lmasa fayl biriktirilmaydi: storage RLS 1-papkani kassa id deb tekshiradi va
+// jurnal 📎 belgisini ham aynan shu papkadan izlaydi.
+function advChekKassaId(){
+  for(const l of (lines||[])){
+    if(l.side!=='credit'||!(Number(l.amount)>0)) continue;
+    const a=accounts.find(x=>x.id===l.account_id);
+    if(a&&isKassa(a)) return a.id;
+  }
+  return null;
+}
 function updateChekUI(){
-  const req=chekRequired();
-  $('chekLbl').textContent = req ? '📷 Chek surati (majburiy)' : '📷 Chek (ixtiyoriy)';
-  $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
+  const adv=(curMode==='adv'), req=chekRequired()&&!adv, w=$('chekReq');
+  $('chekLbl').textContent = req ? '📎 Chek / hujjat (majburiy)' : '📎 Chek / hujjat (ixtiyoriy)';
+  if(req && !chekBlob){ w.textContent='Bu modda uchun chek yoki hujjat shart'; w.style.display='block'; return; }
+  if(adv && chekBlob && !advChekKassaId()){
+    w.textContent='Fayl biriktirilmaydi — Kt (chiqim) tomonida kassa satri yo\'q';
+    w.style.display='block'; return;
+  }
+  w.style.display='none';
 }
 // Kanvas bilan siqish — uzun tomon ~1200px, JPEG 0.8 (hodim-dev.html bilan bir xil).
 function compressImage(file, maxDim, quality){
@@ -994,25 +1050,62 @@ function compressImage(file, maxDim, quality){
     img.src=url;
   });
 }
+function setChekDoc(name,size){
+  $('chekPrev').innerHTML=`<div class="chekdoc"><i data-lucide="file-text"></i><span class="fnm">${esc(name)}</span><span class="fsz">${esc(fmtSize(size))}</span></div>`
+    +`<button type="button" class="chekrm" onclick="removeChek()"><i data-lucide="x"></i>O'chirish</button>`;
+}
 window.onChekFile=async el=>{
   const f=el.files&&el.files[0]; el.value='';
   if(!f) return;
+  const ext=fileExt(f.name);
+  const isImg=/^image\//i.test(f.type||'') || IMG_EXT.indexOf(ext)>=0;
+  if(!isImg && ext && CHEK_EXT.indexOf(ext)<0){ alert('Bu turdagi fayl qabul qilinmaydi: .'+ext); return; }
+  // Hajm chegarasi FAQAT rasm bo'lmagan faylga: rasm kanvasda siqilib ~200 KB ga tushadi,
+  // xom hajmi bo'yicha rad etilsa telefondagi oddiy surat ham o'tmay qolardi.
+  if(!isImg && f.size>CHEK_MAX){ alert('Fayl juda katta ('+fmtSize(f.size)+') — chegara '+fmtSize(CHEK_MAX)); return; }
   try{
-    chekBlob=await compressImage(f);
-    const url=URL.createObjectURL(chekBlob);
-    $('chekPrev').innerHTML=`<img src="${url}" alt="chek"><button type="button" class="chekrm" onclick="removeChek()"><i data-lucide="x"></i>O'chirish</button>`;
+    if(isImg){
+      // HEIC kabi formatni kanvas chiza olmasligi mumkin — siqilmasa fayl ASLICHA ketadi
+      // (yozuvni bloklamaslik muhimroq; hajm chegarasi baribir tekshirilgan).
+      let blob=null; try{ blob=await compressImage(f); }catch(e){ blob=null; }
+      if(blob){ chekBlob=blob; chekExt='jpg'; chekType='image/jpeg'; chekName=f.name||'chek.jpg'; }
+      else {
+        if(f.size>CHEK_MAX){ alert('Suratni siqib bo\'lmadi va hajmi katta ('+fmtSize(f.size)+') — chegara '+fmtSize(CHEK_MAX)); return; }
+        chekBlob=f; chekExt=ext||'jpg'; chekType=f.type||'image/jpeg'; chekName=f.name||('chek.'+chekExt);
+      }
+      // Siqilgan rasm — ko'rish uchun kichik nusxa. Siqilmagani (HEIC) brauzerda
+      // chizilmasligi mumkin → sinmagan ko'rinish uchun fayl chipi ko'rsatiladi.
+      if(blob){
+        const url=URL.createObjectURL(chekBlob);
+        $('chekPrev').innerHTML=`<img src="${url}" alt="chek"><button type="button" class="chekrm" onclick="removeChek()"><i data-lucide="x"></i>O'chirish</button>`;
+      } else setChekDoc(chekName,f.size);
+    } else {
+      chekBlob=f; chekExt=ext||'bin'; chekType=f.type||'application/octet-stream'; chekName=f.name||('fayl.'+chekExt);
+      setChekDoc(chekName,f.size);
+    }
     $('chekPrev').style.display='flex'; icons();
-  }catch(e){ alert('Suratni o\'qib bo\'lmadi'); }
-  updateSimple();
+  }catch(e){ alert('Faylni o\'qib bo\'lmadi'); return; }
+  chekSync();
 };
-window.removeChek=()=>{ chekBlob=null; $('chekPrev').style.display='none'; $('chekPrev').innerHTML=''; updateSimple(); };
-// Chek YOZUVNI BLOKLAMAYDI: entry saqlangach fonda yuklanadi, xato bo'lsa faqat ogohlantiramiz.
-async function uploadChek(kassaId, entryId, blob){
+window.removeChek=()=>{ chekBlob=null; chekExt='jpg'; chekType='image/jpeg'; chekName='';
+  $('chekPrev').style.display='none'; $('chekPrev').innerHTML=''; chekSync(); };
+// Oddiy rejimda updateSimple() Saqlash tugmasini ham qayta hisoblaydi (chek majburiy bo'lishi mumkin);
+// kengaytirilgan rejimda esa faqat chek matnini yangilash kerak — updateSimple() u yerda ortiqcha.
+function chekSync(){ if(curMode==='adv') updateChekUI(); else updateSimple(); }
+// Fayl YOZUVNI BLOKLAMAYDI: entry saqlangach fonda yuklanadi, xato bo'lsa faqat ogohlantiramiz.
+// ext/type — chaqirilgan paytdagi qiymatlar (removeChek() dan keyin global tozalanadi).
+async function uploadChek(kassaId, entryId, blob, ext, type){
   if(!blob||!kassaId||!entryId) return;
+  const e=(ext||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase()||'jpg';
   try{
-    const {error}=await sb.storage.from('xarajat-cheklari').upload(`${kassaId}/${entryId}.jpg`, blob, {contentType:'image/jpeg',upsert:true});
-    if(error) alert('Yozuv saqlandi, lekin chek yuklanmadi: '+error.message);
-  }catch(e){ alert('Yozuv saqlandi, lekin chek yuklanmadi'); }
+    const {error}=await sb.storage.from('xarajat-cheklari').upload(`${kassaId}/${entryId}.${e}`, blob, {contentType:type||'application/octet-stream',upsert:true});
+    if(error) alert('Yozuv saqlandi, lekin fayl yuklanmadi: '+error.message);
+  }catch(ex){ alert('Yozuv saqlandi, lekin fayl yuklanmadi'); }
+}
+// Saqlash paytida chaqiriladi: joriy faylni "suratga oladi" (removeChek() dan oldin) va fonda yuklaydi.
+function uploadChekNow(kassaId, entryId){
+  if(!chekBlob||!kassaId||!entryId) return;
+  uploadChek(kassaId, entryId, chekBlob, chekExt, chekType);
 }
 function updateDavrUI(){ const req=davrRequired();
   $('davrSect').style.display=req?'block':'none';
@@ -1268,7 +1361,7 @@ window.updateSimple=()=>{
     else if(amt<=0) msg='Summani kiriting';
     else if(needKurs) msg='Bu kassa valyutada — <b>kurs</b> topilmadi. <b>Valyuta</b> bo‘limida kurs qo‘shing';
     else if(needIzoh) msg='Bu modda uchun <b>izoh</b> majburiy — yuqoridagi <b>Izoh</b> maydonini to‘ldiring';
-    else if(needChek) msg='Bu modda uchun <b>chek surati</b> majburiy — yuqoridagi <b>Chek</b> tugmasidan yuklang';
+    else if(needChek) msg='Bu modda uchun <b>chek</b> majburiy — yuqoridagi <b>Surat</b> yoki <b>Fayl tanlash</b> tugmasidan yuklang';
     else if(needDavr) msg='Bu modda uchun <b>davr</b> (boshi–oxiri) majburiy';
     else if(needKomm) msg='Kommunal turini tanlang';
     else if(over) msg='Summa kassa qoldig‘idan oshdi';
@@ -1494,7 +1587,7 @@ window.saveSimple=async()=>{
   if(!modda){ alert('Modda tanlang'); return; }
   if(amt<=0){ alert('Summa kiriting'); return; }
   if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
-  if(chekRequired() && !chekBlob){ alert('Bu modda uchun chek surati majburiy'); return; }          // V6
+  if(chekRequired() && !chekBlob){ alert('Bu modda uchun chek yoki hujjat majburiy'); return; }          // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
   if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+((kassa.currency&&kassa.currency!=='UZS')?kassa.currency:'so\'m')); return; }
   // 9110 Tovar tannarxi → avval yuk modali (yoki "Hujjat hali yo'q" → yo'ldagi tovar).
@@ -1524,7 +1617,7 @@ async function doSavePending(izohP){
   if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
   const {error:e2}=await sb.from('entry_line').insert(rows);
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
-  if(chekBlob) uploadChek(kassa.id, ent.id, chekBlob);
+  if(chekBlob) uploadChekNow(kassa.id, ent.id);
   $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
@@ -1563,7 +1656,7 @@ async function doSaveSimple(){
   if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
     if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e3):e3.message); btn.textContent='Saqlash'; updateSimple(); return; } }
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
-  if(chekBlob){ const b=chekBlob; uploadChek(kassa.id, ent.id, b); }
+  if(chekBlob) uploadChekNow(kassa.id, ent.id);
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   window.removeChek();
   preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
@@ -1645,7 +1738,7 @@ window.confirmTaqsim=async()=>{
   const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
   if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
-  if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChek(kassa.id, ids[0], chekBlob); }
+  if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
   closeTaqsim();
   $('summa').value=''; $('izoh').value=''; selFilials.clear(); renderFilials();
   window.removeChek();
@@ -1729,9 +1822,16 @@ async function doSaveAdv(){
   const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
   if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
     if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e3)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
+  // Chek/hujjat — yozuv saqlangach fonda yuklanadi (yozuvni bloklamaydi).
+  // `lines` tozalanishidan OLDIN: kassa id aynan shu satrlardan aniqlanadi.
+  if(chekBlob){
+    const kid=advChekKassaId();
+    if(kid) uploadChekNow(kid, ent.id);
+    else alert('Yozuv saqlandi. Fayl biriktirilmadi — yozuvda Kt (chiqim) tomonida kassa satri yo\'q.');
+  }
   // Yozuvdan keyin qoldiqlar o'zgardi — kesh tozalanadi, addLine() qayta yuklatadi
   advBal={};
-  lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; addLine(); addLine();
+  lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; window.removeChek(); addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
 }
 async function init(){
