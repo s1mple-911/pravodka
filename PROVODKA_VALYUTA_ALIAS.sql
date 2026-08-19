@@ -27,7 +27,17 @@
 --   ESKI IMZO SAQLANGAN — conv_baza_kurs(text), yuk_kurslar(text[]).
 --   Ustun/funksiya o'chirilmaydi.
 --
--- RUN: Asilbek (Supabase SQL editor). `do $$` bloki YO'Q.
+-- RUN: Asilbek (Supabase SQL editor). Anonim DO bloki YO'Q.
+--
+-- 🔴 QOIDA (2026-08-19 da shu fayl bilan o'rganildi): SQL faylning IZOHIDA
+--    ham dollar-qo'shtirnoq belgisi YOZILMAYDI. Supabase SQL editori
+--    dollar-quote juftliklarini sanaydi va `--` izohini o'tkazib
+--    yubormaydi: izohdagi belgi soxta blok ochadi, keyingi `as` uni
+--    YOPADI, natijada funksiya TANASI top-level SQL bo'lib bajariladi va
+--    ichki o'zgaruvchilar jadval deb o'qiladi:
+--        ERROR 42P01: relation "v_k" does not exist
+--    Repodagi ishlaydigan .sql fayllarning birortasida izoh ichida bu
+--    belgi yo'q — shu naqshni buzmang.
 -- =====================================================================
 
 
