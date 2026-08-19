@@ -76,23 +76,30 @@ stable
 security definer
 set search_path = public
 as $$
-declare c text; k text; res text[];
+-- 🔴 Bu yerda quyi-so'rov (`select ... union select k`) ISHLATILMAYDI.
+--    plpgsql'da FROM'siz `select <o'zgaruvchi>` ni Postgres jadval nomi deb
+--    o'qiydi va 42P01 "relation k does not exist" beradi. Shuning uchun
+--    massiv sikl bilan yig'iladi. O'zgaruvchilar `v_` prefiksli — ustun
+--    nomlari (alias, kod) bilan aralashib ketmasin.
+declare v_c text; v_k text; v_res text[]; v_row record;
 begin
-  c := upper(nullif(trim(coalesce(p_cur, '')), ''));
-  if c is null then return null; end if;
+  v_c := upper(nullif(trim(coalesce(p_cur, '')), ''));
+  if v_c is null then return null; end if;
 
   -- kanonik shakl: kirish alias bo'lsa uning kodi, aks holda o'zi
-  select upper(a.kod) into k from valyuta_alias a where upper(a.alias) = c limit 1;
-  if k is null then k := c; end if;
+  select upper(a.kod) into v_k from valyuta_alias a where upper(a.alias) = v_c limit 1;
+  if v_k is null then v_k := v_c; end if;
 
-  select array_agg(distinct x) into res from (
-    select c as x
-    union select k
-    union select upper(a.alias) from valyuta_alias a where upper(a.kod) = k
-    union select upper(a.kod)   from valyuta_alias a where upper(a.kod) = k
-  ) t where x is not null;
+  v_res := array[v_c];                                        -- kirish kodi HAR DOIM ichida
+  if v_k <> v_c then v_res := array_append(v_res, v_k); end if;
 
-  return res;
+  for v_row in
+    select upper(a.alias) as x from valyuta_alias a where upper(a.kod) = v_k
+  loop
+    if not (v_row.x = any(v_res)) then v_res := array_append(v_res, v_row.x); end if;
+  end loop;
+
+  return v_res;
 end $$;
 
 revoke all on function cur_ekvivalent(text) from public, anon;
