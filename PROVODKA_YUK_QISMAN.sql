@@ -90,6 +90,11 @@ comment on function yuk_tolangan_summa(integer[]) is
 -- Mavjud conv_baza_kurs(p_cur) ishlatiladi (USD → aros_usd_rate, boshqasi
 -- currency_rate oxirgisi). CHY (Aros) → CNY (currency_rate) moslashtiriladi.
 -- UZS = 1. Kurs topilmasa null (frontend "kurs yo'q" deb ko'rsatadi).
+-- 
+-- ⚠️ ESKIRGAN: bu yerdagi qattiq kodlangan CHY->CNY o'girish
+--    PROVODKA_VALYUTA_ALIAS.sql da olib tashlandi (normallashtirish endi
+--    conv_baza_kurs ichida, valyuta_alias jadvali orqali). Shu faylni QAYTA
+--    RUN qilsangiz, keyin PROVODKA_VALYUTA_ALIAS.sql ni ham qayta RUN qiling.
 -- =====================================================================
 
 create or replace function yuk_kurslar(p_curs text[])
