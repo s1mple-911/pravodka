@@ -639,6 +639,214 @@
     .ssel-foot{padding:8px 14px calc(8px + env(safe-area-inset-bottom))}
   }
   body.ssel-lock{overflow:hidden}
+  /* ================================================================
+     IJROCHI (.ijr-*) — "kim yozdi" chipi + .ssel son belgisi
+     Mavjud .jtbl / .jcard / .jedited / .ftag / .ssel-* qoidalari
+     QAYTA TA'RIFLANMAGAN. Yangi CSS o'zgaruvchi YO'Q.
+     ================================================================ */
+
+  /* Metadata qatori: ijrochi + "Tahrirladi" bitta qatorda, joy yetmasa o'raladi */
+  /* 🔴 margin o'ramda EMAS, bolalarida: ijrochi chipi yashirin bo'lsa (.ijr.unk —
+     bugungi bazada ~49/50 yozuv) o'ram baribir chizilardi va `:empty` unga mos
+     kelmasdi (ichida element bor), natijada har qatorda 6px bo'sh joy qolardi. */
+  .ijr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:0;min-width:0}
+  .ijr-meta>*{margin-top:6px}
+  .ijr-meta:empty{display:none}
+  .ijr-meta .jedited{margin-top:0}          /* qator ichida — yuqori bo'shliq kerak emas */
+
+  /* Chip — odam */
+  .ijr{display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;
+       padding:2px 8px 2px 6px;border-radius:7px;border:1px solid transparent;
+       background:var(--surface-2);color:var(--muted);
+       font-size:11.5px;font-weight:600;line-height:1.5;letter-spacing:-.005em;
+       font-variant-numeric:tabular-nums;vertical-align:middle}
+  .ijr>svg{width:12px;height:12px;flex:0 0 auto;opacity:.9}
+  .ijr-nm{min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* Chip — tizim (avtomatik yozuv): boshqa ikonka (bot) + ko'k tus */
+  .ijr.sys{background:var(--tr-soft);color:var(--tr)}
+
+  /* Chip — noma'lum: SUKUT BO'YICHA YASHIRIN.
+     🔴 Bugungi bazada ~49/50 yozuv shunday — har qatorda "Noma'lum" chiqsa
+     jurnal buzilgandek ko'rinardi. Faqat foydalanuvchi "Ijrochi = Noma'lum"
+     filtrini tanlaganda ko'rinadi (#journal.ijr-unk). */
+  .ijr.unk{display:none;background:transparent;border-style:dashed;border-color:var(--line);
+           color:var(--muted);opacity:.75;padding:1px 8px 1px 6px}
+  .ijr-unk .ijr.unk{display:inline-flex}
+
+  /* Desktop jadvalda ustun tor — ism qisqaroq kesiladi */
+  @media(min-width:900px){
+    .jtbl .ijr-nm{max-width:150px}
+  }
+  /* Mobil kartada joy ko'proq + touch */
+  @media(max-width:899px){
+    .ijr{padding:3px 9px 3px 7px;font-size:11.5px}
+    .ijr-nm{max-width:170px}
+    .ijr-meta{gap:6px 9px;margin-top:7px}
+  }
+  @media(max-width:379px){
+    .ijr-nm{max-width:132px}
+  }
+
+  /* --- .ssel ro'yxatidagi yozuvlar soni (faqat data-n bo'lgan optionda) --- */
+  .ssel-n{flex:0 0 auto;min-width:0;font-size:11.5px;font-weight:600;color:var(--muted);
+          font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .ssel-opt.on .ssel-n{color:var(--primary)}
+  .ssel-opt:hover .ssel-n,.ssel-opt.hl .ssel-n{color:var(--ink)}
+
+  /* --- Chop etish: chip fonsiz, kontur bilan; noma'lum baribir yashirin --- */
+  @media print{
+    .ijr{background:none!important;border:1px solid #999!important;color:#000!important;
+         padding:1px 6px}
+    .ijr.sys{background:none!important;color:#000!important}
+    .ijr>svg{opacity:1}
+    .ijr-meta{gap:4px 8px}
+    .ssel-pop,.ssel-ov{display:none!important}   /* ochiq dropdown qog'ozga chiqmasin */
+  }
+  /* ================= XARAJAT TO'SIG'I (.tos-*) + TO'LANMAGAN (.tlm-*) =================
+     Uch xil qizil, uch xil shakl (chalkashmasin):
+       .jr.del / .jcard.del  — O'CHIRILGAN: so'ngan + usti chizilgan (mavjud, tegilmagan)
+       .tlm / .tlm-on        — TO'LANMAGAN: och fonli rozetka + to'ldirilgan nuqta + 3px chekka chiziq
+       .tlm-was              — TO'LANGAN EDI: yolg'iz 7px nuqta + tooltip (tarix)
+       .tos-blok             — BLOK: panel + chapda 3px chiziq (harakat to'silgan)
+     Yangi rang YO'Q. --tlm-* qiymatlari hodim-dev.html dagi --red-ink/--red-line dan,
+     --tos-warn-* esa jurnal-dev.html dagi --amber/--amber-soft dan ko'chirilgan. */
+  :root{--tlm-ink:#b42318;--tlm-line:rgba(217,45,32,.20);--tos-warn:#b54708;--tos-warn-soft:#fef0c7}
+  [data-theme="dark"]{--tlm-ink:#ff8a82;--tlm-line:rgba(255,98,89,.28);--tos-warn:#fdb022;--tos-warn-soft:#2e1e05}
+
+  /* ---------- 2.1 "To'lanmagan" rozetkasi ---------- */
+  .tlm{display:inline-flex;align-items:center;gap:6px;max-width:100%;
+    background:var(--red-soft);color:var(--tlm-ink);border:1px solid var(--tlm-line);
+    border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;line-height:1.55;
+    font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
+  .tlm::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:var(--red)}
+  .tlm svg{width:12px;height:12px}
+  .tlm .tlm-s{font-weight:600;opacity:.85}          /* "· 100 000" qismi */
+  /* Yopilgan (tarix): matnsiz nuqta. Tooltip title= bilan, a11y uchun aria-label ham. */
+  .tlm-was{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:14px;height:14px;margin-left:6px;vertical-align:-2px;cursor:help}
+  .tlm-was::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);opacity:.55;
+    transition:opacity .15s}
+  @media(hover:hover){.tlm-was:hover::before{opacity:1}}
+  .tlm-was:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:50%}
+  /* Qator ichida rozetka o'z qatorida tursin (izoh/teglar bilan yopishmasin) */
+  .tlm-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+
+  /* ---------- 2.2 Blok / ogohlantirish paneli ---------- */
+  .tos-blok{display:flex;gap:10px;align-items:flex-start;background:var(--red-soft);color:var(--tlm-ink);
+    border-radius:12px;padding:12px 14px;margin:0 0 16px;font-size:13.5px;line-height:1.5;
+    box-shadow:inset 3px 0 0 var(--red)}
+  .tos-blok>svg,.tos-blok>i,.tos-msg>svg,.tos-msg>i{flex:none;width:18px;height:18px;margin-top:2px}
+  /* .tos-bx / .tos-bt / .tos-bs / .tos-bh — panel VA banner ichida bir xil ishlaydi */
+  .tos-bx{min-width:0;flex:1}
+  .tos-bt{font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .tos-bs{margin-top:3px}
+  .tos-bs b{font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-bh{margin-top:6px;font-size:12.5px;opacity:.85}   /* nima qilish kerak */
+  .tos-blok.warn{background:var(--tos-warn-soft);color:var(--tos-warn);box-shadow:inset 3px 0 0 var(--tos-warn)}
+  .tos-blok.ok{background:var(--primary-soft);color:var(--primary-ink,var(--primary));
+    box-shadow:inset 3px 0 0 var(--primary)}
+  /* Banner/toast ichida — o'z foni yo'q, .banner ranglarini meros qilib oladi */
+  .tos-msg{display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;box-shadow:none;
+    padding:0;margin:0;border-radius:0;color:inherit}
+
+  /* ---------- 2.3 Mini progress (panel ichida, kassa qatorida) ---------- */
+  .tos-mini{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .tos-mtrack{position:relative;flex:1;min-width:72px;height:6px;border-radius:999px;background:var(--surface-2)}
+  .tos-blok .tos-mtrack{background:var(--surface)}
+  .tos-mfill{height:100%;max-width:100%;border-radius:999px;background:currentColor;
+    transition:width .4s cubic-bezier(.22,.61,.36,1)}
+  .tos-mmark{position:absolute;top:-3px;bottom:-3px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
+    background:var(--ink);opacity:.45}
+  .tos-mini .tos-mv{flex:none;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-mini.s-blok .tos-mfill{background:var(--red)}
+  .tos-mini.s-yaqin .tos-mfill{background:var(--tos-warn)}
+  .tos-mini.s-ochiq .tos-mfill{background:var(--primary)}
+  .tos-mini.s-blok .tos-mv{color:var(--tlm-ink)}
+  .tos-mini.s-yaqin .tos-mv{color:var(--tos-warn)}
+  .tos-mini.s-ochiq .tos-mv{color:var(--primary-ink,var(--primary))}
+
+  /* ---------- 2.4 "Mening hisobim" paneli ---------- */
+  .tos-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .tos-hd h2{margin:0}
+  /* Holat chipi: blok / yaqin / ochiq. Ikonka + matn — rangsiz ham o'qiladi. */
+  .tos-state{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;
+    font-size:12px;font-weight:700;line-height:1.4;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+  .tos-state svg{width:14px;height:14px}
+  .tos.s-blok .tos-state{background:var(--red-soft);color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-state{background:var(--tos-warn-soft);color:var(--tos-warn)}
+  .tos.s-ochiq .tos-state{background:var(--primary-soft);color:var(--primary-ink,var(--primary))}
+
+  .tos-bal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tos-bal.one{grid-template-columns:1fr}
+  .tos-b{background:var(--surface-2);border-radius:12px;padding:12px 14px;min-width:0}
+  .tos-b .tos-bl{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tos-b .tos-bv{display:block;margin-top:2px;font-size:19px;font-weight:700;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tos-b .tos-bc{font-size:12.5px;font-weight:600;color:var(--muted);margin-left:3px}
+  .tos-b.red{background:var(--red-soft);border:1px solid var(--tlm-line);padding:11px 13px}
+  .tos-b.red .tos-bl,.tos-b.red .tos-bv,.tos-b.red .tos-bc{color:var(--tlm-ink)}
+
+  /* 70% ko'rsatkichi. Marker "70%" yorlig'i uchun tepada 22px joy qoldirilgan. */
+  .tos-m{margin-top:20px}
+  .tos-mhd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px}
+  .tos-mhd .tos-ml{color:var(--muted);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tos-mhd .tos-mr{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tos-mhd .tos-mr b{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .tos-mhd .tos-mr .tos-frac{color:var(--muted);font-size:12px;font-weight:600;margin-left:6px}
+  .tos.s-blok .tos-mhd .tos-mr b{color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-mhd .tos-mr b{color:var(--tos-warn)}
+  .tos.s-ochiq .tos-mhd .tos-mr b{color:var(--primary-ink,var(--primary))}
+  .tos-track{position:relative;height:10px;border-radius:999px;background:var(--surface-2);margin-top:22px}
+  .tos-fill{height:100%;max-width:100%;width:0;border-radius:999px;background:var(--red);
+    transition:width .45s cubic-bezier(.22,.61,.36,1),background-color .2s}
+  .tos.s-yaqin .tos-fill{background:var(--tos-warn)}
+  .tos.s-ochiq .tos-fill{background:var(--primary)}
+  /* 70% chizig'i — trekdan tashqariga chiqadi va oq/qora kontur bilan fill ustida ham ko'rinadi */
+  .tos-mark{position:absolute;top:-5px;bottom:-5px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
+    background:var(--ink);opacity:.55;box-shadow:0 0 0 1.5px var(--surface)}
+  .tos-mark i{position:absolute;left:50%;bottom:calc(100% + 5px);transform:translateX(-50%);
+    font-style:normal;font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+  .tos-note{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:13px;line-height:1.45;color:var(--muted)}
+  .tos-note svg{width:15px;height:15px;flex:none;margin-top:2px}
+  .tos-note b{font-weight:700;font-variant-numeric:tabular-nums}
+  .tos.s-blok .tos-note,.tos.s-blok .tos-note b{color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-note,.tos.s-yaqin .tos-note b{color:var(--tos-warn)}
+  .tos.s-ochiq .tos-note b{color:var(--primary-ink,var(--primary))}
+
+  /* To'lanmagan xarajatlar bloki (hodim paneli ichida) */
+  .tos-unpaid{margin-top:16px;background:var(--red-soft);border:1px solid var(--tlm-line);
+    border-radius:12px;padding:10px 14px 12px}
+  .tos-uhd{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    font-size:13px;font-weight:700;color:var(--tlm-ink)}
+  .tos-uhd .tos-uv{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tos-urow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:8px 0 0;margin-top:8px;border-top:1px solid var(--tlm-line);font-size:13px;color:var(--tlm-ink)}
+  .tos-urow .tos-un{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tos-urow .tos-ud{font-size:11.5px;font-weight:600;opacity:.7;margin-left:6px;font-variant-numeric:tabular-nums}
+  .tos-urow .tos-ua{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-uinfo{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:12px;line-height:1.45;
+    color:var(--tlm-ink);opacity:.8}
+  .tos-uinfo svg{width:14px;height:14px;flex:none;margin-top:1px}
+
+  /* ---------- 2.5 Mobil ---------- */
+  @media(max-width:899px){
+    .tos-blok{padding:11px 12px;font-size:13px}
+    .tos-bt{font-size:13.5px}
+  }
+  @media(max-width:480px){
+    .tos-bal{grid-template-columns:1fr}
+    .tos-b .tos-bv{font-size:18px}
+    .tos-hd{gap:8px}
+  }
+
+  /* --- to'siq: jurnal qatorlariga moslash (faqat .tlm-on bo'lganda) --- */
+  .jtbl tr.tlm-on td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+  .jcard.tlm-on{box-shadow:var(--shadow),inset 3px 0 0 var(--red)}
+  /* o'chirilgan yozuvda rozetka susayadi (ikki qizil bir-birini bo'g'masin) */
+  .jtbl tr.del .tlm,.jcard.del .tlm,.jtbl tr.del .tlm-was,.jcard.del .tlm-was{opacity:.55}
+  .jtbl tr.del.tlm-on td:first-child,.jcard.del.tlm-on{box-shadow:none}
 </style>
 </head>
 <body>
@@ -806,6 +1014,34 @@
               </div>
               <div class="ssel-list" id="sselXturList" role="listbox" aria-labelledby="lblXtur" aria-multiselectable="true"></div>
               <div class="ssel-foot"><button type="button" class="ssel-clr" id="sselXturClr">Tanlovni tozalash</button></div>
+            </div>
+          </div>
+        </div>
+        <!-- Ijrochi (kim yozdi) — bir tanlovli, .ssel naqshi #sselFil bilan bir xil.
+             🔴 Sukut bo'yicha YASHIRIN: jurnal_ijrochilar() javob bergandagina ochiladi
+             (PROVODKA_IJROCHI.sql RUN qilinmagan bo'lsa filtr umuman ko'rinmaydi). -->
+        <div class="fld" id="fldIjrochi" style="display:none">
+          <!-- title: yonidagi son DAVR bo'yicha jami (hisob/modda/tur/qidiruv filtri
+               olinmaydi — ro'yxat filtr o'zgarganda sakramasin). Shuning uchun u
+               tanlagandan keyingi sanoq satridan farq qilishi mumkin va bu XATO EMAS. -->
+          <label id="lblIjrochi" for="sselIjrochiBtn"
+                 title="Yonidagi son — davr bo'yicha jami (boshqa filtrlar hisobga olinmaydi)">Ijrochi</label>
+          <div class="ssel" id="sselIjrochi" data-sel="fIjrochi">
+            <select id="fIjrochi" class="ssel-native" tabindex="-1" aria-hidden="true"><option value="">Barcha ijrochilar</option></select>
+            <button type="button" class="ssel-btn" id="sselIjrochiBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselIjrochiPop" aria-labelledby="lblIjrochi sselIjrochiVal">
+              <span class="ssel-val ph" id="sselIjrochiVal">Barcha ijrochilar</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselIjrochiPop">
+              <div class="ssel-hd"><span class="ssel-ht">Ijrochi</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Ism bo'yicha qidirish…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselIjrochiList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselIjrochiList" role="listbox" aria-labelledby="lblIjrochi"></div>
             </div>
           </div>
         </div>
@@ -1012,6 +1248,14 @@ let accList=[], filAllow=null;
 // dashData: oxirgi jurnal_dash javobi (diagramma turi almashganda qayta so'ramaslik uchun)
 // loadSeq  : so'rov navbati qorovuli — qidiruv tez terilganda eski javob yangisini bosmasin
 let useV2=true, moddaSel=[], dashData=null, chartMode='donut', davKey='bugun', qTimer=null, loadSeq=0;
+// --- Ijrochi ("kim yozdi") holati — PROVODKA_IJROCHI.sql ---
+// useIjr : jurnal_ijrochilar() javob berdimi (= SQL RUN qilingan). 🔴 false bo'lsa
+//          p_ijrochi UMUMAN yuborilmaydi — aks holda ESKI imzoli jurnal_v2 PGRST202
+//          berib butun sahifani zaxira yo'lga (v2Off) tushirib yuborardi.
+// ijrSig : ro'yxat qaysi davr uchun yuklangan ('from|to') — davr o'zgarsa qayta yuklanadi.
+// ijrSeq : ro'yxat so'rovi navbati — loadSeq dan ALOHIDA hisoblagich, eskirgan javob
+//          yangi ro'yxatni yozib ketmasin (loadSeq ga tegilmaydi).
+let useIjr=false, ijrSig='', ijrSeq=0;
 // Ruxsat (scope='list'): ko'rishga ruxsat etilgan pul-hisob id'lari (valyuta bolalari + hodim
 // kassalari ham). null = cheklovsiz (admin yoki scope='all'). Jurnal so'roviga p_accounts sifatida
 // ketadi — server faqat shu kassalar qatnashgan yozuvlarni qaytaradi (entrylar ham, jurnal_count ham).
@@ -1276,6 +1520,55 @@ async function refreshCheks(){
   }));
   chekKeys=next; render();
 }
+
+/* --- "To'lanmagan" statusi (PROVODKA_XARAJAT_TOSIQ.sql → v_hodim_tolanmagan) ---
+   hali_ochiq=true  → qizil rozetka "To'lanmagan · N" + qatorda .tlm-on (chekka chizig'i)
+   hali_ochiq=false → kichik qizil nuqta (.tlm-was): "avval to'lanmagan edi" (tarix)
+   🔴 SQL RUN QILINMAGAN BO'LSA — birinchi "view yo'q" xatosida tlmOff=true bo'lib
+      belgilar UMUMAN chizilmaydi; jurnal avvalgidek to'liq ishlaydi (v2Off naqshi).
+   🔴 O'CHIRILGAN yozuvda belgi CHIZILMAYDI — o'chirilgan yozuv qarz emas (tlmOf). */
+let tlmOff=false, tlmMap={};
+/* View/jadval yo'qmi? ⚠️ Shart tor: 42501 (ruxsat) va PGRST204 (ustun) bu yerga
+   tushmaydi — haqiqiy xato jimgina yashirinib sabab yo'qolmasin. */
+function tlmYoq(e){
+  if(!e) return false;
+  const c=String(e.code||'');
+  if(c==='42501'||c==='PGRST204') return false;
+  if(c==='PGRST202'||c==='42883'||c==='42P01'||c==='PGRST205'||c==='PGRST106') return true;
+  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
+  return /function[\s\S]*does not exist/.test(m)
+      || /relation[\s\S]*does not exist/.test(m)
+      || /could not find the (table|function|view)/.test(m);
+}
+async function refreshTlm(){
+  if(tlmOff) return;
+  const {data,error}=await sb.from('v_hodim_tolanmagan')
+    .select('entry_id,ochiq_summa,hali_ochiq');
+  if(error){ if(tlmYoq(error)){ tlmOff=true; tlmMap={}; } return; }   // boshqa xato — eski holat qoladi
+  const m={};
+  (data||[]).forEach(r=>{ if(r&&r.entry_id) m[r.entry_id]={ochiq:!!r.hali_ochiq,summa:Number(r.ochiq_summa)||0}; });
+  const bor=Object.keys(m).length||Object.keys(tlmMap).length;
+  tlmMap=m;
+  if(bor) render();                 // belgisiz jurnalni bekorga qayta chizmaymiz
+}
+/* 🔴 SERVER TO'SIG'I XATOSI — permErr() uni "Ruxsat yo'q" deb umumlashtirmasin.
+   Tahrir entry_line'ni UPDATE qiladi, ya'ni trg_hodim_tosiq_entry_line ishga tushishi
+   mumkin: u 42501 beradi va matn hodim_tosiq_msg() dan keladi (odam tilida). Mezon ANIQ —
+   kod 42501 VA matn shu shaklga mos; mos kelsa server matni AYNAN ko'rsatiladi. */
+function tosXatosi(e){
+  if(!e) return false;
+  const m=String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'');
+  if(String(e.code||'')!=='42501' && !/42501/.test(m)) return false;
+  return /xarajatga\s+yozmagan/i.test(m) || /avval xarajat yozilsin/i.test(m);
+}
+function xatoMatn(e){
+  if(tosXatosi(e)) return String((e&&e.message)||'').trim();
+  return window.permErr?window.permErr(e):String((e&&e.message)||'');
+}
+function tlmOf(e){ if(!e||e.is_deleted) return null; return tlmMap[e.id]||null; }
+// Qator atributlari: `.tlm-on` FAQAT ochiq to'lanmaganda; data-tlm — QA/filtr ilgagi (CSS unga tayanmaydi)
+function tlmCls(e){ const t=tlmOf(e); return (t&&t.ochiq)?' tlm-on':''; }
+function tlmAttr(e){ const t=tlmOf(e); return t?` data-tlm="${t.ochiq?'ochiq':'yopiq'}"`:''; }
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
 window.openChek=async(kassaId,entryId)=>{
   const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
@@ -1497,13 +1790,132 @@ function accCell(line){
   const s=accSub(line.account_id);
   return `<span class="acode">${esc(line.code||'')}</span><span class="aname">${turiIko(line.account_id)}${esc(line.name||'')}${s?' · '+esc(s):''}</span>`;
 }
+/* ==================== IJROCHI ("kim yozdi") ====================
+   Server: jurnal_v2 har elementga `ijrochi` (ko'rsatiladigan ism) va `ijrochi_raw`
+   (xom created_by) qo'shadi; ro'yxat jurnal_ijrochilar(p_from,p_to) dan keladi.
+   🔴 Zaxira yo'lda (v2Off → eski jurnal()) bu maydonlar YO'Q — chip ham chizilmaydi. */
+// Texnik ijrochilar: xom kalit → odam tilidagi nom (chipda ko'k `bot` bilan chiqadi)
+const IJR_SYS={aros_sync:'Aros sinxron', tovar_sync:'Tovar sinxron', transfer_fix:'Tizim tuzatish',
+  boshlangich_qoldiq:"Boshlang'ich qoldiq", boshlangich_kapital:"Boshlang'ich kapital",
+  n8n:'n8n avtomat', system:'Tizim', service_role:'Tizim'};
+// 🔴 Server sentineli — O'ZGARTIRILMAYDI: jurnal_ijrochilar shu kalitni qaytaradi va
+//    p_ijrochi ga aynan shu kalit qaytariladi (PROVODKA_IJROCHI.sql 3-BO'LIM).
+const IJR_BOSH='(bosh)';
+const isUuidTxt=s=>/^[0-9a-fA-F-]{36}$/.test(String(s||''));
+// 🔴 Faqat O'Z kaliti: IJR_SYS['constructor'] kabi prototip kalitlari chipga
+//    funksiya matnini chiqarib yuborardi (created_by shunday bo'lsa).
+const ijrSys=k=>(k&&Object.prototype.hasOwnProperty.call(IJR_SYS,k))?IJR_SYS[k]:'';
+// Yozuvda ijrochi maydonlari bormi. Eski jurnal() va eski imzoli jurnal_v2 ularni
+// qaytarmaydi → chip umuman chizilmaydi (soxta "Noma'lum" chiqmasin).
+const ijrBor=e=>!!e&&(Object.prototype.hasOwnProperty.call(e,'ijrochi')
+                    ||Object.prototype.hasOwnProperty.call(e,'ijrochi_raw'));
+// Chip. 🔴 Bo'sh bo'lsa ham TEG qaytaradi (.ijr.unk) — ko'rinishini CSS hal qiladi
+// (#journal.ijr-unk), ya'ni render() ichida shoxlanish yo'q: filtr holati = bitta klass.
+function ijrHtml(e){
+  const raw=String((e&&e.ijrochi_raw)||'').trim();
+  let nom=String((e&&e.ijrochi)||'').trim();
+  if(isUuidTxt(nom)) nom='';                       // 🔴 xom UUID hech qachon ekranga chiqmaydi
+  const key=(raw&&!isUuidTxt(raw))?raw.toLowerCase():'';   // texnik belgi (aros_sync…)
+  const isSys=!!key||(!raw&&String((e&&e.source)||'')==='aros_auto');
+  if(isSys){
+    const lbl=ijrSys(key)||(key?(nom||raw):'')||IJR_SYS.aros_sync;
+    return '<span class="ijr sys" title="Avtomatik yozuv · '+esc(raw||(e&&e.source)||'tizim')+'">'
+      +'<i data-lucide="bot"></i><span class="ijr-nm">'+esc(lbl)+'</span></span>';
+  }
+  if(!raw||!nom||nom==="Noma'lum")
+    return '<span class="ijr unk" title="Ijrochi qayd etilmagan"><i data-lucide="user"></i>'
+      +'<span class="ijr-nm">Noma\'lum</span></span>';
+  return '<span class="ijr" title="Yozuvni kiritdi: '+esc(nom)+'"><i data-lucide="user"></i>'
+    +'<span class="ijr-nm">'+esc(nom)+'</span></span>';
+}
+// Excel uchun sof matn (chip emas). 🔴 Noma'lum = BO'SH katak — "Noma'lum" so'zi
+// filtrni/pivotni ifloslantiradi; bo'sh katak Excel'da to'g'ri "(blank)" bo'ladi.
+function ijrText(e){
+  const raw=String((e&&e.ijrochi_raw)||'').trim();
+  let nom=String((e&&e.ijrochi)||'').trim();
+  if(isUuidTxt(nom)||nom==="Noma'lum") nom='';
+  if(raw&&!isUuidTxt(raw)) return ijrSys(raw.toLowerCase())||nom||raw;
+  if(!raw&&String((e&&e.source)||'')==='aros_auto') return IJR_SYS.aros_sync;
+  return nom;
+}
+// Filtr o'chirilgan holat: SQL yo'q / RPC xato / zaxira yo'l. Maydon yashiriladi,
+// tanlov tozalanadi va keyingi so'rovlarda p_ijrochi yuborilmaydi.
+function ijrOff(){
+  useIjr=false; ijrSig='';
+  const s=$('fIjrochi'); if(s) s.value='';
+  const f=$('fldIjrochi'); if(f) f.style.display='none';
+  const j=$('journal'); if(j) j.classList.remove('ijr-unk');
+  sselSync('fIjrochi');
+}
+// #fIjrochi o'zgardi: 🔴 faqat bitta klass (chip ko'rinishi CSS ishi) + qayta yuklash.
+function onIjrochi(){
+  const el=$('fIjrochi'), j=$('journal');
+  if(j) j.classList.toggle('ijr-unk', !!el && el.value===IJR_BOSH);
+  load();
+}
+// Ijrochi ro'yxati — jurnal_ijrochilar(p_from,p_to). 🔴 FAQAT davrga bog'liq (server
+// shunday qaytaradi): hisob/tur/qidiruv tanlanganda ro'yxat o'zgarmaydi, aks holda
+// tanlangan ijrochi ro'yxatdan yo'qolib filtr o'zini o'zi tozalab yuborardi.
+async function loadIjrSel(){
+  if(!useV2) return;                                  // zaxira yo'lda ijrochi umuman yo'q
+  const f=$('from').value, t=$('to').value, sig=f+'|'+t;
+  if(sig===ijrSig) return;                            // shu davr uchun allaqachon yuklangan
+  const my=++ijrSeq;
+  const {data,error}=await sb.rpc('jurnal_ijrochilar',{p_from:f,p_to:t});
+  if(my!==ijrSeq) return;                             // eskirgan javob — yozib ketmasin
+  if(!useV2) return;                                  // await orasida zaxira yo'lga o'tilgan — filtr ochilmasin
+  if(error){
+    // 🔴 v2Off() CHAQIRILMAYDI: jurnal_v2 ishlayotgan bo'lishi mumkin (faqat IJROCHI
+    //    SQL RUN qilinmagan) — dashboard va modda filtri buzilmasin.
+    if(useIjr) ijrOff(); else { const fl=$('fldIjrochi'); if(fl) fl.style.display='none'; }
+    if(!yoqFn(error)) console.warn('jurnal_ijrochilar:',error.message);
+    return;
+  }
+  const sel=$('fIjrochi'); if(!sel) return;
+  ijrSig=sig;
+  // Tartib (majburiy): Hammasi → Odamlar (soni kamayishi bo'yicha, server tartibi) →
+  // Tizim → Noma'lum eng oxirida (u tanlov emas, qoldiq).
+  const odam=[], tiz=[]; let bosh=null;
+  (data||[]).forEach(r=>{
+    const raw=String(r&&r.ijrochi_raw!=null?r.ijrochi_raw:'');
+    const nom=String(r&&r.ijrochi!=null?r.ijrochi:'').trim();
+    const n=Number(r&&r.soni)||0;
+    if(!raw) return;
+    if(raw===IJR_BOSH){ bosh={v:raw,l:"Noma'lum",n}; return; }
+    if(isUuidTxt(raw)) odam.push({v:raw,l:(nom&&!isUuidTxt(nom))?nom:"Noma'lum",n});
+    else tiz.push({v:raw,l:ijrSys(raw.toLowerCase())||nom||raw,n});
+  });
+  // data-n — BUTUN davr bo'yicha SERVER sanog'i (yuklangan sahifadagi son emas).
+  const opt=o=>`<option value="${esc(o.v)}" data-n="${esc(money(o.n))}">${esc(o.l)}</option>`;
+  let html='<option value="">Barcha ijrochilar</option>';
+  if(odam.length) html+='<optgroup label="Odamlar">'+odam.map(opt).join('')+'</optgroup>';
+  if(tiz.length)  html+='<optgroup label="Tizim">'+tiz.map(opt).join('')+'</optgroup>';
+  if(bosh)        html+=opt(bosh);
+  const cur=sel.value;
+  sel.innerHTML=html;
+  sel.onchange=onIjrochi;
+  useIjr=true;
+  const fl=$('fldIjrochi'); if(fl) fl.style.display='';
+  // Tanlangan ijrochi yangi davrda umuman yo'q bo'lsa — filtr o'zi haqida yolg'on
+  // aytmasin: tozalanadi va ro'yxat qayta so'raladi.
+  const bor=[...sel.options].some(o=>o.value===cur);
+  sel.value=bor?cur:'';
+  sselSync('fIjrochi');
+  if(cur&&!bor){ onIjrochi(); return; }
+  const j=$('journal'); if(j) j.classList.toggle('ijr-unk', sel.value===IJR_BOSH);
+}
 // Maqsad ustuni: izoh + teglar (filial/davr/yuk/kommunal/⏳) + chek + tahrir/o'chirish izi + ko'p satr.
 function maqsadHtml(e,k,multi){
   const parts=[];
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
-  if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
-  else if(!multi) parts.push(`<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`);
-  else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv</div>`);
+  // "To'lanmagan" — ochiq bo'lsa rozetka (o'z qatorida), yopilgan bo'lsa .jgoal oxirida nuqta
+  const tl=tlmOf(e);
+  if(tl&&tl.ochiq) parts.push(`<div class="tlm-row"><span class="tlm">To'lanmagan<span class="tlm-s">· ${money(tl.summa)}</span></span></div>`);
+  const was=(tl&&!tl.ochiq)
+    ? `<span class="tlm-was" role="img" tabindex="0" title="Avval to'lanmagan edi — yopilgan" aria-label="Avval to'lanmagan edi, yopilgan"></span>` : '';
+  if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}${was}</div>`);
+  else if(!multi) parts.push(`<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}${was}</div>`);
+  else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv${was}</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
   if(kid&&chekKeys.has(kid+'/'+e.id)){
@@ -1512,7 +1924,11 @@ function maqsadHtml(e,k,multi){
     const lbl=(!x||CHEK_IMG.indexOf(x)>=0)?'Chek':'Hujjat';
     parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>${lbl}</button>`);
   }
-  if(e.edited_at) parts.push(`<div class="jedited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`);
+  // --- Ijrochi + tahrir izi: BITTA metadata qatori (.ijr-meta, joy yetmasa o'raladi) ---
+  const im=[];
+  if(ijrBor(e)) im.push(ijrHtml(e));   // server ijrochi bermasa (zaxira yo'l) — chip yo'q
+  if(e.edited_at) im.push(`<div class="jedited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`);
+  if(im.length) parts.push(`<div class="ijr-meta">${im.join('')}</div>`);
   if(multi) parts.push(`<div class="jlines">${e.lines.map(lineRow).join('')}</div>`);
   return parts.join('');
 }
@@ -1524,6 +1940,8 @@ function actsHtml(e,k,multi){
     +`<button class="jact del" title="O'chirish" onclick="softDelete('${e.id}')"><i data-lucide="trash-2"></i></button>`;
 }
 function render(){
+  // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
+  { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
   const q=$('q').value.trim().toLowerCase();
   const list=rows.filter(e=>{
     if(tur!=='all' && klass(e).kind!==tur) return false;
@@ -1546,7 +1964,7 @@ function render(){
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2;
     const ktC=multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt);
     const dtC=multi?`<span class="jmuted">${e.lines.length} satr</span>`:accCell(k.dt);
-    return `<tr class="jr${e.is_deleted?' del':''}">`
+    return `<tr class="jr${e.is_deleted?' del':''}${tlmCls(e)}"${tlmAttr(e)}>`
       +`<td class="j-num">${i+1}</td>`
       +`<td class="j-date">${esc(e.entry_date||'')}</td>`
       +`<td class="j-kt">${ktC}</td>`
@@ -1570,7 +1988,7 @@ function render(){
       : `<div class="jc-acc"><span class="acap">Qayerdan (Kt)</span>${accCell(k.kt)}</div>`
         +`<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
         +`<div class="jc-acc"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
-    return `<div class="jcard${e.is_deleted?' del':''}">`
+    return `<div class="jcard${e.is_deleted?' del':''}${tlmCls(e)}"${tlmAttr(e)}>`
       +`<div class="jc-top"><span class="jc-date">${esc(e.entry_date||'')} · #${i+1}</span><span class="jc-amt ${kc(k)}">${k.sign}${money(amt)}</span></div>`
       +`<div class="jc-flow${multi?' jc-multi':''}">${flow}</div>`
       +`<div class="jc-maqsad">${maqsadHtml(e,k,multi)}</div>`
@@ -1615,6 +2033,8 @@ function v2Off(){
   // 🔴 Modda filtri ham yashirin: serverda p_moddalar yo'q, klientda soxta ishlagandek ko'rinmasin
   const fx=$('fldXtur'); if(fx) fx.style.display='none';
   sselSync('xtur');
+  // 🔴 Eski jurnal() da ijrochi YO'Q — filtr ham yashiriladi, chip ham chizilmaydi
+  ijrOff();
   const b=$('banner');
   if(b&&b.dataset.v2!=='1'){ b.dataset.v2='1'; b.style.display='block'; b.classList.add('soft');
     b.textContent='Dashboard uchun yangi SQL hali RUN qilinmagan — jurnal eski rejimda ishlayapti '
@@ -1623,9 +2043,15 @@ function v2Off(){
 // Eski jurnal() imzosi: p_moddalar/p_turlar/p_q YO'Q (boshqa imzo — yuborilsa 404 beradi)
 const argsOld=a=>({p_from:a.p_from,p_to:a.p_to,p_account:a.p_account,p_accounts:a.p_accounts});
 // jurnal_v2 imzosi: p_account YO'Q — bitta hisob ham p_accounts ichida ketadi
-const argsV2=a=>({p_from:a.p_from,p_to:a.p_to,
-  p_accounts:a.p_account?[a.p_account]:a.p_accounts,
-  p_moddalar:a.p_moddalar,p_turlar:a.p_turlar,p_q:a.p_q});
+const argsV2=a=>{
+  const o={p_from:a.p_from,p_to:a.p_to,
+    p_accounts:a.p_account?[a.p_account]:a.p_accounts,
+    p_moddalar:a.p_moddalar,p_turlar:a.p_turlar,p_q:a.p_q};
+  // 🔴 p_ijrochi FAQAT PROVODKA_IJROCHI.sql RUN qilingan bo'lsa qo'shiladi
+  //    (jurnal_ijrochilar javob berdi). Eski imzoda bu kalit PGRST202 beradi.
+  if(useIjr) o.p_ijrochi=a.p_ijrochi||null;
+  return o;
+};
 // Qidiruv: v2 da server so'rovi (debounce 350ms), zaxirada avvalgidek klient render()
 window.onQ=()=>{
   if(!useV2){ render(); return; }
@@ -1863,7 +2289,7 @@ function sselFromSel(sel){
   const out=[];
   const add=(o,grp)=>{
     const t=(o.textContent||'').trim(), m=t.match(/^(\d{3,6})\s·\s([\s\S]+)$/);
-    out.push({v:o.value,l:m?m[2]:t,sub:m?m[1]:'',grp:grp||'',s:t.toLowerCase()});
+    out.push({v:o.value,l:m?m[2]:t,sub:m?m[1]:'',n:o.dataset.n||'',grp:grp||'',s:t.toLowerCase()});
   };
   [...sel.children].forEach(ch=>{
     if(ch.tagName==='OPTGROUP') [...ch.children].forEach(o=>add(o,ch.label||''));
@@ -1919,6 +2345,7 @@ function sselRender(S,q){
     html+='<div class="ssel-opt'+(on?' on':'')+'" role="option" aria-selected="'+(on?'true':'false')+'" data-v="'+esc(o.v)+'">'
       +'<span class="ssel-om"><span class="ssel-on">'+esc(o.l)+'</span>'
       +(o.sub?'<span class="ssel-os">'+esc(o.sub)+'</span>':'')+'</span>'
+      +(o.n?'<span class="ssel-n">'+esc(o.n)+'</span>':'')   // faqat data-n bo'lgan optionda
       +'<i data-lucide="check" class="ssel-ck"></i></div>';
     shown++;
   }
@@ -1948,7 +2375,7 @@ function sselSync(key){
   sselBuild(S); sselLabel(S);
   if(S.root.classList.contains('open')) sselRender(S,S.inp?S.inp.value:'');
 }
-const sselSyncAll=()=>{ ['fil','hodim','acc','xtur'].forEach(sselSync); };
+const sselSyncAll=()=>{ ['fil','hodim','acc','xtur','fIjrochi'].forEach(sselSync); };
 function sselPick(S,v){
   if(S.multi){
     const i=moddaSel.indexOf(v);
@@ -2007,7 +2434,7 @@ function sselInit(id){
   sselBuild(S); sselLabel(S);
 }
 function sselWire(){
-  ['sselFil','sselHodim','sselAcc','sselXtur'].forEach(sselInit);
+  ['sselFil','sselHodim','sselAcc','sselXtur','sselIjrochi'].forEach(sselInit);
   const clr=$('sselXturClr'); if(clr) clr.addEventListener('click',()=>{ window.xtClearSel(); });
   const ov=$('sselOv'); if(ov) ov.addEventListener('click',()=>sselCloseAll());
   // Tashqariga bosish — capture bosqichida (panel ichidagi bosish .ssel ichida qoladi)
@@ -2059,9 +2486,13 @@ function args(){
   // v2 qo'shimchalari (serverda filtrlanadi). 🔴 Tur xaritasi server tasnifiga mos:
   // in→kirim+tushum, out→chiqim+xarajat, tr→transfer, nt→boshqa, all→null.
   // Eski jurnal() ga bular YUBORILMAYDI (argsOld) — imzosi boshqa.
+  // p_ijrochi — XOM kalit (ijrochi_raw), '(bosh)' sentineli ham SHUNDAYLIGICHA.
+  // Kesh kaliti barqaror bo'lishi uchun u args() da DOIM bor; serverga esa faqat
+  // useIjr bo'lganda ketadi (argsV2).
   return {p_from:$('from').value,p_to:$('to').value,p_account:acc,p_accounts:accs,
     p_moddalar:moddaSel.length?moddaSel.slice():null,
     p_turlar:TUR_SRV[tur]||null,
+    p_ijrochi:(($('fIjrochi')&&$('fIjrochi').value)||null),
     p_q:($('q').value||'').trim()||null};
 }
 async function load(){
@@ -2070,6 +2501,8 @@ async function load(){
   // Ruxsat: list-scope va ko'rish mumkin bo'lgan kassa yo'q → bo'sh massivni serverga yubormaymiz
   // (bo'sh p_accounts "filtr yo'q" deb talqin qilinib hammani ochib yuborishi mumkin).
   if(a.p_accounts && a.p_accounts.length===0){ total=0; render(); dashShow(null); return; }
+  loadIjrSel();   // ijrochi ro'yxati (faqat davr o'zgargan bo'lsa) — fonda, kutilmaydi.
+                  // 🔴 Ruxsat tekshiruvidan KEYIN: ko'radigan kassasi yo'q userga foydasiz RPC ketmasin.
   // 🔴 Kesh kaliti serverga AYNAN nima ketishidan quriladi: v2 da hamma filtr
   // (modda/tur/qidiruv), zaxirada esa faqat eski imzo — aks holda tur/qidiruv
   // o'zgarganda bir xil javob uchun keraksiz so'rov ketardi.
@@ -2113,6 +2546,7 @@ async function load(){
   }
   render();
   refreshCheks();   // chek 📎 belgilarini fonda yuklaydi
+  refreshTlm();     // "To'lanmagan" belgilari (SQL yo'q bo'lsa jimgina o'tkazib yuboradi)
   refreshMeta();    // V6: filial + davr teglarini fonda yuklaydi
 }
 window.loadMore=async()=>{
@@ -2129,6 +2563,7 @@ window.loadMore=async()=>{
   if(error){ $('banner').style.display='block'; $('banner').classList.remove('soft'); $('banner').textContent=error.message; return; }
   rows=rows.concat(data||[]); offset=rows.length; render();
   refreshCheks();
+  refreshTlm();
   refreshMeta();
 };
 
@@ -2215,7 +2650,8 @@ window.saveEdit=async()=>{
   // (trg_perm_guard_entry_line — "before update of account_id") 42501 beradi, RLS esa
   // xatosiz 0 qator qaytaradi. Ikkalasi ham jimgina o'tib ketsa, foydalanuvchi
   // tahrir saqlandi deb o'ylaydi — aslida yozuv o'zgarmagan.
-  const err=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+  // 🔴 Hodim to'sig'i xatosi (42501 + hodim_tosiq_msg) AYNAN ko'rsatiladi, qolganida permErr
+  const err=e=>xatoMatn(e)||'noma\'lum xato';
   const {data:old,error:e0}=await sb.from('entry').select('*,entry_line(*)').eq('id',editId).single();
   if(e0||!old){ alert('Yozuvni o\'qib bo\'lmadi: '+err(e0)); return; }
   const dtId=old.entry_line.find(l=>Number(l.debit)>0)?.id;
@@ -2327,6 +2763,7 @@ function xlsFileName(a,ext){ return `jurnal_${a.p_from||''}_${a.p_to||''}.${ext}
 // Bitta yozuv → "Yozuvlar" varag'ining bitta qatori (ustunlar tartibi XLS_HEAD bilan bir xil)
 const XLS_HEAD=['№','Sana','Tur','Kt kodi','Kt hisob (qayerdan)','Dt kodi','Dt hisob (qayerga)','Summa (so\'m)',
   'Valyuta','Valyuta summa','Izoh','Davr boshi','Davr oxiri','Filial(lar)','Kommunal','Yuklar','Yo\'ldagi tovar',
+  'Ijrochi',
   'Manba','Satrlar','Chek/hujjat','Holat','O\'chirdi','O\'chirilgan','Tahrirladi','Tahrirlangan','Yaratilgan','Yozuv ID'];
 const XLS_LINE_HEAD=['№','Sana','Yozuv ID','Hisob kodi','Hisob nomi','Bo\'lim','Debet','Kredit','Valyuta','Valyuta summa','Izoh','Holat'];
 function xlsRow(e,i,meta,ey,cheks){
@@ -2348,6 +2785,7 @@ function xlsRow(e,i,meta,ey,cheks){
     dts.map(l=>l.code||'').join('; '), dts.map(nm).join('; '),
     sumDt(e), cur, fcSum||'', e.description||'',
     m.davr_start||'', m.davr_end||'', fils, m.kommunal_turi||'', yuk, m.yuk_kutilmoqda?'Ha':'',
+    ijrText(e),
     e.source||'', ls.length, chek,
     e.is_deleted?'O\'chirilgan':'Faol', e.deleted_by_name||'', fmtDT(e.deleted_at),
     e.edited_by_name||'', fmtDT(e.edited_at), fmtDT(e.created_at), e.id ];
@@ -2387,7 +2825,7 @@ window.exportExcel=async()=>{
     const wb=X.utils.book_new();
     const ws1=X.utils.aoa_to_sheet([XLS_HEAD,...head]);
     ws1['!cols']=[{wch:5},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
-      {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
+      {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:16},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
       {wch:16},{wch:17},{wch:17},{wch:38}];
     xlsNumFmt(X,ws1,{7:'#,##0',9:'#,##0.00'},head.length);
     const ws2=X.utils.aoa_to_sheet([XLS_LINE_HEAD,...lineRows]);

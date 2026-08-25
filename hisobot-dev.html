@@ -282,6 +282,112 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* ================================================================
+     IJROCHI (.ijr-*) — to'liq xarajat ro'yxati + "kim" ustuni.
+     .ijr / .ijr-nm / .ijr.sys / .ijr.unk / .ijr-meta bloklari
+     jurnal-dev.html dagi bilan AYNAN bir xil (ikki sahifada bitta til).
+     ================================================================ */
+  .ijr{display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;
+       padding:2px 8px 2px 6px;border-radius:7px;border:1px solid transparent;
+       background:var(--surface-2);color:var(--muted);
+       font-size:11.5px;font-weight:600;line-height:1.5;letter-spacing:-.005em;
+       font-variant-numeric:tabular-nums;vertical-align:middle}
+  .ijr>svg{width:12px;height:12px;flex:0 0 auto;opacity:.9}
+  .ijr-nm{min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ijr.sys{background:var(--tr-soft);color:var(--tr)}
+  .ijr.unk{display:none;background:transparent;border-style:dashed;border-color:var(--line);
+           color:var(--muted);opacity:.75;padding:1px 8px 1px 6px}
+  .ijr-unk .ijr.unk{display:inline-flex}   /* CEO hisobotida konteynerda DOIM turadi */
+  .ijr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:7px;min-width:0}
+
+  /* --- Yig'iladigan bo'lim (.dash-tgl naqshi) --- */
+  .ijr-fold{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+  .ijr-tgl{display:inline-flex;align-items:center;gap:8px;border:none;background:transparent;
+           color:var(--ink);border-radius:9px;padding:5px 9px 5px 5px;margin-left:-5px;
+           font-family:inherit;font-size:13.5px;font-weight:700;letter-spacing:-.01em;
+           cursor:pointer;transition:background .13s}
+  .ijr-tgl:hover{background:var(--surface-2)}
+  .ijr-chev{width:16px;height:16px;flex:0 0 auto;color:var(--muted);
+            transform:rotate(-90deg);transition:transform .18s cubic-bezier(.22,.61,.36,1)}
+  .ijr-fold.open .ijr-chev{transform:none}
+  @media(prefers-reduced-motion:reduce){.ijr-chev{transition:none}}
+  .ijr-cnt{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ijr-body{display:none;margin-top:2px}
+  .ijr-fold.open .ijr-body{display:block}
+
+  /* --- Desktop jadval --- */
+  .ijr-tbl{width:100%;border-collapse:collapse;font-size:13.5px;table-layout:fixed}
+  .ijr-tbl th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;
+              text-transform:uppercase;letter-spacing:.04em;padding:0 10px 10px;
+              border-bottom:1px solid var(--line);white-space:nowrap}
+  .ijr-tbl th.ta-r,.ijr-tbl td.ijr-a{text-align:right}
+  .ijr-tbl td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top;
+              text-align:left;min-width:0}
+  .ijr-tbl tr:hover td{background:var(--surface-2)}
+  .ijr-tbl th:first-child,.ijr-tbl td:first-child{padding-left:0}
+  .ijr-tbl th:last-child,.ijr-tbl td:last-child{padding-right:0}
+  /* 🔴 table-layout:fixed da kenglik BIRINCHI qatordan (thead) olinadi —
+     shuning uchun o'lchamlar th da, bo'yoq/shrift esa td da */
+  .ijr-tbl th:nth-child(1){width:96px}
+  .ijr-tbl th:nth-child(2){width:23%}
+  .ijr-tbl th:nth-child(3){width:auto}
+  .ijr-tbl th:nth-child(4){width:180px}
+  .ijr-tbl th:nth-child(5){width:132px}
+  .ijr-tbl .ijr-d{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ijr-tbl .ijr-a{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ijr-tbl .ijr-k,.ijr-tbl .ijr-m{overflow:hidden;text-overflow:ellipsis}
+  /* 1024–1100px: sidebar 240px olib qo'ygach "Modda" ustuniga ~125px qoladi —
+     qat'iy ustunlar qisqartiriladi (kesilish Modda emas, Ijrochi tomonda bo'lsin) */
+  @media(min-width:900px) and (max-width:1120px){
+    .ijr-tbl th:nth-child(2){width:19%}
+    .ijr-tbl th:nth-child(4){width:148px}
+    .ijr-tbl th:nth-child(5){width:118px}
+    .ijr-tbl .ijr-nm{max-width:112px}
+  }
+  .ijr-tbl .code{color:var(--muted);font-size:11.5px;font-weight:700;margin-right:6px}
+  .ijr-sub{display:block;margin-top:2px;font-size:11.5px;color:var(--muted);line-height:1.45;
+           overflow:hidden;text-overflow:ellipsis}
+  .ijr-tbl tfoot td{border-bottom:none;border-top:2px solid var(--line);
+                    font-weight:800;font-size:14px;padding-top:12px}
+  .ijr-tbl tfoot tr:hover td{background:transparent}
+  /* Ro'yxat uzun bo'lsa kartani portlatmasin */
+  .ijr-list{max-height:520px;overflow-y:auto;overscroll-behavior:contain;
+            scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ijr-list::-webkit-scrollbar{width:6px}
+  .ijr-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ijr-list::-webkit-scrollbar-track{background:transparent}
+  .ijr-tbl thead th{position:sticky;top:0;z-index:1;background:var(--surface)}
+
+  /* --- Mobil kartalar --- */
+  .ijr-cards{display:flex;flex-direction:column;gap:9px}
+  .ijr-card{background:var(--surface);border:1px solid var(--line);border-radius:13px;
+            padding:12px 13px}
+  .ijr-c1{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .ijr-c1 .ijr-d{font-size:12px;font-weight:600;color:var(--muted);
+                 font-variant-numeric:tabular-nums}
+  .ijr-c1 .ijr-a{font-size:15.5px;font-weight:800;white-space:nowrap;
+                 font-variant-numeric:tabular-nums}
+  .ijr-c2{font-size:13.5px;font-weight:600;min-width:0;overflow:hidden;
+          text-overflow:ellipsis;white-space:nowrap}
+  .ijr-c2 .code{color:var(--muted);font-size:11.5px;font-weight:700;margin-right:6px}
+  @media(max-width:899px){
+    .ijr-list{max-height:none;overflow:visible}
+    .ijr-nm{max-width:170px}
+  }
+  @media(max-width:379px){.ijr-nm{max-width:132px}}
+
+  /* --- Chop etish: bo'lim OCHIQ chiqadi, toggle/scroll yo'q --- */
+  @media print{
+    .ijr-body{display:block!important}
+    .ijr-tgl,.ijr-chev{display:none!important}
+    .ijr-list{max-height:none!important;overflow:visible!important}
+    .ijr-tbl thead th{position:static}
+    .ijr{background:none!important;border:1px solid #999!important;color:#000!important;
+         padding:1px 6px}
+    .ijr.sys{background:none!important;color:#000!important}
+    .ijr.unk{display:inline-flex!important}
+    .ijr-tbl tr:hover td{background:transparent}
+  }
 </style>
 </head>
 <body>
@@ -413,6 +519,26 @@
         <div id="catList"><div class="empty">—</div></div>
         <div class="subhd">Kassa bo'yicha (kim ko'p sarfladi)</div>
         <div id="kassaRep"><div class="empty">—</div></div>
+        <!-- ===== To'liq ro'yxat + ijrochi (yig'iladigan) =====
+             🔴 Sukut bo'yicha YOPIQ: hisobot ochilganda qo'shimcha RPC chaqirilmaydi.
+             Ochilganda exportToliq() bilan AYNAN bir xil RPC va argumentlar ishlatiladi
+             (hodim_xarajat_royxat) — ekrandagi va Excel'dagi raqam farq qilmaydi. -->
+        <div class="ijr-fold" id="ijrFold">
+          <button type="button" class="ijr-tgl" id="ijrTgl" aria-expanded="false" aria-controls="ijrBody" onclick="ijrToggle()">
+            <i data-lucide="chevron-down" class="ijr-chev"></i>
+            <span>To'liq ro'yxat · ijrochi bo'yicha</span>
+            <span class="ijr-cnt" id="ijrCnt"></span>
+          </button>
+
+          <div class="ijr-body" id="ijrBody">
+            <div class="subhd">Ijrochi bo'yicha (kim yozgan)</div>
+            <!-- .ijr-unk — jurnaldan FARQLI: CEO hisoboti audit ko'rinishi, "Noma'lum" KO'RINADI -->
+            <div class="ijr-unk" id="ijrSum"><div class="empty">—</div></div>
+
+            <div class="subhd">Xarajatlar ro'yxati</div>
+            <div class="ijr-list ijr-unk" id="ijrList"><div class="empty">—</div></div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -971,6 +1097,132 @@ async function loadCeo(){
   $('ceoCard').style.display='block';
   renderRep('catList',catRows);
   renderRep('kassaRep',kassaQ.error?[]:(kassaQ.data||[]));
+  ijrPeriod();   // to'liq ro'yxat keshi davrga bog'langan (ochiq bo'lsa qayta yuklanadi)
+}
+
+/* ==================== IJROCHI — to'liq xarajat ro'yxati ====================
+   Manba: hodim_xarajat_royxat(p_from,p_to) — exportToliq() bilan AYNAN bir xil RPC
+   va argumentlar (ekran va Excel bitta manbadan). RPC O'ZGARTIRILMAGAN: `kim`
+   maydoni mavjud shaklida ishlatiladi (profiles.full_name yoki null).
+   🔴 Bu yerda "Noma'lum" KO'RINADI (jurnaldan farqli) — CEO hisoboti audit
+      ko'rinishi, aynan "kim yozmagan" savoli so'raladi. */
+const IJR_SYS={aros_sync:'Aros sinxron', tovar_sync:'Tovar sinxron', transfer_fix:'Tizim tuzatish',
+  boshlangich_qoldiq:"Boshlang'ich qoldiq", boshlangich_kapital:"Boshlang'ich kapital",
+  n8n:'n8n avtomat', system:'Tizim', service_role:'Tizim'};
+const isUuidTxt=x=>/^[0-9a-fA-F-]{36}$/.test(String(x||''));
+// Chip — jurnal-dev.html dagi bilan AYNAN bir xil ko'rinish (ikki sahifada bitta til)
+function ijrChip(kim){
+  const nom=String(kim||'').trim();
+  if(!nom||isUuidTxt(nom)||nom==="Noma'lum")   // 🔴 xom UUID ekranga chiqmaydi
+    return '<span class="ijr unk" title="Ijrochi qayd etilmagan"><i data-lucide="user"></i>'
+      +'<span class="ijr-nm">Noma\'lum</span></span>';
+  const k=nom.toLowerCase();
+  if(Object.prototype.hasOwnProperty.call(IJR_SYS,k))
+    return '<span class="ijr sys" title="Avtomatik yozuv · '+esc(nom)+'"><i data-lucide="bot"></i>'
+      +'<span class="ijr-nm">'+esc(IJR_SYS[k])+'</span></span>';
+  return '<span class="ijr" title="Yozuvni kiritdi: '+esc(nom)+'"><i data-lucide="user"></i>'
+    +'<span class="ijr-nm">'+esc(nom)+'</span></span>';
+}
+// Excel uchun sof matn: noma'lum = BO'SH katak (filtr/pivot ifloslanmasin)
+// 🔴 Jurnaldan FARQLI: bu yerda "Noma'lum" SAQLANADI. CEO "To'liq ro'yxat"i —
+//    audit ko'rinishi, ekranda ham ko'rsatiladi; eksportda bo'sh katak qilinsa
+//    "ijrochi yozilmagan" fakti pivot/filtrda ko'zdan qochardi.
+const ijrXls=kim=>{ const nom=String(kim||'').trim();
+  if(!nom||isUuidTxt(nom)) return "Noma'lum";
+  return (Object.prototype.hasOwnProperty.call(IJR_SYS,nom.toLowerCase())?IJR_SYS[nom.toLowerCase()]:'')||nom; };
+// ijrRows — kesh, ijrSig — qaysi davr uchun yuklangani, ijrSeq — poyga qorovuli
+let ijrRows=null, ijrSig='', ijrSeq=0;
+window.ijrToggle=()=>{
+  const f=$('ijrFold'), t=$('ijrTgl'); if(!f) return;
+  const open=f.classList.toggle('open');
+  if(t) t.setAttribute('aria-expanded',open?'true':'false');
+  if(open) ijrLoad(false);   // 🔴 RPC faqat shu yerda — sahifa ochilganda emas
+};
+window.ijrRetryLoad=()=>ijrLoad(true);
+async function ijrLoad(force){
+  const sig=curFrom+'|'+curTo;
+  if(!force && ijrRows && ijrSig===sig){ ijrRender(); return; }
+  const my=++ijrSeq;
+  const su=$('ijrSum'), li=$('ijrList');
+  if(su) su.innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  if(li) li.innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
+  if(my!==ijrSeq) return;   // davr o'zgardi — eskirgan javob yozib ketmasin
+  if(error){
+    ijrRows=null; ijrSig='';
+    if(su) su.innerHTML='<div class="empty">—</div>';
+    if(li) li.innerHTML='<div class="empty">Ro\'yxat yuklanmadi. '
+      +'<button type="button" class="xbtn" id="ijrRetry" onclick="ijrRetryLoad()">Qayta urinish</button></div>';
+    console.warn('hodim_xarajat_royxat:',error.message);
+    icons(); return;
+  }
+  ijrRows=data||[]; ijrSig=sig;
+  ijrRender();
+}
+// Davr o'zgarsa kesh bekor qilinadi — ekranda eski davr raqamlari qolib ketmasin.
+function ijrPeriod(){
+  const sig=curFrom+'|'+curTo;
+  if(ijrSig===sig) return;
+  ijrRows=null; ijrSig='';
+  const c=$('ijrCnt'); if(c) c.textContent='';
+  const f=$('ijrFold');
+  if(f&&f.classList.contains('open')){ ijrLoad(true); return; }   // ochiq bo'lsa darrov yangilanadi
+  const su=$('ijrSum'), li=$('ijrList');
+  if(su) su.innerHTML='<div class="empty">—</div>';
+  if(li) li.innerHTML='<div class="empty">—</div>';
+}
+function ijrRender(){
+  const list=ijrRows||[];
+  const c=$('ijrCnt'); if(c) c.textContent=list.length?list.length+' ta':'';
+  // 1) Ijrochi bo'yicha xulosa — mavjud .exp naqshi (catRow bilan bir xil ko'rinish)
+  const g={}; let total=0;
+  list.forEach(r=>{
+    const v=Math.round(Number(r.summa)||0); total+=v;
+    const nom=String(r.kim||'').trim(), k=nom.toLowerCase()||'(bosh)';
+    if(!g[k]) g[k]={nom,v:0};
+    g[k].v+=v;
+  });
+  const gs=Object.keys(g).map(k=>g[k]).sort((a,b)=>b.v-a.v);
+  const su=$('ijrSum');
+  if(su) su.innerHTML=gs.length
+    ? gs.map(x=>{ const pct=total>0?Math.round(x.v/total*100):0;
+        return `<div class="exp"><div class="l"><span>${ijrChip(x.nom)}</span>`
+          +`<span class="a">${money(x.v)}<span class="p">${pct}%</span></span></div>`
+          +`<div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`; }).join('')
+      +`<div class="exp total"><div class="l"><span>Jami</span><span class="a">${money(total)}</span></div></div>`
+    : '<div class="empty">Bu davrda xarajat yo\'q</div>';
+  // 2) To'liq ro'yxat — desktop jadval, mobil kartalar (ikkalasi bitta manbadan)
+  const li=$('ijrList'); if(!li) return;
+  if(!list.length){ li.innerHTML='<div class="empty">Bu davrda xarajat yo\'q</div>'; icons(); return; }
+  const trs=list.map(r=>{
+    const izoh=String(r.izoh||'').trim(), sub=String(r.kassa_subtitle||'').trim();
+    return `<tr>`
+      +`<td class="ijr-d">${esc(r.entry_date||'')}</td>`
+      +`<td class="ijr-k"><span class="code">${esc(r.kassa_code||'')}</span>${esc(r.kassa_name||'')}`
+        +(sub?`<span class="ijr-sub">${esc(sub)}</span>`:'')+`</td>`
+      +`<td class="ijr-m"><span class="code">${esc(r.modda_code||'')}</span>${esc(r.modda_name||'')}`
+        +(izoh?`<span class="ijr-sub">${esc(izoh)}</span>`:'')+`</td>`
+      +`<td class="ijr-w">${ijrChip(r.kim)}</td>`
+      +`<td class="ijr-a">${money(r.summa)}</td>`
+    +`</tr>`;
+  }).join('');
+  const tbl=`<table class="ijr-tbl desktop-only"><thead><tr>`
+    +`<th>Sana</th><th>Kassa</th><th>Modda</th><th>Ijrochi</th><th class="ta-r">Summa</th>`
+    +`</tr></thead><tbody>${trs}</tbody>`
+    +`<tfoot><tr><td colspan="4">Jami</td><td class="ijr-a">${money(total)}</td></tr></tfoot></table>`;
+  const cards=list.map(r=>{
+    const izoh=String(r.izoh||'').trim(), sub=String(r.kassa_subtitle||'').trim();
+    const alt=[sub,izoh].filter(Boolean).join(' · ');
+    return `<div class="ijr-card">`
+      +`<div class="ijr-c1"><span class="ijr-d">${esc(r.entry_date||'')}</span>`
+        +`<span class="ijr-a">${money(r.summa)}</span></div>`
+      +`<div class="ijr-c2"><span class="code">${esc(r.modda_code||'')}</span>${esc(r.modda_name||'')}</div>`
+      +(alt?`<div class="ijr-sub">${esc(alt)}</div>`:'')
+      +`<div class="ijr-meta">${ijrChip(r.kim)}</div>`
+    +`</div>`;
+  }).join('');
+  li.innerHTML=tbl+`<div class="ijr-cards mobile-only">${cards}</div>`;
+  icons();   // innerHTML bilan qayta chizildi — user/bot ikonkalari tiklansin
 }
 // CSV — UTF-8 BOM, ';' ajratgich (Excel kirillcha to'g'ri, ustunlar ajraladi). Summa xom son.
 const CSV_SEP=';';
@@ -994,8 +1246,9 @@ window.exportToliq=async()=>{
   const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
   if(error){ alert('Xato: '+error.message); return; }
   const list=[['Sana','Kassa kodi','Kassa','Lavozim','Modda kodi','Modda','Summa','Izoh','Kim']];
+  // "Kim" — ekrandagi chip bilan bir xil matn (texnik kalit odam tilida, noma'lum = bo'sh katak)
   (data||[]).forEach(r=>list.push([r.entry_date,r.kassa_code,r.kassa_name,r.kassa_subtitle||'',
-    r.modda_code,r.modda_name,Math.round(Number(r.summa)||0),r.izoh||'',r.kim||'']));
+    r.modda_code,r.modda_name,Math.round(Number(r.summa)||0),r.izoh||'',ijrXls(r.kim)]));
   if(list.length===1){ alert('Bu davrda xarajat yo\'q'); return; }
   downloadCSV(`xarajat-toliq-${perStr()}.csv`,list);
 };

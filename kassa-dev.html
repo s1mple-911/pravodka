@@ -170,6 +170,150 @@
   #cfmModal{z-index:230}
   .cfmtxt{font-size:13.5px;color:var(--muted);line-height:1.5;margin:-6px 0 16px}
   /* /kassa-kartalar */
+  /* ================= XARAJAT TO'SIG'I (.tos-*) + TO'LANMAGAN (.tlm-*) =================
+     Uch xil qizil, uch xil shakl (chalkashmasin):
+       .jr.del / .jcard.del  — O'CHIRILGAN: so'ngan + usti chizilgan (mavjud, tegilmagan)
+       .tlm / .tlm-on        — TO'LANMAGAN: och fonli rozetka + to'ldirilgan nuqta + 3px chekka chiziq
+       .tlm-was              — TO'LANGAN EDI: yolg'iz 7px nuqta + tooltip (tarix)
+       .tos-blok             — BLOK: panel + chapda 3px chiziq (harakat to'silgan)
+     Yangi rang YO'Q. --tlm-* qiymatlari hodim-dev.html dagi --red-ink/--red-line dan,
+     --tos-warn-* esa jurnal-dev.html dagi --amber/--amber-soft dan ko'chirilgan. */
+  :root{--tlm-ink:#b42318;--tlm-line:rgba(217,45,32,.20);--tos-warn:#b54708;--tos-warn-soft:#fef0c7}
+  [data-theme="dark"]{--tlm-ink:#ff8a82;--tlm-line:rgba(255,98,89,.28);--tos-warn:#fdb022;--tos-warn-soft:#2e1e05}
+
+  /* ---------- 2.1 "To'lanmagan" rozetkasi ---------- */
+  .tlm{display:inline-flex;align-items:center;gap:6px;max-width:100%;
+    background:var(--red-soft);color:var(--tlm-ink);border:1px solid var(--tlm-line);
+    border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;line-height:1.55;
+    font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
+  .tlm::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:var(--red)}
+  .tlm svg{width:12px;height:12px}
+  .tlm .tlm-s{font-weight:600;opacity:.85}          /* "· 100 000" qismi */
+  /* Yopilgan (tarix): matnsiz nuqta. Tooltip title= bilan, a11y uchun aria-label ham. */
+  .tlm-was{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:14px;height:14px;margin-left:6px;vertical-align:-2px;cursor:help}
+  .tlm-was::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);opacity:.55;
+    transition:opacity .15s}
+  @media(hover:hover){.tlm-was:hover::before{opacity:1}}
+  .tlm-was:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:50%}
+  /* Qator ichida rozetka o'z qatorida tursin (izoh/teglar bilan yopishmasin) */
+  .tlm-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+
+  /* ---------- 2.2 Blok / ogohlantirish paneli ---------- */
+  .tos-blok{display:flex;gap:10px;align-items:flex-start;background:var(--red-soft);color:var(--tlm-ink);
+    border-radius:12px;padding:12px 14px;margin:0 0 16px;font-size:13.5px;line-height:1.5;
+    box-shadow:inset 3px 0 0 var(--red)}
+  .tos-blok>svg,.tos-blok>i,.tos-msg>svg,.tos-msg>i{flex:none;width:18px;height:18px;margin-top:2px}
+  /* .tos-bx / .tos-bt / .tos-bs / .tos-bh — panel VA banner ichida bir xil ishlaydi */
+  .tos-bx{min-width:0;flex:1}
+  .tos-bt{font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .tos-bs{margin-top:3px}
+  .tos-bs b{font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-bh{margin-top:6px;font-size:12.5px;opacity:.85}   /* nima qilish kerak */
+  .tos-blok.warn{background:var(--tos-warn-soft);color:var(--tos-warn);box-shadow:inset 3px 0 0 var(--tos-warn)}
+  .tos-blok.ok{background:var(--primary-soft);color:var(--primary-ink,var(--primary));
+    box-shadow:inset 3px 0 0 var(--primary)}
+  /* Banner/toast ichida — o'z foni yo'q, .banner ranglarini meros qilib oladi */
+  .tos-msg{display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;box-shadow:none;
+    padding:0;margin:0;border-radius:0;color:inherit}
+
+  /* ---------- 2.3 Mini progress (panel ichida, kassa qatorida) ---------- */
+  .tos-mini{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .tos-mtrack{position:relative;flex:1;min-width:72px;height:6px;border-radius:999px;background:var(--surface-2)}
+  .tos-blok .tos-mtrack{background:var(--surface)}
+  .tos-mfill{height:100%;max-width:100%;border-radius:999px;background:currentColor;
+    transition:width .4s cubic-bezier(.22,.61,.36,1)}
+  .tos-mmark{position:absolute;top:-3px;bottom:-3px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
+    background:var(--ink);opacity:.45}
+  .tos-mini .tos-mv{flex:none;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-mini.s-blok .tos-mfill{background:var(--red)}
+  .tos-mini.s-yaqin .tos-mfill{background:var(--tos-warn)}
+  .tos-mini.s-ochiq .tos-mfill{background:var(--primary)}
+  .tos-mini.s-blok .tos-mv{color:var(--tlm-ink)}
+  .tos-mini.s-yaqin .tos-mv{color:var(--tos-warn)}
+  .tos-mini.s-ochiq .tos-mv{color:var(--primary-ink,var(--primary))}
+
+  /* ---------- 2.4 "Mening hisobim" paneli ---------- */
+  .tos-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .tos-hd h2{margin:0}
+  /* Holat chipi: blok / yaqin / ochiq. Ikonka + matn — rangsiz ham o'qiladi. */
+  .tos-state{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;
+    font-size:12px;font-weight:700;line-height:1.4;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+  .tos-state svg{width:14px;height:14px}
+  .tos.s-blok .tos-state{background:var(--red-soft);color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-state{background:var(--tos-warn-soft);color:var(--tos-warn)}
+  .tos.s-ochiq .tos-state{background:var(--primary-soft);color:var(--primary-ink,var(--primary))}
+
+  .tos-bal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tos-bal.one{grid-template-columns:1fr}
+  .tos-b{background:var(--surface-2);border-radius:12px;padding:12px 14px;min-width:0}
+  .tos-b .tos-bl{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tos-b .tos-bv{display:block;margin-top:2px;font-size:19px;font-weight:700;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tos-b .tos-bc{font-size:12.5px;font-weight:600;color:var(--muted);margin-left:3px}
+  .tos-b.red{background:var(--red-soft);border:1px solid var(--tlm-line);padding:11px 13px}
+  .tos-b.red .tos-bl,.tos-b.red .tos-bv,.tos-b.red .tos-bc{color:var(--tlm-ink)}
+
+  /* 70% ko'rsatkichi. Marker "70%" yorlig'i uchun tepada 22px joy qoldirilgan. */
+  .tos-m{margin-top:20px}
+  .tos-mhd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px}
+  .tos-mhd .tos-ml{color:var(--muted);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tos-mhd .tos-mr{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tos-mhd .tos-mr b{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .tos-mhd .tos-mr .tos-frac{color:var(--muted);font-size:12px;font-weight:600;margin-left:6px}
+  .tos.s-blok .tos-mhd .tos-mr b{color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-mhd .tos-mr b{color:var(--tos-warn)}
+  .tos.s-ochiq .tos-mhd .tos-mr b{color:var(--primary-ink,var(--primary))}
+  .tos-track{position:relative;height:10px;border-radius:999px;background:var(--surface-2);margin-top:22px}
+  .tos-fill{height:100%;max-width:100%;width:0;border-radius:999px;background:var(--red);
+    transition:width .45s cubic-bezier(.22,.61,.36,1),background-color .2s}
+  .tos.s-yaqin .tos-fill{background:var(--tos-warn)}
+  .tos.s-ochiq .tos-fill{background:var(--primary)}
+  /* 70% chizig'i — trekdan tashqariga chiqadi va oq/qora kontur bilan fill ustida ham ko'rinadi */
+  .tos-mark{position:absolute;top:-5px;bottom:-5px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
+    background:var(--ink);opacity:.55;box-shadow:0 0 0 1.5px var(--surface)}
+  .tos-mark i{position:absolute;left:50%;bottom:calc(100% + 5px);transform:translateX(-50%);
+    font-style:normal;font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+  .tos-note{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:13px;line-height:1.45;color:var(--muted)}
+  .tos-note svg{width:15px;height:15px;flex:none;margin-top:2px}
+  .tos-note b{font-weight:700;font-variant-numeric:tabular-nums}
+  .tos.s-blok .tos-note,.tos.s-blok .tos-note b{color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-note,.tos.s-yaqin .tos-note b{color:var(--tos-warn)}
+  .tos.s-ochiq .tos-note b{color:var(--primary-ink,var(--primary))}
+
+  /* To'lanmagan xarajatlar bloki (hodim paneli ichida) */
+  .tos-unpaid{margin-top:16px;background:var(--red-soft);border:1px solid var(--tlm-line);
+    border-radius:12px;padding:10px 14px 12px}
+  .tos-uhd{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    font-size:13px;font-weight:700;color:var(--tlm-ink)}
+  .tos-uhd .tos-uv{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tos-urow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:8px 0 0;margin-top:8px;border-top:1px solid var(--tlm-line);font-size:13px;color:var(--tlm-ink)}
+  .tos-urow .tos-un{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tos-urow .tos-ud{font-size:11.5px;font-weight:600;opacity:.7;margin-left:6px;font-variant-numeric:tabular-nums}
+  .tos-urow .tos-ua{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-uinfo{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:12px;line-height:1.45;
+    color:var(--tlm-ink);opacity:.8}
+  .tos-uinfo svg{width:14px;height:14px;flex:none;margin-top:1px}
+
+  /* ---------- 2.5 Mobil ---------- */
+  @media(max-width:899px){
+    .tos-blok{padding:11px 12px;font-size:13px}
+    .tos-bt{font-size:13.5px}
+  }
+  @media(max-width:480px){
+    .tos-bal{grid-template-columns:1fr}
+    .tos-b .tos-bv{font-size:18px}
+    .tos-hd{gap:8px}
+  }
+
+  /* --- to'siq: hodim kassalari ro'yxati (.krow) --- */
+  .krow .tos-mini{margin-top:6px;max-width:220px}
+  .krow.tlm-on{box-shadow:inset 3px 0 0 var(--red)}
+  .kgh .tos-gchip{display:inline-flex;align-items:center;gap:5px;margin-left:8px;border-radius:999px;
+    padding:2px 8px;font-size:11px;font-weight:700;background:var(--red-soft);color:var(--tlm-ink)}
+  .kgh .tos-gchip svg{width:12px;height:12px}
 </style>
 </head>
 <body>
@@ -212,6 +356,9 @@
     <div class="page-head">
       <h1>Kassa</h1>
       <div class="head-actions">
+        <!-- Hodimga pul berish / qarzni yopish (PROVODKA_XARAJAT_TOSIQ.sql → hodim_kirim_yop).
+             🔴 SQL RUN qilinmagan bo'lsa tugma UMUMAN ko'rinmaydi (display:none saqlanadi). -->
+        <button class="kbtn" id="hkBtn" onclick="openHkirim()" style="display:none"><i data-lucide="hand-coins"></i>Hodimga pul berish</button>
         <button class="kbtn" id="turBtn" onclick="openTur()"><i data-lucide="shuffle"></i>Tur o'tkazish</button>
         <button class="kbtn" id="convBtn" onclick="openConv()"><i data-lucide="arrow-right-left"></i>Konvert</button>
         <div class="mobile-only" style="display:flex;gap:2px">
@@ -286,6 +433,21 @@
     <div class="cv-out"><span class="k" id="tcBalLbl">Manba qoldig'i</span><span class="v" id="tcBal">0</span></div>
     <label>Izoh</label><input class="txt" id="tcNote" placeholder="ixtiyoriy izoh">
     <div class="mrow"><button onclick="closeTur()">Bekor</button><button class="primary" id="tcSave" onclick="turSave()">O'tkazish</button></div>
+  </div></div>
+
+  <!-- Hodimga pul berish. Server: hodim_kirim_yop(p_kassa, p_summa, p_manba, p_izoh) —
+       BITTA entry: avval hodim qarzi (6721+) yopiladi, qolgani kassasiga tushadi.
+       🔴 Klient SAQLASHNI O'ZI BLOKLAMAYDI — 70% to'sig'ini server (trigger + RPC) hal
+          qiladi; rad etilsa 42501 matni AYNAN shu modalda ko'rsatiladi. -->
+  <div class="modal" id="hkModal" onclick="if(event.target===this)closeHkirim()"><div class="sheet">
+    <h3>Hodimga pul berish</h3>
+    <div id="hkMsg" class="cv-msg"></div>
+    <label>Hodim</label><select id="hkKassa"></select>
+    <div class="cv-rate" id="hkInfoBox"><i data-lucide="info"></i><span id="hkInfo">—</span></div>
+    <label>Qayerdan (manba kassa)</label><select id="hkManba"></select>
+    <label>Summa (so'm)</label><input class="txt" id="hkAmount" inputmode="numeric" placeholder="0" oninput="hkFmt(this)">
+    <label>Izoh</label><input class="txt" id="hkNote" placeholder="ixtiyoriy izoh">
+    <div class="mrow"><button onclick="closeHkirim()">Bekor</button><button class="primary" id="hkSave" onclick="hkirimSave()">Berish</button></div>
   </div></div>
 
   <!-- Kassaga bola-hisob qo'shish (faqat admin). Ikki bo'lim:
@@ -501,6 +663,61 @@ function kgroup(lbl,rows){
   return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
     +`<div class="kgrid">${rows.map(kcard).join('')}</div></div>`;
 }
+/* ============ XARAJAT TO'SIG'I — BUGALTER KO'RINISHI (PROVODKA_XARAJAT_TOSIQ.sql) ============
+   Manba: hodim_tosiq_foiz() (chegara) + v_hodim_balans (har hodim: kirim/xarajat/foiz/qarz).
+   🔴 SQL RUN QILINMAGAN BO'LSA hech narsa buzilmaydi: tosMap bo'sh qoladi, .tos-mini va
+      .tlm CHIZILMAYDI, "Hodimga pul berish" tugmasi ko'rinmaydi — qator avvalgidek ishlaydi
+      (renderKassalar() ning "hech qachon bo'sh qolmasin" qoidasi buzilmaydi). */
+let tosOff=false, tosLimit=70, tosMap={};
+
+/* SQL RUN QILINMAGAN holat: funksiya (PGRST202/42883) yoki view (42P01/PGRST205) yo'q.
+   ⚠️ Shart tor: 42501 (ruxsat) va PGRST204 (ustun yo'q) bu yerga TUSHMAYDI. */
+function tosYoq(e){
+  if(!e) return false;
+  const c=String(e.code||'');
+  if(c==='42501'||c==='PGRST204') return false;
+  if(c==='PGRST202'||c==='42883'||c==='42P01'||c==='PGRST205'||c==='PGRST106') return true;
+  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
+  return /function[\s\S]*does not exist/.test(m)
+      || /relation[\s\S]*does not exist/.test(m)
+      || /could not find the (table|function|view)/.test(m);
+}
+/* 🔴 SERVER TO'SIG'I XATOSI — permErr() uni "Ruxsat yo'q" deb umumlashtirmasin.
+   Mezon ANIQ: kod 42501 VA matn hodim_tosiq_msg() shakliga mos. Mos kelsa server matni
+   AYNAN ko'rsatiladi (u odam tilida), aks holda eski yo'l — permErr(). */
+function tosXatosi(e){
+  if(!e) return false;
+  const m=String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'');
+  if(String(e.code||'')!=='42501' && !/42501/.test(m)) return false;
+  return /xarajatga\s+yozmagan/i.test(m) || /avval xarajat yozilsin/i.test(m);
+}
+function xatoMatn(e){
+  if(tosXatosi(e)) return String((e&&e.message)||'').trim();
+  return window.permErr?window.permErr(e):String((e&&e.message)||'');
+}
+// Bitta hodim kassasining to'siq holati. Ma'lumot yo'q bo'lsa null (hech narsa chizilmaydi).
+function tosRow(id){
+  const b=tosMap[id]; if(!b) return null;
+  const k=Number(b.jami_kirim)||0, x=Number(b.jami_xarajat)||0;
+  const lim=(isFinite(tosLimit)&&tosLimit>0)?Number(tosLimit):0;
+  // 🔴 Yaxlitlanmagan foiz saqlanadi: server (hodim_tosiq_blok) AYNAN shu qiymatni
+  //    solishtiradi. Math.round bilan 69.6% -> 70% bo'lib, kassa sahifasi "ochiq"
+  //    ko'rsatar, server esa bloklardi.
+  const pctRaw=(k>0)?(x/k*100):null;
+  const pct=(pctRaw==null)?null:Math.round(pctRaw);
+  // 🔴 jami_kirim = 0 → BLOK YO'Q (server hodim_tosiq_blok bilan bir xil qoida)
+  const blok=(k>0&&lim>0&&pct!=null&&pct<lim);
+  return {pct,lim,blok,st:blok?((pct>=lim-5)?'yaqin':'blok'):'ochiq',
+          qarz:Math.max(0,Number(b.qarz_qoldiq)||0),
+          nom:b.kassa_nom||'',sub:b.subtitle||''};
+}
+function tosMiniHtml(t){
+  if(!t||t.pct==null) return '';                 // hali pul berilmagan — ko'rsatkich yo'q
+  const w=t.pct<=0?0:(t.pct<2?2:Math.min(100,t.pct));
+  const mark=t.lim>0?`<span class="tos-mmark" style="--tos-limit:${t.lim}%"></span>`:'';
+  return `<div class="tos-mini s-${t.st}"><div class="tos-mtrack"><div class="tos-mfill" style="width:${w}%"></div>${mark}</div>`
+    +`<span class="tos-mv">${t.pct}%</span></div>`;
+}
 // Guruh qatori (5400) + uning bolalari: karta emas, nom + kichik kulrang subtitle ro'yxati.
 function krow(r){
   const t=taqsimot(r,false);
@@ -509,14 +726,22 @@ function krow(r){
   // faqat valyutani ko'rsatardi — naqd/Click/Payme umuman ko'rinmasdi.
   const tq=t.qism.length?`<div class="st tq">${t.qism.join(' · ')}</div>`:'';
   const add=`<button class="kadd" title="Valyuta / pul turi qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
-  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}</div>`
+  // 70% ko'rsatkichi + to'lanmagan rozetkasi (faqat ma'lumot kelgan bo'lsa).
+  // 🔴 .tlm-on (chapdagi qizil chiziq) FAQAT qarzi bor hodimda — blok ≠ qarz.
+  const tb=tosRow(r.id);
+  const qarz=tb&&tb.qarz>0;
+  const badge=qarz?`<div class="tlm-row"><span class="tlm">To'lanmagan<span class="tlm-s">· ${money(tb.qarz)}</span></span></div>`:'';
+  return `<div class="krow${qarz?' tlm-on':''}"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}${tosMiniHtml(tb)}${badge}</div>`
     +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
 function kgroupList(lbl,rows){
   const ichi=rows.length ? rows.map(krow).join('')
     : '<div class="krow kempty">Hozircha hodim kassasi yo\'q</div>';
-  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
+  // "N ta bloklangan" chipi — 0 bo'lsa UMUMAN chizilmaydi
+  const bl=rows.filter(r=>{ const t=tosRow(r.id); return !!(t&&t.blok); }).length;
+  const chip=bl?`<span class="tos-gchip"><i data-lucide="lock"></i>${bl} ta bloklangan</span>`:'';
+  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${chip}</span><span class="t">${money(jamiOf(rows))}</span></div>`
     +`<div class="klist">${ichi}</div></div>`;
 }
 function renderKassalar(list){
@@ -587,11 +812,26 @@ async function loadKassalar(){
   // Ikkalasi parallel — lekin render ikkovi kelgach bo'ladi, aks holda karta
   // valyutasiz chizilib, keyin sassiz eskirib qoladi. View hali yaratilmagan
   // bo'lsa xato yutiladi va karta eski ko'rinishda (faqat jami) chiziladi.
-  const [{data,error},{data:vs,error:ve},{data:ts,error:te}]=await Promise.all([
+  const [{data,error},{data:vs,error:ve},{data:ts,error:te},fRes,bRes]=await Promise.all([
     sb.from('v_kassa_card').select('*').order('code'),
     sb.from('v_kassa_valyutalar').select('*').order('code'),
     sb.from('v_kassa_turlar').select('*').order('code'),
+    // To'siq ma'lumoti — mustaqil. Xato bersa jimgina tashlanadi (pastda).
+    tosOff?Promise.resolve({data:null,error:null}):sb.rpc('hodim_tosiq_foiz'),
+    tosOff?Promise.resolve({data:null,error:null}):sb.from('v_hodim_balans')
+      .select('kassa_id,kassa_nom,subtitle,jami_kirim,jami_xarajat,kassa_qoldiq,qarz_qoldiq'),
   ]);
+  // 🔴 SQL RUN QILINMAGAN → tosOff: ko'rsatkichlar chizilmaydi, sahifa avvalgidek ishlaydi.
+  if(tosYoq(fRes.error)||tosYoq(bRes.error)){ tosOff=true; tosMap={}; }
+  else{
+    if(!fRes.error&&fRes.data!=null) tosLimit=Number(fRes.data);
+    if(!bRes.error&&Array.isArray(bRes.data)){
+      const m={}; bRes.data.forEach(b=>{ if(b&&b.kassa_id) m[b.kassa_id]=b; });
+      tosMap=m;
+      // Tugma faqat hodim kassasi BOR bo'lsa (bo'sh ro'yxatli modal ochilmasin)
+      const hb=$('hkBtn'); if(hb) hb.style.display=Object.keys(m).length?'inline-flex':'none';
+    }
+  }
   if(!ve&&vs){ swrSet('valyutalar',vs); kval=kvalIndex(vs); }
   // View bo'lmasa (PROVODKA_VALYUTA.sql RUN qilinmagan) xato jimgina yutiladi —
   // taqsimot() zaxira yo'lga (karta ustunlariga) tushadi, sahifa sinmaydi.
@@ -916,6 +1156,79 @@ window.turSave=async()=>{
   await loadKassalar();
 };
 // /tur o'tkazish
+
+/* ============ HODIMGA PUL BERISH / QARZNI YOPISH ============
+   Server: hodim_kirim_yop(p_kassa, p_summa, p_manba, p_izoh) — BITTA entry:
+     Dt 6721 (qarz yopildi) · Dt hodim kassa (qolgani) / Kt manba kassa.
+   🔴 Klient tomonda SAQLASH BLOKLANMAYDI: hodim to'silgan bo'lsa ham tugma ishlaydi —
+      qarorni SERVER qabul qiladi (42501 + hodim_tosiq_msg matni). UI faqat ogohlantiradi.
+   🔴 Qarz yopish HECH QACHON to'silmaydi (Dt 6721 hodim kassa oilasiga kirmaydi) —
+      ya'ni bloklangan hodimning qarzini bugalter har doim yopa oladi. */
+let hkAll=[];                      // manba kassalar (v_kassa_tanlov / v_kassa_toliq)
+window.hkFmt=el=>{ fmtAmt(el); };
+function hkErr(m){ $('hkMsg').className='cv-msg err'; $('hkMsg').textContent=m; }
+function hkOgoh(m){ $('hkMsg').className='cv-msg pend'; $('hkMsg').textContent=m; }
+window.closeHkirim=()=>$('hkModal').classList.remove('open');
+window.openHkirim=async()=>{
+  $('hkAmount').value=''; $('hkAmount').dataset.a000=''; $('hkNote').value='';
+  $('hkMsg').className='cv-msg'; $('hkMsg').textContent='';
+  $('hkSave').disabled=false; $('hkSave').textContent='Berish';
+  $('hkModal').classList.add('open');
+  // Hodimlar — v_hodim_balans dan (tosMap). SQL yo'q bo'lsa tugma umuman ko'rinmaydi.
+  const hs=Object.keys(tosMap).map(id=>tosMap[id])
+    .sort((a,b)=>String(a.kassa_nom||'').localeCompare(String(b.kassa_nom||'')));
+  $('hkKassa').innerHTML=hs.length
+    ? hs.map(b=>`<option value="${b.kassa_id}">${esc(String(b.kassa_nom||'')+(b.subtitle?' · '+b.subtitle:''))}</option>`).join('')
+    : '<option value="">Hodim kassasi yo\'q</option>';
+  $('hkKassa').onchange=hkPick;
+  // Manba kassalar — tur o'tkazish bilan bir manba
+  let {data,error}=await sb.from('v_kassa_tanlov').select('*').order('code');
+  if(error){ ({data,error}=await sb.from('v_kassa_toliq').select('*').order('code')); }
+  if(error){ hkErr(xatoMatn(error)); return; }
+  hkAll=data||[];
+  const ms=hkAll.filter(r=>(!r.currency||r.currency==='UZS')&&!r.pul_turi
+                          &&r.kassa_turi!==KT_GURUH&&r.kassa_turi!=='xarajat'
+                          &&window.permOpOk(r));
+  $('hkManba').innerHTML=ms.length
+    ? ms.map(r=>`<option value="${r.id}">${esc(accLbl(r))} · ${money(Number(r.uzs)||0)}</option>`).join('')
+    : '<option value="">Mos manba kassa yo\'q</option>';
+  hkPick(); icons();
+};
+function hkPick(){
+  const t=tosRow($('hkKassa').value);
+  const box=$('hkInfo');
+  if(!t){ if(box) box.textContent='—'; $('hkMsg').className='cv-msg'; $('hkMsg').textContent=''; return; }
+  const qism=[];
+  qism.push(t.pct==null?'Hali pul berilmagan':('Xarajatga yozilgan: '+t.pct+'%'+(t.lim>0?(' (to\'siq '+t.lim+'%)'):'')));
+  qism.push(t.qarz>0?('To\'lanmagan qarz: '+money(t.qarz)+' so\'m'):'To\'lanmagan qarz yo\'q');
+  if(box) box.textContent=qism.join(' · ');
+  // Ogohlantirish — TO'SIQ EMAS: tugma ishlayveradi, qarorni server qabul qiladi.
+  if(t.blok){
+    hkOgoh(t.qarz>0
+      ? 'Bu hodim bloklangan — hozircha faqat qarzni yopish mumkin (eng ko\'p '+money(t.qarz)+' so\'m).'
+      : 'Bu hodim bloklangan — 70% xarajat yozilmaguncha yangi pul berilmaydi.');
+  }else{ $('hkMsg').className='cv-msg'; $('hkMsg').textContent=''; }
+}
+window.hkirimSave=async()=>{
+  const p_kassa=$('hkKassa').value, p_manba=$('hkManba').value;
+  const p_summa=Number(($('hkAmount').value||'').replaceAll(' ',''))||0;
+  if(!p_kassa){ hkErr('Hodimni tanlang'); return; }
+  if(!p_manba){ hkErr('Manba kassani tanlang'); return; }
+  if(p_summa<=0){ hkErr('Summa kiriting'); return; }
+  $('hkSave').disabled=true; $('hkSave').textContent='Yuborilmoqda...';
+  const {data,error}=await sb.rpc('hodim_kirim_yop',
+    {p_kassa,p_summa,p_manba,p_izoh:$('hkNote').value||null});
+  $('hkSave').disabled=false; $('hkSave').textContent='Berish';
+  // 🔴 42501 (to'siq) matni AYNAN ko'rsatiladi — permErr() uni umumlashtirmaydi.
+  if(error){ hkErr(xatoMatn(error)); return; }
+  const r=data||{};
+  if(!r.ok){ hkErr(r.error||'Noma\'lum javob'); return; }
+  closeHkirim();
+  // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
+  swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
+  await loadKassalar();
+};
+// /hodimga pul berish
 
 // pul turi bola-hisoblari — "+" modalining ikkinchi bo'limi (faqat admin).
 // Server: create_pul_turi_child(p_parent, p_turi) — admin, idempotent, SECURITY DEFINER.

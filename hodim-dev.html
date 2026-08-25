@@ -188,6 +188,9 @@
   .amtwrap.over .amtbig{color:var(--red)}
   /* display'ni JS block/none qilib almashtiradi — shuning uchun ikonka inline-block */
   .amtwarn{color:var(--red-ink);font-size:13px;font-weight:600;line-height:1.4;margin:var(--s2) 2px 0;text-align:right}
+  /* Hodim kassasida qoldiqdan oshish XATO emas — ortig'i qarz hisobiga (6721+) yoziladi.
+     Shuning uchun bu holatda na `.amtwrap.over` qizil ramkasi, na qizil matn ishlatiladi. */
+  .amtwarn.info{color:var(--muted)}
   .amtwarn::before{content:'';display:inline-block;vertical-align:-3px;width:15px;height:15px;margin-right:6px;
     background:currentColor;-webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
   /* ================= tanlagich maydoni (modda/kassa) ================= */
@@ -461,6 +464,150 @@
   @media(hover:hover){.authbox button:hover{background:var(--primary-press);transform:translateY(-1px)}}
   .authbox button:active{transform:translateY(0)}
   .autherr{color:var(--red-ink);font-size:14px;margin-top:var(--s3);text-align:center;min-height:18px;line-height:1.4}
+  /* ================= XARAJAT TO'SIG'I (.tos-*) + TO'LANMAGAN (.tlm-*) =================
+     Uch xil qizil, uch xil shakl (chalkashmasin):
+       .jr.del / .jcard.del  — O'CHIRILGAN: so'ngan + usti chizilgan (mavjud, tegilmagan)
+       .tlm / .tlm-on        — TO'LANMAGAN: och fonli rozetka + to'ldirilgan nuqta + 3px chekka chiziq
+       .tlm-was              — TO'LANGAN EDI: yolg'iz 7px nuqta + tooltip (tarix)
+       .tos-blok             — BLOK: panel + chapda 3px chiziq (harakat to'silgan)
+     Yangi rang YO'Q. --tlm-* qiymatlari hodim-dev.html dagi --red-ink/--red-line dan,
+     --tos-warn-* esa jurnal-dev.html dagi --amber/--amber-soft dan ko'chirilgan. */
+  :root{--tlm-ink:#b42318;--tlm-line:rgba(217,45,32,.20);--tos-warn:#b54708;--tos-warn-soft:#fef0c7}
+  [data-theme="dark"]{--tlm-ink:#ff8a82;--tlm-line:rgba(255,98,89,.28);--tos-warn:#fdb022;--tos-warn-soft:#2e1e05}
+
+  /* ---------- 2.1 "To'lanmagan" rozetkasi ---------- */
+  .tlm{display:inline-flex;align-items:center;gap:6px;max-width:100%;
+    background:var(--red-soft);color:var(--tlm-ink);border:1px solid var(--tlm-line);
+    border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;line-height:1.55;
+    font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
+  .tlm::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:var(--red)}
+  .tlm svg{width:12px;height:12px}
+  .tlm .tlm-s{font-weight:600;opacity:.85}          /* "· 100 000" qismi */
+  /* Yopilgan (tarix): matnsiz nuqta. Tooltip title= bilan, a11y uchun aria-label ham. */
+  .tlm-was{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:14px;height:14px;margin-left:6px;vertical-align:-2px;cursor:help}
+  .tlm-was::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);opacity:.55;
+    transition:opacity .15s}
+  @media(hover:hover){.tlm-was:hover::before{opacity:1}}
+  .tlm-was:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:50%}
+  /* Qator ichida rozetka o'z qatorida tursin (izoh/teglar bilan yopishmasin) */
+  .tlm-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+
+  /* ---------- 2.2 Blok / ogohlantirish paneli ---------- */
+  .tos-blok{display:flex;gap:10px;align-items:flex-start;background:var(--red-soft);color:var(--tlm-ink);
+    border-radius:12px;padding:12px 14px;margin:0 0 16px;font-size:13.5px;line-height:1.5;
+    box-shadow:inset 3px 0 0 var(--red)}
+  .tos-blok>svg,.tos-blok>i,.tos-msg>svg,.tos-msg>i{flex:none;width:18px;height:18px;margin-top:2px}
+  /* .tos-bx / .tos-bt / .tos-bs / .tos-bh — panel VA banner ichida bir xil ishlaydi */
+  .tos-bx{min-width:0;flex:1}
+  .tos-bt{font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .tos-bs{margin-top:3px}
+  .tos-bs b{font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-bh{margin-top:6px;font-size:12.5px;opacity:.85}   /* nima qilish kerak */
+  .tos-blok.warn{background:var(--tos-warn-soft);color:var(--tos-warn);box-shadow:inset 3px 0 0 var(--tos-warn)}
+  .tos-blok.ok{background:var(--primary-soft);color:var(--primary-ink,var(--primary));
+    box-shadow:inset 3px 0 0 var(--primary)}
+  /* Banner/toast ichida — o'z foni yo'q, .banner ranglarini meros qilib oladi */
+  .tos-msg{display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;box-shadow:none;
+    padding:0;margin:0;border-radius:0;color:inherit}
+
+  /* ---------- 2.3 Mini progress (panel ichida, kassa qatorida) ---------- */
+  .tos-mini{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .tos-mtrack{position:relative;flex:1;min-width:72px;height:6px;border-radius:999px;background:var(--surface-2)}
+  .tos-blok .tos-mtrack{background:var(--surface)}
+  .tos-mfill{height:100%;max-width:100%;border-radius:999px;background:currentColor;
+    transition:width .4s cubic-bezier(.22,.61,.36,1)}
+  .tos-mmark{position:absolute;top:-3px;bottom:-3px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
+    background:var(--ink);opacity:.45}
+  .tos-mini .tos-mv{flex:none;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-mini.s-blok .tos-mfill{background:var(--red)}
+  .tos-mini.s-yaqin .tos-mfill{background:var(--tos-warn)}
+  .tos-mini.s-ochiq .tos-mfill{background:var(--primary)}
+  .tos-mini.s-blok .tos-mv{color:var(--tlm-ink)}
+  .tos-mini.s-yaqin .tos-mv{color:var(--tos-warn)}
+  .tos-mini.s-ochiq .tos-mv{color:var(--primary-ink,var(--primary))}
+
+  /* ---------- 2.4 "Mening hisobim" paneli ---------- */
+  .tos-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .tos-hd h2{margin:0}
+  /* Holat chipi: blok / yaqin / ochiq. Ikonka + matn — rangsiz ham o'qiladi. */
+  .tos-state{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;
+    font-size:12px;font-weight:700;line-height:1.4;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+  .tos-state svg{width:14px;height:14px}
+  .tos.s-blok .tos-state{background:var(--red-soft);color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-state{background:var(--tos-warn-soft);color:var(--tos-warn)}
+  .tos.s-ochiq .tos-state{background:var(--primary-soft);color:var(--primary-ink,var(--primary))}
+
+  .tos-bal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tos-bal.one{grid-template-columns:1fr}
+  .tos-b{background:var(--surface-2);border-radius:12px;padding:12px 14px;min-width:0}
+  .tos-b .tos-bl{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tos-b .tos-bv{display:block;margin-top:2px;font-size:19px;font-weight:700;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tos-b .tos-bc{font-size:12.5px;font-weight:600;color:var(--muted);margin-left:3px}
+  .tos-b.red{background:var(--red-soft);border:1px solid var(--tlm-line);padding:11px 13px}
+  .tos-b.red .tos-bl,.tos-b.red .tos-bv,.tos-b.red .tos-bc{color:var(--tlm-ink)}
+
+  /* 70% ko'rsatkichi. Marker "70%" yorlig'i uchun tepada 22px joy qoldirilgan. */
+  .tos-m{margin-top:20px}
+  .tos-mhd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px}
+  .tos-mhd .tos-ml{color:var(--muted);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tos-mhd .tos-mr{white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tos-mhd .tos-mr b{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .tos-mhd .tos-mr .tos-frac{color:var(--muted);font-size:12px;font-weight:600;margin-left:6px}
+  .tos.s-blok .tos-mhd .tos-mr b{color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-mhd .tos-mr b{color:var(--tos-warn)}
+  .tos.s-ochiq .tos-mhd .tos-mr b{color:var(--primary-ink,var(--primary))}
+  .tos-track{position:relative;height:10px;border-radius:999px;background:var(--surface-2);margin-top:22px}
+  .tos-fill{height:100%;max-width:100%;width:0;border-radius:999px;background:var(--red);
+    transition:width .45s cubic-bezier(.22,.61,.36,1),background-color .2s}
+  .tos.s-yaqin .tos-fill{background:var(--tos-warn)}
+  .tos.s-ochiq .tos-fill{background:var(--primary)}
+  /* 70% chizig'i — trekdan tashqariga chiqadi va oq/qora kontur bilan fill ustida ham ko'rinadi */
+  .tos-mark{position:absolute;top:-5px;bottom:-5px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
+    background:var(--ink);opacity:.55;box-shadow:0 0 0 1.5px var(--surface)}
+  .tos-mark i{position:absolute;left:50%;bottom:calc(100% + 5px);transform:translateX(-50%);
+    font-style:normal;font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+  .tos-note{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:13px;line-height:1.45;color:var(--muted)}
+  .tos-note svg{width:15px;height:15px;flex:none;margin-top:2px}
+  .tos-note b{font-weight:700;font-variant-numeric:tabular-nums}
+  .tos.s-blok .tos-note,.tos.s-blok .tos-note b{color:var(--tlm-ink)}
+  .tos.s-yaqin .tos-note,.tos.s-yaqin .tos-note b{color:var(--tos-warn)}
+  .tos.s-ochiq .tos-note b{color:var(--primary-ink,var(--primary))}
+
+  /* To'lanmagan xarajatlar bloki (hodim paneli ichida) */
+  .tos-unpaid{margin-top:16px;background:var(--red-soft);border:1px solid var(--tlm-line);
+    border-radius:12px;padding:10px 14px 12px}
+  .tos-uhd{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    font-size:13px;font-weight:700;color:var(--tlm-ink)}
+  .tos-uhd .tos-uv{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tos-urow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:8px 0 0;margin-top:8px;border-top:1px solid var(--tlm-line);font-size:13px;color:var(--tlm-ink)}
+  .tos-urow .tos-un{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tos-urow .tos-ud{font-size:11.5px;font-weight:600;opacity:.7;margin-left:6px;font-variant-numeric:tabular-nums}
+  .tos-urow .tos-ua{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+  .tos-uinfo{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:12px;line-height:1.45;
+    color:var(--tlm-ink);opacity:.8}
+  .tos-uinfo svg{width:14px;height:14px;flex:none;margin-top:1px}
+
+  /* ---------- 2.5 Mobil ---------- */
+  @media(max-width:899px){
+    .tos-blok{padding:11px 12px;font-size:13px}
+    .tos-bt{font-size:13.5px}
+  }
+  @media(max-width:480px){
+    .tos-bal{grid-template-columns:1fr}
+    .tos-b .tos-bv{font-size:18px}
+    .tos-hd{gap:8px}
+  }
+
+  /* --- to'siq: hodim sahifasiga moslash --- */
+  .today.tos{padding-bottom:16px}
+  .trow.tlm-on .tic{background:var(--red);color:var(--on-red)}   /* to'lanmagan xarajat — to'ldirilgan ikonka */
+  .trow .tm .tlm-row{margin-top:5px}
+  .tos-skel{margin-top:4px}
+  .tos-skel .skel+.skel{margin-top:8px}
   /* ================= responsiv ================= */
   /* 375px va undan kichik telefon — summani va tashqi bo'shliqni siqamiz */
   @media(max-width:380px){
@@ -599,6 +746,55 @@
 
     </div>
 
+    <!-- ===== Mening hisobim: balans + 70% to'sig'i + to'lanmagan (.tos-*) =====
+         🔴 SQL (PROVODKA_XARAJAT_TOSIQ.sql) RUN qilinmagan bo'lsa bu blok
+         display:none holida qoladi — sahifa avvalgidek to'liq ishlaydi. -->
+    <div class="today sect tos is-load" id="tosSect" style="display:none">
+      <div class="tos-hd">
+        <h2>Mening hisobim</h2>
+        <span class="tos-state" id="tosState" aria-live="polite">
+          <i data-lucide="loader"></i><span>Yuklanmoqda…</span>
+        </span>
+      </div>
+
+      <!-- 1) Balans qatori: qo'ldagi pul + (bo'lsa) to'lanmagan qarz -->
+      <div class="tos-bal one" id="tosBal">
+        <div class="tos-b">
+          <span class="tos-bl">Qo'limdagi pul</span>
+          <span class="tos-bv" id="tosQold">—<span class="tos-bc">so'm</span></span>
+        </div>
+        <div class="tos-b red" id="tosQarzBox" style="display:none">
+          <span class="tos-bl">To'lanmagan</span>
+          <span class="tos-bv" id="tosQarz">—<span class="tos-bc">so'm</span></span>
+        </div>
+      </div>
+
+      <!-- 2) 70% ko'rsatkichi -->
+      <div class="tos-m">
+        <div class="tos-mhd">
+          <span class="tos-ml">Xarajatga yozilgan</span>
+          <span class="tos-mr"><b id="tosPct">—</b><span class="tos-frac" id="tosFrac">—</span></span>
+        </div>
+        <div class="tos-track" id="tosTrack" role="progressbar"
+             aria-labelledby="tosPct" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="tos-fill" id="tosFill" style="width:0%"></div>
+          <span class="tos-mark" id="tosMark" style="--tos-limit:70%" aria-hidden="true"><i>70%</i></span>
+        </div>
+        <div class="tos-note" id="tosNote"><i data-lucide="info"></i><span>—</span></div>
+      </div>
+
+      <!-- 3) To'lanmagan xarajatlar (faqat bor bo'lsa) -->
+      <div class="tos-unpaid" id="tosUnpaid" style="display:none">
+        <div class="tos-uhd">
+          <span>To'lanmagan xarajatlar</span>
+          <span class="tos-uv" id="tosUsum">—</span>
+        </div>
+        <div id="tosUl"></div>
+        <div class="tos-uinfo"><i data-lucide="info"></i>
+          <span>Bugalter pul berganda avtomat yopiladi — hech narsa qilishingiz shart emas.</span></div>
+      </div>
+    </div>
+
     <div class="today sect" id="histSect">
       <div class="histhd">
         <h2>Xarajatlarim</h2>
@@ -718,6 +914,17 @@ function swrClear(){ try{
     .forEach(k=>sessionStorage.removeItem(k));
 }catch(e){} }
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan hisob qoldig'i (null=noma'lum)
+/* qarzOk — SAQLASH YO'LINI tanlaydi: `hodim_xarajat_yoz()` RPC (qarz 6721 yoziladi)
+   yoki eski to'g'ridan-insert. Manba — `xarajat_qarz_versiya()` (>= 2).
+   🔴 NEGA AYNAN SHU BELGI, panelning o'zi emas: `hodim_tosiq_holat` PROVODKA_XARAJAT_TOSIQ.sql
+      dan keladi, `xarajat_qarz_versiya` esa FAQAT PROVODKA_XARAJAT_QARZ.sql da yaratiladi.
+      Ya'ni TOSIQ RUN qilinib QARZ RUN qilinmagan bazada panel ISHLAYDI, lekin
+      `hodim_xarajat_yoz()` ESKI versiyada bo'ladi va `ext_ref` ni JIMGINA tashlab yuboradi —
+      takror-himoya yo'qolib 2026-08-24 dagi "pul ikki marta chiqdi" insidenti qaytardi.
+      Shuning uchun belgi alohida va fail-closed: xato / funksiya yo'q / null → false.
+   ⚠️ `tosOff` bilan CHALKASHTIRMA: u PANELNI yashiradi, bu esa faqat YO'LNI tanlaydi.
+   false (sukut) = ESKI xatti-harakat: to'g'ridan insert + qat'iy "qoldiqdan oshdi" bloki. */
+let qarzOk=false;
 // selSub — kassa ICHIDAN tanlangan pul turi / valyuta hisobi (null = kassaning o'zi).
 // Kassa BITTA tanlanadi (parent), tur esa alohida segmentdan — professional.html'dagi naqsh.
 let selSub=null;
@@ -910,6 +1117,7 @@ function renderKassa(){
     : (ks.length ? 'Kassa tanlang' : 'Kassa biriktirilmagan');
   $('kassaFieldTxt').classList.toggle('ph', !k);   // vizual: tanlanmagan holat kulrang
   renderTurSeg(); renderHero(); renderKassaBal();
+  tosSync();                                     // kassa almashsa "Mening hisobim" paneli yangilanadi
 }
 // Pul turi / valyuta segmenti: kassa tanlangach ICHIDAN tanlanadi (professional.html naqshi).
 // Birinchi tugma "Kassa" — parentning o'z qoldig'i (turga ajratilmagan pul).
@@ -1435,6 +1643,41 @@ function amtVal(){
   const s=String($('summa').value||'');
   return (amtCur==='UZS' ? Number(s.replace(/\D/g,'')) : Number(s.replace(/[^\d.]/g,'')))||0;
 }
+/* 🔴 HODIM KASSASI ILDIZI — server `hodim_kassa_ildiz()` bilan AYNI qoida.
+   Serverga PARENT emas, `effKassa()` (tanlangan tur/valyuta hisobi) ketadi va qarorni
+   server o'sha hisob bo'yicha qabul qiladi — shuning uchun klient ham SHU hisobdan
+   boshlashi shart. Avval parent tekshirilardi va ular ajralib qolardi:
+     • 1 filial  → RPC 22000 ("bu hodim kassasi emas") — hodim umuman saqlay olmasdi;
+     • 2+ filial → taqsimotda qarz mantiqi jimgina o'chib kassa MANFIYGA tushardi.
+   Server mantiqi (2.1-bo'lim): bola-hisob FAQAT ustunlar bo'yicha aniqlanadi
+     (parent_id bor VA (currency<>'UZS' YOKI pul_turi to'la)) → ildiz = parent_id,
+   so'ng ildiz kassa_turi='xarajat' va otasi 5400 (kassa_turi='xarajat_guruh') bo'lishi kerak.
+   🔴 NOMDAN bog'langan ESKI tur hisoblari (5351 "Abrorxo'ja · Naqd" — parent_id/pul_turi
+      BO'SH, faqat `nomParent` ushlaydi) serverda bola deb TANILMAYDI. Bunday hisobda
+      FAIL-CLOSED: null qaytaramiz (qarz yo'li o'chadi, qat'iy blok qoladi).
+   Otaning `kassa_turi` si tekshirilmaydi — 5400 `accounts` ro'yxatidan chiqarilgan
+   (`kassa_turi!=='xarajat_guruh'` filtri), shuning uchun `parent_id` borligi yetarli. */
+function hodimIldizId(){
+  const e=effKassa(); if(!e) return null;
+  if(nomParent(e)) return null;                       // eski, nomdan bog'langan tur hisobi
+  const rid=(e.parent_id && (curOf(e)!=='UZS' || e.pul_turi)) ? e.parent_id : e.id;
+  const r=accounts.find(a=>a.id===rid);
+  return (r && r.kassa_turi==='xarajat' && r.parent_id) ? r.id : null;
+}
+function isHodimKassa(){ return !!hodimIldizId(); }
+/* Qarz yo'li shu EFFEKTIV hisobda serverda ishlamadi (RPC yo'q / "hodim kassasi emas").
+   🔴 `qarzOk` ga tayanmaymiz: u `xarajat_qarz_versiya()` dan keladi va fon `loadTosiq()`
+   uni qayta `true` qilardi — natijada HAR saqlashda o'sha xato takrorlanardi (QA 🟡-B). */
+const qarzYoq=new Set();
+/* Qarz yo'li (hodim_xarajat_yoz RPC) ishlaydimi. 🔴 AYNAN shu shart IKKI joyda ishlatiladi:
+   (1) saqlashda RPC tanlanadi, (2) "qoldiqdan oshdi" bloki yumshatiladi. Ikkisi ajralib
+   qolsa foydalanuvchi saqlay olmaydigan (yoki server rad etadigan) holat tug'ilardi.
+   🔴 VALYUTA hisobi ATAYLAB CHIQARILGAN: server valyuta kassasida qoldiqdan ortiq xarajatni
+      RAD ETADI (PROVODKA_XARAJAT_QARZ.sql), ya'ni qarz tug'ilmaydi — blok qat'iy qoladi. */
+function qarzYoli(){
+  const e=effKassa();
+  return !!(qarzOk && e && !qarzYoq.has(e.id) && accCur()==='UZS' && isHodimKassa());
+}
 // 1-band: summa qoldiqdan oshsa — input qizil, ogohlantirish, Saqlash disabled (server ham rad etadi).
 function updateSave(){
   const amt=amtVal();
@@ -1448,13 +1691,18 @@ function updateSave(){
   const okAmt = !!c && c.uzs>0 && (ac==='UZS' || c.fc>0);
   // Qoldiq tekshiruvi hisob valyutasida: so'm hisobida so'm, valyuta hisobida valyuta miqdori.
   const over = !!c && curBal!=null && ((ac==='UZS'?c.uzs:c.fc) > curBal);
+  // Hodim kassasi + qarz mexanizmi bor → oshgan qism XATO EMAS: server ortig'ini qarz
+  // hisobiga (6721+) yozadi, kassa manfiyga tushmaydi. Blok yo'q, ohang neytral.
+  const qarzli = over && qarzYoli();
   renderKursNote();
   const w=$('amtWarn'), aw=$('amtwrap');
-  if(aw){ aw.classList.toggle('over',over); }
+  if(aw){ aw.classList.toggle('over',over&&!qarzli); }   // qizil ramka faqat HAQIQIY blokda
   if(w){
-    if(over){ w.style.display='block';
+    if(qarzli){ w.className='amtwarn info'; w.style.display='block';
+      w.textContent=`Qoldiqdan ${money(Math.max(0,c.uzs-curBal))} so'm oshdi — ortig'i qarzga yoziladi`; }
+    else if(over){ w.className='amtwarn'; w.style.display='block';
       w.textContent=`Qoldiqdan oshdi · max ${ac==='UZS'?money(curBal)+" so'm":fcTxt(curBal)+' '+ac}`; }
-    else w.style.display='none';
+    else { w.className='amtwarn'; w.style.display='none'; }
   }
   const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
@@ -1470,7 +1718,7 @@ function updateSave(){
     if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!(over&&!qarzli)&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit);
 }
 
 /* ============ TAKROR-HIMOYA + TIMEOUT qatlami (2026-08-24) ============
@@ -1694,6 +1942,111 @@ window.saveHodim=async()=>{
     if(h.holat!=='yoq'&&h.holat!=='chala_tozalandi'){ xarHolatUI(h.holat); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
     // 'yoq' / 'chala_tozalandi' → serverda hech narsa qolmagan, AYNI kalit bilan yozamiz
   }
+  /* ══ QARZ YO'LI — hodim_xarajat_yoz() (PROVODKA_XARAJAT_QARZ.sql) ═══════════════════
+     🔴 IKKI YO'L ATAYLAB saqlanadi: RPC bazada bo'lmasligi mumkin (SQL hali RUN qilinmagan)
+        — u holda pastdagi ESKI to'g'ridan-insert yo'li BAYT-MA-BAYT avvalgidek ishlaydi.
+     NEGA RPC: qoldiqni SERVER o'qiydi (poyga yo'q) va qo'ldagi puldan ORTIG'INI qarz
+        hisobiga (6721+) yozadi — kassa manfiyga tushmaydi, xarajat "To'lanmagan" bo'ladi.
+     🔴 RPC ATOMIK (bitta tranzaksiya: entry + satrlar) — shuning uchun bu yo'lda
+        kompensatsiya `delete` KERAK EMAS va QILINMAYDI.
+     🔴 TAKROR-HIMOYA O'ZGARMAYDI: AYNI `token` `ext_ref` bo'lib ketadi (suffikssiz),
+        takror yuborishda server 23505 + xarajat_saqlash_taqsim BILAN BIR XIL matn qaytaradi
+        → isDup(e) → xarHolat(token) → o'sha oqim. `noaniq()`/timeout mantiqi ham aynan. */
+  if(qarzYoli()){
+    const pq={entry_date:isoDay(nowUz()),
+      description:$('izoh').value||null,
+      source:'manual', status:'posted',
+      kassa_account:kassa.id, dt_account:modda.id, summa:amt,
+      kassa_currency:'UZS', filial_ids:[...selFilials],
+      ext_ref:token};
+    if(davrRequired()){ const dv=davrVals(); pq.davr_start=dv.s; pq.davr_end=dv.e; }
+    if(isKomm()&&kommTuri) pq.kommunal_turi=kommTuri;
+    const rq=await qTimeout(sb.rpc('hodim_xarajat_yoz',{p_data:pq}));
+    const eq=rq.error;
+    // ZAXIRAGA TUSHISH (ikki holat, ikkalasida ham serverda HECH NARSA yozilmagan):
+    //   • RPC yo'q (PGRST202/42883) — SQL RUN qilinmagan;
+    //   • server "bu hodim kassasi emas" dedi (klient ustunlar bo'yicha xulosa qiladi,
+    //     server esa 5400 otasini ham tekshiradi). Bunda faqat qoldiqdan OSHMAGAN summa
+    //     eski yo'lga o'tadi — aks holda eski yo'l kassani manfiyga tushirardi.
+    // 🟡-B: natija SHU HISOB uchun `qarzYoq` ga yoziladi. Faqat `qarzOk=false` qilish
+    //       yetmaydi — muvaffaqiyatdan keyingi fon `loadTosiq()` uni versiya bo'yicha
+    //       qayta `true` qilardi va har saqlashda o'sha behuda round-trip takrorlanardi.
+    const notHodim = !!eq && /hodim kassasi emas/i.test(String(eq.message||''));
+    const oshdi = curBal!=null && amt>curBal;
+    // 🔴 `!oshdi` — UMUMIY qorovul, faqat `notHodim` shoxida emas. Sabab:
+    //    `hodim_xarajat_yoz` `hodim_kassa_ildiz()` ni TO'G'RIDAN chaqiradi, ya'ni
+    //    XARAJAT_TOSIQ.sql RUN qilinmagan (yoki rollback qilingan) bazada 42883
+    //    beradi va `tosYoq(eq)` rost bo'ladi. Busiz qoldiqdan OSHGAN summa eski
+    //    to'g'ridan-insert yo'liga tushib `Kt kassa = to'liq summa` yozardi va
+    //    kassa JIMGINA MANFIYGA tushardi — "Saqlandi" deb ko'rsatib.
+    if(eq && !oshdi && (tosYoq(eq) || notHodim)){
+      // Pastdagi ESKI to'g'ridan-insert yo'liga tushamiz (jimgina).
+      qarzYoq.add(kassa.id);              // shu hisobda qayta urinilmaydi
+      if(tosYoq(eq)) qarzOk=false;        // funksiyaning O'ZI yo'q → butun sahifada o'chadi
+    } else {
+      // 🔴 TARTIB oddiy yo'l bilan AYNI: (1) 23505 aniq javob, (2) noaniq, (3) aniq xato.
+      if(eq&&isDup(eq)){
+        const h=await xarHolat(token);
+        if(h.holat==='toliq'){ xarAllaqachon(); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+        // 23505 kelgan — token bazada BOR: 'yoq' = "yozuv yo'q" EMAS, "egalikni tasdiqlab
+        // bo'lmadi". "Saqlanmadi" desak hodim qaytadan kiritib pul IKKI MARTA chiqardi.
+        xarHolatUI((h.holat==='yoq')?'nomalum':h.holat); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+      }
+      // Javob yo'qoldi (timeout / status 0 / 5xx) — RPC bajarilgan bo'lishi mumkin, kalit SAQLANADI.
+      if(noaniq(rq)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+      if(eq){ tokenTugat();
+        // 🟡-E: server matni ("…hodim_xarajat_yoz faqat hodim kassalari uchun") texnik —
+        // hodimga ma'nosiz. Odam tilidagi xabar bilan almashtiramiz, qolgan xatolar o'z holicha.
+        if(notHodim) qarzYoq.add(kassa.id);
+        toast(notHodim?'Bu kassa hodim kassasi sifatida sozlanmagan — adminga murojaat qiling':xatoMatn(eq),true);
+        resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+      const dq=rq.data||null;
+      if(!dq||!dq.entry_id){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+      // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
+      tokenTugat(); bannerYop();   // kalit ishlatildi — keyingi xarajat YANGI kalit oladi
+      console.timeEnd('hodim:saqlash');
+      const eid=dq.entry_id;
+      // 🔴 Optimistik qoldiq FAQAT kassadan CHIQQAN qism bo'yicha kamayadi: qarzga
+      //    yozilgan qism kassadan chiqmaydi (butun `amt` ayirilsa qoldiq manfiy ko'rinardi).
+      const kChiq=(dq.kassa_summa==null)?amt:(Number(dq.kassa_summa)||0);
+      const qarzS=Math.max(0,Number(dq.tolanmagan_summa)||0);
+      const kId=kassa.id, kName=kassa.name, kSub=kassa.subtitle, mName=modda.name, chekUp=chekBlob;
+      const izohQ=$('izoh').value||'';
+      if(balMap[kId]){ balMap[kId]={uzs:Number(balMap[kId].uzs)-kChiq,fc:Number(balMap[kId].fc)};
+        swrSet('bal',balMap);            // kesh ham yangilansin — reload eski raqamni ko'rsatmasin
+        renderTurSeg(); renderHero(); renderKassaBal(); }
+      // Forma darrov tozalanadi (kassa + tur qoladi — ketma-ket yozish oson)
+      $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
+      davrS=null; davrE=null;
+      removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+      btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
+      // Qarz tug'ilgan bo'lsa ANIQ aytamiz: toast qisqa, banner esa yopilmaguncha turadi.
+      if(qarzS>0){
+        toast('Saqlandi · '+money(qarzS)+' so\'m qarzga yozildi');
+        xarBanner('Qoldiq yetmadi — '+money(qarzS)+' so\'m "To\'lanmagan" bo\'lib qarz hisobiga yozildi.',
+          [{label:'Yopish',fn:bannerYop}]);
+      } else toast('Saqlandi');
+      setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
+      // ==== FON: chek upload + n8n alert + haqiqiy qoldiq/oy/tarix/hisob ====
+      (async()=>{
+        if(chekUp){
+          try{
+            const {error:eu}=await sb.storage.from('xarajat-cheklari').upload(`${kId}/${eid}.jpg`, chekUp, {contentType:'image/jpeg',upsert:true});
+            if(eu) toast('Xarajat saqlandi, lekin chek yuklanmadi',true);
+          }catch(e){ toast('Xarajat saqlandi, lekin chek yuklanmadi',true); }
+        }
+        if(amt>=500000){
+          try{
+            const payload={summa:amt, hodim:(kName||myName||''), modda:(mName||''), kassa:(kSub||''), izoh:izohQ};
+            const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload));
+            fetch(url,{keepalive:true}).catch(()=>{});
+          }catch(e){}
+        }
+        loadBalances(); loadHist(); loadMonth(); loadTosiq();   // haqiqiy qiymatlar bilan to'g'rila
+      })();
+      return;
+    }
+  }
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi (tanlangan tur hisobi).
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
   // trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
@@ -1730,7 +2083,7 @@ window.saveHodim=async()=>{
   if(noaniq(r1)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   if(e1){
     // Server ANIQ xato qaytardi (4xx) → yozuv tushmagani ma'lum, kalitni bo'shatamiz.
-    tokenTugat(); toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+    tokenTugat(); toast(xatoMatn(e1),true); resetBtn(); console.timeEnd('hodim:saqlash'); return;
   }
   // Xato yo'q, lekin id ham yo'q (kutilmagan javob) — ko'r-ko'rona davom etmaymiz.
   if(!ent||!ent.id){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
@@ -1746,7 +2099,7 @@ window.saveHodim=async()=>{
   // qayta urinishda xarajat_qayta_urinish() chala yozuvni o'zi tozalaydi ('chala_tozalandi').
   // (entry_line'da ext_ref yo'q — shuning uchun bu yerda 23505 shoxi ham yo'q.)
   if(noaniq(r2)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); tokenTugat(); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); tokenTugat(); toast(xatoMatn(e2),true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
   tokenTugat(); bannerYop();   // kalit ishlatildi — keyingi xarajat YANGI kalit oladi
   console.timeEnd('hodim:saqlash');
@@ -1779,7 +2132,7 @@ window.saveHodim=async()=>{
         fetch(url,{keepalive:true}).catch(()=>{});
       }catch(e){}
     }
-    loadBalances(); loadHist(); loadMonth();   // haqiqiy qiymatlar bilan to'g'rila
+    loadBalances(); loadHist(); loadMonth(); loadTosiq();   // haqiqiy qiymatlar bilan to'g'rila
   })();
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
@@ -1903,25 +2256,37 @@ window.confirmTaqsim=async()=>{
   if(error){
     // Aniq xato (4xx) → yozuv tushmagan, kalit bo'shatiladi (keyingi urinish yangi kalit oladi).
     tokenTugat();
-    $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; taqsimBtnTikla(); return;
+    $('taqsimMsg').textContent=xatoMatn(error); $('taqsimMsg').className='tmsg no'; taqsimBtnTikla(); return;
   }
   tokenTugat(); bannerYop();   // kalit ishlatildi
   const eids=(data&&data.entry_ids)||[];
   const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
   closeTaqsim();
-  // Optimistik qoldiq (butun summa chiqdi)
-  if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-amt,
+  /* 🔴 Optimistik qoldiq KASSADAN CHIQQAN qism bo'yicha (oddiy yo'l bilan bir xil):
+     taqsimot ham endi qo'ldagi puldan ortig'ini qarz hisobiga (6721+) yozadi, u qism
+     kassadan CHIQMAYDI. Butun `amt` ayirilsa qoldiq MANFIY ko'rinardi.
+     🔴 Eski RPC (kalit yo'q) → `amt` ga qaytamiz, ya'ni xatti-harakat avvalgidek. */
+  const tqKassa=(data&&data.kassa_summa!=null)?(Number(data.kassa_summa)||0):amt;
+  const tqQarz=Math.max(0,Number(data&&data.tolanmagan_summa)||0);
+  if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-tqKassa,
     fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; swrSet('bal',balMap);   // kesh ham yangilansin
     renderTurSeg(); renderHero(); renderKassaBal(); }
   // Forma tozalanadi (kassa + tur qoladi)
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
-  toast('Saqlandi · '+nFil+' filial');
+  // Qarz tug'ilgan bo'lsa ANIQ aytamiz (oddiy yo'ldagi bilan bir xil: toast + banner).
+  if(tqQarz>0){
+    toast('Saqlandi · '+nFil+' filial · '+money(tqQarz)+' so\'m qarzga yozildi');
+    xarBanner('Qoldiq yetmadi — '+money(tqQarz)+' so\'m "To\'lanmagan" bo\'lib qarz hisobiga yozildi.',
+      [{label:'Yopish',fn:bannerYop}]);
+  } else toast('Saqlandi · '+nFil+' filial');
   // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
   (async()=>{
     if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
     if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
-    loadBalances(); loadHist(); loadMonth();
+    // loadTosiq() — taqsimot ham server tomonda qarz (6721) yozadi (PROVODKA_XARAJAT_QARZ.sql
+    // 2-BO'LIM), shuning uchun "Mening hisobim" paneli darrov yangilansin. FAQAT fon: `await` YO'Q.
+    loadBalances(); loadHist(); loadMonth(); loadTosiq();
   })();
 };
 
@@ -1934,6 +2299,242 @@ function toast(msg,err){
   $('toastIc').innerHTML=`<i data-lucide="${err?'alert-circle':'check-circle-2'}"></i>`; icons();
   t.classList.add('show'); clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'), err?2600:1600);
+}
+
+/* ==================== XARAJAT TO'SIG'I (70%) + TO'LANMAGAN ====================
+   Manba: PROVODKA_XARAJAT_TOSIQ.sql
+     hodim_tosiq_holat(p_kassa)   -> {foiz, kerak_foiz, blok, jami_kirim, jami_xarajat,
+                                      kassa_qoldiq, qarz_qoldiq, yetishmaydi_summa}
+     hodim_tolanmagan_bir(p_kassa)-> to'lanmagan xarajatlar (FIFO), hali_ochiq bayrog'i
+       (v_hodim_tolanmagan ning BITTA kassa uchun arzon varianti — view hamma hodim
+        bo'yicha lateral hisoblaydi, bu yerda bitta kassa yetadi)
+
+   🔴 SQL RUN QILINMAGAN BO'LSA hech narsa buzilmaydi: birinchi "funksiya/jadval yo'q"
+      xatosida tosOff=true bo'lib panel JIMGINA yashirinadi, rozetkalar chizilmaydi,
+      sahifa avvalgidek to'liq ishlaydi (jurnal v2Off / ai xotira rejimi naqshi).
+   🔴 BU PANEL TO'SIQ EMAS — u faqat ko'rsatkich. Haqiqiy to'siq server triggerida
+      (trg_hodim_tosiq_entry_line). Xarajat yozish hech qachon to'silmaydi va bu panel
+      "Saqlash" tugmasiga UMUMAN tegmaydi. */
+let tosOff=false;          // SQL yo'q → butunlay jim
+/* tosSeen — bu brauzer sessiyasida to'siq RPC'lari HECH BO'LMAGANDA BIR MARTA javob berdimi.
+   Sabab: SQL RUN qilinmagan bazada avval skeleton ochilib, keyin RPC 404 qaytgach panel
+   yashirinardi — foydalanuvchi "Mening hisobim · Yuklanmoqda…" ni bir zumga ko'rib qolardi.
+   Endi skeleton FAQAT tasdiqdan keyin chiziladi (birinchi javobgacha panel umuman yo'q).
+   🔴 Faqat MUSBAT javob eslanadi (swr naqshi, sessionStorage): salbiy holat keshlansa,
+      SQL bugun RUN qilingach ham panel eski sessiyada paydo bo'lmay qolardi. */
+let tosSeen=swrGet('tosok',864e5)===true;
+let tosKassa=null;         // panel qaysi kassa uchun yuklangan
+let tosBusy=false, tosYana=false;   // bir vaqtda bitta so'rov (loadBalances naqshi)
+let tosData=null;          // hodim_tosiq_holat javobi
+let tosTplOn=false;        // #tosSect ichida to'liq shablon turibdimi (skeleton emas)
+let tosTpl='';             // §4.2 shabloni (birinchi skeletondan OLDIN DOM'dan olinadi)
+let tlmRows=[];            // to'lanmagan qatorlar (shu kassa)
+let tlmMap={};             // entry_id → {ochiq:bool, summa:number}
+const TOS_OY=['yan','fev','mar','apr','may','iyn','iyl','avg','sen','okt','noy','dek'];
+const tosSana=s=>{ const p=String(s||'').split('-'); return p.length===3?(+p[2])+' '+(TOS_OY[+p[1]-1]||''):''; };
+
+/* SQL RUN QILINMAGAN holat: funksiya (PGRST202/42883) yoki view/jadval (42P01/PGRST205) yo'q.
+   ⚠️ Shart ATAYLAB tor: 42501 (ruxsat) va PGRST204 (ustun yo'q) bu yerga TUSHMAYDI —
+   haqiqiy xato jimgina yashirinib sabab yo'qolmasin (jurnal `yoqFn` naqshi). */
+function tosYoq(e){
+  if(!e) return false;
+  const c=String(e.code||'');
+  if(c==='42501'||c==='PGRST204') return false;
+  if(c==='PGRST202'||c==='42883'||c==='42P01'||c==='PGRST205'||c==='PGRST106') return true;
+  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
+  return /function[\s\S]*does not exist/.test(m)
+      || /relation[\s\S]*does not exist/.test(m)
+      || /could not find the (table|function|view)/.test(m);
+}
+
+/* 🔴 SERVER TO'SIG'I XATOSI — permErr() uni yutib yubormasin.
+   Trigger (trg_hodim_tosiq_entry_line) va hodim_kirim_yop 42501 bilan rad etadi, matn esa
+   hodim_tosiq_msg() dan keladi va ODAM TILIDA yozilgan. permErr() esa har qanday 42501 ni
+   "Ruxsat yo'q: bu kassada amaliyot qilish huquqingiz yo'q" ga aylantiradi — foydali matn
+   yo'qoladi. Mezon ANIQ: kod 42501 VA matn hodim_tosiq_msg() shakliga mos. Mos kelsa
+   server matni AYNAN ko'rsatiladi, aks holda eski yo'l (permErr) o'zgarishsiz qoladi. */
+function tosXatosi(e){
+  if(!e) return false;
+  const m=String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'');
+  if(String(e.code||'')!=='42501' && !/42501/.test(m)) return false;
+  return /xarajatga\s+yozmagan/i.test(m) || /avval xarajat yozilsin/i.test(m);
+}
+function xatoMatn(e){
+  if(tosXatosi(e)) return String((e&&e.message)||'').trim();
+  return window.permErr?window.permErr(e):String((e&&e.message)||'');
+}
+
+function tosSkelHtml(){
+  return `<div class="tos-hd"><h2>Mening hisobim</h2>`
+    +`<span class="tos-state"><i data-lucide="loader"></i><span>Yuklanmoqda…</span></span></div>`
+    +`<div class="tos-bal one"><div class="tos-b">`
+    +`<div class="skel" style="width:44%"></div>`
+    +`<div class="skel" style="width:62%;height:18px;margin-top:8px"></div></div></div>`
+    +`<div class="tos-m tos-skel"><div class="skel" style="width:38%"></div>`
+    +`<div class="skel" style="width:100%;height:10px;margin-top:16px"></div>`
+    +`<div class="skel" style="width:70%"></div></div>`;
+}
+function tosHide(){ const el=$('tosSect'); if(el) el.style.display='none'; }
+
+// Kassa almashsa panelni qayta yuklaydi (renderKassa har tanlovdan keyin chaqiradi).
+function tosSync(){
+  if(tosOff) return;
+  if(selKassa===tosKassa) return;
+  tosKassa=selKassa;
+  tosData=null; tlmRows=[]; tlmMap={}; tosTplOn=false;
+  loadTosiq();
+}
+
+async function loadTosiq(){
+  if(tosOff) return;
+  const el=$('tosSect'); if(!el) return;
+  const kassa=selKassa;
+  if(!kassa){ tosHide(); return; }
+  // Band bo'lsa yangi so'rov TASHLANMAYDI — tugagach qayta chaqiriladi (kassa almashsa
+  // panel eski hodimda qotib qolmasin).
+  if(tosBusy){ tosYana=true; return; }
+  tosBusy=true;
+  try{
+    // Skeleton faqat ma'lumot HALI yo'q bo'lsa — yangilashda raqamlar miltillamaydi.
+    // 🔴 va faqat RPC borligi TASDIQLANGACH (tosSeen) — SQL RUN qilinmagan bazada panel
+    //    bir zumga ham ko'rinmasin (yuqoridagi tosSeen izohi).
+    if(!tosTpl) tosTpl=el.innerHTML;             // §4.2 shabloni saqlanadi (skeletondan OLDIN)
+    if(!tosTplOn && tosSeen){
+      el.className='today sect tos is-load';
+      el.innerHTML=tosSkelHtml(); el.style.display='block'; icons();
+    }
+    // 🔴 Versiya belgisi AYNI Promise.all ichida — alohida round-trip qo'shilmaydi.
+    const [hRes,uRes,vRes]=await Promise.all([
+      sb.rpc('hodim_tosiq_holat',{p_kassa:kassa}),
+      sb.rpc('hodim_tolanmagan_bir',{p_kassa:kassa}),
+      sb.rpc('xarajat_qarz_versiya')
+    ]);
+    if(kassa!==selKassa) return;                 // kassa almashdi — eski javob tashlanadi
+    /* ── SAQLASH YO'LI (paneldan MUSTAQIL, tosOff dan OLDIN hisoblanadi) ──────────
+       versiya >= 2 ⇒ hodim_xarajat_yoz() `ext_ref` ni qabul qiladi VA taqsimotda ham
+       qarz mantiqi bor. Funksiya yo'q / xato / null ⇒ false: eski to'g'ridan-insert
+       yo'li va "qoldiqdan oshdi" QAT'IY bloki (yuqoridagi qarzOk izohiga qara).
+       🔴 Panel xato bersa ham (tosOff) bu qiymat o'z holicha qoladi — ikki mexanizm
+          bir-biriga bog'lanmaydi. */
+    const qarzYangi = !vRes.error && Number(vRes.data)>=2;
+    if(qarzOk!==qarzYangi){
+      qarzOk=qarzYangi;
+      // 🟡-C: updateSave() faqat holat O'ZGARGANDA va SAQLASH ketmayotganda. Saqlash
+      //       davomida (tugmada spinner) u tugmani qayta YOQIB yuborardi → ikki marta
+      //       bosish xavfi. Tugma holati resetBtn()/muvaffaqiyatda baribir qayta hisoblanadi.
+      const sb2=$('saveBtn');
+      if(!(sb2 && sb2.disabled && /class="spin"/.test(sb2.innerHTML))) updateSave();
+    }
+    // SQL yo'q → butunlay jim (sahifa avvalgidek ishlaydi)
+    if(tosYoq(hRes.error)||tosYoq(uRes.error)){
+      // 🔴 FAQAT panel o'chadi. `qarzOk` ga TEGILMAYDI — u yuqorida `xarajat_qarz_versiya()`
+      //    dan aniqlangan (panel yo'qligi saqlash yo'lini belgilamaydi).
+      tosOff=true;
+      tosData=null; tlmRows=[]; tlmMap={}; tosTplOn=false;
+      tosHide(); if(histRows.length) renderHistList(); return;
+    }
+    if(hRes.error){                              // haqiqiy xato — sabab ko'rsatiladi
+      tosData=null; tosTplOn=false;
+      el.className='today sect tos';
+      el.innerHTML='<div class="today-err">Hisob yuklanmadi — '+esc(xatoMatn(hRes.error))+'</div>';
+      el.style.display='block'; icons(); return;
+    }
+    if(!tosSeen){ tosSeen=true; swrSet('tosok',true); }
+    tosData=hRes.data||null;
+    // To'lanmagan ro'yxati xato bersa panel baribir ko'rsatiladi (qarz summasi holatda bor)
+    tlmRows=(!uRes.error&&Array.isArray(uRes.data))?uRes.data:[];
+    tlmMap={};
+    tlmRows.forEach(r=>{ if(r&&r.entry_id) tlmMap[r.entry_id]={ochiq:!!r.hali_ochiq,summa:Number(r.ochiq_summa)||0}; });
+    renderTosiq();
+    // Rozetkalar tarix ro'yxatida ham chiqsin. 🔴 Ro'yxat HALI yuklanmagan bo'lsa
+    // tegilmaydi — aks holda skeleton o'rniga "Bu davrda xarajat yo'q" chiqib ketardi.
+    if(histRows.length) renderHistList();
+  }catch(e){ /* tarmoq — panel eski holatida qoladi */ }
+  finally{ tosBusy=false; if(tosYana){ tosYana=false; loadTosiq(); } }
+}
+window.loadTosiq=loadTosiq;
+
+function renderTosiq(){
+  const el=$('tosSect'); if(!el||!tosData) return;
+  if(!tosTplOn){ el.innerHTML=tosTpl; tosTplOn=true; }
+  const k=Number(tosData.jami_kirim)||0;
+  const x=Number(tosData.jami_xarajat)||0;
+  const limit=Number(tosData.kerak_foiz);
+  const lim=(isFinite(limit)&&limit>0)?limit:0;
+  const pct=(k>0)?Math.round(x/k*100):null;
+  const yet=Math.max(0,Math.round(Number(tosData.yetishmaydi_summa)||0));
+  const qarz=Math.max(0,Number(tosData.qarz_qoldiq)||0);
+  // Holat: server `blok` bayrog'i AVTORITAR. "Oz qoldi" — bloklangan, lekin chegaraga 5% qolgan.
+  let st='ochiq';
+  if(k>0&&tosData.blok===true) st=(pct!=null&&lim>0&&pct>=lim-5)?'yaqin':'blok';
+  el.className='today sect tos s-'+st;
+  el.style.display='block';
+
+  // 1) chip
+  const chip=$('tosState');
+  if(chip) chip.innerHTML=(st==='ochiq')
+    ? '<i data-lucide="unlock"></i><span>Kirim ochiq</span>'
+    : (st==='yaqin' ? '<i data-lucide="lock"></i><span>Oz qoldi</span>'
+                    : '<i data-lucide="lock"></i><span>Kirim yopiq</span>');
+
+  // 2) balans kataklari
+  const qold=$('tosQold');
+  if(qold) qold.innerHTML=money(Math.max(0,Number(tosData.kassa_qoldiq)||0))+'<span class="tos-bc">so\'m</span>';
+  const qbox=$('tosQarzBox'), bal=$('tosBal');
+  if(qbox) qbox.style.display=qarz>0?'block':'none';
+  if(bal) bal.classList.toggle('one',!(qarz>0));
+  const qEl=$('tosQarz');
+  if(qEl&&qarz>0) qEl.innerHTML=money(qarz)+'<span class="tos-bc">so\'m</span>';
+
+  // 3) 70% ko'rsatkichi
+  const pEl=$('tosPct'); if(pEl) pEl.textContent=(pct==null)?'—':(pct+'%');
+  const fEl=$('tosFrac'); if(fEl) fEl.textContent=(k>0)?(money(x)+' / '+money(k)+' so\'m'):'—';
+  const w=(pct==null||pct<=0)?0:(pct<2?2:Math.min(100,pct));
+  const fill=$('tosFill'); if(fill) fill.style.width=w+'%';
+  const tr=$('tosTrack'); if(tr) tr.setAttribute('aria-valuenow',String(pct==null?0:Math.min(100,pct)));
+  const mark=$('tosMark');
+  if(mark){
+    if(lim>0){ mark.style.display=''; mark.style.setProperty('--tos-limit',lim+'%');
+      const lbl=mark.querySelector('i'); if(lbl) lbl.textContent=(Math.round(lim*10)/10)+'%'; }
+    else mark.style.display='none';               // to'siq o'chirilgan — chiziq ham yo'q
+  }
+  const note=$('tosNote');
+  if(note){
+    let t;
+    if(k<=0) t='Hali pul olinmagan.';
+    else if(st==='blok') t='Yana <b>'+money(yet)+'</b> so\'m xarajat yozsangiz kirim ochiladi.';
+    else if(st==='yaqin') t='Oz qoldi — yana <b>'+money(yet)+'</b> so\'m yozilsa kirim ochiladi.';
+    else if(pct!=null&&pct<=100) t='Kirim ochiq — olingan pulning <b>'+pct+'%</b> i yozilgan.';
+    else t='Kirim ochiq.';
+    note.innerHTML='<i data-lucide="info"></i><span>'+t+'</span>';
+  }
+
+  // 4) to'lanmagan xarajatlar (faqat ochiq qatorlar, eng katta 3 tasi)
+  const up=$('tosUnpaid');
+  const ochiq=tlmRows.filter(r=>r&&r.hali_ochiq).slice()
+    .sort((a,b)=>(Number(b.ochiq_summa)||0)-(Number(a.ochiq_summa)||0));
+  if(up){
+    if(!ochiq.length) up.style.display='none';
+    else{
+      up.style.display='block';
+      const jami=ochiq.reduce((s,r)=>s+(Number(r.ochiq_summa)||0),0);
+      const us=$('tosUsum'); if(us) us.textContent=money(jami);
+      const ul=$('tosUl');
+      if(ul){
+        const top=ochiq.slice(0,3);
+        let h=top.map(r=>{
+          const hr=histRows.find(z=>z.entry_id===r.entry_id);
+          const nom=(hr&&hr.modda_name)||'Xarajat';
+          return '<div class="tos-urow"><span class="tos-un">'+esc(nom)
+            +'<span class="tos-ud">'+esc(tosSana(r.sana))+'</span></span>'
+            +'<span class="tos-ua">'+money(Number(r.ochiq_summa)||0)+'</span></div>';
+        }).join('');
+        if(ochiq.length>top.length) h+='<div class="tos-urow"><span class="tos-un">yana '+(ochiq.length-top.length)+' ta</span></div>';
+        ul.innerHTML=h;
+      }
+    }
+  }
+  icons();
 }
 
 // --- 2-band (V5): hodim o'z tarixi (davr chip + kategoriya xulosa + ro'yxat) ---
@@ -1988,8 +2589,15 @@ function renderHistList(){
     let t=''; try{ t=new Date(new Date(r.created_at).getTime()+5*3600*1000).toISOString().slice(5,16).replace('T',' '); }catch(x){}
     const izoh=r.izoh?' · '+esc(r.izoh):'';
     const chek=(r.kassa_id&&histChek.has(r.kassa_id+'/'+r.entry_id))?`<button type="button" class="chekpin" title="Chekni ochish" onclick="openChek('${r.kassa_id}','${r.entry_id}')"><i data-lucide="paperclip"></i></button>`:'';
-    return `<div class="trow"><div class="tic"><i data-lucide="arrow-up-right"></i></div>`
-      +`<div class="tm"><div class="tt">${esc(r.modda_name||'Xarajat')}</div><div class="ts">${t}${izoh}</div></div>`
+    // To'lanmagan status (.tlm). SQL yo'q bo'lsa tlmMap bo'sh — hech narsa qo'shilmaydi.
+    // 🔴 .ta (summa) TEGILMAYDI — u to'liq xarajat; rozetkadagi raqam faqat to'lanmagan qismi.
+    const tl=tlmMap[r.entry_id];
+    const tOchiq=!!(tl&&tl.ochiq), tYopiq=!!(tl&&!tl.ochiq);
+    const tlmAttr=tl?` data-tlm="${tOchiq?'ochiq':'yopiq'}"`:'';
+    const was=tYopiq?`<span class="tlm-was" role="img" tabindex="0" title="Avval to'lanmagan edi — yopilgan" aria-label="Avval to'lanmagan edi, yopilgan"></span>`:'';
+    const badge=tOchiq?`<div class="tlm-row"><span class="tlm">To'lanmagan<span class="tlm-s">· ${money(tl.summa)}</span></span></div>`:'';
+    return `<div class="trow${tOchiq?' tlm-on':''}"${tlmAttr}><div class="tic"><i data-lucide="arrow-up-right"></i></div>`
+      +`<div class="tm"><div class="tt">${esc(r.modda_name||'Xarajat')}${was}</div><div class="ts">${t}${izoh}</div>${badge}</div>`
       +chek+`<div class="ta">− ${money(amt)}</div></div>`;
   }).join('');
   icons();
