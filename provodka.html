@@ -127,6 +127,218 @@
   /* kassa-chips */
   .kchip .sub{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
   /* /kassa-chips */
+
+  /* ================================================================
+     MAXSUS MAYDONLAR (.mxd-*) — xarajat formasida.
+     🔴 BU BLOK UCHALA FAYLDA AYNAN BIR XIL. Faqat kesishma tokenlar
+     ishlatilgan; kuchli variantlar fallback bilan (hodimda --*-ink bor,
+     boshqalarida yo'q). Bo'shliqlar 4/8 shkalasida, literal px —
+     hodimdagi --s* o'zgaruvchilari boshqa ikki faylda mavjud emas.
+     Mavjud .sect / .lbl / .txt / .fchip qoidalari QAYTA TA'RIFLANMAGAN.
+     ================================================================ */
+  .mxd{margin-bottom:20px}
+  .mxd-f{margin-bottom:20px;animation:mxdIn .22s cubic-bezier(.22,.61,.36,1)}
+  .mxd-f:last-child{margin-bottom:0}
+  @keyframes mxdIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.mxd-f{animation:none}}
+  /* .txt sahifaning O'ZINIKI (hodim 52px, professional/provodka 46px) — faqat provodkadagi
+     margin-bottom:15px neytrallanadi, aks holda maydonlar orasi ikki xil bo'lardi. */
+  .mxd-f .txt{margin-bottom:0}
+
+  .mxd-lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 8px 2px;
+    display:flex;align-items:center;gap:8px;min-height:18px;flex-wrap:wrap}
+  .mxd-optl{font-weight:500;opacity:.9}
+  .mxd-rq{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;
+    background:var(--red-soft);color:var(--red-ink,var(--red));
+    font-size:11px;font-weight:700;letter-spacing:.01em}
+
+  /* --- Qidiruv (>10 element) --- */
+  .mxd-srch{position:relative;margin-bottom:10px}
+  .mxd-srch>svg{position:absolute;left:13px;top:50%;margin-top:-8px;width:16px;height:16px;
+    color:var(--muted);pointer-events:none}
+  .mxd-si{width:100%;height:44px;border:1px solid var(--line);border-radius:11px;
+    background:var(--surface);color:var(--ink);padding:0 12px 0 38px;font-size:15px;
+    font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
+  .mxd-si:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .mxd-si::placeholder{color:var(--muted);opacity:.75}
+
+  /* --- Kartali tanlov (maydonda kamida bitta rasm bor) — 🔴 endi FAQAT #mxdModal ichida ---
+     minmax(150px): 360px li telefonda ham 2 ustun sig'adi (16+150+10+150+16=342), lekin
+     eski 120px ga qaraganda har kartaga 30px ko'proq matn joyi beradi.
+     max-height/overflow YO'Q — aylantirish .mxd-mbody ning ishi (ikki qavat skroll bo'lmasin). */
+  .mxd-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .mxd-opt{position:relative;display:flex;flex-direction:column;padding:0 0 9px;min-width:0;
+    border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);
+    font-family:inherit;text-align:left;cursor:pointer;overflow:hidden;
+    transition:border-color .15s,background .15s,box-shadow .15s,transform .12s}
+  .mxd-opt[hidden]{display:none}
+  @media(hover:hover){.mxd-opt:hover{border-color:var(--primary)}}
+  .mxd-opt:active{transform:scale(.985)}
+  .mxd-opt.on{border-color:var(--primary);background:var(--primary-soft);
+    box-shadow:0 0 0 3px var(--primary-soft)}
+  .mxd-th{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:center;display:block;
+    background:var(--surface-2);border-bottom:1px solid var(--line)}
+  /* Rasmsiz element — AYNAN o'sha o'lchamdagi monogramma plitkasi (bo'sh joy qolmaydi) */
+  .mxd-th.mono{display:flex;align-items:center;justify-content:center;color:var(--muted);
+    font-size:19px;font-weight:800;letter-spacing:.03em}
+  /* 🔴 KESILMAYDI (2026-08-26): avval ikkalasi ham bir qatorda "…" bilan kesilardi va
+     eng kerakli qism — davlat raqami — ko'rinmasdi. Endi nom 2 QATORGACHA o'raladi,
+     qiymat esa umuman kesilmaydi (nechta qator kerak bo'lsa — shuncha).
+     overflow-wrap:anywhere — "01O234AA" kabi bo'linmaydigan so'z ham sig'adi. */
+  .mxd-on{margin:9px 10px 0;font-size:13.5px;font-weight:700;line-height:1.3;min-width:0;
+    overflow-wrap:anywhere;overflow:hidden;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .mxd-oq{margin:3px 10px 0;font-size:12px;font-weight:700;color:var(--muted);min-width:0;
+    line-height:1.3;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .mxd-oq:empty{display:none}
+  .mxd-opt.on .mxd-oq{color:var(--primary-ink,var(--primary))}
+  .mxd-ck{position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:999px;
+    background:var(--primary);color:var(--on-primary);display:flex;align-items:center;
+    justify-content:center;opacity:0;transform:scale(.8);
+    transition:opacity .13s,transform .13s;box-shadow:var(--shadow)}
+  .mxd-ck svg{width:13px;height:13px;stroke-width:3}
+  .mxd-opt.on .mxd-ck{opacity:1;transform:none}
+
+  /* --- Chip tanlov (maydonda hech bir elementda rasm yo'q) --- */
+  .mxd-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .mxd-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:44px;
+    padding:10px 16px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);
+    color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+    text-align:left;line-height:1.3;overflow-wrap:anywhere;
+    transition:border-color .15s,background .15s,color .15s}
+  .mxd-chip[hidden]{display:none}
+  @media(hover:hover){.mxd-chip:hover{border-color:var(--primary)}}
+  .mxd-chip.on{border-color:var(--primary);background:var(--primary-soft);
+    color:var(--primary-ink,var(--primary))}
+  /* Qiymat chipda ham kesilmaydi — pill balandlashadi, matn to'liq qoladi. */
+  .mxd-cq{font-size:12.5px;font-weight:600;color:var(--muted);
+    font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+  .mxd-chip.on .mxd-cq{color:inherit;opacity:.85}
+
+  /* --- Tanlagich chipi (.mxd-pick) — FAQAT tur='royxat' uchun ---------------
+     🔴 Kommunal turi naqshi (hodim.html: .kommchip + #kommModal): formada
+     TANLANGAN qiymat turadi, tanlashning o'zi alohida oynada bo'ladi. Farqi —
+     bu chip butun kenglikni oladi (rasm eskizi + nom + qiymat sig'sin).
+     Balandlik 52px LITERAL: sahifaning .txt balandligi uch faylda uch xil. */
+  .mxd-pick{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;
+    padding:8px 12px;border:1.5px solid var(--line);border-radius:12px;
+    background:var(--surface);color:var(--ink);font-family:inherit;text-align:left;
+    cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+  @media(hover:hover){.mxd-pick:hover{border-color:var(--primary)}}
+  .mxd-pick:active{transform:scale(.995)}
+  .mxd-pick.on{border-color:var(--primary);background:var(--primary-soft)}
+  .mxd-pth{flex:0 0 auto;width:46px;height:34px;border-radius:8px;display:block;
+    object-fit:cover;object-position:center;background:var(--surface-2)}
+  .mxd-pth.mono{display:flex;align-items:center;justify-content:center;color:var(--muted);
+    font-size:13px;font-weight:800;letter-spacing:.02em}
+  .mxd-pic{flex:0 0 auto;width:46px;height:34px;border-radius:8px;background:var(--surface-2);
+    display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .mxd-pic svg{width:18px;height:18px}
+  .mxd-ptx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+  .mxd-pn{font-size:15px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+  .mxd-pick:not(.on) .mxd-pn{font-weight:600;color:var(--muted)}
+  .mxd-pq{font-size:12.5px;font-weight:700;color:var(--muted);line-height:1.3;
+    overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .mxd-pq:empty{display:none}
+  .mxd-pick.on .mxd-pq{color:var(--primary-ink,var(--primary))}
+  .mxd-pd{flex:0 0 auto;width:18px;height:18px;color:var(--muted)}
+
+  /* --- Tanlash oynasi (#mxdModal) ------------------------------------------
+     🔴 Sahifaning o'z modal klasslariga TAYANMAYDI: .kmodal faqat hodimda bor,
+     .modal esa uch faylda uch xil (z-index 120 / 200). Shuning uchun mustaqil.
+     z-index 240 — uchala fayldagi eng balandidan (professional: 215) yuqori. */
+  .mxd-modal{position:fixed;inset:0;z-index:240;display:none;align-items:center;
+    justify-content:center;padding:20px;background:rgba(16,24,40,.5);
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:mxdFade .16s ease}
+  .mxd-modal.open{display:flex}
+  body:has(.mxd-modal.open){overflow:hidden}
+  @keyframes mxdFade{from{opacity:0}to{opacity:1}}
+  @keyframes mxdPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes mxdSheet{from{transform:translateY(100%)}to{transform:none}}
+  .mxd-box{display:flex;flex-direction:column;width:100%;max-width:520px;max-height:88vh;
+    background:var(--surface);color:var(--ink);border-radius:18px;padding:18px;
+    box-shadow:0 24px 48px rgba(16,24,40,.22);animation:mxdPop .2s cubic-bezier(.22,.61,.36,1)}
+  .mxd-mhd{flex:none;display:flex;align-items:center;justify-content:space-between;
+    gap:12px;margin-bottom:14px}
+  .mxd-mhd h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.015em;
+    line-height:1.3;overflow-wrap:anywhere}
+  .mxd-mx{flex:none;width:40px;height:40px;margin:-8px -8px -8px 0;border:none;
+    background:transparent;color:var(--muted);border-radius:10px;display:inline-flex;
+    align-items:center;justify-content:center;cursor:pointer;transition:background .15s,color .15s}
+  .mxd-mx svg{width:18px;height:18px}
+  @media(hover:hover){.mxd-mx:hover{background:var(--surface-2);color:var(--ink)}}
+  .mxd-msrch{flex:none}
+  .mxd-mbody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;padding:2px;margin:-2px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .mxd-mbody::-webkit-scrollbar{width:6px}
+  .mxd-mbody::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .mxd-mbody::-webkit-scrollbar-track{background:transparent}
+  .mxd-macts{flex:none;display:flex;gap:8px;margin-top:14px}
+  .mxd-mbtn{flex:1;height:48px;border:1px solid var(--line);border-radius:12px;
+    background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;
+    font-family:inherit;cursor:pointer;transition:background .15s,color .15s}
+  @media(hover:hover){.mxd-mbtn:hover{background:var(--line)}}
+  .mxd-mbtn[hidden]{display:none}
+  .mxd-mbtn.clr{color:var(--red-ink,var(--red))}
+  .mxd-mempty{color:var(--muted);font-size:14px;text-align:center;padding:26px 16px}
+  /* Telefon: markazdagi oyna emas — pastdan chiquvchi varaq (sahifa modallari bilan bir xil his) */
+  @media(max-width:560px){
+    .mxd-modal{align-items:flex-end;padding:0}
+    .mxd-box{max-width:none;max-height:92vh;border-radius:18px 18px 0 0;
+      padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+      animation:mxdSheet .22s cubic-bezier(.22,.61,.36,1)}
+    .mxd-box::before{content:'';flex:none;width:36px;height:4px;border-radius:2px;
+      background:var(--line);margin:-6px auto 12px}
+  }
+  @media(prefers-reduced-motion:reduce){.mxd-modal,.mxd-box{animation:none}}
+
+  /* --- dropdown / sana: sahifaning .txt idishida --- */
+  .mxd-sel2{-webkit-appearance:none;appearance:none;cursor:pointer;padding-right:38px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 13px center}
+  [data-theme="dark"] .mxd-date::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.55)}
+
+  /* --- Majburiy ogohlantirishi --- */
+  .mxd-req{display:flex;align-items:flex-start;gap:6px;margin-top:8px;
+    color:var(--red-ink,var(--red));font-size:13px;font-weight:600;line-height:1.4}
+  .mxd-req svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
+  /* --- Xato/eslatma (fail-open) --- */
+  .mxd-note{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;
+    background:var(--surface-2);border-radius:12px;padding:12px 14px;
+    font-size:13px;color:var(--muted);line-height:1.5}
+  .mxd-note svg{width:16px;height:16px;flex:0 0 auto;margin-top:2px}
+  .mxd-retry{border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12.5px;font-weight:600;
+    cursor:pointer;min-height:32px}
+  .mxd-retry:hover{border-color:var(--primary);color:var(--primary)}
+
+  /* --- Skeleton: balandligi YAKUNIY blok bilan bir xil (ikkinchi sakrash bo'lmasin) --- */
+  @keyframes mxdShim{100%{background-position:-180px 0}}
+  .mxd-sk{display:block;border-radius:9px;
+    background:linear-gradient(90deg,var(--surface-2) 0,var(--line) 42%,var(--surface-2) 84%);
+    background-size:180px 100%;animation:mxdShim 1.15s linear infinite}
+  .mxd-sk.sk-l{width:38%;height:13px;border-radius:6px;margin:0 0 13px 2px}   /* yorliq 18+8 */
+  .mxd-sk.sk-in{height:52px;border-radius:12px}                               /* .txt o'rni */
+  .mxd-sk.sk-grid{height:128px;border-radius:12px}                            /* karta qatori */
+  @media(prefers-reduced-motion:reduce){.mxd-sk{animation:none}}
+
+  /* --- Chop etish: tanlanmagan variantlar qog'ozga chiqmaydi --- */
+  @media print{
+    .mxd-srch,.mxd-req,.mxd-note{display:none!important}
+    /* Variantlar endi modalda — qog'ozga faqat TANLANGAN qiymat (chip) chiqadi. */
+    .mxd-modal{display:none!important}
+    .mxd-pick{border:1px solid #999!important;background:none!important;box-shadow:none!important}
+    .mxd-pth,.mxd-pic,.mxd-pd{display:none!important}
+    .mxd-pn,.mxd-pq{color:#000!important}
+    .mxd-opts{max-height:none;overflow:visible;display:block}
+    .mxd-opt:not(.on),.mxd-chip:not(.on){display:none!important}
+    .mxd-opt.on,.mxd-chip.on{box-shadow:none!important;background:none!important;
+      border:1px solid #999!important;color:#000!important}
+    .mxd-th{max-height:90px}
+    .mxd-ck{display:none!important}
+  }
+
 </style>
 </head>
 <body>
@@ -190,6 +402,12 @@
         <input class="amount" id="amount" inputmode="numeric" placeholder="0" oninput="fmtAmount(this)">
         <label id="kassaLbl">Qaysi kassaga</label><select id="kassa"></select>
         <label id="counterLbl">Nimadan</label><select id="counter"></select>
+        <!-- ===== Maxsus maydonlar (.mxd-*) — xarajat moddasi tanlanganda chiziladi.
+             🔴 O'ram DOM da DOIM turadi; ichi almashadi. Bo'sh bo'lsa display:none.
+             Faqat dir=='chiqim' da: kirim/transferda "modda" tushunchasi yo'q. -->
+        <div class="mxd" id="mxdSect" style="display:none" aria-live="polite">
+          <div id="mxdBody"></div>
+        </div>
         <label>Izoh</label><input class="txt" id="izoh" placeholder="ixtiyoriy izoh">
         <label>Sana</label><input class="txt" id="sana" type="date">
         <div class="prov">
@@ -251,6 +469,29 @@
   </div></div>
 </div>
 
+<!-- ===== MAXSUS MAYDON — TANLOV OYNASI (.mxd-*) =====
+     🔴 UCHALA FAYLDA AYNAN BIR XIL (hodim / provodka / professional).
+     tur='royxat' maydonining variantlari SHU YERDA chiziladi; formada faqat
+     .mxd-pick chipi turadi. Naqsh — hodim.html dagi kommunal turi
+     (#kommModal + .kommchip), farqi: ro'yxat dinamik (maydon soni noma'lum),
+     shuning uchun BITTA modal hamma maydonga xizmat qiladi.
+     Esc — har faylning O'Z keydown ilmog'ida (mxdModal birinchi tekshiriladi). -->
+<div class="mxd-modal" id="mxdModal" onclick="if(event.target===this)mxdMClose()"
+     role="dialog" aria-modal="true" aria-labelledby="mxdMTitle">
+  <div class="mxd-box">
+    <div class="mxd-mhd">
+      <h3 id="mxdMTitle">Tanlang</h3>
+      <button type="button" class="mxd-mx" onclick="mxdMClose()" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="mxd-msrch" id="mxdMSrch"></div>
+    <div class="mxd-mbody" id="mxdMBody"></div>
+    <div class="mxd-macts">
+      <button type="button" class="mxd-mbtn clr" id="mxdMClr" onclick="mxdMClear()" hidden>Tozalash</button>
+      <button type="button" class="mxd-mbtn" onclick="mxdMClose()">Yopish</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
@@ -308,6 +549,13 @@ window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.r
 // more-sheet
 window.openMore=()=>{ document.getElementById('moreModal').classList.add('open'); };
 window.closeMore=()=>{ document.getElementById('moreModal').classList.remove('open'); };
+// Esc — maxsus maydon tanlov oynasini yopadi (sahifada boshqa Esc ilmog'i yo'q edi;
+// mavjud .modal/.mmodal xatti-harakati ataylab TEGILMAGAN).
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  const m=document.getElementById('mxdModal');
+  if(m&&m.classList.contains('open')) window.mxdMClose();
+});
 // /more-sheet
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
 let appShown=false;
@@ -386,7 +634,7 @@ window.setDir=d=>{ dir=d;
   $('counterLbl').textContent=d==='kirim'?'Nimadan':(d==='transfer'?'Qaysi kassaga':'Nimaga');
   // transferda qarshi tomon ham kassa — guruhlangan ro'yxat
   if(d==='transfer') fillKassaSel($('counter'), listFor(d)); else fillSel($('counter'), listFor(d));
-  icons(); updateProv();
+  icons(); updateProv(); mxdRender();
 };
 function updateProv(){ const amt=parseAmt();
   const kassa=accounts.find(a=>a.id===$('kassa').value), counter=accounts.find(a=>a.id===$('counter').value);
@@ -398,7 +646,7 @@ async function loadAccounts(){
   const {data,error}=await sb.from('accounts').select('*').eq('is_active',true).order('code');
   if(error){ $('cfgbanner').style.display='block'; $('cfgbanner').textContent='Xato: '+error.message; return; }
   accounts=data; fillKassaSel($('kassa'), accounts.filter(isOpKassa));
-  $('kassa').onchange=updateProv; $('counter').onchange=updateProv; setDir('kirim');
+  $('kassa').onchange=updateProv; $('counter').onchange=()=>{ updateProv(); mxdRender(); }; setDir('kirim');
 }
 // kassa-chips
 // Faqat markaziy kassalar — hammasi kassa.html'da.
@@ -606,6 +854,10 @@ window.save=async()=>{
   if(!kassa||!counter){ alert('Kassa/kategoriya tanlang'); return; }
   if(dir==='transfer'&&kassa===counter){ alert('Bir xil kassa tanlab bo\'lmaydi'); return; }
   let dtAcc,ktAcc; if(dir==='kirim'){ dtAcc=kassa; ktAcc=counter; } else { dtAcc=counter; ktAcc=kassa; }
+  // Maxsus maydon: bu formada #saveBtn `disabled` bilan boshqarilmaydi — shuning uchun
+  // guard + mxdShowReq() (yetishmayotgan maydon ochiladi va ekranga keltiriladi).
+  if(!mxdOk()){ alert('«'+mxdFirstMissing()+'» to\'ldirilishi shart'); mxdShowReq(); return; }
+  const mxdV=mxdValues(), mxdN=mxdNeed();   // 🔴 forma tozalanishidan OLDIN
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
   const hdr={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'};
   const rows=[{account_id:dtAcc,debit:amt,credit:0},{account_id:ktAcc,debit:0,credit:amt}];
@@ -615,7 +867,11 @@ window.save=async()=>{
   else if(!r.ok){ alert(window.permErr(r.error)); ok=false; }     // xato AYNAN o'z matni bilan
   else ok=true;                                                    // dup ham muvaffaqiyat (atomik)
   if(!ok){ reset(); return; }
-  $('amount').value=''; $('izoh').value=''; updateProv(); reset(); await refresh();
+  // 🔴 TARTIB: entry → entry_line → entry_maydon_yoz. Zaxira (eski) yo'lda va takror
+  //    (dup) holatida entry_id qaytmaydi — maydonlar biriktirilmaydi va foydalanuvchi
+  //    ogohlantiriladi (yozuv O'CHIRILMAYDI: pul harakati to'g'ri).
+  await mxdYoz((r&&r.ok&&r.entry_id)?r.entry_id:null, mxdV, mxdN);
+  $('amount').value=''; $('izoh').value=''; mxdReset(); updateProv(); reset(); await refresh();
 };
 function reset(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Saqlash'; }
 async function refresh(){ await Promise.all([loadKassalar(), loadJournal()]); }
@@ -628,7 +884,385 @@ async function init(){
     loadKassalar(),
     loadJournal(true),
   ]);
+  mxdLoad();   // maxsus maydon ta'riflari — fon (fail-closed/fail-open)
 }
+
+/* ============ MAXSUS MAYDONLAR (.mxd-*) — 🔴 UCHALA FAYLDA AYNAN BIR XIL ============
+   Xarajat moddasi tanlanganda unga biriktirilgan "maxsus maydonlar" formada chiqadi
+   (PROVODKA_XARAJAT_MAYDON.sql: xarajat_maydonlar(p_modda) + entry_maydon_yoz(...)).
+
+   IKKI CHEGARA — ATAYLAB QARAMA-QARSHI:
+     • FAIL-CLOSED — SQL hali RUN qilinmagan bo'lsa (PGRST202/PGRST205/42883/42P01)
+       `mxdOff=true` va blok UMUMAN chizilmaydi: sahifa avvalgidek ishlaydi.
+     • FAIL-OPEN  — ta'riflar vaqtinchalik yuklanmasa xarajat saqlash BLOKLANMAYDI
+       (metadata pul emas; majburiylik serverda `entry_maydon_yoz` ichida HAM bor).
+
+   FORMA SAKRAMASIN (4 chora):
+     1) blok modda tanlagichidan PASTDA — yuqoridagi hech narsa siljimaydi;
+     2) ta'riflar init()da OLDINDAN yuklanadi (+ SWR kesh) — tanlanganda sinxron chiziladi;
+     3) sovuq holatda o'lchami TO'G'RI skeleton, va u FAQAT maydoni bor moddada
+        ko'rsatiladi (`mxdMod` — biriktirish ro'yxati), qolgan moddalarda hech narsa yo'q;
+     4) faqat `opacity`/`translateY` animatsiyasi — balandlik animatsiya qilinmaydi.
+
+   🔴 QAYTA CHIZISH QOROVULI (`mxdSig`): render har chaqiruvda emas, HOLAT o'zgarganda
+      bo'ladi — aks holda summa yozilayotganda (updateSimple/updateProv har harfda
+      ishlaydi) matn maydonidagi fokus va animatsiya har harfda uzilardi. */
+const MXD_YOQ=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='PGRST202'||c==='PGRST205'||c==='42883'||c==='42P01'
+      ||/could not find the (function|table)/i.test(m); };
+let mxdDefs={};          // {modda_id:[maydon,…]} — `xarajat_maydonlar` javobi (elementlari bilan)
+let mxdMod=null;         // Set(modda_id) — maydoni BOR moddalar
+let mxdModLoaded=false, mxdOff=false, mxdErr=false;
+let mxdVals={};          // {maydon_id:{element_id,qiymat_text}} — joriy forma holati
+let mxdCur='', mxdSig='';
+let mxdMid='';           // ochiq tanlov oynasining (#mxdModal) maydon id'si; '' = yopiq
+const mxdBusy={};
+const MXD_NOTE='<div class="mxd-note"><i data-lucide="circle-alert"></i><span>Maxsus maydonlar yuklanmadi — '
+  +'xarajatni saqlash mumkin, lekin qo\'shimcha ma\'lumot yozilmaydi.</span>'
+  +'<button type="button" class="mxd-retry" onclick="mxdRetry()">Qayta urinish</button></div>';
+const MXD_SKEL='<div class="mxd-f"><div class="mxd-sk sk-l"></div><div class="mxd-sk sk-grid"></div></div>';
+// SWR — sahifa qayta ochilganda ta'riflar DARROV bo'lsin (professionalda swr* yo'q → jimgina o'tadi).
+const mxdCacheGet=()=>{ try{ return (typeof swrGet==='function')?swrGet('mxd',300000):null; }catch(e){ return null; } };
+const mxdCacheSet=()=>{ try{ if(typeof swrSet==='function') swrSet('mxd',{mod:[...(mxdMod||[])],defs:mxdDefs}); }catch(e){} };
+
+// ---- Yuklash --------------------------------------------------------------
+// 1) `xarajat_maydon_modda` — kichik jadval: qaysi moddada maydon BOR (skeleton qorovuli).
+// 2) har o'sha modda uchun `xarajat_maydonlar(p_modda)` — kontrakt RPC (maydon + elementlar).
+async function mxdLoad(force){
+  if(mxdOff) return;
+  if(!force){ const c=mxdCacheGet();
+    if(c&&Array.isArray(c.mod)){ mxdMod=new Set(c.mod); mxdModLoaded=true; mxdDefs=c.defs||{}; mxdRender(); } }
+  const {data,error}=await sb.from('xarajat_maydon_modda').select('modda_id');
+  if(error){
+    if(MXD_YOQ(error)){ mxdOff=true; mxdMod=new Set(); mxdModLoaded=true; mxdRender(); return; }
+    if(!mxdModLoaded) mxdErr=true;          // kesh bor bo'lsa jimgina eski ro'yxat bilan ishlayveradi
+    mxdRender(); return;
+  }
+  mxdErr=false;
+  mxdMod=new Set((data||[]).map(r=>r&&r.modda_id).filter(Boolean));
+  mxdModLoaded=true;
+  Object.keys(mxdDefs).forEach(k=>{ if(!mxdMod.has(k)) delete mxdDefs[k]; });   // biriktirish olib tashlangan
+  mxdCacheSet(); mxdRender();
+  // OLDINDAN yuklash — modda tanlanganda skeleton umuman chiqmasin.
+  const list=[...mxdMod];
+  if(list.length<=20) list.forEach(id=>{ if(force||!mxdDefs[id]) mxdFetch(id,true); });
+}
+async function mxdFetch(id,quiet){
+  if(!id||mxdOff||mxdBusy[id]) return;
+  mxdBusy[id]=1;
+  const {data,error}=await sb.rpc('xarajat_maydonlar',{p_modda:id});
+  delete mxdBusy[id];
+  if(error){
+    if(MXD_YOQ(error)){ mxdOff=true; mxdRender(); return; }
+    if(!quiet&&mxdModdaId()===id){ mxdErr=true; mxdRender(); }
+    return;
+  }
+  mxdDefs[id]=Array.isArray(data)?data:[];
+  mxdCacheSet();
+  if(mxdModdaId()===id){ mxdErr=false; mxdRender(); mxdAfterChange(); }
+}
+window.mxdRetry=()=>{
+  mxdErr=false;
+  if(!mxdModLoaded||!mxdMod) mxdLoad(true);
+  else { const id=mxdModdaId(); if(id) mxdFetch(id); }
+  mxdRender(true);
+};
+
+// ---- Holat ----------------------------------------------------------------
+function mxdFields(){ const id=mxdModdaId(); const d=id?mxdDefs[id]:null; return Array.isArray(d)?d:[]; }
+const mxdReady=()=>{ const id=mxdModdaId(); return !!(id&&Array.isArray(mxdDefs[id])); };
+function mxdHasVal(mid){ const v=mxdVals[mid]; return !!(v&&(v.element_id||String(v.qiymat_text||'').trim())); }
+// 🔴 FAIL-OPEN: ta'riflar kelmagan bo'lsa bloklamaymiz (server ham tekshiradi).
+function mxdOk(){ if(mxdOff||!mxdReady()) return true; return mxdFields().every(f=>!f.required||mxdHasVal(f.id)); }
+function mxdFirstMissing(){ const f=mxdFields().find(x=>x.required&&!mxdHasVal(x.id)); return f?String(f.nom||''):''; }
+// Serverga ketadigan shakl: [{maydon_id, element_id}] | [{maydon_id, qiymat}]. Bo'shlar tashlanadi.
+function mxdValues(){
+  return mxdFields().map(f=>{ const v=mxdVals[f.id]||{}; const t=String(v.qiymat_text||'').trim();
+    if(!v.element_id&&!t) return null;
+    return v.element_id?{maydon_id:f.id,element_id:v.element_id}:{maydon_id:f.id,qiymat:t};
+  }).filter(Boolean);
+}
+/* 🔴 "Bu moddada maxsus maydon BOR mi" — `mxdYoz` bo'sh ro'yxatda ham RPC
+      yuborishi kerakligini shundan biladi. Busiz serverdagi majburiylik
+      tekshiruvi (`entry_maydon_yoz` → `xm_majburiy_yoq`) HECH QACHON
+      ishlamasdi: foydalanuvchi hech narsa to'ldirmasa RPC umuman ketmasdi,
+      UI dagi `mxdOk()` esa ta'riflar yuklanmagan bo'lsa (`mxdReady()` false)
+      ataylab FAIL-OPEN.
+   🔴 Manba `mxdMod` (biriktirish ro'yxati), `mxdDefs` EMAS — ta'riflar
+      yuklanmagan holatda ham to'g'ri javob beradi (aynan xavfli holat). */
+const mxdNeed=()=>{ const id=mxdModdaId(); return !!(!mxdOff&&id&&mxdMod&&mxdMod.has(id)); };
+// 🔴 Forma tozalanadigan HAR joyda chaqiriladi — busiz keyingi xarajat oldingisining
+//    maydon qiymatlari bilan jimgina yozilardi (eng xavfli regressiya).
+function mxdReset(){ mxdVals={}; mxdMClose(); mxdRender(true); }
+
+// ---- Chizish --------------------------------------------------------------
+/* 🔴 `rasm_url` IKKI shaklda kelishi mumkin (SQL cheklovi shunga ruxsat beradi):
+      (a) to'liq https havola (Storage getPublicUrl natijasi)
+      (b) bucket ichidagi nisbiy yo'l: "maydon_id/element_id.jpg"
+   Bucket — `xarajat-maydon` (PROVODKA_XARAJAT_MAYDON.sql 8-BO'LIM), PUBLIC:
+   signed URL ATAYLAB ishlatilmaydi (jurnalda 100 qatorga 100 qo'shimcha so'rov ketardi).
+   Bucket nomi sozlama konstruktoridagi yuklash bilan AYNAN bir xil bo'lishi shart —
+   aks holda yuklash bir bucketga, o'qish boshqasidan bo'lib rasm ko'rinmaydi. */
+const MXD_BUCKET='xarajat-maydon';
+function mxdImgUrl(u){
+  const p=String(u||'').trim(); if(!p) return '';
+  if(/^https:\/\//i.test(p)) return p;
+  try{ const r=sb.storage.from(MXD_BUCKET).getPublicUrl(p);
+    return String((r&&r.data&&r.data.publicUrl)||''); }catch(e){ return ''; }
+}
+function mxdMono(nom){ const s=String(nom||'').trim(); if(!s) return '—';
+  const w=s.split(/\s+/); return (w.length>1?(w[0].charAt(0)+w[1].charAt(0)):s.slice(0,2)).toUpperCase(); }
+function mxdReqRow(mid){ return '<div class="mxd-req" id="mxdR-'+esc(mid)+'" style="display:none">'
+  +'<i data-lucide="circle-alert"></i>Bu maydon to\'ldirilishi shart</div>'; }
+/* --- Elementlar + forma chipi (tur='royxat') -------------------------------
+   🔴 Variantlar formada EMAS, #mxdModal ichida chiziladi (kommunal turi naqshi).
+   Sabab: inline kartalar formani cho'zardi va uzun nom/davlat raqami kesilardi. */
+function mxdEls(f){
+  const raw=(f&&Array.isArray(f.elementlar))?f.elementlar:[];
+  return raw.map(e=>({id:String((e&&e.id)||''),nom:String((e&&e.nom)||''),
+    qiymat:String((e&&e.qiymat)||''),url:mxdImgUrl(e&&e.rasm_url)})).filter(e=>!!e.id);
+}
+function mxdFieldById(mid){ const s=String(mid||''); return mxdFields().find(f=>String(f.id||'')===s)||null; }
+function mxdElById(f,eid){ const s=String(eid||''); return mxdEls(f).find(e=>e.id===s)||null; }
+// Chipning ICHI — tanlovdan keyin butun forma emas, faqat shu qism qayta chiziladi.
+function mxdPickInner(f){
+  const mid=String(f.id||'');
+  const cur=(mxdVals[mid]&&mxdVals[mid].element_id)||'';
+  const e=cur?mxdElById(f,cur):null;
+  let th;
+  if(e&&e.url) th='<img class="mxd-pth" src="'+esc(e.url)+'" alt="" loading="lazy" decoding="async" '
+      +'data-mono="'+esc(mxdMono(e.nom))+'" onerror="mxdImgErr(this,\'mxd-pth\')">';
+  else if(e) th='<span class="mxd-pth mono" aria-hidden="true">'+esc(mxdMono(e.nom))+'</span>';
+  else th='<span class="mxd-pic" aria-hidden="true"><i data-lucide="list-checks"></i></span>';
+  return th+'<span class="mxd-ptx"><span class="mxd-pn">'+(e?esc(e.nom):'Tanlang')+'</span>'
+    +'<span class="mxd-pq">'+(e?esc(e.qiymat):'')+'</span></span>'
+    +'<i class="mxd-pd" data-lucide="chevron-down" aria-hidden="true"></i>';
+}
+function mxdPickHtml(f){
+  const mid=String(f.id||''), on=!!(mxdVals[mid]&&mxdVals[mid].element_id);
+  return '<button type="button" class="mxd-pick'+(on?' on':'')+'" id="mxdP-'+esc(mid)+'"'
+    +' aria-haspopup="dialog" aria-labelledby="mxdL-'+esc(mid)+' mxdP-'+esc(mid)+'"'
+    +' onclick="mxdMOpen(\''+esc(mid)+'\')">'+mxdPickInner(f)+'</button>';
+}
+// Chipni joyida yangilash (butun blok qayta chizilmaydi — fokus/scroll saqlanadi).
+function mxdPickSync(mid){
+  const f=mxdFieldById(mid), b=document.getElementById('mxdP-'+mid);
+  if(!f||!b) return;
+  b.classList.toggle('on',!!(mxdVals[mid]&&mxdVals[mid].element_id));
+  b.innerHTML=mxdPickInner(f); icons();
+}
+// Modal ichidagi variantlar (karta grid yoki chip ro'yxati) — "hammasi yoki hech qaysi":
+// birortasida rasm bo'lsa KARTA (rasmsizlari monogramma), hech birida bo'lmasa CHIP.
+function mxdOptsHtml(f){
+  const mid=String(f.id||''), cur=(mxdVals[mid]&&mxdVals[mid].element_id)||'';
+  const els=mxdEls(f);
+  if(!els.length) return '<div class="mxd-mempty">Bu maydon uchun hali variant qo\'shilmagan.</div>';
+  const rasmli=els.some(e=>!!e.url);
+  const body=els.map(e=>{
+    const on=cur===e.id;
+    const s=esc((e.nom+' '+e.qiymat).toLowerCase());
+    const co='onclick="mxdPick(\''+esc(mid)+'\',\''+esc(e.id)+'\')"';
+    const ac=' role="radio" aria-checked="'+(on?'true':'false')+'" data-v="'+esc(e.id)+'" data-s="'+s+'" ';
+    if(rasmli){
+      const th=e.url
+        ? '<img class="mxd-th" src="'+esc(e.url)+'" alt="" loading="lazy" decoding="async" '
+          +'data-mono="'+esc(mxdMono(e.nom))+'" onerror="mxdImgErr(this)">'
+        : '<span class="mxd-th mono" aria-hidden="true">'+esc(mxdMono(e.nom))+'</span>';
+      return '<button type="button" class="mxd-opt'+(on?' on':'')+'"'+ac+co+'>'+th
+        +'<span class="mxd-ck"><i data-lucide="check"></i></span>'
+        +'<span class="mxd-on">'+esc(e.nom)+'</span><span class="mxd-oq">'+esc(e.qiymat)+'</span></button>';
+    }
+    return '<button type="button" class="mxd-chip'+(on?' on':'')+'"'+ac+co+'>'+esc(e.nom)
+      +(e.qiymat?'<span class="mxd-cq">'+esc(e.qiymat)+'</span>':'')+'</button>';
+  }).join('');
+  return rasmli
+    ? '<div class="mxd-opts" role="radiogroup" aria-labelledby="mxdMTitle">'+body+'</div>'
+    : '<div class="mxd-chips" role="radiogroup" aria-labelledby="mxdMTitle">'+body+'</div>';
+}
+function mxdFieldHtml(f){
+  const mid=String(f.id||''), tur=String(f.maydon_turi||'matn'), req=!!f.required;
+  const lbl=esc(String(f.nom||''))+(req?' <span class="mxd-rq">majburiy</span>':' <span class="mxd-optl">(ixtiyoriy)</span>');
+  const opt=(f.options&&typeof f.options==='object')?f.options:{};
+  const ph=esc(String(opt.placeholder||''));
+  const cur=mxdVals[mid]||{};
+  // 🔴 ROYXAT — formada faqat CHIP; variantlar #mxdModal da (yuqoridagi izoh).
+  //    dropdown/matn/raqam/sana — AVVALGIDEK inline (ular sodda, modal ortiqcha).
+  if(tur==='royxat'){
+    if(!mxdEls(f).length) return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="royxat">'
+      +'<div class="mxd-lbl">'+lbl+'</div><div class="mxd-note"><i data-lucide="circle-alert"></i>'
+      +'<span>Bu maydon uchun hali variant qo\'shilmagan.</span></div></div>';
+    return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="royxat">'
+      +'<div class="mxd-lbl" id="mxdL-'+esc(mid)+'">'+lbl+'</div>'
+      +mxdPickHtml(f)+mxdReqRow(mid)+'</div>';
+  }
+  if(tur==='dropdown'){
+    const vs=Array.isArray(opt.variantlar)?opt.variantlar:[];
+    const v=String(cur.qiymat_text||'');
+    return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="dropdown">'
+      +'<label class="mxd-lbl" for="mxdI-'+esc(mid)+'">'+lbl+'</label>'
+      +'<select class="txt mxd-sel2" id="mxdI-'+esc(mid)+'" onchange="mxdInput(\''+esc(mid)+'\',this.value)">'
+      +'<option value="">— tanlang —</option>'
+      +vs.map(x=>'<option'+(String(x)===v?' selected':'')+'>'+esc(String(x))+'</option>').join('')
+      +'</select>'+mxdReqRow(mid)+'</div>';
+  }
+  const isSana=tur==='sana';
+  const attr=(isSana?' type="date"':'')+(tur==='raqam'?' inputmode="decimal"':'');
+  return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="'+esc(tur)+'">'
+    +'<label class="mxd-lbl" for="mxdI-'+esc(mid)+'">'+lbl+'</label>'
+    +'<input class="txt'+(isSana?' mxd-date':'')+'" id="mxdI-'+esc(mid)+'"'+attr
+    +' autocomplete="off" placeholder="'+ph+'" value="'+esc(String(cur.qiymat_text||''))+'"'
+    +' oninput="mxdInput(\''+esc(mid)+'\',this.value)">'+mxdReqRow(mid)+'</div>';
+}
+function mxdRender(force){
+  const sect=$('mxdSect'), body=$('mxdBody');
+  if(!sect||!body) return;
+  const id=mxdModdaId()||'';
+  if(id!==mxdCur){ mxdCur=id; mxdVals={}; }      // modda almashdi → eski qiymatlar tashlanadi
+  const defs=id?mxdDefs[id]:null;
+  const bor=(mxdModLoaded&&mxdMod)?mxdMod.has(id):null;
+  let holat;
+  if(!id||mxdOff) holat='yoq';
+  else if(Array.isArray(defs)) holat=defs.length?'bor':'yoq';
+  else if(bor===false) holat='yoq';             // aniq: bu moddada maydon yo'q (skeleton chizilmaydi)
+  else if(mxdErr) holat='xato';
+  else if(bor===true) holat='skel';
+  else holat='yoq';                             // ro'yxat hali kelmagan — bo'sh joy band qilinmaydi
+  const sig=id+'|'+holat+'|'+(holat==='bor'?String(defs.length):'');
+  if(!force&&sig===mxdSig) return;
+  mxdSig=sig;
+  if(holat==='yoq'){ sect.style.display='none'; body.innerHTML=''; return; }
+  sect.style.display='block';
+  if(holat==='skel'){ body.innerHTML=MXD_SKEL; icons(); mxdFetch(id); return; }
+  if(holat==='xato'){ body.innerHTML=MXD_NOTE; icons(); return; }
+  body.innerHTML=defs.map(mxdFieldHtml).join('');
+  icons();
+  // Modda/holat almashsa ochiq tanlov oynasi eskirib qoladi — yopiladi.
+  if(mxdMid&&!mxdFieldById(mxdMid)) mxdMClose();
+}
+
+// ---- Foydalanuvchi harakatlari --------------------------------------------
+// 🔴 Butun blok qayta chizilmaydi (fokus/scroll saqlanadi) — faqat shu maydonning
+//    chipi (.mxd-pick) yangilanadi.
+window.mxdPick=(mid,eid)=>{
+  const cur=(mxdVals[mid]&&mxdVals[mid].element_id)||'';
+  const nv=(cur===eid)?'':eid;                  // qayta bosilsa tanlov olinadi
+  if(nv) mxdVals[mid]={element_id:nv,qiymat_text:null}; else delete mxdVals[mid];
+  mxdPickSync(mid);                             // forma chipi darrov yangilanadi
+  mxdReqUI(mid); mxdAfterChange();
+  if(mxdMid===String(mid)) mxdMClose();          // kommunal naqshi: tanlangach oyna yopiladi
+};
+
+/* --- Tanlov oynasi (#mxdModal) ---------------------------------------------
+   Bitta modal HAMMA royxat maydoniga xizmat qiladi (ochilganda to'ldiriladi) —
+   maydon soni oldindan noma'lum, har biriga alohida markup yozib bo'lmaydi.
+   🔴 Markup bo'lmasa (blok yangi faylga ko'chirilib, #mxdModal qo'shilmasa)
+      jimgina yiqilmaydi: foydalanuvchiga aytiladi.
+   🔴 Oddiy funksiya + window aliasi (pastda): mxdMClose() blok ICHIDAN ham
+      chaqiriladi (mxdRender / mxdReset / mxdPick), onclick uchun esa window kerak. */
+function mxdMOpen(mid){
+  const f=mxdFieldById(mid); if(!f) return;
+  const md=$('mxdModal');
+  if(!md||!$('mxdMBody')){ mxdWarn('Tanlov oynasi topilmadi — sahifani yangilang'); return; }
+  mxdMid=String(mid);
+  $('mxdMTitle').textContent=String(f.nom||'Tanlang');
+  const els=mxdEls(f);
+  $('mxdMSrch').innerHTML= els.length>10
+    ? '<div class="mxd-srch"><i data-lucide="search" aria-hidden="true"></i>'
+      +'<input class="mxd-si" type="text" placeholder="Qidirish…" autocomplete="off" '
+      +'oninput="mxdFilter(\''+esc(mxdMid)+'\',this.value)" aria-label="Qidirish"></div>'
+    : '';
+  $('mxdMBody').innerHTML=mxdOptsHtml(f);
+  mxdMClearUI();
+  md.classList.add('open'); icons();
+  setTimeout(()=>{ try{
+    if(!md.classList.contains('open')) return;
+    const si=md.querySelector('.mxd-si'); if(si){ si.focus(); return; }
+    const b=md.querySelector('.mxd-opt.on,.mxd-chip.on')||md.querySelector('.mxd-opt,.mxd-chip');
+    if(b) b.focus();
+  }catch(e){} },50);
+}
+function mxdMClose(){
+  const md=$('mxdModal'); if(!md) return;
+  const mid=mxdMid; mxdMid='';
+  md.classList.remove('open');
+  // Ichi bo'shatiladi: keyingi safar boshqa maydon ochilishi mumkin, eski ro'yxat qolmasin.
+  if($('mxdMBody')) $('mxdMBody').innerHTML='';
+  if($('mxdMSrch')) $('mxdMSrch').innerHTML='';
+  const b=mid?document.getElementById('mxdP-'+mid):null;
+  if(b){ try{ b.focus(); }catch(e){} }
+}
+function mxdMClearUI(){
+  const b=$('mxdMClr'); if(!b) return;   // 🔴 id funksiya nomidan FARQ qiladi (window named-access to'qnashuvi)
+  const has=!!(mxdMid&&mxdVals[mxdMid]&&mxdVals[mxdMid].element_id);
+  if(has) b.removeAttribute('hidden'); else b.setAttribute('hidden','');
+}
+// "Tozalash" — tanlovni olib tashlash (kartani qayta bosish bilan bir xil natija,
+// lekin ko'rinadigan yo'l: ixtiyoriy maydonni bo'shatish kerak bo'lishi mumkin).
+function mxdMClear(){
+  const mid=mxdMid; if(!mid) return;
+  delete mxdVals[mid];
+  mxdPickSync(mid); mxdReqUI(mid); mxdAfterChange(); mxdMClose();
+}
+window.mxdMOpen=mxdMOpen; window.mxdMClose=mxdMClose; window.mxdMClear=mxdMClear;
+window.mxdInput=(mid,val)=>{
+  const t=String(val==null?'':val).trim();
+  if(t) mxdVals[mid]={element_id:null,qiymat_text:t}; else delete mxdVals[mid];
+  mxdReqUI(mid); mxdAfterChange();
+};
+window.mxdFilter=(mid,q)=>{
+  const s=String(q||'').trim().toLowerCase();
+  const w=$('mxdMBody'); if(!w) return;          // variantlar endi modal ichida
+  const sel=(mxdVals[mid]&&mxdVals[mid].element_id)||'';
+  w.querySelectorAll('.mxd-opt,.mxd-chip').forEach(b=>{
+    const v=b.getAttribute('data-v');
+    // Tanlangan element filtrdan qat'i nazar KO'RINADI ("tanlovim qani?" holati bo'lmasin)
+    const ok=!s||v===sel||String(b.getAttribute('data-s')||'').indexOf(s)>=0;
+    if(ok) b.removeAttribute('hidden'); else b.setAttribute('hidden','');
+  });
+};
+// 🔴 Singan rasm ikonkasi hech qachon ko'rinmaydi — o'rniga monogramma plitkasi.
+window.mxdImgErr=(img,cls)=>{ try{        // cls: 'mxd-th' (karta) | 'mxd-pth' (chip)
+  const sp=document.createElement('span');
+  sp.className=(cls||'mxd-th')+' mono'; sp.setAttribute('aria-hidden','true');
+  sp.textContent=img.getAttribute('data-mono')||'—';
+  img.parentNode.replaceChild(sp,img);
+}catch(e){} };
+function mxdReqUI(mid){ const w=document.getElementById('mxdR-'+mid); if(w&&mxdHasVal(mid)) w.style.display='none'; }
+window.mxdShowReq=()=>{
+  const f=mxdFields().find(x=>x.required&&!mxdHasVal(x.id)); if(!f) return;
+  const w=document.getElementById('mxdR-'+f.id); if(w) w.style.display='flex';
+  const el=document.querySelector('.mxd-f[data-mid="'+f.id+'"]');
+  if(el){ try{ el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ try{ el.scrollIntoView(); }catch(e2){} } }
+};
+
+// ---- Saqlash --------------------------------------------------------------
+// 🔴 TARTIB MAJBURIY: entry → entry_line → entry_maydon_yoz (qorovul SATRLARGA qaraydi).
+//    Chek yuklash naqshi: FONDA, xato bo'lsa yozuv O'CHIRILMAYDI (pul harakati to'g'ri).
+// 🔴 3-argument `need` (mxdNeed()): BO'SH ro'yxatda ham RPC ketsinmi. Bo'sh
+//    ro'yxat serverga "hech narsa to'ldirmadim" degani — u majburiy maydonni
+//    o'zi tekshiradi. Maydoni YO'Q moddada (58 ta) keraksiz so'rov ketmaydi.
+async function mxdYoz(entryIds,vals,need){
+  if(mxdOff) return;
+  const list=Array.isArray(vals)?vals:[];
+  if(!list.length&&!need) return;
+  const ids=(Array.isArray(entryIds)?entryIds:[entryIds]).filter(Boolean);
+  if(!ids.length){ if(list.length) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
+  let bad='';
+  for(let i=0;i<ids.length;i++){
+    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:list});
+    if(error){ if(MXD_YOQ(error)){ mxdOff=true; return; }
+      bad=(window.permErr?window.permErr(error):(error.message||'')); }
+  }
+  if(bad) mxdWarn((list.length?'Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '
+                             :'Yozuv saqlandi, lekin qo\'shimcha ma\'lumot to\'ldirilmadi: ')+bad);
+}
+/* =========================== /MAXSUS MAYDONLAR ============================= */
+
+/* --- Sahifaga bog'liq UCH ilmoq (faqat shu uchtasi fayldan-faylga farq qiladi) --- */
+// Maydonlar FAQAT chiqimda: kirim/transferda "modda" tushunchasi yo'q.
+const mxdModdaId=()=>{ const el=$('counter'); return (dir==='chiqim'&&el)?(el.value||''):''; };
+const mxdAfterChange=()=>{};
+const mxdWarn=msg=>{ const b=$('cfgbanner'); if(b){ b.style.display='block'; b.textContent=msg; } };
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

@@ -388,6 +388,56 @@
     .ijr.unk{display:inline-flex!important}
     .ijr-tbl tr:hover td{background:transparent}
   }
+
+  /* ================================================================
+     MAXSUS MAYDON CHIPI (.mxd-tg) — mavjud .ftag qatoriga qo'shiladi.
+     🔴 jurnal.html dagi blok bilan AYNAN bir xil (ikki sahifa bitta
+     vizual tilda gapiradi). .ftag / .tg / .tg.tgc QAYTA TA'RIFLANMAGAN.
+     ================================================================ */
+  .ftag .tg.mxd-tg{background:var(--surface-2);color:var(--ink);max-width:100%;min-width:0;
+    padding:2px 8px 2px 5px}
+  .ftag .tg.mxd-tg svg{width:12px;height:12px;color:var(--muted)}
+  .mxd-tv{min-width:0;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Rasm ikonka O'RNIDA — qo'shimcha balandlik 0px, kenglik +4px */
+  .mxd-thumb{width:16px;height:16px;flex:0 0 auto;border-radius:4px;object-fit:cover;
+    background:var(--surface-2);display:block}
+  .ftag .tg.mxd-tg.mxd-more{color:var(--muted);font-variant-numeric:tabular-nums;
+    padding:2px 8px;cursor:default}
+  @media(max-width:899px){
+    .mxd-tv{max-width:150px}
+    .ftag .tg.mxd-tg{padding:3px 9px 3px 6px}
+    .mxd-thumb{width:17px;height:17px}
+  }
+  @media(max-width:379px){.mxd-tv{max-width:120px}}
+  @media print{
+    .ftag .tg.mxd-tg{background:none!important;border:1px solid #999!important;color:#000!important}
+    .ftag .tg.mxd-tg svg{color:#000!important}
+    .mxd-thumb{filter:grayscale(1)}
+  }
+
+  /* --- Maxsus maydon kesimi (.mxd-grp) — .exp / .subhd qayta ta'riflanmaydi --- */
+  .mxd-grp{margin-top:4px}
+  .mxd-ghd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .mxd-gsub{margin:18px 0 12px}
+  .mxd-gsel{flex:0 0 auto;max-width:100%;height:34px;border:1px solid var(--line);border-radius:9px;
+    background:var(--surface);color:var(--ink);padding:0 32px 0 11px;font-family:inherit;
+    font-size:13px;font-weight:600;cursor:pointer;outline:none;
+    -webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;
+    transition:border-color .13s,box-shadow .13s}
+  .mxd-gsel:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  /* .exp qatoridagi va .ijr-sub ichidagi kichik rasm — matn bilan bir chiziqda */
+  .mxd-inl{width:16px;height:16px;border-radius:4px;object-fit:cover;background:var(--surface-2);
+    display:inline-block;vertical-align:-3px;margin-right:6px}
+  .ijr-sub .mxd-inl{width:14px;height:14px;vertical-align:-2px;margin-right:5px}
+  .mxd-sb{font-weight:700;color:var(--ink)}
+  .ijr-sub .mxd-sb{font-weight:600}
+  .mxd-nul{color:var(--muted)}
+  @media print{
+    .mxd-gsel{display:none!important}
+    .mxd-inl{filter:grayscale(1)}
+  }
 </style>
 </head>
 <body>
@@ -535,6 +585,17 @@
             <div class="subhd">Ijrochi bo'yicha (kim yozgan)</div>
             <!-- .ijr-unk — jurnaldan FARQLI: CEO hisoboti audit ko'rinishi, "Noma'lum" KO'RINADI -->
             <div class="ijr-unk" id="ijrSum"><div class="empty">—</div></div>
+
+            <!-- Maxsus maydon kesimi — FAQAT davrda qiymat bo'lsa ko'rinadi (yangi RPC yo'q,
+                 manba: allaqachon yuklangan ijrRows). -->
+            <div class="mxd-grp" id="mxdGrp" style="display:none">
+              <div class="mxd-ghd">
+                <div class="subhd mxd-gsub" id="mxdGrpTitle">Maxsus maydon bo'yicha</div>
+                <select class="mxd-gsel" id="mxdGrpSel" onchange="mxdGrpRender()"
+                        style="display:none" aria-label="Qaysi maydon bo'yicha"></select>
+              </div>
+              <div id="mxdGrpBody"><div class="empty">—</div></div>
+            </div>
 
             <div class="subhd">Xarajatlar ro'yxati</div>
             <div class="ijr-list ijr-unk" id="ijrList"><div class="empty">—</div></div>
@@ -834,6 +895,7 @@ async function load(){
   rows=list; loadedAll=list.length<PAGE_SIZE;
   swrSet(ck,{rows,turSoni,xulosa,mtot});
   renderTurChips(); renderXulosa(xulosa); renderModdaTots(mtot); renderList();
+  refreshMxd();   // maxsus maydon chiplari — fonda, ro'yxatni kutdirmaydi
   if(tab==='pnl') loadPnl();   // P&L faqat davrga bog'liq — davr o'zgargan bo'lsa yangilanadi
 }
 window.loadMore=async()=>{
@@ -846,6 +908,7 @@ window.loadMore=async()=>{
   if(more.length<PAGE_SIZE) loadedAll=true;
   rows=rows.concat(more);
   renderList();
+  refreshMxd();   // yangi qatorlarning chiplari ham kelsin
 };
 
 function renderXulosa(x){
@@ -906,6 +969,34 @@ function accCell(code,name,sub){
   if(!code&&!name) return '<span class="jmuted">—</span>';
   return `<span class="acode">${esc(code||'')}</span><span class="aname">${esc(name||'')}${sub?' · '+esc(sub):''}</span>`;
 }
+/* ==================== MAXSUS MAYDON (.mxd-*) ====================
+   Manba: PROVODKA_XARAJAT_MAYDON.sql → v_entry_maydon.
+   🔴 Ko'rsatiladigan matn SERVERDAN keladi (`korinish`) — klientda "nom + qiymat"
+      yasalmaydi, aks holda jurnal / hisobot / Excel uch xil matn berardi.
+   🔴 FAIL-CLOSED: view yo'q bo'lsa (PGRST205/42P01) yoki RLS bermasa mxMap bo'sh
+      qoladi va sahifa BUGUNGIDEK ishlaydi — chip umuman chizilmaydi. */
+let mxMap={};   // entry.id → [{maydon_nom, maydon_turi, tartib, korinish, rasm_url}]
+const mxdLbl=r=>(r.maydon_turi==='royxat'||r.maydon_turi==='dropdown')
+  ? String(r.korinish) : `${r.maydon_nom||''}: ${r.korinish}`;
+const mxdTtl=r=>`${r.maydon_nom||''}: ${r.korinish}`;
+// Rasm 404 → ikonkaga qaytadi (singan rasm ikonkasi hech qachon ko'rinmaydi).
+window.mxdImgErr=img=>{
+  try{ const s=document.createElement('i'); s.setAttribute('data-lucide','tag'); img.replaceWith(s); icons(); }catch(e){}
+};
+// 🔴 BITTA qo'shimcha so'rov — SAHIFAGA, qatorga emas (jurnaldagi refreshMeta naqshi).
+async function refreshMxd(){
+  const seq=loadSeq;
+  const ids=[...new Set((rows||[]).map(e=>e.id).filter(Boolean))];
+  if(!ids.length){ mxMap={}; return; }
+  try{
+    const {data,error}=await sb.from('v_entry_maydon')
+      .select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids);
+    if(error||seq!==loadSeq) return;   // view yo'q / eskirgan javob — jimgina qoldiriladi
+    const m={}; (data||[]).forEach(r=>{ (m[r.entry_id]||(m[r.entry_id]=[])).push(r); });
+    Object.keys(m).forEach(k=>m[k].sort((a,b)=>(a.tartib||0)-(b.tartib||0)));
+    mxMap=m; renderList();
+  }catch(e){}
+}
 const KOMM_LBL={gaz:'🔥 Gaz',svet:'💡 Svet',suv:'💧 Suv',musor:'🗑️ Musor'};
 function tagsHtml(e){
   const tags=[];
@@ -918,6 +1009,14 @@ function tagsHtml(e){
   }
   const yids=Array.isArray(e.yuk_ids)?e.yuk_ids:[];
   if(yids.length) tags.push(`<span class="tg pkg"><i data-lucide="package"></i>${yids.map(i=>'#'+esc(i)).join(', ')}</span>`);
+  // Maxsus maydon — jurnal bilan AYNAN bir xil chip (ikki sahifada bitta til).
+  // Qiymat yo'q bo'lsa hech narsa chizilmaydi; ko'pi bilan 3 ta (karta portlamasin).
+  ((mxMap[e.id]||[]).filter(r=>String(r.korinish||'').trim())).slice(0,3).forEach(r=>{
+    const ic=r.rasm_url
+      ? `<img class="mxd-thumb" src="${esc(r.rasm_url)}" alt="" loading="lazy" decoding="async" onerror="mxdImgErr(this)">`
+      : '<i data-lucide="tag"></i>';
+    tags.push(`<span class="tg mxd-tg" title="${esc(mxdTtl(r))}">${ic}<span class="mxd-tv">${esc(mxdLbl(r))}</span></span>`);
+  });
   return tags.length?`<div class="ftag">${tags.join('')}</div>`:'';
 }
 function lineRow(l){
@@ -1141,6 +1240,34 @@ window.ijrToggle=()=>{
   if(open) ijrLoad(false);   // 🔴 RPC faqat shu yerda — sahifa ochilganda emas
 };
 window.ijrRetryLoad=()=>ijrLoad(true);
+/* ---- Manba RPC: v2 (maxsus maydonlar bilan) → zaxira: eski v1 ----------------
+   `hodim_xarajat_royxat_v2` (PROVODKA_HISOBOT_MAYDON.sql) eski 9 ustunga
+   `entry_id` + `maydonlar` qo'shadi. SQL hali RUN qilinmagan bo'lsa birinchi
+   so'rov "funksiya topilmadi" beradi (PGRST202 / 42883) — o'shanda `useMxdV2`
+   o'chadi va sahifa ESKI `hodim_xarajat_royxat` ga tushadi (jurnal.html
+   `v2Off` naqshi): ro'yxat, xulosa va Excel avvalgidek ishlaydi, faqat maxsus
+   maydon ostqatori/kesimi bo'lmaydi (`mxdList` bo'sh → `#mxdGrp` yashirin).
+   🔴 Shart ATAYLAB tor: HAQIQIY xato (ruxsat, tarmoq, ichki) zaxiraga
+      tushirilmaydi — sabab yo'qolmasin va u chaqiruvchiga qaytariladi. */
+let useMxdV2=true;
+const IJR_YOQ=e=>{
+  if(!e) return false;
+  const c=String(e.code||'');
+  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
+  return c==='PGRST202' || c==='42883'
+    || /function[\s\S]*does not exist/.test(m)
+    || (m.indexOf('schema cache')>=0 && m.indexOf('function')>=0);
+};
+async function ijrRpc(){
+  const a={p_from:curFrom,p_to:curTo};
+  if(useMxdV2){
+    const r=await sb.rpc('hodim_xarajat_royxat_v2',a);
+    if(!r.error || !IJR_YOQ(r.error)) return r;
+    useMxdV2=false;
+    console.warn('hodim_xarajat_royxat_v2 yo\'q — eski RPC ga tushildi:',r.error.message);
+  }
+  return await sb.rpc('hodim_xarajat_royxat',a);
+}
 async function ijrLoad(force){
   const sig=curFrom+'|'+curTo;
   if(!force && ijrRows && ijrSig===sig){ ijrRender(); return; }
@@ -1148,10 +1275,11 @@ async function ijrLoad(force){
   const su=$('ijrSum'), li=$('ijrList');
   if(su) su.innerHTML='<div class="empty">Yuklanmoqda…</div>';
   if(li) li.innerHTML='<div class="empty">Yuklanmoqda…</div>';
-  const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
+  const {data,error}=await ijrRpc();
   if(my!==ijrSeq) return;   // davr o'zgardi — eskirgan javob yozib ketmasin
   if(error){
     ijrRows=null; ijrSig='';
+    { const g=$('mxdGrp'); if(g) g.style.display='none'; }   // eski davr kesimi qolib ketmasin
     if(su) su.innerHTML='<div class="empty">—</div>';
     if(li) li.innerHTML='<div class="empty">Ro\'yxat yuklanmadi. '
       +'<button type="button" class="xbtn" id="ijrRetry" onclick="ijrRetryLoad()">Qayta urinish</button></div>';
@@ -1167,12 +1295,88 @@ function ijrPeriod(){
   if(ijrSig===sig) return;
   ijrRows=null; ijrSig='';
   const c=$('ijrCnt'); if(c) c.textContent='';
+  { const g=$('mxdGrp'); if(g) g.style.display='none'; }   // davr o'zgardi — kesim yashiriladi
   const f=$('ijrFold');
   if(f&&f.classList.contains('open')){ ijrLoad(true); return; }   // ochiq bo'lsa darrov yangilanadi
   const su=$('ijrSum'), li=$('ijrList');
   if(su) su.innerHTML='<div class="empty">—</div>';
   if(li) li.innerHTML='<div class="empty">—</div>';
 }
+/* ---- Maxsus maydon: to'liq ro'yxat ostqatori + "Maxsus maydon bo'yicha" kesimi ----
+   🔴 Manba — allaqachon yuklangan `ijrRows` (hodim_xarajat_royxat). QO'SHIMCHA RPC YO'Q:
+      ekran va Excel bitta manbadan o'qiydi, ya'ni raqamlar hech qachon farq qilmaydi.
+   🔴 FAIL-CLOSED: qator `maydonlar` kalitini bermasa (SQL hali RUN qilinmagan yoki RPC
+      eski) — ro'yxat bo'sh, `.ijr-sub` o'zgarmaydi va #mxdGrp `display:none` qoladi. */
+function mxdNorm(x){
+  if(!x||typeof x!=='object') return null;
+  // Kalit nomlari ikki xil bo'lishi mumkin (v_entry_maydon: maydon_turi/korinish).
+  const kor=String(x.korinish??x.qiymat??'').trim();
+  if(!kor) return null;
+  return {nom:String(x.maydon_nom??x.nom??'').trim(), turi:String(x.maydon_turi??x.tur??''),
+          korinish:kor, rasm_url:x.rasm_url||null};
+}
+function mxdList(r){ return (Array.isArray(r&&r.maydonlar)?r.maydonlar:[]).map(mxdNorm).filter(Boolean); }
+const mxdRowLbl=x=>(x.turi==='royxat'||x.turi==='dropdown')?x.korinish:`${x.nom}: ${x.korinish}`;
+// Modda ostidagi kulrang qatorga qo'shiladigan matn (izohdan OLDIN).
+// 🔴 Bo'sh bo'lsa BUTUNLAY bo'sh string — ' · ' ajratgichi yolg'iz qolmasin.
+function mxdSub(r){
+  const list=mxdList(r); if(!list.length) return '';
+  return list.map(x=>{
+    const im=x.rasm_url?`<img class="mxd-inl" src="${esc(x.rasm_url)}" alt="" loading="lazy" decoding="async" onerror="mxdImgErr(this)">`:'';
+    return `<b class="mxd-sb">${im}${esc(mxdRowLbl(x))}</b>`;
+  }).join(' · ');
+}
+// 🔴 Excel: BITTA ustun, "Nom: Qiymat · Nom2: Qiymat2". Har maydonga alohida ustun ochilsa
+// eksport sxemasi sozlamalarga qarab o'zgarardi va eski fayllar bilan taqqoslab bo'lmasdi.
+function mxdXls(r){ return mxdList(r).map(x=>`${x.nom}: ${x.korinish}`).join(' · '); }
+// Davrdagi maydon nomlari — tanlagichni qayta quradi va kesimni chizadi.
+function mxdGrpInit(){
+  const box=$('mxdGrp'); if(!box) return;
+  const noms=[];
+  (ijrRows||[]).forEach(r=>mxdList(r).forEach(x=>{ if(x.nom&&noms.indexOf(x.nom)<0) noms.push(x.nom); }));
+  if(!noms.length){ box.style.display='none'; return; }   // davrda qiymat yo'q → bo'sh blok chizilmaydi
+  noms.sort((a,b)=>a.localeCompare(b));
+  box.style.display='block';
+  const sel=$('mxdGrpSel'), ttl=$('mxdGrpTitle');
+  const prev=sel?sel.value:'';
+  if(sel){
+    sel.innerHTML=noms.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    sel.value=(noms.indexOf(prev)>=0)?prev:noms[0];
+    sel.style.display=noms.length>1?'':'none';           // tanlagich FAQAT 2+ maydonda
+  }
+  if(ttl) ttl.textContent=noms.length>1?"Maxsus maydon bo'yicha":`${noms[0]} bo'yicha`;
+  mxdGrpRender();
+}
+// Kesim — klientda guruhlash (#ijrSum ning `kim` bo'yicha guruhlashi bilan bir xil naqsh).
+function mxdGrpRender(){
+  const body=$('mxdGrpBody'); if(!body) return;
+  const sel=$('mxdGrpSel'), nom=sel?sel.value:'';
+  const g={}; let total=0;
+  (ijrRows||[]).forEach(r=>{
+    const v=Math.round(Number(r.summa)||0); total+=v;
+    const f=mxdList(r).find(x=>x.nom===nom);
+    const key=f?f.korinish:'';                            // '' = qiymat ko'rsatilmagan
+    if(!g[key]) g[key]={korinish:key, rasm:f?f.rasm_url:null, v:0};
+    g[key].v+=v;
+  });
+  // Kamayish tartibida; "Ko'rsatilmagan" HAR DOIM oxirida.
+  const gs=Object.keys(g).map(k=>g[k]).sort((a,b)=>{
+    if(!a.korinish!==!b.korinish) return a.korinish?-1:1;
+    return b.v-a.v;
+  });
+  // ⚠️ "Ko'rsatilmagan" bu yerda KO'RINADI (jurnaldan farqli) — CEO hisoboti audit
+  //    ko'rinishi: aynan "qaysi xarajat belgilanmagan" savoli so'raladi.
+  body.innerHTML=gs.length
+    ? gs.map(x=>{ const pct=total>0?Math.round(x.v/total*100):0;
+        const im=x.rasm?`<img class="mxd-inl" src="${esc(x.rasm)}" alt="" loading="lazy" decoding="async" onerror="mxdImgErr(this)">`:'';
+        const nm=x.korinish?`<span>${im}${esc(x.korinish)}</span>`:'<span class="mxd-nul">Ko\'rsatilmagan</span>';
+        return `<div class="exp"><div class="l">${nm}`
+          +`<span class="a">${money(x.v)}<span class="p">${pct}%</span></span></div>`
+          +`<div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`; }).join('')
+      +`<div class="exp total"><div class="l"><span>Jami</span><span class="a">${money(total)}</span></div></div>`
+    : '<div class="empty">Bu davrda xarajat yo\'q</div>';
+}
+window.mxdGrpRender=mxdGrpRender;   // #mxdGrpSel onchange — modulda global bo'lishi shart
 function ijrRender(){
   const list=ijrRows||[];
   const c=$('ijrCnt'); if(c) c.textContent=list.length?list.length+' ta':'';
@@ -1193,17 +1397,23 @@ function ijrRender(){
           +`<div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`; }).join('')
       +`<div class="exp total"><div class="l"><span>Jami</span><span class="a">${money(total)}</span></div></div>`
     : '<div class="empty">Bu davrda xarajat yo\'q</div>';
+  // 1b) Maxsus maydon kesimi — SHU ijrRows dan (pastdagi erta return'lardan OLDIN,
+  //     aks holda bo'sh davrda #mxdGrp eski davr qiymatlari bilan qolib ketardi).
+  mxdGrpInit();
   // 2) To'liq ro'yxat — desktop jadval, mobil kartalar (ikkalasi bitta manbadan)
   const li=$('ijrList'); if(!li) return;
   if(!list.length){ li.innerHTML='<div class="empty">Bu davrda xarajat yo\'q</div>'; icons(); return; }
   const trs=list.map(r=>{
     const izoh=String(r.izoh||'').trim(), sub=String(r.kassa_subtitle||'').trim();
+    // 🔴 sub2 ichida ALLAQACHON HTML bor (mxdSub) — unga esc() qo'llanmaydi;
+    //    izoh esa ALOHIDA esc() dan o'tadi. Ikkalasi ham bo'sh bo'lsa qator chizilmaydi.
+    const mx=mxdSub(r), sub2=[mx,izoh?esc(izoh):''].filter(Boolean).join(' · ');
     return `<tr>`
       +`<td class="ijr-d">${esc(r.entry_date||'')}</td>`
       +`<td class="ijr-k"><span class="code">${esc(r.kassa_code||'')}</span>${esc(r.kassa_name||'')}`
         +(sub?`<span class="ijr-sub">${esc(sub)}</span>`:'')+`</td>`
       +`<td class="ijr-m"><span class="code">${esc(r.modda_code||'')}</span>${esc(r.modda_name||'')}`
-        +(izoh?`<span class="ijr-sub">${esc(izoh)}</span>`:'')+`</td>`
+        +(sub2?`<span class="ijr-sub">${sub2}</span>`:'')+`</td>`
       +`<td class="ijr-w">${ijrChip(r.kim)}</td>`
       +`<td class="ijr-a">${money(r.summa)}</td>`
     +`</tr>`;
@@ -1214,12 +1424,13 @@ function ijrRender(){
     +`<tfoot><tr><td colspan="4">Jami</td><td class="ijr-a">${money(total)}</td></tr></tfoot></table>`;
   const cards=list.map(r=>{
     const izoh=String(r.izoh||'').trim(), sub=String(r.kassa_subtitle||'').trim();
-    const alt=[sub,izoh].filter(Boolean).join(' · ');
+    // Desktop bilan BIRGA o'zgaradi: alt ichida HTML bor → esc() bu yerda ham qo'llanmaydi.
+    const alt=[sub?esc(sub):'',mxdSub(r),izoh?esc(izoh):''].filter(Boolean).join(' · ');
     return `<div class="ijr-card">`
       +`<div class="ijr-c1"><span class="ijr-d">${esc(r.entry_date||'')}</span>`
         +`<span class="ijr-a">${money(r.summa)}</span></div>`
       +`<div class="ijr-c2"><span class="code">${esc(r.modda_code||'')}</span>${esc(r.modda_name||'')}</div>`
-      +(alt?`<div class="ijr-sub">${esc(alt)}</div>`:'')
+      +(alt?`<div class="ijr-sub">${alt}</div>`:'')
       +`<div class="ijr-meta">${ijrChip(r.kim)}</div>`
     +`</div>`;
   }).join('');
@@ -1245,12 +1456,15 @@ window.exportXulosa=()=>{
   downloadCSV(`xarajat-xulosa-${perStr()}.csv`,list);
 };
 window.exportToliq=async()=>{
-  const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
+  // 🔴 Ekran bilan AYNAN bitta manba (`ijrRpc` — v2, bo'lmasa v1): raqam ham,
+  //    "Maxsus maydonlar" ustuni ham ro'yxatdagi bilan bir xil bo'ladi.
+  const {data,error}=await ijrRpc();
   if(error){ alert('Xato: '+error.message); return; }
-  const list=[['Sana','Kassa kodi','Kassa','Lavozim','Modda kodi','Modda','Summa','Izoh','Kim']];
+  // 🔴 "Maxsus maydonlar" — OXIRGI ustun: mavjud ustunlar siljimaydi.
+  const list=[['Sana','Kassa kodi','Kassa','Lavozim','Modda kodi','Modda','Summa','Izoh','Kim','Maxsus maydonlar']];
   // "Kim" — ekrandagi chip bilan bir xil matn (texnik kalit odam tilida, noma'lum = bo'sh katak)
   (data||[]).forEach(r=>list.push([r.entry_date,r.kassa_code,r.kassa_name,r.kassa_subtitle||'',
-    r.modda_code,r.modda_name,Math.round(Number(r.summa)||0),r.izoh||'',ijrXls(r.kim)]));
+    r.modda_code,r.modda_name,Math.round(Number(r.summa)||0),r.izoh||'',ijrXls(r.kim),mxdXls(r)]));
   if(list.length===1){ alert('Bu davrda xarajat yo\'q'); return; }
   downloadCSV(`xarajat-toliq-${perStr()}.csv`,list);
 };
