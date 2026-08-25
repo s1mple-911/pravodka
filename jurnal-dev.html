@@ -1573,20 +1573,65 @@ window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').inn
 // RLS bermasa (cheklangan user) jimgina bo'sh qoladi — teg ko'rinmaydi, boshqa narsa buzilmaydi.
 let metaMap={};   // entry.id → {filial_ids, davr_start, davr_end, yuk_ids}
 let eyMap={};     // entry.id → [{yuk_id, summa_uzs}] (qisman to'lov taqsimoti)
+// Maxsus maydon qiymatlari (PROVODKA_XARAJAT_MAYDON.sql → v_entry_maydon).
+// 🔴 BITTA qo'shimcha so'rov — SAHIFAGA, qatorga emas. View hali yaratilmagan bo'lsa
+// (PGRST205/42P01) mxMap bo'sh qoladi va jurnal avvalgidek to'liq ishlaydi.
+let mxMap={};     // entry.id → [{maydon_nom, maydon_turi, tartib, korinish, rasm_url}]
 async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
-  if(!ids.length){ metaMap={}; eyMap={}; return; }
+  if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; return; }
   try{
-    const [mRes, eyRes]=await Promise.all([
+    const [mRes, eyRes, mxRes]=await Promise.all([
       sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',ids),
-      sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids)
+      sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids),
+      sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids)
     ]);
     if(mRes.error||!mRes.data) return;
     const m={}; mRes.data.forEach(r=>{ m[r.id]=r; }); metaMap=m;
     eyMap={}; (eyRes.data||[]).forEach(r=>{ (eyMap[r.entry_id]||(eyMap[r.entry_id]=[])).push(r); });
+    // View yo'q / RLS bermadi → mxRes.error, mxMap bo'sh: chip umuman chizilmaydi.
+    mxMap={}; if(!mxRes.error) (mxRes.data||[]).forEach(r=>{ (mxMap[r.entry_id]||(mxMap[r.entry_id]=[])).push(r); });
+    Object.keys(mxMap).forEach(k=>mxMap[k].sort((a,b)=>(a.tartib||0)-(b.tartib||0)));
     render();
   }catch(e){}
 }
+// --- Maxsus maydon chipi (.mxd-tg) — mavjud .ftag qatoriga tushadi, YANGI QATOR YO'Q ---
+// 🔴 Ko'rsatiladigan matn SERVERDAN keladi (v_entry_maydon.korinish) — klientda
+//    "nom + qiymat" yasalmaydi, aks holda jurnal/hisobot/Excel uch xil matn berardi.
+const MXD_MAX=3;
+// 🔴 onclick="fn('...')" ichiga matn qo'yish: avval JS-satr uchun ekranlash (\ va '),
+// keyin esc(). Busiz "To'lov" kabi apostrofli nom bosilganda JS sintaksis xatosi berardi
+// (esc() `&#39;` ni yozadi, brauzer atributni yechganda u yana `'` bo'lib qaytadi).
+const jsq=s=>esc(String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+function mxdTags(e){
+  const list=(mxMap[e.id]||[]).filter(r=>String(r.korinish||'').trim());
+  if(!list.length) return [];
+  const show=list.slice(0,MXD_MAX), rest=list.slice(MXD_MAX);
+  const lblOf=r=>(r.maydon_turi==='royxat'||r.maydon_turi==='dropdown')?String(r.korinish)
+    :`${r.maydon_nom||''}: ${r.korinish}`;
+  const ttlOf=r=>`${r.maydon_nom||''}: ${r.korinish}`;
+  const out=show.map(r=>{
+    const ttl=ttlOf(r);
+    const ic=r.rasm_url
+      ? `<img class="mxd-thumb" src="${esc(r.rasm_url)}" alt="" loading="lazy" decoding="async" onerror="mxdImgErr(this)">`
+      : '<i data-lucide="tag"></i>';
+    const cls=r.rasm_url?'tg mxd-tg tgc':'tg mxd-tg';
+    const clk=r.rasm_url?` onclick="openMxdImg('${jsq(r.rasm_url)}','${jsq(ttl)}')"`:'';
+    return `<span class="${cls}"${clk} title="${esc(ttl)}">${ic}<span class="mxd-tv">${esc(lblOf(r))}</span></span>`;
+  });
+  if(rest.length) out.push(`<span class="tg mxd-tg mxd-more" title="${esc(rest.map(ttlOf).join(' · '))}">+${rest.length}</span>`);
+  return out;
+}
+// Rasm kattalashtirish — mavjud #chekModal/#chekImg qayta ishlatiladi (yangi modal YO'Q).
+window.openMxdImg=(url,label)=>{
+  const box=$('chekImg'); if(!box) return;
+  box.innerHTML=`<img src="${esc(url)}" alt="${esc(label)}">`;
+  $('chekModal').classList.add('open');
+};
+// Rasm 404 → ikonkaga qaytadi (singan rasm ikonkasi hech qachon ko'rinmaydi).
+window.mxdImgErr=img=>{
+  try{ const s=document.createElement('i'); s.setAttribute('data-lucide','tag'); img.replaceWith(s); icons(); }catch(e){}
+};
 const filName=id=>{ const a=accounts.find(x=>x.id===id); return a?a.name:null; };
 function metaTags(e){
   const meta=metaMap[e.id]; if(!meta) return '';
@@ -1600,6 +1645,9 @@ function metaTags(e){
     const KL={gaz:'🔥 Gaz',svet:'💡 Svet',suv:'💧 Suv',musor:'🗑️ Musor'};
     tags.push(`<span class="tg komm">${KL[meta.kommunal_turi]||esc(meta.kommunal_turi)}</span>`);
   }
+  // Maxsus maydonlar — mavjud .ftag qatoriga chip bo'lib qo'shiladi (yangi qator YO'Q).
+  // Ko'pi bilan 3 ta; qolganlari +N chipiga yig'iladi (karta portlamasin).
+  mxdTags(e).forEach(t=>tags.push(t));
   const fnames=(meta.filial_ids||[]).map(filName).filter(Boolean);
   if(fnames.length) tags.push(`<span class="tg"><i data-lucide="store"></i>${fnames.map(esc).join(', ')}</span>`);
   if(meta.davr_start||meta.davr_end){
@@ -2787,22 +2835,33 @@ async function xlsFetchAll(a,onProg){
 // Metadata (filial/davr/yuk/kommunal) — jurnal() qaytarmaydi, entry'dan bo'lak-bo'lak o'qiladi.
 // Xato bo'lsa (RLS/ustun yo'q) eksport TO'XTAMAYDI, faqat shu ustunlar bo'sh qoladi.
 async function xlsMeta(ids){
-  const meta={}, ey={};
+  const meta={}, ey={}, mx={};
   const chunks=[]; for(let i=0;i<ids.length;i+=120) chunks.push(ids.slice(i,i+120));   // 120 ta uuid ≈ 5 KB URL — PostgREST GET chegarasidan xavfsiz uzoq
   // Bo'laklar 4 talab parallel — ketma-ket bo'lsa katta davr (10k+ yozuv) daqiqalab cho'zilardi.
   for(let i=0;i<chunks.length;i+=4){
     await Promise.all(chunks.slice(i,i+4).map(async part=>{
       try{
-        const [m,y]=await Promise.all([
+        const [m,y,x]=await Promise.all([
           sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',part),
-          sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',part)
+          sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',part),
+          sb.from('v_entry_maydon').select('entry_id,maydon_nom,tartib,korinish').in('entry_id',part)
         ]);
         (m.data||[]).forEach(r=>{ meta[r.id]=r; });
         (y.data||[]).forEach(r=>{ (ey[r.entry_id]||(ey[r.entry_id]=[])).push(r); });
+        // View yo'q bo'lsa (x.error) — ustun bo'sh qoladi, eksport TO'XTAMAYDI.
+        if(!x.error) (x.data||[]).forEach(r=>{ (mx[r.entry_id]||(mx[r.entry_id]=[])).push(r); });
       }catch(e){}
     }));
   }
-  return {meta,ey};
+  Object.keys(mx).forEach(k=>mx[k].sort((a,b)=>(a.tartib||0)-(b.tartib||0)));
+  return {meta,ey,mx};
+}
+// 🔴 BITTA ustun, "Nom: Qiymat · Nom2: Qiymat2" — har maydonga alohida ustun ochilsa
+// eksport sxemasi sozlamalarga qarab o'zgarardi va eski fayllar bilan taqqoslab bo'lmasdi.
+// Matn SERVERDAN (korinish) — ekrandagi chip bilan bitta manba.
+function mxdXls(e,mx){
+  return ((mx&&mx[e.id])||[]).filter(r=>String(r.korinish||'').trim())
+    .map(r=>`${r.maydon_nom||''}: ${r.korinish}`).join(' · ');
 }
 // Chek/hujjat bor-yo'qligi — kassa papkalarini ro'yxatlab (refreshCheks bilan bir xil qoida).
 // `seen` — papkasi ISHONCHLI ro'yxatlangan kassalar. Ro'yxatlanmagan (chegaradan tashqari,
@@ -2827,9 +2886,10 @@ function xlsFileName(a,ext){ return `jurnal_${a.p_from||''}_${a.p_to||''}.${ext}
 const XLS_HEAD=['№','Sana','Tur','Kt kodi','Kt hisob (qayerdan)','Dt kodi','Dt hisob (qayerga)','Summa (so\'m)',
   'Valyuta','Valyuta summa','Izoh','Davr boshi','Davr oxiri','Filial(lar)','Kommunal','Yuklar','Yo\'ldagi tovar',
   'Ijrochi',
-  'Manba','Satrlar','Chek/hujjat','Holat','O\'chirdi','O\'chirilgan','Tahrirladi','Tahrirlangan','Yaratilgan','Yozuv ID'];
+  'Manba','Satrlar','Chek/hujjat','Holat','O\'chirdi','O\'chirilgan','Tahrirladi','Tahrirlangan','Yaratilgan','Yozuv ID',
+  'Maxsus maydonlar'];   // 🔴 OXIRGI ustun — mavjud ustunlar siljimasin (xlsNumFmt indekslari 7/9 o'zgarmaydi)
 const XLS_LINE_HEAD=['№','Sana','Yozuv ID','Hisob kodi','Hisob nomi','Bo\'lim','Debet','Kredit','Valyuta','Valyuta summa','Izoh','Holat'];
-function xlsRow(e,i,meta,ey,cheks){
+function xlsRow(e,i,meta,ey,cheks,mx){
   const k=klass(e), ls=e.lines||[];
   const dts=ls.filter(l=>Number(l.debit)>0), kts=ls.filter(l=>Number(l.credit)>0);
   const nm=l=>{ const s=accSub(l.account_id); return (l.name||'')+(s?' · '+s:''); };
@@ -2854,7 +2914,8 @@ function xlsRow(e,i,meta,ey,cheks){
     ijrText(e),
     e.source||'', ls.length, chek,
     e.is_deleted?'O\'chirilgan':(chala?'Chala — satr yozilmagan':'Faol'), e.deleted_by_name||'', fmtDT(e.deleted_at),
-    e.edited_by_name||'', fmtDT(e.edited_at), fmtDT(e.created_at), e.id ];
+    e.edited_by_name||'', fmtDT(e.edited_at), fmtDT(e.created_at), e.id,
+    mxdXls(e,mx) ];
 }
 function xlsLineRows(list){
   const out=[]; let n=0;
@@ -2883,16 +2944,16 @@ window.exportExcel=async()=>{
     });
     if(!list.length){ xlsBtn('Excel',false); alert('Bu shartlarga mos yozuv yo\'q'); return; }
     xlsBtn('Tayyorlanmoqda…',true);
-    const {meta,ey}=await xlsMeta(list.map(e=>e.id));
+    const {meta,ey,mx}=await xlsMeta(list.map(e=>e.id));
     const cheks=await xlsCheks(list);
-    const head=list.map((e,i)=>xlsRow(e,i,meta,ey,cheks));
+    const head=list.map((e,i)=>xlsRow(e,i,meta,ey,cheks,mx));
     const lineRows=xlsLineRows(list);
     const X=await loadXlsx();
     const wb=X.utils.book_new();
     const ws1=X.utils.aoa_to_sheet([XLS_HEAD,...head]);
     ws1['!cols']=[{wch:5},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
       {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:16},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
-      {wch:16},{wch:17},{wch:17},{wch:38}];
+      {wch:16},{wch:17},{wch:17},{wch:38},{wch:34}];
     xlsNumFmt(X,ws1,{7:'#,##0',9:'#,##0.00'},head.length);
     const ws2=X.utils.aoa_to_sheet([XLS_LINE_HEAD,...lineRows]);
     ws2['!cols']=[{wch:6},{wch:11},{wch:38},{wch:10},{wch:28},{wch:10},{wch:15},{wch:15},{wch:8},{wch:13},{wch:34},{wch:12}];
@@ -2929,10 +2990,10 @@ async function exportCsvFallback(a){
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
     return true;
   });
-  const {meta,ey}=await xlsMeta(list.map(e=>e.id));
+  const {meta,ey,mx}=await xlsMeta(list.map(e=>e.id));
   const cheks=await xlsCheks(list);
   const cel=v=>{ const s=String(v==null?'':v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const body=[XLS_HEAD,...list.map((e,i)=>xlsRow(e,i,meta,ey,cheks))].map(r=>r.map(cel).join(';')).join('\r\n');
+  const body=[XLS_HEAD,...list.map((e,i)=>xlsRow(e,i,meta,ey,cheks,mx))].map(r=>r.map(cel).join(';')).join('\r\n');
   const blob=new Blob(['﻿'+'sep=;\r\n'+body],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob), aEl=document.createElement('a');
   aEl.href=url; aEl.download=xlsFileName(a,'csv'); document.body.appendChild(aEl); aEl.click();

@@ -346,6 +346,132 @@
     .ymbox,.mdl-box{padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
     .tbox{padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
   }
+
+  /* ================================================================
+     MAXSUS MAYDONLAR (.mxd-*) — xarajat formasida.
+     🔴 BU BLOK UCHALA FAYLDA AYNAN BIR XIL. Faqat kesishma tokenlar
+     ishlatilgan; kuchli variantlar fallback bilan (hodimda --*-ink bor,
+     boshqalarida yo'q). Bo'shliqlar 4/8 shkalasida, literal px —
+     hodimdagi --s* o'zgaruvchilari boshqa ikki faylda mavjud emas.
+     Mavjud .sect / .lbl / .txt / .fchip qoidalari QAYTA TA'RIFLANMAGAN.
+     ================================================================ */
+  .mxd{margin-bottom:20px}
+  .mxd-f{margin-bottom:20px;animation:mxdIn .22s cubic-bezier(.22,.61,.36,1)}
+  .mxd-f:last-child{margin-bottom:0}
+  @keyframes mxdIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.mxd-f{animation:none}}
+  /* .txt sahifaning O'ZINIKI (hodim 52px, professional/provodka 46px) — faqat provodkadagi
+     margin-bottom:15px neytrallanadi, aks holda maydonlar orasi ikki xil bo'lardi. */
+  .mxd-f .txt{margin-bottom:0}
+
+  .mxd-lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 8px 2px;
+    display:flex;align-items:center;gap:8px;min-height:18px;flex-wrap:wrap}
+  .mxd-optl{font-weight:500;opacity:.9}
+  .mxd-rq{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;
+    background:var(--red-soft);color:var(--red-ink,var(--red));
+    font-size:11px;font-weight:700;letter-spacing:.01em}
+
+  /* --- Qidiruv (>10 element) --- */
+  .mxd-srch{position:relative;margin-bottom:10px}
+  .mxd-srch>svg{position:absolute;left:13px;top:50%;margin-top:-8px;width:16px;height:16px;
+    color:var(--muted);pointer-events:none}
+  .mxd-si{width:100%;height:44px;border:1px solid var(--line);border-radius:11px;
+    background:var(--surface);color:var(--ink);padding:0 12px 0 38px;font-size:15px;
+    font-family:inherit;outline:none;transition:border-color .13s,box-shadow .13s}
+  .mxd-si:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .mxd-si::placeholder{color:var(--muted);opacity:.75}
+
+  /* --- Kartali tanlov (maydonda kamida bitta rasm bor) ---
+     minmax(120px) — 268px li telefonda 2 ustun, 488px da 3, kengroqda 4. */
+  .mxd-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;
+    max-height:296px;overflow-y:auto;overscroll-behavior:contain;padding:2px;margin:-2px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .mxd-opts::-webkit-scrollbar{width:6px}
+  .mxd-opts::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .mxd-opts::-webkit-scrollbar-track{background:transparent}
+  .mxd-opt{position:relative;display:flex;flex-direction:column;padding:0 0 9px;min-width:0;
+    border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);
+    font-family:inherit;text-align:left;cursor:pointer;overflow:hidden;
+    transition:border-color .15s,background .15s,box-shadow .15s,transform .12s}
+  .mxd-opt[hidden]{display:none}
+  @media(hover:hover){.mxd-opt:hover{border-color:var(--primary)}}
+  .mxd-opt:active{transform:scale(.985)}
+  .mxd-opt.on{border-color:var(--primary);background:var(--primary-soft);
+    box-shadow:0 0 0 3px var(--primary-soft)}
+  .mxd-th{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:center;display:block;
+    background:var(--surface-2);border-bottom:1px solid var(--line)}
+  /* Rasmsiz element — AYNAN o'sha o'lchamdagi monogramma plitkasi (bo'sh joy qolmaydi) */
+  .mxd-th.mono{display:flex;align-items:center;justify-content:center;color:var(--muted);
+    font-size:19px;font-weight:800;letter-spacing:.03em}
+  .mxd-on{margin:9px 10px 0;font-size:13.5px;font-weight:700;line-height:1.3;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mxd-oq{margin:2px 10px 0;font-size:11.5px;font-weight:600;color:var(--muted);min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .mxd-oq:empty{display:none}
+  .mxd-opt.on .mxd-oq{color:var(--primary-ink,var(--primary))}
+  .mxd-ck{position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:999px;
+    background:var(--primary);color:var(--on-primary);display:flex;align-items:center;
+    justify-content:center;opacity:0;transform:scale(.8);
+    transition:opacity .13s,transform .13s;box-shadow:var(--shadow)}
+  .mxd-ck svg{width:13px;height:13px;stroke-width:3}
+  .mxd-opt.on .mxd-ck{opacity:1;transform:none}
+
+  /* --- Chip tanlov (maydonda hech bir elementda rasm yo'q) --- */
+  .mxd-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .mxd-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:44px;
+    padding:0 16px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);
+    color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+    transition:border-color .15s,background .15s,color .15s}
+  .mxd-chip[hidden]{display:none}
+  @media(hover:hover){.mxd-chip:hover{border-color:var(--primary)}}
+  .mxd-chip.on{border-color:var(--primary);background:var(--primary-soft);
+    color:var(--primary-ink,var(--primary))}
+  .mxd-cq{font-size:12.5px;font-weight:600;color:var(--muted);
+    font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .mxd-chip.on .mxd-cq{color:inherit;opacity:.85}
+
+  /* --- dropdown / sana: sahifaning .txt idishida --- */
+  .mxd-sel2{-webkit-appearance:none;appearance:none;cursor:pointer;padding-right:38px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 13px center}
+  [data-theme="dark"] .mxd-date::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.55)}
+
+  /* --- Majburiy ogohlantirishi --- */
+  .mxd-req{display:flex;align-items:flex-start;gap:6px;margin-top:8px;
+    color:var(--red-ink,var(--red));font-size:13px;font-weight:600;line-height:1.4}
+  .mxd-req svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px}
+  /* --- Xato/eslatma (fail-open) --- */
+  .mxd-note{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;
+    background:var(--surface-2);border-radius:12px;padding:12px 14px;
+    font-size:13px;color:var(--muted);line-height:1.5}
+  .mxd-note svg{width:16px;height:16px;flex:0 0 auto;margin-top:2px}
+  .mxd-retry{border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12.5px;font-weight:600;
+    cursor:pointer;min-height:32px}
+  .mxd-retry:hover{border-color:var(--primary);color:var(--primary)}
+
+  /* --- Skeleton: balandligi YAKUNIY blok bilan bir xil (ikkinchi sakrash bo'lmasin) --- */
+  @keyframes mxdShim{100%{background-position:-180px 0}}
+  .mxd-sk{display:block;border-radius:9px;
+    background:linear-gradient(90deg,var(--surface-2) 0,var(--line) 42%,var(--surface-2) 84%);
+    background-size:180px 100%;animation:mxdShim 1.15s linear infinite}
+  .mxd-sk.sk-l{width:38%;height:13px;border-radius:6px;margin:0 0 13px 2px}   /* yorliq 18+8 */
+  .mxd-sk.sk-in{height:52px;border-radius:12px}                               /* .txt o'rni */
+  .mxd-sk.sk-grid{height:128px;border-radius:12px}                            /* karta qatori */
+  @media(prefers-reduced-motion:reduce){.mxd-sk{animation:none}}
+
+  /* --- Chop etish: tanlanmagan variantlar qog'ozga chiqmaydi --- */
+  @media print{
+    .mxd-srch,.mxd-req,.mxd-note{display:none!important}
+    .mxd-opts{max-height:none;overflow:visible;display:block}
+    .mxd-opt:not(.on),.mxd-chip:not(.on){display:none!important}
+    .mxd-opt.on,.mxd-chip.on{box-shadow:none!important;background:none!important;
+      border:1px solid #999!important;color:#000!important}
+    .mxd-th{max-height:90px}
+    .mxd-ck{display:none!important}
+  }
+
 </style>
 </head>
 <body>
@@ -417,6 +543,13 @@
         <div id="kursNote" class="kursnote" style="display:none" role="status" aria-live="polite"></div>
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
+        <!-- ===== Maxsus maydonlar (.mxd-*) — modda tanlanganda chiziladi.
+             🔴 O'ram DOM da DOIM turadi; ichi almashadi. Bo'sh bo'lsa display:none.
+             Faqat "Oddiy" rejim (#davrSect naqshi) — kengaytirilgan rejim ko'p satrli
+             Dt/Kt yozadi, unda yagona "modda" tushunchasi yo'q. -->
+        <div class="mxd" id="mxdSect" style="display:none" aria-live="polite">
+          <div id="mxdBody"></div>
+        </div>
         <!-- Filial bloki IKKALA rejim uchun BITTA (izoh/chek bilan bir xil naqsh) — setMode()
              uni #filialSlotSimple ↔ #filialSlotAdv orasida DOM'da ko'chiradi. Ikkinchi nusxa
              ATAYLAB yaratilmagan: selFilials holati bitta bo'lsin, aks holda rejim
@@ -1518,6 +1651,7 @@ function simpleDir(){
 }
 window.updateSimple=()=>{
   syncModdaBtn();                                    // modda tugmasi yorlig'i har doim yangi
+  mxdRender();                                       // maxsus maydonlar (holat o'zgarmasa qayta chizmaydi)
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
   const h=$('dirHint');
@@ -1558,7 +1692,7 @@ window.updateSimple=()=>{
     if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needKurs && !needIzoh && !needChek && !needDavr && !needKomm && !needFilial && !overLimit);
+  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needKurs && !needIzoh && !needChek && !needDavr && !needKomm && !needFilial && !overLimit && mxdOk());
   $('saveSimpleBtn').disabled=!ok;
   // Saqlash hech qachon "sababsiz" yopiq turmasin — birinchi yetishmayotgan shartni yozamiz.
   // (9411 "Ijara" bug'i aynan shu ko'rinmas holat edi: davr majburiy, lekin sana tanlab bo'lmasdi.)
@@ -1576,6 +1710,7 @@ window.updateSimple=()=>{
     else if(needKomm) msg='Kommunal turini tanlang';
     else if(over) msg='Summa kassa qoldig‘idan oshdi';
     else if(overLimit) msg='Summa filial limitidan oshdi';
+    else if(!mxdOk()) msg='<b>'+esc(mxdFirstMissing())+'</b> maydonini to‘ldiring';
     why.innerHTML=msg; why.style.display=msg?'block':'none';
   }
 };
@@ -1892,6 +2027,8 @@ window.saveSimple=async()=>{
   if(chekRequired() && !chekBlob){ alert('Bu modda uchun chek yoki hujjat majburiy'); return; }          // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }                       // V9
+  // Maxsus maydon (universal konstruktor): majburiysi to'ldirilmasa saqlanmaydi.
+  if(!mxdOk()){ alert('«'+mxdFirstMissing()+'» to\'ldirilishi shart'); mxdShowReq(); return; }
   if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+((kassa.currency&&kassa.currency!=='UZS')?kassa.currency:'so\'m')); return; }
   // 9110 Tovar tannarxi → avval yuk modali (yoki "Hujjat hali yo'q" → yo'ldagi tovar).
   if(modda.code==='9110'){ openYukSave(amt, kassa.currency||'UZS', doSaveSimple, 'simple'); return; }
@@ -1923,6 +2060,7 @@ async function doSavePending(izohP){
   const res=await yozBir(entryPayload,rows);
   if(!res.ok){ btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
   if(chekBlob) chekYukla(res, kassa.id);
+  mxdReset();
   $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
@@ -1932,6 +2070,7 @@ async function doSaveSimple(){
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
   if(!kassa||!modda||amt<=0) return;
+  const mxdV=mxdValues();   // 🔴 forma tozalanishidan OLDIN (taqsim yo'liga openTaqsim o'zi oladi)
   // V9: filial majburiy — bu yerga yuk modalidan va doSaveSimpleForce'dan ham kelinadi,
   // shuning uchun tekshiruv saveSimple'dan tashqari SHU YERDA ham turadi.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
@@ -1962,6 +2101,10 @@ async function doSaveSimple(){
   if(!res.ok){ btn.textContent='Saqlash'; updateSimple(); return; }
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   if(chekBlob) chekYukla(res, kassa.id);
+  // 🔴 TARTIB: entry → entry_line → entry_maydon_yoz (qorovul yozuv SATRLARIGA qaraydi).
+  //    Xato bo'lsa yozuv O'CHIRILMAYDI — chek yuklash naqshi (pul harakati to'g'ri).
+  mxdYoz(res.entry_id||null, mxdV);
+  mxdReset();
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   window.removeChek();
   preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
@@ -1985,7 +2128,8 @@ let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
 // {uzs, fc, rate} — server har ulush uchun fc = ulush/kurs hisoblashi uchun kerak.
 function openTaqsim(amt, dtId, ktId, kassa, pair){
   const moddaId=(dtId===kassa.id)?ktId:dtId;   // kassa bo'lmagan tomon = modda (limit shu bo'yicha)
-  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId, pair:pair||null};
+  taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId, pair:pair||null,
+    mxd:mxdValues()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
   taqsimFils=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
   if(taqsimFils.length<2){ doSaveSimpleForce(); return; }   // himoya (filial ro'yxati kelmasa)
   taqsimEqualCalc(); renderTaqsim();
@@ -2030,7 +2174,7 @@ window.confirmTaqsim=async()=>{
   // hech qachon bajarilmaydi; taqsim yo'li kelajakda o'zgarsa ham ochilib qolmasin.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
-  const {dtId,ktId,kassa,pair}=taqsimCtx;
+  const {dtId,ktId,kassa,pair,mxd:mxdV}=taqsimCtx;
   const p_data={
     entry_date:$('sana').value||null, description:$('izoh').value||null,
     source:'manual', status:'posted',
@@ -2047,7 +2191,9 @@ window.confirmTaqsim=async()=>{
   if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
   if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
+  mxdYoz((data&&data.entry_ids)||[], mxdV);   // har filial yozuviga BIR XIL maxsus maydon qiymati
   closeTaqsim();
+  mxdReset();
   $('summa').value=''; $('izoh').value=''; selFilials.clear(); renderFilials();
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
@@ -2163,11 +2309,282 @@ async function init(){
   $('izoh').addEventListener('input',updateSimple);
   renderChips(); fetchSubBal(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   loadLimits();                      // Stage 4: standart limitlar (fon)
+  mxdLoad();                         // maxsus maydon ta'riflari (fon, fail-closed/fail-open)
   window.setMode('simple');
   applyPrefill();                    // V8: qarzdor-dev.html'dan kelgan yuk/summa
   // Kengaytirilgan rejim (mavjud)
   lines=[]; addLine(); addLine();
 }
+
+/* ============ MAXSUS MAYDONLAR (.mxd-*) — 🔴 UCHALA FAYLDA AYNAN BIR XIL ============
+   Xarajat moddasi tanlanganda unga biriktirilgan "maxsus maydonlar" formada chiqadi
+   (PROVODKA_XARAJAT_MAYDON.sql: xarajat_maydonlar(p_modda) + entry_maydon_yoz(...)).
+
+   IKKI CHEGARA — ATAYLAB QARAMA-QARSHI:
+     • FAIL-CLOSED — SQL hali RUN qilinmagan bo'lsa (PGRST202/PGRST205/42883/42P01)
+       `mxdOff=true` va blok UMUMAN chizilmaydi: sahifa avvalgidek ishlaydi.
+     • FAIL-OPEN  — ta'riflar vaqtinchalik yuklanmasa xarajat saqlash BLOKLANMAYDI
+       (metadata pul emas; majburiylik serverda `entry_maydon_yoz` ichida HAM bor).
+
+   FORMA SAKRAMASIN (4 chora):
+     1) blok modda tanlagichidan PASTDA — yuqoridagi hech narsa siljimaydi;
+     2) ta'riflar init()da OLDINDAN yuklanadi (+ SWR kesh) — tanlanganda sinxron chiziladi;
+     3) sovuq holatda o'lchami TO'G'RI skeleton, va u FAQAT maydoni bor moddada
+        ko'rsatiladi (`mxdMod` — biriktirish ro'yxati), qolgan moddalarda hech narsa yo'q;
+     4) faqat `opacity`/`translateY` animatsiyasi — balandlik animatsiya qilinmaydi.
+
+   🔴 QAYTA CHIZISH QOROVULI (`mxdSig`): render har chaqiruvda emas, HOLAT o'zgarganda
+      bo'ladi — aks holda summa yozilayotganda (updateSimple/updateProv har harfda
+      ishlaydi) matn maydonidagi fokus va animatsiya har harfda uzilardi. */
+const MXD_YOQ=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='PGRST202'||c==='PGRST205'||c==='42883'||c==='42P01'
+      ||/could not find the (function|table)/i.test(m); };
+let mxdDefs={};          // {modda_id:[maydon,…]} — `xarajat_maydonlar` javobi (elementlari bilan)
+let mxdMod=null;         // Set(modda_id) — maydoni BOR moddalar
+let mxdModLoaded=false, mxdOff=false, mxdErr=false;
+let mxdVals={};          // {maydon_id:{element_id,qiymat_text}} — joriy forma holati
+let mxdCur='', mxdSig='';
+const mxdBusy={};
+const MXD_NOTE='<div class="mxd-note"><i data-lucide="circle-alert"></i><span>Maxsus maydonlar yuklanmadi — '
+  +'xarajatni saqlash mumkin, lekin qo\'shimcha ma\'lumot yozilmaydi.</span>'
+  +'<button type="button" class="mxd-retry" onclick="mxdRetry()">Qayta urinish</button></div>';
+const MXD_SKEL='<div class="mxd-f"><div class="mxd-sk sk-l"></div><div class="mxd-sk sk-grid"></div></div>';
+// SWR — sahifa qayta ochilganda ta'riflar DARROV bo'lsin (professionalda swr* yo'q → jimgina o'tadi).
+const mxdCacheGet=()=>{ try{ return (typeof swrGet==='function')?swrGet('mxd',300000):null; }catch(e){ return null; } };
+const mxdCacheSet=()=>{ try{ if(typeof swrSet==='function') swrSet('mxd',{mod:[...(mxdMod||[])],defs:mxdDefs}); }catch(e){} };
+
+// ---- Yuklash --------------------------------------------------------------
+// 1) `xarajat_maydon_modda` — kichik jadval: qaysi moddada maydon BOR (skeleton qorovuli).
+// 2) har o'sha modda uchun `xarajat_maydonlar(p_modda)` — kontrakt RPC (maydon + elementlar).
+async function mxdLoad(force){
+  if(mxdOff) return;
+  if(!force){ const c=mxdCacheGet();
+    if(c&&Array.isArray(c.mod)){ mxdMod=new Set(c.mod); mxdModLoaded=true; mxdDefs=c.defs||{}; mxdRender(); } }
+  const {data,error}=await sb.from('xarajat_maydon_modda').select('modda_id');
+  if(error){
+    if(MXD_YOQ(error)){ mxdOff=true; mxdMod=new Set(); mxdModLoaded=true; mxdRender(); return; }
+    if(!mxdModLoaded) mxdErr=true;          // kesh bor bo'lsa jimgina eski ro'yxat bilan ishlayveradi
+    mxdRender(); return;
+  }
+  mxdErr=false;
+  mxdMod=new Set((data||[]).map(r=>r&&r.modda_id).filter(Boolean));
+  mxdModLoaded=true;
+  Object.keys(mxdDefs).forEach(k=>{ if(!mxdMod.has(k)) delete mxdDefs[k]; });   // biriktirish olib tashlangan
+  mxdCacheSet(); mxdRender();
+  // OLDINDAN yuklash — modda tanlanganda skeleton umuman chiqmasin.
+  const list=[...mxdMod];
+  if(list.length<=20) list.forEach(id=>{ if(force||!mxdDefs[id]) mxdFetch(id,true); });
+}
+async function mxdFetch(id,quiet){
+  if(!id||mxdOff||mxdBusy[id]) return;
+  mxdBusy[id]=1;
+  const {data,error}=await sb.rpc('xarajat_maydonlar',{p_modda:id});
+  delete mxdBusy[id];
+  if(error){
+    if(MXD_YOQ(error)){ mxdOff=true; mxdRender(); return; }
+    if(!quiet&&mxdModdaId()===id){ mxdErr=true; mxdRender(); }
+    return;
+  }
+  mxdDefs[id]=Array.isArray(data)?data:[];
+  mxdCacheSet();
+  if(mxdModdaId()===id){ mxdErr=false; mxdRender(); mxdAfterChange(); }
+}
+window.mxdRetry=()=>{
+  mxdErr=false;
+  if(!mxdModLoaded||!mxdMod) mxdLoad(true);
+  else { const id=mxdModdaId(); if(id) mxdFetch(id); }
+  mxdRender(true);
+};
+
+// ---- Holat ----------------------------------------------------------------
+function mxdFields(){ const id=mxdModdaId(); const d=id?mxdDefs[id]:null; return Array.isArray(d)?d:[]; }
+const mxdReady=()=>{ const id=mxdModdaId(); return !!(id&&Array.isArray(mxdDefs[id])); };
+function mxdHasVal(mid){ const v=mxdVals[mid]; return !!(v&&(v.element_id||String(v.qiymat_text||'').trim())); }
+// 🔴 FAIL-OPEN: ta'riflar kelmagan bo'lsa bloklamaymiz (server ham tekshiradi).
+function mxdOk(){ if(mxdOff||!mxdReady()) return true; return mxdFields().every(f=>!f.required||mxdHasVal(f.id)); }
+function mxdFirstMissing(){ const f=mxdFields().find(x=>x.required&&!mxdHasVal(x.id)); return f?String(f.nom||''):''; }
+// Serverga ketadigan shakl: [{maydon_id, element_id}] | [{maydon_id, qiymat}]. Bo'shlar tashlanadi.
+function mxdValues(){
+  return mxdFields().map(f=>{ const v=mxdVals[f.id]||{}; const t=String(v.qiymat_text||'').trim();
+    if(!v.element_id&&!t) return null;
+    return v.element_id?{maydon_id:f.id,element_id:v.element_id}:{maydon_id:f.id,qiymat:t};
+  }).filter(Boolean);
+}
+// 🔴 Forma tozalanadigan HAR joyda chaqiriladi — busiz keyingi xarajat oldingisining
+//    maydon qiymatlari bilan jimgina yozilardi (eng xavfli regressiya).
+function mxdReset(){ mxdVals={}; mxdRender(true); }
+
+// ---- Chizish --------------------------------------------------------------
+/* 🔴 `rasm_url` IKKI shaklda kelishi mumkin (SQL cheklovi shunga ruxsat beradi):
+      (a) to'liq https havola (Storage getPublicUrl natijasi)
+      (b) bucket ichidagi nisbiy yo'l: "maydon_id/element_id.jpg"
+   Bucket — `xarajat-maydon` (PROVODKA_XARAJAT_MAYDON.sql 8-BO'LIM), PUBLIC:
+   signed URL ATAYLAB ishlatilmaydi (jurnalda 100 qatorga 100 qo'shimcha so'rov ketardi).
+   Bucket nomi sozlama konstruktoridagi yuklash bilan AYNAN bir xil bo'lishi shart —
+   aks holda yuklash bir bucketga, o'qish boshqasidan bo'lib rasm ko'rinmaydi. */
+const MXD_BUCKET='xarajat-maydon';
+function mxdImgUrl(u){
+  const p=String(u||'').trim(); if(!p) return '';
+  if(/^https:\/\//i.test(p)) return p;
+  try{ const r=sb.storage.from(MXD_BUCKET).getPublicUrl(p);
+    return String((r&&r.data&&r.data.publicUrl)||''); }catch(e){ return ''; }
+}
+function mxdMono(nom){ const s=String(nom||'').trim(); if(!s) return '—';
+  const w=s.split(/\s+/); return (w.length>1?(w[0].charAt(0)+w[1].charAt(0)):s.slice(0,2)).toUpperCase(); }
+function mxdReqRow(mid){ return '<div class="mxd-req" id="mxdR-'+esc(mid)+'" style="display:none">'
+  +'<i data-lucide="circle-alert"></i>Bu maydon to\'ldirilishi shart</div>'; }
+function mxdFieldHtml(f){
+  const mid=String(f.id||''), tur=String(f.maydon_turi||'matn'), req=!!f.required;
+  const lbl=esc(String(f.nom||''))+(req?' <span class="mxd-rq">majburiy</span>':' <span class="mxd-optl">(ixtiyoriy)</span>');
+  const opt=(f.options&&typeof f.options==='object')?f.options:{};
+  const ph=esc(String(opt.placeholder||''));
+  const cur=mxdVals[mid]||{};
+  if(tur==='royxat'){
+    const raw=Array.isArray(f.elementlar)?f.elementlar:[];
+    if(!raw.length) return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="royxat">'
+      +'<div class="mxd-lbl">'+lbl+'</div><div class="mxd-note"><i data-lucide="circle-alert"></i>'
+      +'<span>Bu maydon uchun hali variant qo\'shilmagan.</span></div></div>';
+    const els=raw.map(e=>({id:e&&e.id, nom:e&&e.nom, qiymat:e&&e.qiymat, _u:mxdImgUrl(e&&e.rasm_url)}));
+    // 🔴 "hammasi yoki hech qaysi": birortasida rasm bo'lsa KARTA grid (rasmsizlari
+    //    monogramma plitkasi), hech birida bo'lmasa CHIP ro'yxati. Bo'sh ramka — hech qachon.
+    const rasmli=els.some(e=>!!e._u);
+    const srch=els.length>10
+      ? '<div class="mxd-srch"><i data-lucide="search" aria-hidden="true"></i>'
+        +'<input class="mxd-si" type="text" placeholder="Qidirish…" autocomplete="off" '
+        +'oninput="mxdFilter(\''+esc(mid)+'\',this.value)" aria-label="'+esc(String(f.nom||''))+' qidirish"></div>'
+      : '';
+    const body=els.map(e=>{
+      const eid=String(e.id||''), on=cur.element_id===eid;
+      const nom=String(e.nom||''), qiy=String(e.qiymat||'');
+      const s=esc((nom+' '+qiy).toLowerCase());
+      const co='onclick="mxdPick(\''+esc(mid)+'\',\''+esc(eid)+'\')"';
+      const ac=' role="radio" aria-checked="'+(on?'true':'false')+'" data-v="'+esc(eid)+'" data-s="'+s+'" ';
+      if(rasmli){
+        const th=e._u
+          ? '<img class="mxd-th" src="'+esc(e._u)+'" alt="" loading="lazy" decoding="async" '
+            +'data-mono="'+esc(mxdMono(nom))+'" onerror="mxdImgErr(this)">'
+          : '<span class="mxd-th mono" aria-hidden="true">'+esc(mxdMono(nom))+'</span>';
+        return '<button type="button" class="mxd-opt'+(on?' on':'')+'"'+ac+co+'>'+th
+          +'<span class="mxd-ck"><i data-lucide="check"></i></span>'
+          +'<span class="mxd-on">'+esc(nom)+'</span><span class="mxd-oq">'+esc(qiy)+'</span></button>';
+      }
+      return '<button type="button" class="mxd-chip'+(on?' on':'')+'"'+ac+co+'>'+esc(nom)
+        +(qiy?'<span class="mxd-cq">'+esc(qiy)+'</span>':'')+'</button>';
+    }).join('');
+    const wrap=rasmli
+      ? '<div class="mxd-opts" role="radiogroup" aria-labelledby="mxdL-'+esc(mid)+'">'+body+'</div>'
+      : '<div class="mxd-chips" role="radiogroup" aria-labelledby="mxdL-'+esc(mid)+'">'+body+'</div>';
+    return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="royxat">'
+      +'<div class="mxd-lbl" id="mxdL-'+esc(mid)+'">'+lbl+'</div>'+srch+wrap+mxdReqRow(mid)+'</div>';
+  }
+  if(tur==='dropdown'){
+    const vs=Array.isArray(opt.variantlar)?opt.variantlar:[];
+    const v=String(cur.qiymat_text||'');
+    return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="dropdown">'
+      +'<label class="mxd-lbl" for="mxdI-'+esc(mid)+'">'+lbl+'</label>'
+      +'<select class="txt mxd-sel2" id="mxdI-'+esc(mid)+'" onchange="mxdInput(\''+esc(mid)+'\',this.value)">'
+      +'<option value="">— tanlang —</option>'
+      +vs.map(x=>'<option'+(String(x)===v?' selected':'')+'>'+esc(String(x))+'</option>').join('')
+      +'</select>'+mxdReqRow(mid)+'</div>';
+  }
+  const isSana=tur==='sana';
+  const attr=(isSana?' type="date"':'')+(tur==='raqam'?' inputmode="decimal"':'');
+  return '<div class="mxd-f" data-mid="'+esc(mid)+'" data-tur="'+esc(tur)+'">'
+    +'<label class="mxd-lbl" for="mxdI-'+esc(mid)+'">'+lbl+'</label>'
+    +'<input class="txt'+(isSana?' mxd-date':'')+'" id="mxdI-'+esc(mid)+'"'+attr
+    +' autocomplete="off" placeholder="'+ph+'" value="'+esc(String(cur.qiymat_text||''))+'"'
+    +' oninput="mxdInput(\''+esc(mid)+'\',this.value)">'+mxdReqRow(mid)+'</div>';
+}
+function mxdRender(force){
+  const sect=$('mxdSect'), body=$('mxdBody');
+  if(!sect||!body) return;
+  const id=mxdModdaId()||'';
+  if(id!==mxdCur){ mxdCur=id; mxdVals={}; }      // modda almashdi → eski qiymatlar tashlanadi
+  const defs=id?mxdDefs[id]:null;
+  const bor=(mxdModLoaded&&mxdMod)?mxdMod.has(id):null;
+  let holat;
+  if(!id||mxdOff) holat='yoq';
+  else if(Array.isArray(defs)) holat=defs.length?'bor':'yoq';
+  else if(bor===false) holat='yoq';             // aniq: bu moddada maydon yo'q (skeleton chizilmaydi)
+  else if(mxdErr) holat='xato';
+  else if(bor===true) holat='skel';
+  else holat='yoq';                             // ro'yxat hali kelmagan — bo'sh joy band qilinmaydi
+  const sig=id+'|'+holat+'|'+(holat==='bor'?String(defs.length):'');
+  if(!force&&sig===mxdSig) return;
+  mxdSig=sig;
+  if(holat==='yoq'){ sect.style.display='none'; body.innerHTML=''; return; }
+  sect.style.display='block';
+  if(holat==='skel'){ body.innerHTML=MXD_SKEL; icons(); mxdFetch(id); return; }
+  if(holat==='xato'){ body.innerHTML=MXD_NOTE; icons(); return; }
+  body.innerHTML=defs.map(mxdFieldHtml).join('');
+  icons();
+}
+
+// ---- Foydalanuvchi harakatlari --------------------------------------------
+// 🔴 Qayta chizilmaydi (fokus/scroll saqlanadi) — faqat sinf/aria almashadi.
+window.mxdPick=(mid,eid)=>{
+  const cur=(mxdVals[mid]&&mxdVals[mid].element_id)||'';
+  const nv=(cur===eid)?'':eid;                  // qayta bosilsa tanlov olinadi
+  if(nv) mxdVals[mid]={element_id:nv,qiymat_text:null}; else delete mxdVals[mid];
+  const w=document.querySelector('.mxd-f[data-mid="'+mid+'"]');
+  if(w) w.querySelectorAll('.mxd-opt,.mxd-chip').forEach(b=>{
+    const on=b.getAttribute('data-v')===nv;
+    b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false'); });
+  mxdReqUI(mid); mxdAfterChange();
+};
+window.mxdInput=(mid,val)=>{
+  const t=String(val==null?'':val).trim();
+  if(t) mxdVals[mid]={element_id:null,qiymat_text:t}; else delete mxdVals[mid];
+  mxdReqUI(mid); mxdAfterChange();
+};
+window.mxdFilter=(mid,q)=>{
+  const s=String(q||'').trim().toLowerCase();
+  const w=document.querySelector('.mxd-f[data-mid="'+mid+'"]'); if(!w) return;
+  const sel=(mxdVals[mid]&&mxdVals[mid].element_id)||'';
+  w.querySelectorAll('.mxd-opt,.mxd-chip').forEach(b=>{
+    const v=b.getAttribute('data-v');
+    // Tanlangan element filtrdan qat'i nazar KO'RINADI ("tanlovim qani?" holati bo'lmasin)
+    const ok=!s||v===sel||String(b.getAttribute('data-s')||'').indexOf(s)>=0;
+    if(ok) b.removeAttribute('hidden'); else b.setAttribute('hidden','');
+  });
+};
+// 🔴 Singan rasm ikonkasi hech qachon ko'rinmaydi — o'rniga monogramma plitkasi.
+window.mxdImgErr=img=>{ try{
+  const sp=document.createElement('span');
+  sp.className='mxd-th mono'; sp.setAttribute('aria-hidden','true');
+  sp.textContent=img.getAttribute('data-mono')||'—';
+  img.parentNode.replaceChild(sp,img);
+}catch(e){} };
+function mxdReqUI(mid){ const w=document.getElementById('mxdR-'+mid); if(w&&mxdHasVal(mid)) w.style.display='none'; }
+window.mxdShowReq=()=>{
+  const f=mxdFields().find(x=>x.required&&!mxdHasVal(x.id)); if(!f) return;
+  const w=document.getElementById('mxdR-'+f.id); if(w) w.style.display='flex';
+  const el=document.querySelector('.mxd-f[data-mid="'+f.id+'"]');
+  if(el){ try{ el.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ try{ el.scrollIntoView(); }catch(e2){} } }
+};
+
+// ---- Saqlash --------------------------------------------------------------
+// 🔴 TARTIB MAJBURIY: entry → entry_line → entry_maydon_yoz (qorovul SATRLARGA qaraydi).
+//    Chek yuklash naqshi: FONDA, xato bo'lsa yozuv O'CHIRILMAYDI (pul harakati to'g'ri).
+async function mxdYoz(entryIds,vals){
+  if(mxdOff||!vals||!vals.length) return;
+  const ids=(Array.isArray(entryIds)?entryIds:[entryIds]).filter(Boolean);
+  if(!ids.length){ mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
+  let bad='';
+  for(let i=0;i<ids.length;i++){
+    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:vals});
+    if(error){ if(MXD_YOQ(error)){ mxdOff=true; return; }
+      bad=(window.permErr?window.permErr(error):(error.message||'')); }
+  }
+  if(bad) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '+bad);
+}
+/* =========================== /MAXSUS MAYDONLAR ============================= */
+
+/* --- Sahifaga bog'liq UCH ilmoq (faqat shu uchtasi fayldan-faylga farq qiladi) --- */
+// <select id="modda"> HOLAT MANBAI (yashirin) — tanlash #moddaModal orqali.
+const mxdModdaId=()=>{ const el=$('modda'); return (el&&el.value)||''; };
+const mxdAfterChange=()=>{ updateSimple(); };
+const mxdWarn=msg=>alert(msg);
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
