@@ -424,18 +424,17 @@ comment on function ijrochi_nomi(text) is
 
 
 -- ---------------------------------------------------------------------
--- 3.0  ESKI IMZOLARNI OLIB TASHLASH (yuqoridagi ⚠️ IMZO O'ZGARISHI izohi)
---      🔴 Tartib muhim: avval drop, keyin create.
+-- 3.0  ESKI IMZOLARNI OLIB TASHLASH — 🔴 ENDI HAR CREATE BILAN BIRGA
+--      2026-08-25: drop'lar shu yerda BITTA blokda turardi va faylni
+--      bo'lib RUN qilganda o'tkazib yuborilib 42P13 (cannot change return
+--      type) berardi. Endi har drop O'Z create'ining ustida — ajratib
+--      bo'lmaydi. Bu yerda faqat izoh qoldi.
 --      🔴 `cascade` ISHLATILMAYDI — plpgsql tanasidagi chaqiruv katalog
 --         bog'liqligi emas, shuning uchun oddiy drop yetadi va tasodifan
 --         boshqa obyekt o'chib ketmaydi.
 --      ⚠️ Bu operatorlar `jurnal()` / `jurnal_count()` ga TEGMAYDI.
 -- ---------------------------------------------------------------------
 
-drop function if exists public.jurnal_v2_baza(date, date, uuid[], uuid[], text[], text);
-drop function if exists public.jurnal_v2(date, date, uuid[], uuid[], text[], text, int, int);
-drop function if exists public.jurnal_v2_count(date, date, uuid[], uuid[], text[], text);
-drop function if exists public.jurnal_dash(date, date, uuid[], uuid[], text[], text);
 
 
 -- ---------------------------------------------------------------------
@@ -462,6 +461,10 @@ drop function if exists public.jurnal_dash(date, date, uuid[], uuid[], text[], t
 --         (uchala RPC dagi 3-shoxli `(bosh)` predikati o'zgarmadi).
 -- ---------------------------------------------------------------------
 
+-- 🔴 DROP shu CREATE bilan AJRALMAS: imzo (returns table) o'zgargani uchun
+--    `create or replace` yolg'iz 42P13 beradi. Faylni bo'lib RUN qilsangiz ham
+--    bu ikki qator BIRGA ketadi — drop o'tkazib yuborilishi mumkin emas.
+drop function if exists public.jurnal_v2_baza(date, date, uuid[], uuid[], text[], text);
 create or replace function jurnal_v2_baza(
   p_from     date,
   p_to       date,
@@ -622,6 +625,10 @@ comment on function jurnal_v2_baza(date, date, uuid[], uuid[], text[], text) is
 --    (kattaroq) optimizatsiya, bu topshiriq doirasidan tashqarida.
 -- ---------------------------------------------------------------------
 
+-- 🔴 DROP shu CREATE bilan AJRALMAS: imzo (returns table) o'zgargani uchun
+--    `create or replace` yolg'iz 42P13 beradi. Faylni bo'lib RUN qilsangiz ham
+--    bu ikki qator BIRGA ketadi — drop o'tkazib yuborilishi mumkin emas.
+drop function if exists public.jurnal_v2(date, date, uuid[], uuid[], text[], text, int, int);
 create or replace function jurnal_v2(
   p_from     date,
   p_to       date,
@@ -707,6 +714,10 @@ comment on function jurnal_v2(date, date, uuid[], uuid[], text[], text, int, int
 --      "N tadan M ta" sanoq chalkashadi.
 -- ---------------------------------------------------------------------
 
+-- 🔴 DROP shu CREATE bilan AJRALMAS: imzo (returns table) o'zgargani uchun
+--    `create or replace` yolg'iz 42P13 beradi. Faylni bo'lib RUN qilsangiz ham
+--    bu ikki qator BIRGA ketadi — drop o'tkazib yuborilishi mumkin emas.
+drop function if exists public.jurnal_v2_count(date, date, uuid[], uuid[], text[], text);
 create or replace function jurnal_v2_count(
   p_from     date,
   p_to       date,
@@ -763,6 +774,10 @@ comment on function jurnal_v2_count(date, date, uuid[], uuid[], text[], text, te
 --          = jurnal_v2_count(p_from, p_to, p_accounts, p_moddalar, NULL, p_q, p_ijrochi)
 -- ---------------------------------------------------------------------
 
+-- 🔴 DROP shu CREATE bilan AJRALMAS: imzo (returns table) o'zgargani uchun
+--    `create or replace` yolg'iz 42P13 beradi. Faylni bo'lib RUN qilsangiz ham
+--    bu ikki qator BIRGA ketadi — drop o'tkazib yuborilishi mumkin emas.
+drop function if exists public.jurnal_dash(date, date, uuid[], uuid[], text[], text);
 create or replace function jurnal_dash(
   p_from     date,
   p_to       date,
