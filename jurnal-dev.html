@@ -703,150 +703,6 @@
     .ijr-meta{gap:4px 8px}
     .ssel-pop,.ssel-ov{display:none!important}   /* ochiq dropdown qog'ozga chiqmasin */
   }
-  /* ================= XARAJAT TO'SIG'I (.tos-*) + TO'LANMAGAN (.tlm-*) =================
-     Uch xil qizil, uch xil shakl (chalkashmasin):
-       .jr.del / .jcard.del  — O'CHIRILGAN: so'ngan + usti chizilgan (mavjud, tegilmagan)
-       .tlm / .tlm-on        — TO'LANMAGAN: och fonli rozetka + to'ldirilgan nuqta + 3px chekka chiziq
-       .tlm-was              — TO'LANGAN EDI: yolg'iz 7px nuqta + tooltip (tarix)
-       .tos-blok             — BLOK: panel + chapda 3px chiziq (harakat to'silgan)
-     Yangi rang YO'Q. --tlm-* qiymatlari hodim-dev.html dagi --red-ink/--red-line dan,
-     --tos-warn-* esa jurnal-dev.html dagi --amber/--amber-soft dan ko'chirilgan. */
-  :root{--tlm-ink:#b42318;--tlm-line:rgba(217,45,32,.20);--tos-warn:#b54708;--tos-warn-soft:#fef0c7}
-  [data-theme="dark"]{--tlm-ink:#ff8a82;--tlm-line:rgba(255,98,89,.28);--tos-warn:#fdb022;--tos-warn-soft:#2e1e05}
-
-  /* ---------- 2.1 "To'lanmagan" rozetkasi ---------- */
-  .tlm{display:inline-flex;align-items:center;gap:6px;max-width:100%;
-    background:var(--red-soft);color:var(--tlm-ink);border:1px solid var(--tlm-line);
-    border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;line-height:1.55;
-    font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
-  .tlm::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:var(--red)}
-  .tlm svg{width:12px;height:12px}
-  .tlm .tlm-s{font-weight:600;opacity:.85}          /* "· 100 000" qismi */
-  /* Yopilgan (tarix): matnsiz nuqta. Tooltip title= bilan, a11y uchun aria-label ham. */
-  .tlm-was{display:inline-flex;align-items:center;justify-content:center;flex:none;
-    width:14px;height:14px;margin-left:6px;vertical-align:-2px;cursor:help}
-  .tlm-was::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);opacity:.55;
-    transition:opacity .15s}
-  @media(hover:hover){.tlm-was:hover::before{opacity:1}}
-  .tlm-was:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:50%}
-  /* Qator ichida rozetka o'z qatorida tursin (izoh/teglar bilan yopishmasin) */
-  .tlm-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-
-  /* ---------- 2.2 Blok / ogohlantirish paneli ---------- */
-  .tos-blok{display:flex;gap:10px;align-items:flex-start;background:var(--red-soft);color:var(--tlm-ink);
-    border-radius:12px;padding:12px 14px;margin:0 0 16px;font-size:13.5px;line-height:1.5;
-    box-shadow:inset 3px 0 0 var(--red)}
-  .tos-blok>svg,.tos-blok>i,.tos-msg>svg,.tos-msg>i{flex:none;width:18px;height:18px;margin-top:2px}
-  /* .tos-bx / .tos-bt / .tos-bs / .tos-bh — panel VA banner ichida bir xil ishlaydi */
-  .tos-bx{min-width:0;flex:1}
-  .tos-bt{font-weight:700;font-size:14px;letter-spacing:-.01em}
-  .tos-bs{margin-top:3px}
-  .tos-bs b{font-weight:700;font-variant-numeric:tabular-nums}
-  .tos-bh{margin-top:6px;font-size:12.5px;opacity:.85}   /* nima qilish kerak */
-  .tos-blok.warn{background:var(--tos-warn-soft);color:var(--tos-warn);box-shadow:inset 3px 0 0 var(--tos-warn)}
-  .tos-blok.ok{background:var(--primary-soft);color:var(--primary-ink,var(--primary));
-    box-shadow:inset 3px 0 0 var(--primary)}
-  /* Banner/toast ichida — o'z foni yo'q, .banner ranglarini meros qilib oladi */
-  .tos-msg{display:flex;gap:10px;align-items:flex-start;text-align:left;background:none;box-shadow:none;
-    padding:0;margin:0;border-radius:0;color:inherit}
-
-  /* ---------- 2.3 Mini progress (panel ichida, kassa qatorida) ---------- */
-  .tos-mini{display:flex;align-items:center;gap:8px;margin-top:8px}
-  .tos-mtrack{position:relative;flex:1;min-width:72px;height:6px;border-radius:999px;background:var(--surface-2)}
-  .tos-blok .tos-mtrack{background:var(--surface)}
-  .tos-mfill{height:100%;max-width:100%;border-radius:999px;background:currentColor;
-    transition:width .4s cubic-bezier(.22,.61,.36,1)}
-  .tos-mmark{position:absolute;top:-3px;bottom:-3px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
-    background:var(--ink);opacity:.45}
-  .tos-mini .tos-mv{flex:none;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
-  .tos-mini.s-blok .tos-mfill{background:var(--red)}
-  .tos-mini.s-yaqin .tos-mfill{background:var(--tos-warn)}
-  .tos-mini.s-ochiq .tos-mfill{background:var(--primary)}
-  .tos-mini.s-blok .tos-mv{color:var(--tlm-ink)}
-  .tos-mini.s-yaqin .tos-mv{color:var(--tos-warn)}
-  .tos-mini.s-ochiq .tos-mv{color:var(--primary-ink,var(--primary))}
-
-  /* ---------- 2.4 "Mening hisobim" paneli ---------- */
-  .tos-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-  .tos-hd h2{margin:0}
-  /* Holat chipi: blok / yaqin / ochiq. Ikonka + matn — rangsiz ham o'qiladi. */
-  .tos-state{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;
-    font-size:12px;font-weight:700;line-height:1.4;background:var(--surface-2);color:var(--muted);white-space:nowrap}
-  .tos-state svg{width:14px;height:14px}
-  .tos.s-blok .tos-state{background:var(--red-soft);color:var(--tlm-ink)}
-  .tos.s-yaqin .tos-state{background:var(--tos-warn-soft);color:var(--tos-warn)}
-  .tos.s-ochiq .tos-state{background:var(--primary-soft);color:var(--primary-ink,var(--primary))}
-
-  .tos-bal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .tos-bal.one{grid-template-columns:1fr}
-  .tos-b{background:var(--surface-2);border-radius:12px;padding:12px 14px;min-width:0}
-  .tos-b .tos-bl{display:block;font-size:12px;font-weight:600;color:var(--muted);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tos-b .tos-bv{display:block;margin-top:2px;font-size:19px;font-weight:700;letter-spacing:-.02em;
-    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tos-b .tos-bc{font-size:12.5px;font-weight:600;color:var(--muted);margin-left:3px}
-  .tos-b.red{background:var(--red-soft);border:1px solid var(--tlm-line);padding:11px 13px}
-  .tos-b.red .tos-bl,.tos-b.red .tos-bv,.tos-b.red .tos-bc{color:var(--tlm-ink)}
-
-  /* 70% ko'rsatkichi. Marker "70%" yorlig'i uchun tepada 22px joy qoldirilgan. */
-  .tos-m{margin-top:20px}
-  .tos-mhd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px}
-  .tos-mhd .tos-ml{color:var(--muted);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .tos-mhd .tos-mr{white-space:nowrap;font-variant-numeric:tabular-nums}
-  .tos-mhd .tos-mr b{font-size:15px;font-weight:700;letter-spacing:-.01em}
-  .tos-mhd .tos-mr .tos-frac{color:var(--muted);font-size:12px;font-weight:600;margin-left:6px}
-  .tos.s-blok .tos-mhd .tos-mr b{color:var(--tlm-ink)}
-  .tos.s-yaqin .tos-mhd .tos-mr b{color:var(--tos-warn)}
-  .tos.s-ochiq .tos-mhd .tos-mr b{color:var(--primary-ink,var(--primary))}
-  .tos-track{position:relative;height:10px;border-radius:999px;background:var(--surface-2);margin-top:22px}
-  .tos-fill{height:100%;max-width:100%;width:0;border-radius:999px;background:var(--red);
-    transition:width .45s cubic-bezier(.22,.61,.36,1),background-color .2s}
-  .tos.s-yaqin .tos-fill{background:var(--tos-warn)}
-  .tos.s-ochiq .tos-fill{background:var(--primary)}
-  /* 70% chizig'i — trekdan tashqariga chiqadi va oq/qora kontur bilan fill ustida ham ko'rinadi */
-  .tos-mark{position:absolute;top:-5px;bottom:-5px;left:var(--tos-limit,70%);width:2px;border-radius:1px;
-    background:var(--ink);opacity:.55;box-shadow:0 0 0 1.5px var(--surface)}
-  .tos-mark i{position:absolute;left:50%;bottom:calc(100% + 5px);transform:translateX(-50%);
-    font-style:normal;font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
-  .tos-note{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:13px;line-height:1.45;color:var(--muted)}
-  .tos-note svg{width:15px;height:15px;flex:none;margin-top:2px}
-  .tos-note b{font-weight:700;font-variant-numeric:tabular-nums}
-  .tos.s-blok .tos-note,.tos.s-blok .tos-note b{color:var(--tlm-ink)}
-  .tos.s-yaqin .tos-note,.tos.s-yaqin .tos-note b{color:var(--tos-warn)}
-  .tos.s-ochiq .tos-note b{color:var(--primary-ink,var(--primary))}
-
-  /* To'lanmagan xarajatlar bloki (hodim paneli ichida) */
-  .tos-unpaid{margin-top:16px;background:var(--red-soft);border:1px solid var(--tlm-line);
-    border-radius:12px;padding:10px 14px 12px}
-  .tos-uhd{display:flex;align-items:center;justify-content:space-between;gap:12px;
-    font-size:13px;font-weight:700;color:var(--tlm-ink)}
-  .tos-uhd .tos-uv{font-variant-numeric:tabular-nums;white-space:nowrap}
-  .tos-urow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-    padding:8px 0 0;margin-top:8px;border-top:1px solid var(--tlm-line);font-size:13px;color:var(--tlm-ink)}
-  .tos-urow .tos-un{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .tos-urow .tos-ud{font-size:11.5px;font-weight:600;opacity:.7;margin-left:6px;font-variant-numeric:tabular-nums}
-  .tos-urow .tos-ua{flex:none;font-weight:700;font-variant-numeric:tabular-nums}
-  .tos-uinfo{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:12px;line-height:1.45;
-    color:var(--tlm-ink);opacity:.8}
-  .tos-uinfo svg{width:14px;height:14px;flex:none;margin-top:1px}
-
-  /* ---------- 2.5 Mobil ---------- */
-  @media(max-width:899px){
-    .tos-blok{padding:11px 12px;font-size:13px}
-    .tos-bt{font-size:13.5px}
-  }
-  @media(max-width:480px){
-    .tos-bal{grid-template-columns:1fr}
-    .tos-b .tos-bv{font-size:18px}
-    .tos-hd{gap:8px}
-  }
-
-  /* --- to'siq: jurnal qatorlariga moslash (faqat .tlm-on bo'lganda) --- */
-  .jtbl tr.tlm-on td:first-child{box-shadow:inset 3px 0 0 var(--red)}
-  .jcard.tlm-on{box-shadow:var(--shadow),inset 3px 0 0 var(--red)}
-  /* o'chirilgan yozuvda rozetka susayadi (ikki qizil bir-birini bo'g'masin) */
-  .jtbl tr.del .tlm,.jcard.del .tlm,.jtbl tr.del .tlm-was,.jcard.del .tlm-was{opacity:.55}
-  .jtbl tr.del.tlm-on td:first-child,.jcard.del.tlm-on{box-shadow:none}
 </style>
 </head>
 <body>
@@ -873,6 +729,7 @@
       <a class="nav-item" href="yuklar-dev.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="tannarx-dev.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="sorovlar-dev.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
       <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
       <a class="nav-item" href="standart-dev.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
@@ -1160,6 +1017,7 @@
       <a href="professional-dev.html"><i data-lucide="list-plus"></i>Professional</a>
       <a href="kassa-dev.html"><i data-lucide="wallet"></i>Kassa</a>
       <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="sorovlar-dev.html"><i data-lucide="hand-coins"></i>So'rovlar</a>
       <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart-dev.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
@@ -1521,54 +1379,6 @@ async function refreshCheks(){
   chekKeys=next; render();
 }
 
-/* --- "To'lanmagan" statusi (PROVODKA_XARAJAT_TOSIQ.sql → v_hodim_tolanmagan) ---
-   hali_ochiq=true  → qizil rozetka "To'lanmagan · N" + qatorda .tlm-on (chekka chizig'i)
-   hali_ochiq=false → kichik qizil nuqta (.tlm-was): "avval to'lanmagan edi" (tarix)
-   🔴 SQL RUN QILINMAGAN BO'LSA — birinchi "view yo'q" xatosida tlmOff=true bo'lib
-      belgilar UMUMAN chizilmaydi; jurnal avvalgidek to'liq ishlaydi (v2Off naqshi).
-   🔴 O'CHIRILGAN yozuvda belgi CHIZILMAYDI — o'chirilgan yozuv qarz emas (tlmOf). */
-let tlmOff=false, tlmMap={};
-/* View/jadval yo'qmi? ⚠️ Shart tor: 42501 (ruxsat) va PGRST204 (ustun) bu yerga
-   tushmaydi — haqiqiy xato jimgina yashirinib sabab yo'qolmasin. */
-function tlmYoq(e){
-  if(!e) return false;
-  const c=String(e.code||'');
-  if(c==='42501'||c==='PGRST204') return false;
-  if(c==='PGRST202'||c==='42883'||c==='42P01'||c==='PGRST205'||c==='PGRST106') return true;
-  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
-  return /function[\s\S]*does not exist/.test(m)
-      || /relation[\s\S]*does not exist/.test(m)
-      || /could not find the (table|function|view)/.test(m);
-}
-async function refreshTlm(){
-  if(tlmOff) return;
-  const {data,error}=await sb.from('v_hodim_tolanmagan')
-    .select('entry_id,ochiq_summa,hali_ochiq');
-  if(error){ if(tlmYoq(error)){ tlmOff=true; tlmMap={}; } return; }   // boshqa xato — eski holat qoladi
-  const m={};
-  (data||[]).forEach(r=>{ if(r&&r.entry_id) m[r.entry_id]={ochiq:!!r.hali_ochiq,summa:Number(r.ochiq_summa)||0}; });
-  const bor=Object.keys(m).length||Object.keys(tlmMap).length;
-  tlmMap=m;
-  if(bor) render();                 // belgisiz jurnalni bekorga qayta chizmaymiz
-}
-/* 🔴 SERVER TO'SIG'I XATOSI — permErr() uni "Ruxsat yo'q" deb umumlashtirmasin.
-   Tahrir entry_line'ni UPDATE qiladi, ya'ni trg_hodim_tosiq_entry_line ishga tushishi
-   mumkin: u 42501 beradi va matn hodim_tosiq_msg() dan keladi (odam tilida). Mezon ANIQ —
-   kod 42501 VA matn shu shaklga mos; mos kelsa server matni AYNAN ko'rsatiladi. */
-function tosXatosi(e){
-  if(!e) return false;
-  const m=String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'');
-  if(String(e.code||'')!=='42501' && !/42501/.test(m)) return false;
-  return /xarajatga\s+yozmagan/i.test(m) || /avval xarajat yozilsin/i.test(m);
-}
-function xatoMatn(e){
-  if(tosXatosi(e)) return String((e&&e.message)||'').trim();
-  return window.permErr?window.permErr(e):String((e&&e.message)||'');
-}
-function tlmOf(e){ if(!e||e.is_deleted) return null; return tlmMap[e.id]||null; }
-// Qator atributlari: `.tlm-on` FAQAT ochiq to'lanmaganda; data-tlm — QA/filtr ilgagi (CSS unga tayanmaydi)
-function tlmCls(e){ const t=tlmOf(e); return (t&&t.ochiq)?' tlm-on':''; }
-function tlmAttr(e){ const t=tlmOf(e); return t?` data-tlm="${t.ochiq?'ochiq':'yopiq'}"`:''; }
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
 window.openChek=async(kassaId,entryId)=>{
   const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
@@ -1908,14 +1718,9 @@ async function loadIjrSel(){
 function maqsadHtml(e,k,multi){
   const parts=[];
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
-  // "To'lanmagan" — ochiq bo'lsa rozetka (o'z qatorida), yopilgan bo'lsa .jgoal oxirida nuqta
-  const tl=tlmOf(e);
-  if(tl&&tl.ochiq) parts.push(`<div class="tlm-row"><span class="tlm">To'lanmagan<span class="tlm-s">· ${money(tl.summa)}</span></span></div>`);
-  const was=(tl&&!tl.ochiq)
-    ? `<span class="tlm-was" role="img" tabindex="0" title="Avval to'lanmagan edi — yopilgan" aria-label="Avval to'lanmagan edi, yopilgan"></span>` : '';
-  if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}${was}</div>`);
-  else if(!multi) parts.push(`<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}${was}</div>`);
-  else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv${was}</div>`);
+  if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
+  else if(!multi) parts.push(`<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`);
+  else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
   if(kid&&chekKeys.has(kid+'/'+e.id)){
@@ -1964,7 +1769,7 @@ function render(){
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2;
     const ktC=multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt);
     const dtC=multi?`<span class="jmuted">${e.lines.length} satr</span>`:accCell(k.dt);
-    return `<tr class="jr${e.is_deleted?' del':''}${tlmCls(e)}"${tlmAttr(e)}>`
+    return `<tr class="jr${e.is_deleted?' del':''}">`
       +`<td class="j-num">${i+1}</td>`
       +`<td class="j-date">${esc(e.entry_date||'')}</td>`
       +`<td class="j-kt">${ktC}</td>`
@@ -1988,7 +1793,7 @@ function render(){
       : `<div class="jc-acc"><span class="acap">Qayerdan (Kt)</span>${accCell(k.kt)}</div>`
         +`<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
         +`<div class="jc-acc"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
-    return `<div class="jcard${e.is_deleted?' del':''}${tlmCls(e)}"${tlmAttr(e)}>`
+    return `<div class="jcard${e.is_deleted?' del':''}">`
       +`<div class="jc-top"><span class="jc-date">${esc(e.entry_date||'')} · #${i+1}</span><span class="jc-amt ${kc(k)}">${k.sign}${money(amt)}</span></div>`
       +`<div class="jc-flow${multi?' jc-multi':''}">${flow}</div>`
       +`<div class="jc-maqsad">${maqsadHtml(e,k,multi)}</div>`
@@ -2546,7 +2351,6 @@ async function load(){
   }
   render();
   refreshCheks();   // chek 📎 belgilarini fonda yuklaydi
-  refreshTlm();     // "To'lanmagan" belgilari (SQL yo'q bo'lsa jimgina o'tkazib yuboradi)
   refreshMeta();    // V6: filial + davr teglarini fonda yuklaydi
 }
 window.loadMore=async()=>{
@@ -2563,7 +2367,6 @@ window.loadMore=async()=>{
   if(error){ $('banner').style.display='block'; $('banner').classList.remove('soft'); $('banner').textContent=error.message; return; }
   rows=rows.concat(data||[]); offset=rows.length; render();
   refreshCheks();
-  refreshTlm();
   refreshMeta();
 };
 
@@ -2650,8 +2453,7 @@ window.saveEdit=async()=>{
   // (trg_perm_guard_entry_line — "before update of account_id") 42501 beradi, RLS esa
   // xatosiz 0 qator qaytaradi. Ikkalasi ham jimgina o'tib ketsa, foydalanuvchi
   // tahrir saqlandi deb o'ylaydi — aslida yozuv o'zgarmagan.
-  // 🔴 Hodim to'sig'i xatosi (42501 + hodim_tosiq_msg) AYNAN ko'rsatiladi, qolganida permErr
-  const err=e=>xatoMatn(e)||'noma\'lum xato';
+  const err=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
   const {data:old,error:e0}=await sb.from('entry').select('*,entry_line(*)').eq('id',editId).single();
   if(e0||!old){ alert('Yozuvni o\'qib bo\'lmadi: '+err(e0)); return; }
   const dtId=old.entry_line.find(l=>Number(l.debit)>0)?.id;

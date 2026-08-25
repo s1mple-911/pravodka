@@ -17,9 +17,6 @@ o'chirib chiqing (soft-delete).
 | 2 | `PROVODKA_EXT_REF.sql` | 1.2 prefiks indeksi · 2-BO'LIM · 3-BO'LIM · 4-BO'LIM |
 | 3 | `PROVODKA_JURNAL_V2.sql` | (allaqachon RUN qilingan — qayta shart emas) |
 | 4 | `PROVODKA_IJROCHI.sql` | 🔴 JURNAL_V2 dan KEYIN (uning funksiyalarini qayta yozadi) |
-| 5 | `PROVODKA_XARAJAT_TOSIQ.sql` | 🔴 kam trafik vaqtida |
-| 6 | `PROVODKA_XARAJAT_QARZ.sql` | 🔴 TOSIQ dan keyin (u yaratgan `hodim_qarz_hisob` ga tayanadi) |
-| 7 | `PROVODKA_HODIM_TARIX_QARZ.sql` | 🔴 ENG OXIRIDA — hodim tarixi/oylik jamisi qarz satrini ham sanaydi |
 
 Har fayldan keyin uning "Tekshiruv" bo'limi hamma ustunda `true` qaytarsin.
 Bittasi `false` bo'lsa — **keyingisiga o'tmang**.
@@ -30,67 +27,27 @@ degan holat YO'Q.
 
 ---
 
-## 1. XARAJAT TO'SIG'I (70%) — eng xavfli, eng puxta
+## 1. ~~XARAJAT TO'SIG'I (70%)~~ — 🔴 BEKOR QILINDI (2026-08-25)
 
-**Nima qiladi:** hodim tashlangan pulning 70% ini xarajatga yozmagan bo'lsa,
-o'sha hodim kassasiga **YANGI PUL KIRMAYDI**.
+Asilbek qarori: 70% to'siq va qarz (6721) mexanizmi **butunlay olib tashlanadi**.
+O'rniga **so'rovlar tizimi** keladi (`BRIEF_PROVODKA_SOROVLAR.md`): hodim o'z
+pulidan ko'p yozsa — to'silmaydi, **pul so'raydi**.
 
-**Sinov uchun kerak:** bitta sinov hodim kassasi (`5401+`), unda kirim bor va
-xarajat kam bo'lsin (foiz 70 dan past). Holatni ko'rish:
-```sql
-select * from hodim_tosiq_holat('<kassa-uuid>');
-```
+**Sabab (2026-08-25 prod hodisasi):** to'siq prodga UI'siz chiqdi (SQL dev va prod
+uchun bitta baza). Bugalter hodimlarga pul bera olmadi, tushunarsiz xato ko'rdi va
+9 marta qayta urindi — har urinish `entry` sarlavhasini qoldirib ketdi
+(`entry_line` rad etilgan, kompensatsiya `delete` esa RLS tufayli jimgina
+0 qator o'chirgan). Pul yo'qolmadi, lekin jurnal axlat bilan to'ldi.
 
-| # | Nima qilinadi | Kutilgan natija |
-|---|---------------|-----------------|
-| 1.1 | Foizi **70 dan past** hodimga kassa/bugalter pul beradi (Dt hodim kassa) | 🔴 **BLOKLANADI**, xabar: *"Bu hodim tashlangan pulning 70%'ini xarajatga yozmagan (hozir NN%). Avval xarajat yozilsin."* |
-| 1.2 | O'sha hodim `hodim-dev.html` dan **xarajat yozadi** | ✅ **O'TADI** — 🔴 bu eng muhim tekshiruv. Bloklangan hodim xarajat yoza olmasa to'siqdan chiqish yo'li yo'q, tizim qulflanib qoladi |
-| 1.3 | Xarajat yozgach foizi 70 dan oshadi → yana pul beriladi | ✅ **O'TADI** |
-| 1.4 | Bloklangan hodim kassasidan **boshqa kassaga pul o'tkazish** | 🔴 **BLOKLANADI** (chetlab o'tish yo'li yopiq) |
-| 1.5 | Bloklangan hodim kassasi **ichida** ko'chirish (naqd → Click) | ✅ **O'TADI** (ichki harakat, yangi pul emas) |
-| 1.6 | **Yangi** hodim (hali umuman pul berilmagan) ga birinchi pul | ✅ **O'TADI** — aks holda 0/0 = 0% bo'lib tug'ilishidayoq qulflanardi |
-| 1.7 | **Admin** o'zi pul berishga urinadi | 🔴 **BLOKLANADI** — sizning qaroringiz: "Hech kim chetlab o'tolmaydi". Guard'da `is_admin()` istisnosi YO'Q |
-| 1.8 | n8n avtosinxron (`aros_auto`) 30 daqiqada ishlaydi | ✅ **TO'XTAMAYDI** (`auth.uid()` null → guard o'tkazadi). Kutib ko'ring yoki `sync_state` ni tekshiring |
-| 1.9 | Oddiy filial/markaziy kassa yozuvlari (hodim kassasi emas) | ✅ Hech qanday o'zgarish yo'q |
-| 1.10 | Admin to'siqni o'chiradi: `select set_hodim_tosiq_foiz(0);` | ✅ Hamma narsa avvalgidek. Keyin `select set_hodim_tosiq_foiz(70);` bilan qaytaring |
+**Saboq (yangi ish uchun ham amal qiladi):**
+1. 🔴 Pul oqimini to'sadigan server qorovuli **UI bilan BIRGA** chiqarilsin —
+   aks holda foydalanuvchi nima qilishni bilmaydi va qayta-qayta uradi.
+2. 🔴 Yozuv **ATOMIK** bo'lsin (bitta RPC). Ikki qadamli yozuvda ikkinchisi rad
+   etilsa birinchisi axlat bo'lib qoladi.
+3. 🔴 Rad etish xabari **odam tilida** bo'lsin va `permErr()` uni yutmasin.
 
-### 🔴 1.11 — QAYTARISH MASHQI (majburiy, prodga chiqishdan oldin)
-
-Bir marta **ataylab** bajarib ko'ring:
-```sql
-drop trigger if exists trg_hodim_tosiq_entry_line on entry_line;
-```
-Pul oqimi darrov tiklanishi kerak (1.1 yana o'tadi). Keyin qaytaring:
-`PROVODKA_XARAJAT_TOSIQ.sql` ning trigger yaratish qatorini qayta RUN qiling.
-
-Sabab: prodda bugalter "pul kirita olmayapman" desa, sizda **10 soniyalik** yechim
-bo'lishi kerak va u ishlashiga oldindan ishonch hosil qilingan bo'lishi kerak.
-
-### To'lanmagan xarajat (qarz 6721) — Variant 2
-
-🔴 **Bu bo'lim `PROVODKA_XARAJAT_QARZ.sql` RUN qilinmaguncha ishlamaydi.** Undan oldin
-"To'lanmagan" ro'yxati **doim bo'sh** bo'ladi va bu XATO EMAS — qarz yozuvlari
-hali yaratilmaydi.
-
-| # | Nima | Kutilgan |
-|---|------|----------|
-| 1.12 | Hodim **qo'lidagi puldan ORTIQ** xarajat yozadi (masalan qoldiq 200 000, xarajat 500 000) | ✅ Saqlanadi. Tugma bloklanmaydi, ogohlantirish: "ortig'i qarzga yoziladi" |
-| 1.13 | O'sha yozuvni jurnalda oching | **3 satr**: Dt modda 500 000 / Kt kassa 200 000 / Kt 6721 **300 000**. Dt = Kt ✅ |
-| 1.14 | `select * from v_hodim_tolanmagan;` | Shu yozuv chiqadi, `ochiq_summa` = 300 000 |
-| 1.15 | Hodim sahifasi + jurnal | "To'lanmagan" rozetkasi ko'rinadi |
-| 1.16 | 🔴 **VALYUTA** kassasidan qoldiqdan ortiq xarajat | **Rad etiladi** (valyutada qarz yo'q) — klient ham bloklaydi, server ham |
-| 1.17 | 🔴 **Oddiy** (hodim emas) kassadan qoldiqdan ortiq | **Bloklanadi** — eski xatti-harakat, o'zgarmagan |
-| 1.18 | **Taqsimot** (bir necha filial) qo'ldagidan ortiq | Yozuvlar bo'ylab ketma-ket: birinchilari naqd, oxirgilari qarz |
-| 1.19 | Bugalter `hodim_kirim_yop(...)` bilan qarzni yopadi | Qarz kamayadi, `v_hodim_balans` mos, rozetka "yopilgan" holatga o'tadi |
-| 1.20 | Bloklangan hodimga **qarzini yopish** uchun pul | ✅ O'TADI (bu qo'shimcha pul emas) |
-| 1.21 | 🔴 **REGRESSIYA** — oddiy xarajat (qo'lda puli yetarli) | **2 satr**, avvalgidek. Qarz satri paydo BO'LMASIN |
-| 1.22 | 🔴 **REGRESSIYA** — filial/markaziy kassadan xarajat | Hech qanday o'zgarish yo'q, qarz mantiqi umuman ishlamaydi |
-| 1.23 | 🔴 Qoldiq **0** bo'lgan hodim yana xarajat yozadi | Yozuv **2 satr** (Dt modda / Kt 6721, kassa satri YO'Q). 🔴 Shu yozuv hodim sahifasidagi **tarixda** va **"Bu oy sarflandi"** jamisida KO'RINISHI shart |
-| 1.24 | Qisman qarz (qoldiq 200k, xarajat 500k) | "Bu oy" jamisiga **500 000** qo'shiladi (200k emas). Tarixdagi summa ham 500 000 |
-| 1.25 | 🔴 Eski tur hisobi (`5351 "... · Naqd"`, `parent_id` bo'sh) tanlansa | Qarz yo'li **o'chadi**, `over` bloki **qat'iy** qoladi. "ortig'i qarzga yoziladi" xabari CHIQMASIN |
-| 1.26 | Taqsimotda qarz paydo bo'lsa | Qoldiq **kassadan chiqqan qism** bo'yicha kamayadi (manfiy ko'rinmasin) + qarz haqida banner |
-
----
+Bu bo'limning sinov bandlari endi bajarilmaydi. O'chirish to'g'ri ketganini
+tekshirish — `PROVODKA_TOSIQ_OCHIR.sql` ning o'z tekshiruv bo'limida.
 
 ## 2. IJROCHI (kim yozdi)
 
