@@ -428,7 +428,7 @@ select column_name, data_type, is_nullable
 --   entry_date date, kassa_code text, kassa_name text, kassa_subtitle text,
 --   modda_code text, modda_name text, summa numeric, izoh text, kim text
 -- )
--- language plpgsql stable security definer set search_path = public as $$
+-- language plpgsql stable security definer set search_path = public as $fn$
 -- begin
 --   if not is_admin() then
 --     raise exception 'Faqat admin ko''ra oladi' using errcode = '42501';
@@ -445,4 +445,4 @@ select column_name, data_type, is_nullable
 --      where e.status = 'posted' and e.is_deleted = false
 --        and e.entry_date >= p_from and e.entry_date <= p_to
 --      order by e.entry_date, ka.name, ma.name;
--- end $$;
+-- end $fn$;

@@ -36,7 +36,7 @@
 --     Ikkala RPC ni ham PROD `hodim.html` chaqiradi.
 --   * `ext_ref` berilmasa VA kassa hodim kassasi bo'lmasa — natija
 --     AVVALGIDEK (6-BO'LIMda satrma-satr solishtirilgan).
---   * `do $$` bloki YO'Q (Supabase SQL editorida 42P01).
+--   * anonim `do` bloki YO'Q (Supabase SQL editorida 42P01).
 --   * Faylda RPC ni JONLI chaqiradigan operator YO'Q — faqat KATALOG va
 --     jadval so'rovlari. (`PROVODKA_JURNAL_V2.sql` bugun aynan shundan
 --     rollback bo'ldi: editorda `auth.uid()` null.)

@@ -726,3 +726,14 @@ Boshqa workflowlar: `aros-filial-live` + `aros-currencies` (`lco21f7pUcKPpNVU`),
   qolgan qismini shablon o'rtasiga qistiradi. `node --check` buni sezmaydi (yuqoridagi sabab).
 - Dizaynni bir faylda o'zgartirsang, qolgan 6 tasiga ham tushir (aks holda ular ajralib qoladi).
 - SQL DDL'ni Asilbek o'zi RUN qiladi — SQL yozib ber, o'zing bajarma.
+- 🔴 **SQL faylning `--` IZOHIDA ham dollar-qavs (`$` + `$` yonma-yon) YOZILMAYDI.**
+  Supabase editori juftlikni sanayotganda izohni o'tkazib yubormaydi: izohdagi belgi
+  soxta blok ochadi, keyingi `as $$` uni yopadi va funksiya **tanasi top-level SQL**
+  bo'lib bajariladi → `ERROR: 42P01: relation "<plpgsql o'zgaruvchisi>" does not exist`.
+  Xatodagi nom — ochiq oraliqdagi **birinchi `select … into X`** nishoni, ya'ni u
+  faylning o'rtasidagi funksiyada chiqishi mumkin va sabab noto'g'ri joyda izlanadi.
+  (2026-08-25: uch fayl bir vaqtda shundan yiqildi.) "Anonim `do` bloki" deb yoz.
+  Qo'shimcha himoya: funksiya tanasiga **nomlangan teg** (`$fn$`) ishlat — u holda
+  izohdagi belgi parityga ta'sir qilmaydi.
+  Tekshiruv: har dollar-teg soni JUFT va funksiya soniga mos bo'lsin — izohlarni
+  **hisobga olib** sana (to'g'ri lekser bilan sanasang muammoni ko'rmaysan).

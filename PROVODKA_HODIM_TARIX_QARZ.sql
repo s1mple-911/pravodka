@@ -55,7 +55,7 @@
 --     yo'q bo'lsa `v_ext = v_ids` bo'lib qoladi. 7-BO'LIMda satrma-satr.
 --   * `security definer` + `set search_path = public` + grantlar AYNAN
 --     eskisidek qayta beriladi.
---   * `do $$` bloki YO'Q (Supabase editorida 42P01).
+--   * anonim `do` bloki YO'Q (Supabase editorida 42P01).
 --   * Faylda RPC ni JONLI chaqiradigan operator YO'Q — faqat KATALOG va
 --     jadval so'rovlari (`PROVODKA_JURNAL_V2.sql` bugun aynan shundan
 --     rollback bo'ldi: editorda `auth.uid()` null).
@@ -720,7 +720,7 @@ having sum(case when a.parent_id = (select id from accounts where code = '6720')
 --   (B) FAQAT oylik jami: PROVODKA_HODIM_TEZLIK.sql -> 3-bo'lim
 --                         (`hodim_oy_jami_kop`)
 --                         + PROVODKA_HODIM_V3.sql -> 5-BO'LIM (`hodim_oy_jami`)
---       ⚠️ PROVODKA_HODIM_TEZLIK.sql oxirida `do $$` bloki bor — Supabase
+--       ⚠️ PROVODKA_HODIM_TEZLIK.sql oxirida anonim `do` bloki bor — Supabase
 --          editorida u 42P01 beradi. Faqat 3-bo'limni belgilab RUN qiling.
 --   (C) HAMMASI: (A) + (B).
 --

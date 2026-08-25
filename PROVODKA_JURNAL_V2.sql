@@ -670,7 +670,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn$
 begin
   if not is_admin() then
     raise exception 'Faqat admin' using errcode = '42501';
@@ -686,7 +686,7 @@ begin
   else
     raise exception 'Nomalum bayroq';
   end if;
-end $$;
+end $fn$;
 
 revoke all on function set_modda_flag(uuid, text, boolean) from public, anon;
 grant execute on function set_modda_flag(uuid, text, boolean) to authenticated;

@@ -36,7 +36,7 @@
 -- ## QOIDALAR
 --   * FAQAT ADDITIVE: `drop` yo'q, imzo o'zgarmaydi, `ext_ref` berilmaganda
 --     mavjud xatti-harakat AYNAN o'sha-o'shaligicha qoladi.
---   * `do $$` bloklari ISHLATILMAGAN (Supabase SQL editorida 42P01 beradi) —
+--   * anonim `do` bloklari ISHLATILMAGAN (Supabase SQL editorida 42P01 beradi) —
 --     hamma tekshiruv oddiy `select`.
 --
 -- ## RUN TARTIBI (Asilbek)
