@@ -760,6 +760,30 @@
     .srv-lad{box-shadow:none!important;border-color:#999!important;break-inside:avoid}
     .srv-seg.s-in .srv-sv,.srv-seg.s-out .srv-sv,.srv-seg.s-tr .srv-sv{color:#000!important}
   }
+
+  /* ================================================================
+     CHALA YOZUV — `entry` sarlavhasi bor, `entry_line` YO'Q.
+     🔴 RANG NEYTRAL (--nt / --muted), QIZIL EMAS: bu xato ham,
+        o'chirilgan yozuv ham emas. O'chirilganning qizili
+        (.jdel-note, tr.del) bilan chalkashmasligi SHART —
+        "uch xil qizil" saboqi. Pul yozilmagan → balans buzilmagan.
+     ================================================================ */
+  .jtbl tr.chala td{background:var(--nt-soft)}
+  .jtbl tbody tr.chala:hover td{background:var(--surface-2)}
+  .jtbl tr.chala .j-amt{color:var(--muted);font-size:14.5px}
+  .jcard.chala{background:var(--nt-soft)}
+  .jcard.chala .jc-amt{color:var(--muted)}
+  .jchip-chala{display:inline-flex;align-items:center;gap:5px;border:1px dashed var(--muted);
+    color:var(--muted);background:transparent;border-radius:8px;padding:2px 8px;
+    font-size:11.5px;font-weight:700;line-height:1.6}
+  .jchip-chala svg{width:12px;height:12px;flex:none}
+  .jchala-note{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
+  @media print{
+    .jtbl tr.chala td,.jcard.chala{background:none!important}
+    .jchip-chala{border:1px solid #999!important;color:#000!important}
+    .jchala-note,.jtbl tr.chala .j-amt,.jcard.chala .jc-amt{color:#000!important}
+  }
 </style>
 </head>
 <body>
@@ -1431,10 +1455,37 @@ async function onFil(){
   await load();
 }
 
+/* ---- CHALA YOZUV: sarlavha bor, satr yo'q -----------------------------------
+   Yozuv ikki qadamda yoziladi (entry insert → entry_line insert). Satrlar rad
+   etilganda kompensatsiya `delete` RLS tufayli 0 qator o'chirgan → sarlavha
+   yetim qolgan. PUL YOZILMAGAN, balansga ta'sir qilmaydi (balans faqat
+   entry_line'dan) — shuning uchun bunday yozuv O'CHIRILMAYDI, faqat aniq
+   nomlanadi (Asilbek qarori).
+   🔴 IKKI YO'L, TARTIB MUHIM: avval `n_lines` (jurnal_v2_baza ustuni), keyin
+      `lines` massivining uzunligi. Ikkalasi ham yo'q bo'lsa (lines null yoki
+      massiv emas) HECH NARSA belgilanmaydi — soxta "chala" yorlig'i chiqmasin.
+   ⚠️ `n_lines` ATAYLAB BIRINCHI: eski `jurnal()` ning ba'zi versiyasi javobni
+      yengil qilish uchun `lines` ni FAQAT ko'p satrli yozuvga to'ldirib,
+      qolganiga `[]` beradi. O'shanda faqat uzunlikka qarasak HAR 2 satrli
+      yozuv "chala" bo'lib ketardi — lekin o'sha javobda `n_lines` ustuni bor
+      va u to'g'ri javob beradi. */
+function isChala(e){
+  if(!e) return false;
+  if(e.n_lines!=null && Number.isFinite(Number(e.n_lines))) return Number(e.n_lines)===0;
+  if(Array.isArray(e.lines)) return e.lines.length===0;
+  return false;
+}
+const CHALA_NOM='Chala yozuv — pul yozilmagan';
+const CHALA_IZOH="Saqlash yarim qolgan: sarlavha yozilgan, hisob satrlari yozilmagan. Pul harakat qilmagan — balansga ta'sir qilmaydi.";
+
 // TASNIF — section='pul' bo'yicha, kod prefiksi bilan EMAS.
 const isPul=l=>l&&l.section==='pul';
 function klass(e){
   const dt=(e.lines||[]).find(l=>Number(l.debit)>0), kt=(e.lines||[]).find(l=>Number(l.credit)>0);
+  // 🔴 `kind` ATAYLAB 'nt' (neytral/kulrang) qoladi — yangi kind qo'shilsa
+  // render() dagi tur filtri (klass(e).kind!==tur) chala yozuvni "Boshqa"
+  // segmentidan yashirib qo'yardi. Farqni faqat `chala` bayrog'i bildiradi.
+  if(isChala(e)) return {kind:'nt',ic:'circle-dashed',sign:'',chala:true};
   if((e.lines||[]).length>2) return {kind:'nt',ic:'layers',sign:''};
   const dp=isPul(dt), kp=isPul(kt);
   if(dp&&kp)  return {kind:'tr', ic:'arrow-left-right', sign:'', dt,kt};
@@ -1808,10 +1859,17 @@ async function loadIjrSel(){
 // Maqsad ustuni: izoh + teglar (filial/davr/yuk/kommunal/⏳) + chek + tahrir/o'chirish izi + ko'p satr.
 function maqsadHtml(e,k,multi){
   const parts=[];
+  const chala=!!(k&&k.chala);
+  // Chala yozuv — birinchi navbatda AYTILADI (kulrang chip + qisqa izoh).
+  if(chala) parts.push(`<div><span class="jchip-chala" title="${esc(CHALA_IZOH)}"><i data-lucide="circle-dashed"></i>${esc(CHALA_NOM)}</span></div>`);
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
   if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
-  else if(!multi) parts.push(`<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`);
-  else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv</div>`);
+  // 🔴 Chala yozuvda "Kt → Dt" satri CHIZILMAYDI: hisob yo'q, u bo'sh " → " bo'lib
+  // ko'rinardi (aynan foydalanuvchini chalkashtirgan holat).
+  else if(!chala) parts.push(!multi
+    ? `<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`
+    : `<div class="jgoal muted">Ko'p satrli yozuv</div>`);
+  if(chala) parts.push(`<div class="jchala-note">${esc(CHALA_IZOH)}</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
   if(kid&&chekKeys.has(kid+'/'+e.id)){
@@ -1857,16 +1915,17 @@ function render(){
 
   // Desktop: jadval — # | Sana | Qayerdan chiqadi (Kt) | → | Qayerga kiradi (Dt) | Summa | Maqsad
   const rowsHtml=list.map((e,i)=>{
-    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2;
-    const ktC=multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt);
-    const dtC=multi?`<span class="jmuted">${e.lines.length} satr</span>`:accCell(k.dt);
-    return `<tr class="jr${e.is_deleted?' del':''}">`
+    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
+    // Chala: Dt/Kt "—" emas, ANIQ matn; summa 0 emas, "—" (yolg'on nol chalkashtirmasin).
+    const ktC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt));
+    const dtC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?`<span class="jmuted">${e.lines.length} satr</span>`:accCell(k.dt));
+    return `<tr class="jr${e.is_deleted?' del':''}${chala?' chala':''}">`
       +`<td class="j-num">${i+1}</td>`
       +`<td class="j-date">${esc(e.entry_date||'')}</td>`
       +`<td class="j-kt">${ktC}</td>`
       +`<td class="j-arrow ${kc(k)}"><i data-lucide="${k.ic}"></i></td>`
       +`<td class="j-dt">${dtC}</td>`
-      +`<td class="j-amt ${kc(k)}">${k.sign}${money(amt)}</td>`
+      +`<td class="j-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</td>`
       +`<td class="j-maqsad">${maqsadHtml(e,k,multi)}</td>`
       +`<td class="j-acts">${actsHtml(e,k,multi)}</td>`
     +`</tr>`;
@@ -1877,16 +1936,19 @@ function render(){
 
   // Mobil: karta — sana+summa tepada, Qayerdan → Qayerga o'rtada strelka bilan, maqsad ostida
   const cardsHtml=list.map((e,i)=>{
-    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2;
+    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
     const acts=actsHtml(e,k,multi);
-    const flow = multi
+    const flow = chala
+      ? `<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
+        +`<div class="jc-acc"><span class="acap">Hisoblar</span><span class="aname jmuted">Satr yozilmagan (Dt/Kt yo'q)</span></div>`
+      : multi
       ? `<div class="jc-acc"><span class="acap">Ko'p satrli</span><span class="aname">${e.lines.length} satr</span></div>`
       : `<div class="jc-acc"><span class="acap">Qayerdan (Kt)</span>${accCell(k.kt)}</div>`
         +`<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
         +`<div class="jc-acc"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
-    return `<div class="jcard${e.is_deleted?' del':''}">`
-      +`<div class="jc-top"><span class="jc-date">${esc(e.entry_date||'')} · #${i+1}</span><span class="jc-amt ${kc(k)}">${k.sign}${money(amt)}</span></div>`
-      +`<div class="jc-flow${multi?' jc-multi':''}">${flow}</div>`
+    return `<div class="jcard${e.is_deleted?' del':''}${chala?' chala':''}">`
+      +`<div class="jc-top"><span class="jc-date">${esc(e.entry_date||'')} · #${i+1}</span><span class="jc-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</span></div>`
+      +`<div class="jc-flow${(multi||chala)?' jc-multi':''}">${flow}</div>`
       +`<div class="jc-maqsad">${maqsadHtml(e,k,multi)}</div>`
       +(acts?`<div class="jc-acts">${acts}</div>`:'')
     +`</div>`;
@@ -2755,14 +2817,17 @@ function xlsRow(e,i,meta,ey,cheks){
                       :(m.yuk_ids||[]).filter(x=>x!=null).map(x=>'#'+x).join(', ');
   const kid=kassaOf(e);
   const chek=(kid&&cheks.seen.has(kid))?(cheks.map.has(kid+'/'+e.id)?'Ha':'Yo\'q'):'';
-  return [ i+1, e.entry_date||'', TUR_NOM[k.kind]||'',
-    kts.map(l=>l.code||'').join('; '), kts.map(nm).join('; '),
-    dts.map(l=>l.code||'').join('; '), dts.map(nm).join('; '),
-    sumDt(e), cur, fcSum||'', e.description||'',
+  // 🔴 Chala yozuv: "Summa" ustuni raqam 0 EMAS, bo'sh qoladi — aks holda Excel'da
+  // yig'indi/filtr uni haqiqiy nol so'mlik yozuv deb o'qirdi. Tur va Holat ochiq yozadi.
+  const chala=!!k.chala;
+  return [ i+1, e.entry_date||'', chala?'Chala yozuv':(TUR_NOM[k.kind]||''),
+    kts.map(l=>l.code||'').join('; '), chala?'Satr yozilmagan':kts.map(nm).join('; '),
+    dts.map(l=>l.code||'').join('; '), chala?'Satr yozilmagan':dts.map(nm).join('; '),
+    chala?'':sumDt(e), cur, fcSum||'', e.description||'',
     m.davr_start||'', m.davr_end||'', fils, m.kommunal_turi||'', yuk, m.yuk_kutilmoqda?'Ha':'',
     ijrText(e),
     e.source||'', ls.length, chek,
-    e.is_deleted?'O\'chirilgan':'Faol', e.deleted_by_name||'', fmtDT(e.deleted_at),
+    e.is_deleted?'O\'chirilgan':(chala?'Chala — satr yozilmagan':'Faol'), e.deleted_by_name||'', fmtDT(e.deleted_at),
     e.edited_by_name||'', fmtDT(e.edited_at), fmtDT(e.created_at), e.id ];
 }
 function xlsLineRows(list){

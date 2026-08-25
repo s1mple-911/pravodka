@@ -16,8 +16,9 @@
 --        * `sorovlar` qatori (kimdan, qancha, izoh)
 --      🔴 `status='pending'` yozuv BALANSGA UMUMAN TA'SIR QILMAYDI —
 --      butun hisob-kitob `status='posted'` bilan filtrlangan (0.3 auditi).
---   3) So'ralgan odam `sorovlar-dev.html` da ko'radi:
---        `sorov_tasdiq(id, summa)`  — to'liq yoki qisman
+--   3) So'ralgan odam (yoki ADMIN) `sorovlar-dev.html` da ko'radi:
+--        `sorov_tasdiq(id, summa, kassa)` — to'liq yoki qisman;
+--        `kassa` = qaysi hisobdan (ildiz yoki Naqd/Click/Payme bolasi)
 --        `sorov_rad(id, sabab)`     — sabab MAJBURIY
 --   4) Tasdiqda:
 --        * pul provodkasi: Dt hodim kassasi / Kt tasdiqlovchi kassasi (posted)
@@ -54,13 +55,16 @@
 --     orqaga qaytarardi (PROVODKA_JURNAL_V2.sql saboqi).
 --   * Funksiya tanasi NOMLANGAN teg bilan (izohda dollar-qavs YOZILMAYDI --
 --     u editorning juftlik sanogini buzadi va 42P01 beradi; CLAUDE.md 729).
---   * 🔴 SO'ROVNI FAQAT SO'RALGAN ODAM TASDIQLAYDI. ADMIN KO'RADI,
---     LEKIN TASDIQLAMAYDI. Bu ONGLI SUKUT (Asilbek qarori): tasdiqlash
---     = boshqa odamning kassasidan pul chiqishi. Kodda bu YAGONA joyda:
---     8-BO'LIM `sorov_tasdiq` ichidagi `if s.kimdan_id <> v_uid` sharti
---     (va 9-BO'LIM `sorov_rad` dagi aynan o'sha bir qator).
---     Yumshatish kerak bo'lsa — o'sha ikki qatorga `and not is_admin()`
---     qo'shiladi, boshqa hech qayerga tegilmaydi.
+--   * 🔴 SO'ROVNI SO'RALGAN ODAM YOKI ADMIN TASDIQLAYDI (Asilbek qarori,
+--     2026-08-25 jonli sinovdan keyin o'zgardi — avval "admin ham emas"
+--     edi). Kodda bu YAGONA shart, ikki joyda takrorlanadi:
+--       `if s.kimdan_id <> v_uid and not is_admin()`
+--     — 8-BO'LIM `sorov_tasdiq`, 9-BO'LIM `sorov_rad` (+ 7.3 dagi hosila).
+--     🔴 ADMIN TASDIQLAGANDA PUL SO'ROV KELGAN ODAMNING KASSASIDAN
+--     CHIQADI (adminda kassa biriktirilmagan). Ya'ni admin boshqa odam
+--     nomidan qaror qiladi — ongli qaror, 8.1 da asos bilan yozilgan.
+--     Qattiqlashtirish: o'sha ikki qatordan `and not is_admin()` ni
+--     olib tashlang, boshqa hech qayerga tegilmaydi.
 --
 --  TALAB (RUN qilinmagan bo'lsa 0-BO'LIM aytadi):
 --     PROVODKA_PERMS.sql        — user_perms, perm_op_key, perm_check_accounts,
@@ -317,7 +321,9 @@ comment on table sorovlar is
 comment on column sorovlar.kassa_id is
   'Sorovchining kassasi: pending xarajat Kt, pul jonatilganda Dt. Bittasi bolishi SHART.';
 comment on column sorovlar.kimdan_kassa_id is
-  'Tasdiqlovchining kassasi: pul jonatilganda Kt. Tasdiqda qayta tekshiriladi.';
+  'Tasdiqlovchining kassasi: pul jonatilganda Kt. Sorov paytida — asosiy (ildiz) kassa; '
+  'tasdiqdan keyin — HAQIQATDA tolangan hisob (tur-bolasi bolishi mumkin, sorov_tasdiq 8.1b). '
+  'Guard istisnosi (4-BOLIM) aynan shu ustunga tayanadi.';
 comment on column sorovlar.xarajat_summa is
   'Audit nusxasi. Hisob-kitob entry_line dan qayta oqiladi. KLIENTGA YUBORILMAYDI '
   '(balans ayirma orqali tiklanardi) — sorov_qator va sorov_qaror_ctx javobida YOQ.';
@@ -602,7 +608,11 @@ begin
     --    ko'rinmaydi. Xarajat summasi UI da hech qayerda chizilmaydi.
     'xarajat_yopildi',        s.xarajat_yopildi,
     'meniki',                 (s.sorovchi_id = p_uid),
-    'men_qaror_qila_olaman',  (s.kimdan_id = p_uid and s.status = 'pending')
+    -- 🔴 SERVER hisoblaydi (klient `kimdan_id === my_uid` deb taxmin
+    --    QILMASIN): 2026-08-25 dan ADMIN ham qaror qila oladi (8.1),
+    --    lekin pul SO'ROV KELGAN ODAMNING kassasidan chiqadi.
+    'men_qaror_qila_olaman',  (s.status = 'pending'
+                               and (s.kimdan_id = p_uid or is_admin()))
   );
 end $fn$;
 
@@ -1251,12 +1261,19 @@ comment on function sorov_menikilar(int) is
 
 -- ---------------------------------------------------------------------
 -- 7.3  sorov_qaror_ctx(p_id) — tasdiqlash modali konteksti.
---      {soralgan, mening_qoldigim, valyuta, kassa_nom}
+--      {soralgan, mening_qoldigim, valyuta, kassa_nom, hisoblar[],
+--       ozim, kimdan_nom}
 --
---   🔴 `mening_qoldigim` — TASDIQLOVCHINING O'Z puli. Shuning uchun
---   funksiya faqat `kimdan_id = auth.uid()` bo'lganda javob beradi:
---   so'rovchiga ham, adminga ham bu raqam HECH QACHON bermaydi
---   (.sorov-ui.md §2.7).
+--   🔴 `mening_qoldigim` va `hisoblar[].qoldiq` — TASDIQLOVCHINING O'Z
+--   puli. Funksiya faqat `kimdan_id = auth.uid()` YOKI adminga javob
+--   beradi; SO'ROVCHIGA hech qachon bermaydi (.sorov-ui.md §2.7).
+--
+--   🔴 `hisoblar[]` = {account_id, code, name, qoldiq} — ildiz kassa VA
+--   uning UZS bolalari (Naqd/Click/Payme). NEGA KERAK: pul tur-bolasida
+--   tursa ildiz kassa qoldig'i 0 bo'ladi va tasdiqlash "pul yetmaydi"
+--   deb rad etardi (jonli sinovda aynan shu chiqdi). Endi tanlovni
+--   TASDIQLOVCHINING O'ZI qiladi — server "eng puli ko'p bolani" o'zi
+--   tanlab, foydalanuvchi ko'rsatmagan hisobdan pul olib chiqmaydi.
 -- ---------------------------------------------------------------------
 create or replace function sorov_qaror_ctx(p_id uuid)
 returns jsonb
@@ -1266,9 +1283,11 @@ security definer
 set search_path = public
 as $fn$
 declare
-  v_uid uuid := auth.uid();
-  s     sorovlar;
-  v_nom text;
+  v_uid  uuid := auth.uid();
+  s      sorovlar;
+  v_nom  text;
+  v_root uuid;
+  v_his  jsonb;
 begin
   if v_uid is null then
     raise exception 'Avtorizatsiya kerak' using errcode = '42501';
@@ -1281,36 +1300,91 @@ begin
   if not found then
     raise exception 'Sorov topilmadi' using errcode = '22000';
   end if;
-  -- 🔴 Faqat so'ralgan odam. Admin ham EMAS (bu uning puli emas).
-  if s.kimdan_id <> v_uid then
+  -- 🔴 So'ralgan odam YOKI admin (Asilbek qarori 2026-08-25 — 8.1 ga qara).
+  if s.kimdan_id <> v_uid and not is_admin() then
     raise exception 'Bu sorov sizga kelmagan' using errcode = '42501';
   end if;
 
-  select name into v_nom from accounts where id = s.kimdan_kassa_id;
+  -- 🔴 ILDIZ har doim `kimdan_kassa_id` — ADMIN uchun ham. Ya'ni admin
+  --    o'z hisoblarini emas, SO'ROV KELGAN ODAMNING hisoblarini ko'radi:
+  --    pul o'shaning kassasidan chiqadi (adminda kassa biriktirilmagan).
+  --    ⚠️ Bu "boshqa odamning balansi ko'rinmasin" qoidasidan ONGLI
+  --    ISTISNO: admin o'sha odam nomidan qaror qilyapti, qarorni raqamsiz
+  --    qabul qilib bo'lmaydi. Oddiy foydalanuvchida bunday yo'l YO'Q.
+  v_root := s.kimdan_kassa_id;
+  select name into v_nom from accounts where id = v_root;
+
+  -- Hisoblar: ildiz kassa VA uning bevosita bolalari (Naqd/Click/Payme).
+  -- 🔴 FAQAT UZS. Valyuta bolasidan (56xx USD, 57xx CNY...) to'lash kurs
+  --    konvertatsiyasini talab qiladi — so'rov so'mda, hisob dollarda.
+  --    Yarim ishlaydigan yo'l ochilmaydi: konvert alohida mexanizm
+  --    (`convert_start_v2`) va u o'z koridori/tasdig'i bilan keladi.
+  -- 🔴 `perm_check_accounts` — 8.4 dagi VALIDATSIYA bilan AYNAN bir xil
+  --    predikat: ro'yxatda ko'ringan hisob har doim to'lovga yaroqli
+  --    (admin/all-scope -> hammasi, list-scope -> op_kassa_ids).
+  select coalesce(jsonb_agg(to_jsonb(x) order by x.code), '[]'::jsonb)
+    into v_his
+    from (
+      select a.id as account_id, a.code, a.name,
+             sorov_kassa_bal(a.id) as qoldiq
+        from accounts a
+       where (a.id = v_root or a.parent_id = v_root)
+         and a.is_active is true
+         and a.type = 'aktiv' and a.code like '5%'
+         and coalesce(a.currency, 'UZS') = 'UZS'
+         and a.kassa_turi is distinct from 'xarajat_guruh'
+         and perm_check_accounts(array[a.id])
+    ) x;
 
   return jsonb_build_object(
     'soralgan',        s.summa,
-    'mening_qoldigim', sorov_kassa_bal(s.kimdan_kassa_id),
+    -- Ildiz kassa qoldig'i (eski kalit — klient tanlovdan keyin uni
+    -- TANLANGAN hisobniki bilan almashtiradi).
+    'mening_qoldigim', sorov_kassa_bal(v_root),
     'valyuta',         'UZS',
-    -- 🔴 `xarajat_summa` YO'Q — yuqoridagi bilan bir xil sabab (balans
-    --    ayirma orqali tiklanardi). Tasdiqlovchiga kerak emas: u
-    --    SO'RALGAN summani ko'radi, xarajatnikini emas.
-    'kassa_nom',       v_nom);
+    -- 🔴 `xarajat_summa` YO'Q — balans ayirma orqali tiklanardi.
+    --    Tasdiqlovchiga kerak emas: u SO'RALGAN summani ko'radi.
+    'kassa_nom',       v_nom,
+    'hisoblar',        v_his,
+    -- `ozim=false` -> admin boshqa odam nomidan qaror qilyapti; klient
+    -- yorliqni almashtiradi ("Qo'lingizdagi pul" -> "<Nom> qo'lidagi pul").
+    'ozim',            (s.kimdan_id = v_uid),
+    'kimdan_nom',      sorov_ism(s.kimdan_id, v_root));
 end $fn$;
 
 revoke all on function sorov_qaror_ctx(uuid) from public, anon;
 grant execute on function sorov_qaror_ctx(uuid) to authenticated;
 
 comment on function sorov_qaror_ctx(uuid) is
-  'Tasdiqlash modali konteksti. mening_qoldigim — FAQAT sorov kelgan odamning ozi uchun.';
+  'Tasdiqlash modali konteksti + tolov hisoblari royxati (ildiz kassa va UZS bolalari, qoldiq bilan). '
+  'Faqat sorov kelgan odam yoki ADMIN. Admin holatida royxat sorov kelgan odamnikidir.';
 
 
 -- #####################################################################
 -- ##  8-BO'LIM — sorov_tasdiq()  🔴 IDEMPOTENT                       ##
 -- #####################################################################
 -- ## 8.1  KIM TASDIQLAYDI
---   FAQAT `kimdan_id = auth.uid()`. ADMIN HAM EMAS (fayl sarlavhasidagi
---   ongli sukut). Yumshatish — pastdagi BITTA qatorga `and not is_admin()`.
+--   🔴 `kimdan_id = auth.uid()` YOKI **ADMIN** (Asilbek qarori 2026-08-25).
+--   Avvalgi sukut "admin ham emas" edi; jonli sinovdan keyin o'zgardi.
+--   ⚠️ ADMIN TASDIQLAGANDA PUL SO'ROV KELGAN ODAMNING KASSASIDAN CHIQADI
+--   (adminda kassa biriktirilmagan — 5-BO'LIM). Ya'ni admin BOSHQA ODAM
+--   NOMIDAN qaror qiladi va uning qoldig'ini ko'radi (7.3). Bu ONGLI
+--   qaror: adminsiz navbat qotib qolardi (odam ta'tilda/kasal).
+--   Qattiqlashtirish kerak bo'lsa — `and not is_admin()` ni ikkala
+--   joydan (8.1 va 9.1) olib tashlang, boshqa hech qayerga tegilmaydi.
+--
+-- ## 8.1b  QAYSI HISOBDAN TO'LANADI — `p_kassa`
+--   Pul Naqd/Click/Payme tur-bolasida turishi mumkin; ildiz kassa qoldig'i
+--   0 bo'lsa eski kod "pul yetmaydi" deb rad etardi (jonli sinov). Endi
+--   tasdiqlovchi hisobni O'ZI tanlaydi (`sorov_qaror_ctx.hisoblar`).
+--   `p_kassa is null` -> eski xatti-harakat (`kimdan_kassa_id`).
+--   Tekshiruv (uch qavat): (1) hisob ILDIZning o'zi yoki BEVOSITA bolasi;
+--   (2) `perm_check_accounts` (admin/all -> ok, list -> op_kassa_ids);
+--   (3) qoldig'i yetadi.
+--   🔴 GUARD ISTISNOSI UCHUN: `entry_line` dan OLDIN `sorovlar.kimdan_kassa_id`
+--   HAQIQATDA ishlatilgan hisobga yangilanadi — 4-BO'LIM dagi istisno
+--   `new.account_id in (s.kassa_id, s.kimdan_kassa_id)` ga tayanadi va
+--   shu tufayli O'ZGARISHSIZ ishlaydi.
 --
 -- ## 8.2  IDEMPOTENTLIK — UCH QAVAT
 --   (1) `select ... for update` — qator qulflanadi, ikkinchi tranzaksiya
@@ -1354,7 +1428,17 @@ comment on function sorov_qaror_ctx(uuid) is
 --   `sorov_xarajat_bekor` bilan xarajatni bekor qiladi (9.2).
 -- #####################################################################
 
-create or replace function sorov_tasdiq(p_id uuid, p_summa numeric)
+-- 🔴 IMZO O'ZGARDI (p_kassa qo'shildi) -> `drop` BEVOSITA `create` ustida.
+--    `create or replace` yolg'iz 42P13 beradi ("cannot change name of input
+--    parameter" / argument soni). Eski 2-argumentli variant ham tushiriladi:
+--    aks holda `sorov_tasdiq(id, summa)` chaqiruvi IKKI funksiyaga mos kelib
+--    "function is not unique" (42725) berardi.
+--    ⚠️ XAVFSIZ: `sorovlar-dev.html` hali PRODGA CHIQMAGAN, ya'ni bu imzoga
+--    bog'langan jonli klient YO'Q.
+drop function if exists sorov_tasdiq(uuid, numeric);
+drop function if exists sorov_tasdiq(uuid, numeric, uuid);
+
+create function sorov_tasdiq(p_id uuid, p_summa numeric, p_kassa uuid default null)
 returns jsonb
 language plpgsql
 security definer
@@ -1370,6 +1454,8 @@ declare
   v_entry  uuid;
   v_holat  text;
   v_yopdi  boolean := false;
+  v_gk     uuid;       -- HAQIQATDA to'lanadigan hisob (ildiz yoki tur-bolasi)
+  v_acc    accounts;
 begin
   perform set_config('lock_timeout', '5s', true);
 
@@ -1386,9 +1472,10 @@ begin
     raise exception 'Sorov topilmadi' using errcode = '22000';
   end if;
 
-  -- 8.1 — 🔴 YAGONA JOY: faqat so'ralgan odam. Admin ham emas.
-  if s.kimdan_id <> v_uid then
-    raise exception 'Sorovni faqat sorov kelgan odam tasdiqlaydi' using errcode = '42501';
+  -- 8.1 — 🔴 YAGONA JOY: so'rov kelgan odam YOKI admin.
+  if s.kimdan_id <> v_uid and not is_admin() then
+    raise exception 'Sorovni faqat sorov kelgan odam yoki admin tasdiqlaydi'
+      using errcode = '42501';
   end if;
 
   -- 8.2 (2) — ikki marta tasdiqlash: pul IKKI MARTA jo'natilmaydi
@@ -1427,13 +1514,37 @@ begin
      where l.entry_id = s.xarajat_entry_id and l.account_id = s.kassa_id;
   end if;
 
-  -- 8.4 — tasdiqlovchi kassasi hamon uniki va puli yetadimi
-  if not perm_check_accounts(array[s.kimdan_kassa_id]) then
+  -- 8.4 — TO'LOV HISOBI (8.1b): tanlangan yoki sukut bo'yicha ildiz kassa
+  v_gk := coalesce(p_kassa, s.kimdan_kassa_id);
+
+  select * into v_acc from accounts where id = v_gk;
+  if not found or v_acc.is_active is distinct from true then
+    raise exception 'Tolov hisobi topilmadi yoki faol emas' using errcode = '22000';
+  end if;
+  if v_acc.type <> 'aktiv' or v_acc.code not like '5%'
+     or v_acc.kassa_turi is not distinct from 'xarajat_guruh' then
+    raise exception 'Bu hisob kassa emas' using errcode = '22000';
+  end if;
+  -- 🔴 FAQAT UZS: so'rov so'mda. Valyuta hisobidan to'lash kurs
+  --    konvertatsiyasini talab qiladi — u alohida mexanizm (konvert).
+  if coalesce(v_acc.currency, 'UZS') <> 'UZS' then
+    raise exception 'Valyuta hisobidan tolab bolmaydi — avval somga konvert qiling'
+      using errcode = '22000';
+  end if;
+  -- 🔴 OILA CHEGARASI: faqat so'rov yo'naltirilgan kassaning O'ZI yoki
+  --    uning BEVOSITA bolasi. Busiz admin (unda kassa cheklovi yo'q)
+  --    ixtiyoriy hisob id'sini yuborib BEGONA kassani bo'shatib qo'yardi.
+  if v_gk <> s.kimdan_kassa_id
+     and v_acc.parent_id is distinct from s.kimdan_kassa_id then
+    raise exception 'Bu hisob sorov kelgan kassaga tegishli emas' using errcode = '42501';
+  end if;
+  -- Ruxsat: `sorov_qaror_ctx.hisoblar` bilan AYNAN bir xil predikat
+  if not perm_check_accounts(array[v_gk]) then
     raise exception 'Bu kassada amaliyot qilish huquqingiz yoq' using errcode = '42501';
   end if;
-  v_bal := sorov_kassa_bal(s.kimdan_kassa_id);
+  v_bal := sorov_kassa_bal(v_gk);
   if v_bal < p_summa then
-    raise exception 'Qolingizdagi pul yetmaydi (qoldiq: %)', v_bal using errcode = '22000';
+    raise exception 'Tanlangan hisobda pul yetmaydi (qoldiq: %)', v_bal using errcode = '22000';
   end if;
 
   -- ---- Pul provodkasi: Dt so'rovchi kassasi / Kt tasdiqlovchi kassasi
@@ -1455,13 +1566,19 @@ begin
      set jonatma_entry_id = v_entry,
          status           = v_holat,
          jonatilgan_summa = p_summa,
+         -- 🔴 HAQIQATDA ishlatilgan hisob yoziladi. IKKI sabab:
+         --    (1) guard istisnosi (4-BO'LIM) aynan shu ustunga qaraydi —
+         --        tur-bolasidan to'langanda ham u ro'yxatda bo'lsin;
+         --    (2) audit: keyin "pul qaysi hisobdan chiqdi" savoliga
+         --        javob qatorning o'zida turadi.
+         kimdan_kassa_id  = v_gk,
          decided_at       = now(),
          decided_by       = v_uid
    where id = s.id;
 
   insert into entry_line (entry_id, account_id, debit, credit)
-  values (v_entry, s.kassa_id,        p_summa, 0),
-         (v_entry, s.kimdan_kassa_id, 0,       p_summa);
+  values (v_entry, s.kassa_id, p_summa, 0),
+         (v_entry, v_gk,       0,       p_summa);
 
   -- 8.6 — pending xarajatni yopish (faqat pul yetsa)
   if s.xarajat_entry_id is not null and v_est = 'pending' then
@@ -1482,6 +1599,7 @@ begin
     'holat',            v_holat,
     'jonatilgan_summa', p_summa,
     'jonatma_entry_id', v_entry,
+    'tolov_hisob',      v_gk,
     'xarajat_yopildi',  v_yopdi,
     -- UI shuni yozadi: "Pul jonatildi, lekin xarajat hamon tasdiq kutmoqda"
     'qoldiq_yetmadi',   (s.xarajat_entry_id is not null and v_est = 'pending' and not v_yopdi));
@@ -1494,12 +1612,13 @@ exception
                               'holat', 'tasdiq');
 end $fn$;
 
-revoke all on function sorov_tasdiq(uuid, numeric) from public, anon;
-grant execute on function sorov_tasdiq(uuid, numeric) to authenticated;
+revoke all on function sorov_tasdiq(uuid, numeric, uuid) from public, anon;
+grant execute on function sorov_tasdiq(uuid, numeric, uuid) to authenticated;
 
-comment on function sorov_tasdiq(uuid, numeric) is
-  'Pul jonatish (toliq yoki qisman) + pending xarajatni yopish. FAQAT sorov kelgan odam '
-  '(admin ham emas). Idempotent: for update + status tekshiruvi + ext_ref UNIQUE.';
+comment on function sorov_tasdiq(uuid, numeric, uuid) is
+  'Pul jonatish (toliq yoki qisman) + pending xarajatni yopish. Sorov kelgan odam YOKI admin. '
+  'p_kassa — qaysi hisobdan tolanadi (ildiz kassa yoki uning UZS tur-bolasi; null -> ildiz). '
+  'Idempotent: for update + status tekshiruvi + ext_ref UNIQUE.';
 
 
 -- #####################################################################
@@ -1559,9 +1678,10 @@ begin
     raise exception 'Sorov topilmadi' using errcode = '22000';
   end if;
 
-  -- 🔴 8.1 bilan AYNAN bir xil qoida (faqat sorov kelgan odam)
-  if s.kimdan_id <> v_uid then
-    raise exception 'Sorovni faqat sorov kelgan odam rad etadi' using errcode = '42501';
+  -- 🔴 8.1 bilan AYNAN bir xil qoida (sorov kelgan odam YOKI admin)
+  if s.kimdan_id <> v_uid and not is_admin() then
+    raise exception 'Sorovni faqat sorov kelgan odam yoki admin rad etadi'
+      using errcode = '42501';
   end if;
 
   if s.status <> 'pending' then
@@ -1594,8 +1714,9 @@ revoke all on function sorov_rad(uuid, text) from public, anon;
 grant execute on function sorov_rad(uuid, text) to authenticated;
 
 comment on function sorov_rad(uuid, text) is
-  'Sorovni rad etish (sabab majburiy). Pending xarajat AVTOMAT bekor qilinadi (is_deleted) — '
-  'balansga tegmagan yozuv jurnalda abadiy qolmasin.';
+  'Sorovni rad etish (sabab majburiy). Sorov kelgan odam YOKI admin. '
+  'Pending xarajat AVTOMAT bekor qilinadi (is_deleted) — balansga tegmagan yozuv '
+  'jurnalda abadiy qolmasin.';
 
 -- ---------------------------------------------------------------------
 -- 9.2  sorov_xarajat_bekor(p_entry) — hodim O'Z pending xarajatini
@@ -1815,7 +1936,8 @@ select count(*)::int                                              as pending_yoz
 -- -- 12.1  Ochiq RPC lar
 -- drop function if exists sorov_xarajat_bekor(uuid);
 -- drop function if exists sorov_rad(uuid, text);
--- drop function if exists sorov_tasdiq(uuid, numeric);
+-- drop function if exists sorov_tasdiq(uuid, numeric, uuid);
+-- drop function if exists sorov_tasdiq(uuid, numeric);   -- eski imzo (bo lsa)
 -- drop function if exists sorov_qaror_ctx(uuid);
 -- drop function if exists sorov_menikilar(int);
 -- drop function if exists sorov_royxat(text, boolean);
@@ -1885,10 +2007,16 @@ select count(*)::int                                              as pending_yoz
 --   sorov_menikilar({p_limit})   -> [qator]   (hodim tarixidagi nishon)
 --   sorov_royxat({p_holat, p_hammasi}) -> [qator]  (sorovlar sahifasi)
 --   sorov_qaror_ctx({p_id})      -> {soralgan, mening_qoldigim, valyuta,
---                                    kassa_nom}
---   sorov_tasdiq({p_id, p_summa})-> {ok, holat, jonatilgan_summa,
---                                    jonatma_entry_id, xarajat_yopildi,
---                                    qoldiq_yetmadi}
+--                                    kassa_nom, hisoblar[], ozim, kimdan_nom}
+--     `hisoblar[]` = [{account_id, code, name, qoldiq}] — FAQAT UZS.
+--     `ozim=false` -> admin boshqa odam nomidan: yorliq almashadi.
+--   sorov_tasdiq({p_id, p_summa, p_kassa})
+--                                -> {ok, holat, jonatilgan_summa,
+--                                    jonatma_entry_id, tolov_hisob,
+--                                    xarajat_yopildi, qoldiq_yetmadi}
+--     🔴 `p_kassa` — `sorov_qaror_ctx.hisoblar` dan TANLANGAN hisob
+--        (ildiz kassa yoki uning UZS tur-bolasi). Bittadan ko'p bo'lsa
+--        tanlov MAJBURIY; null yuborilsa ildiz kassa ishlatiladi.
 --                                 yoki {ok:false, kod:'already_decided'|'xarajat_yoq'}
 --   sorov_rad({p_id, p_izoh})    -> {ok, holat:'rad', xarajat_bekor}
 --   sorov_xarajat_bekor({p_entry}) -> {ok}

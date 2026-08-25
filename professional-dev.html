@@ -1791,6 +1791,97 @@ window.renderYukList=()=>{
   }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
 };
 
+/* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================
+   MUAMMO: yozuv ikki qadamda yozilardi — `entry` insert (commit) -> `entry_line`
+   insert (commit) [-> `entry_yuk` insert]. Keyingi qadam rad etilsa (perm guard
+   42501, limit guard, Dt<>Kt, RLS) klient kompensatsiya `delete` qilardi, LEKIN
+   `entry` o'chirish faqat adminga ochiq: oddiy foydalanuvchida u xatosiz 0 qator
+   o'chiradi va bazada YETIM SARLAVHA qoladi (`entry` bor, `entry_line` yo'q).
+
+   YECHIM: `provodka_yoz(p_data)` — sarlavha + satrlar + yuk taqsimoti BITTA
+   tranzaksiyada. Rad etilsa hech narsa yozilmaydi, kompensatsiya `delete`
+   KERAK EMAS (RPC yo'lida u ATAYLAB qilinmaydi).
+
+   🔴 ZAXIRA: RPC bazada yo'q bo'lsa (PROVODKA_YOZUV_ATOMIK.sql hali RUN
+   qilinmagan) eski ikki qadamli yo'l AYNAN avvalgidek ishlaydi — sahifa
+   buzilmaydi. `atomikYoq` bir marta aniqlanadi va sessiya davomida saqlanadi.
+
+   TEGILMAGAN: `xarajat_saqlash_taqsim` (confirmTaqsim) — u ALLAQACHON atomik
+   RPC, o'z ext_ref/23505 mantiqi bilan. */
+const SAVE_TIMEOUT_MS=30000;
+let atomikYoq=false;
+const perrX=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+const isDupErr=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='23505'||/duplicate key value/i.test(m); };
+// RPC topilmadi: PostgREST PGRST202, PostgreSQL 42883 ("function ... does not exist")
+const rpcYoq=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='PGRST202'||c==='42883'||(/provodka_yoz/i.test(m)&&/does not exist|could not find/i.test(m)); };
+const newToken=()=>{ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  return 'tk-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12); };
+/* So'rov abadiy osilib qolmasin: AbortController bilan uziladi (bo'lmasa
+   Promise.race). supabase-js throw QILMAYDI, lekin tarmoq xatosi promise'ni
+   rad etishi mumkin — ikkalasi ham {data,error} shakliga keltiriladi. */
+async function qTimeout(q,ms){
+  ms=ms||SAVE_TIMEOUT_MS;
+  let ctrl=null,t=null;
+  try{ if(typeof AbortController!=='undefined'&&q&&typeof q.abortSignal==='function'){ ctrl=new AbortController(); q=q.abortSignal(ctrl.signal); } }catch(e){ ctrl=null; }
+  const timer=new Promise(res=>{ t=setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} res({__t:1}); },ms); });
+  const run=Promise.resolve(q).then(x=>x,e=>({data:null,error:{message:String((e&&e.message)||e),code:String((e&&e.code)||'')}}));
+  let r; try{ r=await Promise.race([run,timer]); } finally{ clearTimeout(t); }
+  if(r&&r.__t) return {data:null,timeout:true,
+    error:{code:'TIMEOUT',message:'Tarmoq javob bermadi (vaqt tugadi). Jurnalni tekshiring — yozuv saqlangan bo\'lishi mumkin.'}};
+  return {data:(r&&r.data)||null,error:(r&&r.error)||null,timeout:false};
+}
+/* ext_ref — har saqlashda BIR MARTALIK token. Timeout bo'lsa token saqlanadi:
+   foydalanuvchi AYNI yozuvni qayta bossa o'sha token ketadi va server ikkinchi
+   nusxani 23505 bilan to'sadi. Aniq javob kelsa token tashlanadi. */
+let pendTok=null, pendFp=null;
+async function yozAtomik(hdr,rows,yuk){
+  if(atomikYoq) return {ok:false,eski:true};
+  const fp=JSON.stringify([hdr,rows,yuk||null]);
+  const tok=(pendFp===fp&&pendTok)?pendTok:newToken();
+  const p_data=Object.assign({},hdr,{lines:rows,ext_ref:tok});
+  if(yuk&&yuk.length) p_data.yuk_taqsim=yuk;
+  const r=await qTimeout(sb.rpc('provodka_yoz',{p_data}));
+  if(r.error&&rpcYoq(r.error)){ atomikYoq=true; return {ok:false,eski:true}; }
+  if(r.timeout){ pendTok=tok; pendFp=fp; return {ok:false,error:r.error}; }
+  pendTok=null; pendFp=null;                       // javob ANIQ keldi
+  if(r.error&&isDupErr(r.error)) return {ok:true,dup:true};   // atomik: takror = saqlangan
+  if(r.error) return {ok:false,error:r.error};
+  return {ok:true,entry_id:(r.data&&r.data.entry_id)||null};
+}
+/* ZAXIRA — RPC yo'q bo'lgandagi ESKI yo'l. 🔴 Bu yerda kompensatsiya `delete`
+   SAQLANADI (bu yo'l atomik emas) — o'zgartirilmadi. */
+async function saveEski(hdr,rows,yuk){
+  const {data:ent,error:e1}=await sb.from('entry').insert(hdr).select('id').single();
+  if(e1){ alert(perrX(e1)); return {ok:false}; }
+  const {error:e2}=await sb.from('entry_line').insert(rows.map(l=>Object.assign({entry_id:ent.id},l)));
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e2)); return {ok:false}; }
+  if(yuk&&yuk.length){
+    const {error:e3}=await sb.from('entry_yuk').insert(yuk.map(y=>Object.assign({entry_id:ent.id},y)));
+    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e3)); return {ok:false}; }
+  }
+  return {ok:true,entry_id:ent.id};
+}
+/* Uchala saqlash yo'li uchun YAGONA kirish nuqtasi.
+   hdr — entry maydonlari; rows — entry_line satrlari (entry_id YO'Q, server qo'yadi);
+   yuk — ixtiyoriy [{yuk_id,summa_uzs}] (entry_yuk).
+   Qaytadi: {ok:true, entry_id} | {ok:true, dup:true} | {ok:false} (xato KO'RSATILGAN). */
+async function yozBir(hdr,rows,yuk){
+  const r=await yozAtomik(hdr,rows,yuk);
+  if(!r.ok&&r.eski) return await saveEski(hdr,rows,yuk);
+  if(!r.ok){ alert(perrX(r.error)); return {ok:false}; }
+  return {ok:true,entry_id:r.entry_id||null,dup:!!r.dup};
+}
+/* Chek/hujjat — biriktirish uchun entry id kerak. Takror (dup) holatida id
+   noma'lum: yozuv allaqachon bazada, faylni biriktirib bo'lmaydi. Jimgina
+   yutmaymiz — foydalanuvchiga aytamiz. */
+function chekYukla(r,kassaId){
+  if(r&&r.entry_id){ uploadChekNow(kassaId, r.entry_id); return; }
+  alert('Yozuv allaqachon saqlangan (takroriy yuborish to\'sildi). Fayl biriktirilmadi — jurnaldan yozuvni topib qayta biriktiring.');
+}
+/* ======================= /ATOMIK YOZUV =================================== */
+
 window.saveSimple=async()=>{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
@@ -1826,13 +1917,12 @@ async function doSavePending(izohP){
   const entryPayload={entry_date:$('sana').value||null,description:izohP,source:'manual',status:'posted',filial_ids:[...selFilials],yuk_kutilmoqda:true};
   if(p.rate) entryPayload.fc_rate=p.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
-  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
-  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
-  const rows=[{entry_id:ent.id,account_id:modda1.id,debit:p.uzs,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:p.uzs}];
+  const rows=[{account_id:modda1.id,debit:p.uzs,credit:0},{account_id:kassa.id,debit:0,credit:p.uzs}];
   if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
-  if(chekBlob) uploadChekNow(kassa.id, ent.id);
+  // Atomik: entry + entry_line birga. Rad etilsa hech narsa yozilmaydi (yetim sarlavha yo'q).
+  const res=await yozBir(entryPayload,rows);
+  if(!res.ok){ btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
+  if(chekBlob) chekYukla(res, kassa.id);
   $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
@@ -1862,19 +1952,16 @@ async function doSaveSimple(){
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(selYuk.size) entryPayload.yuk_ids=[...selYuk];
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
-  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
-  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  const rows=[{entry_id:ent.id,account_id:dtId,debit:p.uzs,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:p.uzs}];
+  const rows=[{account_id:dtId,debit:p.uzs,credit:0},{account_id:ktId,debit:0,credit:p.uzs}];
   // Ko'p-valyuta: fc_amount = VALYUTA miqdori (so'm summasi emas).
   if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk (kompensatsiya: xatoda entry o'chadi)
-  const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
-  if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
-    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e3):e3.message); btn.textContent='Saqlash'; updateSimple(); return; } }
+  // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk.
+  // Atomik yo'lda u ham AYNI tranzaksiyada yoziladi (kompensatsiya kerak emas).
+  const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  const res=await yozBir(entryPayload,rows,eyRows);
+  if(!res.ok){ btn.textContent='Saqlash'; updateSimple(); return; }
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
-  if(chekBlob) uploadChekNow(kassa.id, ent.id);
+  if(chekBlob) chekYukla(res, kassa.id);
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   window.removeChek();
   preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
@@ -2037,27 +2124,23 @@ async function doSaveAdv(){
   // yolg'on bo'lardi — maydon bo'sh qoladi. fc_amount har satrda baribir aniq turadi.
   { const curs=[...new Set(lines.filter(l=>lineCur(l)!=='UZS').map(l=>lineCur(l)))];
     if(curs.length===1){ const r=curRate(curs[0]); if(r>0) payload.fc_rate=r; } }
-  const {data:ent,error:e1}=await sb.from('entry').insert(payload).select('id').single();
-  // permErr — server guard 42501'ni o'zbekcha matnga o'giradi (xom Postgres xatosi ko'rinmasin)
-  const perr=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
-  if(e1){ alert(perr(e1)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   const rows=lines.map(l=>{
     const u=lineUzs(l)||0;
-    const r={entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?u:0,credit:l.side==='credit'?u:0};
+    const r={account_id:l.account_id,debit:l.side==='debit'?u:0,credit:l.side==='credit'?u:0};
     // fc_amount FAQAT valyuta hisobi satriga — v_hisob_bal.fc aynan shu ustundan yig'iladi
     // (Dt bo'lsa +, Kt bo'lsa −). So'm satrida ustun umuman to'ldirilmaydi.
     if(lineCur(l)!=='UZS') r.fc_amount=Number(l.amount)||0;
     return r; });
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e2)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
-  const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
-  if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
-    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e3)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
+  const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  // Atomik: sarlavha + N satr + yuk taqsimoti bitta tranzaksiyada.
+  // Xato (42501 perm guard, limit guard, Dt<>Kt) — o'z matni bilan yozBir ichida ko'rsatiladi.
+  const res=await yozBir(payload,rows,eyRows);
+  if(!res.ok){ $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   // Chek/hujjat — yozuv saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   // `lines` tozalanishidan OLDIN: kassa id aynan shu satrlardan aniqlanadi.
   if(chekBlob){
     const kid=advChekKassaId();
-    if(kid) uploadChekNow(kid, ent.id);
+    if(kid) chekYukla(res, kid);
     else alert('Yozuv saqlandi. Fayl biriktirilmadi — yozuvda Kt (chiqim) tomonida kassa satri yo\'q.');
   }
   // Yozuvdan keyin qoldiqlar o'zgardi — kesh tozalanadi, addLine() qayta yuklatadi

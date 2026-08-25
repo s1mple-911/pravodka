@@ -244,6 +244,23 @@
   .mrow button.danger{background:var(--red);color:#fff;border:none}
   .mrow button.danger:hover{filter:brightness(.93)}
 
+  /* --- Qaysi hisobdan to'lanadi (ildiz kassa + Naqd/Click/Payme bolalari) ---
+     🔴 Bu TASDIQLOVCHINING O'Z puli — qoldiq ko'rsatiladi, sizish emas.
+        (Admin holatida — so'rov kelgan odamniki; SQL 7.3 da asos bilan.) */
+  .srv-picks{display:flex;flex-direction:column;gap:6px;margin-top:7px}
+  .srv-pk{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    min-height:46px;padding:9px 13px;border:1px solid var(--line);border-radius:11px;
+    background:var(--surface);color:var(--ink);font-family:inherit;font-size:13.5px;
+    font-weight:600;text-align:left;cursor:pointer;
+    transition:border-color .13s,background .13s,color .13s}
+  .srv-pk .pkn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srv-pk .pkc{color:var(--muted);font-weight:700;margin-right:6px}
+  .srv-pk .pkb{flex:none;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+  .srv-pk.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .srv-pk.on .pkc,.srv-pk.on .pkb{color:var(--primary)}
+  .srv-pk.zero .pkb{color:var(--red)}
+  @media(hover:hover){.srv-pk:hover{border-color:var(--primary)}}
+
   /* --- bo'sh / skeleton --- */
   .srv-none{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;
     padding:44px 24px;border:1px dashed var(--line);border-radius:16px;color:var(--muted)}
@@ -406,9 +423,21 @@
       <div class="srv-arow">
         <span>So'ralgan</span><b class="num" id="actSoralgan">—</b>
       </div>
-      <!-- 🔴 Bu — TASDIQLOVCHINING O'Z puli. So'rovchiga hech qachon ko'rsatilmaydi. -->
+      <!-- 🔴 QAYSI HISOBDAN TO'LANADI. Pul Naqd/Click/Payme tur-bolasida
+           turishi mumkin — ildiz kassa qoldig'i 0 bo'lsa ham to'lash
+           ishlashi kerak (jonli sinov, 2026-08-25). Ro'yxat serverdan:
+           sorov_qaror_ctx.hisoblar (FAQAT UZS — valyutadan to'lash kurs
+           konvertatsiyasini talab qiladi, u alohida mexanizm).
+           Bitta bo'lsa avtomat tanlanadi va blok KO'RINMAYDI. -->
+      <div id="actPickBox" style="display:none">
+        <label class="srv-al">Qaysi hisobdan</label>
+        <div class="srv-picks" id="actPicks" role="radiogroup"
+             aria-label="Qaysi hisobdan to'lanadi"></div>
+      </div>
+      <!-- 🔴 Bu — TASDIQLOVCHINING O'Z puli (admin holatida — so'rov kelgan
+           odamniki, yorliq shunga qarab almashadi). So'rovchiga HECH QACHON. -->
       <div class="srv-arow" id="actBalRow">
-        <span>Qo'lingizdagi pul</span><b class="num" id="actBal">—</b>
+        <span id="actBalLbl">Qo'lingizdagi pul</span><b class="num" id="actBal">—</b>
       </div>
 
       <!-- faqat mode='part' -->
@@ -516,6 +545,10 @@ const ST={
 };
 let rows=[], holat='pending', loading=false;
 let actId=null, actMode='full', actSor=0, actBal=null, actBusy=false;
+// Qaysi hisobdan to'lanadi: `sorov_qaror_ctx.hisoblar` javobi va tanlov.
+// 🔴 `actAcc` null bo'lsa va ro'yxat BIRDAN KO'P bo'lsa — tugma yopiq
+//    (tanlov majburiy). Bitta bo'lsa avtomat tanlanadi.
+let actAccs=[], actAcc=null, actOzim=true;
 
 const isAdmin=()=>!!(window.permIsAdmin && window.permIsAdmin());
 const hammasi=()=>{ const el=$('srvAll'); return !!(el && el.checked && isAdmin()); };
@@ -682,6 +715,10 @@ window.srvAct=(id,mode)=>{
   if(!r) return;
   if(r.men_qaror_qila_olaman!==true) return;     // fail-closed
   actId=r.id; actMode=mode; actSor=Number(r.summa)||0; actBal=null; actBusy=false;
+  // Hisob tanlovi HAR ochilishda tozalanadi (oldingi so'rovniki qolib ketmasin)
+  actAccs=[]; actAcc=null; actOzim=true;
+  $('actPicks').innerHTML=''; $('actPickBox').style.display='none';
+  $('actBalLbl').textContent="Qo'lingizdagi pul";
   $('actTitle').textContent = mode==='full'?"To'liq berish":(mode==='part'?'Qisman berish':'Rad etish');
   $('actAv').textContent=initials(r.sorovchi_nom);
   $('actNm').textContent=r.sorovchi_nom||'—';
@@ -702,18 +739,64 @@ window.srvAct=(id,mode)=>{
   setTimeout(()=>{ if(mode==='part') $('actAmt').focus(); else if(mode==='rad') $('actSabab').focus(); },30);
 };
 window.actClose=()=>{ $('srvActModal').classList.remove('open'); actId=null; actBusy=false; actMsg(''); };
-// 🔴 sorov_qaror_ctx faqat so'rov KELGAN odamga javob beradi. Xato bo'lsa
-//    qoldiq noma'lum qoladi ("—") va tugma BLOKLANMAYDI — yakuniy qaror serverda.
+// 🔴 sorov_qaror_ctx faqat so'rov KELGAN odamga (yoki adminga) javob beradi.
+//    Xato bo'lsa qoldiq noma'lum qoladi ("—") va tugma BLOKLANMAYDI — yakuniy
+//    qaror serverda. Hisob ro'yxati kelmasa ham eski yo'l ishlaydi
+//    (p_kassa null -> server ildiz kassani oladi).
 async function loadCtx(id){
   const {data,error}=await sb.rpc('sorov_qaror_ctx',{p_id:id});
   if(actId!==id) return;
   if(error||!data){ actBal=null; $('actBal').textContent='—'; actUI(); return; }
-  const b=Number(data.mening_qoldigim);
-  actBal=isFinite(b)?b:null;
-  $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
   if(data.soralgan!=null){ actSor=Number(data.soralgan)||actSor; $('actSoralgan').textContent=money(actSor); }
+  // Admin boshqa odam nomidan qaror qilyapti -> yorliq o'sha odamning ismi bilan
+  actOzim = (data.ozim!==false);
+  $('actBalLbl').textContent = actOzim ? "Qo'lingizdagi pul"
+    : ((data.kimdan_nom||'Hamkasb')+" qo'lidagi pul");
+  const hs=Array.isArray(data.hisoblar)?data.hisoblar.filter(h=>h&&h.account_id):[];
+  actAccs=hs;
+  if(hs.length===1) actAcc=String(hs[0].account_id);      // bitta -> avtomat
+  else if(hs.length===0){                                  // ro'yxat yo'q -> eski yo'l
+    const b=Number(data.mening_qoldigim);
+    actBal=isFinite(b)?b:null;
+  }
+  actPicksRender();
   actUI();
 }
+// Tanlangan hisob qoldig'i. Ro'yxat bo'sh bo'lsa `actBal` loadCtx da qo'yilgan.
+function actAccBal(){
+  if(!actAcc) return null;
+  const h=actAccs.find(x=>String(x.account_id)===String(actAcc));
+  if(!h) return null;
+  const b=Number(h.qoldiq);
+  return isFinite(b)?b:null;
+}
+function actPicksRender(){
+  const box=$('actPickBox'), list=$('actPicks');
+  // Bitta hisob -> tanlov ko'rsatilmaydi (ortiqcha qadam), qoldiq pastda turadi.
+  if(actAccs.length<2){
+    list.innerHTML=''; box.style.display='none';
+    if(actAccs.length===1) actBal=actAccBal();
+    $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
+    return;
+  }
+  list.innerHTML=actAccs.map(h=>{
+    const id=esc(String(h.account_id)), on=(String(h.account_id)===String(actAcc));
+    const q=Number(h.qoldiq)||0;
+    return '<button type="button" role="radio" aria-checked="'+(on?'true':'false')+'"'
+      +' class="srv-pk'+(on?' on':'')+(q<=0?' zero':'')+'" onclick="actPick(\''+id+'\')">'
+      +'<span class="pkn"><span class="pkc">'+esc(h.code||'')+'</span>'+esc(h.name||'')+'</span>'
+      +'<span class="pkb">'+money(q)+'</span></button>';
+  }).join('');
+  box.style.display='';
+  actBal=actAccBal();
+  $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
+  icons();
+}
+window.actPick=id=>{
+  actAcc=String(id);
+  actPicksRender();
+  actUI();
+};
 window.actUI=()=>{
   const ok=$('actOk');
   if(actMode==='rad'){
@@ -721,9 +804,14 @@ window.actUI=()=>{
     return;
   }
   const v = actMode==='full' ? actSor : amtVal();
+  // 🔴 Bittadan ko'p hisob bo'lsa TANLOV MAJBURIY: pul foydalanuvchi
+  //    ko'rsatmagan hisobdan chiqib ketmasin (server ham tekshiradi).
+  const kerak = (actAccs.length>1 && !actAcc);
+  const bal = actAccs.length ? actAccBal() : actBal;
   let bad='', hint='';
-  if(v>actSor) bad="So'ralgandan ko'p berib bo'lmaydi.";
-  else if(actBal!=null && v>actBal) bad="Qo'lingizdagi puldan ko'p.";
+  if(kerak) bad='Qaysi hisobdan to\'lashni tanlang.';
+  else if(v>actSor) bad="So'ralgandan ko'p berib bo'lmaydi.";
+  else if(bal!=null && v>bal) bad=(actOzim?"Qo'lingizdagi":'Bu hisobdagi')+" puldan ko'p.";
   else if(actMode==='part' && v>0 && v===actSor) hint="Bu to'liq summa — «To'liq berish» bilan bir xil natija.";
   ok.disabled = actBusy || !(v>0) || !!bad;
   actMsg(bad||hint||'', bad?'err':'pend');
@@ -735,7 +823,9 @@ window.actSave=async()=>{
   const id=actId, mode=actMode;
   const res = mode==='rad'
     ? await sb.rpc('sorov_rad',{p_id:id,p_izoh:$('actSabab').value.trim()})
-    : await sb.rpc('sorov_tasdiq',{p_id:id,p_summa: mode==='full'?actSor:amtVal()});
+    // 🔴 `p_kassa` — tanlangan hisob (null -> server ildiz kassani oladi)
+    : await sb.rpc('sorov_tasdiq',{p_id:id,p_summa: mode==='full'?actSor:amtVal(),
+                                   p_kassa: actAcc||null});
   actBusy=false; ok.textContent=old;
   if(actId!==id) return;                       // modal orada yopilgan
   const {data,error}=res;
