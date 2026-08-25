@@ -1240,6 +1240,34 @@ window.ijrToggle=()=>{
   if(open) ijrLoad(false);   // 🔴 RPC faqat shu yerda — sahifa ochilganda emas
 };
 window.ijrRetryLoad=()=>ijrLoad(true);
+/* ---- Manba RPC: v2 (maxsus maydonlar bilan) → zaxira: eski v1 ----------------
+   `hodim_xarajat_royxat_v2` (PROVODKA_HISOBOT_MAYDON.sql) eski 9 ustunga
+   `entry_id` + `maydonlar` qo'shadi. SQL hali RUN qilinmagan bo'lsa birinchi
+   so'rov "funksiya topilmadi" beradi (PGRST202 / 42883) — o'shanda `useMxdV2`
+   o'chadi va sahifa ESKI `hodim_xarajat_royxat` ga tushadi (jurnal-dev.html
+   `v2Off` naqshi): ro'yxat, xulosa va Excel avvalgidek ishlaydi, faqat maxsus
+   maydon ostqatori/kesimi bo'lmaydi (`mxdList` bo'sh → `#mxdGrp` yashirin).
+   🔴 Shart ATAYLAB tor: HAQIQIY xato (ruxsat, tarmoq, ichki) zaxiraga
+      tushirilmaydi — sabab yo'qolmasin va u chaqiruvchiga qaytariladi. */
+let useMxdV2=true;
+const IJR_YOQ=e=>{
+  if(!e) return false;
+  const c=String(e.code||'');
+  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
+  return c==='PGRST202' || c==='42883'
+    || /function[\s\S]*does not exist/.test(m)
+    || (m.indexOf('schema cache')>=0 && m.indexOf('function')>=0);
+};
+async function ijrRpc(){
+  const a={p_from:curFrom,p_to:curTo};
+  if(useMxdV2){
+    const r=await sb.rpc('hodim_xarajat_royxat_v2',a);
+    if(!r.error || !IJR_YOQ(r.error)) return r;
+    useMxdV2=false;
+    console.warn('hodim_xarajat_royxat_v2 yo\'q — eski RPC ga tushildi:',r.error.message);
+  }
+  return await sb.rpc('hodim_xarajat_royxat',a);
+}
 async function ijrLoad(force){
   const sig=curFrom+'|'+curTo;
   if(!force && ijrRows && ijrSig===sig){ ijrRender(); return; }
@@ -1247,7 +1275,7 @@ async function ijrLoad(force){
   const su=$('ijrSum'), li=$('ijrList');
   if(su) su.innerHTML='<div class="empty">Yuklanmoqda…</div>';
   if(li) li.innerHTML='<div class="empty">Yuklanmoqda…</div>';
-  const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
+  const {data,error}=await ijrRpc();
   if(my!==ijrSeq) return;   // davr o'zgardi — eskirgan javob yozib ketmasin
   if(error){
     ijrRows=null; ijrSig='';
@@ -1428,7 +1456,9 @@ window.exportXulosa=()=>{
   downloadCSV(`xarajat-xulosa-${perStr()}.csv`,list);
 };
 window.exportToliq=async()=>{
-  const {data,error}=await sb.rpc('hodim_xarajat_royxat',{p_from:curFrom,p_to:curTo});
+  // 🔴 Ekran bilan AYNAN bitta manba (`ijrRpc` — v2, bo'lmasa v1): raqam ham,
+  //    "Maxsus maydonlar" ustuni ham ro'yxatdagi bilan bir xil bo'ladi.
+  const {data,error}=await ijrRpc();
   if(error){ alert('Xato: '+error.message); return; }
   // 🔴 "Maxsus maydonlar" — OXIRGI ustun: mavjud ustunlar siljimaydi.
   const list=[['Sana','Kassa kodi','Kassa','Lavozim','Modda kodi','Modda','Summa','Izoh','Kim','Maxsus maydonlar']];

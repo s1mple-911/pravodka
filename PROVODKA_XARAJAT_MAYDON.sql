@@ -407,6 +407,12 @@ comment on function xm_admin_talab() is
 --
 -- 🔴 `entry_line` HALI YOZILMAGAN bo'lsa false qaytadi — ya'ni klient
 --    tartibi MAJBURIY: entry -> entry_line -> entry_maydon.
+--
+-- 🔴🔴 DIQQAT — BU TA'RIF QATTIQLASHTIRILGAN: PROVODKA_MAYDON_QOROVUL.sql
+--    5-bandni FAIL-CLOSED qildi (`created_by` uuid emas -> false; ya'ni
+--    egaligi isbotlanmagan yozuvga faqat ADMIN yozadi). Shu faylni QAYTA
+--    RUN qilsangiz bu yerdagi ESKI (yumshoq) variant tiklanadi —
+--    keyin PROVODKA_MAYDON_QOROVUL.sql NI HAM QAYTA RUN QILING.
 create or replace function xm_entry_yoz_ok(p_entry uuid)
 returns boolean
 language plpgsql
@@ -557,6 +563,12 @@ create policy xarajat_element_sel on xarajat_royxat_element
   for select to authenticated using (true);
 
 -- --- qiymat: 4 policy ---
+-- 🔴🔴 DIQQAT — BU POLICY QATTIQLASHTIRILGAN: PROVODKA_MAYDON_QOROVUL.sql
+--    unga SAHIFA QOROVULINI qo'shdi (`xm_korish_ok()` = jurnal|hisobot,
+--    yoki yozuvning egasi). Shu faylni QAYTA RUN qilsangiz quyidagi ESKI
+--    (sahifa qorovulisiz) variant tiklanadi va `allowed_pages=['hodim']`
+--    foydalanuvchi butun kompaniya metadatasini o'qiy oladi —
+--    keyin PROVODKA_MAYDON_QOROVUL.sql NI HAM QAYTA RUN QILING.
 drop policy if exists entry_maydon_sel on entry_maydon;
 create policy entry_maydon_sel on entry_maydon
   for select to authenticated

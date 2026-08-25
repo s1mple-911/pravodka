@@ -1,90 +1,118 @@
-# QADAMLAR — Asilbek uchun bosqichma-bosqich ro'yxat
+# QADAMLAR — SQL RUN tartibi va qolgan ishlar
 
-Holat: 2026-08-25. Har qadam bajarilgach ✅ qo'ying.
+Holat: 2026-08-26. Har qadam bajarilgach ✅ qo'ying.
 
-🔴 **Umumiy qoida:** SQL dev va prod uchun **bitta baza**. Ya'ni SQL RUN qilingan
-zahoti prodga ham ta'sir qiladi. HTML esa faqat `promote.sh` dan keyin chiqadi.
-Shuning uchun **pul oqimiga tegadigan SQL** faqat UI tayyor bo'lganda RUN qilinadi.
+🔴 **Umumiy qoida:** SQL dev va prod uchun **bitta baza** — RUN qilingan zahoti
+prodga ta'sir qiladi. HTML esa faqat `promote.sh` dan keyin chiqadi.
 
----
-
-## A. HOZIR BAJARILADI — 70% to'siq + qarzni o'chirish
-
-Fayl: **`PROVODKA_TOSIQ_OCHIR.sql`** (tayyor). Bo'limlarni **bittalab** RUN qiling.
-
-| # | Nima | Kutilgan natija |
-|---|------|-----------------|
-| A1 | **0.1 – 0.4** bandlari | Faqat o'qiydi. 🔴 **0.4** natijasini Fable'ga yuboring |
-| A2 | **1-BO'LIM** (2 qator) | Trigger o'chadi → 70% to'sig'i **butunlay ishlamay qoladi** |
-| A3 | **2-BO'LIM** | Prod funksiyalari tiklanadi (`xarajat_saqlash_taqsim`, `hodim_oz_tarix`, `hodim_oy_jami*`) |
-| A4 | **3-BO'LIM** | 18 obyekt drop (trigger, RPC, view, config kaliti) |
-| A5 | **4-BO'LIM** | 🔴 **FAQAT 0.4 `BOSH` desa.** `YOZUV BOR` desa — TO'XTANG, Fable'ga ayting |
-| A6 | **6-BO'LIM** | Yakuniy tekshiruv — hamma ustun `true` bo'lsin |
-
-⚠️ A5 dagi `accounts.hodim_kassa_id` ustunini o'chirish — **yagona qaytarib
-bo'lmaydigan** qadam. Faylda shunday belgilangan.
-
-**Klient tomoni allaqachon tayyor:** 5 dev fayldan to'siq/qarz/to'lanmagan UI si
-olib tashlangan (`hodim`, `kassa`, `jurnal`, `provodka`, `professional`).
-Qoldiq murojaat — hamma faylda **0**. `provodka-dev.html` va `kassa-dev.html`
-to'siqdan oldingi commit bilan **bayt-ma-bayt teng**.
+⚠️ **So'rovlar tizimi PRODDA jonli** (`49999e8`). Shu sababli A-guruh shoshilinch.
 
 ---
 
-## B. KEYIN — So'rovlar tizimi
+## A. 🔴 SHOSHILINCH — proddagi pul xavfini yopadi
 
-| # | Nima | Holat |
-|---|------|-------|
-| B1 | `PROVODKA_SOROVLAR.sql` **0.2 / 0.3 / 0.4** (faqat o'qiydi) | tayyor |
-| B2 | 0.2 — `entry.status` da cheklovchi CHECK bormi | natijani Fable'ga |
-| B3 | 0.3 — `posted` filtri auditi | `FILTR YOQ` chiqsa Fable'ga |
-| B4 | 0.4 — "kimdan so'rash" nomzodlari | **bo'sh chiqsa** ruxsat sozlash kerak |
-| B5 | Qolgan bo'limlarni RUN | 🔴 **faqat klient tayyor bo'lgach** |
-| B6 | Klient: `sorovlar-dev.html` sahifasi + nav/ruxsat ro'yxati | ✅ tayyor |
-| B7 | Klient: `hodim-dev.html` "Pul so'rash" modali | ⏳ ishlanmoqda |
-| B8 | 🔴 **`admin-dev.html` → `PVS_PAGES` ga `sorovlar` qo'shish** | ⚠️ **SIZ** — boshqa repoda |
+| # | Fayl | Nima beradi |
+|---|------|-------------|
+| A1 | `PROVODKA_SOROVLAR.sql` | kumulyativ chegara · limit qorovuli · Telegram xabari |
+| A2 | `PROVODKA_SOROV_TOPUP.sql` | 🔴 **A1 dan KEYIN** — u `sorov_yarat` ni qayta yozadi |
 
-🔴 **B8 — bu repoda bajarib bo'lmaydi.** `admin-dev.html` **TaskFix repozitoriyasida**,
-shu repoda emas. Unga `PVS_PAGES` ga `{key:'sorovlar', label:"So'rovlar"}` qo'shilmasa
-admin hech kimga `sorovlar` sahifa ruxsatini **bera olmaydi** va sahifa hech kimda
-ko'rinmaydi. `perm_pages()` (SQL) va `perms-dev.js` da u allaqachon bor.
+Keyin **11.11** va **11.12** tekshiruvlarini RUN qiling — hamma ustun `true`.
 
-🔴 **B4 muhim:** nomzod bo'lish uchun odamda `kassa_scope='list'` + o'z UZS
-kassasi + `sorovlar` sahifa ruxsati bo'lishi kerak. **Admin va `all` scope
-userlar ro'yxatga tushmaydi** (ularga kassa biriktirilmagan). Bugalter ro'yxatda
-ko'rinishi kerak bo'lsa — `admin-dev.html` dan unga kassa + sahifa berilsin.
+**Nima tuzatildi:**
+1. **Kumulyativ chegara** — qisman jo'natilgandan keyin "qolganini so'rash" jo'natilganni
+   ayirmasdi → bitta xarajat uchun pul ortiqcha chiqishi mumkin edi.
+2. **Limit qorovuli** — `pending → posted` o'tishda oylik limit umuman tekshirilmasdi.
+   Endi ikki joyda, lekin **predikat bitta** (`sorov_post_tosiq`).
+3. **Telegram** — so'rovlar oqimidan o'tgan xarajat hech qachon xabar bermasdi.
 
----
+⚠️ A1/A2 gacha: **qisman tasdiqlashdan saqlaning** — to'liq tasdiqlang yoki rad eting.
 
-## C. KEYINGI BOSQICHLAR (hali boshlanmagan)
-
-| # | Nima |
-|---|------|
-| C1 | Jurnal: Boshlang'ich + Tugash miqdor (SQL + UI) |
-| C2 | Kassa sahifasida qidiruv (faqat UI) |
-| C3 | Universal xarajat maydonlari — `PROVODKA_XARAJAT_MAYDON.sql` tayyor, klient qolgan |
-| C4 | Hodim amallar tarixi — `PROVODKA_HODIM_AMALLAR.sql` tayyor, klient tayyor |
+Hozirgi holatni ko'rish:
+```sql
+select s.xarajat_entry_id,
+       sum(s.jonatilgan_summa) as jami_jonatilgan,
+       max(s.xarajat_summa)    as xarajat
+  from sorovlar s
+ where s.xarajat_entry_id is not null and s.status in ('qisman','tasdiq')
+ group by s.xarajat_entry_id
+having sum(s.jonatilgan_summa) > max(s.xarajat_summa);
+```
 
 ---
 
-## D. OCHIQ MASALALAR — qaror kutilmoqda
+## B. Universal maxsus maydon
 
-| # | Masala | Kimdan |
-|---|--------|--------|
-| D1 | 6721 da qarz yozuvlari bo'lsa: qoldiramizmi yoki provodka bilan yopamizmi? | Asilbek |
-| D2 | So'rovni **admin** boshqa odam nomidan tasdiqlay oladimi? (hozir: **yo'q**, fail-closed) | Asilbek |
-| D3 | 13 ta yetim sarlavha (`entry` bor, `entry_line` yo'q) — jurnalda "Chala yozuv" deb belgilash | Fable qiladi |
-| D4 | `provodka.html` / `professional.html` yozuvni **atomik** qilish (yetim sarlavha ildizi) | Fable qiladi |
-| D5 | Telegram bot — `DIAG_BOT.sql` natijasi | Asilbek RUN qiladi |
-| D6 | Yetim sarlavhalarni nima rad etgani (xato matni) | Asilbek/hodim |
+| # | Fayl | Izoh |
+|---|------|------|
+| B1 | `PROVODKA_XARAJAT_MAYDON.sql` | 🔴 `uuid = uuid[]` tuzatilgan — **qayta RUN** |
+| B2 | `PROVODKA_STORAGE_MAYDON.sql` | bucket policy (tirnoqsiz nomlar) |
+| B3 | `PROVODKA_HISOBOT_MAYDON.sql` | `hodim_xarajat_royxat_v2` (additiv) |
+| B4 | `PROVODKA_MAYDON_QOROVUL.sql` | 🔴 **B1 dan KEYIN** — yozish/o'qish qorovullari |
+
+🔴 **B1 qayta RUN qilinsa B4 ni ham qayta RUN qiling** — aks holda qattiqlashtirish tiklanmaydi.
+
+**Bucket:** Dashboard → Storage → `xarajat-maydon` — **Public = ON** (tekshirildi: `public=true`).
 
 ---
 
-## E. PROD'GA CHIQARISH (hammasi tayyor bo'lgach)
+## C. Qolgan yangi xususiyatlar
 
-1. `DEV_SINOV.md` bo'yicha to'liq sinov — **admin va cheklangan hodim** bilan.
-2. `bash promote.sh` (yoki tanlab: `bash promote.sh hodim jurnal ...`).
-3. Prod fayllarni tekshirish.
-4. Commit + push (siz qilasiz).
+| # | Fayl | Nima |
+|---|------|------|
+| C1 | `PROVODKA_BAL_GUARD_PENDING.sql` | balans qorovuli pending'ni o'tkazadi |
+| C2 | `PROVODKA_YOZUV_ATOMIK.sql` | yetim sarlavha ildizi yopiladi |
+| C3 | `PROVODKA_JURNAL_QOLDIQ.sql` | jurnal Boshlang'ich + Tugash |
+| C4 | `PROVODKA_HODIM_AMALLAR.sql` | hodim amallar tarixi |
+
+---
+
+## D. Sozlash
+
+- **Top-up chegarasi** — `PROVODKA_SOROV_TOPUP.sql` dagi tayyor blok
+  (`insert into provodka_config ... on conflict do update`).
+  ⚠️ `set_sorov_topup_chegara()` RPC si SQL editorda **ishlamaydi** (`auth.uid()` null).
+- **Maydonni "Moshina Benzin" ga ham ulang** — konstruktordagi "ulash" tugmasi.
+  🔴 Yangi maydon **yaratmang**, bittasini ikki moddaga ulang.
+- **Maydon nomi** hozir "Ro'yxatdan tanlang" — uni `Mashina` ga o'zgartiring.
+- **Element nom/qiymat** ajrating: `DAMAS` + `01O244RB`, `TRACKER` + `01W182OC`.
+
+---
+
+## E. Bu repoda bajarib bo'lmaydi
+
+🔴 **`admin-dev.html`** — TaskFix repozitoriyasida. `PVS_PAGES` ga:
+```js
+{key:'sorovlar', label:"So'rovlar"}
+```
+Busiz admin `sorovlar` sahifa ruxsatini **hech kimga bera olmaydi**.
+
+---
+
+## F. Diagnostika (faqat o'qiydi)
+
+| Fayl | Nima aniqlaydi |
+|------|----------------|
+| `DIAG_BOT.sql` | 🔴 Telegram bot ishlaydimi — **hali RUN qilinmagan** |
+| `DIAG_YETIM.sql` / `DIAG_YETIM_DETAL.sql` | satrsiz sarlavhalar (13 ta, hali turibdi) |
+| `DIAG_MAYDON_RASM.sql` | rasm zanjiri |
+| `DIAG_YAKUN.sql` | yakuniy holat tasdiqi |
+
+---
+
+## G. Ochiq qarorlar
+
+| # | Masala | Holat |
+|---|--------|-------|
+| G1 | 13 ta yetim sarlavha — atomik yozuv ildizni yopdi, mavjudlari hali turibdi | qaror kerak |
+| G2 | `DIAG_BOT.sql` natijasi | siz RUN qilasiz |
+| G3 | `kassa_scope` sukuti `'all'` — `hodim_amallar` va boshqa 3 funksiyada "hamma hodim kassasi" degani | alohida bosqich |
+
+---
+
+## H. PROD'GA CHIQARISH
+
+1. `DEV_SINOV.md` bo'yicha sinov — **admin va cheklangan hodim** bilan.
+2. `bash promote.sh` (yoki tanlab).
+3. Commit + push (siz).
 
 🔴 `promote.sh` `perms-dev.js` ni **argumentdan qat'i nazar** prodga ko'chiradi.

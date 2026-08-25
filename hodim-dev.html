@@ -309,8 +309,13 @@
   .modalbox .btn.primary{border:none;background:var(--primary-strong);color:var(--on-primary)}
   .modalbox .btn:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
   /* ================= sticky Saqlash ================= */
+  /* 2026-08-26: "Pul so'rash" endi DOIM ko'rinadi, ya'ni ikkala tugma bir vaqtda
+     turishi mumkin — shuning uchun savebar flex qatorga aylandi. Yolg'iz tugma
+     avvalgidek butun kenglikni oladi (width:100% + flex-shrink), ikkitasi esa
+     teng bo'linadi. Balandlik va joylashuv o'zgarmaydi. */
   .savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));
-    background:linear-gradient(to top,var(--bg) 64%,transparent);max-width:var(--col);margin:0 auto;pointer-events:none}
+    background:linear-gradient(to top,var(--bg) 64%,transparent);max-width:var(--col);margin:0 auto;pointer-events:none;
+    display:flex;gap:var(--s3)}
   .save{pointer-events:auto;width:100%;height:54px;border:none;border-radius:var(--r-lg);background:var(--primary-strong);
     color:var(--on-primary);font-size:17px;font-weight:700;font-family:inherit;letter-spacing:-.01em;cursor:pointer;
     box-shadow:0 4px 14px rgba(23,134,47,.28);display:flex;align-items:center;justify-content:center;gap:var(--s2);
@@ -559,6 +564,21 @@
     border-radius:8px;background:var(--surface);color:var(--ink);font-family:inherit;
     font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
   @media(hover:hover){.srv-retry:hover{border-color:var(--primary);background:var(--primary-soft)}}
+  /* Yonma-yon rejim: "Saqlash" bilan birga turganda tugma ikkilamchi bo'ladi
+     (asosiy amal — xarajatni saqlash). Faqat ko'rinish; mantiq o'zgarmaydi. */
+  .save.srv-ask.srv-side{font-size:15px;background:var(--surface);color:var(--tr);
+    border:1px solid var(--line);box-shadow:none}
+  @media(hover:hover){.save.srv-ask.srv-side:hover{background:var(--tr-soft);
+    filter:none;border-color:var(--tr);transform:none;box-shadow:none}}
+  [data-theme="dark"] .save.srv-ask.srv-side{color:var(--tr);box-shadow:none}
+  /* Yo'riqnoma (#srvHelpModal) — matn + qadamlar. Raqam (balans/chegara) YO'Q. */
+  .srv-steps{margin:0;padding:0;list-style:none;counter-reset:srvstep}
+  .srv-steps li{counter-increment:srvstep;position:relative;padding:0 0 0 30px;
+    margin-bottom:var(--s3);font-size:14.5px;line-height:1.5;color:var(--ink)}
+  .srv-steps li:last-child{margin-bottom:0}
+  .srv-steps li::before{content:counter(srvstep);position:absolute;left:0;top:1px;
+    width:21px;height:21px;border-radius:50%;background:var(--primary-soft);color:var(--primary-ink);
+    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
 
   /* --- Tarixdagi "tasdiq kutilmoqda" nishoni (§1.8) ---
      🔴 Pending xarajat `hodim_amallar` / `hodim_oz_tarix` javobida YO'Q (ikkalasi ham
@@ -948,7 +968,10 @@
 
   <div class="savebar">
     <button class="save" id="saveBtn" onclick="saveHodim()" disabled><i data-lucide="check"></i>Saqlash</button>
-    <!-- Qoldiqdan oshgan holatda #saveBtn O'RNIGA chiziladi (ikkalasi bir vaqtda YO'Q).
+    <!-- 2026-08-26: tugma DOIM ko'rinadi va DOIM enable (srvSync). Ikki ko'rinish:
+         · qoldiqdan oshgan holatda #saveBtn O'RNIGA (avvalgidek, to'liq kenglik);
+         · aks holda uning YONIDA (.srv-side — ikkilamchi ko'rinish).
+         🔴 `srvOff` (RPC yo'q) bo'lsa umuman chizilmaydi — fail-closed.
          🔴 Rang ko'k (--tr): yashil "saqlandi" ma'nosida band, "so'rov" boshqa amal. -->
     <button class="save srv-ask" id="srvBtn" onclick="srvOpen()" style="display:none"><i data-lucide="hand-coins"></i>Pul so'rash</button>
   </div>
@@ -1045,6 +1068,42 @@
     <div class="row">
       <button type="button" class="btn" id="srvCancel" onclick="srvClose()">Bekor</button>
       <button type="button" class="btn primary" id="srvSend" onclick="srvSave()" disabled><i data-lucide="send-horizontal"></i>So'rov yuborish</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== YO'RIQNOMA (balans yetarli bo'lsa) =====
+     🔴 BU YERDA HECH QANDAY RAQAM YO'Q: na qoldiq, na chegara. "Yetarli pul bor"
+        degan umumiy jumla — aniq summa aytilsa balans sizardi.
+     🔴 Matn BUGUNGI haqiqatga mos: qarz (6721) mexanizmi o'chirilgan, shuning uchun
+        "qarzga yozing" DEYILMAYDI — xarajat odatdagidek yoziladi, oshib ketsa
+        xarajatning O'ZI tasdiq kutadi va o'sha yerdan pul so'raladi. -->
+<div class="modal" id="srvHelpModal" onclick="if(event.target===this)srvHelpClose()"
+     role="dialog" aria-modal="true" aria-labelledby="srvHelpTitle">
+  <div class="modalbox srv-box">
+    <div class="mhead">
+      <h3 id="srvHelpTitle">Xarajat qanday yoziladi</h3>
+      <button type="button" class="mclose" onclick="srvHelpClose()" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="srv-intro">
+      <i data-lucide="info"></i>
+      <span>Sizda hozircha <b>yetarli pul bor</b> — alohida so'rov yuborish shart emas.
+        Xarajatni odatdagidek yozing. Agar u qo'lingizdagi puldan oshsa, xarajat
+        <b>tasdiq kutadi</b> va shu yerdan pul so'raladi.</span>
+    </div>
+
+    <ol class="srv-steps">
+      <li>Xarajat <b>moddasini</b> tanlang (masalan: taksi, yoqilg'i, kommunal).</li>
+      <li><b>Summani</b> yozing. Chek yoki izoh so'ralsa — o'shani ham to'ldiring.</li>
+      <li><b>«Saqlash»</b> tugmasini bosing — xarajat darrov yoziladi.</li>
+      <li>Summa qo'lingizdagi puldan oshsa, «Saqlash» o'rniga <b>«Pul so'rash»</b> chiqadi:
+        kimdan so'rashni tanlaysiz, xarajat tasdiq kutib turadi va pul kelgach
+        <b>avtomat kuchga kiradi</b>.</li>
+    </ol>
+
+    <div class="row">
+      <button type="button" class="btn primary" id="srvHelpOk" onclick="srvHelpClose()">Tushunarli</button>
     </div>
   </div>
 </div>
@@ -1614,6 +1673,7 @@ document.addEventListener('keydown',e=>{
   if($('moddaModal').classList.contains('open')) return window.closeModda();
   if($('kassaModal').classList.contains('open')) return window.closeKassa();
   if($('srvModal')&&$('srvModal').classList.contains('open')) return window.srvClose();
+  if($('srvHelpModal')&&$('srvHelpModal').classList.contains('open')) return window.srvHelpClose();
 });
 window.renderKassaList=()=>{
   const q=$('kassaSearch').value.trim().toLowerCase();
@@ -2123,7 +2183,7 @@ window.saveHodim=async()=>{
   // trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
   // V6: filial_ids + davr — FAQAT metadata (entry ustunlari), entry_line o'zgarmaydi.
   const savedIzoh=$('izoh').value||'';
-  const mxdV=mxdValues();          // 🔴 forma tozalanishidan OLDIN olinadi
+  const mxdV=mxdValues(), mxdN=mxdNeed();   // 🔴 forma tozalanishidan OLDIN olinadi
   // Valyuta xarajati jurnalda ANIQ ko'rinsin: miqdor + kurs izohga qo'shiladi,
   // kurs entry.fc_rate ustuniga ham yoziladi (konvert bilan bir xil naqsh).
   const fcNote = calc.cur!=='UZS' ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
@@ -2191,7 +2251,7 @@ window.saveHodim=async()=>{
   // ==== FON: chek upload + n8n alert + haqiqiy qoldiq/oy/tarix ====
   (async()=>{
     // Maxsus maydonlar — entry_line yozilgach (qorovul satrlarga qaraydi).
-    await mxdYoz(ent.id, mxdV);
+    await mxdYoz(ent.id, mxdV, mxdN);
     // 3-band: chek — YOZUV QOLADI, xato bo'lsa faqat ogohlantiramiz (saqlashni bloklamaydi).
     if(chekUp){
       try{
@@ -2232,7 +2292,7 @@ function openTaqsim(amt, dtId, ktId, kassa, calc){
   // har ulush uchun fc = ulush / kurs hisoblaydi (xarajat_saqlash_taqsim → kassa_kurs).
   taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, calc:calc||null,
     izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||'',
-    mxd:mxdValues()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
+    mxd:mxdValues(), mxdn:mxdNeed()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
   taqsimEqualCalc(); renderTaqsim();
   $('taqsimModal').classList.add('open');
 }
@@ -2283,7 +2343,7 @@ window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
-  const {dtId,ktId,kassa,izoh,chek,mName,calc,mxd:mxdV}=taqsimCtx;
+  const {dtId,ktId,kassa,izoh,chek,mName,calc,mxd:mxdV,mxdn:mxdN}=taqsimCtx;
   const kCur=curOf(kassa);
   bannerYop();
   // TAKROR-HIMOYA (oddiy yo'l bilan bir xil): ayni kalit — ayni yozuv.
@@ -2349,7 +2409,7 @@ window.confirmTaqsim=async()=>{
   toast('Saqlandi · '+nFil+' filial');
   // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
   (async()=>{
-    await mxdYoz(eids, mxdV);   // har filial yozuviga BIR XIL maxsus maydon qiymati
+    await mxdYoz(eids, mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
     if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
     if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
     loadBalances(); loadHist(); loadMonth();
@@ -2557,12 +2617,23 @@ async function init(){
   const pAcc =sb.from('accounts').select('*').eq('is_active',true).order('code');
   const pFil =sb.from('v_filial_tanlov').select('*');
   const pUser=sb.auth.getUser();
+  // Top-up chegarasi — BAZADAN (provodka_config), bir marta, shu Promise.all ichida
+  // (alohida round-trip YO'Q). Tarmoq uzilsa promise RAD etilishi mumkin —
+  // o'shanda Promise.all butun init()ni yiqitardi, shuning uchun o'raladi.
+  const pTop=Promise.resolve(sb.rpc('sorov_topup_chegara'))
+    .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}));
   loadHist();                               // tarix mustaqil (server auth.uid()) — fon
   // TEZLIK: qoldiq keshda YO'Q bo'lsa — accounts keshdan kelgan zahoti so'rovni
   // BOSHLAB yuboramiz, Promise.all ni kutmasdan. Aks holda qoldiq 2-to'lqinda
   // kelardi va hodim bo'sh hero'ga qarab turardi.
   if(!balKesh && cAcc) loadBalances();
-  const [,aRes,fRes,uRes]=await Promise.all([pPerm,pAcc,pFil,pUser]);
+  const [,aRes,fRes,uRes,tRes]=await Promise.all([pPerm,pAcc,pFil,pUser,pTop]);
+  // Chegara: xato / RPC yo'q / buzuq qiymat -> ZAXIRA (500). Bu yerda "fail-closed"
+  // muammo emas — chegara faqat QAYSI MODAL ochilishini hal qiladi, pul harakati
+  // baribir tasdiqdan keyin. Qiymat foydalanuvchiga HECH QAYERDA ko'rsatilmaydi.
+  if(tRes&&!tRes.error&&tRes.data!=null&&isFinite(Number(tRes.data))){
+    srvChegara=Math.max(0,Number(tRes.data)); srvChegaraOk=true;
+  }
   // accounts (perms endi tayyor → to'g'ri filtr)
   if(aRes.error){ if(!cAcc){ $('banner').style.display='block'; $('banner').textContent='Xato: '+aRes.error.message; } }
   else { swrSet('accounts',aRes.data||[]); applyAccounts(aRes.data||[]); }
@@ -2625,6 +2696,31 @@ async function init(){
    🔴 FAIL-CLOSED: `sorov_kimdan` yo'q bo'lsa (PGRST202/42883) `srvOff` yoqiladi
       va tugma UMUMAN chizilmaydi — sahifa avvalgidek ishlaydi (`amalOff` naqshi).
       Tugma faqat ro'yxat SERVERDAN tasdiqlangach ko'rinadi. */
+/* ---- 2026-08-26: TUGMA DOIM · TOP-UP · YO'RIQNOMA --------------------
+   Tugma endi FORMAGA bog'liq emas: u doim ko'rinadi va doim bosiladi
+   (`srvOff` — RPC yo'q — holatidan tashqari). Bosilganda QAROR DARAXTI,
+   AYNAN shu tartibda (`srvOpen()`):
+     1) Formada balansdan OSHGAN xarajat bor (`srvOver`) -> ESKI OQIM,
+        bir qator ham o'zgarmagan: pending xarajat + unga bog'langan so'rov.
+        🔴 Chegara bu shoxga UMUMAN ta'sir qilmaydi (5 mln lik xarajat uchun
+        pul so'ray olmaslik mantiqsiz bo'lardi).
+     2) Balans chegaradan KAM -> TOP-UP: xarajatga BOG'LANMAGAN sof so'rov
+        (`sorov_yarat` uchinchi rejimi, PROVODKA_SOROV_TOPUP.sql).
+     3) Aks holda -> YO'RIQNOMA modali, so'rov YUBORILMAYDI.
+
+   🔴 CHEGARA BAZADAN (`sorov_topup_chegara()` -> provodka_config), klient
+      konstantasi EMAS: Asilbek uni promote'siz o'zgartira olishi kerak.
+      `init()` da bir marta, mavjud Promise.all ichida o'qiladi.
+      O'qib bo'lmasa (RPC yo'q / tarmoq xatosi) — ZAXIRA 500 ishlatiladi.
+      ⚠️ Bu yerda "fail-closed" muammo emas: ikkala shox ham pul
+      HARAKATLANTIRMAYDI (biri modal ochadi, biri matn ko'rsatadi), pul
+      esa faqat tasdiqdan keyin chiqadi. Shuning uchun zaxira xavfsiz.
+   🔴 BALANS SIZMASLIGI: chegara raqami ham, qoldiq raqami ham modallarda
+      HECH QAYERDA chizilmaydi — faqat "yetarli pul bor" degan umumiy
+      jumla (yo'riqnomada). Top-up modalida umuman raqam yo'q. */
+const SRV_CHEGARA_ZAXIRA=500;   // faqat RPC javob bermaganda ishlatiladi
+let srvChegara=SRV_CHEGARA_ZAXIRA;   // haqiqiy qiymat init()da bazadan keladi
+let srvChegaraOk=false;              // bazadan keldimi (diagnostika uchun)
 const SRV_MIN_IZOH=3;
 let srvOff=false;      // RPC yo'q -> xususiyat butunlay o'chiq (tugma chizilmaydi)
 let srvWhos=null;      // sorov_kimdan() javobi. null = hali tasdiqlanmagan
@@ -2651,6 +2747,7 @@ let srvPendRows=[];
       (b) bekor qilish     -> `sorov_xarajat_bekor(p_entry)`.
    🔴 Ikkalasi ham MAVJUD takror-himoya zanjirini ishlatadi
       (tokenBoshla/isDup/noaniq) — yangi mexanizm yozilmadi. */
+let srvTop=false;      // 🆕 top-up rejimi (xarajatsiz sof so'rov)
 let srvQol=null;       // "qolganini so'rash" rejimi: xarajat entry_id yoki null
 let srvQolOff=false;   // sorov_yarat(p_xarajat_entry) yo'q -> tugma chizilmaydi
 let srvBekorOff=false; // sorov_xarajat_bekor RPC yo'q -> tugma chizilmaydi
@@ -2661,25 +2758,36 @@ const SRV_UUID=/^[0-9a-fA-F-]{36}$/;
 const srvRpcYoq=(e,nom)=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
   return c==='PGRST202'||c==='42883'||(!!nom&&m.indexOf(nom)>=0)||/function .* does not exist/i.test(m); };
 
+// 🔴 TUGMA KO'RINISHI: faqat RPC tasdiqlangan bo'lsa (fail-closed — `amalOff` naqshi).
+//    FORMA holati (`srvOver`) bu yerga KIRMAYDI: tugma doim ko'rinadi va enable.
+function srvShow(){ return !srvOff && Array.isArray(srvWhos); }
 // §1.7 — `over` updateSave() dagi O'SHA o'zgaruvchi, bu yerda qayta hisoblanmaydi.
-function srvNeeded(){ return srvOver && !srvOff && Array.isArray(srvWhos); }
-// updateSave() oxirida chaqiriladi: #srvBtn <-> #saveBtn ALMASHADI (ikkalasi bir vaqtda yo'q).
+// `srvNeeded()` endi FAQAT "eski oqim" (xarajatli so'rov) sharti.
+function srvNeeded(){ return srvOver && srvShow(); }
+// updateSave() oxirida chaqiriladi.
+//   · over  -> #srvBtn #saveBtn O'RNIGA (avvalgidek, to'liq kenglik);
+//   · aks holda -> ikkalasi YONMA-YON (#srvBtn ikkilamchi, .srv-side).
 function srvSync(need){
   srvOver=!!need;
   const b=$('srvBtn'), sv=$('saveBtn');
   if(!b) return;
-  const show=srvNeeded();
+  const show=srvShow();
   b.style.display=show?'flex':'none';
-  if(sv) sv.style.display=show?'none':'flex';
-  // Ro'yxat KERAK bo'lgan paytda fonda tasdiqlanadi (sahifa ochilishida so'rov yo'q).
-  if(srvOver&&!srvOff&&!Array.isArray(srvWhos)&&!srvBusy&&srvTries<4
+  b.classList.toggle('srv-side', show&&!srvOver);
+  // 🔴 `saveBtn` faqat ESKI shartda yashiriladi (over + so'rov ishlayapti) —
+  //    tugma doim ko'rinadigan bo'lgani bilan bu qoida O'ZGARMADI.
+  if(sv) sv.style.display=srvNeeded()?'none':'flex';
+  // Ro'yxat fonda tasdiqlanadi. Endi tugma har doim kerak, shuning uchun
+  // proba `srvOver` ni kutmaydi (aks holda balansi yetgan hodimda tugma
+  // umuman chizilmasdi). Urinishlar soni va vaqt darvozasi o'sha-o'sha.
+  if(!srvOff&&!Array.isArray(srvWhos)&&!srvBusy&&srvTries<4
      &&(Date.now()-srvLastTry>4000)) srvWhoLoad();
   const m=$('srvModal');
-  // 🔴 `srvQol` — "qolganini so'rash" rejimi: u FORMAGA bog'liq emas
-  //    (xarajat allaqachon yozilgan), shuning uchun `over` yo'qolganda
-  //    modal YOPILMASLIGI kerak — aks holda hodim summa yozayotib modal
+  // 🔴 `srvQol` ("qolganini so'rash") va `srvTop` (top-up) — ikkalasi ham
+  //    FORMAGA bog'liq EMAS, shuning uchun `over` yo'qolganda modal
+  //    YOPILMASLIGI kerak — aks holda hodim summa yozayotib modal
   //    o'z-o'zidan yopilib ketardi.
-  if(!srvOver&&!srvQol&&m&&m.classList.contains('open')) srvClose();
+  if(!srvOver&&!srvQol&&!srvTop&&m&&m.classList.contains('open')) srvClose();
 }
 
 // Monogramma (ism bosh harflari). Tasodifiy rang YO'Q — rang "guruh" degan yolg'on bermasin.
@@ -2696,8 +2804,27 @@ function srvMax(){
   //    javobdan ataylab olib tashlangan (u orqali BOSHQA odamning balansi
   //    hisoblanardi). Chegarani SERVER yozuvning o'zidan oladi
   //    (PROVODKA_SOROVLAR.sql 6.4/6.6) va oshsa aniq xato qaytaradi.
-  if(srvQol) return 0;
+  // 🔴 TOP-UP da ham chegara YO'Q: u xarajatga bog'lanmagan, ya'ni
+  //    "xarajatdan katta bo'lmasin" qoidasi ma'nosiz (server faqat xato
+  //    terish qorovulini qo'yadi).
+  if(srvQol||srvTop) return 0;
   const c=calcAmounts(); const a=c?Math.round(c.uzs):0; return a>0?Math.ceil(a/1000)*1000:0;
+}
+/* Hodimning JAMI so'm puli — hero'dagi "Umumiy qoldiq" bilan AYNAN bir manba
+   (`kassaList` + `kassaJami`, ya'ni kassa + hamma bola-hisoblari).
+   🔴 Bu raqam HECH QAYERDA chizilmaydi — faqat qaror uchun (qaysi modal).
+   null = qoldiq hali kelmagan yoki xato. */
+function srvJamiUzs(){
+  let t=0, bor=false;
+  (kassaList()||[]).forEach(k=>{ const v=kassaJami(k.id); if(v!=null){ t+=Number(v)||0; bor=true; } });
+  return bor?t:null;
+}
+/* Balans chegaradan kammi. 🔴 Qoldiq NOMA'LUM bo'lsa — TOP-UP shoxi tanlanadi
+   (yo'riqnoma emas): "sizda pul bor" deb yolg'on aytgandan ko'ra so'rash
+   imkonini berish to'g'ri, so'rovni baribir boshqa odam tasdiqlaydi. */
+function srvBalKam(){
+  const v=srvJamiUzs();
+  return (v==null) ? true : (v < srvChegara);
 }
 // Minglik ajratgich + kursor joyi (fmtAmt naqshi). 🔴 AVTOMAT "000" YO'Q:
 // maydon oldindan to'ldirilgan, tahrirda o'zidan nol qo'shilishi xato bo'lardi.
@@ -2818,11 +2945,19 @@ function srvReset(){
   if(b){ b.disabled=true; b.innerHTML='<i data-lucide="send-horizontal"></i>So\'rov yuborish'; }
   srvWhoRender();
 }
+/* 🔴 QAROR DARAXTI — tugma bosilganda. Tartib QAT'IY (yuqoridagi izoh). */
 window.srvOpen=()=>{
+  if(!srvShow()) return;                         // fail-closed: RPC tasdiqlanmagan
+  if(srvNeeded()) return srvXarOpen();           // 1) formada oshgan xarajat -> ESKI OQIM
+  if(srvBalKam()) return srvTopOpen();           // 2) balans chegaradan kam -> TOP-UP
+  return srvHelpOpen();                          // 3) yetarli -> YO'RIQNOMA (so'rov YO'Q)
+};
+// 1-SHOX — xarajatli so'rov. 🔴 BU TANA O'ZGARMADI (faqat nomi ajratildi).
+function srvXarOpen(){
   if(!srvNeeded()) return;                       // fail-closed: tasdiqlanmagan bo'lsa ochilmaydi
   const m=$('srvModal'); if(!m) return;
   // Rejim qoldig'i bo'lmasin: bu ODATIY so'rov (yangi xarajat yoziladi).
-  if(srvQol){ srvQol=null; srvIntro(false); }
+  if(srvQol||srvTop){ srvQol=null; srvTop=false; srvIntro(''); }
   // 🔴 Oldingi urinish natijasi NOANIQ bo'lsa (kalit hamon tirik va odam tanlangan)
   //    maydonlar TOZALANMAYDI: aynan o'sha mazmun aynan o'sha `ext_ref` ni beradi va
   //    server takrorni 23505 bilan to'sadi. Tozalasak hodim boshqa summa yozib
@@ -2844,29 +2979,72 @@ window.srvOpen=()=>{
     if(sc&&sc.style.display!=='none'){ sc.focus(); return; }
     const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem'); if(f) f.focus();
   }catch(e){} },60);
+}
+
+/* 2-SHOX — TOP-UP: xarajatga BOG'LANMAGAN sof so'rov (balans to'ldirish).
+   🔴 Mavjud #srvModal QAYTA ISHLATILADI (uchinchi rejim, `srvQol` naqshi kabi) —
+      yangi modal yozilmadi: ikkinchi implementatsiya vaqt o'tib ajralib ketardi.
+   🔴 Summa OLDINDAN TO'LDIRILMAYDI: to'ldirilsa u qoldiqdan hosil qilingan
+      raqam bo'lardi, ya'ni balans modalga sizardi. */
+function srvTopOpen(){
+  if(!srvShow()) return;                               // fail-closed
+  const m=$('srvModal'); if(!m) return;
+  srvQol=null; srvTop=true;
+  // Maydonlar HAR DOIM bo'sh (xarajatli oqimdagi "tokenni saqlab qol" shoxi bu
+  // yerda YO'Q: prefill qilinadigan raqam ham yo'q). Noaniq tugagan urinishdan
+  // keyin foydalanuvchi boshqa summa yozib qayta yuborsa — takrorni SERVER
+  // to'sadi: bir odamda bir vaqtda BITTA ochiq top-up (sorovlar_ochiq_topup_uniq).
+  srvReset();
+  srvIntro('top');
+  m.classList.add('open');
+  srvWhoLoad(); srvUI(); icons();
+  setTimeout(()=>{ try{
+    const sc=$('srvWhoSearch');
+    if(sc&&sc.style.display!=='none'){ sc.focus(); return; }
+    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem'); if(f) f.focus();
+  }catch(e){} },60);
+}
+
+/* 3-SHOX — YO'RIQNOMA. Hech narsa yuborilmaydi, hech qanday raqam yo'q. */
+window.srvHelpOpen=()=>{
+  const m=$('srvHelpModal'); if(!m) return;
+  m.classList.add('open'); icons();
+  setTimeout(()=>{ try{ const b=$('srvHelpOk'); if(b) b.focus(); }catch(e){} },60);
 };
+window.srvHelpClose=()=>{
+  const m=$('srvHelpModal'); if(!m||!m.classList.contains('open')) return;
+  m.classList.remove('open');
+  try{ const b=$('srvBtn'); if(b&&b.style.display!=='none') b.focus(); }catch(e){}
+};
+
 window.srvClose=()=>{
   const m=$('srvModal'); if(!m||!m.classList.contains('open')) return;
   m.classList.remove('open');
   // 🔴 Rejim TOZALANADI: modal yopilgach `srvSave()` yana odatiy (forma)
   //    yo'liga qaytsin. Aks holda keyingi "Pul so'rash" bosilganda so'rov
-  //    eski xarajatga ulanib ketardi.
-  if(srvQol){ srvQol=null; srvIntro(false); }
+  //    eski xarajatga ulanib ketardi (yoki top-up bo'lib qolardi).
+  if(srvQol||srvTop){ srvQol=null; srvTop=false; srvIntro(''); }
   try{ const b=$('srvBtn'); if(b&&b.style.display!=='none') b.focus(); }catch(e){}
 };
 
-/* Modal matnlari rejimga qarab (ikkita va'da bir xil bo'la olmaydi).
-   🔴 Bu yerda ham birorta BALANS raqami yo'q — .sorov-ui.md §1.2-B. */
-function srvIntro(qol){
+/* Modal matnlari rejimga qarab (uchta va'da bir xil bo'la olmaydi).
+   `m`: '' = odatiy (xarajatli) · 'qol' = qolganini so'rash · 'top' = balans to'ldirish.
+   🔴 Bu yerda ham birorta BALANS/CHEGARA raqami yo'q — .sorov-ui.md §1.2-B. */
+function srvIntro(m){
+  const qol=(m==='qol'), top=(m==='top');
   const t=$('srvTitle'), x=$('srvIntroTxt'), h=$('srvAmtHint'), l=$('srvAmtLbl');
-  if(t) t.textContent=qol?'Qolganini so\'rash':'Pul so\'rash';
+  if(t) t.textContent=qol?'Qolganini so\'rash':(top?'Pul so\'rash':'Pul so\'rash');
   if(x) x.innerHTML=qol
     ? 'Xarajat allaqachon yozilgan va <b>tasdiq kutmoqda</b> — yangi xarajat yozilmaydi. '
       +'Pul yetgach u avtomat kuchga kiradi.'
-    : 'Xarajat shu bilan birga saqlanadi va <b>tasdiq kutadi</b>. Pul berilgach '
-      +'u avtomat kuchga kiradi — boshqa hech narsa qilishingiz shart emas.';
+    : (top
+      ? 'Bu so\'rov <b>xarajatga bog\'lanmaydi</b> — hech narsa yozilmaydi. '
+        +'Tasdiqlangach pul kassangizga <b>qo\'shiladi</b>.'
+      : 'Xarajat shu bilan birga saqlanadi va <b>tasdiq kutadi</b>. Pul berilgach '
+        +'u avtomat kuchga kiradi — boshqa hech narsa qilishingiz shart emas.');
   if(h) h.textContent=qol?'Yetishmayotgan qismini yozing.'
-                         :'Kerakli summa oldindan yozildi — o\'zgartirsangiz bo\'ladi.';
+                         :(top?'Qancha kerakligini yozing.'
+                              :'Kerakli summa oldindan yozildi — o\'zgartirsangiz bo\'ladi.');
   if(l) l.innerHTML=(qol?'Yana qancha so\'rayman':'Qancha so\'rayman')
                     +' <span class="req">majburiy</span>';
 }
@@ -2878,9 +3056,9 @@ window.srvQolOpen=eid=>{
   if(srvOff||srvQolOff) return;                       // fail-closed
   if(!SRV_UUID.test(String(eid||''))) return;
   const m=$('srvModal'); if(!m) return;
-  srvQol=String(eid);
+  srvQol=String(eid); srvTop=false;
   srvReset();                                          // maydonlar bo'sh (default summa YO'Q)
-  srvIntro(true);
+  srvIntro('qol');
   m.classList.add('open');
   srvWhoLoad(); srvUI(); icons();
   setTimeout(()=>{ try{
@@ -2910,6 +3088,8 @@ window.srvSave=async()=>{
   //    summa/chek/davr) UMUMAN qatnashmaydi, chunki xarajat ALLAQACHON
   //    yozilgan. `srvNeeded()` (over-holat) ham talab qilinmaydi.
   if(srvQol) return srvQolSave();
+  // 🔴 TOP-UP rejimi — xarajat UMUMAN yo'q: forma ham, `over` ham qatnashmaydi.
+  if(srvTop) return srvTopSave();
   if(!srvNeeded()){ srvClose(); return; }
   if(accCur()!=='UZS'){ srvClose(); return; }          // §1.6-e: so'rov faqat so'm kassasida
   const kassa=effKassa(), modda=accounts.find(a=>a.id===selModda), c=calcAmounts();
@@ -2930,7 +3110,7 @@ window.srvSave=async()=>{
   if(!filialOk()){ toast('Bu xarajat uchun filial tanlanishi shart',true); return; }
   if(isKomm()&&!kommTuri){ toast('Kommunal turini tanlang',true); return; }
   if(!mxdOk()){ toast('«'+mxdFirstMissing()+'» to\'ldirilishi shart',true); mxdShowReq(); return; }
-  const mxdV=mxdValues();          // 🔴 forma tozalanishidan OLDIN
+  const mxdV=mxdValues(), mxdN=mxdNeed();          // 🔴 forma tozalanishidan OLDIN
   srvSaving=true;
   const btn=$('srvSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
   if(msg){ msg.textContent=''; msg.className='tmsg'; }
@@ -2993,7 +3173,7 @@ window.srvSave=async()=>{
   // FON: chek (javobdagi entry_id bilan, mavjud yo'l). n8n "katta xarajat" alerti
   // ATAYLAB yuborilmaydi — pul hali chiqmagan, xarajat tasdiq kutmoqda.
   (async()=>{
-    await mxdYoz(eid, mxdV);
+    await mxdYoz(eid, mxdV, mxdN);
     if(chekUp&&eid){
       try{ await sb.storage.from('xarajat-cheklari').upload(kId+'/'+eid+'.jpg', chekUp, {contentType:'image/jpeg',upsert:true}); }catch(e){}
     }
@@ -3048,6 +3228,68 @@ async function srvQolSave(){
     srvBtnTikla(); no(window.permErr?window.permErr(error):error.message); return;
   }
   if(!data||data.ok!==true){ srvNoaniq('nomalum'); return; }
+  srvQolYopish('So\'rov yuborildi');
+}
+
+/* --- TOP-UP saqlash yo'li (balans to'ldirish) --------------------------
+   🔴 XARAJAT UMUMAN QATNASHMAYDI: modda/summa/chek/davr/filial/kommunal/mxd —
+      hech biri yuborilmaydi va tekshirilmaydi (yozuv yaratilmaydi).
+   🔴 TAKROR-HIMOYA: MAVJUD zanjir (`tokenBoshla` -> `qTimeout` -> `isDup` ->
+      `noaniq`) AYNAN qayta ishlatiladi, yangi mexanizm yozilmadi. Bu oqimda
+      `entry` yozilmagani uchun `entry.ext_ref` to'sig'i ishlamaydi va
+      `xarHolat` ham har doim 'yoq' qaytaradi — takrorni SERVERDA
+      `sorovlar_ext_ref_uniq` to'sadi, ya'ni 23505 bu yerda "so'rov
+      ALLAQACHON yuborilgan" degani (MUVAFFAQIYAT, xato emas).
+   🔴 FAIL-CLOSED: javobda `turi === 'topup'` bo'lmasa muvaffaqiyat DEYILMAYDI. */
+function srvTopKassa(){
+  // Pul TUSHADIGAN hisob: tanlangan kassa so'mda bo'lsa o'sha, aks holda
+  // birinchi so'm kassasi. Topilmasa null — server `sorov_kassa_of()` ni oladi.
+  const ks=kassaList()||[];
+  const sel=ks.find(a=>a.id===selKassa);
+  if(sel&&curOf(sel)==='UZS') return sel.id;
+  const u=ks.find(a=>curOf(a)==='UZS');
+  return u?u.id:null;
+}
+async function srvTopSave(){
+  const sAmt=srvAmtVal(), izoh=String(($('srvIzoh')&&$('srvIzoh').value)||'').trim();
+  const msg=$('srvMsg');
+  const no=t=>{ if(msg){ msg.textContent=t; msg.className='tmsg no'; } };
+  if(!srvWho){ no('Kimdan so\'rashni tanlang'); return; }
+  if(!(sAmt>0)){ no('Qancha so\'rashni yozing'); return; }
+  if(izoh.length<SRV_MIN_IZOH){ no('Nega kerakligini yozing (kamida 3 belgi)'); return; }
+  srvSaving=true;
+  const btn=$('srvSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
+  if(msg){ msg.textContent=''; msg.className='tmsg'; }
+  bannerYop();
+  // Barmoq iziga so'rov mazmuni kiradi: mazmun o'zgarsa bu BOSHQA so'rov
+  // (yangi kalit), o'zgarmasa AYNI kalit — server takrorni to'sadi.
+  const token=tokenBoshla({topup:1, sorov:srvWho+'|'+sAmt+'|'+izoh});
+  // Banner "Qayta urinish" AYNI shu yo'lga qaytsin (modal yopiq bo'lsa ham) —
+  // aks holda u formadan YANGI pending xarajat yozib yuborardi.
+  retryFn=()=>{ srvTop=true; srvQol=null; window.srvSave(); };
+  const args={p_kimdan:srvWho, p_sorov_summa:sAmt, p_sorov_izoh:izoh, p_ext_ref:token};
+  const kid=srvTopKassa(); if(kid) args.p_kassa=kid;
+  const rr=await qTimeout(sb.rpc('sorov_yarat',args));
+  const data=rr.data, error=rr.error;
+  if(error&&isDup(error)){ srvQolYopish('So\'rov allaqachon yuborilgan'); return; }
+  if(noaniq(rr)){ srvNoaniq('timeout'); return; }
+  if(error){
+    if(srvRpcYoq(error,'sorov_yarat')){          // fail-closed: xususiyat o'chadi
+      tokenTugat(); srvOff=true; srvClose(); srvSync(srvOver); srvBtnTikla();
+      toast('Pul so\'rash hali ulanmagan',true); return;
+    }
+    tokenTugat(); srvBtnTikla();                 // aniq xato -> hech narsa yozilmagan
+    // 🔴 ESKI SQL: PROVODKA_SOROV_TOPUP.sql RUN qilinmagan bo'lsa eski
+    //    `sorov_yarat` bu chaqiruvni xarajatli oqim deb o'qiydi va
+    //    "Xarajat summasi musbat bolishi kerak" (22000) beradi. Jimgina
+    //    yarim ish qilmaymiz — ANIQ sabab yoziladi.
+    if(/xarajat summasi/i.test(String((error&&error.message)||''))){
+      no('Balans to\'ldirish so\'rovi hali ulanmagan (SQL yangilanmagan)'); return; }
+    no(window.permErr?window.permErr(error):error.message); return;
+  }
+  // 🔴 FAIL-CLOSED: server AYNAN top-up yozganini tasdiqlasin.
+  if(!data||data.ok!==true||String(data.turi||'')!=='topup'){ srvNoaniq('nomalum'); return; }
+  // Qoldiq OPTIMISTIK o'zgartirilmaydi: pul hali kelmagan (tasdiq kutilmoqda).
   srvQolYopish('So\'rov yuborildi');
 }
 
@@ -3255,6 +3497,15 @@ function mxdValues(){
     return v.element_id?{maydon_id:f.id,element_id:v.element_id}:{maydon_id:f.id,qiymat:t};
   }).filter(Boolean);
 }
+/* 🔴 "Bu moddada maxsus maydon BOR mi" — `mxdYoz` bo'sh ro'yxatda ham RPC
+      yuborishi kerakligini shundan biladi. Busiz serverdagi majburiylik
+      tekshiruvi (`entry_maydon_yoz` → `xm_majburiy_yoq`) HECH QACHON
+      ishlamasdi: foydalanuvchi hech narsa to'ldirmasa RPC umuman ketmasdi,
+      UI dagi `mxdOk()` esa ta'riflar yuklanmagan bo'lsa (`mxdReady()` false)
+      ataylab FAIL-OPEN.
+   🔴 Manba `mxdMod` (biriktirish ro'yxati), `mxdDefs` EMAS — ta'riflar
+      yuklanmagan holatda ham to'g'ri javob beradi (aynan xavfli holat). */
+const mxdNeed=()=>{ const id=mxdModdaId(); return !!(!mxdOff&&id&&mxdMod&&mxdMod.has(id)); };
 // 🔴 Forma tozalanadigan HAR joyda chaqiriladi — busiz keyingi xarajat oldingisining
 //    maydon qiymatlari bilan jimgina yozilardi (eng xavfli regressiya).
 function mxdReset(){ mxdVals={}; mxdMClose(); mxdRender(true); }
@@ -3502,17 +3753,23 @@ window.mxdShowReq=()=>{
 // ---- Saqlash --------------------------------------------------------------
 // 🔴 TARTIB MAJBURIY: entry → entry_line → entry_maydon_yoz (qorovul SATRLARGA qaraydi).
 //    Chek yuklash naqshi: FONDA, xato bo'lsa yozuv O'CHIRILMAYDI (pul harakati to'g'ri).
-async function mxdYoz(entryIds,vals){
-  if(mxdOff||!vals||!vals.length) return;
+// 🔴 3-argument `need` (mxdNeed()): BO'SH ro'yxatda ham RPC ketsinmi. Bo'sh
+//    ro'yxat serverga "hech narsa to'ldirmadim" degani — u majburiy maydonni
+//    o'zi tekshiradi. Maydoni YO'Q moddada (58 ta) keraksiz so'rov ketmaydi.
+async function mxdYoz(entryIds,vals,need){
+  if(mxdOff) return;
+  const list=Array.isArray(vals)?vals:[];
+  if(!list.length&&!need) return;
   const ids=(Array.isArray(entryIds)?entryIds:[entryIds]).filter(Boolean);
-  if(!ids.length){ mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
+  if(!ids.length){ if(list.length) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
   let bad='';
   for(let i=0;i<ids.length;i++){
-    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:vals});
+    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:list});
     if(error){ if(MXD_YOQ(error)){ mxdOff=true; return; }
       bad=(window.permErr?window.permErr(error):(error.message||'')); }
   }
-  if(bad) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '+bad);
+  if(bad) mxdWarn((list.length?'Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '
+                             :'Yozuv saqlandi, lekin qo\'shimcha ma\'lumot to\'ldirilmadi: ')+bad);
 }
 /* =========================== /MAXSUS MAYDONLAR ============================= */
 

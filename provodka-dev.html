@@ -857,7 +857,7 @@ window.save=async()=>{
   // Maxsus maydon: bu formada #saveBtn `disabled` bilan boshqarilmaydi — shuning uchun
   // guard + mxdShowReq() (yetishmayotgan maydon ochiladi va ekranga keltiriladi).
   if(!mxdOk()){ alert('«'+mxdFirstMissing()+'» to\'ldirilishi shart'); mxdShowReq(); return; }
-  const mxdV=mxdValues();   // 🔴 forma tozalanishidan OLDIN
+  const mxdV=mxdValues(), mxdN=mxdNeed();   // 🔴 forma tozalanishidan OLDIN
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
   const hdr={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'};
   const rows=[{account_id:dtAcc,debit:amt,credit:0},{account_id:ktAcc,debit:0,credit:amt}];
@@ -870,7 +870,7 @@ window.save=async()=>{
   // 🔴 TARTIB: entry → entry_line → entry_maydon_yoz. Zaxira (eski) yo'lda va takror
   //    (dup) holatida entry_id qaytmaydi — maydonlar biriktirilmaydi va foydalanuvchi
   //    ogohlantiriladi (yozuv O'CHIRILMAYDI: pul harakati to'g'ri).
-  await mxdYoz((r&&r.ok&&r.entry_id)?r.entry_id:null, mxdV);
+  await mxdYoz((r&&r.ok&&r.entry_id)?r.entry_id:null, mxdV, mxdN);
   $('amount').value=''; $('izoh').value=''; mxdReset(); updateProv(); reset(); await refresh();
 };
 function reset(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Saqlash'; }
@@ -982,6 +982,15 @@ function mxdValues(){
     return v.element_id?{maydon_id:f.id,element_id:v.element_id}:{maydon_id:f.id,qiymat:t};
   }).filter(Boolean);
 }
+/* 🔴 "Bu moddada maxsus maydon BOR mi" — `mxdYoz` bo'sh ro'yxatda ham RPC
+      yuborishi kerakligini shundan biladi. Busiz serverdagi majburiylik
+      tekshiruvi (`entry_maydon_yoz` → `xm_majburiy_yoq`) HECH QACHON
+      ishlamasdi: foydalanuvchi hech narsa to'ldirmasa RPC umuman ketmasdi,
+      UI dagi `mxdOk()` esa ta'riflar yuklanmagan bo'lsa (`mxdReady()` false)
+      ataylab FAIL-OPEN.
+   🔴 Manba `mxdMod` (biriktirish ro'yxati), `mxdDefs` EMAS — ta'riflar
+      yuklanmagan holatda ham to'g'ri javob beradi (aynan xavfli holat). */
+const mxdNeed=()=>{ const id=mxdModdaId(); return !!(!mxdOff&&id&&mxdMod&&mxdMod.has(id)); };
 // 🔴 Forma tozalanadigan HAR joyda chaqiriladi — busiz keyingi xarajat oldingisining
 //    maydon qiymatlari bilan jimgina yozilardi (eng xavfli regressiya).
 function mxdReset(){ mxdVals={}; mxdMClose(); mxdRender(true); }
@@ -1229,17 +1238,23 @@ window.mxdShowReq=()=>{
 // ---- Saqlash --------------------------------------------------------------
 // 🔴 TARTIB MAJBURIY: entry → entry_line → entry_maydon_yoz (qorovul SATRLARGA qaraydi).
 //    Chek yuklash naqshi: FONDA, xato bo'lsa yozuv O'CHIRILMAYDI (pul harakati to'g'ri).
-async function mxdYoz(entryIds,vals){
-  if(mxdOff||!vals||!vals.length) return;
+// 🔴 3-argument `need` (mxdNeed()): BO'SH ro'yxatda ham RPC ketsinmi. Bo'sh
+//    ro'yxat serverga "hech narsa to'ldirmadim" degani — u majburiy maydonni
+//    o'zi tekshiradi. Maydoni YO'Q moddada (58 ta) keraksiz so'rov ketmaydi.
+async function mxdYoz(entryIds,vals,need){
+  if(mxdOff) return;
+  const list=Array.isArray(vals)?vals:[];
+  if(!list.length&&!need) return;
   const ids=(Array.isArray(entryIds)?entryIds:[entryIds]).filter(Boolean);
-  if(!ids.length){ mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
+  if(!ids.length){ if(list.length) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
   let bad='';
   for(let i=0;i<ids.length;i++){
-    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:vals});
+    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:list});
     if(error){ if(MXD_YOQ(error)){ mxdOff=true; return; }
       bad=(window.permErr?window.permErr(error):(error.message||'')); }
   }
-  if(bad) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '+bad);
+  if(bad) mxdWarn((list.length?'Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '
+                             :'Yozuv saqlandi, lekin qo\'shimcha ma\'lumot to\'ldirilmadi: ')+bad);
 }
 /* =========================== /MAXSUS MAYDONLAR ============================= */
 

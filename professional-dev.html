@@ -2157,6 +2157,11 @@ async function doSavePending(izohP){
   // V9: mudofaaviy — bu yerga saveSimple() guardidan o'tib kelinadi, ya'ni odatda
   // hech qachon ishlamaydi; yangi chaqiruv yo'li qo'shilsa yo'l ochiq qolmasin.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
+  // 🔴 Maxsus maydon — forma tozalanishidan OLDIN olinadi. Bu yo'lda yozuv
+  //    TANLANGAN moddaga emas, `9110-1` (yo'ldagi tovar) ga ketadi, shuning
+  //    uchun "kerakmi" bayrog'i ham AYNAN o'sha modda bo'yicha hisoblanadi.
+  const mxdV=mxdValues();
+  const mxdPendN=!!(!mxdOff&&mxdMod&&mxdMod.has(modda1.id));
   // Valyuta kassasi: debit/credit SO'MDA (amt × kurs), fc_amount esa valyuta miqdori.
   // Avval ikkalasiga ham `amt` yozilardi — dollar soni so'm ustuniga tushib ketardi.
   // Tekshiruv entry INSERT'idan OLDIN — aks holda yetim sarlavha qolardi.
@@ -2172,6 +2177,17 @@ async function doSavePending(izohP){
   const res=await yozBir(entryPayload,rows);
   if(!res.ok){ btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
   if(chekBlob) chekYukla(res, kassa.id);
+  /* 🔴 QIYMAT JIMGINA YO'QOLMASIN: bu yozuv `9110-1` ga ketdi, maxsus maydonlar
+     esa foydalanuvchi tanlagan moddaga (9110) biriktirilgan bo'lishi mumkin.
+       • `9110-1` ga ham biriktirilgan bo'lsa — odatdagidek yoziladi (oxirgi
+         hakam baribir server: `xm_maydon_entry_mos` mos kelmasa xato qaytaradi
+         va `mxdYoz` uni ko'rsatadi);
+       • biriktirilmagan bo'lsa — to'ldirilgan qiymat bu yozuvga yozilmaydi,
+         shuning uchun foydalanuvchi OCHIQ ogohlantiriladi (avval jimgina
+         yo'qolardi). Yozuvning o'zi O'CHIRILMAYDI — pul harakati to'g'ri. */
+  if(mxdPendN) mxdYoz(res.entry_id||null, mxdV, true);
+  else if(mxdV.length) mxdWarn('Yozuv "yo\'ldagi tovar" sifatida saqlandi, lekin qo\'shimcha ma\'lumot '
+    +'bu yozuvga yozilmadi — u boshqa xarajat moddasiga biriktirilgan. Hujjat kelib yuk bog\'langach qayta kiriting.');
   mxdReset();
   $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
   window.removeChek();
@@ -2182,7 +2198,7 @@ async function doSaveSimple(){
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
   if(!kassa||!modda||amt<=0) return;
-  const mxdV=mxdValues();   // 🔴 forma tozalanishidan OLDIN (taqsim yo'liga openTaqsim o'zi oladi)
+  const mxdV=mxdValues(), mxdN=mxdNeed();   // 🔴 forma tozalanishidan OLDIN (taqsim yo'liga openTaqsim o'zi oladi)
   // V9: filial majburiy — bu yerga yuk modalidan va doSaveSimpleForce'dan ham kelinadi,
   // shuning uchun tekshiruv saveSimple'dan tashqari SHU YERDA ham turadi.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
@@ -2215,7 +2231,7 @@ async function doSaveSimple(){
   if(chekBlob) chekYukla(res, kassa.id);
   // 🔴 TARTIB: entry → entry_line → entry_maydon_yoz (qorovul yozuv SATRLARIGA qaraydi).
   //    Xato bo'lsa yozuv O'CHIRILMAYDI — chek yuklash naqshi (pul harakati to'g'ri).
-  mxdYoz(res.entry_id||null, mxdV);
+  mxdYoz(res.entry_id||null, mxdV, mxdN);
   mxdReset();
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   window.removeChek();
@@ -2241,7 +2257,7 @@ let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
 function openTaqsim(amt, dtId, ktId, kassa, pair){
   const moddaId=(dtId===kassa.id)?ktId:dtId;   // kassa bo'lmagan tomon = modda (limit shu bo'yicha)
   taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId, pair:pair||null,
-    mxd:mxdValues()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
+    mxd:mxdValues(), mxdn:mxdNeed()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
   taqsimFils=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
   if(taqsimFils.length<2){ doSaveSimpleForce(); return; }   // himoya (filial ro'yxati kelmasa)
   taqsimEqualCalc(); renderTaqsim();
@@ -2286,7 +2302,7 @@ window.confirmTaqsim=async()=>{
   // hech qachon bajarilmaydi; taqsim yo'li kelajakda o'zgarsa ham ochilib qolmasin.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
-  const {dtId,ktId,kassa,pair,mxd:mxdV}=taqsimCtx;
+  const {dtId,ktId,kassa,pair,mxd:mxdV,mxdn:mxdN}=taqsimCtx;
   const p_data={
     entry_date:$('sana').value||null, description:$('izoh').value||null,
     source:'manual', status:'posted',
@@ -2303,7 +2319,7 @@ window.confirmTaqsim=async()=>{
   if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
   if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
-  mxdYoz((data&&data.entry_ids)||[], mxdV);   // har filial yozuviga BIR XIL maxsus maydon qiymati
+  mxdYoz((data&&data.entry_ids)||[], mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
   closeTaqsim();
   mxdReset();
   $('summa').value=''; $('izoh').value=''; selFilials.clear(); renderFilials();
@@ -2523,6 +2539,15 @@ function mxdValues(){
     return v.element_id?{maydon_id:f.id,element_id:v.element_id}:{maydon_id:f.id,qiymat:t};
   }).filter(Boolean);
 }
+/* 🔴 "Bu moddada maxsus maydon BOR mi" — `mxdYoz` bo'sh ro'yxatda ham RPC
+      yuborishi kerakligini shundan biladi. Busiz serverdagi majburiylik
+      tekshiruvi (`entry_maydon_yoz` → `xm_majburiy_yoq`) HECH QACHON
+      ishlamasdi: foydalanuvchi hech narsa to'ldirmasa RPC umuman ketmasdi,
+      UI dagi `mxdOk()` esa ta'riflar yuklanmagan bo'lsa (`mxdReady()` false)
+      ataylab FAIL-OPEN.
+   🔴 Manba `mxdMod` (biriktirish ro'yxati), `mxdDefs` EMAS — ta'riflar
+      yuklanmagan holatda ham to'g'ri javob beradi (aynan xavfli holat). */
+const mxdNeed=()=>{ const id=mxdModdaId(); return !!(!mxdOff&&id&&mxdMod&&mxdMod.has(id)); };
 // 🔴 Forma tozalanadigan HAR joyda chaqiriladi — busiz keyingi xarajat oldingisining
 //    maydon qiymatlari bilan jimgina yozilardi (eng xavfli regressiya).
 function mxdReset(){ mxdVals={}; mxdMClose(); mxdRender(true); }
@@ -2770,17 +2795,23 @@ window.mxdShowReq=()=>{
 // ---- Saqlash --------------------------------------------------------------
 // 🔴 TARTIB MAJBURIY: entry → entry_line → entry_maydon_yoz (qorovul SATRLARGA qaraydi).
 //    Chek yuklash naqshi: FONDA, xato bo'lsa yozuv O'CHIRILMAYDI (pul harakati to'g'ri).
-async function mxdYoz(entryIds,vals){
-  if(mxdOff||!vals||!vals.length) return;
+// 🔴 3-argument `need` (mxdNeed()): BO'SH ro'yxatda ham RPC ketsinmi. Bo'sh
+//    ro'yxat serverga "hech narsa to'ldirmadim" degani — u majburiy maydonni
+//    o'zi tekshiradi. Maydoni YO'Q moddada (58 ta) keraksiz so'rov ketmaydi.
+async function mxdYoz(entryIds,vals,need){
+  if(mxdOff) return;
+  const list=Array.isArray(vals)?vals:[];
+  if(!list.length&&!need) return;
   const ids=(Array.isArray(entryIds)?entryIds:[entryIds]).filter(Boolean);
-  if(!ids.length){ mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
+  if(!ids.length){ if(list.length) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydonlar biriktirilmadi'); return; }
   let bad='';
   for(let i=0;i<ids.length;i++){
-    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:vals});
+    const {error}=await sb.rpc('entry_maydon_yoz',{p_entry:ids[i],p_qiymatlar:list});
     if(error){ if(MXD_YOQ(error)){ mxdOff=true; return; }
       bad=(window.permErr?window.permErr(error):(error.message||'')); }
   }
-  if(bad) mxdWarn('Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '+bad);
+  if(bad) mxdWarn((list.length?'Yozuv saqlandi, lekin qo\'shimcha maydon yozilmadi: '
+                             :'Yozuv saqlandi, lekin qo\'shimcha ma\'lumot to\'ldirilmadi: ')+bad);
 }
 /* =========================== /MAXSUS MAYDONLAR ============================= */
 

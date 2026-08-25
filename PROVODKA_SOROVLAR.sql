@@ -903,6 +903,7 @@ declare
   v_sorov  uuid;
   v_yangi  boolean := true;
   v_chegara numeric;
+  v_berilgan numeric := 0;   -- shu xarajatga ALLAQACHON jonatilgan pul (kumulyativ chegara)
   v_est    text;
   v_edel   boolean;
   v_ega    text;      -- xarajat yozuvining egasi (created_by, tur-mustaqil)
@@ -1032,13 +1033,32 @@ begin
   end if;
 
   -- ---- 6.6 So'rov summasining YUQORI CHEGARASI ----------------------
-  -- 🔴 Chegara XARAJAT summasidan (balansdan EMAS), 1000 ga yuqoriga
-  --    yaxlitlangan — klient aynan shunday yaxlitlaydi (.sorov-ui.md §1.3),
-  --    aks holda 500 500 lik xarajatda to'g'ri 501 000 lik so'rov rad
-  --    etilardi. "Qolganini so'rash" oqimida chegara YOZUVDAN keladi.
-  v_chegara := ceil(v_xar / 1000.0) * 1000;
+  -- 🔴 KUMULYATIV CHEGARA (QA topilmasi 2026-08-26 — PUL XAVFI).
+  --    Chegara XARAJAT summasidan (balansdan EMAS), 1000 ga yuqoriga
+  --    yaxlitlangan — klient aynan shunday yaxlitlaydi (.sorov-ui.md §1.3).
+  --    ⚠️ Undan SHU XARAJATGA ALLAQACHON JO'NATILGAN pul AYIRILADI.
+  --    Busiz: 500k xarajat -> A so'rovi 500k -> 300k berildi ('qisman',
+  --    so'rov YOPILADI) -> `sorovlar_ochiq_xarajat_uniq` to'smaydi
+  --    ('qisman' <> 'pending') -> B so'rovi YANA 500k chegara bilan ochiladi
+  --    -> jami 800k, xarajat 500k, hodimda 300k ORTIQCHA pul qoladi.
+  --    Klient ham, tasdiqlovchi ham buni ko'rmaydi (xarajat summasi
+  --    javobdan ataylab olib tashlangan) — ya'ni yagona to'siq SHU YERDA.
+  --    'qisman' VA 'tasdiq' ikkalasi ham sanaladi: ikkalasida ham pul
+  --    haqiqatan chiqqan (`jonatilgan_summa`), 'rad' da esa chiqmagan.
+  if p_xarajat_entry is not null then
+    select coalesce(sum(s2.jonatilgan_summa), 0) into v_berilgan
+      from sorovlar s2
+     where s2.xarajat_entry_id = p_xarajat_entry
+       and s2.status in ('qisman', 'tasdiq');
+  end if;
+  v_chegara := ceil(v_xar / 1000.0) * 1000 - v_berilgan;
+  if v_chegara <= 0 then
+    raise exception 'Bu xarajat uchun yetarli pul allaqachon jonatilgan'
+      using errcode = '22000';
+  end if;
   if p_sorov_summa > v_chegara then
-    raise exception 'Sorov summasi xarajatdan katta bola olmaydi' using errcode = '22000';
+    raise exception 'Sorov summasi qolgan qismdan katta bola olmaydi (qolgan: %)',
+      v_chegara using errcode = '22000';
   end if;
 
   -- ---- 6.7 Kimdan ---------------------------------------------------
@@ -1361,6 +1381,266 @@ comment on function sorov_qaror_ctx(uuid) is
 
 
 -- #####################################################################
+-- ##  8A-BO'LIM — `pending -> posted` QOROVULI + TELEGRAM XABARI     ##
+-- #####################################################################
+-- ## MUAMMO (QA, 2026-08-26 — ikkita teshik)
+--
+--   Provodka qorovullari `entry_line` ustida turadi va `status <> 'posted'`
+--   bo'lsa DARROV `return new` qiladi:
+--       `limit_guard_entry_line`  (PROVODKA_V7.sql 4.3) — oylik limit
+--       `bal_guard_entry_line`    (PROVODKA_BAL_GUARD_PENDING.sql) — qoldiq
+--   `_hodim_notify_qoy` ham (`entry.status <> 'posted'` -> return) Telegram
+--   xabarini qo'ymaydi.
+--
+--   `sorov_yarat` satrlarni PENDING yozadi -> uchalasi ham o'tkazib
+--   yuboradi. `sorov_tasdiq` keyin `update entry set status='posted'`
+--   qiladi, lekin `entry_line` O'ZGARMAGANI uchun triggerlar QAYTA
+--   ISHLAMAYDI. Natija:
+--     (1) `standart_xarajat.limit_uzs` "Pul so'rash" orqali BUTUNLAY
+--         chetlab o'tiladi;
+--     (2) katta xarajat Telegram alertidan KO'RINMAS bo'lib qoladi.
+--
+-- ## QAROR — IKKALA VARIANT HAM, LEKIN PREDIKAT BITTA
+--
+--   Koordinator ikki variant taklif qildi: (a) `sorov_tasdiq` ichida
+--   tekshirish, (b) `entry` ustida `before update` qorovuli. Tanlov —
+--   IKKALASI, chunki ular BOSHQA-BOSHQA vazifani bajaradi:
+--
+--     * (a) `sorov_tasdiq` — TALAB QILINGAN xatti-harakat: limit oshsa
+--       xarajat posted QILINMAYDI, lekin PUL JO'NATILAVERADI (u alohida
+--       qaror) va javobda `limit_oshdi:true` + sabab qaytadi. Buni
+--       trigger bilan qilib bo'lmaydi: trigger faqat `raise` qila oladi,
+--       ya'ni BUTUN tranzaksiyani (pul jo'natishni ham) orqaga qaytarardi.
+--
+--     * (b) `trg_sorov_post_guard` — QOLGAN HAMMA YO'L uchun to'siq:
+--       admin qo'lda `update entry set status='posted'` qilsa, kelajakda
+--       yangi kod yozilsa. CLAUDE.md naqshi: "UI yashirish yetarli emas —
+--       yagona ishonchli to'siq trigger".
+--
+--   🔴 DRIFT BO'LMASIN: predikat BITTA joyda — `sorov_post_tosiq()`.
+--   Ikkalasi ham SHUNI chaqiradi. `sorov_tasdiq` faqat to'siq YO'Q
+--   bo'lganda `posted` qiladi, ya'ni trigger o'sha yo'lda hech qachon
+--   ishlamaydi (qo'sh tekshiruv narxi ham yo'q).
+--
+-- ⚠️ POYGA: tekshiruv bilan `update` orasida boshqa tranzaksiya limitni
+--    to'ldirib qo'ysa trigger `raise` qiladi va tasdiqlash BUTUNLAY
+--    qaytadi (pul ham jo'natilmaydi). Bu XAVFSIZ yo'nalish — yarim
+--    holat qolmaydi; foydalanuvchi qayta urinadi.
+-- #####################################################################
+
+-- ---------------------------------------------------------------------
+-- 8A.1  sorov_post_tosiq(p_entry) -> null = to'siq YO'Q, aks holda SABAB
+--
+--   🔴 `limit_guard_entry_line` (PROVODKA_V7.sql 4.3) mantiqining AYNAN
+--   o'zi, bitta farq bilan: u AFTER INSERT bo'lgani uchun yangi satrni
+--   yig'indida KO'RADI, bu yerda esa yozuv hali `pending` (ya'ni
+--   `status='posted'` filtridan tashqarida) — shuning uchun satr summasi
+--   yig'indiga QO'LDA qo'shiladi. Oyna, manba, taqqoslash (`>`) va xato
+--   matni shakli o'sha.
+--
+--   🔴 QOLDIQ tekshiruvi ham shu yerda: `bal_guard_entry_line` pending
+--   satrni ataylab o'tkazadi (PROVODKA_BAL_GUARD_PENDING.sql), ya'ni
+--   `posted` ga o'tish paytida kassa manfiyga tushmasligini tekshiradigan
+--   birorta joy qolmagan edi. `sorov_tasdiq` 8.6 da shu shart bor —
+--   bu yerda u BOSHQA yo'llar (admin qo'lda) uchun takrorlanadi.
+--   ⚠️ `bal_guard` ning `kassa_turi in ('xarajat','markaziy')` qamrovi
+--   ATAYLAB takrorlanmadi: bu yerda savol boshqa — "shu yozuvni posted
+--   qilsak kassa manfiyga tushadimi", ya'ni har qanday pul hisobiga
+--   bir xil qo'llanadi.
+--
+--   ⚠️ FAIL-OPEN emas, FAIL-SAFE: `standart_xarajat` jadvali bo'lmasa
+--   (PROVODKA_V7.sql RUN qilinmagan) limit tekshiruvi o'tkazib yuboriladi
+--   (limit tizimi yo'q = limit yo'q), qoldiq tekshiruvi esa ishlayveradi.
+-- ---------------------------------------------------------------------
+create or replace function sorov_post_tosiq(p_entry uuid)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_fids  uuid[];
+  v_date  date;
+  v_del   boolean;
+  r       record;
+  f       uuid;
+  v_lim   numeric;
+  v_spent numeric;
+  v_f     date;
+  v_t     date;
+  v_fname text;
+  v_mname text;
+  v_bal   numeric;
+  v_aname text;
+begin
+  select filial_ids, entry_date, is_deleted
+    into v_fids, v_date, v_del
+    from entry where id = p_entry;
+  if not found or coalesce(v_del, false) then
+    return null;                       -- yozuv yo'q / o'chirilgan: to'siq yo'q
+  end if;
+
+  -- ---- (1) OYLIK LIMIT (filial + modda) ----
+  if to_regclass('public.standart_xarajat') is not null
+     and v_fids is not null and array_length(v_fids, 1) is not null then
+    v_f := date_trunc('month', v_date)::date;
+    v_t := (date_trunc('month', v_date) + interval '1 month - 1 day')::date;
+
+    for r in select l.account_id, sum(l.debit) as debit
+               from entry_line l
+              where l.entry_id = p_entry and coalesce(l.debit, 0) > 0
+              group by l.account_id
+    loop
+      foreach f in array v_fids loop
+        select limit_uzs into v_lim
+          from standart_xarajat
+         where filial_id = f and modda_id = r.account_id;
+        if v_lim is not null then
+          select coalesce(sum(el.debit), 0) into v_spent
+            from entry e
+            join entry_line el on el.entry_id = e.id
+                              and el.account_id = r.account_id and el.debit > 0
+           where e.status = 'posted' and e.is_deleted = false
+             and e.entry_date >= v_f and e.entry_date <= v_t
+             and f = any (e.filial_ids);
+          -- 🔴 Bu yozuv hali `pending` — yig'indida YO'Q, qo'lda qo'shamiz
+          v_spent := v_spent + r.debit;
+          if v_spent > v_lim then
+            select name into v_fname from accounts where id = f;
+            select name into v_mname from accounts where id = r.account_id;
+            return format(
+              'Limit oshib ketdi: "%s" filialida "%s" uchun oylik limit %s som, bu oy jami %s som boladi',
+              coalesce(v_fname, '?'), coalesce(v_mname, '?'), v_lim, v_spent);
+          end if;
+        end if;
+      end loop;
+    end loop;
+  end if;
+
+  -- ---- (2) QOLDIQ: posted qilinsa kassa manfiyga tushmasin ----
+  for r in select l.account_id, sum(l.credit) as credit
+             from entry_line l
+             join accounts a on a.id = l.account_id
+            where l.entry_id = p_entry and coalesce(l.credit, 0) > 0
+              and a.type = 'aktiv' and a.code like '5%'
+              and a.kassa_turi is distinct from 'xarajat_guruh'
+            group by l.account_id
+  loop
+    v_bal := sorov_kassa_bal(r.account_id);
+    if v_bal < r.credit then
+      select name into v_aname from accounts where id = r.account_id;
+      return format('Kassada yetarli mablag yoq: "%s" qoldigi %s som, yozuv %s som',
+                    coalesce(v_aname, '?'), v_bal, r.credit);
+    end if;
+  end loop;
+
+  return null;
+end $fn$;
+
+revoke all on function sorov_post_tosiq(uuid) from public, anon, authenticated;
+
+comment on function sorov_post_tosiq(uuid) is
+  'ICHKI: pending yozuvni posted qilish mumkinmi. null = mumkin, aks holda SABAB matni. '
+  'Oylik limit (limit_guard_entry_line naqshi) + kassa qoldigi. YAGONA predikat: '
+  'sorov_tasdiq ham, trg_sorov_post_guard ham shuni chaqiradi.';
+
+-- ---------------------------------------------------------------------
+-- 8A.2  TRIGGER — `pending -> posted` o'tishi (boshqa HAMMA yo'l uchun)
+--
+--   🔴 `when (...)` bandi tufayli trigger FAQAT status haqiqatan
+--   'posted' ga o'zgarganda ishlaydi — soft-delete, tahrir va boshqa
+--   `entry` UPDATE larida narxi NOL.
+--   ⚠️ `auth.uid() is null` (n8n / service_role / SQL editor) — o'tadi:
+--   `limit_guard_entry_line` dagi AYNAN o'sha istisno.
+-- ---------------------------------------------------------------------
+create or replace function sorov_post_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare v_msg text;
+begin
+  if auth.uid() is null then return new; end if;
+  v_msg := sorov_post_tosiq(new.id);
+  if v_msg is not null then
+    raise exception '%', v_msg using errcode = 'P0001';
+  end if;
+  return new;
+end $fn$;
+
+revoke all on function sorov_post_guard() from public, anon, authenticated;
+
+drop trigger if exists trg_sorov_post_guard on entry;
+create trigger trg_sorov_post_guard
+  before update of status on entry
+  for each row
+  when (old.status is distinct from new.status and new.status = 'posted')
+  execute function sorov_post_guard();
+
+comment on function sorov_post_guard() is
+  'entry: pending -> posted otishida limit va qoldiq qorovuli (sorov_post_tosiq). '
+  'service_role/n8n otadi. sorov_tasdiq bu yolga hech qachon tosiq bilan kirmaydi.';
+
+-- ---------------------------------------------------------------------
+-- 8A.3  sorov_notify_post(p_entry) — Telegram xabarini NAVBATGA qo'yadi
+--
+--   `_hodim_notify_qoy` (PROVODKA_HODIM_NOTIFY.sql 5-band) `entry.status
+--   <> 'posted'` bo'lsa DARROV qaytadi. `entry_line` triggeri esa yozuv
+--   PENDING paytida ishlagan — ya'ni xabar hech qachon qo'yilmagan.
+--   Shuning uchun `posted` qilingandan KEYIN uni qo'lda chaqiramiz:
+--   `hodim_notify_line_fn()` ning INSERT shoxi bilan AYNAN bir xil
+--   argumentlar (delta = debit - credit, fc ishorasi, dt_yon).
+--
+--   🔴 FAIL-OPEN (majburiy): butun tana `exception when others` ichida.
+--   `hodim_notify` jadvali yoki `_hodim_notify_qoy` YO'Q bo'lsa (NOTIFY
+--   fayli RUN qilinmagan) tasdiqlash SHU SABABDAN YIQILMASIN — xabar
+--   metama'lumot, pul esa allaqachon harakat qilgan. Xato server logida
+--   `raise warning` bo'lib qoladi (jimgina yutilmaydi).
+--   Bu `hodim_notify_line_fn` ning o'z fail-open qaroriga MOS.
+-- ---------------------------------------------------------------------
+create or replace function sorov_notify_post(p_entry uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  r    record;
+  v_rt uuid;
+begin
+  if to_regclass('public.hodim_notify') is null then return; end if;
+  if coalesce(current_setting('provodka.notify_off', true), '') = '1' then return; end if;
+
+  for r in select l.id, l.account_id,
+                  coalesce(l.debit, 0) - coalesce(l.credit, 0) as d,
+                  case when coalesce(l.debit, 0) > 0
+                       then coalesce(l.fc_amount, 0)
+                       else -coalesce(l.fc_amount, 0) end       as fc,
+                  coalesce(l.debit, 0) > 0                      as dt
+             from entry_line l
+            where l.entry_id = p_entry
+  loop
+    v_rt := hodim_kassa_root(r.account_id);
+    if v_rt is not null then
+      perform _hodim_notify_qoy(p_entry, r.id::text, v_rt, r.account_id,
+                                r.d, r.fc, r.dt, null);
+    end if;
+  end loop;
+
+exception when others then
+  raise warning 'sorov_notify_post(%): %', p_entry, sqlerrm;
+end $fn$;
+
+revoke all on function sorov_notify_post(uuid) from public, anon, authenticated;
+
+comment on function sorov_notify_post(uuid) is
+  'ICHKI: pending -> posted qilingan yozuv uchun hodim_notify navbatiga qator qoyadi '
+  '(hodim_notify_line_fn INSERT shoxi bilan bir xil). FAIL-OPEN: xabar tizimi yoq bolsa jim otadi.';
+
+
+-- #####################################################################
 -- ##  8-BO'LIM — sorov_tasdiq()  🔴 IDEMPOTENT                       ##
 -- #####################################################################
 -- ## 8.1  KIM TASDIQLAYDI
@@ -1422,6 +1702,9 @@ comment on function sorov_qaror_ctx(uuid) is
 --   Pul tushgandan KEYINGI qoldiq xarajatni qoplasa:
 --       sorov_kassa_bal(kassa) >= xarajat_summa   -> pending -> posted
 --   Aks holda xarajat PENDING QOLADI va javobda `qoldiq_yetmadi:true`.
+--   🔴 8A QOROVULI (2026-08-26): pul yetsa ham `sorov_post_tosiq()` oylik
+--   limit va qoldiqni tekshiradi. To'siq bo'lsa xarajat posted QILINMAYDI
+--   (pul esa jo'natiladi) va javobda `limit_oshdi:true` + `limit_sabab`.
 --   Asos: 500k xarajatga 300k berilsa "posted" qilish kassani MANFIYGA
 --   tushirardi — bu tizim yo'q qilmoqchi bo'lgan holatning o'zi.
 --   Hodim yetmagan qismini yana so'raydi (`p_xarajat_entry` bilan) yoki
@@ -1433,8 +1716,12 @@ comment on function sorov_qaror_ctx(uuid) is
 --    parameter" / argument soni). Eski 2-argumentli variant ham tushiriladi:
 --    aks holda `sorov_tasdiq(id, summa)` chaqiruvi IKKI funksiyaga mos kelib
 --    "function is not unique" (42725) berardi.
---    ⚠️ XAVFSIZ: `sorovlar-dev.html` hali PRODGA CHIQMAGAN, ya'ni bu imzoga
---    bog'langan jonli klient YO'Q.
+--    ⚠️ 2026-08-26 HOLATI: `sorovlar.html` PRODGA CHIQQAN (49999e8) va
+--    prod `hodim.html` `sorov_yarat` ni chaqiradi. Shu sababli imzo
+--    BOSHQA O'ZGARMAYDI. Yuqoridagi `drop`+`create` juftligi esa xavfsiz
+--    qoladi: `p_kassa` SUKUTLI, ya'ni prod klientning eski 2-argumentli
+--    `sorov_tasdiq(p_id, p_summa)` chaqiruvi AYNAN avvalgidek ishlaydi
+--    (eski 2-argumentli funksiya tushirilgani uchun 42725 ham chiqmaydi).
 drop function if exists sorov_tasdiq(uuid, numeric);
 drop function if exists sorov_tasdiq(uuid, numeric, uuid);
 
@@ -1456,6 +1743,7 @@ declare
   v_yopdi  boolean := false;
   v_gk     uuid;       -- HAQIQATDA to'lanadigan hisob (ildiz yoki tur-bolasi)
   v_acc    accounts;
+  v_tosiq  text;       -- 8A: limit/qoldiq to'sig'i sababi (null = to'siq yo'q)
 begin
   perform set_config('lock_timeout', '5s', true);
 
@@ -1580,15 +1868,33 @@ begin
   values (v_entry, s.kassa_id, p_summa, 0),
          (v_entry, v_gk,       0,       p_summa);
 
-  -- 8.6 — pending xarajatni yopish (faqat pul yetsa)
+  -- 8.6 — pending xarajatni yopish (faqat pul yetsa VA to'siq bo'lmasa)
   if s.xarajat_entry_id is not null and v_est = 'pending' then
     -- Bu tranzaksiyada yozilgan pul allaqachon 'posted' — qoldiqqa kiradi.
     -- 🔴 `v_xar > 0` SHART: yozuv tahrirlanib boshqa kassaga ko'chirilgan
     --    bo'lsa v_xar = 0 bo'lardi va biz begona yozuvni "posted" qilib
     --    yuborardik. Nol bo'lsa — tegmaymiz, pending qoladi.
     if v_xar > 0 and sorov_kassa_bal(s.kassa_id) >= v_xar then
-      update entry set status = 'posted' where id = s.xarajat_entry_id;
-      v_yopdi := true;
+      -- 🔴 8A: OYLIK LIMIT / QOLDIQ QOROVULI (QA topilmasi 2026-08-26).
+      --    `limit_guard_entry_line` `entry_line` da turadi va pending
+      --    satrni o'tkazib yuboradi; `status` yangilanganda esa
+      --    `entry_line` o'zgarmagani uchun u QAYTA ISHLAMAYDI. Ya'ni
+      --    "Pul so'rash" yo'li limitni butunlay chetlab o'tardi.
+      --    🔴 PUL BARIBIR JO'NATILADI (u alohida qaror va allaqachon
+      --    yozilgan) — faqat XARAJAT pending qoladi va javob buni
+      --    ochiq aytadi. Trigger bilan qilib bo'lmasdi: u butun
+      --    tranzaksiyani, pul jo'natishni ham, orqaga qaytarardi.
+      v_tosiq := sorov_post_tosiq(s.xarajat_entry_id);
+      if v_tosiq is null then
+        update entry set status = 'posted' where id = s.xarajat_entry_id;
+        v_yopdi := true;
+        -- 🔴 8A.3: Telegram xabari. `entry_line` triggeri yozuv PENDING
+        --    paytida ishlagan va `_hodim_notify_qoy` uni tashlab yuborgan
+        --    (`status <> 'posted'`), ya'ni busiz so'rovlar oqimidan
+        --    o'tgan HAR QANDAY xarajat alertdan ko'rinmas bo'lardi.
+        --    Funksiya o'zi fail-open: xabar tizimi yo'q bo'lsa jim o'tadi.
+        perform sorov_notify_post(s.xarajat_entry_id);
+      end if;
     end if;
   end if;
 
@@ -1601,7 +1907,15 @@ begin
     'jonatma_entry_id', v_entry,
     'tolov_hisob',      v_gk,
     'xarajat_yopildi',  v_yopdi,
-    -- UI shuni yozadi: "Pul jonatildi, lekin xarajat hamon tasdiq kutmoqda"
+    -- 🔴 8A: xarajat POSTED qilinmadi, chunki limit/qoldiq to'sdi.
+    --    Pul esa JO'NATILDI — klient ikkalasini ham aytishi shart.
+    'limit_oshdi',      (v_tosiq is not null),
+    'limit_sabab',      v_tosiq,
+    -- UI shuni yozadi: "Pul jonatildi, lekin xarajat hamon tasdiq kutmoqda".
+    -- ⚠️ MA'NOSI KENGAYDI: "xarajat pending qoldi" (sabab qoldiq YOKI
+    --    limit). Aniq sababi `limit_sabab` da. Ataylab shunday: PRODDAGI
+    --    `sorovlar.html` faqat shu kalitni biladi va u bo'lmasa
+    --    foydalanuvchi HECH QANDAY ogohlantirish ko'rmasdi.
     'qoldiq_yetmadi',   (s.xarajat_entry_id is not null and v_est = 'pending' and not v_yopdi));
 
 exception
@@ -1861,7 +2175,8 @@ select p.proname,
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public'
    and p.proname in ('sorov_page_ok','sorov_kassa_bal','sorov_kassa_of',
-                     'sorov_nomzod_ok','sorov_ism','sorov_qator')
+                     'sorov_nomzod_ok','sorov_ism','sorov_qator',
+                     'sorov_post_tosiq','sorov_post_guard','sorov_notify_post')
  order by 1;
 
 -- 11.6  🔴 GUARD ISTISNOSI O'RNIDAMI (PROVODKA_PERMS.sql keyin RUN
@@ -1913,6 +2228,38 @@ select count(*)::int                                              as pending_yoz
 --                  where e.status = 'pending')
 --  order by a.code;
 
+-- 11.11 🔴 QA TUZATMALARI O'RNIDAMI (2026-08-26). Hammasi true bo'lsin.
+select
+  -- (1) Kumulyativ chegara: `sorov_yarat` allaqachon jo'natilgan pulni ayiradimi
+  (select p.prosrc like '%v_berilgan%'
+     from pg_proc p where p.pronamespace = 'public'::regnamespace
+      and p.proname = 'sorov_yarat' limit 1)                    as kumulyativ_chegara,
+  -- (2) pending -> posted qorovuli
+  to_regprocedure('public.sorov_post_tosiq(uuid)') is not null  as tosiq_funksiyasi,
+  exists (select 1 from pg_trigger
+           where tgrelid = 'public.entry'::regclass
+             and tgname = 'trg_sorov_post_guard'
+             and not tgisinternal)                              as post_guard_trigger,
+  (select p.prosrc like '%sorov_post_tosiq%'
+     from pg_proc p where p.pronamespace = 'public'::regnamespace
+      and p.proname = 'sorov_tasdiq' limit 1)                   as tasdiq_tosiqni_chaqiradi,
+  -- (3) Telegram xabari
+  (select p.prosrc like '%sorov_notify_post%'
+     from pg_proc p where p.pronamespace = 'public'::regnamespace
+      and p.proname = 'sorov_tasdiq' limit 1)                   as tasdiq_notify_chaqiradi;
+
+-- 11.12 ⚠️ TARTIB: `PROVODKA_SOROV_TOPUP.sql` `sorov_yarat` ni QAYTA YOZADI.
+--       U KEYIN RUN qilinsa kumulyativ chegara YO'QOLMASLIGI kerak —
+--       ikkala faylda ham bir xil blok bor. Quyidagi ikkalasi ham true:
+select (select p.prosrc like '%v_berilgan%'
+          from pg_proc p where p.pronamespace = 'public'::regnamespace
+           and p.proname = 'sorov_yarat' limit 1)               as chegara_kumulyativ,
+       (select p.prosrc like '%v_topup%'
+          from pg_proc p where p.pronamespace = 'public'::regnamespace
+           and p.proname = 'sorov_yarat' limit 1)               as topup_rejimi_bor;
+--       🔴 `chegara_kumulyativ = false` -> shu faylning 6-BO'LIMini,
+--          `topup_rejimi_bor = false` -> TOPUP faylini qayta RUN qiling.
+
 -- 11.10 JONLI SINOV — 🔴 SQL EDITORIDA RUN QILINMAYDI (ataylab izohda).
 --   Sabab: editorda so'rov `postgres` roli bilan, JWT'siz ketadi ->
 --   `auth.uid()` NULL -> qorovul fail-closed bo'lib 42501 beradi, va
@@ -1946,6 +2293,11 @@ select count(*)::int                                              as pending_yoz
 -- drop function if exists sorov_kimdan();
 --
 -- -- 12.2  Ichki yordamchilar
+-- --   🔴 TRIGGER AVVAL (funksiyaga bog'langan)
+-- drop trigger if exists trg_sorov_post_guard on entry;
+-- drop function if exists sorov_post_guard();
+-- drop function if exists sorov_notify_post(uuid);
+-- drop function if exists sorov_post_tosiq(uuid);
 -- drop function if exists sorov_qator(sorovlar, uuid);
 -- drop function if exists sorov_ism(uuid, uuid);
 -- drop function if exists sorov_nomzod_ok(uuid);
@@ -2013,7 +2365,15 @@ select count(*)::int                                              as pending_yoz
 --   sorov_tasdiq({p_id, p_summa, p_kassa})
 --                                -> {ok, holat, jonatilgan_summa,
 --                                    jonatma_entry_id, tolov_hisob,
---                                    xarajat_yopildi, qoldiq_yetmadi}
+--                                    xarajat_yopildi, qoldiq_yetmadi,
+--                                    limit_oshdi, limit_sabab}
+--     🔴 `limit_oshdi:true` — PUL JO'NATILDI, lekin xarajat pending
+--        QOLDI (oylik limit yoki qoldiq to'sdi). `limit_sabab` — aniq
+--        matn, foydalanuvchiga SHUNDAYLIGICHA ko'rsatiladi.
+--        ⚠️ `qoldiq_yetmadi` bu holatda ham true — prod `sorovlar.html`
+--        faqat o'sha kalitni biladi va busiz ogohlantirish umuman
+--        ko'rinmasdi. Yangi klient `limit_sabab` bo'lsa aniq matnni
+--        ko'rsatadi, bo'lmasa eski umumiy matnni.
 --     🔴 `p_kassa` — `sorov_qaror_ctx.hisoblar` dan TANLANGAN hisob
 --        (ildiz kassa yoki uning UZS tur-bolasi). Bittadan ko'p bo'lsa
 --        tanlov MAJBURIY; null yuborilsa ildiz kassa ishlatiladi.

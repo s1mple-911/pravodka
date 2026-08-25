@@ -838,7 +838,11 @@ window.actSave=async()=>{
     actClose(); banner("Xarajat o'chirilgan — so'rov avtomat yopildi.",'warn'); window.load(true); return; }
   if(d.ok===false){ actMsg(d.xato||d.kod||'Bajarilmadi','err'); actUI(); return; }
   actClose();
-  if(d.qoldiq_yetmadi===true)
+  // 🔴 Limit/qoldiq to'sig'i (SQL 8A): PUL JO'NATILDI, lekin xarajat
+  //    pending QOLDI. Server aniq sababni beradi — shundayligicha ko'rsatamiz.
+  if(d.limit_oshdi===true && d.limit_sabab)
+    banner("Pul jo'natildi, lekin xarajat tasdiq kutmoqda: "+d.limit_sabab,'warn');
+  else if(d.qoldiq_yetmadi===true)
     banner("Pul jo'natildi, lekin xarajat hamon tasdiq kutmoqda — so'rovchining qoldig'i yetmadi.",'warn');
   window.load(true);
 };
