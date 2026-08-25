@@ -80,6 +80,11 @@
     border-radius:var(--r-md);padding:var(--s3) var(--s4);font-size:13.5px;line-height:1.45;margin-bottom:var(--s4)}
   .banner::before{content:'';display:inline-block;vertical-align:-4px;width:18px;height:18px;margin-right:var(--s2);
     background:currentColor;-webkit-mask:var(--ic-alert) center/contain no-repeat;mask:var(--ic-alert) center/contain no-repeat}
+  /* Banner ichidagi amal tugmasi ("Qayta urinish" / "Yopish") — noaniq saqlash holati uchun */
+  .banner .bretry{margin:var(--s2) 0 0 var(--s3);height:30px;padding:0 var(--s3);border-radius:8px;
+    border:1px solid var(--red-line);background:transparent;color:inherit;font:inherit;font-size:12.5px;
+    font-weight:700;cursor:pointer;vertical-align:middle}
+  .banner .bretry:active{background:var(--red-line)}
   /* Maydon sarlavhasi + "majburiy" nishoni */
   .lbl{font-size:13px;color:var(--muted);font-weight:600;margin:0 0 var(--s2) 2px;
     display:flex;align-items:center;gap:var(--s2);min-height:18px}
@@ -560,8 +565,9 @@
       </div>
 
       <div class="sect">
-        <div class="lbl">Filial <span class="opt">(ixtiyoriy — bir nechta)</span></div>
+        <div class="lbl" id="filialLbl">Filial <span class="opt">(ixtiyoriy — bir nechta)</span></div>
         <div id="filialChips" class="fchips"></div>
+        <div id="filialReq" class="chekreq" style="display:none"></div>
         <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px" role="status" aria-live="polite"></div>
       </div>
 
@@ -725,6 +731,11 @@ let balMap={};
 // hodim ataylab boshqa kassaga o'tgan bo'lishi mumkin.
 let avtoTanlandi=false;
 let filials=[], selFilials=new Set();  // V6: filial multiselect (entry.filial_ids — faqat metadata)
+// Filial ro'yxatining UCH holati (V9): filialsLoaded=false → hali kelmadi YOKI xato (filialsErr),
+// filialsLoaded=true + filials.length===0 → ruxsat bo'yicha filial yo'q. Bo'sh massivning
+// o'zi bu ikkisini ajratmaydi — tarmoq xatosi "sizga filial biriktirilmagan" bo'lib ko'rinardi
+// va filial majburiy modda jimgina filialsiz saqlanardi.
+let filialsLoaded=false, filialsErr=false;
 let calBase=null, davrS=null, davrE=null;  // V6: davr kalendari (ikki oy) — boshi/oxiri ISO sana
 const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const UZ_WD=['Du','Se','Cho','Pa','Ju','Sha','Ya'];  // Dushanbadan boshlanadi
@@ -1239,7 +1250,7 @@ function renderFilials(){
     ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
     : `<div class="fchips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
-window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateDavrUI(); updateSave(); };
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateFilialUI(); updateDavrUI(); updateSave(); };
 async function loadFilials(){
   try{
     const {data,error}=await sb.from('v_filial_tanlov').select('*');  // id, code, name, subtitle
@@ -1273,8 +1284,16 @@ window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
 function chekRequired(){ const m=moddaObj(); return !!(m && m.chek_majburiy); }  // ustun yo'q bo'lsa undefined → false
 function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
+function filialRequired(){ const m=moddaObj(); return !!(m && m.filial_majburiy); }  // ustun yo'q bo'lsa undefined → false
 function davrVals(){ return {s:davrS, e:davrE}; }
 function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
+// Filial majburiy bo'lsa kamida bittasi tanlansin. AMMO foydalanuvchiga umuman filial
+// biriktirilmagan bo'lsa (permFilterFilials hammasini kesgan) saqlash BLOKLANMAYDI —
+// aks holda u xarajat kirita olmay qolardi (updateDavrUI'dagi hasFilial naqshi bilan bir xil).
+function filialOk(){ if(!filialRequired()) return true;
+  if(selFilials.size>0) return true;
+  return filialsLoaded && filials.length===0;   // ro'yxat KELDI va bo'sh → bloklamaymiz; kelmadi/xato → bloklaymiz
+}
 // --- V6: davr kalendari (ikki oy, uz nomlar, brend-yashil oraliq) ---
 const firstOfMonth=d=>new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1));
 const ymd=(y,m,d)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -1328,7 +1347,7 @@ function updateModdaUI(){
   const box=$('afterModda');
   box.style.display = has ? 'block' : 'none';
   box.classList.toggle('reveal', has);
-  updateChekUI(); updateIzohUI(); updateDavrUI(); updateKommUI();
+  updateChekUI(); updateIzohUI(); updateFilialUI(); updateDavrUI(); updateKommUI();
 }
 function updateChekUI(){
   const req=chekRequired();
@@ -1342,6 +1361,20 @@ function updateIzohUI(){
   $('izohLbl').innerHTML = req
     ? 'Izoh <span class="req">majburiy</span>'
     : 'Izoh <span class="opt">(ixtiyoriy)</span>';
+}
+// Filial — chek/izoh bilan bir xil naqsh: majburiy bo'lsa "(ixtiyoriy)" olib tashlanadi.
+function updateFilialUI(){
+  const req=filialRequired();
+  $('filialLbl').innerHTML = req
+    ? 'Filial <span class="req">majburiy</span>'
+    : 'Filial <span class="opt">(ixtiyoriy — bir nechta)</span>';
+  const w=$('filialReq');
+  // Ruxsat bo'yicha filial yo'q — bu foydalanuvchining aybi emas: saqlash ochiq qoladi,
+  // lekin sabab ko'rinib tursin (jimgina o'tib ketsa xarajat filialsiz yozilardi).
+  if(req && !filialsLoaded){ w.textContent=filialsErr?"Filiallar yuklanmadi — qayta urinib ko'ring":"Filiallar yuklanmoqda…"; w.style.display='block'; }
+  else if(req && filials.length===0){ w.textContent='Bu xarajat uchun filial shart, lekin sizga filial biriktirilmagan — administratorga murojaat qiling'; w.style.display='block'; }
+  else if(req && selFilials.size===0){ w.textContent='Bu xarajat uchun filial tanlanishi shart'; w.style.display='block'; }
+  else w.style.display='none';
 }
 // Davr — modda majburiy qilsa ko'rinadi; foydalanuvchi so'roviga ko'ra kalendar
 // FILIAL tanlangach chiqadi (ketma-ketlik). Filial tanlanmaguncha kutish eslatmasi turadi.
@@ -1427,6 +1460,9 @@ function updateSave(){
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
   const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
+  // V9: needChek/needIzoh dan farqi — filialOk() o'zi filialRequired() ni tekshiradi
+  // (majburiy bo'lmasa true), shuning uchun birinchi shart ortiqcha, lekin naqsh bir xil qolsin.
+  const needFilial = filialRequired() && !filialOk();            // filial yo'q (ruxsat) userni bloklamaydi
   // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
   let overLimit=false; const lw=$('limitWarn');
   if(selFilials.size===1 && selModda){
@@ -1434,7 +1470,189 @@ function updateSave(){
     if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!overLimit);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit);
+}
+
+/* ============ TAKROR-HIMOYA + TIMEOUT qatlami (2026-08-24) ============
+   PROD HODISASI: hodim 5 filialga taqsimlab 1 245 000 so'm saqlamoqchi bo'ldi — tugma
+   5 daqiqa "Saqlanmoqda…" bo'lib qotdi, yozuv esa umuman tushmadi (so'rov mobil
+   tarmoqda osilib qolgan). Ikki kamchilik bor edi:
+     (1) supabase-js `fetch` ni TIMEOUT'siz yuboradi — tarmoq jimgina uzilsa promise
+         hech qachon tugamaydi va tugma abadiy "Saqlanmoqda…" holatida qoladi;
+     (2) takror himoyasi yo'q edi — hodim qayta bossa yoki sahifani yangilab qaytadan
+         kiritsa PUL IKKI MARTA chiqib ketardi va hech kim sezmasdi.
+   Yechim: har saqlashga bir martalik kalit (`ext_ref`) + 30s timeout + noaniq holatda
+   serverdan HAQIQIY holatni so'rash. Mavjud saqlash mantiqiga tegilmaydi — bu faqat
+   ustiga qo'yilgan qatlam. */
+const SAVE_TIMEOUT_MS=30000;          // bitta saqlash so'rovi uchun chegara
+const PENDING_KEY='prov-pending:xarajat';
+let saveToken=null;                   // joriy urinishning ext_ref kaliti (MUVAFFAQIYATGACHA o'zgarmaydi)
+let xarBtns=[];                       // bannerdagi tugmalar (indeks bo'yicha chaqiriladi)
+let retryFn=null;                     // "Qayta urinish" qaysi yo'lni qaytaradi (oddiy/taqsim)
+let saveFp=null;                      // joriy kalit qaysi forma mazmuniga tegishli (localStorage'siz ham ishlasin)
+
+function newToken(){
+  try{ if(window.crypto&&crypto.randomUUID) return 'hodim:'+crypto.randomUUID(); }catch(e){}
+  // Zaxira generator (eski brauzer / xavfsiz bo'lmagan kontekstda randomUUID yo'q)
+  return 'hodim:'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);
+}
+function pendGet(){ try{ const r=localStorage.getItem(PENDING_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function pendSet(o){ try{ localStorage.setItem(PENDING_KEY,JSON.stringify(o)); }catch(e){} }
+function pendClear(){ try{ localStorage.removeItem(PENDING_KEY); }catch(e){} }
+// Kalit localStorage'da ham turadi — sahifa yangilansa ham holatini so'rab bilamiz.
+// Token MAZMUNGA bog'lanadi: forma o'zgargan bo'lsa (boshqa summa/modda/kassa/
+// filial/taqsimot) bu BOSHQA xarajat — eski kalit bilan yuborilsa server uni
+// "takror" (23505) deb rad etadi va yangi xarajat jimgina yozilmay qolardi.
+// ⚠️ `mazmun` ichida har safar o'zgaradigan qiymat (Date/random) BO'LMASIN —
+// aks holda har bosishda yangi kalit chiqib himoya yo'qoladi. `vaqt` ataylab
+// `fp` dan TASHQARIDA (pendSet obyektiga qo'shiladi, izlanadigan barmoq iziga emas).
+function fp(m){ try{ return JSON.stringify(m||{}); }catch(e){ return ''; } }
+function tokenBoshla(mazmun){
+  const f=fp(mazmun), p=pendGet();
+  // Barmoq izi IKKI joydan olinadi: modul o'zgaruvchisi birinchi. Safari private
+  // rejimida localStorage bloklangan bo'lsa pendGet() null qaytaradi va taqqoslash
+  // o'lik qolardi — eski kalit yangi xarajatga yopishib, u abadiy 23505 olardi.
+  const eski = (saveFp!==null) ? saveFp
+             : (p && p.token===saveToken && p.fp!==undefined ? p.fp : null);
+  if(saveToken && eski!==null && eski!==f) saveToken=null;   // boshqa xarajat -> yangi kalit
+  if(!saveToken) saveToken=newToken();
+  saveFp=f;
+  pendSet(Object.assign({token:saveToken,fp:f,vaqt:new Date().toISOString()},mazmun||{}));
+  return saveToken;
+}
+// Kalit FAQAT ikki holatda tozalanadi: (a) muvaffaqiyat, (b) server ANIQ xato qaytardi
+// (ya'ni yozuv tushmagani ma'lum). Noaniq holatda (timeout) kalit SAQLANADI — qayta
+// urinish ayni kalit bilan ketsin va server 23505 bilan ikkinchi nusxani to'ssin.
+function tokenTugat(){ saveToken=null; saveFp=null; retryFn=null; pendClear(); }
+
+const isDup=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='23505' || /duplicate key value/i.test(m); };
+/* Tarmoq darajasidagi uzilish. supabase-js uni oddiy {error} qilib qaytaradi
+   (status 0, PostgREST kodi BO'SH, matni "TypeError: Failed to fetch" kabi), lekin bu
+   "yozilmadi" degani EMAS — so'rov serverga yetgan, javob yo'lda yo'qolgan bo'lishi
+   mumkin. Shuning uchun u ANIQ xato emas, timeout kabi NOANIQ hisoblanadi. */
+const isNetErr=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return !c && /fetch|network|abort|timeout|timed out|load failed/i.test(m); };
+/* Natija NOANIQ (yozuv tushgan bo'lishi mumkin) → kalit SAQLANADI.
+   Qoida STATUSga tayanadi, xato matniga emas: "504 Gateway Time-out",
+   "502 Bad Gateway", kong'ning "invalid response from upstream" — hammasi
+   matn bilan aniqlanmasdi va 5xx "server aniq rad etdi" deb qabul qilinardi:
+   kalit o'chib, keyingi urinish YANGI kalit olardi → PUL IKKI MARTA chiqardi.
+   PostgreSQL/PostgREST verdikti faqat 4xx da keladi.
+   `isNetErr` — ZAXIRA: eski vendor `status` bermasa eski xatti-harakat qolsin. */
+const noaniq=r=>{ if(!r) return true; if(r.timeout) return true;
+  // Javob KELDI va xato YO'Q -> natija aniq (saqlandi). Busiz status bermaydigan
+  // vendor bilan HAR muvaffaqiyatli saqlash 'tarmoq javob bermadi' deb ko'rinardi.
+  if(!r.error) return false;
+  const s=Number(r.status)||0;
+  return s===0 || s>=500 || !!(r.error && isNetErr(r.error)); };
+
+// --- banner (xabar + tugmalar) ---
+function bannerYop(){ const b=$('banner'); if(b){ b.style.display='none'; b.innerHTML=''; } xarBtns=[]; }
+function xarBanner(msg,btns){
+  const b=$('banner'); if(!b) return;
+  xarBtns=btns||[];
+  b.innerHTML='<span>'+esc(msg)+'</span>'
+    +xarBtns.map((x,i)=>`<button type="button" class="bretry" onclick="xarBtn(${i})">${esc(x.label)}</button>`).join('');
+  b.style.display='block'; icons();
+}
+window.xarBtn=i=>{ const x=xarBtns[i]; if(x&&x.fn) x.fn(); };
+
+/* Timeout o'ramasi. supabase-js so'rovni AbortController bilan uzishga ruxsat beradi
+   (`.abortSignal`); metod bo'lmasa Promise.race bilan kutishni to'xtatamiz (bu holda
+   so'rov fonda davom etadi, lekin UI qotib qolmaydi). */
+async function qTimeout(q,ms){
+  ms=ms||SAVE_TIMEOUT_MS;
+  let ctrl=null,t=null;
+  try{ if(typeof AbortController!=='undefined' && q && typeof q.abortSignal==='function'){ ctrl=new AbortController(); q=q.abortSignal(ctrl.signal); } }catch(e){ ctrl=null; }
+  const timer=new Promise(res=>{ t=setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} res({__t:1}); },ms); });
+  // supabase-js throw QILMAYDI, lekin tarmoq/abort xatosi promise'ni rad etishi mumkin —
+  // ikkalasi ham {error} shakliga keltiriladi.
+  const run=Promise.resolve(q).then(x=>x,e=>({data:null,error:{message:String((e&&e.message)||e),code:String((e&&e.code)||'')},status:0}));
+  let r; try{ r=await Promise.race([run,timer]); } finally{ clearTimeout(t); }
+  // 🔴 `status` OLIB QOLINADI — natijani tasniflash MATNGA emas, STATUSga tayanadi
+  // (pastdagi `noaniq()` ga qara). Tarmoq uzilishi va timeout uchun status = 0.
+  if(r&&r.__t) return {data:null,error:null,status:0,timeout:true};
+  return {data:(r&&r.data)||null,error:(r&&r.error)||null,status:Number(r&&r.status)||0,timeout:false};
+}
+
+/* 🔴 ENG NOZIK JOY — "23505 = saqlangan" degan xulosa XATO.
+   Oddiy yo'l tranzaksiyada emas: `entry` insert → `entry_line` insert. Agar `entry`
+   tushib javob yo'qolsa va satrlar yozilmasa, qayta urinishda ext_ref takror deb rad
+   etiladi — klient esa "saqlandi" deb ko'rsatadi, ASLIDA PUL YOZILMAGAN (sarlavha
+   yetim qolgan). Shuning uchun takror/noaniq holatda HAR DOIM serverdan haqiqiy
+   holat so'raladi: 'toliq' | 'yoq' | 'chala_tozalandi'. */
+async function xarHolat(token,ms){
+  const r=await qTimeout(sb.rpc('xarajat_qayta_urinish',{p_ext_ref:token}), ms||15000);
+  if(r.timeout) return {holat:'nomalum'};
+  if(r.error){
+    const c=String(r.error.code||''), m=String(r.error.message||'');
+    // SQL hali RUN qilinmagan bo'lsa — funksiya yo'q. Mexanizm jimgina soddalashadi,
+    // sahifa buzilmaydi (ai-dev.html dagi "jadval yo'q → xotira rejimi" naqshi).
+    if(c==='PGRST202'||c==='42883'||/xarajat_qayta_urinish/i.test(m)||/function .* does not exist/i.test(m)) return {holat:'yoq_rpc'};
+    return {holat:'nomalum'};
+  }
+  const d=r.data||{}, h=String(d.holat||'');
+  if(h==='toliq'||h==='yoq'||h==='chala_tozalandi') return {holat:h,entry_ids:d.entry_ids||[],summa:Number(d.summa)||0};
+  return {holat:'nomalum'};
+}
+
+// Noaniq/aniqlanmagan holatlar uchun xabar. 🔴 "Saqlanmadi" deb YOLG'ON aytmaymiz —
+// timeout'da natijani BILMAYMIZ.
+function xarMsg(kind){
+  if(kind==='yoq'||kind==='chala_tozalandi') return 'Saqlanmadi — qayta urinib ko\'ring.';
+  if(kind==='yoq_rpc') return 'Saqlangani noaniq — jurnalni tekshiring.';
+  // 'nomalum' ikki yo'ldan keladi: (a) javob umuman kelmadi, (b) server 23505
+  // dedi, lekin egalikni tasdiqlab bo'lmadi. (b) da "tarmoq javob bermadi"
+  // noto'g'ri — matn ikkalasiga ham to'g'ri keladigan qilib yozilgan.
+  return 'Natija noaniq — yozuv saqlangan bo\'lishi mumkin. Jurnalni tekshiring.';
+}
+function xarHolatUI(kind){
+  if(kind==='yoq_rpc'){
+    // Holatni server tomondan aniqlab bo'lmaydi → AVTOMATIK QAYTA YOZMAYMIZ.
+    // Hodim tarixdan o'zi ko'radi; ko'rmasa ataylab yangi kalit bilan qaytadan yozadi.
+    xarBanner(xarMsg(kind),[
+      {label:'Tarixni yangilash',fn:()=>{ loadBalances(); loadHist(); loadMonth(); toast('Yangilandi'); }},
+      {label:'Qaytadan saqlash',fn:()=>{ tokenTugat(); bannerYop(); toast('Endi «Saqlash» tugmasini bosing'); }}
+    ]);
+    return;
+  }
+  xarBanner(xarMsg(kind),[{label:'Qayta urinish',fn:()=>{ const f=retryFn; bannerYop(); if(f) f(); }}]);
+}
+
+// Yozuv serverda ALLAQACHON bor (holat='toliq') — qayta YOZMAYMIZ, muvaffaqiyat
+// sifatida yakunlaymiz: forma tozalanadi, kalit o'chadi, raqamlar yangilanadi.
+function xarAllaqachon(){
+  tokenTugat(); bannerYop();
+  $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value='';
+  selModda=null; selFilials.clear(); davrS=null; davrE=null;
+  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  toast('Allaqachon saqlangan');
+  loadBalances(); loadHist(); loadMonth();
+}
+
+/* 4-band: sahifa ochilganda tugallanmagan kalit qolgan bo'lsa — holatini aniqlab
+   XABAR beramiz. 🔴 Avtomatik QAYTA YOZMAYMIZ: foydalanuvchi bilmagan holda pul
+   chiqib ketmasin. Har holatda kalit tozalanadi (qayta-qayta so'ramaslik uchun). */
+async function xarPendingTekshir(){
+  const p=pendGet(); if(!p||!p.token) return;
+  const h=await xarHolat(p.token);
+  const s=p.summa?' ('+money(p.summa)+' so\'m)':'';
+  if(h.holat==='toliq'){ pendClear(); if(saveToken===p.token) saveToken=null;
+    xarBanner('Oldingi xarajatingiz saqlangan'+s+'.',[{label:'Yopish',fn:bannerYop}]);
+    loadBalances(); loadHist(); loadMonth(); return; }
+  if(h.holat==='yoq'||h.holat==='chala_tozalandi'){ pendClear(); if(saveToken===p.token) saveToken=null;
+    xarBanner('Oldingi urinish saqlanmagan'+s+' — qaytadan kiriting.',[{label:'Yopish',fn:bannerYop}]); return; }
+  // RPC yo'q yoki tarmoq javob bermadi — halol aytamiz, lekin kalitni SAQLAYMIZ
+  // (yomon tarmoqda aynan shu kalit takrorni to'sadi; tashlasak keyingi urinish
+  // YANGI kalit olib pulni ikki marta chiqarardi). 3 urinishdan keyin tashlaymiz,
+  // aks holda u abadiy qolib har ochilishda foydasiz so'rov yuborardi.
+  // ⚠️ `tries` — pendSet obyektining tashqi kaliti, `fp` ga TA'SIR QILMAYDI
+  // (Object.assign eski `fp` ni saqlab qoladi).
+  const t=(Number(p.tries)||0)+1;
+  if(t>=3){ pendClear(); if(saveToken===p.token) saveToken=null; }
+  else pendSet(Object.assign({},p,{tries:t}));
+  xarBanner('Oldingi urinish holati noma\'lum'+s+' — jurnalni tekshiring.',[{label:'Yopish',fn:bannerYop}]);
 }
 
 window.saveHodim=async()=>{
@@ -1453,10 +1671,29 @@ window.saveHodim=async()=>{
   if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
+  if(!filialOk()){ toast('Bu xarajat uchun filial tanlanishi shart',true); return; }      // V9
   if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
   // Stage 2: 2+ filial → har filialga ALOHIDA provodka (taqsim modal → atomik RPC)
   if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa, calc); return; }
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…'; icons();
+  bannerYop();
+  // TAKROR-HIMOYA: bir martalik kalit. `qayta` = oldingi urinish natijasi NOMA'LUM edi
+  // (timeout) — bunda avval serverdan haqiqiy holatni so'raymiz, ko'r-ko'rona yozmaymiz.
+  // ⚠️ `selFilials` — Set: JSON.stringify uni `{}` qilardi va filial almashsa
+  // farq sezilmasdi. Shuning uchun saralangan MASSIV.
+  const oldi=saveToken;
+  const token=tokenBoshla({summa:amt,modda_nomi:modda.name,kassa_id:kassa.id,filiallar:[...selFilials].sort()});
+  // `qayta` — AYNAN shu kalit bilan oldin urinilganmi. Forma o'zgargan bo'lsa
+  // tokenBoshla yangi kalit berdi → bu BOSHQA xarajat, holat so'rashning keragi yo'q
+  // (aks holda 'yoq_rpc'/'nomalum' javobi yangi xarajatni saqlashni bloklab qo'yardi).
+  const qayta=!!oldi && token===oldi;
+  retryFn=()=>window.saveHodim();
+  if(qayta){
+    const h=await xarHolat(token);
+    if(h.holat==='toliq'){ xarAllaqachon(); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    if(h.holat!=='yoq'&&h.holat!=='chala_tozalandi'){ xarHolatUI(h.holat); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    // 'yoq' / 'chala_tozalandi' → serverda hech narsa qolmagan, AYNI kalit bilan yozamiz
+  }
   // Har doim pul chiqadi: Dt = xarajat modda / Kt = hodim kassasi (tanlangan tur hisobi).
   // entry → 2 entry_line, satr xatosida entry o'chiriladi (kompensatsiya). Server guard
   // trigger (op_kassa_ids) shu insert yo'lida avtomat ishlaydi.
@@ -1467,21 +1704,51 @@ window.saveHodim=async()=>{
   const fcNote = calc.cur!=='UZS' ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
   const entryPayload={entry_date:isoDay(nowUz()),
     description:[savedIzoh,fcNote].filter(Boolean).join(' · ')||null,
-    source:'manual',status:'posted',filial_ids:[...selFilials]};
+    source:'manual',status:'posted',filial_ids:[...selFilials],
+    ext_ref:token};   // unique — takror insert 23505 beradi (ikkinchi nusxa yozilmaydi)
   if(calc.cur!=='UZS') entryPayload.fc_rate=calc.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
   // 2 ta insert (entry id kerak → entry_line). Qo'shimcha qayta-o'qish YO'Q (insert…returning).
-  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
-  if(e1){ toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  const r1=await qTimeout(sb.from('entry').insert(entryPayload).select('id').single());
+  const ent=r1.data, e1=r1.error;
+  // 🔴 TARTIB MUHIM: (1) 23505 — ANIQ javob (409), shuning uchun birinchi;
+  // (2) noaniq (timeout / status 0 / 5xx) — kalit SAQLANADI; (3) aniq xato.
+  if(e1&&isDup(e1)){
+    // Kalit takror — server bu urinishni ALLAQACHON ko'rgan. Lekin "23505 = saqlangan"
+    // emas: satrlarsiz yetim sarlavha ham shu xatoni beradi. Haqiqiy holatni so'raymiz.
+    const h=await xarHolat(token);
+    if(h.holat==='toliq'){ xarAllaqachon(); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    // 🔴 23505 kelgan — token bazada BOR. Shunda 'yoq' javobi "yozuv yo'q" degani EMAS,
+    // "egalikni tasdiqlab bo'lmadi" (entry.created_by bo'sh) degani. "Saqlanmadi" deb
+    // yolg'on aytsak hodim qaytadan kiritadi va pul IKKI MARTA chiqadi.
+    // 'chala_tozalandi' TEGILMAYDI — u serverdan kelgan ANIQ verdikt.
+    const hh=(h.holat==='yoq')?'nomalum':h.holat;
+    xarHolatUI(hh); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+  }
+  // Natija NOMA'LUM (yozuv tushgan bo'lishi ham mumkin) — kalit saqlanadi.
+  if(noaniq(r1)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  if(e1){
+    // Server ANIQ xato qaytardi (4xx) → yozuv tushmagani ma'lum, kalitni bo'shatamiz.
+    tokenTugat(); toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+  }
+  // Xato yo'q, lekin id ham yo'q (kutilmagan javob) — ko'r-ko'rona davom etmaymiz.
+  if(!ent||!ent.id){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // fc_amount FAQAT valyuta hisobi satriga (Kt = kassa). v_hisob_bal uni
   // debit>0 ? +fc : −fc bilan hisoblaydi — chiqimда dollar shuncha kamayadi.
   const kassaRow={entry_id:ent.id,account_id:kassa.id,debit:0,credit:amt};
   if(calc.cur!=='UZS') kassaRow.fc_amount=calc.fc;
   const rows=[{entry_id:ent.id,account_id:modda.id,debit:amt,credit:0},kassaRow];
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  const r2=await qTimeout(sb.from('entry_line').insert(rows));
+  const e2=r2.error;
+  // 🔴 NOANIQ holatda (timeout / status 0 / 5xx) entry O'CHIRILMAYDI: satrlar tushgan
+  // bo'lishi mumkin — o'chirsak haqiqiy yozuvni yo'q qilib qo'yardik. Kalit saqlanadi;
+  // qayta urinishda xarajat_qayta_urinish() chala yozuvni o'zi tozalaydi ('chala_tozalandi').
+  // (entry_line'da ext_ref yo'q — shuning uchun bu yerda 23505 shoxi ham yo'q.)
+  if(noaniq(r2)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); tokenTugat(); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
+  tokenTugat(); bannerYop();   // kalit ishlatildi — keyingi xarajat YANGI kalit oladi
   console.timeEnd('hodim:saqlash');
   const kId=kassa.id, kName=kassa.name, kSub=kassa.subtitle, mName=modda.name, chekUp=chekBlob;
   // Optimistik qoldiq: summani darrov ayirib ko'rsat, fonda haqiqiysi kelib to'g'rilaydi.
@@ -1572,26 +1839,73 @@ function renderTaqsimSum(){
   else { msg.textContent='To\'liq taqsimlandi'; msg.className='tmsg ok'; ok=true; }
   $('taqsimSaveBtn').disabled=!ok;
 }
+// Taqsim modali ochiq bo'lganda banner uning ostida qoladi — shuning uchun noaniq
+// holat xabari modal ICHIDA ham ko'rsatiladi. Tugma hech qachon "Saqlanmoqda…" da
+// qotib qolmaydi: har yo'lda (xato, timeout, muvaffaqiyat) holati tiklanadi.
+function taqsimBtnTikla(){ const b=$('taqsimSaveBtn'); if(b){ b.disabled=false; b.textContent='Saqlash'; } }
+function taqsimNoaniq(kind){
+  taqsimBtnTikla();
+  xarHolatUI(kind);                       // banner + tugmalar (modal yopilsa ko'rinadi)
+  if(kind==='yoq_rpc'){ closeTaqsim(); return; }   // qaror bannerdagi tugmalarda
+  const m=$('taqsimMsg');
+  if(m){ m.textContent=xarMsg(kind)+' «Saqlash» ni qayta bosing — takror yozilmaydi.'; m.className='tmsg no'; }
+}
 window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
   const {dtId,ktId,kassa,izoh,chek,mName,calc}=taqsimCtx;
   const kCur=curOf(kassa);
+  bannerYop();
+  // TAKROR-HIMOYA (oddiy yo'l bilan bir xil): ayni kalit — ayni yozuv.
+  // Taqsimot ham barmoq iziga kiradi: ulushlar o'zgarsa bu BOSHQA xarajat.
+  const oldi=saveToken;
+  const token=tokenBoshla({summa:amt,modda_nomi:mName,kassa_id:kassa.id,
+    filiallar:[...selFilials].sort(),
+    taqsim:taqsimFils.map(f=>f.id+':'+(Number(taqsimAlloc[f.id])||0)).sort()});
+  // Kalit yangilangan bo'lsa (forma/taqsimot o'zgargan) holat so'ralmaydi — oddiy yo'ldagi izohga qara.
+  const qayta=!!oldi && token===oldi;
+  retryFn=()=>window.confirmTaqsim();
+  if(qayta){
+    const h=await xarHolat(token);
+    if(h.holat==='toliq'){ closeTaqsim(); xarAllaqachon(); taqsimBtnTikla(); return; }
+    if(h.holat!=='yoq'&&h.holat!=='chala_tozalandi'){ taqsimNoaniq(h.holat); return; }
+  }
   const fcNote = (calc&&calc.cur!=='UZS') ? `${fcTxt(calc.fc)} ${calc.cur} × ${money(calc.rate)} so'm` : '';
   const p_data={
     entry_date:isoDay(nowUz()), description:[izoh,fcNote].filter(Boolean).join(' · ')||null,
     source:'manual', status:'posted',
     dt_account:dtId, kt_account:ktId,
     kassa_account:kassa.id, kassa_currency:kCur,
-    taqsim:taqsimFils.map(f=>({filial_id:f.id, summa:Number(taqsimAlloc[f.id])||0}))
+    taqsim:taqsimFils.map(f=>({filial_id:f.id, summa:Number(taqsimAlloc[f.id])||0})),
+    // Server har yozuvga `<token>:<indeks>` yozadi; takror kelsa 23505 (imzo o'zgarmagan —
+    // SQL RUN qilinmagan bo'lsa bu kalit e'tiborsiz qoladi, saqlash avvalgidek ishlaydi).
+    ext_ref:token
   };
   // Valyuta kassasi: kurs berilsa server fc = summa/kurs qiladi (eski xatti-harakat — fc=summa).
   if(kCur!=='UZS' && calc && calc.rate) p_data.kassa_kurs=calc.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
-  const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
-  if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
+  const rr=await qTimeout(sb.rpc('xarajat_saqlash_taqsim',{p_data}));
+  const data=rr.data, error=rr.error;
+  // 🔴 TARTIB oddiy yo'l bilan bir xil: (1) 23505 — ANIQ javob, (2) noaniq, (3) aniq xato.
+  if(error&&isDup(error)){
+    // Kalit takror — serverdan haqiqiy holatni so'raymiz (23505 "saqlandi" degani EMAS).
+    const h=await xarHolat(token);
+    if(h.holat==='toliq'){ closeTaqsim(); xarAllaqachon(); taqsimBtnTikla(); return; }
+    // 🔴 23505 kelgan — token bazada BOR: 'yoq' = "egalikni tasdiqlab bo'lmadi",
+    // "Saqlanmadi" deb yolg'on aytsak hodim qaytadan kiritib pulni IKKI MARTA chiqarardi.
+    taqsimNoaniq((h.holat==='yoq')?'nomalum':h.holat); return;
+  }
+  // RPC atomik, lekin JAVOB yo'qolgan (timeout / status 0 / 5xx) — bajarilgan
+  // bo'lishi mumkin. Kalit saqlanadi.
+  if(noaniq(rr)){ taqsimNoaniq('timeout'); return; }
+  if(error){
+    // Aniq xato (4xx) → yozuv tushmagan, kalit bo'shatiladi (keyingi urinish yangi kalit oladi).
+    tokenTugat();
+    $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; taqsimBtnTikla(); return;
+  }
+  tokenTugat(); bannerYop();   // kalit ishlatildi
   const eids=(data&&data.entry_ids)||[];
   const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
   closeTaqsim();
@@ -1732,7 +2046,7 @@ async function init(){
   bindInputs();
   // 1) KESHDAN darrov (repeat ochilishda forma to'la keladi — bo'sh ekran yo'q)
   const cAcc=swrGet('accounts'); if(cAcc) applyAccounts(cAcc);
-  const cFil=swrGet('filials');  if(cFil){ filials=window.permFilterFilials?window.permFilterFilials(cFil):cFil; renderFilials(); }
+  const cFil=swrGet('filials');  if(cFil){ filials=window.permFilterFilials?window.permFilterFilials(cFil):cFil; filialsLoaded=true; renderFilials(); }
   // Qoldiq ham keshdan — hero DARROV raqam ko'rsatadi, "—" da turmaydi.
   // (Kesh 5 daqiqa; fonda loadBalances() haqiqiysini olib almashtiradi.)
   const balKesh=loadBalancesCached();
@@ -1752,7 +2066,11 @@ async function init(){
   if(aRes.error){ if(!cAcc){ $('banner').style.display='block'; $('banner').textContent='Xato: '+aRes.error.message; } }
   else { swrSet('accounts',aRes.data||[]); applyAccounts(aRes.data||[]); }
   // filials
-  if(!fRes.error){ swrSet('filials',fRes.data||[]); filials=window.permFilterFilials?window.permFilterFilials(fRes.data||[]):(fRes.data||[]); renderFilials(); }
+  if(!fRes.error){ swrSet('filials',fRes.data||[]); filials=window.permFilterFilials?window.permFilterFilials(fRes.data||[]):(fRes.data||[]); filialsLoaded=true; filialsErr=false; renderFilials(); }
+  else { // Xato: filials [] bo'lib qolmasin-u, "biriktirilmagan" bo'lib ko'rinmasin ham.
+    filialsErr=true;
+    if(!cFil){ $('banner').style.display='block'; $('banner').textContent="Filiallar ro'yxati yuklanmadi: "+(fRes.error.message||''); }
+  }
   // foydalanuvchi nomi (profiles — fon, formani bloklamaydi)
   // Tepadagi ikkinchi qator: ism-familiya (bo'lmasa email). Uzun matn CSS bilan kesiladi (…).
   const user=uRes.data&&uRes.data.user; myName=(user&&user.email)||'';
@@ -1760,8 +2078,12 @@ async function init(){
   if(user) sb.from('profiles').select('full_name').eq('id',user.id).maybeSingle()
     // Faqat probeldan iborat ism ham "bo'sh" — email fallback saqlanadi (qolgan 6 fayl bilan bir xil naqsh)
     .then(({data:p})=>{ const fn=((p&&p.full_name)||'').trim(); if(fn){ myName=fn; $('who').textContent=myName; } }).catch(()=>{});
-  updateModdaUI();
+  updateModdaUI(); updateSave();   // V9: updateSave SHART — filiallar kech kelganda tugma
+                                   // holati ogohlantirish bilan zid bo'lib qolmasin (H)
   loadBalances(); loadMonth(); loadLimits(); // qoldiq/oy/limitlar — fon
+  // 4-band: oldingi tugallanmagan saqlash kaliti qolganmi (sahifa yangilangan bo'lsa ham).
+  // FAQAT xabar beradi — avtomatik qayta YOZMAYDI.
+  xarPendingTekshir();
   console.timeEnd('hodim:ochilish');
   // Mobil: bitta kassa bo'lsa avtomat tanlangan → to'g'ridan summaga fokus
   if(selKassa) setTimeout(()=>{ try{ $('summa').focus(); }catch(e){} }, 60);

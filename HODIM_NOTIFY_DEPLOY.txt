@@ -1,0 +1,125 @@
+HODIM KASSA TELEGRAM XABARI — o'rnatish tartibi
+================================================
+Nima qiladi: hodim kassasida pul harakati bo'lsa (kirim / chiqim / transfer /
+tahrir / o'chirish) hodimning o'ziga VA adminlarga Telegram xabari boradi:
+"shuncha bor edi — shuncha ketti — shuncha qoldi" + hamma detal.
+
+Ikki bo'lak:
+  1) Supabase SQL  ->  PROVODKA_HODIM_NOTIFY.sql   (outbox + trigger + RPC)
+  2) n8n workflow  ->  "Aros Provodka - Hodim Notify"
+                       https://n8n.arosmarket.com/workflow/CuIA9H5oW4VrtnJv
+
+
+------------------------------------------------------------------
+1-QADAM — SQL (Asilbek RUN qiladi)
+------------------------------------------------------------------
+Supabase SQL Editor -> PROVODKA_HODIM_NOTIFY.sql ni butunlay RUN qiling.
+ADDITIVE: 2 yangi jadval, 8 funksiya, 2 trigger. Eski hech narsa o'zgarmaydi.
+⚠️ create trigger bir zumga ACCESS EXCLUSIVE lock oladi — kam yuklamali paytda.
+
+Tekshirish (faylning 10-bo'limida ham bor):
+  select tgname, tgrelid::regclass from pg_trigger
+   where tgname in ('trg_hodim_notify_entry_line','trg_hodim_notify_entry');
+  -- 2 qator chiqishi kerak
+
+
+------------------------------------------------------------------
+2-QADAM — ADMIN TELEGRAM ID'lari
+------------------------------------------------------------------
+Kim HAMMA hodim harakatini ko'radi. BO'SH qoldirsangiz — faqat hodimning
+o'ziga boradi (xato emas, xavfsiz sukut).
+
+  insert into hodim_notify_admin(telegram_id, ism) values
+    ('1255605633', 'Asilbek')
+  on conflict (telegram_id) do update set is_active = true;
+
+O'chirish:
+  update hodim_notify_admin set is_active = false where telegram_id = '...';
+
+
+------------------------------------------------------------------
+2b-QADAM — TEKSHIRUV SELECT'lari (SQL faylning 10-bo'limi)
+------------------------------------------------------------------
+RUN'dan keyin (b) va (c) bandlarini albatta bajaring:
+  (b) jadval egasi = funksiya egasi bo'lsin — aks holda trigger
+      xabar yoza olmaydi va (fail-open tufayli) JIMGINA yo'qotadi.
+  (c) bog'lanmagan eski tur hisoblari bo'sh chiqsin — bo'lmasa
+      PROVODKA_TUR_BOGLASH.sql ni oldin RUN qiling.
+
+
+------------------------------------------------------------------
+3-QADAM — n8n KREDITLARI (qo'lda, bir marta)
+------------------------------------------------------------------
+Workflow'ni oching va TO'RTTA node'ga kredit tanlang:
+  - "Navbat"             -> Supabase API krediti
+  - "Yuborildi Belgila"  -> Supabase API krediti
+  - "Xato Yoz"           -> Supabase API krediti
+  - "Aros Userlar"       -> Postgres account 3
+
+⚠️ Supabase krediti SERVICE_ROLE kaliti bo'lishi SHART. Uchala RPC ham
+   `grant execute ... to service_role` — anon kalit bilan 403 beradi.
+   (Tovar Sync / Filial Live ishlatayotgan kredit — o'shani tanlang.)
+
+"Telegram Yubor" — kredit kerak emas, token URL ichida (Aros Tasks boti,
+Aros Task Notify ishlatayotgani bilan bir xil).
+
+⚠️ Workflow oxirgi marta MCP orqali yangilangan, ya'ni o'zgarish DRAFT'da.
+   Kreditlarni qo'ygach oddiy "Save" bosing — shunda joriy versiya faollashadi.
+
+
+------------------------------------------------------------------
+4-QADAM — SINOV (aktivlashtirmasdan)
+------------------------------------------------------------------
+a) hodim-dev.html dan kichik xarajat kiriting (masalan 1 000 so'm).
+b) 30 soniya kuting (navbat ataylab 30s ushlab turadi — tugallanmagan
+   yozuvga xabar ketmasin).
+c) n8n'da workflow'ni QO'LDA "Execute workflow" qiling.
+d) Telegram'ga xabar keldimi tekshiring.
+e) Bazada:
+     select id, hodisa, delta, dt_yon, qoldiq_oldin, qoldiq_keyin, sent_at, last_error
+       from hodim_notify order by id desc limit 5;
+   `sent_at` to'lgan bo'lsa — hammasi joyida.
+   `qoldiq_keyin` hodim sahifasidagi raqamga TENG bo'lishi shart.
+
+Xabar kelmasa — `last_error` ga qarang:
+  - "chat not found" / 403  -> hodim botga /start bosmagan
+  - bo'sh, sent_at ham bo'sh -> Supabase krediti anon (403), 3-qadamga qayting
+  - "qabul qiluvchi topilmadi" -> accounts.taskfix_user_id bo'sh yoki Aros
+    users jadvalida telegram_id yo'q. Admin ro'yxatiga id qo'shing.
+
+
+------------------------------------------------------------------
+5-QADAM — AKTIVLASHTIRISH
+------------------------------------------------------------------
+Sinov o'tgach n8n'da workflow'ni Active qiling. Har daqiqada ishlaydi.
+
+
+------------------------------------------------------------------
+TO'XTATISH (kerak bo'lsa)
+------------------------------------------------------------------
+Yumshoq  — n8n workflow'ni Deactive qiling (yozuvlar navbatda yig'ilaveradi).
+Qattiq   — triggerlarni oling (provodkaga umuman tegmaydi):
+             drop trigger if exists trg_hodim_notify_entry_line on entry_line;
+             drop trigger if exists trg_hodim_notify_entry on entry;
+
+
+------------------------------------------------------------------
+ESLATMALAR
+------------------------------------------------------------------
+- Xabar Provodka yozuvini SEKINLASHTIRMAYDI: trigger faqat lokal jadvalga
+  yozadi, Telegram'ni n8n yuboradi.
+- Bir xabar 30 martadan ortiq urinilmaydi (`attempts`, ya'ni ~30 daqiqa), keyin jadvalda
+  `last_error` bilan qolib qo'lda ko'riladi:
+    select id, entry_id, attempts, last_error from hodim_notify
+     where sent_at is null and attempts >= 30;
+- Kamida bitta qabul qiluvchiga borsa xabar "yuborilgan" deb belgilanadi —
+  ishlagan odamga takror xabar ketmasin.
+- Filial/markaziy kassalarga TEGMAYDI — faqat hodim (xarajat) kassalari.
+- Bir yozuv + bir kassa = BIR xabar. Kassa ichidagi o'tkazma (Naqd->Click)
+  jami qoldiqni o'zgartirmagani uchun umuman xabar bermaydi.
+- Ommaviy tuzatish skripti xabar spam qilmasligi uchun boshiga qo'ying:
+    set local provodka.notify_off = '1';
+- Xabar tizimi buzilsa provodka TO'XTAMAYDI (triggerlar fail-open).
+  Buzilganini server logidagi "hodim_notify ..." warning'idan bilasiz.
+- Jadval cheksiz o'smasin, chorakda bir marta:
+    delete from hodim_notify where sent_at < now() - interval '90 days';
