@@ -170,6 +170,34 @@
   #cfmModal{z-index:230}
   .cfmtxt{font-size:13.5px;color:var(--muted);line-height:1.5;margin:-6px 0 16px}
   /* /kassa-kartalar */
+  /* ================================================================
+     KASSA QIDIRUVI (.srv-*) — jurnal-dev.html dagi #q naqshi.
+     🔴 #jami qidiruvga qarab O'ZGARMAYDI; topilganlar yig'indisi
+        ALOHIDA, ochiq nomlangan qator (.srv-hit).
+     .txt / .kgh / .krow / .empty QAYTA TA'RIFLANMAGAN.
+     ================================================================ */
+  .srv-find{max-width:420px;margin:0 0 18px}
+  .srv-find label{margin-bottom:7px}
+  /* .txt margin-bottom:15px — #qHit uni o'zi qoplaydi, faqat qidiruv faol bo'lganda */
+  .srv-find .txt{margin-bottom:0}
+  .srv-hit{margin-top:9px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .srv-hit b{color:var(--ink);font-weight:700}
+  /* Guruh sarlavhasidagi "3 / 62" — FAQAT qidiruv faol bo'lganda chiziladi */
+  .srv-hc{display:inline-flex;align-items:center;margin-left:8px;border-radius:999px;
+    padding:1px 8px;background:var(--surface-2);color:var(--muted);
+    font-size:10.5px;font-weight:700;letter-spacing:0;text-transform:none;
+    font-variant-numeric:tabular-nums}
+  /* Natija yo'q — .empty ustiga (punktir ramka o'sha yerdan keladi) */
+  .srv-none{display:flex;flex-direction:column;align-items:center;gap:4px;padding:40px 22px}
+  .srv-none svg{width:28px;height:28px;margin-bottom:8px;opacity:.7}
+  .srv-nt{font-size:15px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+  .srv-ns{font-size:13px;line-height:1.5;color:var(--muted)}
+  .srv-retry{margin-top:12px;height:40px;padding:0 16px;border:1px solid var(--line);
+    border-radius:11px;background:var(--surface);color:var(--ink);font-family:inherit;
+    font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .13s,color .13s}
+  .srv-retry:hover{border-color:var(--primary);color:var(--primary)}
+  @media(max-width:899px){.srv-find{max-width:none}}
+  @media print{.srv-find{display:none!important}.srv-hc{display:none!important}}
 </style>
 </head>
 <body>
@@ -226,6 +254,16 @@
     <div class="ktot">
       <div class="k"><i data-lucide="landmark"></i>Umumiy jami</div>
       <div class="v" id="jami">0</div>
+    </div>
+
+    <!-- Qidiruv — jurnal-dev.html dagi #q naqshi (label + .txt + oninput, klientda filtr).
+         🔴 #jami qidiruvga qarab O'ZGARMAYDI (.sorov-ui.md §4.3-b) — topilganlar
+            yig'indisi alohida, ochiq nomlangan qator (#qHit) bo'lib chiqadi. -->
+    <div class="srv-find">
+      <label for="q">Qidiruv</label>
+      <input class="txt" id="q" placeholder="kassa, hodim yoki kod bo'yicha"
+             autocomplete="off" oninput="onQ()">
+      <div class="srv-hit" id="qHit" style="display:none"></div>
     </div>
     <div id="kassalar"><div class="empty">—</div></div>
   </main>
@@ -498,9 +536,12 @@ function kcard(r){
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
     +`<div class="v">${money(r.jami)}</div>${sub}</div>`;
 }
-function kgroup(lbl,rows){
+// hc — "3 / 62" sanoq chipi. FAQAT qidiruv faol bo'lganda beriladi, aks holda bo'sh
+// satr (chip umuman chizilmaydi) — guruh sarlavhasi odatdagidek qoladi.
+const hcChip=hc=>hc?`<span class="srv-hc">${esc(hc)}</span>`:'';
+function kgroup(lbl,rows,hc){
   if(!rows.length) return '';
-  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
+  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
     +`<div class="kgrid">${rows.map(kcard).join('')}</div></div>`;
 }
 // Guruh qatori (5400) + uning bolalari: karta emas, nom + kichik kulrang subtitle ro'yxati.
@@ -515,16 +556,27 @@ function krow(r){
     +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
-function kgroupList(lbl,rows){
+function kgroupList(lbl,rows,hc){
   const ichi=rows.length ? rows.map(krow).join('')
     : '<div class="krow kempty">Hozircha hodim kassasi yo\'q</div>';
-  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
+  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
     +`<div class="klist">${ichi}</div></div>`;
 }
+// Guruhning bolalari. View parent_id bermasa (yoki null bo'lsa) — bitta guruh bo'lgan
+// holatda hamma 'xarajat' kassasi shu guruhning bolasi deb olinadi (eski zaxira yo'l).
+// Qidiruv sanog'i ("3 / 62") ham AYNI shu qoidadan hisoblanadi, aks holda maxraj boshqa chiqardi.
+function kbolalar(src,g,gSoni){
+  let b=src.filter(r=>r.parent_id===g.id&&r.id!==g.id);
+  if(!b.length&&gSoni===1) b=src.filter(r=>r.kassa_turi==='xarajat');
+  return b;
+}
+// renderKassalar() ga kelgan OXIRGI ro'yxat — onQ() serverga bormay shuni qayta chizadi.
+let lastList=[];
 function renderKassalar(list){
   // Noma'lum kassa_turi yoki bitta buzuq qator butun sahifani yiqitmasin.
   try{
-    list=(Array.isArray(list)?list:[]).filter(r=>r&&r.is_active!==false);
+    lastList=Array.isArray(list)?list:[];
+    list=lastList.filter(r=>r&&r.is_active!==false);
     // Ruxsat: kassa_scope='list' bo'lsa faqat ko'rishga ruxsat etilgan kassalar.
     // Guruh qatori (5400) konteyner — ruxsat bolalariga qarab beriladi, ko'rinadigan
     // bolasi qolmasa guruh ham chiqmaydi. Jami summalar shu ro'yxatdan hisoblanadi.
@@ -533,14 +585,31 @@ function renderKassalar(list){
       const bor=new Set(ok.filter(r=>r.kassa_turi!==KT_GURUH).map(r=>r.parent_id));
       list=ok.filter(r=>r.kassa_turi!==KT_GURUH||bor.has(r.id));
     }
-    const guruhlar=list.filter(r=>r.kassa_turi===KT_GURUH);
+    const gAll=list.filter(r=>r.kassa_turi===KT_GURUH);
     // Diagnostika: guruh qatori render ro'yxatiga yetib keldimi?
-    if(!guruhlar.length) console.log('[kassa] xarajat_guruh qatori yo\'q. Kelgan turlar:',
+    if(!gAll.length) console.log('[kassa] xarajat_guruh qatori yo\'q. Kelgan turlar:',
       [...new Set(list.map(r=>r.kassa_turi))].join(', '),'| jami qator:',list.length);
-    const gIds=new Set(guruhlar.map(g=>g.id));
+    const gIds=new Set(gAll.map(g=>g.id));
     // Guruh konteyner — o'z summasi yo'q, umumiy jamiga qo'shilmaydi (bolalari alohida sanaladi).
+    // 🔴 #jami QIDIRUVDAN OLDINGI ro'yxatdan hisoblanadi va qidiruvga qarab HECH QACHON
+    //    o'zgarmaydi: u "Umumiy jami" — kompaniyaning xossasi, qidiruv natijasi emas
+    //    ("qidirdim — pulim kamaydi" holati bo'lmasin). Topilganlar yig'indisi #qHit da.
     $('jami').textContent=money(jamiOf(list.filter(r=>!gIds.has(r.id))));
     if(!list.length){ $('kassalar').innerHTML='<div class="empty">Kassa yo\'q</div>'; return; }
+    // Qidiruv — ruxsat filtridan KEYIN: u faqat ko'rinishni qisqartiradi, ruxsatni
+    // hech qachon kengaytirmaydi (srvFilter qator qo'shmaydi, faqat olib tashlaydi).
+    const Qraw=(($('q')||{}).value||'').trim();
+    const Q=srvNorm(Qraw);
+    const toliq=list;                       // qidiruvdan oldingi kesim — "3 / 62" maxraji
+    if(Q) list=srvFilter(list,Q);
+    const korinar=list.filter(r=>!gIds.has(r.id));   // guruh sarlavhalari sanalmaydi
+    srvHit(korinar,Q);
+    if(Q&&!korinar.length){ $('kassalar').innerHTML=srvNone(Qraw); icons(); return; }
+    const guruhlar=list.filter(r=>r.kassa_turi===KT_GURUH);
+    // Qidiruv faol bo'lganda har guruh uchun "ko'rinayotgan / jami" maxraji kerak —
+    // to'liq ro'yxatda guruhlarga tegishli qatorlarni AYNI qoida bilan belgilab olamiz.
+    const usedT=new Set();
+    if(Q) for(const g of gAll){ usedT.add(g.id); kbolalar(toliq,g,gAll.length).forEach(r=>usedT.add(r.id)); }
     const used=new Set();
     let html='';
     // 1) Guruhlar: sarlavha = guruh nomi, ostida parent_id shu guruhga qaragan hodim kassalari.
@@ -548,20 +617,22 @@ function renderKassalar(list){
     //    kassalari shu guruhning bolasi deb olinadi (eski 53xx/56xx allaqachon is_active=false).
     for(const g of guruhlar){
       used.add(g.id);
-      let bolalar=list.filter(r=>r.parent_id===g.id&&r.id!==g.id);
-      if(!bolalar.length&&guruhlar.length===1) bolalar=list.filter(r=>r.kassa_turi==='xarajat');
+      const bolalar=kbolalar(list,g,guruhlar.length);
       bolalar.forEach(r=>used.add(r.id));
       console.log('[kassa] guruh',g.code,g.name,'bolalar:',bolalar.length);
-      html+=kgroupList(g.name||'Guruh',bolalar);
+      html+=kgroupList(g.name||'Guruh',bolalar,
+        Q?bolalar.length+' / '+kbolalar(toliq,g,gAll.length).length:'');
     }
     // 2) Odatdagi turlar
     for(const g of KT_GRP){
       const rs=list.filter(r=>!used.has(r.id)&&r.kassa_turi===g.key);
       rs.forEach(r=>used.add(r.id));
-      html+=kgroup(g.lbl,rs);
+      html+=kgroup(g.lbl,rs,
+        Q?rs.length+' / '+toliq.filter(r=>!usedT.has(r.id)&&r.kassa_turi===g.key).length:'');
     }
-    // 3) Noma'lum tur ham ko'rinsin — jimgina yo'qolib qolmasin
-    html+=kgroup('Boshqa',list.filter(r=>!used.has(r.id)));
+    // 3) Noma'lum tur ham ko'rinsin — jimgina yo'qolib qolmasin.
+    //    Sanoq chipi yo'q: bu guruhning tarkibi "qolgani" bilan aniqlanadi, maxraji ikki ma'noli.
+    html+=kgroup('Boshqa',list.filter(r=>!used.has(r.id)),'');
     $('kassalar').innerHTML=html||'<div class="empty">Kassa yo\'q</div>';
     icons();
   }catch(e){
@@ -1096,6 +1167,62 @@ window.vlStandart=async()=>{
   await vlYangila();
 };
 // /pul turi
+
+// ================= QIDIRUV (.srv-*) — .sorov-ui.md §4 =================
+// jurnal-dev.html dagi #q naqshi: label + .txt + oninput + KLIENTDA filtr.
+// Server so'rovi YO'Q: onQ() oxirgi olingan ro'yxatni (lastList) qayta chizadi.
+// 🔴 #jami qidiruvga qarab o'zgarmaydi (renderKassalar() dagi izohga qara).
+
+// O'zbek apostrofi bir necha belgida yoziladi (' ’ ‘ ʻ ʼ ` ´) va ko'pchilik uni
+// umuman termaydi. Shuning uchun: avval hamma variant bitta ' ga keltiriladi,
+// keyin ' butunlay olib tashlanadi — "Farg'ona", "Fargʻona" va "Fargona" bir xil
+// kalitga aylanadi va uchalasi ham topiladi.
+function srvNorm(s){
+  return String(s==null?'':s).toLowerCase()
+    .replace(/[‘’ʻʼʽ‛′`´']/g,"'")
+    .replace(/'/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+// Uch daraja: guruh sarlavhasi · karta (kassa) · ichki qator (.krow — hodim kassasi).
+// 🔴 indexOf bilan, regex EMAS: foydalanuvchi matnidagi ( [ * kabi belgi so'rovni yiqitmasin.
+// 🔴 srvFilter faqat QISQARTIRADI — hech qachon qator qo'shmaydi (ruxsat kengaymaydi).
+function srvFilter(list,q){
+  if(!q) return list;
+  const m=v=>srvNorm(v).indexOf(q)>=0;
+  // 2/3-daraja maydonlari: nom · kod · subtitle ("Filial · Lavozim")
+  const hit=r=>m(r.name)||m(r.code)||m(r.subtitle);
+  const guruhlar=list.filter(r=>r&&r.kassa_turi===KT_GURUH);
+  // 1-daraja: guruh sarlavhasi mos keldi -> guruh BUTUN ochiladi, bolalari filtrlanmaydi
+  const gOchiq=new Set(guruhlar.filter(g=>m(g.name)).map(g=>g.id));
+  const yolgiz=guruhlar.length===1;   // kbolalar() dagi zaxira yo'l bilan AYNI shart
+  // KT_GRP yorliqlari ham guruh sarlavhasi ("Markaziy kassalar", "Filial kassalari")
+  const turOchiq=new Set(KT_GRP.filter(g=>m(g.lbl)).map(g=>g.key));
+  const bolaOchiq=r=>gOchiq.has(r.parent_id)||(yolgiz&&gOchiq.size>0&&r.kassa_turi==='xarajat');
+  const qolgan=list.filter(r=>r&&r.kassa_turi!==KT_GURUH
+    &&(bolaOchiq(r)||turOchiq.has(r.kassa_turi)||hit(r)));
+  // Bo'sh qolgan guruh sarlavhasi umuman chizilmaydi (o'zi mos kelgani bundan mustasno)
+  const bor=new Set(qolgan.map(r=>r.parent_id));
+  const xarBor=qolgan.some(r=>r.kassa_turi==='xarajat');
+  return guruhlar.filter(g=>gOchiq.has(g.id)||bor.has(g.id)||(yolgiz&&xarBor)).concat(qolgan);
+}
+// Topilganlar yig'indisi — ALOHIDA, ochiq nomlangan qator. #jami o'z joyida qoladi.
+function srvHit(rows,q){
+  const el=$('qHit'); if(!el) return;
+  if(!q){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='block';
+  el.innerHTML='Topildi: <b>'+rows.length+'</b> ta · <b class="num">'+money(jamiOf(rows))+'</b> so\'m';
+}
+// Natija yo'q — so'rov matni esc() bilan qaytariladi ("men nima terdim?" savoli qolmasin)
+function srvNone(q){
+  return '<div class="empty srv-none"><i data-lucide="search-x"></i>'
+    +'<div class="srv-nt">«'+esc(q)+'» bo\'yicha kassa topilmadi</div>'
+    +'<div class="srv-ns">Nom, kod yoki hodim ismini tekshiring.</div>'
+    +'<button type="button" class="srv-retry" onclick="qClear()">Qidiruvni tozalash</button></div>';
+}
+// Debounce yo'q: ro'yxat ~100 qator, filtr bitta o'tish (jurnaldagi #q server so'rovi edi).
+window.onQ=()=>renderKassalar(lastList);
+window.qClear=()=>{ const el=$('q'); if(el) el.value=''; window.onQ(); if(el) el.focus(); };
+// /qidiruv
 
 async function init(){
   // Konvert ruxsati yo'q bo'lsa tugma ko'rinmaydi (server ham to'sadi — perm_can_convert)

@@ -703,6 +703,63 @@
     .ijr-meta{gap:4px 8px}
     .ssel-pop,.ssel-ov{display:none!important}   /* ochiq dropdown qog'ozga chiqmasin */
   }
+
+  /* ================================================================
+     ZINAPOYA (.srv-lad) — Boshlang'ich + Kirim − Chiqim = Tugash.
+     🔴 Bitta DOM, ikki ko'rinish: >=600px gorizontal (4-5 ustun),
+        <600px vertikal daftar satri (operator chapda, summa o'ngda).
+        JS shoxlanish YO'Q. Mavjud .dash-* qoidalari tegilmagan.
+     ================================================================ */
+  .srv-lad{display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:13px 16px;box-shadow:var(--shadow);min-width:0}
+  .srv-seg{flex:1 1 0;min-width:0;display:grid;grid-template-columns:13px minmax(0,1fr);
+    column-gap:7px;align-items:baseline}
+  .srv-op{grid-column:1;font-size:15px;font-weight:700;color:var(--muted);line-height:1.2;
+    text-align:center}
+  .srv-sl{grid-column:2;font-size:11.5px;font-weight:600;color:var(--muted);line-height:1.4;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srv-sv{grid-column:2;font-size:17px;font-weight:800;letter-spacing:-.025em;line-height:1.2;
+    font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Ranglar kartalar bilan AYNAN bir xil (.dash-cv.c-in / .c-out) — bitta til */
+  .srv-seg.s-in  .srv-sv{color:var(--green)}
+  .srv-seg.s-out .srv-sv{color:var(--red)}
+  .srv-seg.s-tr  .srv-sv{color:var(--tr)}
+  /* Tugash — natija: eng qalin, asosiy rangda, chap tomonida ajratgich */
+  .srv-seg.s-close{border-left:1px solid var(--line);padding-left:12px}
+  .srv-seg.s-close .srv-sv{color:var(--ink);font-size:18px}
+  .srv-seg.s-close .srv-op{color:var(--ink)}
+
+  /* 600–759px: 5 segment tor — shrift kichrayadi, sindirish yo'q */
+  @media(max-width:759px) and (min-width:600px){
+    .srv-lad{gap:8px;padding:12px 13px}
+    .srv-sv{font-size:15.5px}
+    .srv-seg.s-close .srv-sv{font-size:16.5px}
+    .srv-seg.s-close{padding-left:9px}
+  }
+
+  /* <600px: DAFTAR ko'rinishi — operator · yorliq · summa (o'ngda).
+     360px da 5 ta gorizontal segment 47px dan qolardi (o'qib bo'lmaydi). */
+  @media(max-width:599px){
+    .srv-lad{flex-direction:column;gap:0;padding:11px 14px}
+    .srv-seg{grid-template-columns:13px minmax(0,1fr) auto;column-gap:9px;
+      align-items:baseline;padding:6px 0}
+    .srv-sl{grid-column:2;font-size:13px;color:var(--ink);font-weight:600}
+    .srv-sv{grid-column:3;justify-self:end;font-size:15px;text-align:right}
+    .srv-seg.s-close{border-left:none;padding-left:0;border-top:1px solid var(--line);
+      margin-top:4px;padding-top:9px}
+    .srv-seg.s-close .srv-sl{font-weight:800}
+    .srv-seg.s-close .srv-sv{font-size:16.5px}
+  }
+  @media(max-width:359px){
+    .srv-lad{padding:10px 12px}
+    .srv-sl{font-size:12.5px}
+    .srv-sv{font-size:14px}
+  }
+
+  @media print{
+    .srv-lad{box-shadow:none!important;border-color:#999!important;break-inside:avoid}
+    .srv-seg.s-in .srv-sv,.srv-seg.s-out .srv-sv,.srv-seg.s-tr .srv-sv{color:#000!important}
+  }
 </style>
 </head>
 <body>
@@ -927,6 +984,40 @@
       </div>
 
       <div class="dash-body" id="dashBody">
+
+        <!-- B0. Zinapoya: Boshlang'ich + Kirim − Chiqim = Tugash (jurnal_qoldiq RPC).
+             🔴 Tenglama to'g'ri chiqmasa BUTUNLAY yashiriladi (ladShow() uch bosqichli
+                fail-closed) — noto'g'ri tenglama pastdagi hamma raqamga bo'lgan
+                ishonchni yo'q qiladi. Kartalar bunda avvalgidek qoladi. -->
+        <div class="srv-lad" id="jLad" style="display:none" role="group" aria-label="Davr qoldig'i">
+          <div class="srv-seg s-open">
+            <span class="srv-op" aria-hidden="true"></span>
+            <span class="srv-sl">Boshlang'ich</span>
+            <span class="srv-sv num" id="ladOpen">—</span>
+          </div>
+          <div class="srv-seg s-in">
+            <span class="srv-op" aria-hidden="true">+</span>
+            <span class="srv-sl">Kirim</span>
+            <span class="srv-sv num" id="ladIn">—</span>
+          </div>
+          <div class="srv-seg s-out">
+            <span class="srv-op" aria-hidden="true">&minus;</span>
+            <span class="srv-sl">Chiqim</span>
+            <span class="srv-sv num" id="ladOut">—</span>
+          </div>
+          <!-- Kassa/filial filtri tanlanganda transfer ham OQIM bo'ladi (server
+               transfer_net ni o'zi hisoblaydi — qoldiq farqi bu yerga tashlanmaydi) -->
+          <div class="srv-seg s-tr" id="ladTrSeg" style="display:none">
+            <span class="srv-op" id="ladTrOp" aria-hidden="true">+</span>
+            <span class="srv-sl">Transfer</span>
+            <span class="srv-sv num" id="ladTr">—</span>
+          </div>
+          <div class="srv-seg s-close">
+            <span class="srv-op" aria-hidden="true">=</span>
+            <span class="srv-sl">Tugash</span>
+            <span class="srv-sv num" id="ladClose">—</span>
+          </div>
+        </div>
 
         <!-- B1. Xulosa kartalari -->
         <div class="dash-cards" id="dashCards">
@@ -1934,7 +2025,75 @@ function qisqa(n){ n=Number(n)||0; const a=Math.abs(n);
 function dashReset(){
   ['sumIn','sumOut','sumTr','sumCnt'].forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
   ['cntIn','cntOut','cntTr','cntSub'].forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
+  ['ladOpen','ladIn','ladOut','ladTr','ladClose'].forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
+  ladHide();   // zinapoya har tozalashda yopiladi (fail-closed: eski davr raqami qolib ketmasin)
   const c=$('dashChet'); if(c){ c.style.display='none'; c.textContent=''; }
+}
+
+/* ---------- ZINAPOYA: Boshlang'ich + Kirim − Chiqim = Tugash ----------
+   Manba — ALOHIDA `jurnal_qoldiq(p_from,p_to,p_accounts)` RPC.
+   🔴 `jurnal_dash` GA TEGILMAGAN: uning imzosi ham, javob kalitlari ham
+      o'zgarmadi. Javob shu yerda dash obyektiga qo'shiladi (ladMerge), ya'ni
+      kesh ham, dashShow() ham bitta obyekt bilan ishlashda davom etadi.
+   🔴 UCH BOSQICHLI FAIL-CLOSED:
+      1) RPC yo'q (PGRST202/42883), xato, yoki server `mos:false` desa —
+         kalitlar UMUMAN qo'shilmaydi;
+      2) raqam son bo'lmasa — chizilmaydi;
+      3) EKRANDAGI kartalar bilan qayta tekshiruv (server ko'rgan kirim/chiqim
+         kartadagi bilan bir xilmi + tenglama qo'shiladimi) — chiqmasa satr
+         BUTUNLAY yashiriladi. Ko'rinadigan, lekin qo'shilmaydigan tenglama —
+         eng yomon variant: foydalanuvchi ekrandagi hamma raqamga shubha qiladi. */
+const LAD_EPS=1;   // 1 so'm — yaxlitlash bardoshi (server ham shu chegarani ishlatadi)
+function ladHide(sabab){
+  const L=$('jLad'); if(L) L.style.display='none';
+  const T=$('ladTrSeg'); if(T) T.style.display='none';
+  if(sabab) console.warn('jLad:',sabab);
+}
+// r = sb.rpc('jurnal_qoldiq',…) javobi ({data,error}) yoki null (chaqirilmagan)
+function ladMerge(d,r){
+  if(!d) return d;
+  delete d.boshlangich; delete d.tugash; delete d.transfer_net;
+  delete d.qoldiq_kirim; delete d.qoldiq_chiqim;
+  if(!r) return d;
+  // 🔴 yoqFn(r.error) bu yerda v2Off() ni CHAQIRMAYDI: yangi SQL RUN qilinmagan
+  //    bo'lsa jurnal butunlay eski rejimga tushib qolmasligi kerak — faqat
+  //    zinapoya chizilmaydi.
+  if(r.error){ if(!yoqFn(r.error)) console.warn('jurnal_qoldiq:',r.error.message); return d; }
+  const q=r.data;
+  if(!q||typeof q!=='object'||Array.isArray(q)) return d;
+  if(q.mos!==true){ console.warn('jurnal_qoldiq mos emas:',q.sabab||'—','farq:',q.farq); return d; }
+  const o=Number(q.boshlangich), c=Number(q.tugash);
+  if(!isFinite(o)||!isFinite(c)) return d;
+  d.boshlangich=o; d.tugash=c;
+  d.transfer_net=Number(q.transfer_net)||0;
+  d.qoldiq_kirim=Number(q.kirim); d.qoldiq_chiqim=Number(q.chiqim);
+  return d;
+}
+// inS/outS — 🔴 KARTALARDAGI AYNAN O'SHA raqamlar (ikkinchi hisob yozilmaydi)
+function ladShow(d,inS,outS){
+  const L=$('jLad'); if(!L) return;
+  const open=Number(d&&d.boshlangich), close=Number(d&&d.tugash);
+  if(!isFinite(open)||!isFinite(close)){ ladHide(); return; }   // 1–2-bosqich
+  const netTr=Number(d.transfer_net)||0;
+  const sK=Number(d.qoldiq_kirim), sC=Number(d.qoldiq_chiqim);
+  // 3-bosqich (a): server ko'rgan oqim ekrandagidan farq qilsa — filtr yoki
+  // kontrakt siljigan, zid raqam ko'rsatmaymiz.
+  if(isFinite(sK)&&Math.abs(sK-inS)>=LAD_EPS){ ladHide('kirim server bilan mos emas'); return; }
+  if(isFinite(sC)&&Math.abs(sC-outS)>=LAD_EPS){ ladHide('chiqim server bilan mos emas'); return; }
+  // 3-bosqich (b): tenglamaning o'zi
+  if(Math.abs(open+inS-outS+netTr-close)>=LAD_EPS){
+    console.warn('jLad: tenglama chiqmadi',{open,inS,outS,netTr,close}); ladHide(); return; }
+  $('ladOpen').textContent=money(open);
+  $('ladIn').textContent=money(inS);
+  $('ladOut').textContent=money(outS);
+  $('ladClose').textContent=money(close);
+  const T=$('ladTrSeg');
+  if(T&&Math.abs(netTr)>=LAD_EPS){
+    T.style.display='';
+    const op=$('ladTrOp'); if(op) op.textContent=netTr<0?'−':'+';
+    const tv=$('ladTr');   if(tv) tv.textContent=money(Math.abs(netTr));
+  } else if(T){ T.style.display='none'; }
+  L.style.display='';
 }
 function dashBusy(){ if(!useV2) return; const h=$('dashHint'); if(h) h.textContent='Yuklanmoqda…'; }
 function dashErr(m){
@@ -1979,6 +2138,9 @@ function dashShow(d){
   $('sumOut').textContent=money(chi.s);  $('cntOut').textContent=money(chi.n)+' yozuv';
   $('sumTr').textContent=money(trf.s);   $('cntTr').textContent=money(trf.n)+' yozuv';
   $('sumCnt').textContent=money(Number(jami.soni)||0);
+  // --- Zinapoya: Boshlang'ich + Kirim − Chiqim = Tugash ---
+  // 🔴 kir.s / chi.s AYNAN kartalar bilan bitta manba — ikkinchi hisob YOZILMASIN.
+  ladShow(d,kir.s,chi.s);
   // 🔴 QAROR: dashboard — DAVR XULOSASI. U davr + kassa/filial + modda + qidiruvga
   // bo'ysunadi, TUR SEGMENTIGA esa YO'Q (tur — ro'yxat ko'rinishi tugmasi, xulosa emas).
   // Shuning uchun tur tanlanganda kartalar kulrangga o'tmaydi — faqat izoh o'zgaradi.
@@ -2318,10 +2480,19 @@ async function load(){
   else { $('journal').innerHTML='<div class="empty">Yuklanmoqda…</div>'; dashBusy(); }
   if(useV2){
     const v=argsV2(a);
-    const [r1,r2,r3]=await Promise.all([
+    // 🔴 ZINAPOYA (Boshlang'ich/Tugash) — ALOHIDA RPC, jurnal_dash TEGILMAGAN.
+    //    U FAQAT modda/qidiruv/ijrochi filtri BO'SH bo'lganda so'raladi:
+    //    jurnal_qoldiq imzosida bu filtrlar YO'Q (qoldiq — kassaning haqiqiy
+    //    holati, filtrga bo'ysunmaydi), kartalar esa filtrlangan kirim/chiqimni
+    //    ko'rsatadi. Ikkalasi bir ekranda zid turmasin — filtr bo'lsa satr
+    //    umuman chizilmaydi (fail-closed) va keraksiz so'rov ham ketmaydi.
+    const ladOk=!(a.p_moddalar&&a.p_moddalar.length)&&!a.p_q&&!a.p_ijrochi;
+    const qv={p_from:a.p_from,p_to:a.p_to,p_accounts:(a.p_account?[a.p_account]:a.p_accounts)||null};
+    const [r1,r2,r3,r4]=await Promise.all([
       sb.rpc('jurnal_v2',{...v,p_limit:LIMIT,p_offset:0}),
       sb.rpc('jurnal_v2_count',v),
       sb.rpc('jurnal_dash',v),
+      ladOk?sb.rpc('jurnal_qoldiq',qv):Promise.resolve(null),
     ]);
     if(my!==loadSeq) return;   // shu orada yangi so'rov ketdi — bu javob eskirgan
     // SQL hali RUN qilinmagan → bir marta eski jurnal() ga tushamiz va qaytadan yuklaymiz
@@ -2335,7 +2506,9 @@ async function load(){
     // 🔴 Dashboard xatosi ro'yxatni yiqitmaydi — alohida shox
     let dash=null;
     if(r3.error) dashErr(r3.error.message);
-    else { dash=r3.data||null; dashShow(dash); }
+    // 🔴 r4 (jurnal_qoldiq) yoqFn tekshiruviga QO'SHILMAYDI: yangi SQL RUN
+    //    qilinmagan bo'lsa jurnal eski rejimga tushmasin — faqat zinapoya yo'q.
+    else { dash=ladMerge(r3.data||null,r4); dashShow(dash); }
     swrSet(ck,{rows,total,dash});
   } else {
     const o=argsOld(a);
