@@ -161,6 +161,10 @@
   .mxd-badge{flex:0 0 auto;display:inline-flex;align-items:center;height:18px;padding:0 7px;
     border-radius:5px;background:var(--red-soft);color:var(--red-ink,var(--red));
     font-size:10.5px;font-weight:700;letter-spacing:.01em}
+  /* 🔴 "Hali yuklanmagan": YANGI maydonning elementi hali serverda yo'q — rasm ham
+     brauzerdagi lokal nusxa. Busiz foydalanuvchi eskizni ko'rib "yuklandi" deb o'ylardi. */
+  .mxd-badge.wait{background:var(--surface-2);color:var(--muted)}
+  .mxd-s .mxd-badge{height:17px;margin-left:6px;vertical-align:1px}
   /* Amallar: 4 ta 32px tugma = 140px. 268px li telefonda o'z qatoriga tushadi (flex-wrap) */
   .mxd-acts{display:flex;gap:2px;flex:0 0 auto;margin-left:auto}
   .mxd-b{width:32px;height:32px;border:none;background:transparent;color:var(--muted);
@@ -211,9 +215,20 @@
     font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
   .mxd-eln{font-size:12px;font-weight:600;text-transform:none;letter-spacing:0;
     font-variant-numeric:tabular-nums}
-  .mxd-elform{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
-  .mxd-e1{flex:1 1 130px;min-width:0;height:42px}
-  .mxd-e2{flex:1 1 130px;min-width:0;height:42px}
+  /* align-items:flex-end — yorliqli maydonlar bilan tugmalar bir chiziqda tursin */
+  .mxd-elform{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .mxd-efld{display:flex;flex-direction:column;min-width:0}
+  .mxd-efld .mxd-l{margin-bottom:5px}
+  .mxd-efld .mxd-in{height:42px}
+  .mxd-e1{flex:1 1 150px}
+  .mxd-e2{flex:1 1 150px}
+  /* 🔴 TAHRIR REJIMI KO'RINSIN: busiz foydalanuvchi mavjud qatorni yangilayotganini
+     bilmasdi va "Qo'shish" deb o'ylab yana bir qator qo'shib yuborardi. */
+  .mxd-elmode{flex:0 0 100%;display:flex;align-items:center;gap:7px;margin:0 0 2px;
+    background:var(--primary-soft);color:var(--primary);border-radius:9px;padding:8px 11px;
+    font-size:12.5px;font-weight:600;line-height:1.4}
+  .mxd-elmode svg{width:14px;height:14px;flex:0 0 auto}
+  .mxd-elmode b{font-weight:800}
   /* Rasm tanlagich — hodim-dev.html .chekbtn naqshi: input yashirin, LEKIN fokuslanadi */
   .mxd-vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;margin:0}
   .mxd-elimg{position:relative;flex:0 0 auto;cursor:pointer}
@@ -420,22 +435,39 @@
           <div id="mxdElList"><div class="mxd-none">Hali element yo'q</div></div>
 
           <div class="mxd-elform" id="mxdElForm">
+            <!-- 🔴 Tahrir rejimi bayrog'i: qalam bosilganda ochiladi (mxdElEditStart) -->
+            <div class="mxd-elmode" id="mxdElMode" style="display:none">
+              <i data-lucide="pencil"></i>
+              <span>Tahrirlanmoqda: <b id="mxdElModeNom"></b> — «Saqlash» SHU qatorni yangilaydi,
+                yangi element qo'shmaydi.</span>
+            </div>
             <!-- Rasm — hodim-dev.html dagi chek naqshi: input YASHIRIN, lekin FOKUSLANADI -->
             <label class="mxd-elimg" id="mxdElImgLbl">
               <input type="file" accept="image/*" id="mxdElFile" class="mxd-vh" onchange="mxdElPickImg(this)">
               <span class="mxd-elimg-in" id="mxdElImgBox"><i data-lucide="image-plus"></i><span>Rasm</span></span>
             </label>
-            <input class="mxd-in mxd-e1" id="mxdElNom" maxlength="40" autocomplete="off"
-                   placeholder="Nomi" oninput="mxdElUI()">
-            <input class="mxd-in mxd-e2" id="mxdElQiy" maxlength="40" autocomplete="off"
-                   placeholder="Qiymat (ixtiyoriy)">
+            <!-- 🔴 NOM va QIYMAT — IKKI ALOHIDA maydon, yorliqlari ko'rinadi.
+                 Avval ikkalasi ham faqat placeholder edi va foydalanuvchi davlat raqamini
+                 NOM ichiga yozib yuborardi (bazada qiymat=null bo'lib qolardi). -->
+            <div class="mxd-efld mxd-e1">
+              <label class="mxd-l" for="mxdElNom">Nomi</label>
+              <input class="mxd-in" id="mxdElNom" maxlength="40" autocomplete="off"
+                     placeholder="masalan: DAMAS" oninput="mxdElUI()">
+            </div>
+            <div class="mxd-efld mxd-e2">
+              <label class="mxd-l" for="mxdElQiy">Qiymat / raqam <span class="mxd-optl">(ixtiyoriy)</span></label>
+              <input class="mxd-in" id="mxdElQiy" maxlength="40" autocomplete="off"
+                     placeholder="masalan: 01O244RB">
+            </div>
             <button type="button" class="mxd-elok" id="mxdElOk" onclick="mxdElSave()" disabled>
               <i data-lucide="check"></i><span id="mxdElOkTxt">Qo'shish</span></button>
             <button type="button" class="mxd-elx" id="mxdElCancel" onclick="mxdElReset()"
                     style="display:none" aria-label="Bekor"><i data-lucide="x"></i></button>
           </div>
-          <div class="mxd-elhint"><i data-lucide="info"></i><span>Rasm ixtiyoriy — bo'lmasa
-            nom va qiymat matn ko'rinishida chiroyli chiqadi.</span></div>
+          <div class="mxd-elhint"><i data-lucide="info"></i><span><b>Nomi</b> — mashina/obyekt nomi (DAMAS),
+            <b>Qiymat</b> — uni ajratib turadigan raqam (01O244RB). Xarajat formasida ikkalasi
+            alohida qatorda chiqadi, shuning uchun raqam kesilmaydi. Rasm ixtiyoriy — bo'lmasa
+            nom bosh harflaridan chiroyli plitka chiziladi.</span></div>
         </div>
 
         <div class="mxd-facts">
@@ -814,7 +846,15 @@ function mxdBtn(id){
   return `<button type="button" class="mxd-btn${n?' on':''}${mxdOpen===id?' open':''}" onclick="mxdOpenCard('${id}')" title="Maxsus maydonlar"><i data-lucide="sliders-horizontal"></i>${n?n+' maydon':'Maydon'}</button>`;
 }
 function mxdRes(cls,msg){ const el=$('mxdRes'); if(!el) return;
-  el.className='res'+(cls?' '+cls:''); el.textContent=msg||''; }
+  el.className='res'+(cls?' '+cls:''); el.textContent=msg||'';
+  // Xato karta pastida — uzun ro'yxatda ekrandan tashqarida qolib ketmasin.
+  if(cls==='err'&&msg){ try{ el.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){} } }
+// Rasm xatolari SHU YERGA yig'iladi (bir saqlashda bir nechta element bo'lishi mumkin),
+// keyin BITTA aniq xabar bo'lib chiqadi: "N ta element RASMSIZ saqlandi — …".
+let mxdImgBad=[];
+const mxdEmsg=e=>(window.permErr?window.permErr(e):((e&&e.message)||'noma\'lum xato'));
+function mxdImgFail(nom,e,nima){ mxdImgBad.push('«'+nom+'» — rasm '+nima+' (element RASMSIZ saqlandi): '+mxdEmsg(e)); }
+function mxdImgWarn(nom,w){ mxdImgBad.push('«'+nom+'» — '+w); }
 function mxdErr(e,prefix){ mxdRes('err',(prefix||'Xato: ')+(window.permErr?window.permErr(e):(e&&e.message)||'noma\'lum xato')); }
 function mxdSetBusy(b){ mxdBusy=b;
   $('mxdSaveBtn').disabled=b||!$('mxdNom').value.trim();
@@ -846,12 +886,29 @@ function mxdCompress(file,maxDim,quality){
 // shuning uchun URL'ga ?v= qo'shiladi (brauzer eski rasmni keshdan bermasin).
 async function mxdUpload(maydonId,elId,blob){
   const path=`${maydonId}/${elId}.jpg`;
+  // 🔴 supabase-js THROW QILMAYDI — {data,error}. error yuqoriga qaytariladi va
+  //    chaqiruvchi "element RASMSIZ saqlandi" deb ochiq aytadi (jimgina yutilmaydi).
   const {error}=await sb.storage.from(MXD_BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:true});
   if(error) return {error};
   const {data}=sb.storage.from(MXD_BUCKET).getPublicUrl(path);
   const url=data&&data.publicUrl;
   if(!url) return {error:{message:'publicUrl olinmadi'}};
-  return {url:url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now()};
+  const full=url+(url.indexOf('?')>=0?'&':'?')+'v='+Date.now();
+  return {url:full,warn:await mxdUrlWarn(full)};
+}
+/* 🔴 Yuklash muvaffaqiyatli bo'lishi RASM KO'RINADI degani EMAS: bucket public
+   bo'lmasa (yoki o'qish policy'si yo'q bo'lsa) upload xato bermaydi, lekin
+   xarajat formasida rasm o'rniga monogramma chiqadi — aynan shu holat prodda uchradi.
+   ⚠️ Tarmoq xatosi (offline/CORS) OGOHLANTIRMAYDI: noto'g'ri "yuklanmadi" xabari
+      to'g'ri yuklangan rasmdan ham yomon. Faqat aniq 400/403/404 hisobga olinadi. */
+async function mxdUrlWarn(url){
+  try{
+    const r=await fetch(url,{method:'HEAD',cache:'no-store'});
+    if(r.status===400||r.status===403)
+      return 'rasm yuklandi, lekin ochilmayapti (HTTP '+r.status+') — «'+MXD_BUCKET+'» bucket public emas yoki o\'qish policy\'si yo\'q';
+    if(r.status===404) return 'rasm yuklandi, lekin manzilida topilmadi (404)';
+    return '';
+  }catch(e){ return ''; }
 }
 
 async function mxdLoad(force){
@@ -1016,6 +1073,7 @@ window.mxdSaveField=async()=>{
     const ph=$('mxdPh').value.trim(); if(ph) opt.placeholder=ph;
   }
   const wasNew=!mxdEditId;
+  mxdImgBad=[];                                          // har saqlashda toza boshlanadi
   mxdSetBusy(true);
   try{
     if(mxdEditId){
@@ -1040,13 +1098,20 @@ window.mxdSaveField=async()=>{
           if(e3){ mxdErr(e3,'Element yozilmadi: '); continue; }   // maydon saqlandi — to'xtatmaymiz
           if(p.blob&&eid){
             const u=await mxdUpload(mid,eid,p.blob);
-            if(u.error) mxdErr(u.error,'Rasm yuklanmadi: ');
-            else{ const {error:e4}=await sb.rpc('xarajat_element_tahrir',{p_id:eid,p_rasm_url:u.url}); if(e4) mxdErr(e4,'Rasm yozilmadi: '); }
+            if(u.error) mxdImgFail(p.nom,u.error,'yuklanmadi');
+            else{
+              const {error:e4}=await sb.rpc('xarajat_element_tahrir',{p_id:eid,p_rasm_url:u.url});
+              if(e4) mxdImgFail(p.nom,e4,'manzili yozilmadi');
+              else if(u.warn) mxdImgWarn(p.nom,u.warn);
+            }
           }
         }
       }
     }
   }finally{ mxdSetBusy(false); }
+  // 🔴 Rasm tushmagan bo'lsa — element RASMSIZ saqlangani ochiq aytiladi.
+  if(mxdImgBad.length)
+    mxdRes('err',(mxdImgBad.length>1?mxdImgBad.length+' ta rasm tushmadi — ':'')+mxdImgBad.join(' · '));
   const keep=$('mxdRes').className.indexOf('err')>=0 ? $('mxdRes').textContent : '';
   mxdCloseForm(true);
   await mxdLoad(true);
@@ -1097,19 +1162,38 @@ window.mxdDelField=async id=>{
 // Mavjud maydonda — darrov serverga; YANGI maydonda — vaqtinchalik (mxdPend),
 // maydon saqlangach ketma-ket yoziladi.
 function mxdCurEls(){ if(!mxdEditId) return mxdPend; const m=mxdField(mxdEditId); return (m&&m.elementlar)||[]; }
+/* 🔴 DUBLIKAT QOROVULI — kalit bazadagi unique indeks bilan AYNAN bir xil:
+   xarajat_element_nom_uq (maydon_id, lower(btrim(nom)), lower(btrim(coalesce(qiymat,''))))
+   where is_active. Ya'ni "DAMAS 01O244RB" va "DAMAS 01O111AA" — ikki BOSHQA element
+   (to'g'ri), "DAMAS"+"DAMAS" esa dublikat. Server ham 23505 beradi; bu yerdagi tekshiruv
+   xabarni odam tilida aytadi va bekorga so'rov yubormaydi. */
+const mxdElKey=(n,q)=>String(n==null?'':n).trim().toLowerCase()+'\u0000'+String(q==null?'':q).trim().toLowerCase();
+function mxdElBor(nom,qiy,skipKey){
+  const k=mxdElKey(nom,qiy), sk=String(skipKey||'');
+  return mxdCurEls().find(x=>{
+    if(!x||x.is_active===false) return false;
+    if(sk&&String(x.id||x.tmp||'')===sk) return false;   // tahrirdagi elementning O'ZI hisobga olinmaydi
+    return mxdElKey(x.nom,x.qiymat)===k;
+  })||null;
+}
 function mxdPendUrl(p){ if(!p.blob) return ''; if(!p.url) p.url=URL.createObjectURL(p.blob); return p.url; }
 function mxdRenderEls(){
   const list=mxdCurEls();
   $('mxdElN').textContent=list.length?list.length+' ta':'';
   $('mxdElList').innerHTML=list.length?list.map((e,i)=>{
     const key=e.id||e.tmp, mono=esc(mxdMono(e.nom));
+    // 🔴 e.rasm_url — SERVERdagi haqiqiy manzil; e.blob — hali yuklanmagan lokal nusxa.
     const src=e.rasm_url||(e.blob?mxdPendUrl(e):'');
+    // 🔴 Rasm holati DARROV ko'rinsin (serverdan o'qilgan qatorda rasm_url bo'sh bo'lsa —
+    //    "rasmsiz"; hali serverga bormagan yangi elementda — "rasm hali yuklanmagan").
+    const wait=(!e.id&&e.blob) ? '<span class="mxd-badge wait">rasm hali yuklanmagan</span>'
+             : (e.id&&!e.rasm_url) ? '<span class="mxd-badge wait">rasmsiz</span>' : '';
     const th=src
       ? `<img class="mxd-elth" src="${esc(src)}" alt="" data-mono="${mono}" loading="lazy" decoding="async" onerror="mxdImgErr(this)">`
       : `<span class="mxd-elth mono" aria-hidden="true">${mono}</span>`;
     return `<div class="mxd-el" data-id="${esc(key)}">
       ${th}
-      <div class="mxd-mid"><div class="mxd-t">${esc(e.nom)}</div>${e.qiymat?`<div class="mxd-s">${esc(e.qiymat)}</div>`:''}</div>
+      <div class="mxd-mid"><div class="mxd-t">${esc(e.nom)}</div>${(e.qiymat||wait)?`<div class="mxd-s">${esc(e.qiymat||'')}${wait}</div>`:''}</div>
       <div class="mxd-acts">
         <button type="button" class="mxd-b" onclick="mxdElMove('${esc(key)}',-1)" aria-label="Yuqoriga"${i===0?' disabled':''}><i data-lucide="arrow-up"></i></button>
         <button type="button" class="mxd-b" onclick="mxdElMove('${esc(key)}',1)" aria-label="Pastga"${i===list.length-1?' disabled':''}><i data-lucide="arrow-down"></i></button>
@@ -1151,6 +1235,7 @@ window.mxdElRmImg=()=>{
 window.mxdElUI=()=>{ $('mxdElOk').disabled=mxdBusy||!$('mxdElNom').value.trim(); };
 window.mxdElReset=()=>{
   mxdElEdit=null; mxdElBlob=null; mxdElRmFlag=false;
+  const md=$('mxdElMode'); if(md) md.style.display='none';
   if(mxdElUrl){ URL.revokeObjectURL(mxdElUrl); mxdElUrl=''; }
   $('mxdElNom').value=''; $('mxdElQiy').value='';
   mxdElPrevSet('');
@@ -1159,8 +1244,14 @@ window.mxdElReset=()=>{
   mxdElUI();
 };
 window.mxdElEditStart=key=>{
-  const e=mxdCurEls().find(x=>String(x.id||x.tmp)===String(key)); if(!e) return;
+  const k=String(key||'');
+  const e=k?mxdCurEls().find(x=>x&&String(x.id||x.tmp||'')===k):null;
+  // 🔴 Element topilmasa (ro'yxat yangilangan) — JIMGINA qaytmaymiz: foydalanuvchi
+  //    "tahrirlayapman" deb o'ylab «Saqlash» bossa yangi qator paydo bo'lardi.
+  if(!e){ mxdElReset(); mxdRes('err','Element topilmadi — ro\'yxat yangilangan bo\'lishi mumkin'); return; }
   mxdElEdit=e.id?{id:e.id}:{tmp:e.tmp};
+  const md=$('mxdElMode');
+  if(md){ md.style.display='flex'; $('mxdElModeNom').textContent=String(e.nom||'')+(e.qiymat?' · '+e.qiymat:''); }
   mxdElBlob=null; mxdElRmFlag=false;
   if(mxdElUrl){ URL.revokeObjectURL(mxdElUrl); mxdElUrl=''; }
   $('mxdElNom').value=e.nom||''; $('mxdElQiy').value=e.qiymat||'';
@@ -1169,10 +1260,25 @@ window.mxdElEditStart=key=>{
   $('mxdElCancel').style.display='';
   mxdElUI(); $('mxdElNom').focus();
 };
+/* 🔴 IKKI YO'L, BITTA QOIDA: TAHRIR HECH QACHON YANGI QATOR YARATMAYDI.
+   Bazada DAMAS/TRACKER bir necha marta paydo bo'lgani shundan: element formasi
+   "qo'shish" holatida qolib, «Saqlash» har safar xarajat_element_yarat chaqirardi.
+   Endi: (1) qalam bosilgan bo'lsa id SHART — id yo'q bo'lsa YARATMAYMIZ, aytamiz;
+         (2) qo'shishda dublikat kaliti tekshiriladi (DB indeksi bilan bir xil);
+         (3) rasm tushmasa forma TAHRIR rejimida qoladi — qayta urinish AYNAN
+             o'sha qatorni yangilaydi (yangi element paydo bo'lmaydi);
+         (4) saqlangach ro'yxat SERVERdan qayta o'qiladi (lokal holatga ishonilmaydi). */
 window.mxdElSave=async()=>{
   if(mxdBusy) return;
   const nom=$('mxdElNom').value.trim(); if(!nom) return;
   const qiy=$('mxdElQiy').value.trim();
+  const editKey=mxdElEdit?String(mxdElEdit.id||mxdElEdit.tmp||''):'';
+  const bor=mxdElBor(nom,qiy,editKey);
+  if(bor){
+    mxdRes('err','«'+nom+(qiy?' · '+qiy:'')+'» ro\'yxatda allaqachon bor — dublikat yaratilmadi. '
+      +'O\'zgartirish uchun o\'sha qatordagi qalam tugmasini bosing.');
+    return;
+  }
   if(!mxdEditId){                                  // YANGI maydon — vaqtinchalik ro'yxat
     if(mxdElEdit&&mxdElEdit.tmp){
       const p=mxdPend.find(x=>x.tmp===mxdElEdit.tmp);
@@ -1185,32 +1291,55 @@ window.mxdElSave=async()=>{
     mxdElBlob=null; mxdElUrl='';                   // blob endi mxdPend'niki — revoke QILINMAYDI
     mxdElReset(); mxdRenderEls(); return;
   }
+  // 🔴 Qalam bosilgan, lekin element id yo'q — YARATMAYMIZ (aks holda har tahrir dublikat).
+  if(mxdElEdit&&!mxdElEdit.id){
+    mxdRes('err','Element id topilmadi — ro\'yxat yangilangan. Qalam tugmasini qayta bosing.');
+    await mxdLoad(true); mxdElReset(); mxdRenderEls(); return;
+  }
+  const wasEdit=!!(mxdElEdit&&mxdElEdit.id);
+  let savedEid=String((mxdElEdit&&mxdElEdit.id)||'');
+  mxdImgBad=[];
   mxdSetBusy(true);
   try{
-    let eid=mxdElEdit&&mxdElEdit.id;
+    let eid=savedEid;
     if(!eid){
       const t=mxdCurEls().reduce((mx,x)=>Math.max(mx,Number(x.tartib)||0),0)+1;
       const {data,error}=await sb.rpc('xarajat_element_yarat',
         {p_maydon:mxdEditId,p_nom:nom,p_qiymat:qiy||null,p_rasm_url:null,p_tartib:t});
       if(error){ mxdErr(error); return; }
-      eid=data;
+      eid=String(data||''); savedEid=eid;
+      if(!eid){ mxdRes('err','Element yaratildi, lekin id qaytmadi — ro\'yxatni tekshiring'); return; }
     }else{
       // SQL kelishuvi: null = tegilmaydi, '' = tozalash
       const {error}=await sb.rpc('xarajat_element_tahrir',{p_id:eid,p_nom:nom,p_qiymat:qiy});
       if(error){ mxdErr(error); return; }
     }
+    // Qayta yuklash ham SHU yo'l bilan: upsert:true → yo'l <maydon_id>/<element_id>.jpg
+    // O'ZGARMAYDI (element id saqlanadi, eski fayl yetim qolmaydi), URL'ga yangi ?v= qo'shiladi.
     if(mxdElBlob&&eid){
       const u=await mxdUpload(mxdEditId,eid,mxdElBlob);
-      if(u.error){ mxdErr(u.error,'Rasm yuklanmadi: '); }
-      else{ const {error}=await sb.rpc('xarajat_element_tahrir',{p_id:eid,p_rasm_url:u.url}); if(error) mxdErr(error,'Rasm yozilmadi: '); }
+      if(u.error) mxdImgFail(nom,u.error,'yuklanmadi');
+      else{
+        const {error}=await sb.rpc('xarajat_element_tahrir',{p_id:eid,p_rasm_url:u.url});
+        if(error) mxdImgFail(nom,error,'manzili yozilmadi');
+        else if(u.warn) mxdImgWarn(nom,u.warn);
+      }
     }else if(mxdElRmFlag&&eid){
       const {error}=await sb.rpc('xarajat_element_tahrir',{p_id:eid,p_rasm_url:''});
-      if(error) mxdErr(error,'Rasm olinmadi: ');
+      if(error) mxdImgBad.push('«'+nom+'» — rasm olib tashlanmadi: '+mxdEmsg(error));
     }
   }finally{ mxdSetBusy(false); }
-  mxdElReset();
+  // 🔴 SERVERdan qayta o'qiymiz — lokal eskizga emas, haqiqiy rasm_url ga qaraymiz.
   await mxdLoad(true);
   mxdRenderEls();
+  if(mxdImgBad.length&&savedEid){
+    // Rasm tushmadi → forma SHU element ustida TAHRIR rejimida qoladi.
+    mxdElEditStart(savedEid);
+    mxdRes('err',mxdImgBad.join(' · ')+' — rasmni qayta tanlab «Saqlash» bosing (yangi element YARATILMAYDI).');
+    return;
+  }
+  mxdElReset();
+  mxdRes('ok',wasEdit?'Element yangilandi':'Element qo\'shildi');
 };
 window.mxdElDel=async key=>{
   if(mxdBusy) return;
