@@ -20,12 +20,12 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (16 ta).
+  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (17 ta).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx', 'ai'];
+               'tannarx', 'ai', 'sorovlar'];
   var HOME  = 'jurnal';           // Provodka'ning bosh bo'limi (login'dan keyingi ish sahifasi)
   // Login/dashboard hub sahifasi. PAGES ichida ATAYLAB yo'q — u ruxsat bilan
   // cheklanmaydi (o'zi ruxsatli bo'limlar ro'yxatini chizadi).
@@ -355,6 +355,11 @@
   window.permFilterView = filterView;
   window.permFilterOp  = filterOp;
   window.permConvert   = function () { return get().can_convert; };
+  /* Admin bayrog'i. `sorovlar.html` "Hammaning so'rovlari" almashtirgichini
+     shu bilan ko'rsatadi. Ruxsat hali kelmagan bo'lsa OPEN sukutida is_admin=false —
+     ya'ni fail-closed (almashtirgich chiqmaydi), bu ataylab: server baribir
+     admin bo'lmagan userga p_hammasi bayrog'ini bermaydi. */
+  window.permIsAdmin   = function () { return !!get().is_admin; };
   window.permScope     = function () { return get().kassa_scope; };
   window.permFilialScope = function () { return get().filial_scope; };
   window.permFilialIds = function () { return get().filial_ids; };

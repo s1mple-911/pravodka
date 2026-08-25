@@ -59,12 +59,6 @@
   @media(min-width:900px){.frow{grid-template-columns:auto 1fr 1fr 1fr;align-items:end}}
   .fnote{font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:9px;padding:8px 11px;margin-top:12px;display:none;line-height:1.5}
   .fld{min-width:0}
-  .dates{display:flex;gap:8px;align-items:center}
-  .dates .txt{width:auto;flex:1;min-width:0}
-  .dash{color:var(--muted);flex:0 0 auto}
-  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-  .quick button{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
-  .quick button:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
   .seg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-top:12px;overflow-x:auto}
   .seg button{flex:1;min-width:74px;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
   .seg button:hover{color:var(--ink)}
@@ -266,6 +260,8 @@
   .more:disabled{opacity:.5;cursor:not-allowed}
   .empty{color:var(--muted);text-align:center;padding:30px;font-size:14px;border:1px dashed var(--line);border-radius:13px}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  /* .soft — xato emas, ogohlantirish (masalan "yangi SQL hali RUN qilinmagan") */
+  .banner.soft{background:var(--amber-soft);color:var(--amber)}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
   .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
@@ -308,6 +304,486 @@
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
   /* /more-sheet */
+  /* ================================================================
+     JURNAL v2 — .dav-* (davr paneli) · .dash-* (dashboard)
+     Mavjud .filters/.frow/.seg/.modal/.sheet/.mmodal qoidalari QAYTA
+     TA'RIFLANMAGAN — faqat yangi prefikslar qo'shildi.
+     ℹ️ Eski `.dates` / `.dash` (sana ajratgichi) / `.quick` qoidalari HTML'i bilan
+        birga O'CHIRILDI. `.dash{color:var(--ink)}` ATAYLAB yozilgan: bu bo'lim
+        matni har doim asosiy rangda bo'lsin (eski kulrang qoida qaytib qolmasin).
+     ================================================================ */
+
+  /* ---- Diagramma palitrasi (ai.html --ach-* oilasi: har qadam >=80° tus) ---- */
+  :root{--dch-1:#1ea83a;--dch-2:#2f6fe0;--dch-3:#d98324;--dch-4:#8557e8;--dch-5:#0f9f9f;
+        --dch-6:#d6455f;--dch-7:#7fa521;--dch-8:#a55bc4;--dch-other:#98a2b3;--dch-grid:#eceef2}
+  [data-theme="dark"]{--dch-1:#35cf55;--dch-2:#5b9cff;--dch-3:#f0a94a;--dch-4:#a98bff;--dch-5:#2bc4c4;
+        --dch-6:#ff7a8f;--dch-7:#a6cf4b;--dch-8:#cd8ae0;--dch-other:#7b8493;--dch-grid:#242b38}
+
+  /* ================= A. DAVR PANELI ================= */
+  /* .filters padding:16px, border-radius:18px — manfiy margin bilan karta chetigacha yoyiladi */
+  .dav{margin:-16px -16px 16px;padding:13px 16px;background:var(--surface-2);
+       border-bottom:1px solid var(--line);border-radius:18px 18px 0 0;
+       display:flex;flex-direction:column;gap:11px}
+  .dav-top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+  .dav-chips{display:flex;gap:2px;min-width:0;background:var(--surface);border:1px solid var(--line);
+             border-radius:999px;padding:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+             scrollbar-width:none;overscroll-behavior-x:contain}
+  .dav-chips::-webkit-scrollbar{display:none}
+  .dav-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;border:none;background:transparent;
+            color:var(--muted);border-radius:999px;padding:0 13px;min-height:34px;font-family:inherit;
+            font-size:13.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;cursor:pointer;
+            transition:background .13s,color .13s}
+  .dav-chip svg{width:14px;height:14px;flex:0 0 auto}
+  @media(hover:hover){.dav-chip:hover{color:var(--ink);background:var(--surface-2)}}
+  .dav-chip:active{transform:translateY(.5px)}
+  .dav-chip.on{background:var(--primary-soft);color:var(--primary)}
+  @media(hover:hover){.dav-chip.on:hover{background:var(--primary-soft);color:var(--primary)}}
+  .dav-cbtn{color:var(--muted)}
+  .dav.cal-on .dav-cbtn{background:var(--surface-2);color:var(--ink)}
+  .dav.cal-on .dav-cbtn.on{background:var(--primary-soft);color:var(--primary)}
+  /* Tanlangan davr matni */
+  .dav-out{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;min-width:0;
+           font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+  .dav-out svg{width:15px;height:15px;flex:0 0 auto;color:var(--muted)}
+  .dav-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+           font-variant-numeric:tabular-nums}
+  /* Kalendar — "Boshqa…" bosilguncha yopiq */
+  .dav-cal{display:none;align-items:center;gap:8px;flex-wrap:wrap}
+  .dav.cal-on .dav-cal{display:flex;animation:davIn .16s cubic-bezier(.22,.61,.36,1)}
+  @keyframes davIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.dav.cal-on .dav-cal{animation:none}}
+  .dav-cl{margin:0;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--muted)}
+  .dav-date{flex:1 1 138px;min-width:0;width:auto;height:40px;border:1px solid var(--line);
+            border-radius:10px;background:var(--surface);color:var(--ink);padding:0 11px;
+            font-family:inherit;font-size:14px;font-variant-numeric:tabular-nums;outline:none;
+            -webkit-appearance:none;appearance:none;transition:border-color .13s,box-shadow .13s}
+  .dav-date:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  [data-theme="dark"] .dav-date::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.55)}
+  .dav-sep{flex:0 0 auto;color:var(--muted)}
+  .dav-apply{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 15px;
+             border:none;border-radius:10px;background:var(--primary);color:var(--on-primary,#fff);
+             font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+             transition:background .13s,transform .12s}
+  .dav-apply svg{width:15px;height:15px}
+  .dav-apply:hover{background:var(--primary-hover)}
+  .dav-apply:active{transform:translateY(1px)}
+  @media(max-width:640px){
+    .dav{margin:-16px -16px 14px;padding:12px 14px}
+    .dav-top{flex-wrap:wrap}
+    .dav-out{order:-1;width:100%}          /* davr matni chiplardan YUQORIDA */
+    .dav-chips{width:100%}
+    .dav-chip{min-height:40px;padding:0 15px}   /* touch */
+    .dav-cal{gap:7px}
+    .dav-cl{width:34px}
+    .dav-date{flex:1 1 calc(50% - 60px);height:44px;font-size:15px}
+    .dav-apply{width:100%;height:44px;justify-content:center}
+    .dav-sep{display:none}
+  }
+
+  /* .frow modifikatori — sana davr paneliga ko'chgani uchun ustunlar qayta taqsimlandi */
+  .frow-v2{grid-template-columns:1fr}
+  @media(min-width:640px){.frow-v2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(min-width:900px){.frow-v2{grid-template-columns:repeat(3,minmax(0,1fr));align-items:end}}
+
+  /* ================= B. DASHBOARD ================= */
+  .dash{margin:0 0 18px;color:var(--ink)}
+  .dash-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;
+           margin:0 2px 11px;min-width:0}
+  .dash-tgl{display:inline-flex;align-items:center;gap:8px;border:none;background:transparent;
+            color:var(--ink);border-radius:9px;padding:4px 8px 4px 4px;margin-left:-4px;
+            font-family:inherit;font-size:14.5px;font-weight:700;letter-spacing:-.015em;cursor:pointer;
+            transition:background .13s,color .13s}
+  .dash-tgl:hover{background:var(--surface-2)}
+  .dash-chev{width:17px;height:17px;color:var(--muted);transition:transform .18s cubic-bezier(.22,.61,.36,1)}
+  .dash-tgl svg{width:17px;height:17px}
+  .dash.off .dash-chev{transform:rotate(-90deg)}
+  .dash.off .dash-body{display:none}
+  .dash-hint{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+             font-size:12.5px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+  .dash-body{display:flex;flex-direction:column;gap:12px}
+
+  /* --- B1. Xulosa kartalari --- */
+  .dash-cards{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media(min-width:760px){.dash-cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .dash-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+             padding:13px 14px;box-shadow:var(--shadow);min-width:0}
+  .dash-ct{display:flex;align-items:center;gap:8px;margin-bottom:9px;min-width:0}
+  .dash-ic{flex:0 0 auto;width:26px;height:26px;border-radius:8px;display:flex;
+           align-items:center;justify-content:center}
+  .dash-ic svg{width:14px;height:14px}
+  .dash-ic.in{background:var(--green-soft);color:var(--green)}
+  .dash-ic.out{background:var(--red-soft);color:var(--red)}
+  .dash-ic.tr{background:var(--tr-soft);color:var(--tr)}
+  .dash-ic.nt{background:var(--nt-soft);color:var(--nt)}
+  .dash-cl2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+            font-size:12.5px;font-weight:600;color:var(--muted)}
+  .dash-cv{font-size:20px;font-weight:800;letter-spacing:-.025em;line-height:1.15;
+           font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dash-cv.c-in{color:var(--green)}
+  .dash-cv.c-out{color:var(--red)}
+  .dash-cv.c-tr{color:var(--tr)}
+  .dash-cs{margin-top:4px;font-size:11.5px;font-weight:500;color:var(--muted);
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+  @media(max-width:479px){
+    .dash-card{padding:11px 12px;border-radius:13px}
+    .dash-cv{font-size:17.5px}
+    .dash-ct{gap:7px;margin-bottom:7px}
+  }
+
+  /* --- B2/B3. Panellar: breakdown (legend) + diagramma --- */
+  .dash-grid{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:900px){.dash-grid{grid-template-columns:minmax(0,1fr) 300px;align-items:start}}
+  .dash-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+              padding:15px 16px;box-shadow:var(--shadow);min-width:0}
+  @media(max-width:899px){
+    .dash-panel{padding:13px 14px}
+    .dash-chartp{order:-1}      /* mobil'da diagramma ro'yxatdan YUQORIDA */
+  }
+  .dash-ph{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+  .dash-ph h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.02em;
+              text-transform:uppercase;color:var(--muted)}
+  .dash-clear{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;
+              border:1px solid var(--line);border-radius:8px;background:var(--surface);
+              color:var(--muted);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;
+              transition:background .13s,border-color .13s,color .13s}
+  .dash-clear svg{width:13px;height:13px}
+  .dash-clear:hover{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+  .dash-clear[hidden]{display:none}
+
+  /* Diagramma turi almashtirgichi (2 ta ikonka) */
+  .dash-seg2{display:flex;gap:2px;background:var(--surface-2);border-radius:9px;padding:3px}
+  .dash-seg2 button{display:flex;align-items:center;justify-content:center;width:30px;height:26px;
+                    border:none;border-radius:7px;background:transparent;color:var(--muted);
+                    cursor:pointer;transition:background .13s,color .13s}
+  .dash-seg2 button svg{width:15px;height:15px}
+  .dash-seg2 button:hover{color:var(--ink)}
+  .dash-seg2 button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  @media(max-width:899px){.dash-seg2 button{width:38px;height:32px}}
+
+  /* Breakdown qatorlari — bosiladigan legend */
+  .dash-cats{display:flex;flex-direction:column;gap:2px}
+  .dash-cat{padding:8px 9px;border-radius:10px;cursor:pointer;
+            transition:background .13s,box-shadow .13s}
+  .dash-cat:hover{background:var(--surface-2)}
+  .dash-cat:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+  .dash-cat.on{background:var(--primary-soft);box-shadow:inset 0 0 0 1px var(--primary)}
+  .dash-cat.on .dash-cn{color:var(--primary)}
+  .dash-cl{display:flex;align-items:baseline;gap:8px;min-width:0;margin-bottom:7px}
+  .dash-dot{flex:0 0 auto;width:9px;height:9px;border-radius:3px;align-self:center;
+            background:var(--c,var(--muted))}
+  .dash-cn{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+           font-size:13.5px;font-weight:600;color:var(--ink)}
+  .dash-ca{flex:0 0 auto;font-size:13.5px;font-weight:700;white-space:nowrap;
+           font-variant-numeric:tabular-nums}
+  .dash-cp{margin-left:7px;font-size:12px;font-weight:500;color:var(--muted)}
+  .dash-track{height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+  .dash-cat.on .dash-track{background:var(--surface)}
+  .dash-fill{display:block;height:100%;border-radius:999px;background:var(--c,var(--primary));
+             transition:width .45s cubic-bezier(.22,.61,.36,1)}
+  @media(prefers-reduced-motion:reduce){.dash-fill{transition:none}}
+  /* "Jami" — bosilmaydi */
+  .dash-cat.total{margin-top:8px;padding-top:11px;border-top:1px solid var(--line);
+                  border-radius:0;cursor:default}
+  .dash-cat.total:hover{background:transparent}
+  .dash-cat.total .dash-cl{margin-bottom:0}
+  .dash-cat.total .dash-cn,.dash-cat.total .dash-ca{font-size:14px;font-weight:800}
+
+  /* Diagramma idishi */
+  .dash-svg{display:flex;align-items:center;justify-content:center;min-height:150px}
+  .dash-donut{display:block;width:100%;max-width:196px;height:auto}
+  .dash-donut circle[data-key]{transition:stroke-width .16s cubic-bezier(.2,.7,.3,1),filter .13s;
+                               cursor:pointer}
+  .dash-donut circle[data-key]:hover{filter:brightness(1.07)}
+  @media(prefers-reduced-motion:no-preference){
+    .dash-donut circle[data-key]:hover{stroke-width:32}
+  }
+  .dash-donut .dash-dt{font-family:inherit;font-size:19px;font-weight:700;letter-spacing:-.02em;
+                       fill:var(--ink);font-variant-numeric:tabular-nums}
+  .dash-donut .dash-ds{font-family:inherit;font-size:10px;font-weight:600;letter-spacing:.06em;
+                       text-transform:uppercase;fill:var(--muted)}
+  .dash-barc{display:block;width:100%;height:auto}
+  .dash-barc text{font-family:inherit;font-size:12.5px;letter-spacing:-.01em;fill:var(--ink);
+                  font-variant-numeric:tabular-nums}
+  .dash-barc .dash-vl{font-size:11.5px;font-weight:500;fill:var(--muted)}
+  .dash-barc rect{transition:filter .13s}
+  .dash-barc g{cursor:pointer}
+  .dash-barc g:hover rect{filter:brightness(1.08)}
+  /* Bar mobil'da siqilib o'qilmay qolmasin — idish scroll bo'ladi */
+  @media(max-width:899px){
+    .dash-svg{justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;
+              scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+    .dash-svg::-webkit-scrollbar{height:6px}
+    .dash-svg::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+    .dash-svg::-webkit-scrollbar-track{background:transparent}
+    .dash-barc{min-width:420px}
+    .dash-donut{margin:0 auto;max-width:210px}
+  }
+
+  /* Chetlangan (aralash) yozuvlar izohi — jimgina kam ko'rsatilmasin */
+  .dash-note{margin:2px 2px 0;font-size:12px;color:var(--muted);line-height:1.5}
+
+  /* Bo'sh / xato / skeleton */
+  .dash-empty{width:100%;padding:22px 12px;text-align:center;font-size:13px;color:var(--muted);
+              line-height:1.5}
+  .dash-err{padding:12px 13px;border-radius:11px;background:var(--amber-soft);color:var(--amber);
+            font-size:12.5px;line-height:1.5;box-shadow:inset 3px 0 0 var(--amber)}
+  .dash-retry{margin-left:6px;border:1px solid currentColor;background:transparent;color:inherit;
+              border-radius:7px;padding:3px 9px;font-family:inherit;font-size:12px;font-weight:600;
+              cursor:pointer}
+  @keyframes dashShim{100%{background-position:-180px 0}}
+  .dash-skel{display:inline-block;height:11px;border-radius:6px;
+             background:linear-gradient(90deg,var(--surface-2) 0,var(--line) 42%,var(--surface-2) 84%);
+             background-size:180px 100%;animation:dashShim 1.15s linear infinite}
+  .dash-cat.sk{cursor:default;pointer-events:none}
+  .dash-cat.sk:hover{background:transparent}
+  .dash-cat.sk .dash-cl{justify-content:space-between}
+  @media(prefers-reduced-motion:reduce){.dash-skel{animation:none}}
+
+  /* ================= C. QIDIRUVLI TANLAGICH (.ssel-*) =================
+     z-index: overlay 118 · panel 120. Sahifadagi modallar: .modal/.mmodal/.chekov 200,
+     .yimodal 220, .lmodal 230 — hammasi USTUN qoladi. */
+  .ssel{position:relative;min-width:0}
+  /* Native <select> DOM da qoladi (mavjud JS uni to'ldiradi/o'qiydi), faqat ko'rinmaydi */
+  .ssel-native{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+               overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;
+               opacity:0;pointer-events:none}
+  .ssel-btn{display:flex;align-items:center;gap:8px;width:100%;height:44px;padding:0 13px;
+            border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);
+            font-family:inherit;font-size:15px;text-align:left;cursor:pointer;
+            transition:border-color .13s,box-shadow .13s,background .13s}
+  .ssel-btn:hover{background:var(--surface-2)}
+  .ssel-val{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ssel-val.ph{color:var(--muted)}
+  .ssel-chev{width:16px;height:16px;flex:0 0 auto;color:var(--muted);
+             transition:transform .16s cubic-bezier(.22,.61,.36,1)}
+  .ssel.open .ssel-btn{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);
+                       background:var(--surface)}
+  .ssel.open .ssel-chev{transform:rotate(180deg);color:var(--primary)}
+  /* Ko'p tanlovda (xarajat turi) nechta tanlanganini ko'rsatuvchi belgi */
+  .ssel-cnt{flex:0 0 auto;display:none;align-items:center;justify-content:center;min-width:20px;height:20px;
+            padding:0 6px;border-radius:999px;background:var(--primary-soft);color:var(--primary);
+            font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .ssel.has-sel .ssel-cnt{display:inline-flex}
+  .ssel.has-sel .ssel-btn{border-color:var(--primary)}
+
+  .ssel-pop{display:none;position:absolute;z-index:120;top:calc(100% + 6px);left:0;right:0;
+            min-width:250px;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+            box-shadow:var(--shadow-hover);overflow:hidden}
+  .ssel.open .ssel-pop{display:flex;flex-direction:column;
+                       animation:sselIn .14s cubic-bezier(.22,.61,.36,1)}
+  @keyframes sselIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.ssel.open .ssel-pop{animation:none}}
+  /* Sarlavha — faqat mobil sheet'da kerak */
+  .ssel-hd{display:none;align-items:center;justify-content:space-between;gap:10px;
+           padding:14px 16px 10px}
+  .ssel-ht{font-size:16px;font-weight:800;letter-spacing:-.02em}
+  .ssel-x{display:flex;border:none;background:transparent;color:var(--muted);border-radius:9px;
+          padding:8px;cursor:pointer;transition:background .13s,color .13s}
+  .ssel-x svg{width:19px;height:19px}
+  .ssel-x:hover{background:var(--surface-2);color:var(--ink)}
+  /* Qidiruv */
+  .ssel-sbar{display:flex;align-items:center;gap:8px;padding:9px 12px;
+             border-bottom:1px solid var(--line);background:var(--surface)}
+  .ssel-sbar>svg{width:16px;height:16px;flex:0 0 auto;color:var(--muted)}
+  .ssel-inp{flex:1 1 auto;min-width:0;height:28px;border:none;background:transparent;color:var(--ink);
+            font-family:inherit;font-size:14.5px;outline:none;padding:0}
+  .ssel-inp::placeholder{color:var(--muted)}
+  /* Ro'yxat */
+  .ssel-list{flex:1 1 auto;min-height:0;max-height:288px;overflow-y:auto;overscroll-behavior:contain;
+             -webkit-overflow-scrolling:touch;padding:6px;
+             scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .ssel-list::-webkit-scrollbar{width:6px}
+  .ssel-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .ssel-list::-webkit-scrollbar-track{background:transparent}
+  .ssel-grp{padding:10px 10px 5px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+            text-transform:uppercase;color:var(--muted)}
+  .ssel-grp:first-child{padding-top:4px}
+  .ssel-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;
+            cursor:pointer;min-width:0;transition:background .1s}
+  .ssel-om{flex:1 1 auto;min-width:0}
+  .ssel-on{display:block;font-size:14px;font-weight:500;color:var(--ink);
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ssel-os{display:block;margin-top:1px;font-size:11.5px;color:var(--muted);
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ssel-ck{width:16px;height:16px;flex:0 0 auto;color:var(--primary);opacity:0}
+  .ssel-opt:hover,.ssel-opt.hl{background:var(--surface-2)}
+  .ssel-opt.on{background:var(--primary-soft)}
+  .ssel-opt.on .ssel-on{font-weight:600;color:var(--primary)}
+  .ssel-opt.on .ssel-ck{opacity:1}
+  .ssel-none{padding:22px 12px;text-align:center;font-size:13px;color:var(--muted)}
+  /* Ko'p tanlov: pastdagi "tozalash" qatori */
+  .ssel-foot{display:flex;gap:8px;padding:8px 10px;border-top:1px solid var(--line);background:var(--surface)}
+  .ssel-clr{flex:1 1 auto;height:34px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+            color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+            transition:background .13s,border-color .13s,color .13s}
+  .ssel-clr:hover{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+  /* Fon (faqat mobil sheet'da ko'rinadi) */
+  .ssel-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:118;display:none}
+  @media(max-width:899px){
+    .ssel-ov.on{display:block}
+    .ssel-btn{height:46px}
+    /* Panel → pastdan chiquvchi sheet */
+    .ssel.open .ssel-pop{position:fixed;z-index:120;top:auto;left:0;right:0;bottom:0;
+      min-width:0;max-height:78vh;border:none;border-top:1px solid var(--line);
+      border-radius:20px 20px 0 0;padding-bottom:env(safe-area-inset-bottom);
+      animation:sselUp .2s cubic-bezier(.22,.61,.36,1)}
+    @keyframes sselUp{from{transform:translateY(100%)}to{transform:none}}
+    .ssel-hd{display:flex}
+    .ssel-hd::before{content:'';position:absolute;top:7px;left:50%;width:36px;height:4px;
+      margin-left:-18px;border-radius:999px;background:var(--line)}
+    .ssel-sbar{padding:10px 16px}
+    .ssel-inp{height:34px;font-size:16px}   /* iOS zoom qilmasin: >=16px */
+    .ssel-list{max-height:none;padding:6px 10px 14px}
+    .ssel-opt{padding:12px 10px;min-height:48px}   /* touch */
+    .ssel-x{padding:10px}
+    .ssel-foot{padding:8px 14px calc(8px + env(safe-area-inset-bottom))}
+  }
+  body.ssel-lock{overflow:hidden}
+  /* ================================================================
+     IJROCHI (.ijr-*) — "kim yozdi" chipi + .ssel son belgisi
+     Mavjud .jtbl / .jcard / .jedited / .ftag / .ssel-* qoidalari
+     QAYTA TA'RIFLANMAGAN. Yangi CSS o'zgaruvchi YO'Q.
+     ================================================================ */
+
+  /* Metadata qatori: ijrochi + "Tahrirladi" bitta qatorda, joy yetmasa o'raladi */
+  /* 🔴 margin o'ramda EMAS, bolalarida: ijrochi chipi yashirin bo'lsa (.ijr.unk —
+     bugungi bazada ~49/50 yozuv) o'ram baribir chizilardi va `:empty` unga mos
+     kelmasdi (ichida element bor), natijada har qatorda 6px bo'sh joy qolardi. */
+  .ijr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-top:0;min-width:0}
+  .ijr-meta>*{margin-top:6px}
+  .ijr-meta:empty{display:none}
+  .ijr-meta .jedited{margin-top:0}          /* qator ichida — yuqori bo'shliq kerak emas */
+
+  /* Chip — odam */
+  .ijr{display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;
+       padding:2px 8px 2px 6px;border-radius:7px;border:1px solid transparent;
+       background:var(--surface-2);color:var(--muted);
+       font-size:11.5px;font-weight:600;line-height:1.5;letter-spacing:-.005em;
+       font-variant-numeric:tabular-nums;vertical-align:middle}
+  .ijr>svg{width:12px;height:12px;flex:0 0 auto;opacity:.9}
+  .ijr-nm{min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* Chip — tizim (avtomatik yozuv): boshqa ikonka (bot) + ko'k tus */
+  .ijr.sys{background:var(--tr-soft);color:var(--tr)}
+
+  /* Chip — noma'lum: SUKUT BO'YICHA YASHIRIN.
+     🔴 Bugungi bazada ~49/50 yozuv shunday — har qatorda "Noma'lum" chiqsa
+     jurnal buzilgandek ko'rinardi. Faqat foydalanuvchi "Ijrochi = Noma'lum"
+     filtrini tanlaganda ko'rinadi (#journal.ijr-unk). */
+  .ijr.unk{display:none;background:transparent;border-style:dashed;border-color:var(--line);
+           color:var(--muted);opacity:.75;padding:1px 8px 1px 6px}
+  .ijr-unk .ijr.unk{display:inline-flex}
+
+  /* Desktop jadvalda ustun tor — ism qisqaroq kesiladi */
+  @media(min-width:900px){
+    .jtbl .ijr-nm{max-width:150px}
+  }
+  /* Mobil kartada joy ko'proq + touch */
+  @media(max-width:899px){
+    .ijr{padding:3px 9px 3px 7px;font-size:11.5px}
+    .ijr-nm{max-width:170px}
+    .ijr-meta{gap:6px 9px;margin-top:7px}
+  }
+  @media(max-width:379px){
+    .ijr-nm{max-width:132px}
+  }
+
+  /* --- .ssel ro'yxatidagi yozuvlar soni (faqat data-n bo'lgan optionda) --- */
+  .ssel-n{flex:0 0 auto;min-width:0;font-size:11.5px;font-weight:600;color:var(--muted);
+          font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .ssel-opt.on .ssel-n{color:var(--primary)}
+  .ssel-opt:hover .ssel-n,.ssel-opt.hl .ssel-n{color:var(--ink)}
+
+  /* --- Chop etish: chip fonsiz, kontur bilan; noma'lum baribir yashirin --- */
+  @media print{
+    .ijr{background:none!important;border:1px solid #999!important;color:#000!important;
+         padding:1px 6px}
+    .ijr.sys{background:none!important;color:#000!important}
+    .ijr>svg{opacity:1}
+    .ijr-meta{gap:4px 8px}
+    .ssel-pop,.ssel-ov{display:none!important}   /* ochiq dropdown qog'ozga chiqmasin */
+  }
+
+  /* ================================================================
+     ZINAPOYA (.srv-lad) — Boshlang'ich + Kirim − Chiqim = Tugash.
+     🔴 Bitta DOM, ikki ko'rinish: >=600px gorizontal (4-5 ustun),
+        <600px vertikal daftar satri (operator chapda, summa o'ngda).
+        JS shoxlanish YO'Q. Mavjud .dash-* qoidalari tegilmagan.
+     ================================================================ */
+  .srv-lad{display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:13px 16px;box-shadow:var(--shadow);min-width:0}
+  .srv-seg{flex:1 1 0;min-width:0;display:grid;grid-template-columns:13px minmax(0,1fr);
+    column-gap:7px;align-items:baseline}
+  .srv-op{grid-column:1;font-size:15px;font-weight:700;color:var(--muted);line-height:1.2;
+    text-align:center}
+  .srv-sl{grid-column:2;font-size:11.5px;font-weight:600;color:var(--muted);line-height:1.4;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srv-sv{grid-column:2;font-size:17px;font-weight:800;letter-spacing:-.025em;line-height:1.2;
+    font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Ranglar kartalar bilan AYNAN bir xil (.dash-cv.c-in / .c-out) — bitta til */
+  .srv-seg.s-in  .srv-sv{color:var(--green)}
+  .srv-seg.s-out .srv-sv{color:var(--red)}
+  .srv-seg.s-tr  .srv-sv{color:var(--tr)}
+  /* Tugash — natija: eng qalin, asosiy rangda, chap tomonida ajratgich */
+  .srv-seg.s-close{border-left:1px solid var(--line);padding-left:12px}
+  .srv-seg.s-close .srv-sv{color:var(--ink);font-size:18px}
+  .srv-seg.s-close .srv-op{color:var(--ink)}
+
+  /* 600–759px: 5 segment tor — shrift kichrayadi, sindirish yo'q */
+  @media(max-width:759px) and (min-width:600px){
+    .srv-lad{gap:8px;padding:12px 13px}
+    .srv-sv{font-size:15.5px}
+    .srv-seg.s-close .srv-sv{font-size:16.5px}
+    .srv-seg.s-close{padding-left:9px}
+  }
+
+  /* <600px: DAFTAR ko'rinishi — operator · yorliq · summa (o'ngda).
+     360px da 5 ta gorizontal segment 47px dan qolardi (o'qib bo'lmaydi). */
+  @media(max-width:599px){
+    .srv-lad{flex-direction:column;gap:0;padding:11px 14px}
+    .srv-seg{grid-template-columns:13px minmax(0,1fr) auto;column-gap:9px;
+      align-items:baseline;padding:6px 0}
+    .srv-sl{grid-column:2;font-size:13px;color:var(--ink);font-weight:600}
+    .srv-sv{grid-column:3;justify-self:end;font-size:15px;text-align:right}
+    .srv-seg.s-close{border-left:none;padding-left:0;border-top:1px solid var(--line);
+      margin-top:4px;padding-top:9px}
+    .srv-seg.s-close .srv-sl{font-weight:800}
+    .srv-seg.s-close .srv-sv{font-size:16.5px}
+  }
+  @media(max-width:359px){
+    .srv-lad{padding:10px 12px}
+    .srv-sl{font-size:12.5px}
+    .srv-sv{font-size:14px}
+  }
+
+  @media print{
+    .srv-lad{box-shadow:none!important;border-color:#999!important;break-inside:avoid}
+    .srv-seg.s-in .srv-sv,.srv-seg.s-out .srv-sv,.srv-seg.s-tr .srv-sv{color:#000!important}
+  }
+
+  /* ================================================================
+     CHALA YOZUV — `entry` sarlavhasi bor, `entry_line` YO'Q.
+     🔴 RANG NEYTRAL (--nt / --muted), QIZIL EMAS: bu xato ham,
+        o'chirilgan yozuv ham emas. O'chirilganning qizili
+        (.jdel-note, tr.del) bilan chalkashmasligi SHART —
+        "uch xil qizil" saboqi. Pul yozilmagan → balans buzilmagan.
+     ================================================================ */
+  .jtbl tr.chala td{background:var(--nt-soft)}
+  .jtbl tbody tr.chala:hover td{background:var(--surface-2)}
+  .jtbl tr.chala .j-amt{color:var(--muted);font-size:14.5px}
+  .jcard.chala{background:var(--nt-soft)}
+  .jcard.chala .jc-amt{color:var(--muted)}
+  .jchip-chala{display:inline-flex;align-items:center;gap:5px;border:1px dashed var(--muted);
+    color:var(--muted);background:transparent;border-radius:8px;padding:2px 8px;
+    font-size:11.5px;font-weight:700;line-height:1.6}
+  .jchip-chala svg{width:12px;height:12px;flex:none}
+  .jchala-note{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
+  @media print{
+    .jtbl tr.chala td,.jcard.chala{background:none!important}
+    .jchip-chala{border:1px solid #999!important;color:#000!important}
+    .jchala-note,.jtbl tr.chala .j-amt,.jcard.chala .jc-amt{color:#000!important}
+  }
 </style>
 </head>
 <body>
@@ -334,6 +810,7 @@
       <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="sorovlar.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
       <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
@@ -359,37 +836,159 @@
     <div id="banner" class="banner"></div>
 
     <div class="filters">
-      <div class="frow">
+      <!-- ===== A. Davr paneli (.dav-*) — eski .quick va "Sana oralig'i" .fld o'rnini bosadi ===== -->
+      <div class="dav" id="davPanel">
+        <div class="dav-top">
+          <div class="dav-chips" id="davChips" role="group" aria-label="Davr">
+            <button type="button" class="dav-chip on" data-p="bugun">Bugun</button>
+            <button type="button" class="dav-chip" data-p="hafta">Bu hafta</button>
+            <button type="button" class="dav-chip" data-p="oy">Bu oy</button>
+            <button type="button" class="dav-chip" data-p="otgan">O'tgan oy</button>
+            <button type="button" class="dav-chip dav-cbtn" data-p="custom" id="davCustomBtn"
+                    aria-expanded="false" aria-controls="davCal">
+              <i data-lucide="calendar-range"></i><span>Boshqa…</span>
+            </button>
+          </div>
+          <div class="dav-out">
+            <i data-lucide="calendar-days" aria-hidden="true"></i>
+            <span class="dav-txt" id="davTxt" aria-live="polite">Bugun</span>
+          </div>
+        </div>
+
+        <div class="dav-cal" id="davCal">
+          <label class="dav-cl" for="from">Dan</label>
+          <input class="dav-date" id="from" type="date">
+          <span class="dav-sep" aria-hidden="true">—</span>
+          <label class="dav-cl" for="to">Gacha</label>
+          <input class="dav-date" id="to" type="date">
+          <button type="button" class="dav-apply" id="davApply">
+            <i data-lucide="check"></i><span>Ko'rish</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="frow frow-v2">
         <div class="fld">
-          <label>Sana oralig'i</label>
-          <div class="dates">
-            <input class="txt" id="from" type="date"><span class="dash">—</span><input class="txt" id="to" type="date">
+          <label id="lblFil" for="sselFilBtn">Filial</label>
+          <div class="ssel" id="sselFil" data-sel="fil">
+            <select id="fil" class="ssel-native" tabindex="-1" aria-hidden="true"><option value="">Barcha filiallar</option></select>
+            <button type="button" class="ssel-btn" id="sselFilBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselFilPop" aria-labelledby="lblFil sselFilVal">
+              <span class="ssel-val" id="sselFilVal">Barcha filiallar</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselFilPop">
+              <div class="ssel-hd"><span class="ssel-ht">Filial</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Qidirish…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselFilList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselFilList" role="listbox" aria-labelledby="lblFil"></div>
+            </div>
           </div>
         </div>
         <div class="fld">
-          <label>Filial</label>
-          <select id="fil"><option value="">Barcha filiallar</option></select>
+          <label id="lblHodim" for="sselHodimBtn">Hodim</label>
+          <div class="ssel" id="sselHodim" data-sel="hodim">
+            <select id="hodim" class="ssel-native" tabindex="-1" aria-hidden="true"><option value="">Barcha hodimlar</option></select>
+            <button type="button" class="ssel-btn" id="sselHodimBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselHodimPop" aria-labelledby="lblHodim sselHodimVal">
+              <span class="ssel-val" id="sselHodimVal">Barcha hodimlar</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselHodimPop">
+              <div class="ssel-hd"><span class="ssel-ht">Hodim</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Ism bo'yicha qidirish…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselHodimList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselHodimList" role="listbox" aria-labelledby="lblHodim"></div>
+            </div>
+          </div>
         </div>
         <div class="fld">
-          <label>Hodim</label>
-          <select id="hodim"><option value="">Barcha hodimlar</option></select>
+          <label id="lblAcc" for="sselAccBtn">Hisob</label>
+          <div class="ssel" id="sselAcc" data-sel="acc">
+            <select id="acc" class="ssel-native" tabindex="-1" aria-hidden="true"><option value="">Barcha hisoblar</option></select>
+            <button type="button" class="ssel-btn" id="sselAccBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselAccPop" aria-labelledby="lblAcc sselAccVal">
+              <span class="ssel-val" id="sselAccVal">Barcha hisoblar</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselAccPop">
+              <div class="ssel-hd"><span class="ssel-ht">Hisob</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Kod yoki nom…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselAccList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselAccList" role="listbox" aria-labelledby="lblAcc"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Xarajat turi (modda) — KO'P tanlovli, native select YO'Q: holat moddaSel massivida
+             (dashboard breakdown bilan bitta manba). useV2=false bo'lsa butun maydon yashirin. -->
+        <div class="fld" id="fldXtur" style="display:none">
+          <label id="lblXtur" for="sselXturBtn">Xarajat turi</label>
+          <div class="ssel" id="sselXtur" data-multi="1">
+            <button type="button" class="ssel-btn" id="sselXturBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselXturPop" aria-labelledby="lblXtur sselXturVal">
+              <span class="ssel-val ph" id="sselXturVal">Barcha turlar</span>
+              <span class="ssel-cnt" id="sselXturCnt">0</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselXturPop">
+              <div class="ssel-hd"><span class="ssel-ht">Xarajat turi</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Qidirish…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselXturList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselXturList" role="listbox" aria-labelledby="lblXtur" aria-multiselectable="true"></div>
+              <div class="ssel-foot"><button type="button" class="ssel-clr" id="sselXturClr">Tanlovni tozalash</button></div>
+            </div>
+          </div>
+        </div>
+        <!-- Ijrochi (kim yozdi) — bir tanlovli, .ssel naqshi #sselFil bilan bir xil.
+             🔴 Sukut bo'yicha YASHIRIN: jurnal_ijrochilar() javob bergandagina ochiladi
+             (PROVODKA_IJROCHI.sql RUN qilinmagan bo'lsa filtr umuman ko'rinmaydi). -->
+        <div class="fld" id="fldIjrochi" style="display:none">
+          <!-- title: yonidagi son DAVR bo'yicha jami (hisob/modda/tur/qidiruv filtri
+               olinmaydi — ro'yxat filtr o'zgarganda sakramasin). Shuning uchun u
+               tanlagandan keyingi sanoq satridan farq qilishi mumkin va bu XATO EMAS. -->
+          <label id="lblIjrochi" for="sselIjrochiBtn"
+                 title="Yonidagi son — davr bo'yicha jami (boshqa filtrlar hisobga olinmaydi)">Ijrochi</label>
+          <div class="ssel" id="sselIjrochi" data-sel="fIjrochi">
+            <select id="fIjrochi" class="ssel-native" tabindex="-1" aria-hidden="true"><option value="">Barcha ijrochilar</option></select>
+            <button type="button" class="ssel-btn" id="sselIjrochiBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselIjrochiPop" aria-labelledby="lblIjrochi sselIjrochiVal">
+              <span class="ssel-val ph" id="sselIjrochiVal">Barcha ijrochilar</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselIjrochiPop">
+              <div class="ssel-hd"><span class="ssel-ht">Ijrochi</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Ism bo'yicha qidirish…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselIjrochiList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselIjrochiList" role="listbox" aria-labelledby="lblIjrochi"></div>
+            </div>
+          </div>
         </div>
         <div class="fld">
-          <label>Hisob</label>
-          <select id="acc"><option value="">Barcha hisoblar</option></select>
-        </div>
-        <div class="fld">
-          <label>Qidiruv (izoh)</label>
-          <input class="txt" id="q" placeholder="izoh bo'yicha qidirish" oninput="render()">
+          <label for="q">Qidiruv (izoh)</label>
+          <input class="txt" id="q" placeholder="izoh bo'yicha qidirish" oninput="onQ()">
         </div>
       </div>
       <div class="fnote" id="filNote"></div>
-      <div class="quick">
-        <button onclick="setRange('bugun')">Bugun</button>
-        <button onclick="setRange('hafta')">Shu hafta</button>
-        <button onclick="setRange('oy')">Shu oy</button>
-        <button onclick="setRange('otgan')">O'tgan oy</button>
-      </div>
       <div class="seg" id="turSeg">
         <button class="on" onclick="setTur('all',this)">Hammasi</button>
         <button onclick="setTur('in',this)">Kirim</button>
@@ -398,6 +997,110 @@
         <button onclick="setTur('nt',this)">Boshqa</button>
       </div>
     </div>
+
+    <!-- ===== B. Dashboard (.dash-*) — jurnal_dash() RPC, ro'yxat bilan BITTA args() ===== -->
+    <section class="dash" id="dash" aria-label="Davr xulosasi" style="display:none">
+      <div class="dash-hd">
+        <button type="button" class="dash-tgl" id="dashTgl" aria-expanded="true" aria-controls="dashBody">
+          <i data-lucide="chevron-down" class="dash-chev"></i><span>Davr xulosasi</span>
+        </button>
+        <div class="dash-hint" id="dashHint">—</div>
+      </div>
+
+      <div class="dash-body" id="dashBody">
+
+        <!-- B0. Zinapoya: Boshlang'ich + Kirim − Chiqim = Tugash (jurnal_qoldiq RPC).
+             🔴 Tenglama to'g'ri chiqmasa BUTUNLAY yashiriladi (ladShow() uch bosqichli
+                fail-closed) — noto'g'ri tenglama pastdagi hamma raqamga bo'lgan
+                ishonchni yo'q qiladi. Kartalar bunda avvalgidek qoladi. -->
+        <div class="srv-lad" id="jLad" style="display:none" role="group" aria-label="Davr qoldig'i">
+          <div class="srv-seg s-open">
+            <span class="srv-op" aria-hidden="true"></span>
+            <span class="srv-sl">Boshlang'ich</span>
+            <span class="srv-sv num" id="ladOpen">—</span>
+          </div>
+          <div class="srv-seg s-in">
+            <span class="srv-op" aria-hidden="true">+</span>
+            <span class="srv-sl">Kirim</span>
+            <span class="srv-sv num" id="ladIn">—</span>
+          </div>
+          <div class="srv-seg s-out">
+            <span class="srv-op" aria-hidden="true">&minus;</span>
+            <span class="srv-sl">Chiqim</span>
+            <span class="srv-sv num" id="ladOut">—</span>
+          </div>
+          <!-- Kassa/filial filtri tanlanganda transfer ham OQIM bo'ladi (server
+               transfer_net ni o'zi hisoblaydi — qoldiq farqi bu yerga tashlanmaydi) -->
+          <div class="srv-seg s-tr" id="ladTrSeg" style="display:none">
+            <span class="srv-op" id="ladTrOp" aria-hidden="true">+</span>
+            <span class="srv-sl">Transfer</span>
+            <span class="srv-sv num" id="ladTr">—</span>
+          </div>
+          <div class="srv-seg s-close">
+            <span class="srv-op" aria-hidden="true">=</span>
+            <span class="srv-sl">Tugash</span>
+            <span class="srv-sv num" id="ladClose">—</span>
+          </div>
+        </div>
+
+        <!-- B1. Xulosa kartalari -->
+        <div class="dash-cards" id="dashCards">
+          <div class="dash-card">
+            <div class="dash-ct"><span class="dash-ic in"><i data-lucide="arrow-down-left"></i></span><span class="dash-cl2">Kirim</span></div>
+            <div class="dash-cv num c-in" id="sumIn">—</div>
+            <div class="dash-cs" id="cntIn">—</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-ct"><span class="dash-ic out"><i data-lucide="arrow-up-right"></i></span><span class="dash-cl2">Chiqim</span></div>
+            <div class="dash-cv num c-out" id="sumOut">—</div>
+            <div class="dash-cs" id="cntOut">—</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-ct"><span class="dash-ic tr"><i data-lucide="arrow-left-right"></i></span><span class="dash-cl2">Transfer</span></div>
+            <div class="dash-cv num c-tr" id="sumTr">—</div>
+            <div class="dash-cs" id="cntTr">—</div>
+          </div>
+          <div class="dash-card">
+            <div class="dash-ct"><span class="dash-ic nt"><i data-lucide="scroll-text"></i></span><span class="dash-cl2">Yozuvlar</span></div>
+            <div class="dash-cv num" id="sumCnt">—</div>
+            <div class="dash-cs" id="cntSub">—</div>
+          </div>
+        </div>
+
+        <!-- B2 + B3. Breakdown ro'yxati (legend) + diagramma -->
+        <div class="dash-grid">
+
+          <div class="dash-panel">
+            <div class="dash-ph">
+              <h3>Nimaga qancha</h3>
+              <button type="button" class="dash-clear" id="xtClear" hidden>
+                <i data-lucide="x"></i><span>tozalash</span>
+              </button>
+            </div>
+            <div class="dash-cats" id="xtList" aria-live="polite">
+              <!-- skeleton (birinchi yuklash) -->
+              <div class="dash-cat sk"><div class="dash-cl"><span class="dash-skel" style="width:38%"></span><span class="dash-skel" style="width:22%"></span></div><div class="dash-track"></div></div>
+              <div class="dash-cat sk"><div class="dash-cl"><span class="dash-skel" style="width:52%"></span><span class="dash-skel" style="width:18%"></span></div><div class="dash-track"></div></div>
+              <div class="dash-cat sk"><div class="dash-cl"><span class="dash-skel" style="width:30%"></span><span class="dash-skel" style="width:24%"></span></div><div class="dash-track"></div></div>
+            </div>
+          </div>
+
+          <div class="dash-panel dash-chartp">
+            <div class="dash-ph">
+              <h3>Ulush</h3>
+              <div class="dash-seg2" id="xtChartSeg" role="group" aria-label="Diagramma turi">
+                <button type="button" class="on" data-c="donut" aria-label="Doira diagramma" title="Doira"><i data-lucide="chart-pie"></i></button>
+                <button type="button" data-c="bar" aria-label="Ustunli diagramma" title="Ustun"><i data-lucide="chart-no-axes-column"></i></button>
+              </div>
+            </div>
+            <div class="dash-svg" id="xtChart"><div class="dash-empty">—</div></div>
+          </div>
+
+        </div>
+        <!-- Aralash (begona pul satri bor) yozuvlar jamiga kirmaydi — soni ochiq yoziladi -->
+        <div class="dash-note" id="dashChet" style="display:none"></div>
+      </div>
+    </section>
 
     <div class="cbar">
       <div class="count" id="count">—</div>
@@ -408,6 +1111,8 @@
     </div>
     <div id="journal"><div class="empty">—</div></div>
     <button class="more" id="moreBtn" onclick="loadMore()" style="display:none"><i data-lucide="chevron-down"></i>Ko'proq yuklash</button>
+    <!-- .ssel mobil sheet foni (bitta, hamma tanlagich uchun umumiy) -->
+    <div class="ssel-ov" id="sselOv" aria-hidden="true"></div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -427,6 +1132,7 @@
       <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
       <a href="kassa.html"><i data-lucide="wallet"></i>Kassa</a>
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="sorovlar.html"><i data-lucide="hand-coins"></i>So'rovlar</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
@@ -509,6 +1215,20 @@ function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Da
 const LIMIT=100;
 let rows=[], offset=0, total=0, tur='all', accounts=[], isAdmin=false, myName='', edir='kirim', editId=null;
 let accList=[], filAllow=null;
+// --- Jurnal v2 holati ---
+// useV2   : PROVODKA_JURNAL_V2.sql RUN qilinganmi (birinchi xatoda false bo'ladi — pastda v2Off)
+// moddaSel: tanlangan xarajat moddalari (dashboard breakdown'dan; 2-bosqichda dropdown ham shu holatni ishlatadi)
+// dashData: oxirgi jurnal_dash javobi (diagramma turi almashganda qayta so'ramaslik uchun)
+// loadSeq  : so'rov navbati qorovuli — qidiruv tez terilganda eski javob yangisini bosmasin
+let useV2=true, moddaSel=[], dashData=null, chartMode='donut', davKey='bugun', qTimer=null, loadSeq=0;
+// --- Ijrochi ("kim yozdi") holati — PROVODKA_IJROCHI.sql ---
+// useIjr : jurnal_ijrochilar() javob berdimi (= SQL RUN qilingan). 🔴 false bo'lsa
+//          p_ijrochi UMUMAN yuborilmaydi — aks holda ESKI imzoli jurnal_v2 PGRST202
+//          berib butun sahifani zaxira yo'lga (v2Off) tushirib yuborardi.
+// ijrSig : ro'yxat qaysi davr uchun yuklangan ('from|to') — davr o'zgarsa qayta yuklanadi.
+// ijrSeq : ro'yxat so'rovi navbati — loadSeq dan ALOHIDA hisoblagich, eskirgan javob
+//          yangi ro'yxatni yozib ketmasin (loadSeq ga tegilmaydi).
+let useIjr=false, ijrSig='', ijrSeq=0;
 // Ruxsat (scope='list'): ko'rishga ruxsat etilgan pul-hisob id'lari (valyuta bolalari + hodim
 // kassalari ham). null = cheklovsiz (admin yoki scope='all'). Jurnal so'roviga p_accounts sifatida
 // ketadi — server faqat shu kassalar qatnashgan yozuvlarni qaytaradi (entrylar ham, jurnal_count ham).
@@ -596,6 +1316,33 @@ async function loadRole(){
 // sana — UZB (UTC+5)
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const iso=d=>d.toISOString().slice(0,10);
+// --- Davr paneli (.dav-*) ---
+const OYLAR=['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentyabr','oktyabr','noyabr','dekabr'];
+const CHIP_NOM={bugun:'Bugun',hafta:'Bu hafta',oy:'Bu oy',otgan:"O'tgan oy"};
+// "24 avgust 2026" · "1–24 avgust" · "5–24 avgust 2026" · "1 iyul – 24 avgust 2026"
+// Yil faqat kerak bo'lganda yoziladi (joriy yilning to'liq oyi → yilsiz, qisqaroq o'qiladi).
+function davrMatn(f,t){
+  if(!f||!t) return '—';
+  const a=String(f).split('-').map(Number), b=String(t).split('-').map(Number);
+  if(a.length<3||b.length<3||!a[1]||!b[1]) return f+' – '+t;
+  const oy=i=>OYLAR[i-1]||'', joriy=nowUz().getUTCFullYear();
+  if(f===t) return a[2]+' '+oy(a[1])+' '+a[0];
+  if(a[0]===b[0]&&a[1]===b[1]){
+    const yil=(a[2]===1&&a[0]===joriy)?'':' '+a[0];
+    return a[2]+'–'+b[2]+' '+oy(a[1])+yil;
+  }
+  return a[2]+' '+oy(a[1])+(a[0]===b[0]?'':' '+a[0])+' – '+b[2]+' '+oy(b[1])+' '+b[0];
+}
+// Chip .on holati + #davTxt matni. k=null/'custom' → tayyor davr emas ("Boshqa…").
+function davSet(k){
+  davKey=k||null;
+  const ch=$('davChips');
+  if(ch) [...ch.children].forEach(b=>b.classList.toggle('on', !!davKey && b.dataset.p===davKey));
+  const el=$('davTxt');
+  if(el){ const nom=CHIP_NOM[davKey]||''; el.textContent=(nom?nom+' · ':'')+davrMatn($('from').value,$('to').value); }
+}
+// Kalendar qo'lda o'zgartirilsa: chiplardan .on olinadi ("Boshqa…" holati) va qayta yuklanadi
+function onDate(){ davSet('custom'); load(); }
 window.setRange=k=>{
   const n=nowUz(); let f,t=iso(n);
   if(k==='bugun') f=t;
@@ -605,10 +1352,12 @@ window.setRange=k=>{
     f=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth()-1,1)));
     t=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),0)));
   }
-  $('from').value=f; $('to').value=t; load();
+  $('from').value=f; $('to').value=t; davSet(k); load();
 };
+// 🔴 v2 da tur filtri SERVERDA (p_turlar) → load(). Zaxirada esa avvalgidek klient render().
 window.setTur=(k,btn)=>{ tur=k;
-  [...$('turSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on'); render();
+  [...$('turSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  if(useV2) load(); else render();
 };
 
 // Hisob ro'yxati — optgroup bilan. Tartib muhim: birinchi moslik yutadi.
@@ -637,10 +1386,11 @@ function buildAccSel(){
   const boshqa=list.filter(a=>!used.has(a.id));
   if(boshqa.length) html+='<optgroup label="Boshqa">'+boshqa.map(optOf).join('')+'</optgroup>';
   $('acc').innerHTML=html||'<option value="">— hisob yo\'q —</option>';
+  sselSync('acc');   // ⚠️ ro'yxat qayta qurildi (filial tanlandi) — dropdown ham yangilanadi
 }
 async function loadAccSel(){
   const {data,error}=await sb.from('v_hisob_royxat').select('*').order('code');
-  if(error){ $('banner').style.display='block'; $('banner').textContent='Hisob ro\'yxati: '+error.message; return; }
+  if(error){ $('banner').style.display='block'; $('banner').classList.remove('soft'); $('banner').textContent='Hisob ro\'yxati: '+error.message; return; }
   accList=data||[];
   buildAccSel();
   $('acc').onchange=onAcc;
@@ -672,6 +1422,7 @@ function buildHodimSel(){
   $('hodim').innerHTML='<option value="">Barcha hodimlar</option>'
     +hs.map(a=>`<option value="${a.id}">${esc(a.name)}${a.subtitle?' · '+esc(a.subtitle):''}</option>`).join('');
   $('hodim').onchange=onHodim;
+  sselSync('hodim');
 }
 // Hodim va Hisob filtrlari o'zaro istisno — biri tanlansa ikkinchisi tozalanadi (chalkashmasin).
 function onHodim(){ if($('hodim').value) $('acc').value=''; load(); }
@@ -683,6 +1434,7 @@ async function loadFilSel(){
   $('fil').innerHTML='<option value="">Barcha filiallar</option>'
     +data.map(f=>`<option value="${esc(f.warehouse_id)}">${esc(f.filial)}</option>`).join('');
   $('fil').onchange=onFil;
+  sselSync('fil');
 }
 function note(m){ const n=$('filNote'); n.style.display=m?'block':'none'; n.textContent=m||''; }
 async function onFil(){
@@ -694,16 +1446,46 @@ async function onFil(){
   filAllow=new Set(ids); buildAccSel();
   if(!ids.length){
     note('Bu filialga hisob bog\'lanmagan — Sozlamalar → "Filiallarni bog\'lash".');
-    rows=[]; offset=0; total=0; render(); return;
+    // 🔴 render() EMAS, load(): args() bo'sh p_accounts beradi va load() ichidagi
+    // qorovul ro'yxat bilan birga dashboardni ham tozalaydi (dashShow(null)).
+    // Aks holda oldingi filialning raqamlari qolib, "shu filialniki" deb o'qilardi.
+    await load(); return;
   }
   note('');
   await load();
 }
 
+/* ---- CHALA YOZUV: sarlavha bor, satr yo'q -----------------------------------
+   Yozuv ikki qadamda yoziladi (entry insert → entry_line insert). Satrlar rad
+   etilganda kompensatsiya `delete` RLS tufayli 0 qator o'chirgan → sarlavha
+   yetim qolgan. PUL YOZILMAGAN, balansga ta'sir qilmaydi (balans faqat
+   entry_line'dan) — shuning uchun bunday yozuv O'CHIRILMAYDI, faqat aniq
+   nomlanadi (Asilbek qarori).
+   🔴 IKKI YO'L, TARTIB MUHIM: avval `n_lines` (jurnal_v2_baza ustuni), keyin
+      `lines` massivining uzunligi. Ikkalasi ham yo'q bo'lsa (lines null yoki
+      massiv emas) HECH NARSA belgilanmaydi — soxta "chala" yorlig'i chiqmasin.
+   ⚠️ `n_lines` ATAYLAB BIRINCHI: eski `jurnal()` ning ba'zi versiyasi javobni
+      yengil qilish uchun `lines` ni FAQAT ko'p satrli yozuvga to'ldirib,
+      qolganiga `[]` beradi. O'shanda faqat uzunlikka qarasak HAR 2 satrli
+      yozuv "chala" bo'lib ketardi — lekin o'sha javobda `n_lines` ustuni bor
+      va u to'g'ri javob beradi. */
+function isChala(e){
+  if(!e) return false;
+  if(e.n_lines!=null && Number.isFinite(Number(e.n_lines))) return Number(e.n_lines)===0;
+  if(Array.isArray(e.lines)) return e.lines.length===0;
+  return false;
+}
+const CHALA_NOM='Chala yozuv — pul yozilmagan';
+const CHALA_IZOH="Saqlash yarim qolgan: sarlavha yozilgan, hisob satrlari yozilmagan. Pul harakat qilmagan — balansga ta'sir qilmaydi.";
+
 // TASNIF — section='pul' bo'yicha, kod prefiksi bilan EMAS.
 const isPul=l=>l&&l.section==='pul';
 function klass(e){
   const dt=(e.lines||[]).find(l=>Number(l.debit)>0), kt=(e.lines||[]).find(l=>Number(l.credit)>0);
+  // 🔴 `kind` ATAYLAB 'nt' (neytral/kulrang) qoladi — yangi kind qo'shilsa
+  // render() dagi tur filtri (klass(e).kind!==tur) chala yozuvni "Boshqa"
+  // segmentidan yashirib qo'yardi. Farqni faqat `chala` bayrog'i bildiradi.
+  if(isChala(e)) return {kind:'nt',ic:'circle-dashed',sign:'',chala:true};
   if((e.lines||[]).length>2) return {kind:'nt',ic:'layers',sign:''};
   const dp=isPul(dt), kp=isPul(kt);
   if(dp&&kp)  return {kind:'tr', ic:'arrow-left-right', sign:'', dt,kt};
@@ -738,6 +1520,7 @@ async function refreshCheks(){
   }));
   chekKeys=next; render();
 }
+
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
 window.openChek=async(kassaId,entryId)=>{
   const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
@@ -959,13 +1742,134 @@ function accCell(line){
   const s=accSub(line.account_id);
   return `<span class="acode">${esc(line.code||'')}</span><span class="aname">${turiIko(line.account_id)}${esc(line.name||'')}${s?' · '+esc(s):''}</span>`;
 }
+/* ==================== IJROCHI ("kim yozdi") ====================
+   Server: jurnal_v2 har elementga `ijrochi` (ko'rsatiladigan ism) va `ijrochi_raw`
+   (xom created_by) qo'shadi; ro'yxat jurnal_ijrochilar(p_from,p_to) dan keladi.
+   🔴 Zaxira yo'lda (v2Off → eski jurnal()) bu maydonlar YO'Q — chip ham chizilmaydi. */
+// Texnik ijrochilar: xom kalit → odam tilidagi nom (chipda ko'k `bot` bilan chiqadi)
+const IJR_SYS={aros_sync:'Aros sinxron', tovar_sync:'Tovar sinxron', transfer_fix:'Tizim tuzatish',
+  boshlangich_qoldiq:"Boshlang'ich qoldiq", boshlangich_kapital:"Boshlang'ich kapital",
+  n8n:'n8n avtomat', system:'Tizim', service_role:'Tizim'};
+// 🔴 Server sentineli — O'ZGARTIRILMAYDI: jurnal_ijrochilar shu kalitni qaytaradi va
+//    p_ijrochi ga aynan shu kalit qaytariladi (PROVODKA_IJROCHI.sql 3-BO'LIM).
+const IJR_BOSH='(bosh)';
+const isUuidTxt=s=>/^[0-9a-fA-F-]{36}$/.test(String(s||''));
+// 🔴 Faqat O'Z kaliti: IJR_SYS['constructor'] kabi prototip kalitlari chipga
+//    funksiya matnini chiqarib yuborardi (created_by shunday bo'lsa).
+const ijrSys=k=>(k&&Object.prototype.hasOwnProperty.call(IJR_SYS,k))?IJR_SYS[k]:'';
+// Yozuvda ijrochi maydonlari bormi. Eski jurnal() va eski imzoli jurnal_v2 ularni
+// qaytarmaydi → chip umuman chizilmaydi (soxta "Noma'lum" chiqmasin).
+const ijrBor=e=>!!e&&(Object.prototype.hasOwnProperty.call(e,'ijrochi')
+                    ||Object.prototype.hasOwnProperty.call(e,'ijrochi_raw'));
+// Chip. 🔴 Bo'sh bo'lsa ham TEG qaytaradi (.ijr.unk) — ko'rinishini CSS hal qiladi
+// (#journal.ijr-unk), ya'ni render() ichida shoxlanish yo'q: filtr holati = bitta klass.
+function ijrHtml(e){
+  const raw=String((e&&e.ijrochi_raw)||'').trim();
+  let nom=String((e&&e.ijrochi)||'').trim();
+  if(isUuidTxt(nom)) nom='';                       // 🔴 xom UUID hech qachon ekranga chiqmaydi
+  const key=(raw&&!isUuidTxt(raw))?raw.toLowerCase():'';   // texnik belgi (aros_sync…)
+  const isSys=!!key||(!raw&&String((e&&e.source)||'')==='aros_auto');
+  if(isSys){
+    const lbl=ijrSys(key)||(key?(nom||raw):'')||IJR_SYS.aros_sync;
+    return '<span class="ijr sys" title="Avtomatik yozuv · '+esc(raw||(e&&e.source)||'tizim')+'">'
+      +'<i data-lucide="bot"></i><span class="ijr-nm">'+esc(lbl)+'</span></span>';
+  }
+  if(!raw||!nom||nom==="Noma'lum")
+    return '<span class="ijr unk" title="Ijrochi qayd etilmagan"><i data-lucide="user"></i>'
+      +'<span class="ijr-nm">Noma\'lum</span></span>';
+  return '<span class="ijr" title="Yozuvni kiritdi: '+esc(nom)+'"><i data-lucide="user"></i>'
+    +'<span class="ijr-nm">'+esc(nom)+'</span></span>';
+}
+// Excel uchun sof matn (chip emas). 🔴 Noma'lum = BO'SH katak — "Noma'lum" so'zi
+// filtrni/pivotni ifloslantiradi; bo'sh katak Excel'da to'g'ri "(blank)" bo'ladi.
+function ijrText(e){
+  const raw=String((e&&e.ijrochi_raw)||'').trim();
+  let nom=String((e&&e.ijrochi)||'').trim();
+  if(isUuidTxt(nom)||nom==="Noma'lum") nom='';
+  if(raw&&!isUuidTxt(raw)) return ijrSys(raw.toLowerCase())||nom||raw;
+  if(!raw&&String((e&&e.source)||'')==='aros_auto') return IJR_SYS.aros_sync;
+  return nom;
+}
+// Filtr o'chirilgan holat: SQL yo'q / RPC xato / zaxira yo'l. Maydon yashiriladi,
+// tanlov tozalanadi va keyingi so'rovlarda p_ijrochi yuborilmaydi.
+function ijrOff(){
+  useIjr=false; ijrSig='';
+  const s=$('fIjrochi'); if(s) s.value='';
+  const f=$('fldIjrochi'); if(f) f.style.display='none';
+  const j=$('journal'); if(j) j.classList.remove('ijr-unk');
+  sselSync('fIjrochi');
+}
+// #fIjrochi o'zgardi: 🔴 faqat bitta klass (chip ko'rinishi CSS ishi) + qayta yuklash.
+function onIjrochi(){
+  const el=$('fIjrochi'), j=$('journal');
+  if(j) j.classList.toggle('ijr-unk', !!el && el.value===IJR_BOSH);
+  load();
+}
+// Ijrochi ro'yxati — jurnal_ijrochilar(p_from,p_to). 🔴 FAQAT davrga bog'liq (server
+// shunday qaytaradi): hisob/tur/qidiruv tanlanganda ro'yxat o'zgarmaydi, aks holda
+// tanlangan ijrochi ro'yxatdan yo'qolib filtr o'zini o'zi tozalab yuborardi.
+async function loadIjrSel(){
+  if(!useV2) return;                                  // zaxira yo'lda ijrochi umuman yo'q
+  const f=$('from').value, t=$('to').value, sig=f+'|'+t;
+  if(sig===ijrSig) return;                            // shu davr uchun allaqachon yuklangan
+  const my=++ijrSeq;
+  const {data,error}=await sb.rpc('jurnal_ijrochilar',{p_from:f,p_to:t});
+  if(my!==ijrSeq) return;                             // eskirgan javob — yozib ketmasin
+  if(!useV2) return;                                  // await orasida zaxira yo'lga o'tilgan — filtr ochilmasin
+  if(error){
+    // 🔴 v2Off() CHAQIRILMAYDI: jurnal_v2 ishlayotgan bo'lishi mumkin (faqat IJROCHI
+    //    SQL RUN qilinmagan) — dashboard va modda filtri buzilmasin.
+    if(useIjr) ijrOff(); else { const fl=$('fldIjrochi'); if(fl) fl.style.display='none'; }
+    if(!yoqFn(error)) console.warn('jurnal_ijrochilar:',error.message);
+    return;
+  }
+  const sel=$('fIjrochi'); if(!sel) return;
+  ijrSig=sig;
+  // Tartib (majburiy): Hammasi → Odamlar (soni kamayishi bo'yicha, server tartibi) →
+  // Tizim → Noma'lum eng oxirida (u tanlov emas, qoldiq).
+  const odam=[], tiz=[]; let bosh=null;
+  (data||[]).forEach(r=>{
+    const raw=String(r&&r.ijrochi_raw!=null?r.ijrochi_raw:'');
+    const nom=String(r&&r.ijrochi!=null?r.ijrochi:'').trim();
+    const n=Number(r&&r.soni)||0;
+    if(!raw) return;
+    if(raw===IJR_BOSH){ bosh={v:raw,l:"Noma'lum",n}; return; }
+    if(isUuidTxt(raw)) odam.push({v:raw,l:(nom&&!isUuidTxt(nom))?nom:"Noma'lum",n});
+    else tiz.push({v:raw,l:ijrSys(raw.toLowerCase())||nom||raw,n});
+  });
+  // data-n — BUTUN davr bo'yicha SERVER sanog'i (yuklangan sahifadagi son emas).
+  const opt=o=>`<option value="${esc(o.v)}" data-n="${esc(money(o.n))}">${esc(o.l)}</option>`;
+  let html='<option value="">Barcha ijrochilar</option>';
+  if(odam.length) html+='<optgroup label="Odamlar">'+odam.map(opt).join('')+'</optgroup>';
+  if(tiz.length)  html+='<optgroup label="Tizim">'+tiz.map(opt).join('')+'</optgroup>';
+  if(bosh)        html+=opt(bosh);
+  const cur=sel.value;
+  sel.innerHTML=html;
+  sel.onchange=onIjrochi;
+  useIjr=true;
+  const fl=$('fldIjrochi'); if(fl) fl.style.display='';
+  // Tanlangan ijrochi yangi davrda umuman yo'q bo'lsa — filtr o'zi haqida yolg'on
+  // aytmasin: tozalanadi va ro'yxat qayta so'raladi.
+  const bor=[...sel.options].some(o=>o.value===cur);
+  sel.value=bor?cur:'';
+  sselSync('fIjrochi');
+  if(cur&&!bor){ onIjrochi(); return; }
+  const j=$('journal'); if(j) j.classList.toggle('ijr-unk', sel.value===IJR_BOSH);
+}
 // Maqsad ustuni: izoh + teglar (filial/davr/yuk/kommunal/⏳) + chek + tahrir/o'chirish izi + ko'p satr.
 function maqsadHtml(e,k,multi){
   const parts=[];
+  const chala=!!(k&&k.chala);
+  // Chala yozuv — birinchi navbatda AYTILADI (kulrang chip + qisqa izoh).
+  if(chala) parts.push(`<div><span class="jchip-chala" title="${esc(CHALA_IZOH)}"><i data-lucide="circle-dashed"></i>${esc(CHALA_NOM)}</span></div>`);
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
   if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
-  else if(!multi) parts.push(`<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`);
-  else parts.push(`<div class="jgoal muted">Ko'p satrli yozuv</div>`);
+  // 🔴 Chala yozuvda "Kt → Dt" satri CHIZILMAYDI: hisob yo'q, u bo'sh " → " bo'lib
+  // ko'rinardi (aynan foydalanuvchini chalkashtirgan holat).
+  else if(!chala) parts.push(!multi
+    ? `<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`
+    : `<div class="jgoal muted">Ko'p satrli yozuv</div>`);
+  if(chala) parts.push(`<div class="jchala-note">${esc(CHALA_IZOH)}</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
   if(kid&&chekKeys.has(kid+'/'+e.id)){
@@ -974,7 +1878,11 @@ function maqsadHtml(e,k,multi){
     const lbl=(!x||CHEK_IMG.indexOf(x)>=0)?'Chek':'Hujjat';
     parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>${lbl}</button>`);
   }
-  if(e.edited_at) parts.push(`<div class="jedited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`);
+  // --- Ijrochi + tahrir izi: BITTA metadata qatori (.ijr-meta, joy yetmasa o'raladi) ---
+  const im=[];
+  if(ijrBor(e)) im.push(ijrHtml(e));   // server ijrochi bermasa (zaxira yo'l) — chip yo'q
+  if(e.edited_at) im.push(`<div class="jedited"><i data-lucide="pencil"></i>Tahrirladi: ${esc(e.edited_by_name||'—')}</div>`);
+  if(im.length) parts.push(`<div class="ijr-meta">${im.join('')}</div>`);
   if(multi) parts.push(`<div class="jlines">${e.lines.map(lineRow).join('')}</div>`);
   return parts.join('');
 }
@@ -986,31 +1894,38 @@ function actsHtml(e,k,multi){
     +`<button class="jact del" title="O'chirish" onclick="softDelete('${e.id}')"><i data-lucide="trash-2"></i></button>`;
 }
 function render(){
+  // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
+  { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
   const q=$('q').value.trim().toLowerCase();
   const list=rows.filter(e=>{
     if(tur!=='all' && klass(e).kind!==tur) return false;
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
     return true;
   });
+  // 🔴 useV2 da tur/qidiruv SERVERDA filtrlangan → total to'g'ri son, matn sodda.
+  // Zaxira yo'lda (eski jurnal) filtr faqat klientda — eski, aniqroq matn qoladi.
   const filtered=(tur!=='all'||q);
-  $('count').innerHTML=filtered
-    ? `<b>${list.length}</b> ta ko'rsatilmoqda · yuklangan ${rows.length} / jami <b>${total}</b> ta yozuv`
-    : `<b>${total}</b> ta yozuv${rows.length<total?` · ${rows.length} tasi yuklandi`:''}`;
+  $('count').innerHTML= useV2
+    ? `<b>${total}</b> ta yozuv${rows.length<total?` · ${rows.length} tasi yuklandi`:''}`
+    : (filtered
+      ? `<b>${list.length}</b> ta ko'rsatilmoqda · yuklangan ${rows.length} / jami <b>${total}</b> ta yozuv`
+      : `<b>${total}</b> ta yozuv${rows.length<total?` · ${rows.length} tasi yuklandi`:''}`);
   $('moreBtn').style.display = rows.length<total ? 'flex' : 'none';
   if(!list.length){ $('journal').innerHTML='<div class="empty">Bu shartlarga mos yozuv yo\'q</div>'; icons(); return; }
 
   // Desktop: jadval — # | Sana | Qayerdan chiqadi (Kt) | → | Qayerga kiradi (Dt) | Summa | Maqsad
   const rowsHtml=list.map((e,i)=>{
-    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2;
-    const ktC=multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt);
-    const dtC=multi?`<span class="jmuted">${e.lines.length} satr</span>`:accCell(k.dt);
-    return `<tr class="jr${e.is_deleted?' del':''}">`
+    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
+    // Chala: Dt/Kt "—" emas, ANIQ matn; summa 0 emas, "—" (yolg'on nol chalkashtirmasin).
+    const ktC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt));
+    const dtC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?`<span class="jmuted">${e.lines.length} satr</span>`:accCell(k.dt));
+    return `<tr class="jr${e.is_deleted?' del':''}${chala?' chala':''}">`
       +`<td class="j-num">${i+1}</td>`
       +`<td class="j-date">${esc(e.entry_date||'')}</td>`
       +`<td class="j-kt">${ktC}</td>`
       +`<td class="j-arrow ${kc(k)}"><i data-lucide="${k.ic}"></i></td>`
       +`<td class="j-dt">${dtC}</td>`
-      +`<td class="j-amt ${kc(k)}">${k.sign}${money(amt)}</td>`
+      +`<td class="j-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</td>`
       +`<td class="j-maqsad">${maqsadHtml(e,k,multi)}</td>`
       +`<td class="j-acts">${actsHtml(e,k,multi)}</td>`
     +`</tr>`;
@@ -1021,16 +1936,19 @@ function render(){
 
   // Mobil: karta — sana+summa tepada, Qayerdan → Qayerga o'rtada strelka bilan, maqsad ostida
   const cardsHtml=list.map((e,i)=>{
-    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2;
+    const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
     const acts=actsHtml(e,k,multi);
-    const flow = multi
+    const flow = chala
+      ? `<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
+        +`<div class="jc-acc"><span class="acap">Hisoblar</span><span class="aname jmuted">Satr yozilmagan (Dt/Kt yo'q)</span></div>`
+      : multi
       ? `<div class="jc-acc"><span class="acap">Ko'p satrli</span><span class="aname">${e.lines.length} satr</span></div>`
       : `<div class="jc-acc"><span class="acap">Qayerdan (Kt)</span>${accCell(k.kt)}</div>`
         +`<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
         +`<div class="jc-acc"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
-    return `<div class="jcard${e.is_deleted?' del':''}">`
-      +`<div class="jc-top"><span class="jc-date">${esc(e.entry_date||'')} · #${i+1}</span><span class="jc-amt ${kc(k)}">${k.sign}${money(amt)}</span></div>`
-      +`<div class="jc-flow${multi?' jc-multi':''}">${flow}</div>`
+    return `<div class="jcard${e.is_deleted?' del':''}${chala?' chala':''}">`
+      +`<div class="jc-top"><span class="jc-date">${esc(e.entry_date||'')} · #${i+1}</span><span class="jc-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</span></div>`
+      +`<div class="jc-flow${(multi||chala)?' jc-multi':''}">${flow}</div>`
       +`<div class="jc-maqsad">${maqsadHtml(e,k,multi)}</div>`
       +(acts?`<div class="jc-acts">${acts}</div>`:'')
     +`</div>`;
@@ -1041,6 +1959,531 @@ function render(){
   icons();
 }
 window.render=render;
+
+/* ==================== JURNAL v2 — server filtri + zaxira yo'l ====================
+   jurnal_v2 / jurnal_v2_count / jurnal_dash (PROVODKA_JURNAL_V2.sql).
+   🔴 ZAXIRA: SQL hali RUN qilinmagan bo'lsa birinchi so'rov "funksiya topilmadi"
+   beradi (PGRST202 / 42883 / "schema cache") — o'shanda useV2=false bo'lib sahifa
+   ESKI jurnal()/jurnal_count() ga tushadi, dashboard va modda filtri yashiriladi.
+   Ya'ni SQL siz ham jurnal avvalgidek to'liq ishlaydi (ai.html "jadval yo'q →
+   xotira rejimi" naqshi). */
+// 🔴 Tur segmenti → server tasnifi (jurnal_v2_baza). Tekshirilgan xarita, o'zgartirma:
+// server 'tushum' (Dt pul / Kt daromad) klientda ham Kirim, 'xarajat' esa Chiqim bo'lib chiqadi.
+const TUR_SRV={all:null,in:['kirim','tushum'],out:['chiqim','xarajat'],tr:['transfer'],nt:['boshqa']};
+const yoqFn=e=>{
+  if(!e) return false;
+  const c=String(e.code||'');
+  const m=(String(e.message||'')+' '+String(e.details||'')+' '+String(e.hint||'')).toLowerCase();
+  // 🔴 Shart ATAYLAB tor: faqat "funksiya topilmadi" — PGRST202 (PostgREST schema
+  // cache) yoki 42883 (undefined_function). Oddiy `does not exist` matni
+  // `column … does not exist` (42703) va `relation … does not exist` (42P01) ni ham
+  // ushlab, HAQIQIY ichki xatoni jimgina zaxiraga tushirib yuborardi — sabab yo'qolardi.
+  const yes = c==='PGRST202' || c==='42883'
+    || /function[\s\S]*does not exist/.test(m)
+    || (m.indexOf('schema cache')>=0 && m.indexOf('function')>=0);
+  if(yes) console.warn('jurnal_v2 zaxiraga tushdi (funksiya topilmadi):',e);
+  return yes;
+};
+function v2Off(){
+  if(!useV2) return;
+  useV2=false; moddaSel=[]; dashData=null;
+  const d=$('dash'); if(d) d.style.display='none';          // dashboard yashirin
+  // 🔴 Modda filtri ham yashirin: serverda p_moddalar yo'q, klientda soxta ishlagandek ko'rinmasin
+  const fx=$('fldXtur'); if(fx) fx.style.display='none';
+  sselSync('xtur');
+  // 🔴 Eski jurnal() da ijrochi YO'Q — filtr ham yashiriladi, chip ham chizilmaydi
+  ijrOff();
+  const b=$('banner');
+  if(b&&b.dataset.v2!=='1'){ b.dataset.v2='1'; b.style.display='block'; b.classList.add('soft');
+    b.textContent='Dashboard uchun yangi SQL hali RUN qilinmagan — jurnal eski rejimda ishlayapti '
+      +'(tur va qidiruv filtri faqat yuklangan qatorlarga ta\'sir qiladi).'; }
+}
+// Eski jurnal() imzosi: p_moddalar/p_turlar/p_q YO'Q (boshqa imzo — yuborilsa 404 beradi)
+const argsOld=a=>({p_from:a.p_from,p_to:a.p_to,p_account:a.p_account,p_accounts:a.p_accounts});
+// jurnal_v2 imzosi: p_account YO'Q — bitta hisob ham p_accounts ichida ketadi
+const argsV2=a=>{
+  const o={p_from:a.p_from,p_to:a.p_to,
+    p_accounts:a.p_account?[a.p_account]:a.p_accounts,
+    p_moddalar:a.p_moddalar,p_turlar:a.p_turlar,p_q:a.p_q};
+  // 🔴 p_ijrochi FAQAT PROVODKA_IJROCHI.sql RUN qilingan bo'lsa qo'shiladi
+  //    (jurnal_ijrochilar javob berdi). Eski imzoda bu kalit PGRST202 beradi.
+  if(useIjr) o.p_ijrochi=a.p_ijrochi||null;
+  return o;
+};
+// Qidiruv: v2 da server so'rovi (debounce 350ms), zaxirada avvalgidek klient render()
+window.onQ=()=>{
+  if(!useV2){ render(); return; }
+  render();                                   // yuklangan qatorlarda darrov toraytiradi
+  clearTimeout(qTimer); qTimer=setTimeout(()=>{ load(); },350);
+};
+// Hodisalarni bir joyda ulaymiz — init() dan chaqiriladi (DOM tayyor, TDZ xavfi yo'q)
+function wireV2(){
+  sselWire();   // qidiruvli tanlagichlar (fil/hodim/acc/xtur)
+  const ch=$('davChips');
+  if(ch) ch.addEventListener('click',e=>{
+    const b=e.target.closest('.dav-chip'); if(!b) return;
+    const p=b.dataset.p;
+    if(p==='custom'){    // "Boshqa…" — kalendarni ochadi/yopadi (sukut bo'yicha yopiq)
+      const on=$('davPanel').classList.toggle('cal-on');
+      $('davCustomBtn').setAttribute('aria-expanded',on?'true':'false');
+      return;
+    }
+    window.setRange(p);
+  });
+  const ap=$('davApply'); if(ap) ap.addEventListener('click',()=>{ davSet('custom'); load(); });
+  // Dashboard yig'ilishi — holat localStorage'da (sahifa qayta ochilganda saqlanadi)
+  const dt=$('dashTgl'), ds=$('dash');
+  let jdOff=false; try{ jdOff=(localStorage.getItem('prov-jdash')==='off'); }catch(e){}
+  if(ds&&jdOff){ ds.classList.add('off'); if(dt) dt.setAttribute('aria-expanded','false'); }
+  if(dt) dt.addEventListener('click',()=>{
+    const off=ds.classList.toggle('off');
+    dt.setAttribute('aria-expanded',off?'false':'true');
+    try{ localStorage.setItem('prov-jdash',off?'off':''); }catch(e){}
+  });
+  const xl=$('xtList');
+  const catId=t=>{ const r=t.closest?t.closest('.dash-cat'):null;
+    return (r&&!r.classList.contains('total')&&!r.classList.contains('sk'))?(r.dataset.id||''):''; };
+  if(xl){
+    xl.addEventListener('click',e=>{ const id=catId(e.target); if(id) window.xtToggle(id); });
+    // Klaviatura: Enter va Space (🔴 Space da preventDefault — sahifa sakramasin)
+    xl.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'&&e.key!==' ') return;
+      const id=catId(e.target); if(!id) return;
+      e.preventDefault(); window.xtToggle(id);
+    });
+  }
+  const xc=$('xtClear'); if(xc) xc.addEventListener('click',()=>window.xtClearSel());
+  const seg=$('xtChartSeg');
+  if(seg) seg.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    chartMode=(b.dataset.c==='bar')?'bar':'donut';
+    [...seg.children].forEach(x=>x.classList.toggle('on',x===b));
+    if(dashData) xtRender(dashData.xarajat||[]);
+  });
+  const cv=$('xtChart');
+  if(cv) cv.addEventListener('click',e=>{
+    const g=e.target.closest?e.target.closest('[data-id]'):null;
+    if(g&&g.dataset.id) window.xtToggle(g.dataset.id);
+  });
+}
+
+/* ==================== DASHBOARD (jurnal_dash RPC) ====================
+   🔴 Ma'lumot ro'yxat bilan AYNAN BITTA args() dan keladi — kartadagi raqam
+   pastdagi ro'yxatga mos bo'lsin. Dashboard xatosi ro'yxatni YIQITMAYDI
+   (alohida shox: xato bo'lsa faqat shu blok "yuklanmadi" bo'ladi).
+   🔴 jurnal_dash agregatlari FAIL-CLOSED: aralash yozuv (begona kassa satri
+   bor) jamiga kirmaydi — nechtasi chetlanganini `chetlangan.soni` aytadi va
+   biz uni ekranda ochiq yozamiz (jimgina kam ko'rsatish — xato manbai). */
+// Palitra: 8 rang tsiklik emas — 9-dan keyingilari neytral kulrang (spec 2.1)
+const DCH=i=>i<8?'var(--dch-'+(i+1)+')':'var(--dch-other)';
+const svgN=x=>Math.round(x*1000)/1000;
+const kes=(s,n)=>{ s=String(s||''); return s.length>n?s.slice(0,n-1)+'…':s; };
+// 45 900 000 → "45,9 mln" (donut markazi va bar yorlig'i uchun — joy tor)
+function qisqa(n){ n=Number(n)||0; const a=Math.abs(n);
+  if(a>=1e9) return (n/1e9).toFixed(1).replace('.',',')+' mlrd';
+  if(a>=1e6) return (n/1e6).toFixed(1).replace('.',',')+' mln';
+  if(a>=1e3) return money(Math.round(n/1e3))+' ming';
+  return money(n); }
+function dashReset(){
+  ['sumIn','sumOut','sumTr','sumCnt'].forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
+  ['cntIn','cntOut','cntTr','cntSub'].forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
+  ['ladOpen','ladIn','ladOut','ladTr','ladClose'].forEach(id=>{ const e=$(id); if(e) e.textContent='—'; });
+  ladHide();   // zinapoya har tozalashda yopiladi (fail-closed: eski davr raqami qolib ketmasin)
+  const c=$('dashChet'); if(c){ c.style.display='none'; c.textContent=''; }
+}
+
+/* ---------- ZINAPOYA: Boshlang'ich + Kirim − Chiqim = Tugash ----------
+   Manba — ALOHIDA `jurnal_qoldiq(p_from,p_to,p_accounts)` RPC.
+   🔴 `jurnal_dash` GA TEGILMAGAN: uning imzosi ham, javob kalitlari ham
+      o'zgarmadi. Javob shu yerda dash obyektiga qo'shiladi (ladMerge), ya'ni
+      kesh ham, dashShow() ham bitta obyekt bilan ishlashda davom etadi.
+   🔴 UCH BOSQICHLI FAIL-CLOSED:
+      1) RPC yo'q (PGRST202/42883), xato, yoki server `mos:false` desa —
+         kalitlar UMUMAN qo'shilmaydi;
+      2) raqam son bo'lmasa — chizilmaydi;
+      3) EKRANDAGI kartalar bilan qayta tekshiruv (server ko'rgan kirim/chiqim
+         kartadagi bilan bir xilmi + tenglama qo'shiladimi) — chiqmasa satr
+         BUTUNLAY yashiriladi. Ko'rinadigan, lekin qo'shilmaydigan tenglama —
+         eng yomon variant: foydalanuvchi ekrandagi hamma raqamga shubha qiladi. */
+const LAD_EPS=1;   // 1 so'm — yaxlitlash bardoshi (server ham shu chegarani ishlatadi)
+function ladHide(sabab){
+  const L=$('jLad'); if(L) L.style.display='none';
+  const T=$('ladTrSeg'); if(T) T.style.display='none';
+  if(sabab) console.warn('jLad:',sabab);
+}
+// r = sb.rpc('jurnal_qoldiq',…) javobi ({data,error}) yoki null (chaqirilmagan)
+function ladMerge(d,r){
+  if(!d) return d;
+  delete d.boshlangich; delete d.tugash; delete d.transfer_net;
+  delete d.qoldiq_kirim; delete d.qoldiq_chiqim;
+  if(!r) return d;
+  // 🔴 yoqFn(r.error) bu yerda v2Off() ni CHAQIRMAYDI: yangi SQL RUN qilinmagan
+  //    bo'lsa jurnal butunlay eski rejimga tushib qolmasligi kerak — faqat
+  //    zinapoya chizilmaydi.
+  if(r.error){ if(!yoqFn(r.error)) console.warn('jurnal_qoldiq:',r.error.message); return d; }
+  const q=r.data;
+  if(!q||typeof q!=='object'||Array.isArray(q)) return d;
+  if(q.mos!==true){ console.warn('jurnal_qoldiq mos emas:',q.sabab||'—','farq:',q.farq); return d; }
+  const o=Number(q.boshlangich), c=Number(q.tugash);
+  if(!isFinite(o)||!isFinite(c)) return d;
+  d.boshlangich=o; d.tugash=c;
+  d.transfer_net=Number(q.transfer_net)||0;
+  d.qoldiq_kirim=Number(q.kirim); d.qoldiq_chiqim=Number(q.chiqim);
+  return d;
+}
+// inS/outS — 🔴 KARTALARDAGI AYNAN O'SHA raqamlar (ikkinchi hisob yozilmaydi)
+function ladShow(d,inS,outS){
+  const L=$('jLad'); if(!L) return;
+  const open=Number(d&&d.boshlangich), close=Number(d&&d.tugash);
+  if(!isFinite(open)||!isFinite(close)){ ladHide(); return; }   // 1–2-bosqich
+  const netTr=Number(d.transfer_net)||0;
+  const sK=Number(d.qoldiq_kirim), sC=Number(d.qoldiq_chiqim);
+  // 3-bosqich (a): server ko'rgan oqim ekrandagidan farq qilsa — filtr yoki
+  // kontrakt siljigan, zid raqam ko'rsatmaymiz.
+  if(isFinite(sK)&&Math.abs(sK-inS)>=LAD_EPS){ ladHide('kirim server bilan mos emas'); return; }
+  if(isFinite(sC)&&Math.abs(sC-outS)>=LAD_EPS){ ladHide('chiqim server bilan mos emas'); return; }
+  // 3-bosqich (b): tenglamaning o'zi
+  if(Math.abs(open+inS-outS+netTr-close)>=LAD_EPS){
+    console.warn('jLad: tenglama chiqmadi',{open,inS,outS,netTr,close}); ladHide(); return; }
+  $('ladOpen').textContent=money(open);
+  $('ladIn').textContent=money(inS);
+  $('ladOut').textContent=money(outS);
+  $('ladClose').textContent=money(close);
+  const T=$('ladTrSeg');
+  if(T&&Math.abs(netTr)>=LAD_EPS){
+    T.style.display='';
+    const op=$('ladTrOp'); if(op) op.textContent=netTr<0?'−':'+';
+    const tv=$('ladTr');   if(tv) tv.textContent=money(Math.abs(netTr));
+  } else if(T){ T.style.display='none'; }
+  L.style.display='';
+}
+function dashBusy(){ if(!useV2) return; const h=$('dashHint'); if(h) h.textContent='Yuklanmoqda…'; }
+function dashErr(m){
+  if(!useV2) return;
+  console.warn('jurnal_dash:',m);
+  dashOn();   // xato ham ma'lumot — jimgina yashirinib qolmasin
+  dashReset();
+  const h=$('dashHint'); if(h) h.textContent='Xulosa yuklanmadi';
+  $('xtList').innerHTML='<div class="dash-err">Xulosa yuklanmadi. '
+    +'<button type="button" class="dash-retry" id="xtRetry" onclick="dashRetry()">Qayta urinish</button></div>';
+  $('xtChart').innerHTML='<div class="dash-empty">—</div>';
+  icons();
+}
+window.dashRetry=()=>load();
+// d = jurnal_dash javobi (null → "—" holati)
+// 🔴 Dashboard FAIL-CLOSED ko'rinadi: faqat jurnal_dash muvaffaqiyatli javob
+// bergandan keyin ochiladi (HTML da display:none bilan boshlanadi). Aks holda
+// SQL RUN qilinmagan bazada har foydalanuvchi skeletonni ko'rib, keyin bo'limning
+// yo'qolishini kuzatardi.
+function dashOn(){ const b=$('dash'); if(b&&b.style.display==='none') b.style.display=''; }
+function dashShow(d){
+  if(!useV2) return;
+  dashData=d||null;
+  if(d) dashOn();
+  if(!d){ dashReset(); const h=$('dashHint'); if(h) h.textContent='—';
+    $('xtList').innerHTML='<div class="dash-empty">Bu davrda xarajat yozuvi yo\'q</div>';
+    $('xtChart').innerHTML='<div class="dash-empty">—</div>'; return; }
+  const T={}; (d.turlar||[]).forEach(r=>{ T[r.tur]={s:Number(r.summa)||0,n:Number(r.soni)||0}; });
+  // Kirim = kirim+tushum, Chiqim = chiqim+xarajat (server tasnifi 6 xil, karta 3 xil)
+  const g=ks=>ks.reduce((o,k)=>{ const t=T[k]; return t?{s:o.s+t.s,n:o.n+t.n}:o; },{s:0,n:0});
+  const kir=g(['kirim','tushum']), chi=g(['chiqim','xarajat']), trf=g(['transfer']);
+  // 🔴 Agregatlar (jami/turlar/xarajat) — faqat O'CHIRILMAGAN yozuvlardan va aralash
+  // (begona kassa satri bor) yozuvsiz. Invariant:
+  //   jami.soni + chetlangan.soni + chetlangan.ochirilgan = jurnal_v2_count(...)
+  // Ya'ni dashboard soni ro'yxat sanog'idan KICHIK bo'lishi mumkin — bu xato emas,
+  // shuning uchun farqni pastda ochiq yozamiz. `ochirilgan` kaliti eski shaklda
+  // (faqat `soni`) kelsa ham yiqilmaydi.
+  const jami=d.jami||{soni:0,summa:0};
+  const chet=Number((d.chetlangan||{}).soni)||0;
+  const chOch=Number((d.chetlangan||{}).ochirilgan)||0;
+  $('sumIn').textContent=money(kir.s);   $('cntIn').textContent=money(kir.n)+' yozuv';
+  $('sumOut').textContent=money(chi.s);  $('cntOut').textContent=money(chi.n)+' yozuv';
+  $('sumTr').textContent=money(trf.s);   $('cntTr').textContent=money(trf.n)+' yozuv';
+  $('sumCnt').textContent=money(Number(jami.soni)||0);
+  // --- Zinapoya: Boshlang'ich + Kirim − Chiqim = Tugash ---
+  // 🔴 kir.s / chi.s AYNAN kartalar bilan bitta manba — ikkinchi hisob YOZILMASIN.
+  ladShow(d,kir.s,chi.s);
+  // 🔴 QAROR: dashboard — DAVR XULOSASI. U davr + kassa/filial + modda + qidiruvga
+  // bo'ysunadi, TUR SEGMENTIGA esa YO'Q (tur — ro'yxat ko'rinishi tugmasi, xulosa emas).
+  // Shuning uchun tur tanlanganda kartalar kulrangga o'tmaydi — faqat izoh o'zgaradi.
+  $('cntSub').textContent = tur!=='all'
+    ? 'butun davr · tur tanlovidan qat\'i nazar'
+    : 'o\'chirilganlar hisobga olinmagan';
+  const h=$('dashHint');
+  if(h) h.textContent=davrMatn($('from').value,$('to').value)+' · '+money(Number(jami.soni)||0)+' yozuv harakati'
+    +(tur!=='all'?' · tur tanlovidan qat\'i nazar':'');
+  // Jamiga kirmagan yozuvlar — jimgina kam ko'rsatmaymiz, sonini ochiq yozamiz
+  const cn=$('dashChet');
+  if(cn){
+    const qism=[];
+    if(chOch>0) qism.push(money(chOch)+' ta o\'chirilgan');
+    if(chet>0)  qism.push(money(chet)+' ta aralash (boshqa kassalar bilan)');
+    if(qism.length){ cn.style.display='block'; cn.textContent=qism.join(' va ')+' yozuv jamiga kirmadi.'; }
+    else { cn.style.display='none'; cn.textContent=''; }
+  }
+  xtRender(d.xarajat||[]);
+}
+// "Nimaga qancha" — legend + progress. Bosilsa modda filtri (moddaSel) o'zgaradi.
+function xtRender(list){
+  const box=$('xtList'); if(!box) return;
+  const jami=list.reduce((s,r)=>s+(Number(r.summa)||0),0);
+  if(!list.length||!jami){
+    box.innerHTML='<div class="dash-empty">Bu davrda xarajat yozuvi yo\'q</div>';
+    xtChartDraw([],0); xtClearSync(); return;
+  }
+  box.innerHTML=list.map((r,i)=>{
+    const s=Number(r.summa)||0, p=Math.round(s/jami*100), c=DCH(i), on=moddaSel.indexOf(r.account_id)>=0;
+    return '<div class="dash-cat'+(on?' on':'')+'" role="button" tabindex="0" aria-pressed="'+(on?'true':'false')+'"'
+      +' data-key="'+esc(r.code||'')+'" data-id="'+esc(r.account_id||'')+'" title="'+esc(r.name||'')+'">'
+      +'<div class="dash-cl"><span class="dash-dot" style="--c:'+c+'"></span>'
+      +'<span class="dash-cn">'+esc(r.name||'')+'</span>'
+      +'<span class="dash-ca num">'+money(s)+'<span class="dash-cp">'+p+'%</span></span></div>'
+      +'<div class="dash-track"><span class="dash-fill" style="--c:'+c+';width:'+svgN(Math.max(2,s/jami*100))+'%"></span></div></div>';
+  }).join('')
+    +'<div class="dash-cat total"><div class="dash-cl"><span class="dash-cn">Jami xarajat</span>'
+    +'<span class="dash-ca num">'+money(jami)+'</span></div></div>';
+  xtChartDraw(list,jami);
+  xtClearSync();
+  sselSync('xtur');   // yangi davr summalari dropdown ro'yxatiga ham tushsin
+  icons();
+}
+function xtClearSync(){ const b=$('xtClear'); if(b) b.hidden=(moddaSel.length===0); }
+// Diagramma — kutubxonasiz inline SVG (donut ⇄ bar). 8 tadan ortig'i "Boshqa" ga yig'iladi.
+function xtChartDraw(list,jami){
+  const box=$('xtChart'); if(!box) return;
+  if(!list.length||!jami){ box.innerHTML='<div class="dash-empty">—</div>'; return; }
+  const parts=list.slice(0,8).map((r,i)=>({l:r.name||'',v:Number(r.summa)||0,c:DCH(i),k:r.code||'',id:r.account_id||''}));
+  const qol=list.slice(8).reduce((s,r)=>s+(Number(r.summa)||0),0);
+  if(qol>0) parts.push({l:'Boshqa ('+(list.length-8)+')',v:qol,c:'var(--dch-other)',k:'',id:''});
+  box.innerHTML=(chartMode==='bar')?xtBarSvg(parts,jami):xtDonutSvg(parts,jami);
+}
+// Donut: R=72, C=2πR. dasharray = ulush*C − gap, dashoffset = oldingilar yig'indisi (manfiy).
+function xtDonutSvg(parts,jami){
+  const R=72,SW=26,CX=100,CY=100,C=2*Math.PI*R,gap=parts.length>1?1.6:0;
+  let acc=0,seg='';
+  for(const it of parts){
+    const sh=it.v/jami, len=Math.max(.6,sh*C-gap);
+    seg+='<circle cx="'+CX+'" cy="'+CY+'" r="'+R+'" fill="none" stroke="'+it.c+'" stroke-width="'+SW+'"'
+      +' stroke-dasharray="'+svgN(len)+' '+svgN(C-len)+'" stroke-dashoffset="'+svgN(-acc)+'"'
+      +' transform="rotate(-90 '+CX+' '+CY+')" data-key="'+esc(it.k)+'" data-id="'+esc(it.id)+'">'
+      +'<title>'+esc(it.l+' — '+money(it.v)+' ('+Math.round(sh*100)+'%)')+'</title></circle>';
+    acc+=sh*C;
+  }
+  return '<svg class="dash-donut" viewBox="0 0 200 200" role="img" preserveAspectRatio="xMidYMid meet" aria-label="Xarajat ulushi">'
+    +'<circle class="dash-rail" cx="'+CX+'" cy="'+CY+'" r="'+R+'" fill="none" stroke="var(--dch-grid)" stroke-width="'+SW+'"/>'
+    +seg
+    +'<text class="dash-dt" x="'+CX+'" y="97" text-anchor="middle">'+esc(qisqa(jami))+'</text>'
+    +'<text class="dash-ds" x="'+CX+'" y="115" text-anchor="middle">Xarajat</text></svg>';
+}
+// Bar: gorizontal (uzun o'zbekcha yorliqlar sig'sin), W=560, qator balandligi 28.
+function xtBarSvg(parts,jami){
+  const W=560,LAB=150,BX=160,PAD=8,RH=28,VAL=125,bw=W-BX-VAL;
+  const mx=parts.reduce((m,it)=>Math.max(m,it.v),0)||1, H=PAD+parts.length*RH;
+  let g='';
+  parts.forEach((it,i)=>{
+    const y=PAD+i*RH, w=Math.max(2,it.v/mx*bw), pc=Math.round(it.v/jami*100);
+    g+='<g data-key="'+esc(it.k)+'" data-id="'+esc(it.id)+'">'
+      +'<title>'+esc(it.l+' — '+money(it.v)+' ('+pc+'%)')+'</title>'
+      +'<text x="'+LAB+'" y="'+(y+14)+'" text-anchor="end" dominant-baseline="middle">'+esc(kes(it.l,20))+'</text>'
+      +'<rect x="'+BX+'" y="'+(y+6)+'" width="'+svgN(w)+'" height="16" rx="4" fill="'+it.c+'"/>'
+      +'<text class="dash-vl" x="'+svgN(BX+w+8)+'" y="'+(y+14)+'" dominant-baseline="middle">'
+      +esc(qisqa(it.v)+' · '+pc+'%')+'</text></g>';
+  });
+  return '<svg class="dash-barc" viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMinYMin meet"'
+    +' aria-label="Xarajat ulushi">'+g+'</svg>';
+}
+// Modda (xarajat turi) filtri — toggle. moddaSel args() ga p_moddalar bo'lib ketadi.
+window.xtToggle=id=>{
+  if(!id||!useV2) return;
+  const i=moddaSel.indexOf(id);
+  if(i>=0) moddaSel.splice(i,1); else moddaSel.push(id);
+  sselSync('xtur');   // dashboard va "Xarajat turi" dropdowni — BITTA holat, ikkalasi mos
+  load();
+};
+window.xtClearSel=()=>{ if(!moddaSel.length) return; moddaSel=[]; sselSync('xtur'); load(); };
+
+/* ==================== C. QIDIRUVLI TANLAGICH (.ssel-*) ====================
+   🔴 DIZAYN QARORI (buzma): native <select> DOM da QOLADI, faqat vizual yashirin.
+   .ssel uning ustiga qo'yiladi — tanlanganda `sel.value` yoziladi va 'change'
+   yuboriladi. Shu tufayli loadFilSel / buildAccSel / buildHodimSel / onFil /
+   onAcc / onHodim / exportExcel kodi UMUMAN o'zgarmaydi (regression xavfi nol).
+   ISTISNO — #sselXtur: u KO'P tanlovli (xarajat moddalari, moddaSel massivi),
+   native select bilan ifodalab bo'lmaydi → o'z holatini boshqaradi.
+   z-index: overlay 118 · panel 120 → sahifaning modallari (200+) ustun qoladi. */
+const SSELS={};
+const sselMob=()=>{ try{ return window.matchMedia('(max-width:899px)').matches; }catch(e){ return false; } };
+// Native <select> → variantlar. "5011 · Toshkent Kassa" kabi matnda kod alohida
+// kichik satrga (.ssel-os) chiqadi; optgroup esa guruh sarlavhasi bo'ladi.
+function sselFromSel(sel){
+  const out=[];
+  const add=(o,grp)=>{
+    const t=(o.textContent||'').trim(), m=t.match(/^(\d{3,6})\s·\s([\s\S]+)$/);
+    out.push({v:o.value,l:m?m[2]:t,sub:m?m[1]:'',n:o.dataset.n||'',grp:grp||'',s:t.toLowerCase()});
+  };
+  [...sel.children].forEach(ch=>{
+    if(ch.tagName==='OPTGROUP') [...ch.children].forEach(o=>add(o,ch.label||''));
+    else if(ch.tagName==='OPTION') add(ch,'');
+  });
+  return out;
+}
+// Xarajat moddalari (#sselXtur). Davrda harakati borlari — yuqorida, summasi bilan.
+function xturOpts(){
+  const st={}; ((dashData&&dashData.xarajat)||[]).forEach(r=>{ st[r.account_id]=Number(r.summa)||0; });
+  const faol=[], qolgan=[];
+  (accounts||[]).filter(a=>a.type==='xarajat').forEach(a=>{
+    const bor=Object.prototype.hasOwnProperty.call(st,a.id);
+    (bor?faol:qolgan).push({v:a.id,l:a.name||'',
+      sub:(a.code||'')+(bor?' · '+money(st[a.id])+' so\'m':''),
+      grp:'', s:((a.code||'')+' '+(a.name||'')).toLowerCase(), w:bor?st[a.id]:0});
+  });
+  faol.sort((a,b)=>b.w-a.w);
+  qolgan.sort((a,b)=>String(a.sub).localeCompare(String(b.sub)));
+  // Guruh sarlavhasi faqat ikkala guruh ham bo'lganda mazmunli
+  if(faol.length&&qolgan.length){
+    faol.forEach(o=>{ o.grp='Davrda harakati bor'; });
+    qolgan.forEach(o=>{ o.grp='Boshqa moddalar'; });
+  }
+  return faol.concat(qolgan);
+}
+function sselBuild(S){ S.opts = S.multi ? xturOpts() : (S.sel?sselFromSel(S.sel):[]); }
+// Tugma matni. Ko'p tanlovda: "Ijara +2" va yonida son belgisi.
+function sselLabel(S){
+  let txt='', ph=false;
+  if(S.multi){
+    const n=moddaSel.length;
+    if(!n){ txt=S.ph; ph=true; }
+    else { const f=S.opts.find(o=>o.v===moddaSel[0]); txt=(f?f.l:n+' ta modda')+(n>1?' +'+(n-1):''); }
+    S.root.classList.toggle('has-sel',n>0);
+    if(S.cnt) S.cnt.textContent=String(n);
+  } else if(S.sel){
+    const o=S.sel.options[S.sel.selectedIndex];
+    txt=o?(o.textContent||'').trim():S.ph; ph=!S.sel.value;
+    S.root.classList.toggle('has-sel',!!S.sel.value);
+  }
+  S.val.textContent=txt||S.ph;
+  S.val.classList.toggle('ph',!!ph);
+}
+function sselRender(S,q){
+  q=String(q||'').trim().toLowerCase();
+  let html='', shown=0, lastGrp=null;
+  const cur=S.sel?String(S.sel.value):'';
+  for(const o of S.opts){
+    if(q && o.s.indexOf(q)<0) continue;
+    if(o.grp!==lastGrp){ lastGrp=o.grp; if(o.grp) html+='<div class="ssel-grp" role="presentation">'+esc(o.grp)+'</div>'; }
+    const on=S.multi?(moddaSel.indexOf(o.v)>=0):(String(o.v)===cur);
+    html+='<div class="ssel-opt'+(on?' on':'')+'" role="option" aria-selected="'+(on?'true':'false')+'" data-v="'+esc(o.v)+'">'
+      +'<span class="ssel-om"><span class="ssel-on">'+esc(o.l)+'</span>'
+      +(o.sub?'<span class="ssel-os">'+esc(o.sub)+'</span>':'')+'</span>'
+      +(o.n?'<span class="ssel-n">'+esc(o.n)+'</span>':'')   // faqat data-n bo'lgan optionda
+      +'<i data-lucide="check" class="ssel-ck"></i></div>';
+    shown++;
+  }
+  S.list.innerHTML=shown?html:'<div class="ssel-none">Topilmadi</div>';
+  icons();   // ro'yxat butunlay qayta chizildi — ✓ ikonkalari tiklansin
+}
+function sselOpen(S){
+  sselCloseAll(S);
+  sselBuild(S); sselRender(S,'');
+  if(S.inp) S.inp.value='';
+  S.root.classList.add('open'); S.btn.setAttribute('aria-expanded','true');
+  if(sselMob()){ const ov=$('sselOv'); if(ov) ov.classList.add('on'); document.body.classList.add('ssel-lock'); }
+  setTimeout(()=>{ try{ S.inp.focus(); }catch(e){} },30);   // mobil'da klaviatura ochilishi normal
+}
+function sselClose(S,fokus){
+  if(!S||!S.root.classList.contains('open')) return;
+  S.root.classList.remove('open'); S.btn.setAttribute('aria-expanded','false');
+  const ov=$('sselOv'); if(ov) ov.classList.remove('on');
+  document.body.classList.remove('ssel-lock');
+  if(fokus){ try{ S.btn.focus(); }catch(e){} }
+}
+function sselCloseAll(bundan){ Object.keys(SSELS).forEach(k=>{ if(SSELS[k]!==bundan) sselClose(SSELS[k]); }); }
+// Tashqi kod native select'ni qayta qurgach (buildAccSel/buildHodimSel/loadFilSel)
+// yoki moddaSel o'zgargach chaqiriladi — aks holda eski variantlar qolib ketardi.
+function sselSync(key){
+  const S=SSELS[key]; if(!S) return;
+  sselBuild(S); sselLabel(S);
+  if(S.root.classList.contains('open')) sselRender(S,S.inp?S.inp.value:'');
+}
+const sselSyncAll=()=>{ ['fil','hodim','acc','xtur','fIjrochi'].forEach(sselSync); };
+function sselPick(S,v){
+  if(S.multi){
+    const i=moddaSel.indexOf(v);
+    if(i>=0) moddaSel.splice(i,1); else moddaSel.push(v);
+    sselLabel(S); sselRender(S,S.inp?S.inp.value:'');   // panel ochiq qoladi (ko'p tanlov)
+    load();
+    return;
+  }
+  if(S.sel){
+    if(String(S.sel.value)===String(v)){ sselClose(S,true); return; }   // o'zgarmadi — so'rov ham yubormaymiz
+    S.sel.value=v;
+    // 🔴 Mavjud onFil/onAcc/onHodim shu hodisadan ishlaydi — ular tegilmagan
+    S.sel.dispatchEvent(new Event('change',{bubbles:true}));
+    sselSyncAll();   // onAcc/onHodim bir-birini tozalaydi — yorliqlar mos qolsin
+  }
+  sselClose(S,true);
+}
+function sselHl(S,yon){
+  const items=[...S.list.querySelectorAll('.ssel-opt')];
+  if(!items.length) return;
+  let i=items.findIndex(x=>x.classList.contains('hl'));
+  if(yon==='home') i=0;
+  else if(yon==='end') i=items.length-1;
+  else if(i<0) i=(yon>0?0:items.length-1);
+  else i=Math.min(items.length-1,Math.max(0,i+yon));
+  items.forEach(x=>x.classList.remove('hl'));
+  items[i].classList.add('hl');
+  try{ items[i].scrollIntoView({block:'nearest'}); }catch(e){}
+}
+function sselInit(id){
+  const root=$(id); if(!root) return;
+  const S={root, btn:root.querySelector('.ssel-btn'), val:root.querySelector('.ssel-val'),
+    cnt:root.querySelector('.ssel-cnt'), inp:root.querySelector('.ssel-inp'),
+    list:root.querySelector('.ssel-list'),
+    sel: root.dataset.sel?$(root.dataset.sel):null,
+    multi: root.dataset.multi==='1', opts:[]};
+  if(!S.btn||!S.val||!S.list) return;
+  S.ph=(S.val.textContent||'').trim();
+  SSELS[root.dataset.sel||'xtur']=S;
+  S.btn.addEventListener('click',()=>{ root.classList.contains('open')?sselClose(S,true):sselOpen(S); });
+  const x=root.querySelector('.ssel-x'); if(x) x.addEventListener('click',()=>sselClose(S,true));
+  S.list.addEventListener('click',e=>{ const o=e.target.closest('.ssel-opt'); if(o) sselPick(S,o.dataset.v); });
+  if(S.inp){
+    S.inp.addEventListener('input',()=>sselRender(S,S.inp.value));
+    S.inp.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){ e.preventDefault(); sselHl(S,1); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); sselHl(S,-1); }
+      else if(e.key==='Home'){ e.preventDefault(); sselHl(S,'home'); }
+      else if(e.key==='End'){ e.preventDefault(); sselHl(S,'end'); }
+      else if(e.key==='Enter'){ e.preventDefault();
+        const h=S.list.querySelector('.ssel-opt.hl')||S.list.querySelector('.ssel-opt');
+        if(h) sselPick(S,h.dataset.v); }
+      else if(e.key==='Escape'){ e.preventDefault(); sselClose(S,true); }
+    });
+  }
+  sselBuild(S); sselLabel(S);
+}
+function sselWire(){
+  ['sselFil','sselHodim','sselAcc','sselXtur','sselIjrochi'].forEach(sselInit);
+  const clr=$('sselXturClr'); if(clr) clr.addEventListener('click',()=>{ window.xtClearSel(); });
+  const ov=$('sselOv'); if(ov) ov.addEventListener('click',()=>sselCloseAll());
+  // Tashqariga bosish — capture bosqichida (panel ichidagi bosish .ssel ichida qoladi)
+  document.addEventListener('pointerdown',e=>{
+    const t=e.target;
+    if(!(t&&t.closest&&t.closest('.ssel'))) sselCloseAll();
+  },true);
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') sselCloseAll(); });
+  // 🔴 Sahifaning modali ochilsa dropdown yopilsin (modal 200+, dropdown 120 —
+  // ustma-ust tushib qolmasin). Mavjud open* funksiyalariga TEGMAYMIZ: faqat
+  // class o'zgarishini kuzatamiz.
+  try{
+    const mo=new MutationObserver(ms=>{
+      for(const m of ms){ if(m.target.classList&&m.target.classList.contains('open')){ sselCloseAll(); return; } }
+    });
+    ['editModal','chekModal','linkModal','moreModal','yukInfoModal'].forEach(id=>{
+      const el=$(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['class']});
+    });
+  }catch(e){}
+}
 
 // Hisob tanlansa u ustun (p_account). Aks holda filial hisoblari massiv sifatida (p_accounts).
 // Ruxsat (permAccIds): hech narsa tanlanmagan bo'lsa ham list-scope userga faqat o'z kassalari
@@ -1069,26 +2512,78 @@ function args(){
       accs=permAccIds.slice();
     }
   }
-  return {p_from:$('from').value,p_to:$('to').value,p_account:acc,p_accounts:accs};
+  // v2 qo'shimchalari (serverda filtrlanadi). 🔴 Tur xaritasi server tasnifiga mos:
+  // in→kirim+tushum, out→chiqim+xarajat, tr→transfer, nt→boshqa, all→null.
+  // Eski jurnal() ga bular YUBORILMAYDI (argsOld) — imzosi boshqa.
+  // p_ijrochi — XOM kalit (ijrochi_raw), '(bosh)' sentineli ham SHUNDAYLIGICHA.
+  // Kesh kaliti barqaror bo'lishi uchun u args() da DOIM bor; serverga esa faqat
+  // useIjr bo'lganda ketadi (argsV2).
+  return {p_from:$('from').value,p_to:$('to').value,p_account:acc,p_accounts:accs,
+    p_moddalar:moddaSel.length?moddaSel.slice():null,
+    p_turlar:TUR_SRV[tur]||null,
+    p_ijrochi:(($('fIjrochi')&&$('fIjrochi').value)||null),
+    p_q:($('q').value||'').trim()||null};
 }
 async function load(){
-  offset=0; rows=[];
+  offset=0; rows=[]; const my=++loadSeq;
   const a=args();
   // Ruxsat: list-scope va ko'rish mumkin bo'lgan kassa yo'q → bo'sh massivni serverga yubormaymiz
   // (bo'sh p_accounts "filtr yo'q" deb talqin qilinib hammani ochib yuborishi mumkin).
-  if(a.p_accounts && a.p_accounts.length===0){ total=0; render(); return; }
-  const ck='load:'+JSON.stringify(a);
+  if(a.p_accounts && a.p_accounts.length===0){ total=0; render(); dashShow(null); return; }
+  loadIjrSel();   // ijrochi ro'yxati (faqat davr o'zgargan bo'lsa) — fonda, kutilmaydi.
+                  // 🔴 Ruxsat tekshiruvidan KEYIN: ko'radigan kassasi yo'q userga foydasiz RPC ketmasin.
+  // 🔴 Kesh kaliti serverga AYNAN nima ketishidan quriladi: v2 da hamma filtr
+  // (modda/tur/qidiruv), zaxirada esa faqat eski imzo — aks holda tur/qidiruv
+  // o'zgarganda bir xil javob uchun keraksiz so'rov ketardi.
+  const ck='load:'+(useV2?'v2:'+JSON.stringify(a):JSON.stringify(argsOld(a)));
   const cached=swrGet(ck);
-  if(cached){ rows=cached.rows||[]; offset=rows.length; total=cached.total||rows.length; render(); }
-  else { $('journal').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
-  const [{data,error},{data:c,error:ce}]=await Promise.all([
-    sb.rpc('jurnal',{...a,p_limit:LIMIT,p_offset:0}),
-    sb.rpc('jurnal_count',a),
-  ]);
-  if(error){ if(!cached){ $('journal').innerHTML=`<div class="empty">${esc(error.message)}</div>`; $('count').textContent='—'; } return; }
-  if(ce){ $('banner').style.display='block'; $('banner').textContent='Soni: '+ce.message; }
-  rows=data||[]; offset=rows.length; total=Number(c)||rows.length;
-  swrSet(ck,{rows,total});
+  if(cached){ rows=cached.rows||[]; offset=rows.length; total=cached.total||rows.length; render();
+    if(cached.dash) dashShow(cached.dash); else dashBusy(); }
+  else { $('journal').innerHTML='<div class="empty">Yuklanmoqda…</div>'; dashBusy(); }
+  if(useV2){
+    const v=argsV2(a);
+    // 🔴 ZINAPOYA (Boshlang'ich/Tugash) — ALOHIDA RPC, jurnal_dash TEGILMAGAN.
+    //    U FAQAT modda/qidiruv/ijrochi filtri BO'SH bo'lganda so'raladi:
+    //    jurnal_qoldiq imzosida bu filtrlar YO'Q (qoldiq — kassaning haqiqiy
+    //    holati, filtrga bo'ysunmaydi), kartalar esa filtrlangan kirim/chiqimni
+    //    ko'rsatadi. Ikkalasi bir ekranda zid turmasin — filtr bo'lsa satr
+    //    umuman chizilmaydi (fail-closed) va keraksiz so'rov ham ketmaydi.
+    const ladOk=!(a.p_moddalar&&a.p_moddalar.length)&&!a.p_q&&!a.p_ijrochi;
+    const qv={p_from:a.p_from,p_to:a.p_to,p_accounts:(a.p_account?[a.p_account]:a.p_accounts)||null};
+    const [r1,r2,r3,r4]=await Promise.all([
+      sb.rpc('jurnal_v2',{...v,p_limit:LIMIT,p_offset:0}),
+      sb.rpc('jurnal_v2_count',v),
+      sb.rpc('jurnal_dash',v),
+      ladOk?sb.rpc('jurnal_qoldiq',qv):Promise.resolve(null),
+    ]);
+    if(my!==loadSeq) return;   // shu orada yangi so'rov ketdi — bu javob eskirgan
+    // SQL hali RUN qilinmagan → bir marta eski jurnal() ga tushamiz va qaytadan yuklaymiz
+    if(yoqFn(r1.error)||yoqFn(r2.error)||yoqFn(r3.error)){ v2Off(); return load(); }
+    if(r1.error){ if(!cached){ $('journal').innerHTML=`<div class="empty">${esc(r1.error.message)}</div>`; $('count').textContent='—'; }
+      dashErr(r1.error.message); return; }
+    if(r2.error){ $('banner').style.display='block'; $('banner').classList.remove('soft'); $('banner').textContent='Soni: '+r2.error.message; }
+    // v2 ishladi — modda filtri endi haqiqiy (serverda), maydonni ochamiz
+    const fx=$('fldXtur'); if(fx) fx.style.display='';
+    rows=r1.data||[]; offset=rows.length; total=Number(r2.data)||rows.length;
+    // 🔴 Dashboard xatosi ro'yxatni yiqitmaydi — alohida shox
+    let dash=null;
+    if(r3.error) dashErr(r3.error.message);
+    // 🔴 r4 (jurnal_qoldiq) yoqFn tekshiruviga QO'SHILMAYDI: yangi SQL RUN
+    //    qilinmagan bo'lsa jurnal eski rejimga tushmasin — faqat zinapoya yo'q.
+    else { dash=ladMerge(r3.data||null,r4); dashShow(dash); }
+    swrSet(ck,{rows,total,dash});
+  } else {
+    const o=argsOld(a);
+    const [{data,error},{data:c,error:ce}]=await Promise.all([
+      sb.rpc('jurnal',{...o,p_limit:LIMIT,p_offset:0}),
+      sb.rpc('jurnal_count',o),
+    ]);
+    if(my!==loadSeq) return;   // shu orada yangi so'rov ketdi — bu javob eskirgan
+    if(error){ if(!cached){ $('journal').innerHTML=`<div class="empty">${esc(error.message)}</div>`; $('count').textContent='—'; } return; }
+    if(ce){ $('banner').style.display='block'; $('banner').classList.remove('soft'); $('banner').textContent='Soni: '+ce.message; }
+    rows=data||[]; offset=rows.length; total=Number(c)||rows.length;
+    swrSet(ck,{rows,total});
+  }
   render();
   refreshCheks();   // chek 📎 belgilarini fonda yuklaydi
   refreshMeta();    // V6: filial + davr teglarini fonda yuklaydi
@@ -1097,9 +2592,14 @@ window.loadMore=async()=>{
   const a=args();
   if(a.p_accounts && a.p_accounts.length===0) return;
   const b=$('moreBtn'); b.disabled=true;
-  const {data,error}=await sb.rpc('jurnal',{...a,p_limit:LIMIT,p_offset:offset});
+  const my=loadSeq;
+  const {data,error}= useV2
+    ? await sb.rpc('jurnal_v2',{...argsV2(a),p_limit:LIMIT,p_offset:offset})
+    : await sb.rpc('jurnal',{...argsOld(a),p_limit:LIMIT,p_offset:offset});
   b.disabled=false;
-  if(error){ $('banner').style.display='block'; $('banner').textContent=error.message; return; }
+  if(my!==loadSeq) return;   // shu orada filtr o'zgardi (load ketdi) — qo'shib yubormaymiz
+  if(yoqFn(error)){ v2Off(); return load(); }   // SQL yo'q → eski yo'lga tushib qaytadan
+  if(error){ $('banner').style.display='block'; $('banner').classList.remove('soft'); $('banner').textContent=error.message; return; }
   rows=rows.concat(data||[]); offset=rows.length; render();
   refreshCheks();
   refreshMeta();
@@ -1246,7 +2746,10 @@ const TUR_NOM={in:'Kirim',out:'Chiqim',tr:'Transfer',nt:'Boshqa'};
 async function xlsFetchAll(a,onProg){
   const out=[];
   for(;;){
-    const {data,error}=await sb.rpc('jurnal',{...a,p_limit:XLS_PAGE,p_offset:out.length});
+    // Ekrandagi filtrlar bilan BITTA manba: v2 da server (modda/tur/qidiruv), zaxirada eski imzo
+    const {data,error}= useV2
+      ? await sb.rpc('jurnal_v2',{...argsV2(a),p_limit:XLS_PAGE,p_offset:out.length})
+      : await sb.rpc('jurnal',{...argsOld(a),p_limit:XLS_PAGE,p_offset:out.length});
     if(error) throw new Error(error.message);
     const batch=data||[];
     for(const r of batch) out.push(r);
@@ -1297,6 +2800,7 @@ function xlsFileName(a,ext){ return `jurnal_${a.p_from||''}_${a.p_to||''}.${ext}
 // Bitta yozuv → "Yozuvlar" varag'ining bitta qatori (ustunlar tartibi XLS_HEAD bilan bir xil)
 const XLS_HEAD=['№','Sana','Tur','Kt kodi','Kt hisob (qayerdan)','Dt kodi','Dt hisob (qayerga)','Summa (so\'m)',
   'Valyuta','Valyuta summa','Izoh','Davr boshi','Davr oxiri','Filial(lar)','Kommunal','Yuklar','Yo\'ldagi tovar',
+  'Ijrochi',
   'Manba','Satrlar','Chek/hujjat','Holat','O\'chirdi','O\'chirilgan','Tahrirladi','Tahrirlangan','Yaratilgan','Yozuv ID'];
 const XLS_LINE_HEAD=['№','Sana','Yozuv ID','Hisob kodi','Hisob nomi','Bo\'lim','Debet','Kredit','Valyuta','Valyuta summa','Izoh','Holat'];
 function xlsRow(e,i,meta,ey,cheks){
@@ -1313,13 +2817,17 @@ function xlsRow(e,i,meta,ey,cheks){
                       :(m.yuk_ids||[]).filter(x=>x!=null).map(x=>'#'+x).join(', ');
   const kid=kassaOf(e);
   const chek=(kid&&cheks.seen.has(kid))?(cheks.map.has(kid+'/'+e.id)?'Ha':'Yo\'q'):'';
-  return [ i+1, e.entry_date||'', TUR_NOM[k.kind]||'',
-    kts.map(l=>l.code||'').join('; '), kts.map(nm).join('; '),
-    dts.map(l=>l.code||'').join('; '), dts.map(nm).join('; '),
-    sumDt(e), cur, fcSum||'', e.description||'',
+  // 🔴 Chala yozuv: "Summa" ustuni raqam 0 EMAS, bo'sh qoladi — aks holda Excel'da
+  // yig'indi/filtr uni haqiqiy nol so'mlik yozuv deb o'qirdi. Tur va Holat ochiq yozadi.
+  const chala=!!k.chala;
+  return [ i+1, e.entry_date||'', chala?'Chala yozuv':(TUR_NOM[k.kind]||''),
+    kts.map(l=>l.code||'').join('; '), chala?'Satr yozilmagan':kts.map(nm).join('; '),
+    dts.map(l=>l.code||'').join('; '), chala?'Satr yozilmagan':dts.map(nm).join('; '),
+    chala?'':sumDt(e), cur, fcSum||'', e.description||'',
     m.davr_start||'', m.davr_end||'', fils, m.kommunal_turi||'', yuk, m.yuk_kutilmoqda?'Ha':'',
+    ijrText(e),
     e.source||'', ls.length, chek,
-    e.is_deleted?'O\'chirilgan':'Faol', e.deleted_by_name||'', fmtDT(e.deleted_at),
+    e.is_deleted?'O\'chirilgan':(chala?'Chala — satr yozilmagan':'Faol'), e.deleted_by_name||'', fmtDT(e.deleted_at),
     e.edited_by_name||'', fmtDT(e.edited_at), fmtDT(e.created_at), e.id ];
 }
 function xlsLineRows(list){
@@ -1357,7 +2865,7 @@ window.exportExcel=async()=>{
     const wb=X.utils.book_new();
     const ws1=X.utils.aoa_to_sheet([XLS_HEAD,...head]);
     ws1['!cols']=[{wch:5},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
-      {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
+      {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:16},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
       {wch:16},{wch:17},{wch:17},{wch:38}];
     xlsNumFmt(X,ws1,{7:'#,##0',9:'#,##0.00'},head.length);
     const ws2=X.utils.aoa_to_sheet([XLS_LINE_HEAD,...lineRows]);
@@ -1406,10 +2914,12 @@ async function exportCsvFallback(a){
 }
 
 async function init(){
+  wireV2();
+  // 🔴 Default davr — BUGUN (avval oyning 1-sanasi edi). Chip "Bugun" .on holatda.
   const n=nowUz();
-  $('from').value=iso(new Date(Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),1)));
-  $('to').value=iso(n);
-  $('from').onchange=load; $('to').onchange=load;
+  $('from').value=iso(n); $('to').value=iso(n);
+  davSet('bugun');
+  $('from').onchange=onDate; $('to').onchange=onDate;
   const loadAccounts=async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; buildPermAccIds(); buildHodimSel(); };
   // list-scope: ruxsat filtri accounts'ga tayanadi — load()'dan OLDIN yuklab, permAccIds'ni tayyorlaymiz,
   // aks holda birinchi so'rov filtrsiz (hamma kassa) ketardi. Cheklovsiz userda esa parallel qoladi.

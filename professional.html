@@ -371,6 +371,7 @@
       <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
       <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="sorovlar.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
       <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
@@ -416,8 +417,15 @@
         <div id="kursNote" class="kursnote" style="display:none" role="status" aria-live="polite"></div>
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
-        <label>Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
-        <div id="filialChips" class="fchips"></div>
+        <!-- Filial bloki IKKALA rejim uchun BITTA (izoh/chek bilan bir xil naqsh) — setMode()
+             uni #filialSlotSimple ↔ #filialSlotAdv orasida DOM'da ko'chiradi. Ikkinchi nusxa
+             ATAYLAB yaratilmagan: selFilials holati bitta bo'lsin, aks holda rejim
+             almashganda tanlangan filiallar yo'qolardi (renderFilials bitta konteynerga chizadi). -->
+        <div id="filialSlotSimple"><div id="filialWrap">
+          <label id="filialLbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
+          <div id="filialChips" class="fchips"></div>
+          <div id="filialReq" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
+        </div></div>
         <div id="limitWarn" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
         <div id="davrSect" style="display:none;margin-bottom:16px">
           <label id="davrLbl">📅 Davr (majburiy)</label>
@@ -479,6 +487,10 @@
           <div class="tot"><span>Jami Kredit (Kt)</span><span class="v" id="sumKt">0</span></div>
           <div class="tot bal" id="balRow"><span id="balLbl">Farq</span><span class="v" id="farq">0</span></div>
         </div>
+        <!-- setMode('adv') filialWrap'ni shu yerga ko'chiradi. Joyi ataylab Saqlash tugmasining
+             USTIDA (izoh/chek kabi tepada emas): filial majburiyligi SATRLARDAN kelib chiqadi,
+             ya'ni foydalanuvchi satrlarni yozgach sabab darrov ko'zga tashlansin. -->
+        <div id="filialSlotAdv"></div>
         <button class="save" id="saveBtn" onclick="save()" disabled>Saqlash</button>
         <div id="balHint" style="font-size:12.5px;color:var(--red);text-align:center;margin-top:10px;display:none">Saqlash uchun Debet (Dt) va Kredit (Kt) teng bo'lishi kerak</div>
         <!-- Kurs ogohlantirishi: valyuta satri bor, lekin kurs topilmadi — Saqlash YOPIQ
@@ -507,6 +519,7 @@
       <a href="professional.html" class="active"><i data-lucide="list-plus"></i>Professional</a>
       <a href="kassa.html"><i data-lucide="wallet"></i>Kassa</a>
       <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="sorovlar.html"><i data-lucide="hand-coins"></i>So'rovlar</a>
       <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
@@ -628,6 +641,11 @@ let accounts=[], lines=[], selKassa=null, selSub=null, simpleBal=null, subBal={}
 // advReq — hozir so'ralayotgan id'lar (bir id ikki marta so'ralmasin).
 let advBal={}, advReq=new Set();
 let filials=[], selFilials=new Set();   // V6: filial multiselect (entry.filial_ids — faqat metadata)
+// Filial ro'yxatining UCH holati (V9): filialsLoaded=false → hali kelmadi YOKI xato (filialsErr),
+// filialsLoaded=true + filials.length===0 → ruxsat bo'yicha filial yo'q. Bo'sh massivning o'zi
+// bu ikkisini ajratmaydi — tarmoq xatosi "sizga filial biriktirilmagan" bo'lib ko'rinardi va
+// filial majburiy modda jimgina filialsiz saqlanardi.
+let filialsLoaded=false, filialsErr=false;
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -912,7 +930,12 @@ function updateTotals(){
   const balanced=teng&&!kursYoq.length;                     // kurssiz satr bo'lsa saqlash yopiq
   if(teng){ $('balLbl').textContent='Balans'; $('farq').textContent='To\u2018g\u2018ri \u2713'; }
   else { $('balLbl').textContent='Farq'; $('farq').textContent=money(Math.abs(farq)); }
-  $('balRow').className='tot bal'+(teng?'':' no'); $('saveBtn').disabled=!balanced;
+  // V10: adv rejimda filial ham saqlashni BLOKLAYDI (oddiy rejim bilan bir xil qoida).
+  // Talab satrlardan kelib chiqadi, shuning uchun har satr o'zgarishida (renderLines→updateTotals)
+  // qayta hisoblanadi. Tekshiruv faqat adv'da: simple rejimda saveBtn boshqa tugma (updateSimple).
+  let fok=true;
+  if(curMode==='adv'){ updateFilialUI(); fok=filialOk(); }   // sabab #filialReq da ko'rinadi
+  $('balRow').className='tot bal'+(teng?'':' no'); $('saveBtn').disabled=!balanced||!fok;
   { const h=document.getElementById('balHint'); if(h) h.style.display=(dt>0&&!teng)?'block':'none'; }
   { const kw=document.getElementById('advKursWarn');
     if(kw){ const u=[...new Set(kursYoq)];
@@ -938,11 +961,20 @@ window.setMode=m=>{
   // almashtirilganda yo'qolmaydi, faqat DOM'da ko'chadi.
   const cslot=simple?$('chekSlotSimple'):$('chekSlotAdv'), csect=$('chekSect');
   if(cslot&&csect&&csect.parentNode!==cslot) cslot.appendChild(csect);
+  // Filial bloki ham BITTA — aynan shu naqsh bilan ko'chadi (entry.filial_ids yozuv darajasidagi
+  // metadata, ya'ni rejimdan qat'i nazar bitta ro'yxat). Tanlangan chiplar ko'chishda saqlanadi.
+  const fslot=simple?$('filialSlotSimple'):$('filialSlotAdv'), fwrap=$('filialWrap');
+  if(fslot&&fwrap&&fwrap.parentNode!==fslot) fslot.appendChild(fwrap);
   if(!simple){                                     // adv rejimda modda yo'q — majburiylik ham yo'q
     $('izohReq').style.display='none';
     $('izohLbl').innerHTML='Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
     $('izoh').placeholder='ixtiyoriy izoh';
     updateChekUI();
+    // FILIAL bu qoidadan MUSTASNO (ataylab): izoh/chek adv'da majburiy emas, chunki ular
+    // modda bayrog'iga bog'langan va adv'da modda dropdowni yo'q. Filial esa satrlardagi
+    // Dt hisobidan aniqlanadi (filialRequiredAdv) — shuning uchun adv'da ham MAJBURIY va
+    // saqlashni BLOKLAYDI (Asilbek qarori), busiz kengaytirilgan rejim nazoratdan chetda qolardi.
+    updateFilialUI(); updateTotals();
   }
   else updateSimple();
 };
@@ -951,8 +983,36 @@ function moddaObj(){ return accounts.find(a=>a.id===$('modda').value); }
 function izohRequired(){ const m=moddaObj(); return !!(m&&m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m&&m.davr_majburiy); }
 function chekRequired(){ const m=moddaObj(); return !!(m&&m.chek_majburiy); }   // ustun yo'q bo'lsa undefined → false
+// Filial talabi — YOZUV darajasida (satr darajasida EMAS). Sabab: entry.filial_ids butun
+// yozuvga tegishli uuid[] va undan jurnal teglari, ai_rep_*, hodim taqsimoti, v_filial_tanlov
+// oziqlanadi. Satr darajasidagi filial yangi jadval/jsonb talab qilardi va shu iste'molchilarning
+// HAMMASINI buzardi. Filiallarga BO'LISH kerak bo'lsa — oddiy rejimdagi "taqsim" oqimi
+// (confirmTaqsim) har filialga ALOHIDA yozuv yozadi, ya'ni bu ehtiyoj allaqachon qoplangan.
+//
+// Kengaytirilgan rejimda modda dropdowni yo'q → talab SATRLARDAN aniqlanadi: DEBET tomonidagi
+// biror satrning hisobi filial_majburiy bo'lsa, filial majburiy. Debet — chunki xarajat/modda
+// aynan Dt tomonda turadi (Kt — pul chiqqan kassa).
+function filialRequiredAdv(){
+  // Bayroq ildiz hisobda turadi; satrda tur/valyuta bolasi tanlangan bo'lishi mumkin,
+  // shuning uchun ikkalasi ham tekshiriladi (bittasi yetarli).
+  const flag=id=>{ const a=id&&accounts.find(x=>x.id===id); return !!(a&&a.filial_majburiy); };
+  return lines.some(l=>l.side==='debit'&&(flag(l.account_id)||flag(l.root_id)));
+}
+// Umumiy kirish nuqtasi: shu bitta joyda birlashtirilgani uchun filialOk()/updateFilialUI()
+// va mavjud guardlar O'ZGARMASDAN ikkala rejimda ishlaydi.
+function filialRequired(){
+  if(curMode==='adv') return filialRequiredAdv();
+  const m=moddaObj(); return !!(m&&m.filial_majburiy);   // ustun yo'q bo'lsa undefined → false
+}
 function davrVals(){ return {s:davrS,e:davrE}; }
 function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
+// Filial majburiy bo'lsa kamida bittasi tanlansin. AMMO foydalanuvchiga umuman filial
+// biriktirilmagan bo'lsa (permFilterFilials hammasini kesgan) saqlash BLOKLANMAYDI —
+// aks holda u xarajat kirita olmay qolardi; sabab ogohlantirish bo'lib ko'rinadi.
+function filialOk(){ if(!filialRequired()) return true;
+  if(selFilials.size>0) return true;
+  return filialsLoaded && filials.length===0;   // ro'yxat KELDI va bo'sh → bloklamaymiz; kelmadi/xato → bloklaymiz
+}
 // --- V8: davr kalendari (ikki oy, uz nomlar) — hodim.html bilan bir xil ---
 // FARQ (ataylab): hodim'da kalendar filial tanlangach chiqadi. Professional'da
 // filial ixtiyoriy — gate qo'yilsa "davr majburiy + filial yo'q" deadlock bo'lardi
@@ -1036,6 +1096,22 @@ function updateIzohUI(){
     : 'Izoh <span style="font-weight:400">(ixtiyoriy)</span>';
   $('izoh').placeholder = req ? 'Bu modda uchun izoh shart' : 'ixtiyoriy izoh';
   $('izohReq').style.display = (req && bosh) ? 'block' : 'none';
+}
+// Filial — izoh bilan bir xil naqsh: yorliqda qizil "(majburiy)", bo'sh bo'lsa ogohlantirish.
+function updateFilialUI(){
+  const req=filialRequired();
+  $('filialLbl').innerHTML = req
+    ? 'Filial <span style="color:var(--red);font-weight:700">(majburiy — kamida bittasi)</span>'
+    : 'Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span>';
+  const w=$('filialReq');
+  // Adv rejimda "modda" dropdowni yo'q — talab Dt satridan keladi, shuning uchun matn ham boshqacha.
+  const kim = curMode==='adv' ? 'Bu yozuv (Dt satridagi modda) uchun' : 'Bu modda uchun';
+  // Ruxsat bo'yicha filial yo'q — foydalanuvchining aybi emas: saqlash ochiq qoladi,
+  // lekin sabab ko'rinib tursin (jimgina o'tib ketsa xarajat filialsiz yozilardi).
+  if(req && !filialsLoaded){ w.textContent=filialsErr?"Filiallar yuklanmadi — qayta urinib ko'ring":"Filiallar yuklanmoqda…"; w.style.display='block'; }
+  else if(req && filials.length===0){ w.textContent=kim+' filial shart, lekin sizga filial biriktirilmagan — administratorga murojaat qiling'; w.style.display='block'; }
+  else if(req && selFilials.size===0){ w.textContent=kim+' filial tanlanishi shart'; w.style.display='block'; }
+  else w.style.display='none';
 }
 // --- Chek / hujjat (hodim.html naqshi + IXTIYORIY FAYL) ---
 // Rasm — kanvasda siqiladi va .jpg bo'lib ketadi (eski xatti-harakat, o'zgarmagan).
@@ -1171,9 +1247,26 @@ function renderFilials(){ const box=$('filialChips');
     : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
 }
 // updateSimple() shart: filial o'zgarsa limit ogohlantirishi ham qayta hisoblanadi.
-window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateSimple(); };
+// V10: adv rejimda updateSimple() emas, updateTotals() — saqlash tugmasini o'sha boshqaradi
+// (aks holda filial tanlangach ham tugma o'chiq qolardi).
+window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials();
+  if(curMode==='adv') updateTotals(); else updateSimple(); };
 // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
-async function loadFilials(){ try{ const {data,error}=await sb.from('v_filial_tanlov').select('*'); if(error||!data) return; filials=window.permFilterFilials?window.permFilterFilials(data):data; }catch(e){} }
+async function loadFilials(){
+  try{
+    const {data,error}=await sb.from('v_filial_tanlov').select('*');
+    if(error||!data){ filialsErr=true; filialBanner(error&&error.message); return; }
+    filials=window.permFilterFilials?window.permFilterFilials(data):data;
+    filialsLoaded=true; filialsErr=false;
+  }catch(e){ filialsErr=true; filialBanner(e&&e.message); }
+}
+// Xato ko'rinib tursin: filial majburiy modda shu holatda saqlanmaydi (filialOk=false),
+// sabab esa faqat kichik ogohlantirishda qolmasin.
+function filialBanner(msg){
+  const b=$('banner'); if(!b) return;
+  b.className='banner'; b.style.display='block';
+  b.textContent="Filiallar ro'yxati yuklanmadi"+(msg?(': '+msg):'')+' — sahifani yangilang.';
+}
 // Kassa chiplari: accounts allaqachon permFilterOp'dan o'tgan — faqat amaliyot ruxsati bor pul
 // hisoblari (op_kassa_ids; scope='all'→hammasi). 5400 konteyner init'da chiqarib tashlangan.
 // Ko'p-valyutali kassa: parent (UZS) + valyuta bola-hisoblari (parent_id, currency<>UZS).
@@ -1437,9 +1530,13 @@ window.updateSimple=()=>{
   updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
   updateIzohUI();                                    // V6: izoh majburiyligi — yorliq + ogohlantirish
   updateChekUI();                                    // V6: chek majburiyligi
+  updateFilialUI();                                  // V9: filial majburiyligi
   const needIzoh=izohRequired() && !$('izoh').value.trim();
   const needChek=chekRequired() && !chekBlob;
   const needDavr=!davrOk();
+  // V9: needIzoh/needChek dan farqi — filialOk() o'zi filialRequired() ni tekshiradi
+  // (majburiy bo'lmasa true), ya'ni birinchi shart ortiqcha; naqsh bir xil qolsin deb turibdi.
+  const needFilial=filialRequired() && !filialOk();   // ruxsat bo'yicha filial yo'q user bloklanmaydi
   // Qoldiq limiti — faqat pul chiqishida (Kt=kassa, ya'ni income emas). Kirimда tekshirilmaydi.
   const over = !income && simpleBal!=null && amt>simpleBal;
   const inp=$('summa'), w=$('simpleWarn');
@@ -1461,7 +1558,7 @@ window.updateSimple=()=>{
     if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
   } else lw.style.display='none';
-  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needKurs && !needIzoh && !needChek && !needDavr && !needKomm && !overLimit);
+  const ok = !!(selKassa && $('modda').value && amt>0 && !over && !needKurs && !needIzoh && !needChek && !needDavr && !needKomm && !needFilial && !overLimit);
   $('saveSimpleBtn').disabled=!ok;
   // Saqlash hech qachon "sababsiz" yopiq turmasin — birinchi yetishmayotgan shartni yozamiz.
   // (9411 "Ijara" bug'i aynan shu ko'rinmas holat edi: davr majburiy, lekin sana tanlab bo'lmasdi.)
@@ -1475,6 +1572,7 @@ window.updateSimple=()=>{
     else if(needIzoh) msg='Bu modda uchun <b>izoh</b> majburiy — yuqoridagi <b>Izoh</b> maydonini to‘ldiring';
     else if(needChek) msg='Bu modda uchun <b>chek</b> majburiy — yuqoridagi <b>Surat</b> yoki <b>Fayl tanlash</b> tugmasidan yuklang';
     else if(needDavr) msg='Bu modda uchun <b>davr</b> (boshi–oxiri) majburiy';
+    else if(needFilial) msg='Bu modda uchun <b>filial</b> majburiy — yuqoridagi <b>Filial</b> ro‘yxatidan tanlang';
     else if(needKomm) msg='Kommunal turini tanlang';
     else if(over) msg='Summa kassa qoldig‘idan oshdi';
     else if(overLimit) msg='Summa filial limitidan oshdi';
@@ -1692,6 +1790,98 @@ window.renderYukList=()=>{
       +'<span class="ynarx">'+jamiTxt+'</span></div>'+inp+'</div>';
   }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
 };
+
+/* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================
+   MUAMMO: yozuv ikki qadamda yozilardi — `entry` insert (commit) -> `entry_line`
+   insert (commit) [-> `entry_yuk` insert]. Keyingi qadam rad etilsa (perm guard
+   42501, limit guard, Dt<>Kt, RLS) klient kompensatsiya `delete` qilardi, LEKIN
+   `entry` o'chirish faqat adminga ochiq: oddiy foydalanuvchida u xatosiz 0 qator
+   o'chiradi va bazada YETIM SARLAVHA qoladi (`entry` bor, `entry_line` yo'q).
+
+   YECHIM: `provodka_yoz(p_data)` — sarlavha + satrlar + yuk taqsimoti BITTA
+   tranzaksiyada. Rad etilsa hech narsa yozilmaydi, kompensatsiya `delete`
+   KERAK EMAS (RPC yo'lida u ATAYLAB qilinmaydi).
+
+   🔴 ZAXIRA: RPC bazada yo'q bo'lsa (PROVODKA_YOZUV_ATOMIK.sql hali RUN
+   qilinmagan) eski ikki qadamli yo'l AYNAN avvalgidek ishlaydi — sahifa
+   buzilmaydi. `atomikYoq` bir marta aniqlanadi va sessiya davomida saqlanadi.
+
+   TEGILMAGAN: `xarajat_saqlash_taqsim` (confirmTaqsim) — u ALLAQACHON atomik
+   RPC, o'z ext_ref/23505 mantiqi bilan. */
+const SAVE_TIMEOUT_MS=30000;
+let atomikYoq=false;
+const perrX=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+const isDupErr=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='23505'||/duplicate key value/i.test(m); };
+// RPC topilmadi: PostgREST PGRST202, PostgreSQL 42883 ("function ... does not exist")
+const rpcYoq=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
+  return c==='PGRST202'||c==='42883'||(/provodka_yoz/i.test(m)&&/does not exist|could not find/i.test(m)); };
+const newToken=()=>{ try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  return 'tk-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12); };
+/* So'rov abadiy osilib qolmasin: AbortController bilan uziladi (bo'lmasa
+   Promise.race). supabase-js throw QILMAYDI, lekin tarmoq xatosi promise'ni
+   rad etishi mumkin — ikkalasi ham {data,error} shakliga keltiriladi. */
+async function qTimeout(q,ms){
+  ms=ms||SAVE_TIMEOUT_MS;
+  let ctrl=null,t=null;
+  try{ if(typeof AbortController!=='undefined'&&q&&typeof q.abortSignal==='function'){ ctrl=new AbortController(); q=q.abortSignal(ctrl.signal); } }catch(e){ ctrl=null; }
+  const timer=new Promise(res=>{ t=setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} res({__t:1}); },ms); });
+  const run=Promise.resolve(q).then(x=>x,e=>({data:null,error:{message:String((e&&e.message)||e),code:String((e&&e.code)||'')}}));
+  let r; try{ r=await Promise.race([run,timer]); } finally{ clearTimeout(t); }
+  if(r&&r.__t) return {data:null,timeout:true,
+    error:{code:'TIMEOUT',message:'Tarmoq javob bermadi (vaqt tugadi). Jurnalni tekshiring — yozuv saqlangan bo\'lishi mumkin.'}};
+  return {data:(r&&r.data)||null,error:(r&&r.error)||null,timeout:false};
+}
+/* ext_ref — har saqlashda BIR MARTALIK token. Timeout bo'lsa token saqlanadi:
+   foydalanuvchi AYNI yozuvni qayta bossa o'sha token ketadi va server ikkinchi
+   nusxani 23505 bilan to'sadi. Aniq javob kelsa token tashlanadi. */
+let pendTok=null, pendFp=null;
+async function yozAtomik(hdr,rows,yuk){
+  if(atomikYoq) return {ok:false,eski:true};
+  const fp=JSON.stringify([hdr,rows,yuk||null]);
+  const tok=(pendFp===fp&&pendTok)?pendTok:newToken();
+  const p_data=Object.assign({},hdr,{lines:rows,ext_ref:tok});
+  if(yuk&&yuk.length) p_data.yuk_taqsim=yuk;
+  const r=await qTimeout(sb.rpc('provodka_yoz',{p_data}));
+  if(r.error&&rpcYoq(r.error)){ atomikYoq=true; return {ok:false,eski:true}; }
+  if(r.timeout){ pendTok=tok; pendFp=fp; return {ok:false,error:r.error}; }
+  pendTok=null; pendFp=null;                       // javob ANIQ keldi
+  if(r.error&&isDupErr(r.error)) return {ok:true,dup:true};   // atomik: takror = saqlangan
+  if(r.error) return {ok:false,error:r.error};
+  return {ok:true,entry_id:(r.data&&r.data.entry_id)||null};
+}
+/* ZAXIRA — RPC yo'q bo'lgandagi ESKI yo'l. 🔴 Bu yerda kompensatsiya `delete`
+   SAQLANADI (bu yo'l atomik emas) — o'zgartirilmadi. */
+async function saveEski(hdr,rows,yuk){
+  const {data:ent,error:e1}=await sb.from('entry').insert(hdr).select('id').single();
+  if(e1){ alert(perrX(e1)); return {ok:false}; }
+  const {error:e2}=await sb.from('entry_line').insert(rows.map(l=>Object.assign({entry_id:ent.id},l)));
+  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e2)); return {ok:false}; }
+  if(yuk&&yuk.length){
+    const {error:e3}=await sb.from('entry_yuk').insert(yuk.map(y=>Object.assign({entry_id:ent.id},y)));
+    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e3)); return {ok:false}; }
+  }
+  return {ok:true,entry_id:ent.id};
+}
+/* Uchala saqlash yo'li uchun YAGONA kirish nuqtasi.
+   hdr — entry maydonlari; rows — entry_line satrlari (entry_id YO'Q, server qo'yadi);
+   yuk — ixtiyoriy [{yuk_id,summa_uzs}] (entry_yuk).
+   Qaytadi: {ok:true, entry_id} | {ok:true, dup:true} | {ok:false} (xato KO'RSATILGAN). */
+async function yozBir(hdr,rows,yuk){
+  const r=await yozAtomik(hdr,rows,yuk);
+  if(!r.ok&&r.eski) return await saveEski(hdr,rows,yuk);
+  if(!r.ok){ alert(perrX(r.error)); return {ok:false}; }
+  return {ok:true,entry_id:r.entry_id||null,dup:!!r.dup};
+}
+/* Chek/hujjat — biriktirish uchun entry id kerak. Takror (dup) holatida id
+   noma'lum: yozuv allaqachon bazada, faylni biriktirib bo'lmaydi. Jimgina
+   yutmaymiz — foydalanuvchiga aytamiz. */
+function chekYukla(r,kassaId){
+  if(r&&r.entry_id){ uploadChekNow(kassaId, r.entry_id); return; }
+  alert('Yozuv allaqachon saqlangan (takroriy yuborish to\'sildi). Fayl biriktirilmadi — jurnaldan yozuvni topib qayta biriktiring.');
+}
+/* ======================= /ATOMIK YOZUV =================================== */
+
 window.saveSimple=async()=>{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
@@ -1701,6 +1891,7 @@ window.saveSimple=async()=>{
   if(izohRequired() && !$('izoh').value.trim()){ alert('Bu modda uchun izoh majburiy'); return; }   // V6
   if(chekRequired() && !chekBlob){ alert('Bu modda uchun chek yoki hujjat majburiy'); return; }          // V6
   if(!davrOk()){ alert('Davr sanasini tanlang'); return; }                                          // V6
+  if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }                       // V9
   if(!income && simpleBal!=null && amt>simpleBal){ alert('Kassada yetarli mablag\' yo\'q. Qoldiq: '+money(simpleBal)+' '+((kassa.currency&&kassa.currency!=='UZS')?kassa.currency:'so\'m')); return; }
   // 9110 Tovar tannarxi → avval yuk modali (yoki "Hujjat hali yo'q" → yo'ldagi tovar).
   if(modda.code==='9110'){ openYukSave(amt, kassa.currency||'UZS', doSaveSimple, 'simple'); return; }
@@ -1714,6 +1905,9 @@ async function doSavePending(izohP){
   const modda1=accByCode('9110-1');
   if(!kassa||amt<=0) return;
   if(!modda1){ alert('9110-1 hisobi topilmadi — PROVODKA_V7.sql RUN qilinganmi?'); $('modda').value=''; updateSimple(); return; }
+  // V9: mudofaaviy — bu yerga saveSimple() guardidan o'tib kelinadi, ya'ni odatda
+  // hech qachon ishlamaydi; yangi chaqiruv yo'li qo'shilsa yo'l ochiq qolmasin.
+  if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
   // Valyuta kassasi: debit/credit SO'MDA (amt × kurs), fc_amount esa valyuta miqdori.
   // Avval ikkalasiga ham `amt` yozilardi — dollar soni so'm ustuniga tushib ketardi.
   // Tekshiruv entry INSERT'idan OLDIN — aks holda yetim sarlavha qolardi.
@@ -1723,13 +1917,12 @@ async function doSavePending(izohP){
   const entryPayload={entry_date:$('sana').value||null,description:izohP,source:'manual',status:'posted',filial_ids:[...selFilials],yuk_kutilmoqda:true};
   if(p.rate) entryPayload.fc_rate=p.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
-  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
-  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
-  const rows=[{entry_id:ent.id,account_id:modda1.id,debit:p.uzs,credit:0},{entry_id:ent.id,account_id:kassa.id,debit:0,credit:p.uzs}];
+  const rows=[{account_id:modda1.id,debit:p.uzs,credit:0},{account_id:kassa.id,debit:0,credit:p.uzs}];
   if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
-  if(chekBlob) uploadChekNow(kassa.id, ent.id);
+  // Atomik: entry + entry_line birga. Rad etilsa hech narsa yozilmaydi (yetim sarlavha yo'q).
+  const res=await yozBir(entryPayload,rows);
+  if(!res.ok){ btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
+  if(chekBlob) chekYukla(res, kassa.id);
   $('summa').value=''; $('izoh').value=''; $('modda').value=''; selYuk.clear(); alloc={};
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
@@ -1739,6 +1932,9 @@ async function doSaveSimple(){
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
   if(!kassa||!modda||amt<=0) return;
+  // V9: filial majburiy — bu yerga yuk modalidan va doSaveSimpleForce'dan ham kelinadi,
+  // shuning uchun tekshiruv saveSimple'dan tashqari SHU YERDA ham turadi.
+  if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
   const dtId=income?kassa.id:modda.id, ktId=income?modda.id:kassa.id;
   // Valyuta kassasi: summa maydonida VALYUTA miqdori turadi, lekin entry_line'ga
   // so'm ekvivalenti (× kurs) yoziladi; valyuta miqdori fc_amount'ga. Tekshiruv
@@ -1756,19 +1952,16 @@ async function doSaveSimple(){
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(selYuk.size) entryPayload.yuk_ids=[...selYuk];
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
-  const {data:ent,error:e1}=await sb.from('entry').insert(entryPayload).select('id').single();
-  if(e1){ alert(window.permErr?window.permErr(e1):e1.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  const rows=[{entry_id:ent.id,account_id:dtId,debit:p.uzs,credit:0},{entry_id:ent.id,account_id:ktId,debit:0,credit:p.uzs}];
+  const rows=[{account_id:dtId,debit:p.uzs,credit:0},{account_id:ktId,debit:0,credit:p.uzs}];
   // Ko'p-valyuta: fc_amount = VALYUTA miqdori (so'm summasi emas).
   if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e2):e2.message); btn.textContent='Saqlash'; updateSimple(); return; }
-  // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk (kompensatsiya: xatoda entry o'chadi)
-  const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
-  if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
-    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr?window.permErr(e3):e3.message); btn.textContent='Saqlash'; updateSimple(); return; } }
+  // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk.
+  // Atomik yo'lda u ham AYNI tranzaksiyada yoziladi (kompensatsiya kerak emas).
+  const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  const res=await yozBir(entryPayload,rows,eyRows);
+  if(!res.ok){ btn.textContent='Saqlash'; updateSimple(); return; }
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
-  if(chekBlob) uploadChekNow(kassa.id, ent.id);
+  if(chekBlob) chekYukla(res, kassa.id);
   $('summa').value=''; $('izoh').value=''; selYuk.clear(); alloc={};   // kassa/modda saqlanadi — ketma-ket kiritishga qulay
   window.removeChek();
   preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
@@ -1833,6 +2026,9 @@ function renderTaqsimSum(){
 window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
+  // V9: mudofaaviy — bu modal FAQAT 2+ filial tanlanganda ochiladi, ya'ni shart
+  // hech qachon bajarilmaydi; taqsim yo'li kelajakda o'zgarsa ham ochilib qolmasin.
+  if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
   const {dtId,ktId,kassa,pair}=taqsimCtx;
   const p_data={
@@ -1895,6 +2091,9 @@ window.save=async()=>{
   let dt=0,kt=0; lines.forEach(l=>{ const u=lineUzs(l)||0; if(l.side==='debit')dt+=u; else kt+=u; });
   if(dt<=0||dt!==kt){ alert('Dt va Kt teng bo\'lishi kerak'); return; }
   if(lines.some(l=>!l.account_id||l.amount<=0)){ alert('Har satrda hisob va summa bo\'lsin'); return; }
+  // V10: filial — yuk modali OCHILISHIDAN oldin (foydalanuvchi yuk taqsimlab bo'lgach rad
+  // etilmasin). Asosiy to'siq baribir doSaveAdv() ichida (yuk yo'li ham o'sha yerdan o'tadi).
+  if(!filialOk()){ alert('Bu yozuv uchun filial tanlanishi shart — Dt satrida filial majburiy modda bor'); return; }
   // 9110 Tovar tannarxi biror satrda bo'lsa → SAQLASHDA yuk modali (Dt summasi bo'yicha).
   // Summa so'mda beriladi (yuk taqsimoti har doim so'mda) — shuning uchun cur='UZS'.
   if(lines.some(acc9110)){
@@ -1910,35 +2109,38 @@ async function doSaveAdv(){
   if(lines.some(l=>l.amount>0&&lineUzs(l)==null)) return;
   let dt=0,kt=0; lines.forEach(l=>{ const u=lineUzs(l)||0; if(l.side==='debit')dt+=u; else kt+=u; });
   if(dt<=0||dt!==kt) return;
+  // V10: YAGONA ishonchli filial to'sig'i — bu yerga save() dan ham, yuk modalidan
+  // (openYukSave(...,doSaveAdv,'adv')) ham kelinadi, ya'ni ikkala yo'l ham qamralgan.
+  // Adv'da BLOKLAYDI (ogohlantirish emas) — Asilbek qarori.
+  if(!filialOk()){ alert('Bu yozuv uchun filial tanlanishi shart — Dt satrida filial majburiy modda bor'); return; }
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
-  const payload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted'};
+  // filial_ids — oddiy rejim bilan AYNAN bir xil shakl: har doim massiv (bo'sh bo'lsa []),
+  // null yozilmaydi. Ikki rejim bitta ustunga bir xil yozsin, iste'molchi (jurnal, ai_rep_*)
+  // ikki xil "bo'sh" holatni ajratishga majbur bo'lmasin.
+  const payload={entry_date:$('sana').value||null,description:$('izoh').value||null,source:'manual',status:'posted',filial_ids:[...selFilials]};
   if(selYuk.size) payload.yuk_ids=[...selYuk];
   // entry.fc_rate — BITTA skalyar maydon. Shuning uchun faqat yozuvda bitta valyuta
   // ishlatilgan bo'lsa yoziladi; ikki xil valyuta bo'lsa (kamdan-kam) bitta kurs yozish
   // yolg'on bo'lardi — maydon bo'sh qoladi. fc_amount har satrda baribir aniq turadi.
   { const curs=[...new Set(lines.filter(l=>lineCur(l)!=='UZS').map(l=>lineCur(l)))];
     if(curs.length===1){ const r=curRate(curs[0]); if(r>0) payload.fc_rate=r; } }
-  const {data:ent,error:e1}=await sb.from('entry').insert(payload).select('id').single();
-  // permErr — server guard 42501'ni o'zbekcha matnga o'giradi (xom Postgres xatosi ko'rinmasin)
-  const perr=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
-  if(e1){ alert(perr(e1)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   const rows=lines.map(l=>{
     const u=lineUzs(l)||0;
-    const r={entry_id:ent.id,account_id:l.account_id,debit:l.side==='debit'?u:0,credit:l.side==='credit'?u:0};
+    const r={account_id:l.account_id,debit:l.side==='debit'?u:0,credit:l.side==='credit'?u:0};
     // fc_amount FAQAT valyuta hisobi satriga — v_hisob_bal.fc aynan shu ustundan yig'iladi
     // (Dt bo'lsa +, Kt bo'lsa −). So'm satrida ustun umuman to'ldirilmaydi.
     if(lineCur(l)!=='UZS') r.fc_amount=Number(l.amount)||0;
     return r; });
-  const {error:e2}=await sb.from('entry_line').insert(rows);
-  if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e2)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
-  const eyRows=[...selYuk].map(id=>({entry_id:ent.id,yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
-  if(eyRows.length){ const {error:e3}=await sb.from('entry_yuk').insert(eyRows);
-    if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perr(e3)); $('saveBtn').textContent='Saqlash'; updateTotals(); return; } }
+  const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  // Atomik: sarlavha + N satr + yuk taqsimoti bitta tranzaksiyada.
+  // Xato (42501 perm guard, limit guard, Dt<>Kt) — o'z matni bilan yozBir ichida ko'rsatiladi.
+  const res=await yozBir(payload,rows,eyRows);
+  if(!res.ok){ $('saveBtn').textContent='Saqlash'; updateTotals(); return; }
   // Chek/hujjat — yozuv saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   // `lines` tozalanishidan OLDIN: kassa id aynan shu satrlardan aniqlanadi.
   if(chekBlob){
     const kid=advChekKassaId();
-    if(kid) uploadChekNow(kid, ent.id);
+    if(kid) chekYukla(res, kid);
     else alert('Yozuv saqlandi. Fayl biriktirilmadi — yozuvda Kt (chiqim) tomonida kassa satri yo\'q.');
   }
   // Yozuvdan keyin qoldiqlar o'zgardi — kesh tozalanadi, addLine() qayta yuklatadi
