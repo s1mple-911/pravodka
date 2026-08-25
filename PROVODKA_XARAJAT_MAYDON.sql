@@ -565,7 +565,14 @@ create policy entry_maydon_sel on entry_maydon
     or exists (
       select 1 from entry_line l
        where l.entry_id = entry_maydon.entry_id
-         and l.account_id = any((select perm_view_pul_ids())))
+         -- 🔴 `coalesce(...)` SHART: `any((select f()))` da qavs PASTKI
+         --    SO'ROV deb o'qiladi va u bitta `uuid[]` qiymat qaytaradi ->
+         --    Postgres `uuid = uuid[]` ni solishtirmoqchi bo'lib 42883
+         --    beradi. `coalesce` uni SKALAR IFODA qiladi, ya'ni `any`
+         --    massiv shaklida ishlaydi. InitPlan afzalligi saqlanadi.
+         --    `{}` fail-closed: null bo'lsa yuqoridagi shox allaqachon
+         --    ushlagan, bu yerda bo'sh massiv hech narsaga mos kelmaydi.
+         and l.account_id = any(coalesce((select perm_view_pul_ids()), '{}'::uuid[])))
   );
 
 drop policy if exists entry_maydon_ins on entry_maydon;
