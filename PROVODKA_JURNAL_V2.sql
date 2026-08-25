@@ -733,44 +733,67 @@ select has_function_privilege('authenticated',
        has_function_privilege('authenticated',
          'public.jurnal_dash(date,date,uuid[],uuid[],text[],text)', 'execute') as dash_ochiq;
 
--- 4) Tirik ma'lumotda tez sinov (oxirgi 30 kun) — xato bermasligi kerak.
---    Admin sifatida RUN qilinsa hamma yozuv, cheklangan user sifatida faqat
---    o'z kassalari qatnashgani ko'rinadi.
-select jsonb_array_length(jurnal_v2((now() at time zone 'Asia/Tashkent')::date - 30,
-                                    (now() at time zone 'Asia/Tashkent')::date,
-                                    null, null, null, null, 5, 0)) as royxat_soni,
-       jurnal_v2_count((now() at time zone 'Asia/Tashkent')::date - 30,
-                       (now() at time zone 'Asia/Tashkent')::date)  as jami_soni,
-       jurnal_dash((now() at time zone 'Asia/Tashkent')::date - 30,
-                   (now() at time zone 'Asia/Tashkent')::date)      as dash;
-
--- 5) MUVOFIQLIK INVARIANTI (HAR QANDAY user uchun true bo'lishi shart):
---      jami.soni + chetlangan.soni + chetlangan.ochirilgan
---        = jurnal_v2_count(p_from, p_to, p_accounts, p_moddalar, NULL, p_q)
---    🔴 `jurnal_v2_count` SHU YERDA p_turlar := NULL bilan chaqiriladi —
---    dashboard tur filtriga bo'ysunmaydi (davr xulosasi). Tur tanlangan
---    bo'lsa RO'YXAT soni bundan kichik bo'ladi va bu NORMAL.
---    🔴 `jami.soni` ning O'ZI count'ga TENG BO'LMASLIGI mumkin va bu XATO EMAS:
---      • o'chirilgan yozuvlar ro'yxatda ko'rinadi, agregatga kirmaydi;
---      • cheklangan userda aralash ko'p satrli yozuv ham shunday.
---    Admin bazasida ham `ochirilgan` > 0 bo'lishi normal (soft-delete).
-select (d -> 'jami'       ->> 'soni')::int                             as jami_soni,
-       (d -> 'chetlangan' ->> 'soni')::int                             as chetlangan_aralash,
-       (d -> 'chetlangan' ->> 'ochirilgan')::int                       as chetlangan_ochirilgan,
-       n                                                               as jurnal_v2_count,
-       ((d -> 'jami' ->> 'soni')::int
-        + (d -> 'chetlangan' ->> 'soni')::int
-        + (d -> 'chetlangan' ->> 'ochirilgan')::int) = n               as dash_count_mos
-  from (
-    select jurnal_dash((now() at time zone 'Asia/Tashkent')::date - 30,
-                       (now() at time zone 'Asia/Tashkent')::date) as d,
-           -- 🔴 p_turlar ATAYLAB null (nomlangan argument bilan ochiq yozildi):
-           -- dashboard tur filtriga bo'ysunmaydi, invariant ham shunga qurilgan.
-           jurnal_v2_count(p_from   => (now() at time zone 'Asia/Tashkent')::date - 30,
-                           p_to     => (now() at time zone 'Asia/Tashkent')::date,
-                           p_turlar => null) as n
-  ) q;
-
+-- 4-5) JONLI SINOV — 🔴 SQL EDITORIDA RUN QILINMAYDI (ataylab izohda).
+--
+--   Sabab: editorda so'rov `postgres` roli bilan, JWT'siz ketadi -> `auth.uid()`
+--   NULL -> `jurnal_page_ok()` fail-closed bo'lib 42501 beradi:
+--     ERROR: 42501: Jurnal sahifasi ruxsatingizda yo'q
+--   Bu XATO EMAS — qorovulning to'g'ri ishlayotganining isboti.
+--
+--   🔴 LEKIN: Postgres ko'p-operatorli skriptni BITTA tranzaksiyada bajaradi,
+--   ya'ni bu xato BUTUN faylni orqaga qaytaradi va funksiyalar yaratilmaydi.
+--   Shuning uchun jonli sinov bu yerda emas, BRAUZERDA qilinadi:
+--   jurnal-dev.html ni oching -> davr/dashboard ishlasa RPC'lar ishlayapti.
+--   (`sb` modul ichida — konsoldan chaqirib bo'lmaydi. Tekshiruv: Network panelida
+--   `rpc/jurnal_dash` va `rpc/jurnal_v2` so'rovlari 200 qaytarsa hammasi joyida;
+--   404 kelsa SQL RUN bo'lmagan, 403 kelsa userda `jurnal` sahifa ruxsati yo'q.)
+--
+--   Invariant (brauzerda tekshiriladi):
+--     jami.soni + chetlangan.soni + chetlangan.ochirilgan
+--       = jurnal_v2_count(p_from, p_to, p_accounts, p_moddalar, NULL, p_q)
+--   🔴 `jurnal_v2_count` p_turlar := NULL bilan — dashboard tur filtriga
+--   bo'ysunmaydi (davr xulosasi). Tur tanlansa RO'YXAT soni kichik bo'ladi — NORMAL.
+--
+-- Quyida eski sinov matni saqlangan (kerak bo'lsa alohida, bitta-bitta RUN qiling
+-- — lekin faqat haqiqiy foydalanuvchi sessiyasi bilan, ya'ni PostgREST orqali):
+-- -- 4) Tirik ma'lumotda tez sinov (oxirgi 30 kun) — xato bermasligi kerak.
+-- --    Admin sifatida RUN qilinsa hamma yozuv, cheklangan user sifatida faqat
+-- --    o'z kassalari qatnashgani ko'rinadi.
+-- select jsonb_array_length(jurnal_v2((now() at time zone 'Asia/Tashkent')::date - 30,
+--                                     (now() at time zone 'Asia/Tashkent')::date,
+--                                     null, null, null, null, 5, 0)) as royxat_soni,
+--        jurnal_v2_count((now() at time zone 'Asia/Tashkent')::date - 30,
+--                        (now() at time zone 'Asia/Tashkent')::date)  as jami_soni,
+--        jurnal_dash((now() at time zone 'Asia/Tashkent')::date - 30,
+--                    (now() at time zone 'Asia/Tashkent')::date)      as dash;
+--
+-- -- 5) MUVOFIQLIK INVARIANTI (HAR QANDAY user uchun true bo'lishi shart):
+-- --      jami.soni + chetlangan.soni + chetlangan.ochirilgan
+-- --        = jurnal_v2_count(p_from, p_to, p_accounts, p_moddalar, NULL, p_q)
+-- --    🔴 `jurnal_v2_count` SHU YERDA p_turlar := NULL bilan chaqiriladi —
+-- --    dashboard tur filtriga bo'ysunmaydi (davr xulosasi). Tur tanlangan
+-- --    bo'lsa RO'YXAT soni bundan kichik bo'ladi va bu NORMAL.
+-- --    🔴 `jami.soni` ning O'ZI count'ga TENG BO'LMASLIGI mumkin va bu XATO EMAS:
+-- --      • o'chirilgan yozuvlar ro'yxatda ko'rinadi, agregatga kirmaydi;
+-- --      • cheklangan userda aralash ko'p satrli yozuv ham shunday.
+-- --    Admin bazasida ham `ochirilgan` > 0 bo'lishi normal (soft-delete).
+-- select (d -> 'jami'       ->> 'soni')::int                             as jami_soni,
+--        (d -> 'chetlangan' ->> 'soni')::int                             as chetlangan_aralash,
+--        (d -> 'chetlangan' ->> 'ochirilgan')::int                       as chetlangan_ochirilgan,
+--        n                                                               as jurnal_v2_count,
+--        ((d -> 'jami' ->> 'soni')::int
+--         + (d -> 'chetlangan' ->> 'soni')::int
+--         + (d -> 'chetlangan' ->> 'ochirilgan')::int) = n               as dash_count_mos
+--   from (
+--     select jurnal_dash((now() at time zone 'Asia/Tashkent')::date - 30,
+--                        (now() at time zone 'Asia/Tashkent')::date) as d,
+--            -- 🔴 p_turlar ATAYLAB null (nomlangan argument bilan ochiq yozildi):
+--            -- dashboard tur filtriga bo'ysunmaydi, invariant ham shunga qurilgan.
+--            jurnal_v2_count(p_from   => (now() at time zone 'Asia/Tashkent')::date - 30,
+--                            p_to     => (now() at time zone 'Asia/Tashkent')::date,
+--                            p_turlar => null) as n
+--   ) q;
+--
 -- 6) Yangi `begona` ustuni + sahifa qorovuli o'rnidami.
 select exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
