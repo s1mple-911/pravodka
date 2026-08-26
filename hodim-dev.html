@@ -613,6 +613,17 @@
   .srv-st.part{background:var(--tr-soft);color:var(--tr)}
   .srv-st.part::before{background:linear-gradient(90deg,currentColor 50%,transparent 50%);
     box-shadow:inset 0 0 0 1.5px currentColor}
+  /* "So'nggi javoblar" — hodim o'z so'roviga kelgan JAVOBNI ko'radi.
+     Ranglar mavjud o'zgaruvchilardan: berildi = yashil (kirim), rad = qizil. */
+  .srv-st.full{background:var(--primary-soft);color:var(--primary-ink)}
+  .srv-st.rej{background:var(--red-soft);color:var(--red-ink)}
+  /* Rad sababi — `.ts` bir qatorli (nowrap+ellipsis), sabab esa TO'LIQ o'qilishi kerak */
+  .srv-sabab{font-size:12.5px;line-height:1.4;color:var(--muted);margin-top:2px;
+    white-space:normal;overflow-wrap:anywhere}
+  /* Rad etilgan so'rovda pul KELMAGAN — summa o'chirilgan ko'rinishda */
+  .trow .ta.srv-non{color:var(--muted);text-decoration:line-through}
+  /* Qisman: "berilgan / so'ralgan" — ikkinchi raqam ikkinchi darajali */
+  .trow .ta .srv-of{font-size:12.5px;font-weight:600;color:var(--muted)}
   /* Amal tugmalari — MAVJUD .srv-retry ohangi (yangi tugma tili ixtiro qilinmaydi) */
   .srv-acts{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:6px}
   .srv-acts .srv-retry{margin-left:0;height:30px;font-size:12.5px}
@@ -3094,7 +3105,10 @@ window.srvWhoRender=()=>{
     const qol=rows.filter(w=>!sset[String(w.user_id)]);
     box.innerHTML='<div class="srv-wgh">So\'nggi</div>'+song.map(srvWhoRow).join('')
       +(qol.length?'<div class="srv-wgh">Barchasi</div>'+qol.map(srvWhoRow).join(''):'');
-  } else box.innerHTML=rows.map(srvWhoRow).join('');
+    // 🔴 innerHTML konteynerning ESKI scrollTop'ini saqlab qoladi -> «SO'NGGI»
+    //    sarlavhasi ekrandan yuqorida qolib, ro'yxat sababsiz ajratilgandek ko'rinardi.
+    try{ box.scrollTop=0; }catch(e){}
+  } else { box.innerHTML=rows.map(srvWhoRow).join(''); try{ box.scrollTop=0; }catch(e){} }
 };
 window.srvPickWho=id=>{
   const v=String(id||'');
@@ -3160,7 +3174,8 @@ function srvXarOpen(){
   setTimeout(()=>{ try{
     const sc=$('srvWhoSearch');
     if(sc&&sc.style.display!=='none'){ sc.focus(); return; }
-    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem'); if(f) f.focus();
+    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem');
+    if(f) f.focus({preventScroll:true});   // scroll surilmasin: «So'nggi» sarlavhasi ko'rinib tursin
   }catch(e){} },60);
 }
 
@@ -3184,7 +3199,8 @@ function srvTopOpen(){
   setTimeout(()=>{ try{
     const sc=$('srvWhoSearch');
     if(sc&&sc.style.display!=='none'){ sc.focus(); return; }
-    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem'); if(f) f.focus();
+    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem');
+    if(f) f.focus({preventScroll:true});   // scroll surilmasin: «So'nggi» sarlavhasi ko'rinib tursin
   }catch(e){} },60);
 }
 
@@ -3247,7 +3263,8 @@ window.srvQolOpen=eid=>{
   setTimeout(()=>{ try{
     const sc=$('srvWhoSearch');
     if(sc&&sc.style.display!=='none'){ sc.focus(); return; }
-    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem'); if(f) f.focus();
+    const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem');
+    if(f) f.focus({preventScroll:true});   // scroll surilmasin: «So'nggi» sarlavhasi ko'rinib tursin
   }catch(e){} },60);
 };
 
@@ -3523,6 +3540,12 @@ async function srvPendLoad(){
   srvPendRows=Array.isArray(data)?data:[];
   srvPendRender();
 }
+// "So'nggi javoblar" nishonlari — `sorovlar-dev.html` dagi ST bilan bir xil til.
+const SRV_JAV={
+  tasdiq:{k:'full',i:'circle-check',t:"To'liq berildi"},
+  qisman:{k:'part',i:'split',       t:'Qisman berildi'},
+  rad   :{k:'rej', i:'circle-x',    t:'Rad etildi'}
+};
 function srvVaqt(v){
   try{ return new Date(new Date(v).getTime()+5*3600*1000).toISOString().slice(5,16).replace('T',' '); }
   catch(x){ return ''; }
@@ -3546,7 +3569,21 @@ function srvPendRender(){
     if(korn[eid]) return;
     korn[eid]=1; kor.push(r);
   });
-  if(!kut.length&&!kor.length){ box.style.display='none'; box.innerHTML=''; return; }
+  // (3) 🔴 JAVOB BERILGAN so'rovlar — `sorov_menikilar` holat bo'yicha FILTRLAMAYDI,
+  //     ya'ni tasdiq/rad/qisman qatorlar allaqachon `srvPendRows` ichida keladi, lekin
+  //     hech qayerda chizilmasdi: hodim o'z so'roviga javob kelganini ko'rmasdi.
+  //     Ro'yxat serverda created_at desc — eng oxirgi 5 tasi.
+  //     Yuqoridagi (2) guruhda chizilgan qator BU YERDA takrorlanmaydi.
+  const jkor={}; kor.forEach(r=>{ jkor[String(r&&r.id)]=1; });
+  // 🔴 QAROR vaqti bo'yicha saralanadi, yaratilish vaqti bo'yicha EMAS:
+  //    `sorov_menikilar` `created_at desc` beradi, ya'ni eski so'rovga BUGUN
+  //    berilgan javob ro'yxat oxirida qolib, slice(0,5) uni tashlab yuborardi —
+  //    hodim aynan kutayotgan javobni ko'rmasdi. filter() yangi massiv qaytaradi,
+  //    shuning uchun sort() manba ro'yxatga tegmaydi.
+  const jav=all.filter(r=>r&&SRV_JAV[String(r.status||'')]&&!jkor[String(r.id)])
+    .sort((a,b)=>String(b.qaror_vaqt||b.sana||'').localeCompare(String(a.qaror_vaqt||a.sana||'')))
+    .slice(0,5);
+  if(!kut.length&&!kor.length&&!jav.length){ box.style.display='none'; box.innerHTML=''; return; }
   let html='';
   if(kut.length){
     html+='<div class="hcap">Tasdiq kutayotgan so\'rovlar</div>'+kut.map(r=>{
@@ -3583,6 +3620,27 @@ function srvPendRender(){
         +' <span class="srv-st part"><i data-lucide="split"></i>Pul yetmadi</span></div>'
         +(acts?'<div class="srv-acts">'+acts+'</div>':'')
         +'</div></div>';
+    }).join('');
+  }
+  if(jav.length){
+    html+='<div class="hcap">So\'nggi javoblar</div>'+jav.map(r=>{
+      const st=SRV_JAV[String(r.status||'')];
+      const rad=(String(r.status||'')==='rad');
+      const nom=String(r.kimdan_nom||'').trim()||'So\'rov';
+      const sor=Number(r.summa)||0, berdi=Number(r.jonatilgan_summa)||0;
+      // Qisman: berilgan / so'ralgan. Rad: so'ralgan summa (pul kelmagan -> o'chirilgan).
+      const sum=(String(r.status||'')==='qisman')
+        ? money(berdi)+' <span class="srv-of">/ '+money(sor)+'</span>'
+        : money(rad?sor:(berdi||sor));
+      // 🔴 Rad sababi hodimga KERAK (nega berilmadi) — esc() majburiy.
+      const sabab=(rad && String(r.qaror_izoh||'').trim())
+        ? '<div class="srv-sabab">Sabab: '+esc(String(r.qaror_izoh).trim())+'</div>' : '';
+      return '<div class="trow"><div class="tic '+(rad?'':'in')+'"><i data-lucide="'+st.i+'"></i></div>'
+        +'<div class="tm"><div class="tt">'+esc(nom)+'</div>'
+        +'<div class="ts">'+esc(srvVaqt(r.qaror_vaqt||r.sana))
+        +' <span class="srv-st '+st.k+'"><i data-lucide="'+st.i+'"></i>'+st.t+'</span></div>'
+        +sabab+'</div>'
+        +'<div class="ta '+(rad?'srv-non':'in')+'">'+sum+'</div></div>';
     }).join('');
   }
   box.innerHTML=html;

@@ -112,6 +112,8 @@
   /* #banner qizil (xato) — ma'lumot uchun sariq variant (pul jo'natildi,
      lekin xarajat hamon pending; xarajat o'chirilgan va h.k.) */
   #banner.warn{background:var(--amber-soft);color:var(--amber)}
+  /* qaror muvaffaqiyatli bajarildi (tasdiq/rad) — yashil ma'lumot varianti */
+  #banner.ok{background:var(--primary-soft);color:var(--primary)}
   .srv-sub{color:var(--muted);font-size:13.5px;line-height:1.5;margin:0 0 18px;max-width:62ch}
 
   /* --- filtr --- */
@@ -147,6 +149,11 @@
   /* Chap chetdagi 3px chiziq — FAQAT kutayotgan so'rovda ("hali ish bor") */
   .srv-card.s-pend::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
     background:var(--amber)}
+  /* Shu ochilishda qaror qilingan karta — filtrdan qat'i nazar ko'rinadi (ko()) va
+     ko'zdan yo'qolmasin uchun belgilanadi. Yangi rang tizimi YO'Q — mavjud --primary. */
+  .srv-card.just{border-color:var(--primary)}
+  .srv-card.just::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--primary)}
   .srv-top{display:flex;align-items:center;gap:12px;min-width:0}
   .srv-av{flex:none;width:38px;height:38px;border-radius:50%;background:var(--surface-2);
     color:var(--muted);display:inline-flex;align-items:center;justify-content:center;
@@ -156,9 +163,12 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .srv-who2{font-size:12.5px;color:var(--muted);margin-top:2px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* 🔴 min-width:0 + max-width: busiz chip `nowrap` tufayli UMUMAN siqilmasdi va
+     uzun ism (20+ belgi, 360px ekran) summani karta chetidan qirqib yuborardi. */
   .srv-to{display:inline-flex;align-items:center;gap:4px;margin-left:8px;font-size:12px;
-    font-weight:600;color:var(--muted);white-space:nowrap}
-  .srv-to svg{width:13px;height:13px}
+    font-weight:600;color:var(--muted);white-space:nowrap;min-width:0;max-width:45%}
+  .srv-to svg{width:13px;height:13px;flex:none}
+  .srv-to .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .srv-sum{flex:none;text-align:right;font-size:19px;font-weight:800;letter-spacing:-.02em;
     font-variant-numeric:tabular-nums;white-space:nowrap}
   .srv-sum b{font-weight:800}
@@ -295,7 +305,7 @@
     .sidebar,.bnav,.mmodal,.modal,.srv-filt,.srv-acts,.srv-rfr,.head-actions{display:none!important}
     .main{margin-left:0!important;max-width:none!important;padding:0!important}
     .srv-card{break-inside:avoid;box-shadow:none!important;border-color:#999!important}
-    .srv-card.s-pend::before{background:#000!important}
+    .srv-card.s-pend::before,.srv-card.just::before{background:#000!important}
     .srv-st{background:none!important;color:#000!important;border:1px solid #999!important}
     .srv-st.rej{border-width:2px!important}
     .srv-izoh{background:none!important;border:1px solid #ddd}
@@ -342,7 +352,7 @@
     <div class="page-head">
       <h1>So'rovlar</h1>
       <div class="head-actions">
-        <button class="srv-rfr" onclick="load(true)"><i data-lucide="refresh-cw"></i><span>Yangilash</span></button>
+        <button class="srv-rfr" onclick="srvYangila()"><i data-lucide="refresh-cw"></i><span>Yangilash</span></button>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
           <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -544,6 +554,14 @@ const ST={
   rad    :{k:'rej', c:'s-rej', i:'circle-x',     t:'Rad etildi'}
 };
 let rows=[], holat='pending', loading=false;
+// 🔴 SHU ochilishda qaror qilingan so'rov id'lari. Rad etilgan qator sukut filtridan
+//    ('pending') chiqib ketib "o'chib ketdi" degan taassurot berardi — endi u qaysi
+//    chip tanlangan bo'lsa ham ko'rinadi (ko()). Faqat filtr almashtirilganda yoki
+//    "Yangilash" bosilganda tozalanadi — load() da EMAS (aks holda qarordan keyingi
+//    avtomatik yangilash qatorni yana yashirardi).
+const qarorQilingan=new Set();
+// Keyingi load() muvaffaqiyati bannerni O'CHIRMASIN (qaror natijasi ko'rinib tursin).
+let bannerSaqla=false;
 let actId=null, actMode='full', actSor=0, actBal=null, actBusy=false;
 // Qaysi hisobdan to'lanadi: `sorov_qaror_ctx.hisoblar` javobi va tanlov.
 // 🔴 `actAcc` null bo'lsa va ro'yxat BIRDAN KO'P bo'lsa — tugma yopiq
@@ -583,11 +601,14 @@ function banner(t,cls){
 // ---- filtr -----------------------------------------------------------
 window.setHolat=h=>{
   holat=h;
+  qarorQilingan.clear();          // filtr almashdi -> "hozir qaror qilindi" belgisi tugadi
   document.querySelectorAll('.srv-chip').forEach(b=>b.classList.toggle('on',b.dataset.h===h));
   render();
 };
 function ko(r){
   const s=r&&r.status;
+  // Shu ochilishda qaror qilingan qator har qanday filtrda ko'rinadi (yo'qolib qolmasin)
+  if(r&&qarorQilingan.has(String(r.id))) return true;
   if(holat==='all') return true;
   if(holat==='done') return s==='tasdiq'||s==='qisman';
   return s===holat;
@@ -604,8 +625,12 @@ function cardHtml(r){
   if(r.status==='qisman' && r.jonatilgan_summa!=null)
     sum='<b>'+money(r.jonatilgan_summa)+'</b><span class="srv-of">/ '+money(r.summa)+'</span>';
   else sum=money(r.summa);
-  const to=(!canDo && r.kimdan_nom)
-    ? '<span class="srv-to"><i data-lucide="chevron-right"></i>'+esc(r.kimdan_nom)+'</span>' : '';
+  // 🔴 Chip HAR DOIM chiziladi (avval `!canDo` sharti bor edi): admin/qaror qila
+  //    oladigan odam ham "kimdan so'ralgan"ni ko'rishi kerak — sarlavha
+  //    «Sorovchi -> Kimdan» bo'lib o'qiladi.
+  const to=r.kimdan_nom
+    ? '<span class="srv-to" title="Kimdan so\'ralgan"><i data-lucide="chevron-right"></i><span class="n">'+esc(r.kimdan_nom)+'</span></span>' : '';
+  const just=qarorQilingan.has(String(r.id));
   const dec=(r.status!=='pending');
   const dt=dec
     ? fmtDt(r.qaror_vaqt||r.sana)+(r.qaror_kim?' · '+esc(r.qaror_kim):'')
@@ -631,7 +656,7 @@ function cardHtml(r){
       +'</span></div>';
   }
 
-  return '<article class="srv-card '+st.c+(ro?' s-ro':'')+'" data-id="'+id+'">'
+  return '<article class="srv-card '+st.c+(ro?' s-ro':'')+(just?' just':'')+'" data-id="'+id+'">'
     +'<div class="srv-top">'
       +'<span class="srv-av" aria-hidden="true">'+esc(initials(r.sorovchi_nom))+'</span>'
       +'<div class="srv-idn">'
@@ -675,6 +700,9 @@ function renderErr(msg){
   icons();
 }
 
+// "Yangilash" — qo'lda so'ralgan yangilash: "hozir qaror qilindi" belgisi tugaydi.
+window.srvYangila=()=>{ qarorQilingan.clear(); window.load(true); };
+
 // ---- yuklash ---------------------------------------------------------
 // 🔴 Server HAMMA holatni beradi (p_holat:'all'), filtr klientda —
 //    "Kutilmoqda" sanog'i boshqa filtr ochiq turganda ham to'g'ri qolsin.
@@ -691,11 +719,16 @@ window.load=async(force)=>{
   loading=false;
   if(error){
     const m=rpcMsg(error);
+    // 🔴 Bayroq SHU YERDA ham iste'mol qilinadi: aks holda "qaror -> xato -> ok"
+    //    ketma-ketligida keyingi MUVAFFAQIYATLI yangilash bannerni tozalamay,
+    //    yangi ro'yxat ustida eski xato matni turib qolardi.
+    bannerSaqla=false;
     banner(m);
     if(!rows.length) renderErr(m);
     return;
   }
-  banner('');
+  // Qaror natijasi xabari BITTA yangilashdan omon qoladi (aks holda u ~200ms da o'chardi)
+  if(bannerSaqla) bannerSaqla=false; else banner('');
   rows=Array.isArray(data)?data:[];
   swrSet(ck,rows);
   render();
@@ -705,6 +738,8 @@ window.load=async(force)=>{
 const amtVal=()=>Number(String(($('actAmt').value||'')).replace(/[^\d]/g,''))||0;
 window.actFmt=el=>{ const v=String(el.value||'').replace(/[^\d]/g,''); el.value=v?money(v):''; actUI(); };
 window.actQuick=k=>{ $('actAmt').value=money(Math.round(actSor*k)); actUI(); };
+// Qaror natijasi xabari — mavjud `banner()` mexanizmi, faqat keyingi load() uni o'chirmaydi.
+function qarorXabar(t,cls){ bannerSaqla=true; banner(t,cls); }
 function actMsg(t,cls){
   const m=$('actMsg');
   if(!t){ m.className='cv-msg'; m.textContent=''; return; }
@@ -833,17 +868,29 @@ window.actSave=async()=>{
   const d=data||{};
   // 🔴 already_decided — XATO EMAS (idempotent natija): modal jimgina
   //    yopiladi va ro'yxat yangilanadi (SQL 8.2 / .sorov-ui.md §2.7).
-  if(d.ok===false && d.kod==='already_decided'){ actClose(); window.load(true); return; }
+  // 🔴 Bu yo'l ham `qarorQilingan` ga tushadi: aks holda ikki odam bir vaqtda
+  //    qaror qilganda modal JIMGINA yopilib, qator `pending` filtridan yo'qolardi —
+  //    ya'ni aynan shu relizda tuzatilayotgan "uchib ketdi" holatining qolgan yarmi.
+  if(d.ok===false && d.kod==='already_decided'){
+    actClose(); qarorQilingan.add(String(id));
+    qarorXabar("Bu so'rov allaqachon hal qilingan.",'warn'); window.load(true); return; }
   if(d.ok===false && d.kod==='xarajat_yoq'){
-    actClose(); banner("Xarajat o'chirilgan — so'rov avtomat yopildi.",'warn'); window.load(true); return; }
+    actClose(); qarorXabar("Xarajat o'chirilgan — so'rov avtomat yopildi.",'warn'); window.load(true); return; }
   if(d.ok===false){ actMsg(d.xato||d.kod||'Bajarilmadi','err'); actUI(); return; }
   actClose();
+  // Qator ekrandan yo'qolmasin: shu ochilishda qaror qilingan id belgilab qo'yiladi
+  // (load() dan OLDIN — yangi ro'yxat kelganda ham ko'rinadi).
+  qarorQilingan.add(String(id));
   // 🔴 Limit/qoldiq to'sig'i (SQL 8A): PUL JO'NATILDI, lekin xarajat
   //    pending QOLDI. Server aniq sababni beradi — shundayligicha ko'rsatamiz.
   if(d.limit_oshdi===true && d.limit_sabab)
-    banner("Pul jo'natildi, lekin xarajat tasdiq kutmoqda: "+d.limit_sabab,'warn');
+    qarorXabar("Pul jo'natildi, lekin xarajat tasdiq kutmoqda: "+d.limit_sabab,'warn');
   else if(d.qoldiq_yetmadi===true)
-    banner("Pul jo'natildi, lekin xarajat hamon tasdiq kutmoqda — so'rovchining qoldig'i yetmadi.",'warn');
+    qarorXabar("Pul jo'natildi, lekin xarajat hamon tasdiq kutmoqda — so'rovchining qoldig'i yetmadi.",'warn');
+  else if(mode==='rad')
+    qarorXabar("Rad etildi — so'rov o'chmadi, «Rad etilgan» bo'limida saqlanadi.",'ok');
+  else
+    qarorXabar('Tasdiqlandi.','ok');
   window.load(true);
 };
 
