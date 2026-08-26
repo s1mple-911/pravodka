@@ -1,80 +1,4 @@
-import { workflow, node, trigger, ifElse } from '@n8n/workflow-sdk';
-
-const harDaqiqa = trigger({
-  type: 'n8n-nodes-base.scheduleTrigger',
-  version: 1.3,
-  config: {
-    name: 'Har Daqiqa',
-    parameters: { rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] } },
-    position: [-460, 0]
-  },
-  output: [{}]
-});
-
-const navbat = node({
-  type: 'n8n-nodes-base.httpRequest',
-  version: 4.4,
-  config: {
-    name: 'Navbat',
-    parameters: {
-      method: 'POST',
-      url: 'https://kxzerccdpcltmzrxutlo.supabase.co/rest/v1/rpc/hodim_notify_pending',
-      authentication: 'predefinedCredentialType',
-      nodeCredentialType: 'supabaseApi',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ p_limit: 50 }) }}',
-      options: { timeout: 30000 }
-    },
-    alwaysOutputData: true,
-    position: [-460, 220]
-  },
-  output: [{ items: [], adminlar: [] }]
-});
-
-const bormi = ifElse({
-  version: 2.3,
-  config: {
-    name: 'Xabar Bormi',
-    parameters: {
-      conditions: {
-        options: { caseSensitive: true, typeValidation: 'loose' },
-        conditions: [{
-          leftValue: '={{ ($json.items || []).length }}',
-          operator: { type: 'number', operation: 'gt' },
-          rightValue: 0
-        }],
-        combinator: 'and'
-      },
-      looseTypeValidation: true
-    },
-    position: [-240, 220]
-  }
-});
-
-const userlar = node({
-  type: 'n8n-nodes-base.postgres',
-  version: 2.6,
-  config: {
-    name: 'Aros Userlar',
-    parameters: {
-      operation: 'executeQuery',
-      query: 'SELECT to_jsonb(u) AS u FROM users u WHERE u.telegram_id IS NOT NULL',
-      options: {}
-    },
-    alwaysOutputData: true,
-    position: [-20, 220]
-  },
-  output: [{ u: {} }]
-});
-
-const xabarTuz = node({
-  type: 'n8n-nodes-base.code',
-  version: 2,
-  config: {
-    name: 'Xabar Tuz',
-    parameters: {
-      jsCode: `// ============================================================================
+// ============================================================================
 // Aros Provodka — Hodim Notify · Xabar Tuz (n8n Code node, version 2)
 //
 // QAYERGA: https://n8n.arosmarket.com/workflow/CuIA9H5oW4VrtnJv
@@ -143,7 +67,7 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function sana(s) {
-  var m = String(s || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+  var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? (m[3] + '.' + m[2] + '.' + m[1]) : String(s || '');
 }
 // <code> ustunlarini tekislash uchun. right=true -> o'ngga tekislanadi.
@@ -162,7 +86,7 @@ var BOSH = {
   transfer_kirim:  '🔵 🔁 <b>Transfer · kirim</b>',
   transfer_chiqim: '🔵 🔁 <b>Transfer · chiqim</b>',
   tahrir:          '🟡 ✏️ <b>Tahrir</b>',
-  ochirildi:       '⚫ 🗑 <b>O\\'chirildi</b>'
+  ochirildi:       '⚫ 🗑 <b>O\'chirildi</b>'
 };
 // Pul turi belgisi -- jurnal/kassa sahifalaridagi TURI_IKO bilan bir xil
 var TURI = {
@@ -180,7 +104,7 @@ for (var k = 0; k < items.length; k++) {
   var kirimmi = !!it.kirimmi;
   var ishora = kirimmi ? '+' : '−';
   var t = '';
-  function add(s) { t += s + '\\n'; }
+  function add(s) { t += s + '\n'; }
 
   // 1) Sarlavha + kim/qayer
   add(BOSH[it.hodisa] || ('⚪ 🔔 <b>' + esc(it.hodisa) + '</b>'));
@@ -201,9 +125,9 @@ for (var k = 0; k < items.length; k++) {
   var fcq = Number(it.fc_summa) || 0;
   if (val !== 'UZS' && fcq > 0) {
     add(iko + ' <b>' + ishora + money2(fcq) + ' ' + esc(val) + '</b>');
-    add('   ≈ ' + money(it.summa) + ' so\\'m');
+    add('   ≈ ' + money(it.summa) + ' so\'m');
   } else {
-    add(iko + ' <b>' + ishora + money(it.summa) + ' so\\'m</b>');
+    add(iko + ' <b>' + ishora + money(it.summa) + ' so\'m</b>');
   }
 
   // 3) Qarshi tomon + pul turi -- BITTA qator. Bittasi bo'lmasa o'zi tushib
@@ -221,7 +145,7 @@ for (var k = 0; k < items.length; k++) {
   // 🔴 Ustunlar TEKIS: yorliq o'ngdan bo'sh joy bilan, raqam chapdan --
   //    <code> monoshrift, shuning uchun uch qator bir chiziqda turadi.
   //    Bu blok jadval -- ichiga ikonka QO'YILMAYDI (tekislik buziladi).
-  var q2 = maxsus ? (it.hodisa === 'ochirildi' ? (kirimmi ? 'Qaytdi' : 'Chiqdi') : 'O\\'zgardi')
+  var q2 = maxsus ? (it.hodisa === 'ochirildi' ? (kirimmi ? 'Qaytdi' : 'Chiqdi') : 'O\'zgardi')
                   : (kirimmi ? 'Keldi' : 'Ketti');
   var yorliq = ['Bor edi', q2, 'Qoldi'];
   var raqam = [money(it.qoldiq_oldin), ishora + money(it.summa), money(it.qoldiq_keyin)];
@@ -243,8 +167,8 @@ for (var k = 0; k < items.length; k++) {
   // 🔴 sana (entry_date) QO'LDA tanlanadi va hodisa kunidan farq qilishi
   //    mumkin -> farq bo'lsa alohida yoziladi (jurnal-dev .j-oth naqshi),
   //    aks holda "25.08.2026 14:30" yolg'on juftlik bo'lib ko'rinardi.
-  var hodSana = /^\\d{2}\\.\\d{2}\\.\\d{4}$/.test(String(it.hodisa_sana || '')) ? String(it.hodisa_sana) : '';
-  var soat = /^\\d{2}:\\d{2}$/.test(String(it.vaqt || '')) ? String(it.vaqt) : '';
+  var hodSana = /^\d{2}\.\d{2}\.\d{4}$/.test(String(it.hodisa_sana || '')) ? String(it.hodisa_sana) : '';
+  var soat = /^\d{2}:\d{2}$/.test(String(it.vaqt || '')) ? String(it.vaqt) : '';
   var buxSana = sana(it.sana);
   // 🔴 Ikonka VAQT bor-yo'qligiga qarab: soat ko'rsatilsa 🕒, faqat sana bo'lsa
   //    📅. Aks holda "soat ikonkasi bor, soat yo'q" degan chalkash holat chiqardi
@@ -255,7 +179,7 @@ for (var k = 0; k < items.length; k++) {
   if (it.kim) oyoq += ' · ✍️ ' + esc(it.kim);
   add(oyoq);
 
-  var text = t.replace(/\\n+$/, '');
+  var text = t.replace(/\n+$/, '');
 
   // Qabul qiluvchilar: hodimning o'zi + adminlar (dublikatsiz)
   var chats = [];
@@ -279,135 +203,4 @@ if (out.length === 0) {
   for (var z = 0; z < items.length; z++) bosh.push(items[z].id);
   return [{ json: { __yoq: true, nid: null, bosh_ids: bosh } }];
 }
-return out;`
-    },
-    position: [200, 220]
-  },
-  output: [{ nid: 1, chat_id: '123', text: '...' }]
-});
-
-const yubor = node({
-  type: 'n8n-nodes-base.httpRequest',
-  version: 4.4,
-  config: {
-    name: 'Telegram Yubor',
-    parameters: {
-      method: 'POST',
-      url: 'https://api.telegram.org/bot8242619971:AAGKPdUtDSok_Ecw-fkblFUQJ8mGbLIeXxA/sendMessage',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ chat_id: $json.chat_id, text: $json.text, parse_mode: "HTML", disable_web_page_preview: true }) }}',
-      options: { timeout: 15000, response: { response: { neverError: true } } }
-    },
-    onError: 'continueRegularOutput',
-    alwaysOutputData: true,
-    position: [420, 220]
-  },
-  output: [{ ok: true }]
-});
-
-const natija = node({
-  type: 'n8n-nodes-base.code',
-  version: 2,
-  config: {
-    name: 'Natija',
-    parameters: {
-      jsCode: `// Telegram javoblarini xabarlar bilan INDEKS bo'yicha juftlaymiz
-// (HTTP node 1:1 chiqaradi, tartib saqlanadi).
-var built = $('Xabar Tuz').all();
-var res = $input.all();
-
-// Hech kimga yuborilmagan hol: navbatni baribir yopamiz
-if (built.length === 1 && built[0].json && built[0].json.__yoq) {
-  return [{ json: {
-    p_ids: built[0].json.bosh_ids || [],
-    fail_ids: [],
-    err: 'qabul qiluvchi topilmadi (taskfix_user_id -> telegram_id yoq, admin royxati bosh)'
-  } }];
-}
-
-var ok = {}, bad = {}, err = '';
-for (var i = 0; i < built.length; i++) {
-  var nid = built[i].json.nid;
-  if (nid === null || nid === undefined) continue;
-  var r = res[i] ? res[i].json : null;
-  var good = !!(r && (r.ok === true || r.result));
-  if (good) { ok[nid] = 1; }
-  else {
-    bad[nid] = 1;
-    if (!err) err = (r && (r.description || r.message || (r.error && r.error.message))) || 'telegram javob bermadi';
-  }
-}
-
-// KAMIDA BITTA yuborilgan bo'lsa 'sent' qilamiz. Aks holda 5 urinishda
-// ishlagan qabul qiluvchiga 5 ta bir xil xabar ketardi (Telegram xatosi
-// odatda doimiy: user botga /start bosmagan -> 403).
-var sent = [];
-var fail = [];
-for (var s in ok) sent.push(Number(s));
-for (var f in bad) fail.push(Number(f));
-return [{ json: { p_ids: sent, fail_ids: fail, err: String(err).slice(0, 300) } }];`
-    },
-    position: [640, 220]
-  },
-  output: [{ p_ids: [], fail_ids: [], err: '' }]
-});
-
-const belgila = node({
-  type: 'n8n-nodes-base.httpRequest',
-  version: 4.4,
-  config: {
-    name: 'Yuborildi Belgila',
-    parameters: {
-      method: 'POST',
-      url: 'https://kxzerccdpcltmzrxutlo.supabase.co/rest/v1/rpc/hodim_notify_sent',
-      authentication: 'predefinedCredentialType',
-      nodeCredentialType: 'supabaseApi',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ p_ids: $json.p_ids }) }}',
-      options: { timeout: 30000 }
-    },
-    onError: 'continueRegularOutput',
-    alwaysOutputData: true,
-    position: [860, 220]
-  },
-  output: [{}]
-});
-
-const xato = node({
-  type: 'n8n-nodes-base.httpRequest',
-  version: 4.4,
-  config: {
-    name: 'Xato Yoz',
-    parameters: {
-      method: 'POST',
-      url: 'https://kxzerccdpcltmzrxutlo.supabase.co/rest/v1/rpc/hodim_notify_fail',
-      authentication: 'predefinedCredentialType',
-      nodeCredentialType: 'supabaseApi',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ p_ids: $(\'Natija\').first().json.fail_ids, p_err: $(\'Natija\').first().json.err }) }}',
-      options: { timeout: 30000 }
-    },
-    onError: 'continueRegularOutput',
-    alwaysOutputData: true,
-    position: [1080, 220]
-  },
-  output: [{}]
-});
-
-export default workflow('aros-provodka-hodim-notify', 'Aros Provodka - Hodim Notify')
-  .add(harDaqiqa)
-  .to(navbat)
-  .to(bormi.onTrue(userlar.to(xabarTuz.to(yubor.to(natija.to(belgila.to(xato)))))));
-
-// ============================================================================
-// Bu fayl BRAUZERGA YUKLANMAYDI — n8n Workflow SDK manbasi (versiya nazorati
-// uchun repoda saqlanadi). Jonli workflow:
-//   https://n8n.arosmarket.com/workflow/CuIA9H5oW4VrtnJv
-// O'rnatish tartibi: HODIM_NOTIFY_DEPLOY.txt
-// ⚠️ update_workflow kreditlarni uzadi — o'zgartirgandan keyin n8n'da
-//    HAMMA node kreditini qayta tekshiring (Postgres ham).
-// ⚠️ jsCode template literal ichida BACKTICK ishlatmang — u literalni yopadi.
-// ============================================================================
+return out;
