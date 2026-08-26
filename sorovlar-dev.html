@@ -953,7 +953,10 @@ function actKrowHtml(f,i){
   return '<button type="button" aria-expanded="'+(on?'true':'false')+'"'
     +' class="srv-pk'+(on?' on':'')+((f.jami!=null&&f.jami<=0)?' zero':'')+'"'
     +' onclick="actKassaPick('+i+')">'
-    +'<span class="pkn">'+esc(f.nom)+'</span>'
+    // 🔴 Kod ham chiziladi: qidiruv kod bo'yicha ham ishlaydi, lekin kod
+    //    ekranda ko'rinmasa foydalanuvchi buni bilmasdi. Ildiz ro'yxatda
+    //    bo'lmasa (ruxsat filtri) kod ham yo'q -> faqat nom.
+    +'<span class="pkn">'+(f.root&&f.root.code?'<span class="pkc">'+esc(f.root.code)+'</span>':'')+esc(f.nom)+'</span>'
     +'<span class="pkb">'+(f.jami==null?'—':money(f.jami))+'</span></button>';
 }
 // Eski (guruhsiz) tekis ro'yxat — `PROVODKA_SOROV_KASSA.sql` RUN qilinmagan baza.
@@ -998,8 +1001,10 @@ function actPicksRender(){
   // ⚠️ Bunda hech narsa AVTOMAT tanlanmaydi — "tanlov majburiy" qoidasi saqlanadi.
   if(fams.length===1) actKassa=fams[0].key;
   else if(actKassa!=null && !fams.some(f=>f.key===actKassa)) actKassa=null;
-  // Qidiruv faqat KASSALAR 6 tadan oshsa (ro'yxat endi kalta).
-  if(inp) inp.style.display = fams.length>6 ? 'block' : 'none';
+  // 🔴 Qidiruv kassa ro'yxati chizilgan HAR HOLATDA ko'rinadi (fams.length>1).
+  //    Avval chegara `>6` edi va 5 kassali odamda maydon UMUMAN chizilmasdi —
+  //    "qidiruv ishlamayapti" deb ko'ringan holat aynan shu edi.
+  if(inp) inp.style.display = fams.length>1 ? 'block' : 'none';
   const q=(inp&&inp.style.display!=='none')?String(inp.value||'').trim().toLowerCase():'';
   let h='';
   if(fams.length>1){
