@@ -99,9 +99,15 @@ select 'sorovlar.xarajat_entry_id NULL bola oladimi',
 -- ---------------------------------------------------------------------
 -- 1.1  Boshlang'ich qiymat. Mavjud bo'lsa TEGILMAYDI (admin sozlagani
 --      qolsin) — `hodim_tosiq_foiz` naqshi.
+--
+--      🔴 2026-08-26: 500 -> 500000. Avvalgi qiymat 500 SO'M edi (~4 tsent) —
+--      hech bir hodimda undan kam pul bo'lmaydi, ya'ni "balans chegaradan kam"
+--      sharti HECH QACHON bajarilmagan va top-up modali umuman ochilmagan.
+--      `do nothing` — mavjud bazada bu qator qiymatni O'ZGARTIRMAYDI;
+--      jonli bazani tuzatish uchun PROVODKA_TOPUP_CHEGARA.sql ishlatiladi.
 -- ---------------------------------------------------------------------
 insert into provodka_config(key, val)
-values ('sorov_topup_chegara', '500')
+values ('sorov_topup_chegara', '500000')
 on conflict (key) do nothing;
 
 -- ---------------------------------------------------------------------
@@ -129,7 +135,7 @@ revoke all on function sorov_topup_chegara() from public, anon;
 grant execute on function sorov_topup_chegara() to authenticated, service_role;
 
 comment on function sorov_topup_chegara() is
-  'Balans toldirish (top-up) chegarasi somda (provodka_config.sorov_topup_chegara; default 500). '
+  'Balans toldirish (top-up) chegarasi somda (provodka_config.sorov_topup_chegara; default 500000). '
   'Balans shundan KAM bolsa hodimga top-up modali, aks holda yoriqnoma korsatiladi.';
 
 -- ---------------------------------------------------------------------
@@ -202,12 +208,20 @@ create unique index if not exists sorovlar_ochiq_topup_uniq
   where status = 'pending' and xarajat_entry_id is null;
 
 -- ---------------------------------------------------------------------
--- 1.5  CHEGARANI SQL EDITORDAN O'ZGARTIRISH (Asilbek uchun tayyor blok).
---      Qiymatni ('500') o'zgartiring va shu uch qatorni RUN qiling.
+-- 1.5  CHEGARANI SQL EDITORDAN O'ZGARTIRISH — NAMUNA (IZOHDA).
+--
+--      🔴 2026-08-26: bu blok avval IZOHSIZ, ya'ni FAOL edi va `do update`
+--      qilardi. Ya'ni shu faylni har qayta RUN qilish (funksiya tuzatish,
+--      qayta deploy) jonli bazadagi chegarani JIMGINA '500' ga qaytarardi —
+--      hech qanday xato chiqmasdan top-up shoxi yana o'lardi. Endi izohda.
+--
+--      Chegarani o'zgartirish uchun ALOHIDA fayl bor: PROVODKA_TOPUP_CHEGARA.sql
+--      (oldingi qiymatni ko'rsatadi, yozadi, tasdiqlaydi, rollback beradi).
+--      Shoshilinch holatda quyidagi uch qatorni izohdan chiqaring:
 -- ---------------------------------------------------------------------
-insert into provodka_config (key, val, updated_by, updated_at)
-values ('sorov_topup_chegara', '500', 'admin', now())
-on conflict (key) do update set val = excluded.val, updated_at = now();
+-- insert into provodka_config (key, val, updated_by, updated_at)
+-- values ('sorov_topup_chegara', '500000', 'admin', now())
+-- on conflict (key) do update set val = excluded.val, updated_at = now();
 
 
 -- #####################################################################

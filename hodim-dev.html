@@ -2800,7 +2800,7 @@ async function init(){
   // kelardi va hodim bo'sh hero'ga qarab turardi.
   if(!balKesh && cAcc) loadBalances();
   const [,aRes,fRes,uRes,tRes]=await Promise.all([pPerm,pAcc,pFil,pUser,pTop]);
-  // Chegara: xato / RPC yo'q / buzuq qiymat -> ZAXIRA (500). Bu yerda "fail-closed"
+  // Chegara: xato / RPC yo'q / buzuq qiymat -> ZAXIRA (500 000). Bu yerda "fail-closed"
   // muammo emas — chegara faqat QAYSI MODAL ochilishini hal qiladi, pul harakati
   // baribir tasdiqdan keyin. Qiymat foydalanuvchiga HECH QAYERDA ko'rsatilmaydi.
   if(tRes&&!tRes.error&&tRes.data!=null&&isFinite(Number(tRes.data))){
@@ -2890,7 +2890,11 @@ async function init(){
    🔴 BALANS SIZMASLIGI: chegara raqami ham, qoldiq raqami ham modallarda
       HECH QAYERDA chizilmaydi — faqat "yetarli pul bor" degan umumiy
       jumla (yo'riqnomada). Top-up modalida umuman raqam yo'q. */
-const SRV_CHEGARA_ZAXIRA=500;   // faqat RPC javob bermaganda ishlatiladi
+// 🔴 500 000 SO'M (500 emas). 2026-08-26 gacha bu yerda 500 turardi — 500 so'm ~ 4 tsent,
+//    ya'ni hech bir hodimda undan kam bo'lmaydi va RPC javob bermagan holatda top-up
+//    HECH QACHON taklif qilinmasdi (bazadagi qiymat ham xuddi shu sababdan 500 edi,
+//    u PROVODKA_TOPUP_CHEGARA.sql bilan tuzatiladi). Ikkalasi mos bo'lishi shart.
+const SRV_CHEGARA_ZAXIRA=500000;   // faqat RPC javob bermaganda ishlatiladi
 let srvChegara=SRV_CHEGARA_ZAXIRA;   // haqiqiy qiymat init()da bazadan keladi
 let srvChegaraOk=false;              // bazadan keldimi (diagnostika uchun)
 const SRV_MIN_IZOH=3;

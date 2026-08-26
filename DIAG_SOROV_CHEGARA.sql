@@ -98,6 +98,10 @@ select coalesce(c.val, '(qator YO''Q -> funksiya 500 qaytaradi)') as saqlangan_q
 
 
 -- ############ 4-SO'ROV — CHEGARANI O'ZGARTIRISH  ⚠️ YOZADI ############
+-- ✅ 2026-08-26: qaror qabul qilindi — chegara 500 000 so'm bo'lishi kerak.
+--    Tayyor, RUN'ga qo'yilgan skript: **PROVODKA_TOPUP_CHEGARA.sql**
+--    (oldin/keyin tekshiruvi va orqaga qaytarish bilan). Quyidagisi o'sha
+--    skriptning qisqartmasi — ikkalasidan BIRINI ishlating.
 -- 🔴 `set_sorov_topup_chegara()` SQL EDITORIDAN ISHLAMAYDI: editorda so'rov
 --    `postgres` roli bilan JWT'siz ketadi -> auth.uid() null -> is_admin()
 --    false -> 42501 (PROVODKA_SOROV_TOPUP.sql 1.3 dagi ogohlantirish).
