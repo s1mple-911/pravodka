@@ -2053,8 +2053,9 @@ window.renderYukList=()=>{
    qilinmagan) eski ikki qadamli yo'l AYNAN avvalgidek ishlaydi — sahifa
    buzilmaydi. `atomikYoq` bir marta aniqlanadi va sessiya davomida saqlanadi.
 
-   TEGILMAGAN: `xarajat_saqlash_taqsim` (confirmTaqsim) — u ALLAQACHON atomik
-   RPC, o'z ext_ref/23505 mantiqi bilan. */
+   `xarajat_saqlash_taqsim` (confirmTaqsim) — alohida ATOMIK RPC, lekin u
+   ext_ref YUBORMASDI (izoh xato edi) va takror himoyasiz ketardi: 2026-08-26
+   da o'sha chaqiruvga ham shu yerdagi token/qTimeout naqshi qo'shildi. */
 const SAVE_TIMEOUT_MS=30000;
 let atomikYoq=false;
 const perrX=e=>window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
@@ -2092,7 +2093,13 @@ async function yozAtomik(hdr,rows,yuk){
   const r=await qTimeout(sb.rpc('provodka_yoz',{p_data}));
   if(r.error&&rpcYoq(r.error)){ atomikYoq=true; return {ok:false,eski:true}; }
   if(r.timeout){ pendTok=tok; pendFp=fp; return {ok:false,error:r.error}; }
-  pendTok=null; pendFp=null;                       // javob ANIQ keldi
+  // 🔴 SHARTLI tozalash: `pendTok` sahifada BITTA, uni uch oqim (oddiy yozuv,
+  //    zaxira yo'l, taqsim) baham ko'radi. Shartsiz tozalansa boshqa oqimning
+  //    tirik kaliti o'chib ketardi: taqsim timeout bo'ldi -> hodim oddiy xarajat
+  //    yozdi (u kalitni tozaladi) -> taqsimni qayta yubordi -> YANGI kalit ->
+  //    server 23505 bermaydi -> PUL IKKI MARTA chiqadi. Javob KIMNIKI bo'lsa
+  //    o'shaning kaliti tozalanadi.
+  if(pendFp===fp){ pendTok=null; pendFp=null; }    // javob ANIQ keldi
   if(r.error&&isDupErr(r.error)) return {ok:true,dup:true};   // atomik: takror = saqlangan
   if(r.error) return {ok:false,error:r.error};
   return {ok:true,entry_id:(r.data&&r.data.entry_id)||null};
@@ -2100,7 +2107,18 @@ async function yozAtomik(hdr,rows,yuk){
 /* ZAXIRA — RPC yo'q bo'lgandagi ESKI yo'l. 🔴 Bu yerda kompensatsiya `delete`
    SAQLANADI (bu yo'l atomik emas) — o'zgartirilmadi. */
 async function saveEski(hdr,rows,yuk){
-  const {data:ent,error:e1}=await sb.from('entry').insert(hdr).select('id').single();
+  // 🔴 Zaxira yo'l ham ext_ref YOZSIN: busiz `provodka_yoz` bazada bo'lmagan holatda
+  //    HAR saqlash himoyasiz ketardi. hdr O'ZGARTIRILMAYDI (chaqiruvchi uni qayta
+  //    ishlatishi mumkin) — nusxa olinadi. Barmoq izi yozAtomik() bilan bir xil
+  //    ([hdr,rows,yuk||null]) — ayni mazmun qayta yuborilsa AYNI token ketadi.
+  const fp=JSON.stringify([hdr,rows,yuk||null]);
+  const tok=(pendFp===fp&&pendTok)?pendTok:newToken();
+  const h=Object.assign({},hdr,{ext_ref:tok});
+  const {data:ent,error:e1}=await sb.from('entry').insert(h).select('id').single();
+  // Takror (23505) — sarlavha allaqachon yozilgan: bu urinish YANGI pul chiqarmadi.
+  // Muvaffaqiyat deb yakunlaymiz (entry_id yo'q -> chek/maydon biriktirilmaydi).
+  if(e1&&isDupErr(e1)){ if(pendFp===fp){ pendTok=null; pendFp=null; }   // faqat O'Z kaliti
+    alert('Bu yozuv allaqachon saqlangan (takroriy yuborish to\'sildi).'); return {ok:true,dup:true}; }
   if(e1){ alert(perrX(e1)); return {ok:false}; }
   const {error:e2}=await sb.from('entry_line').insert(rows.map(l=>Object.assign({entry_id:ent.id},l)));
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e2)); return {ok:false}; }
@@ -2345,11 +2363,39 @@ window.confirmTaqsim=async()=>{
   if(pair && pair.rate) p_data.kassa_kurs=pair.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
-  const {data,error}=await sb.rpc('xarajat_saqlash_taqsim',{p_data});
-  if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
-  // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
-  if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
-  mxdYoz((data&&data.entry_ids)||[], mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
+  // 🔴 TAKROR HIMOYASI: bu yo'l ext_ref YUBORMASDI -> entry.ext_ref null bo'lib yozilardi
+  //    va takror hech narsa bilan to'silmasdi (hodim-dev.html dagi ayni RPC token yuboradi).
+  //    Naqsh yozAtomik() bilan bir xil: mazmun o'zgarmasa (timeout'dan keyin qayta urinish)
+  //    AYNI token ketadi -> server ikkinchi nusxani 23505 bilan to'sadi.
+  const tfp=JSON.stringify(p_data);
+  const ttok=(pendFp===tfp&&pendTok)?pendTok:newToken();
+  p_data.ext_ref=ttok;
+  const r=await qTimeout(sb.rpc('xarajat_saqlash_taqsim',{p_data}));
+  const data=r.data, error=r.error;
+  // Natija NOANIQ (timeout) -> token SAQLANADI, qayta urinish AYNI token bilan ketsin.
+  // Javob ANIQ kelgan bo'lsa token tashlanadi.
+  // 🔴 Tozalash SHARTLI — yozAtomik() dagi bilan bir xil sabab (kalit uyasi umumiy).
+  if(r.timeout){ pendTok=ttok; pendFp=tfp; } else if(pendFp===tfp){ pendTok=null; pendFp=null; }
+  // 🔴 `xarajat_saqlash_taqsim` — ATOMIK RPC (bitta tranzaksiya), shuning uchun
+  //    23505 = xarajat ALLAQACHON TO'LIQ saqlangan (yetim sarlavha ehtimoli YO'Q).
+  //    Oqim MUVAFFAQIYAT sifatida yakunlanadi, lekin entry_ids qaytmagani uchun
+  //    chek/maxsus maydon biriktirilmaydi — chekYukla() naqshidagidek aytamiz.
+  const dup=!!(error&&isDupErr(error));
+  if(dup){
+    const bor=!!chekBlob||(Array.isArray(mxdV)&&mxdV.length>0);
+    alert('Bu xarajat allaqachon saqlangan (takroriy yuborish to\'sildi).'
+      +(bor?'\n\nFayl/qo\'shimcha maydon biriktirilmadi — jurnaldan yozuvni topib qayta biriktiring.':''));
+  }
+  else if(error){ $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
+  if(!dup){
+    // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
+    if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
+    mxdYoz((data&&data.entry_ids)||[], mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
+  }
+  // 🔴 Tugma yorlig'i TIKLANADI: `renderTaqsimSum()` faqat `disabled` ni tiklaydi,
+  //    matn esa "Saqlanmoqda…" bo'lib qolardi va modal keyingi ochilishida shunday
+  //    ko'rinardi (mavjud kamchilik, shu yerda yopiladi).
+  btn.disabled=false; btn.textContent='Saqlash';
   closeTaqsim();
   mxdReset();
   $('summa').value=''; $('izoh').value=''; selFilials.clear(); renderFilials();

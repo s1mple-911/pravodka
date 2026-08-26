@@ -2983,20 +2983,26 @@ function srvMax(){
   if(srvQol||srvTop) return 0;
   const c=calcAmounts(); const a=c?Math.round(c.uzs):0; return a>0?Math.ceil(a/1000)*1000:0;
 }
-/* Hodimning JAMI so'm puli — hero'dagi "Umumiy qoldiq" bilan AYNAN bir manba
-   (`kassaList` + `kassaJami`, ya'ni kassa + hamma bola-hisoblari).
+/* TANLANGAN kassaning so'm puli (kassa + hamma bola-hisoblari: Naqd/Click/Payme/valyuta).
    🔴 Bu raqam HECH QAYERDA chizilmaydi — faqat qaror uchun (qaysi modal).
-   null = qoldiq hali kelmagan yoki xato. */
-function srvJamiUzs(){
-  let t=0, bor=false;
-  (kassaList()||[]).forEach(k=>{ const v=kassaJami(k.id); if(v!=null){ t+=Number(v)||0; bor=true; } });
-  return bor?t:null;
+   null = kassa tanlanmagan yoki qoldiq hali kelmagan/xato.
+   🔴 Manba `srvTopKassa()` — ya'ni top-up so'rovi pul YOZADIGAN aynan o'sha hisob.
+      Qaror va natija BIR XIL kassaga tegishli bo'lishi shart. */
+function srvKassaUzs(){
+  const kid=srvTopKassa();
+  return (kid!=null) ? kassaJami(kid) : null;
 }
-/* Balans chegaradan kammi. 🔴 Qoldiq NOMA'LUM bo'lsa — TOP-UP shoxi tanlanadi
-   (yo'riqnoma emas): "sizda pul bor" deb yolg'on aytgandan ko'ra so'rash
-   imkonini berish to'g'ri, so'rovni baribir boshqa odam tasdiqlaydi. */
+/* Balans chegaradan kammi.
+   🔴 PROD BUG (2026-08-26): bu yerda HAMMA kassa yig'indisi (`kassaList` bo'ylab
+      `kassaJami`) ishlatilardi. Natija: 36 kassasi bor hodim BO'SH (0 so'mli)
+      kassani tanlab pul so'ramoqchi bo'lsa ham "yetarli pul bor" yo'riqnomasini
+      olardi — qolgan 35 kassaning puli qo'shilib chegaradan oshib ketardi.
+      Endi tekshiruv FAQAT tanlangan kassa bo'yicha.
+   🔴 Qoldiq NOMA'LUM bo'lsa — TOP-UP shoxi tanlanadi (yo'riqnoma emas):
+      "sizda pul bor" deb yolg'on aytgandan ko'ra so'rash imkonini berish
+      to'g'ri, so'rovni baribir boshqa odam tasdiqlaydi. */
 function srvBalKam(){
-  const v=srvJamiUzs();
+  const v=srvKassaUzs();
   return (v==null) ? true : (v < srvChegara);
 }
 // Minglik ajratgich + kursor joyi (fmtAmt naqshi). 🔴 AVTOMAT "000" YO'Q:
