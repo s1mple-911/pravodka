@@ -477,7 +477,8 @@ declare
   v_ids   bigint[] := '{}';
   v_items jsonb;
   v_admin jsonb;
-  r       record;
+  v_r     record;   -- 🔴 `r` EMAS: pastda `join accounts r` taxallusi bor,
+                    --    ikkalasi ziddiyatga tushib 42702 berardi
 begin
   -- (a) TOZALASH: 30 soniya ichida o'chirilgan/bekor qilingan yozuvlarning
   --     qatorlari hech qachon tanlanmaydi va navbatda abadiy osilib qolardi.
@@ -491,7 +492,7 @@ begin
      and (e.is_deleted or e.status is distinct from 'posted');
 
   -- (b) Navbatdan olish
-  for r in
+  for v_r in
     select n.id
       from hodim_notify n
       join entry e on e.id = n.entry_id
@@ -504,7 +505,7 @@ begin
      limit greatest(1, least(coalesce(p_limit, 50), 200))
      for update of n skip locked
   loop
-    v_ids := array_append(v_ids, r.id);
+    v_ids := array_append(v_ids, v_r.id);
   end loop;
 
   select coalesce(jsonb_agg(jsonb_build_object(
