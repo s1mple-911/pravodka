@@ -282,6 +282,40 @@
     text-transform:uppercase;margin:10px 2px 1px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .srv-gh:first-child{margin-top:2px}
+  /* Qidiruv — hodim-dev.html dagi `.srv-wsearch` naqshi. Ro'yxat ikki bosqichli
+     bo'lgach KASSALAR soni 6 tadan oshgandagina chiziladi (eski tekis ro'yxatda
+     8). Balandligi 36px — modal ichida bu maydon asosiy emas. */
+  .srv-asearch{height:36px;font-size:13.5px;margin:7px 0 2px}
+  .srv-pkempty{padding:14px 4px;color:var(--muted);font-size:13.5px;text-align:center}
+
+  /* --- IKKI BOSQICHLI tanlov: 1) kassa ro'yxati  2) tur segmenti ---
+     hodim-dev.html `renderTurSeg()` + `.turbtn` naqshi. 20 ta tekis tugma
+     o'rniga: har kassa BITTA qator (oila jami qoldig'i bilan), tanlangач
+     ostida Kassa · 💵 Naqd · 💳 Click · 📱 Payme segmenti. */
+  /* Ikki bosqichda scroll ICHKI ro'yxatda (`.srv-klist`) — segment o'ralib
+     ketadi va scroll qilinmaydi, aks holda ichma-ich ikki scroll bo'lardi. */
+  .srv-picks.two{max-height:none;overflow:visible;gap:0}
+  .srv-klist{display:flex;flex-direction:column;gap:6px;
+    max-height:min(38vh,260px);overflow:auto;-webkit-overflow-scrolling:touch}
+  .srv-turlbl{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;
+    text-transform:uppercase;margin:12px 2px 0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srv-turseg{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}
+  /* align-items ATAYLAB aniq: brauzer UA uslubi button uchun `center` beradi. */
+  .srv-tb{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+    max-width:100%;min-height:48px;min-width:84px;
+    border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;
+    padding:8px 13px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;
+    line-height:1.25;transition:border-color .15s,background .15s,color .15s,transform .12s}
+  @media(hover:hover){.srv-tb:hover{border-color:var(--primary)}}
+  .srv-tb:active{transform:scale(.98)}
+  .srv-tb.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  /* nowrap — "12 500 000 so'm" raqami probel ajratgichdan bo'linmasin */
+  .srv-tb .qd{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-top:2px;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .srv-tb.on .qd{color:var(--primary)}
+  /* qoldiq 0 yoki manfiy — undan pul chiqmaydi. BLOKLANMAYDI: yakuniy qaror serverda. */
+  .srv-tb.bosh .qd{color:var(--red)}
 
   /* --- bo'sh / skeleton --- */
   .srv-none{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;
@@ -456,6 +490,11 @@
            bilan guruhlanadi. Guruh bittada sarlavha chizilmaydi. -->
       <div id="actPickBox" style="display:none">
         <label class="srv-al">Qaysi hisobdan</label>
+        <!-- 🔴 Input `#actPicks` DAN TASHQARIDA: `actPicksRender()` har tanlashda
+             ro'yxatni qayta chizadi, ichida bo'lsa har harfda fokus yo'qolardi. -->
+        <input class="txt srv-asearch" id="actSearch" style="display:none"
+               placeholder="Kassa yoki kod bo'yicha qidirish" autocomplete="off"
+               oninput="actPicksRender()" aria-label="Hisob qidirish">
         <div class="srv-picks" id="actPicks" role="radiogroup"
              aria-label="Qaysi hisobdan to'lanadi"></div>
       </div>
@@ -582,6 +621,11 @@ let actId=null, actMode='full', actSor=0, actBal=null, actBusy=false;
 // 🔴 `actAcc` null bo'lsa va ro'yxat BIRDAN KO'P bo'lsa — tugma yopiq
 //    (tanlov majburiy). Bitta bo'lsa avtomat tanlanadi.
 let actAccs=[], actAcc=null, actOzim=true;
+// IKKI BOSQICHLI tanlov holati: `actKassa` — ochilgan OILA kaliti (1-bosqich),
+// `actOilaCache` — oxirgi chizilgan oilalar (onclick indeks bilan murojaat qiladi,
+// nomda qo'shtirnoq bo'lsa ham atribut buzilmasin). 🔴 `actAcc` ma'nosi O'ZGARMAGAN:
+// u har doim serverga ketadigan `p_kassa` (account_id).
+let actKassa=null, actOilaCache=[];
 
 const isAdmin=()=>!!(window.permIsAdmin && window.permIsAdmin());
 const hammasi=()=>{ const el=$('srvAll'); return !!(el && el.checked && isAdmin()); };
@@ -767,6 +811,8 @@ window.srvAct=(id,mode)=>{
   actId=r.id; actMode=mode; actSor=Number(r.summa)||0; actBal=null; actBusy=false;
   // Hisob tanlovi HAR ochilishda tozalanadi (oldingi so'rovniki qolib ketmasin)
   actAccs=[]; actAcc=null; actOzim=true;
+  actKassa=null; actOilaCache=[];                 // ochilgan kassa (1-bosqich) ham tozalanadi
+  { const sc=$('actSearch'); if(sc){ sc.value=''; sc.style.display='none'; } }   // oldingi qidiruv qolmasin
   $('actPicks').innerHTML=''; $('actPickBox').style.display='none';
   $('actBalLbl').textContent="Qo'lingizdagi pul";
   $('actTitle').textContent = mode==='full'?"To'liq berish":(mode==='part'?'Qisman berish':'Rad etish');
@@ -841,31 +887,152 @@ function actGroups(){
     const gnm=(h && h.guruh!=null && String(h.guruh)!=='') ? String(h.guruh) : '';
     const key = gid || (gnm ? 'n:'+gnm : '');
     let g=byKey.get(key);
-    if(!g){ g={nom:gnm, items:[]}; byKey.set(key,g); gs.push(g); }
+    if(!g){ g={key:key, nom:gnm, items:[]}; byKey.set(key,g); gs.push(g); }
     if(!g.nom && gnm) g.nom=gnm;
     g.items.push(h);
   });
   return gs;
 }
-function actPicksRender(){
-  const box=$('actPickBox'), list=$('actPicks');
-  // Bitta hisob -> tanlov ko'rsatilmaydi (ortiqcha qadam), qoldiq pastda turadi.
-  if(actAccs.length<2){
-    list.innerHTML=''; box.style.display='none';
-    if(actAccs.length===1) actBal=actAccBal();
-    $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
-    return;
-  }
-  const gs=actGroups();
-  list.innerHTML = (gs.length>1)
-    ? gs.map(g=>'<div class="srv-gh" role="presentation">'+esc(g.nom||'Kassa')+'</div>'
-                +g.items.map(actPkHtml).join('')).join('')
-    : actAccs.map(actPkHtml).join('');
+// Qidiruvga mos keladimi: kod, hisob nomi VA ildiz kassa nomi bo'yicha.
+function actMos(h,q){
+  if(!q) return true;
+  return String(h&&h.code||'').toLowerCase().indexOf(q)>=0
+      || String(h&&h.name||'').toLowerCase().indexOf(q)>=0
+      || String(h&&h.guruh||'').toLowerCase().indexOf(q)>=0;
+}
+// Qoldiq satri ("Qo'lingizdagi pul") — uch joyda bir xil yozilardi.
+function actBalYoz(){ $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm"; }
+
+// Guruh metadatasi bormi (`PROVODKA_SOROV_KASSA.sql` RUN qilinganmi).
+// 🔴 YO'Q bo'lsa ikki bosqichli tanlov UMUMAN yoqilmaydi — eski tekis ro'yxat
+//    qoladi (oila/ildiz tushunchasi bo'lmagan joyda "Kassa" tugmasi ma'nosiz).
+const actMeta=()=>actAccs.some(h=>h&&((h.guruh_id!=null&&h.guruh_id!=='')
+                                   ||(h.guruh!=null&&String(h.guruh)!=='')));
+
+// Guruhlarni OILAga aylantiradi: ildiz kassa + bolalari + oila jami qoldig'i.
+// Ildiz = `account_id === guruh_id`. ⚠️ Ildiz ro'yxatda BO'LMASLIGI mumkin
+// (ruxsat filtri chiqarib tashlagan) — u holda kassa qatori `guruh` nomi bilan
+// chiziladi, lekin ildizning O'ZI tanlanmaydi: faqat bolalari.
+function actOilalar(){
+  return actGroups().map((g,i)=>{
+    const root=g.items.find(h=>h&&h.guruh_id!=null&&h.guruh_id!==''
+      && String(h.account_id)===String(h.guruh_id))||null;
+    let jami=0, bor=false;
+    g.items.forEach(h=>{ const q=Number(h&&h.qoldiq); if(isFinite(q)){ jami+=q; bor=true; } });
+    return { key:g.key||('#'+i), nom:g.nom||(root&&root.name)||'Kassa',
+             root:root, kids:g.items.filter(h=>h!==root), items:g.items,
+             jami:bor?jami:null };
+  });
+}
+// Oilaga mos: kassa nomi yoki a'zolaridan biri (kod/nom).
+function actOilaMos(f,q){
+  return !q || String(f.nom||'').toLowerCase().indexOf(q)>=0 || f.items.some(h=>actMos(h,q));
+}
+// Pul turi ikonkasi — jurnal-dev.html dagi `TURI_IKO` bilan AYNAN bir xil.
+const SRV_TIKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'🏦'};
+// 🔴 `sorov_qaror_ctx.hisoblar` javobida `pul_turi` ustuni YO'Q — tur hisob
+//    NOMIDAN olinadi ("Toshkent Kassa · Click" -> click). Topilmasa ikonkasiz
+//    o'sha matn chiqadi (yangi tur qo'shilsa ham tugma bo'sh qolmaydi).
+function actTurLbl(h){
+  const nm=String(h&&h.name||''), i=nm.lastIndexOf('·');
+  const t=(i>=0?nm.slice(i+1):nm).trim();
+  const ik=SRV_TIKO[t.toLowerCase()];
+  return (ik?ik+' ':'')+esc(t||nm||'—');
+}
+// 2-bosqich tugmasi (Kassa / Naqd / Click / …). `lbl` KELISHIDAN OLDIN esc qilingan.
+function actTbHtml(h,lbl){
+  const id=esc(String(h.account_id)), on=(String(h.account_id)===String(actAcc));
+  const q=Number(h.qoldiq), bor=isFinite(q);
+  return '<button type="button" role="radio" aria-checked="'+(on?'true':'false')+'"'
+    +' class="srv-tb'+(on?' on':'')+((bor&&q<=0)?' bosh':'')+'" onclick="actPick(\''+id+'\')">'
+    +lbl+(bor?'<span class="qd">'+money(q)+" so'm</span>":'')+'</button>';
+}
+// 1-bosqich qatori: kassa nomi + OILA jami qoldig'i (ildiz + bolalari).
+function actKrowHtml(f,i){
+  const on=(f.key===actKassa);
+  return '<button type="button" aria-expanded="'+(on?'true':'false')+'"'
+    +' class="srv-pk'+(on?' on':'')+((f.jami!=null&&f.jami<=0)?' zero':'')+'"'
+    +' onclick="actKassaPick('+i+')">'
+    +'<span class="pkn">'+esc(f.nom)+'</span>'
+    +'<span class="pkb">'+(f.jami==null?'—':money(f.jami))+'</span></button>';
+}
+// Eski (guruhsiz) tekis ro'yxat — `PROVODKA_SOROV_KASSA.sql` RUN qilinmagan baza.
+function actFlatRender(box,list,inp){
+  list.classList.remove('two'); list.setAttribute('role','radiogroup');
+  // Qidiruv faqat ro'yxat uzun bo'lsa (hodim-dev.html dagi 8 chegarasi).
+  if(inp) inp.style.display = actAccs.length>8 ? 'block' : 'none';
+  const q=(inp&&inp.style.display!=='none')?String(inp.value||'').trim().toLowerCase():'';
+  const gs=actGroups()
+    .map(g=>({nom:g.nom, items:g.items.filter(h=>actMos(h,q))}))
+    .filter(g=>g.items.length);          // mos a'zosi yo'q guruh chizilmaydi
+  const jami=gs.reduce((n,g)=>n+g.items.length,0);
+  // 🔴 Ro'yxat BO'SH bo'lsa ham blok ko'rinib turadi — aks holda qidiruv
+  //    maydoni ham yo'qolib, foydalanuvchi matnni o'chira olmay qolardi.
+  list.innerHTML = !jami
+    ? '<div class="srv-pkempty">«'+esc(q)+'» bo\'yicha hisob topilmadi</div>'
+    : ((gs.length>1)
+        ? gs.map(g=>'<div class="srv-gh" role="presentation">'+esc(g.nom||'Kassa')+'</div>'
+                    +g.items.map(actPkHtml).join('')).join('')
+        : gs[0].items.map(actPkHtml).join(''));
   box.style.display='';
   actBal=actAccBal();
-  $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
+  actBalYoz();
   icons();
 }
+// IKKI BOSQICH: 1) kassalar ro'yxati  2) tanlangan kassaning tur segmenti.
+function actPicksRender(){
+  const box=$('actPickBox'), list=$('actPicks'), inp=$('actSearch');
+  // Bitta hisob -> tanlov ko'rsatilmaydi (ortiqcha qadam), qoldiq pastda turadi.
+  if(actAccs.length<2){
+    list.innerHTML=''; list.classList.remove('two'); list.setAttribute('role','radiogroup');
+    box.style.display='none';
+    if(inp) inp.style.display='none';
+    if(actAccs.length===1) actBal=actAccBal();
+    actBalYoz();
+    return;
+  }
+  if(!actMeta()) return actFlatRender(box,list,inp);
+  const fams=actOilalar();
+  actOilaCache=fams;                       // onclick indeks bilan murojaat qiladi
+  // Kassa BITTA -> ro'yxat chizilmaydi, darrov 2-bosqich (ortiqcha qadam bo'lmasin).
+  // ⚠️ Bunda hech narsa AVTOMAT tanlanmaydi — "tanlov majburiy" qoidasi saqlanadi.
+  if(fams.length===1) actKassa=fams[0].key;
+  else if(actKassa!=null && !fams.some(f=>f.key===actKassa)) actKassa=null;
+  // Qidiruv faqat KASSALAR 6 tadan oshsa (ro'yxat endi kalta).
+  if(inp) inp.style.display = fams.length>6 ? 'block' : 'none';
+  const q=(inp&&inp.style.display!=='none')?String(inp.value||'').trim().toLowerCase():'';
+  let h='';
+  if(fams.length>1){
+    const vis=fams.map((f,i)=>({f:f,i:i})).filter(x=>actOilaMos(x.f,q));
+    h += vis.length
+      ? '<div class="srv-klist">'+vis.map(x=>actKrowHtml(x.f,x.i)).join('')+'</div>'
+      : '<div class="srv-pkempty">«'+esc(q)+'» bo\'yicha kassa topilmadi</div>';
+  }
+  const cur=fams.find(f=>f.key===actKassa);
+  if(cur&&cur.kids.length){                // bolasi yo'q kassada segment CHIZILMAYDI
+    h += (fams.length>1?'<div class="srv-turlbl">'+esc(cur.nom)+'</div>':'')
+      +'<div class="srv-turseg" role="radiogroup" aria-label="Qaysi hisobdan to\'lanadi">'
+      +(cur.root?actTbHtml(cur.root,'Kassa'):'')
+      +cur.kids.map(k=>actTbHtml(k,actTurLbl(k))).join('')
+      +'</div>';
+  }
+  if(!h) return actFlatRender(box,list,inp);   // hech narsa chizilmadi -> eski yo'l
+  list.classList.add('two'); list.setAttribute('role','group');
+  list.innerHTML=h;
+  box.style.display='';
+  actBal=actAccBal();
+  actBalYoz();
+  icons();
+}
+// 1-bosqich: kassa tanlandi -> ildiz DARROV `actAcc` bo'ladi ("Kassa" tugmasi on).
+// Ildiz ro'yxatda bo'lmasa tanlov bolalardan qilinadi (actAcc null qoladi).
+window.actKassaPick=i=>{
+  const f=actOilaCache[i]; if(!f) return;
+  actKassa=f.key;
+  actAcc = f.root ? String(f.root.account_id) : null;
+  actPicksRender();
+  actUI();
+};
 window.actPick=id=>{
   actAcc=String(id);
   actPicksRender();
