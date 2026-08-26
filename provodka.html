@@ -709,6 +709,9 @@ function renderJournal(){
 }
 
 window.softDelete=async id=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   if(!isAdmin){ alert('Faqat admin o\'chira oladi'); return; }
   if(!confirm('Bu yozuv o\'chirilsinmi? (jurnalda usti chizilib qoladi)')) return;
   const {data:e}=await sb.from('entry').select('*,entry_line(*)').eq('id',id).single();
@@ -717,6 +720,7 @@ window.softDelete=async id=>{
   if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
   if(!upd||!upd.length){ alert('O\'chirilmadi: bu yozuvni o\'chirishga ruxsat yo\'q.'); return; }
   await refresh();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
 window.openEdit=id=>{
@@ -747,6 +751,9 @@ window.eSetDir=(d,dtLine,ktLine,dtAcc,ktAcc)=>{ edir=d;
 };
 window.closeEdit=()=>{ $('editModal').classList.remove('open'); editId=null; };
 window.saveEdit=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   if(!editId) return;
   const amt=Number(($('eAmount').value||'').replaceAll(' ',''))||0;
   const kassa=$('eKassa').value, counter=$('eCounter').value;
@@ -780,6 +787,7 @@ window.saveEdit=async()=>{
   const {error:e3}=await sb.from('entry').update({entry_date:$('eSana').value||null,description:$('eIzoh').value||null,edited_at:new Date().toISOString(),edited_by_name:myName}).eq('id',editId);
   if(e3){ alert('Summa va hisoblar saqlandi, lekin sana/izoh saqlanmadi: '+err(e3)); await refresh(); return; }
   closeEdit(); await refresh();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
 /* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================
@@ -832,7 +840,13 @@ async function yozAtomik(hdr,rows){
   const r=await qTimeout(sb.rpc('provodka_yoz',{p_data}));
   if(r.error&&rpcYoq(r.error)){ atomikYoq=true; return {ok:false,eski:true}; }
   if(r.timeout){ pendTok=tok; pendFp=fp; return {ok:false,error:r.error}; }
-  pendTok=null; pendFp=null;                       // javob ANIQ keldi
+  // 🔴 SHARTLI tozalash: `pendTok` sahifada BITTA, uni uch oqim (oddiy yozuv,
+  //    zaxira yo'l, taqsim) baham ko'radi. Shartsiz tozalansa boshqa oqimning
+  //    tirik kaliti o'chib ketardi: taqsim timeout bo'ldi -> hodim oddiy xarajat
+  //    yozdi (u kalitni tozaladi) -> taqsimni qayta yubordi -> YANGI kalit ->
+  //    server 23505 bermaydi -> PUL IKKI MARTA chiqadi. Javob KIMNIKI bo'lsa
+  //    o'shaning kaliti tozalanadi.
+  if(pendFp===fp){ pendTok=null; pendFp=null; }    // javob ANIQ keldi
   if(r.error&&isDupErr(r.error)) return {ok:true,dup:true};   // atomik: takror = saqlangan
   if(r.error) return {ok:false,error:r.error};
   return {ok:true,entry_id:(r.data&&r.data.entry_id)||null};
@@ -840,7 +854,16 @@ async function yozAtomik(hdr,rows){
 /* ZAXIRA — RPC yo'q bo'lgandagi ESKI yo'l. 🔴 Bu yerda kompensatsiya `delete`
    SAQLANADI (bu yo'l atomik emas) — o'zgartirilmadi. */
 async function saveEski(hdr,rows){
-  const {data:ent,error:e1}=await sb.from('entry').insert(hdr).select('id').single();
+  // 🔴 Zaxira yo'l ham ext_ref YOZSIN: busiz `provodka_yoz` bazada bo'lmagan holatda
+  //    HAR saqlash himoyasiz ketardi. hdr O'ZGARTIRILMAYDI (chaqiruvchi uni qayta
+  //    ishlatishi mumkin) — nusxa olinadi. Barmoq izi yozAtomik() bilan bir xil.
+  const fp=JSON.stringify([hdr,rows]);
+  const tok=(pendFp===fp&&pendTok)?pendTok:newToken();
+  const h=Object.assign({},hdr,{ext_ref:tok});
+  const {data:ent,error:e1}=await sb.from('entry').insert(h).select('id').single();
+  // Takror (23505) — sarlavha allaqachon yozilgan: bu urinish YANGI pul chiqarmadi.
+  if(e1&&isDupErr(e1)){ if(pendFp===fp){ pendTok=null; pendFp=null; }   // faqat O'Z kaliti
+    alert('Bu yozuv allaqachon saqlangan (takroriy yuborish to\'sildi).'); return true; }
   if(e1){ alert(window.permErr(e1)); return false; }
   const {error:e2}=await sb.from('entry_line').insert(rows.map(l=>Object.assign({entry_id:ent.id},l)));
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(window.permErr(e2)); return false; }
@@ -848,7 +871,22 @@ async function saveEski(hdr,rows){
 }
 /* ======================= /ATOMIK YOZUV =================================== */
 
+/* ===== FON BLOK — bir vaqtda BITTA pul yozuvi (2026-08-26) =====
+   PROD HODISASI: bir xil xarajat ikki marta yozilib pul ikki marta chiqib ketdi.
+   `ext_ref` takror himoyasi bu holatni TO'SMAYDI: token forma mazmuniga bog'langan
+   va muvaffaqiyatdan keyin bo'shatiladi — ikkinchi urish YANGI token oladi.
+   Bu qatlam boshqa muammoni yopadi: fonda saqlash KETAYOTGANDA ikkinchi urish.
+   Tugma `disabled` — yagona himoya emas: modal tugmalari, Enter, dasturiy
+   chaqiruv va boshqa yozuv yo'llari uni chetlab o'tadi. Bayroq — sahifadagi
+   HAMMA pul yo'li uchun BITTA. */
+let pulBand=false;
+function bandBoshla(){ if(pulBand) return false; pulBand=true; return true; }
+function bandTugat(){ pulBand=false; }
+
 window.save=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   const amt=parseAmt(); if(amt<=0){ alert('Summa kiriting'); return; }
   const kassa=$('kassa').value, counter=$('counter').value;
   if(!kassa||!counter){ alert('Kassa/kategoriya tanlang'); return; }
@@ -872,6 +910,7 @@ window.save=async()=>{
   //    ogohlantiriladi (yozuv O'CHIRILMAYDI: pul harakati to'g'ri).
   await mxdYoz((r&&r.ok&&r.entry_id)?r.entry_id:null, mxdV, mxdN);
   $('amount').value=''; $('izoh').value=''; mxdReset(); updateProv(); reset(); await refresh();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 function reset(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Saqlash'; }
 async function refresh(){ await Promise.all([loadKassalar(), loadJournal()]); }
