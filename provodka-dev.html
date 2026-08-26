@@ -709,6 +709,9 @@ function renderJournal(){
 }
 
 window.softDelete=async id=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   if(!isAdmin){ alert('Faqat admin o\'chira oladi'); return; }
   if(!confirm('Bu yozuv o\'chirilsinmi? (jurnalda usti chizilib qoladi)')) return;
   const {data:e}=await sb.from('entry').select('*,entry_line(*)').eq('id',id).single();
@@ -717,6 +720,7 @@ window.softDelete=async id=>{
   if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
   if(!upd||!upd.length){ alert('O\'chirilmadi: bu yozuvni o\'chirishga ruxsat yo\'q.'); return; }
   await refresh();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
 window.openEdit=id=>{
@@ -747,6 +751,9 @@ window.eSetDir=(d,dtLine,ktLine,dtAcc,ktAcc)=>{ edir=d;
 };
 window.closeEdit=()=>{ $('editModal').classList.remove('open'); editId=null; };
 window.saveEdit=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   if(!editId) return;
   const amt=Number(($('eAmount').value||'').replaceAll(' ',''))||0;
   const kassa=$('eKassa').value, counter=$('eCounter').value;
@@ -780,6 +787,7 @@ window.saveEdit=async()=>{
   const {error:e3}=await sb.from('entry').update({entry_date:$('eSana').value||null,description:$('eIzoh').value||null,edited_at:new Date().toISOString(),edited_by_name:myName}).eq('id',editId);
   if(e3){ alert('Summa va hisoblar saqlandi, lekin sana/izoh saqlanmadi: '+err(e3)); await refresh(); return; }
   closeEdit(); await refresh();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
 /* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================
@@ -848,7 +856,22 @@ async function saveEski(hdr,rows){
 }
 /* ======================= /ATOMIK YOZUV =================================== */
 
+/* ===== FON BLOK — bir vaqtda BITTA pul yozuvi (2026-08-26) =====
+   PROD HODISASI: bir xil xarajat ikki marta yozilib pul ikki marta chiqib ketdi.
+   `ext_ref` takror himoyasi bu holatni TO'SMAYDI: token forma mazmuniga bog'langan
+   va muvaffaqiyatdan keyin bo'shatiladi — ikkinchi urish YANGI token oladi.
+   Bu qatlam boshqa muammoni yopadi: fonda saqlash KETAYOTGANDA ikkinchi urish.
+   Tugma `disabled` — yagona himoya emas: modal tugmalari, Enter, dasturiy
+   chaqiruv va boshqa yozuv yo'llari uni chetlab o'tadi. Bayroq — sahifadagi
+   HAMMA pul yo'li uchun BITTA. */
+let pulBand=false;
+function bandBoshla(){ if(pulBand) return false; pulBand=true; return true; }
+function bandTugat(){ pulBand=false; }
+
 window.save=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   const amt=parseAmt(); if(amt<=0){ alert('Summa kiriting'); return; }
   const kassa=$('kassa').value, counter=$('counter').value;
   if(!kassa||!counter){ alert('Kassa/kategoriya tanlang'); return; }
@@ -872,6 +895,7 @@ window.save=async()=>{
   //    ogohlantiriladi (yozuv O'CHIRILMAYDI: pul harakati to'g'ri).
   await mxdYoz((r&&r.ok&&r.entry_id)?r.entry_id:null, mxdV, mxdN);
   $('amount').value=''; $('izoh').value=''; mxdReset(); updateProv(); reset(); await refresh();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 function reset(){ $('saveBtn').disabled=false; $('saveBtn').textContent='Saqlash'; }
 async function refresh(){ await Promise.all([loadKassalar(), loadJournal()]); }

@@ -302,6 +302,18 @@
     display:inline-flex;align-items:center;justify-content:center;gap:var(--s2)}
   @media(hover:hover){.tacts button.primary:hover{background:var(--primary-press)}}
   .tacts button.primary:disabled{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+  /* --- Takror ogohi (#takrorModal) — mavjud .tmodal/.tbox naqshi qayta ishlatiladi;
+     bu yerda faqat oyna ICHIDAGI matn bloki. Yangi rang tizimi yo'q. --- */
+  /* overflow/min-height — uzun izohda tugmalar ekran ostiga tushib ketmasin
+     (.tbox max-height:88vh + flex-column; min-height:0 busiz shrink ishlamaydi). */
+  .tkbody{font-size:14px;line-height:1.5;color:var(--ink-2);overflow:auto;min-height:0}
+  .tkq{font-weight:600;color:var(--ink)}
+  .tkbox{background:var(--surface-2);border-radius:var(--r-md);padding:var(--s3) var(--s4);
+    margin:var(--s3) 0;border-left:3px solid var(--amber,#b54708)}
+  .tkbox .tka{font-size:16px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .tkbox .tkm{margin-top:2px;font-size:13.5px;color:var(--muted);font-weight:600}
+  .tkbox .tki{margin-top:var(--s2);font-size:13.5px;color:var(--ink-2);line-height:1.4;
+    white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:auto}
   /* ================= oddiy modal tugmalari ================= */
   .modalbox .row{display:flex;gap:var(--s2);margin-top:var(--s4)}
   .modalbox .btn{flex:1;height:48px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);
@@ -999,6 +1011,20 @@
   </div>
 </div>
 
+<!-- TAKROR OGOHI: saqlashdan OLDIN "yaqinda ayni shunday xarajat yozilgan" tasdig'i.
+     Mavjud .tmodal/.tbox/.tacts naqshi (yangi CSS tizimi YO'Q). Javob Promise bilan:
+     takrorSora() ochadi, takrorJavob(true|false) yopadi va Promise'ni bir marta yechadi. -->
+<div class="tmodal" id="takrorModal" onclick="if(event.target===this)takrorJavob(false)" role="dialog" aria-modal="true" aria-label="Takror shubhasi">
+  <div class="tbox">
+    <div class="mhead"><h3>Takror shubhasi</h3><button type="button" class="mclose" onclick="takrorJavob(false)" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+    <div class="tkbody" id="takrorBody"></div>
+    <div class="tacts">
+      <button type="button" onclick="takrorJavob(false)">Bekor qilish</button>
+      <button type="button" class="primary" onclick="takrorJavob(true)">Ha, yozilsin</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="moddaModal" onclick="if(event.target===this)closeModda()" role="dialog" aria-modal="true" aria-label="Xarajat moddasi">
   <div class="modalbox">
     <div class="mhead"><h3>Xarajat moddasi</h3><button type="button" class="mclose" onclick="closeModda()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
@@ -1187,7 +1213,14 @@ function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Da
 function swrClear(){ try{
   Object.keys(sessionStorage).filter(k=>k.indexOf('prov-swr:')===0)
     .forEach(k=>sessionStorage.removeItem(k));
-}catch(e){} }
+}catch(e){}
+  // 🔴 Takror ogohi ro'yxati — localStorage'da (sessionStorage'dan farqli o'laroq reload'dan
+  //    keyin ham qoladi). Umumiy qurilmada A hodim chiqib B kirsa, B ga A ning izohi/kassasi
+  //    ko'rinib qolardi. swrClear() login va logoutda chaqiriladi — shu yerda tozalanadi.
+  //    ⚠️ Matn TAKROR_KEY bilan AYNAN bir xil bo'lishi shart: `const` pastda e'lon qilingan
+  //    (TDZ) — shuning uchun bu yerda o'zgaruvchi emas, matn yozilgan.
+  try{ localStorage.removeItem('prov-oxirgi:xarajat'); }catch(e){}
+}
 let accounts=[], selKassa=null, selModda=null, myName='', curBal=null; // curBal: tanlangan hisob qoldig'i (null=noma'lum)
 // selSub — kassa ICHIDAN tanlangan pul turi / valyuta hisobi (null = kassaning o'zi).
 // Kassa BITTA tanlanadi (parent), tur esa alohida segmentdan — professional.html'dagi naqsh.
@@ -1668,6 +1701,8 @@ document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   // mxdModal birinchi: u boshqa modallar ustidan ochiladi (z-index 240)
   if($('mxdModal')&&$('mxdModal').classList.contains('open')) return window.mxdMClose();
+  // Takror ogohi ochiq bo'lsa Esc = "Bekor qilish" (Promise false bilan yechiladi)
+  if($('takrorModal')&&$('takrorModal').classList.contains('open')) return window.takrorJavob(false);
   if($('kommModal').classList.contains('open')) return window.cancelKomm();
   if($('taqsimModal').classList.contains('open')) return window.closeTaqsim();
   if($('moddaModal').classList.contains('open')) return window.closeModda();
@@ -2008,6 +2043,33 @@ function tokenTugat(){ saveToken=null; saveFp=null; retryFn=null; pendClear(); }
 
 const isDup=e=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
   return c==='23505' || /duplicate key value/i.test(m); };
+
+/* ===== FON BLOK — bir vaqtda BITTA pul yozuvi (2026-08-26) =====
+   PROD HODISASI: bir xil xarajat ikki marta yozilib pul ikki marta chiqib ketdi.
+   `ext_ref` takror himoyasi bu holatni TO'SMAYDI: token forma mazmuniga bog'langan
+   va muvaffaqiyatdan keyin bo'shatiladi — ikkinchi urish YANGI token oladi.
+   Bu qatlam boshqa muammoni yopadi: fonda saqlash KETAYOTGANDA ikkinchi urish.
+   Tugma `disabled` — yagona himoya emas: modal tugmalari, Enter, dasturiy
+   chaqiruv va boshqa yozuv yo'llari uni chetlab o'tadi. Bayroq — sahifadagi
+   HAMMA pul yo'li uchun BITTA. */
+let pulBand=false;
+// 🔴 `srvSaving` ham hisobga olinadi: `srvSave` (sorov_yarat) HAQIQIY entry yozadi,
+//    lekin o'zining alohida bayrog'i bilan himoyalangan. Ikki mustaqil qulf bo'lsa
+//    saqlash va so'rov bir vaqtda ketishi mumkin edi, `ext_ref` esa buni to'smaydi
+//    (so'rov barmoq iziga `sorov:…` qo'shiladi -> BOSHQA token -> 23505 chiqmaydi).
+// 🔴 LEKIN `srvSaving` `try/finally` bilan o'ralmagan (u eski mexanizm): tutilmagan
+//    istisno bo'lsa abadiy `true` qolib, endi BUTUN sahifada xarajat yozishni o'ldirardi.
+//    Shuning uchun u ESKIRADI — `SRV_BAND_MS` dan keyin e'tiborsiz qoldiriladi.
+//    Chegara `qTimeout` (30s) dan katta bo'lishi shart, aks holda haqiqiy so'rov
+//    ketayotganda qulf erta ochilib qolardi.
+const SRV_BAND_MS=45000;
+function bandBoshla(){
+  if(pulBand) return false;
+  if(srvSaving && (Date.now()-srvBandAt)<SRV_BAND_MS) return false;
+  pulBand=true; return true;
+}
+function bandTugat(){ pulBand=false; }
+
 /* Tarmoq darajasidagi uzilish. supabase-js uni oddiy {error} qilib qaytaradi
    (status 0, PostgREST kodi BO'SH, matni "TypeError: Failed to fetch" kabi), lekin bu
    "yozilmadi" degani EMAS — so'rov serverga yetgan, javob yo'lda yo'qolgan bo'lishi
@@ -2137,7 +2199,97 @@ async function xarPendingTekshir(){
   xarBanner('Oldingi urinish holati noma\'lum'+s+' — jurnalni tekshiring.',[{label:'Yopish',fn:bannerYop}]);
 }
 
+/* ================= TAKROR OGOHI (qo'lda ikki marta kiritishga qarshi) =================
+   PROD 2026-08-25: birinchi saqlash MUVAFFAQIYATLI tugagan, hodim "saqlanmadi" deb o'ylab
+   formani qaytadan to'ldirgan (izohni ham o'zgartirgan) — pul ikki marta chiqdi.
+   `ext_ref` bunday holatni ATAYLAB to'smaydi (boshqa mazmun = boshqa xarajat), fon blok ham
+   to'smaydi (birinchi saqlash allaqachon tugagan). Shuning uchun saqlashdan OLDIN ogoh + tasdiq.
+   🔴 Bu QO'SHIMCHA qatlam: ext_ref (tokenBoshla/isDup/xarHolat) va fon blok (pulBand)
+      zanjirlariga TEGILMAGAN — ular avvalgidek ishlaydi. */
+const TAKROR_DAQ=30;                       // ogohlantirish oynasi — DAQIQA
+const TAKROR_KEY='prov-oxirgi:xarajat';    // localStorage: F5 dan keyin ham qolsin (ssenariy aynan shu)
+const TAKROR_MAX=20;                       // saqlanadigan oxirgi yozuvlar soni
+// 🔴 localStorage Safari private rejimida throw qilishi mumkin — u holda xususiyat JIMGINA
+//    o'chadi, saqlash BUZILMAYDI (shuning uchun hamma joyda try/catch + bo'sh massiv).
+function takrorRoyxat(){
+  try{ const r=localStorage.getItem(TAKROR_KEY); const a=r?JSON.parse(r):null; return Array.isArray(a)?a:[]; }
+  catch(e){ return []; }
+}
+function takrorYoz(rec){
+  try{ const a=takrorRoyxat(); a.push(rec);
+    localStorage.setItem(TAKROR_KEY, JSON.stringify(a.slice(-TAKROR_MAX))); }catch(e){}
+}
+/* Vaqt: timestamptz odatda offset bilan keladi; offsetsiz kelsa UTC deb o'qiymiz
+   (renderHistList ham +5 soat qo'shib aynan shu farazda ishlaydi). */
+function takrorMs(s){
+  try{
+    let t=String(s||''); if(!t) return NaN;
+    if(t.indexOf('T')>0 && !/[Zz]$/.test(t) && !/[+-]\d{2}:?\d{2}$/.test(t)) t+='Z';
+    const ms=new Date(t).getTime(); return isFinite(ms)?ms:NaN;
+  }catch(e){ return NaN; }
+}
+// UZB (UTC+5) — loyiha naqshi
+const takrorSoat=ms=>{ try{ return new Date(ms+5*3600*1000).toISOString().slice(11,16); }catch(e){ return ''; } };
+const takrorKun=ms=>{ try{ return new Date(ms+5*3600*1000).toISOString().slice(0,10); }catch(e){ return ''; } };
+/* Oxirgi TAKROR_DAQ daqiqada AYNI modda + AYNI summa bilan xarajat yozilganmi.
+   Manba IKKITA: (1) shu qurilmadagi ro'yxat (asosiy), (2) `histRows` — server tarixi
+   (boshqa brauzer/qurilmadan yozilgani ham ushlansin). Qo'shimcha so'rov QILINMAYDI:
+   histRows davrga bog'liq ('bugun'/'hafta'/'oy'), 30 daqiqalik oyna baribir ichida.
+   🔴 KASSA moslikka KIRMAYDI (ataylab): effKassa() tur-hisobini (5351 "· Naqd") qaytaradi,
+      tarix esa boshqa id berishi mumkin — noto'g'ri "mos kelmadi" xulosasi ogohlantirishni
+      JIMGINA o'chirib qo'yardi. Kassa nomi faqat XABAR MATNIDA ko'rsatiladi.
+   Qaytaradi: eng OXIRGI moslik {ms,summa,modda,kassa,izoh} yoki null. */
+function takrorTop(amt, modda){
+  const chek=Math.round(Number(amt)||0);
+  if(!(chek>0)||!modda) return null;
+  const hozir=Date.now(), chegara=hozir-TAKROR_DAQ*60*1000;
+  let eng=null;
+  // NaN taqqoslash har doim false — buzuq sana jimgina o'tkazib yuboriladi
+  const qara=o=>{ if(o&&o.ms>=chegara&&o.ms<=hozir+60000&&(!eng||o.ms>eng.ms)) eng=o; };
+  takrorRoyxat().forEach(r=>{                      // (1) modda ID bo'yicha
+    try{
+      if(!r||Math.round(Number(r.s)||0)!==chek||r.m!==modda.id) return;
+      qara({ms:takrorMs(r.t), summa:chek, modda:r.mn||modda.name, kassa:r.kn||'', izoh:r.i||''});
+    }catch(e){}
+  });
+  try{                                             // (2) modda KODI bo'yicha (tarixda id yo'q)
+    (Array.isArray(histRows)?histRows:[]).forEach(r=>{
+      if(!r||Math.round(Number(r.summa)||0)!==chek) return;
+      if(String(r.modda_code||'')!==String(modda.code||'')) return;
+      const k=r.kassa_id?accounts.find(a=>a.id===r.kassa_id):null;
+      qara({ms:takrorMs(r.created_at), summa:chek, modda:r.modda_name||modda.name,
+        kassa:k?(k.name+(k.subtitle?' · '+k.subtitle:'')):'', izoh:r.izoh||''});
+    });
+  }catch(e){}
+  return eng;
+}
+let takrorRes=null;   // ochiq modalning Promise resolve'i; yopilgach null — ikkinchi bosish osilib qolmasin
+function takrorSora(info){
+  return new Promise(res=>{
+    const m=$('takrorModal'), b=$('takrorBody');
+    if(!m||!b){ res(true); return; }   // markup yo'q (fayl ko'chirilgan) — oqim TO'SILMAYDI
+    const soat=takrorSoat(info.ms), kun=(takrorKun(info.ms)===takrorKun(Date.now()))?'Bugun':'Kecha';
+    // 🔴 HAR foydalanuvchi matni esc() dan o'tadi (izoh, modda nomi, kassa nomi) — XSS
+    b.innerHTML='<div class="tkq">'+(soat?(kun+' soat <b>'+esc(soat)+'</b> da ayni shunday xarajat yozilgan:'):'Yaqinda ayni shunday xarajat yozilgan:')+'</div>'
+      +'<div class="tkbox"><div class="tka">'+money(info.summa)+' so\'m</div>'
+      +'<div class="tkm">'+esc([info.modda,info.kassa].filter(Boolean).join(' · '))+'</div>'
+      +(info.izoh?('<div class="tki">'+esc(info.izoh)+'</div>'):'')+'</div>'
+      +'<div class="tkq">Baribir yana yozilsinmi?</div>';
+    takrorRes=res;
+    m.classList.add('open'); icons();   // innerHTML'dan keyin ikonkalar tiklanadi
+  });
+}
+// 🔴 module ichida top-level funksiya global BO'LMAYDI — onclick uchun window'ga yoziladi.
+window.takrorJavob=v=>{
+  const m=$('takrorModal'); if(m) m.classList.remove('open');
+  const r=takrorRes; takrorRes=null;   // resolve FAQAT bir marta
+  if(r) r(!!v);
+};
+
 window.saveHodim=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ toast('Oldingi yozuv saqlanmoqda — biroz kuting',true); return; }
+  try{
   console.time('hodim:saqlash');
   // Pul AYNAN tanlangan tur hisobidan chiqadi (naqd/Click/Payme/USD), kassaning o'zidan emas.
   const kassa=effKassa();
@@ -2157,6 +2309,11 @@ window.saveHodim=async()=>{
   if(isKomm() && !kommTuri){ toast('Kommunal turini tanlang',true); return; }             // Stage 5
   // Maxsus maydon (universal konstruktor): majburiysi to'ldirilmasa saqlanmaydi.
   if(!mxdOk()){ toast('«'+mxdFirstMissing()+'» to\'ldirilishi shart',true); mxdShowReq(); return; }
+  // TAKROR OGOHI: oxirgi 30 daqiqada ayni modda+summa yozilgan bo'lsa — TASDIQ so'raymiz.
+  // 🔴 Fon blok ICHIDA (bandBoshla'dan keyin): modal ochiq turganda boshqa yo'l saqlay olmaydi.
+  // "Bekor qilish" → forma O'Z HOLICHA qoladi (hodim izohni o'zgartirib qayta bosishi mumkin).
+  const tk=takrorTop(amt, modda);
+  if(tk && !(await takrorSora(tk))) return;
   // Stage 2: 2+ filial → har filialga ALOHIDA provodka (taqsim modal → atomik RPC)
   if(selFilialObjs().length>=2){ openTaqsim(amt, modda.id, kassa.id, kassa, calc); return; }
   const btn=$('saveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…'; icons();
@@ -2234,6 +2391,11 @@ window.saveHodim=async()=>{
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); tokenTugat(); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
   tokenTugat(); bannerYop();   // kalit ishlatildi — keyingi xarajat YANGI kalit oladi
+  // TAKROR OGOHI: muvaffaqiyatli yozuvni ro'yxatga qo'shamiz (forma tozalanishidan OLDIN —
+  // `modda`/`kassa` hali qo'lda). Xato bo'lsa jimgina o'tadi (takrorYoz ichida try/catch).
+  takrorYoz({m:modda.id, mn:modda.name, k:kassa.id,
+    kn:kassa.name+(kassa.subtitle?' · '+kassa.subtitle:''), s:amt, i:savedIzoh,
+    t:new Date().toISOString()});
   console.timeEnd('hodim:saqlash');
   const kId=kassa.id, kName=kassa.name, kSub=kassa.subtitle, mName=modda.name, chekUp=chekBlob;
   // Optimistik qoldiq: summani darrov ayirib ko'rsat, fonda haqiqiysi kelib to'g'rilaydi.
@@ -2269,6 +2431,7 @@ window.saveHodim=async()=>{
     }
     loadBalances(); loadHist(); loadMonth();   // haqiqiy qiymatlar bilan to'g'rila
   })();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 function resetBtn(){ const b=$('saveBtn'); b.classList.remove('ok'); b.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); updateSave(); }
 
@@ -2340,6 +2503,9 @@ function taqsimNoaniq(kind){
   if(m){ m.textContent=xarMsg(kind)+' «Saqlash» ni qayta bosing — takror yozilmaydi.'; m.className='tmsg no'; }
 }
 window.confirmTaqsim=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ toast('Oldingi yozuv saqlanmoqda — biroz kuting',true); return; }
+  try{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
@@ -2395,6 +2561,11 @@ window.confirmTaqsim=async()=>{
     $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; taqsimBtnTikla(); return;
   }
   tokenTugat(); bannerYop();   // kalit ishlatildi
+  // TAKROR OGOHI: BITTA yozuv — JAMI summa bilan (filial ulushlari emas). Sabab: tekshiruv
+  // ham jami summa bilan ketadi (saveHodim taqsim shoxidan OLDIN takrorTop chaqiradi).
+  takrorYoz({m:dtId, mn:mName, k:kassa.id,
+    kn:kassa.name+(kassa.subtitle?' · '+kassa.subtitle:''), s:amt, i:izoh||'',
+    t:new Date().toISOString()});
   const eids=(data&&data.entry_ids)||[];
   const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
   closeTaqsim();
@@ -2414,6 +2585,7 @@ window.confirmTaqsim=async()=>{
     if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
     loadBalances(); loadHist(); loadMonth();
   })();
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
 let toastTimer=null;
@@ -2732,6 +2904,7 @@ let srvLastTry=0;      // oxirgi proba vaqti — updateSave() har bosishda chaqi
 let srvWho=null;       // tanlangan odam (user_id)
 let srvOver=false;     // updateSave() hisoblagan holat (IKKINCHI hisob yozilmaydi)
 let srvSaving=false;
+let srvBandAt=0;   // srvSaving qachon yoqilgan — bandBoshla() qotib qolgan bayroqni shu bilan aniqlaydi
 let srvPendOff=false;  // sorov_menikilar RPC yo'q
 let srvPendRows=[];
 /* --- "Qolganini so'rash" / "Bekor qilish" (#srvPend amallari) ---
@@ -3084,6 +3257,10 @@ function srvNoaniq(kind){
 }
 window.srvSave=async()=>{
   if(srvSaving) return;
+  // FON BLOK (teskari tomon): fonda xarajat saqlash ketayotgan bo'lsa so'rov
+  // yuborilmaydi — aks holda ayni xarajat ikki marta tushardi (biri posted, biri
+  // pending). `bandBoshla()` ham `srvSaving` ni tekshiradi, ikkalasi juft ishlaydi.
+  if(pulBand){ toast('Oldingi yozuv saqlanmoqda — biroz kuting',true); return; }
   // 🔴 "Qolganini so'rash" rejimi — BUTUNLAY boshqa yo'l: forma (kassa/modda/
   //    summa/chek/davr) UMUMAN qatnashmaydi, chunki xarajat ALLAQACHON
   //    yozilgan. `srvNeeded()` (over-holat) ham talab qilinmaydi.
@@ -3111,7 +3288,7 @@ window.srvSave=async()=>{
   if(isKomm()&&!kommTuri){ toast('Kommunal turini tanlang',true); return; }
   if(!mxdOk()){ toast('«'+mxdFirstMissing()+'» to\'ldirilishi shart',true); mxdShowReq(); return; }
   const mxdV=mxdValues(), mxdN=mxdNeed();          // 🔴 forma tozalanishidan OLDIN
-  srvSaving=true;
+  srvSaving=true; srvBandAt=Date.now();
   const btn=$('srvSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
   if(msg){ msg.textContent=''; msg.className='tmsg'; }
   bannerYop();
@@ -3203,7 +3380,7 @@ async function srvQolSave(){
   if(!srvWho){ no('Kimdan so\'rashni tanlang'); return; }
   if(!(sAmt>0)){ no('Qancha so\'rashni yozing'); return; }
   if(izoh.length<SRV_MIN_IZOH){ no('Nega kerakligini yozing (kamida 3 belgi)'); return; }
-  srvSaving=true;
+  srvSaving=true; srvBandAt=Date.now();
   const btn=$('srvSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
   if(msg){ msg.textContent=''; msg.className='tmsg'; }
   bannerYop();
@@ -3257,7 +3434,7 @@ async function srvTopSave(){
   if(!srvWho){ no('Kimdan so\'rashni tanlang'); return; }
   if(!(sAmt>0)){ no('Qancha so\'rashni yozing'); return; }
   if(izoh.length<SRV_MIN_IZOH){ no('Nega kerakligini yozing (kamida 3 belgi)'); return; }
-  srvSaving=true;
+  srvSaving=true; srvBandAt=Date.now();
   const btn=$('srvSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
   if(msg){ msg.textContent=''; msg.className='tmsg'; }
   bannerYop();

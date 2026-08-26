@@ -2129,6 +2129,18 @@ function chekYukla(r,kassaId){
 }
 /* ======================= /ATOMIK YOZUV =================================== */
 
+/* ===== FON BLOK — bir vaqtda BITTA pul yozuvi (2026-08-26) =====
+   PROD HODISASI: bir xil xarajat ikki marta yozilib pul ikki marta chiqib ketdi.
+   `ext_ref` takror himoyasi bu holatni TO'SMAYDI: token forma mazmuniga bog'langan
+   va muvaffaqiyatdan keyin bo'shatiladi — ikkinchi urish YANGI token oladi.
+   Bu qatlam boshqa muammoni yopadi: fonda saqlash KETAYOTGANDA ikkinchi urish.
+   Tugma `disabled` — yagona himoya emas: modal tugmalari, Enter, dasturiy
+   chaqiruv va boshqa yozuv yo'llari uni chetlab o'tadi. Bayroq — sahifadagi
+   HAMMA pul yo'li uchun BITTA. */
+let pulBand=false;
+function bandBoshla(){ if(pulBand) return false; pulBand=true; return true; }
+function bandTugat(){ pulBand=false; }
+
 window.saveSimple=async()=>{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
@@ -2149,6 +2161,9 @@ window.saveSimple=async()=>{
 // Yo'ldagi tovar: Dt 9110-1 / Kt kassa, entry.yuk_kutilmoqda=true, entry_yuk YO'Q.
 // Izoh majburiy (yuk modalidan keladi). Hujjat kelgach yuk_boglash() bog'laydi.
 async function doSavePending(izohP){
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const kassa=effKassa();
   const modda1=accByCode('9110-1');
@@ -2193,8 +2208,15 @@ async function doSavePending(izohP){
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
   btn.textContent='Saqlandi ✓ (yo\'ldagi)'; setTimeout(()=>{ btn.textContent='Saqlash'; },1400);
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 }
 async function doSaveSimple(){
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  // ⚠️ openTaqsim() himoya shoxi (filial ro'yxati kelmasa) doSaveSimpleForce -> doSaveSimple
+  //    chaqiradi — ya'ni SHU funksiyaga qaytadi. Qulfga urilmasligi uchun o'sha chaqiruv
+  //    `setTimeout(0)` bilan kechiktirilgan (openTaqsim ichidagi izohga qara).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
   const {modda,kassa,income}=simpleDir();
   if(!kassa||!modda||amt<=0) return;
@@ -2238,6 +2260,7 @@ async function doSaveSimple(){
   preYuk=null; { const b=$('banner'); if(b) b.style.display='none'; }  // V8: avto to'ldirish bir martalik
   updateSimple(); fetchSimpleBal(); fetchSubBal();
   btn.textContent='Saqlandi ✓'; setTimeout(()=>{ btn.textContent='Saqlash'; },1200);
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 }
 
 // ---- Stage 4: Standart limitlar (filial+modda oylik limit) ----
@@ -2259,7 +2282,11 @@ function openTaqsim(amt, dtId, ktId, kassa, pair){
   taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId, pair:pair||null,
     mxd:mxdValues(), mxdn:mxdNeed()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
   taqsimFils=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
-  if(taqsimFils.length<2){ doSaveSimpleForce(); return; }   // himoya (filial ro'yxati kelmasa)
+  // himoya (filial ro'yxati kelmasa). 🔴 FON BLOK zanjiri: bu yerga doSaveSimple()
+  // ICHIDAN kelinadi va qulf hali O'SHA chaqiruvda. To'g'ridan chaqirsak
+  // doSaveSimpleForce -> doSaveSimple qulfga urilib xarajat SAQLANMAY qolardi.
+  // setTimeout(0) — chaqiruvchi return qilib `finally` qulfni bo'shatgandan KEYIN ishlaydi.
+  if(taqsimFils.length<2){ setTimeout(()=>{ doSaveSimpleForce(); },0); return; }
   taqsimEqualCalc(); renderTaqsim();
   $('taqsimModal').classList.add('open');
 }
@@ -2296,6 +2323,9 @@ function renderTaqsimSum(){
   $('taqsimSaveBtn').disabled=!ok;
 }
 window.confirmTaqsim=async()=>{
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   // V9: mudofaaviy — bu modal FAQAT 2+ filial tanlanganda ochiladi, ya'ni shart
@@ -2326,6 +2356,7 @@ window.confirmTaqsim=async()=>{
   window.removeChek();
   updateSimple(); fetchSimpleBal(); fetchSubBal();
   const sbtn=$('saveSimpleBtn'); sbtn.textContent='Saqlandi ✓ ('+taqsimFils.length+' filial)'; setTimeout(()=>{ sbtn.textContent='Saqlash'; },1600);
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 // V8: qarzdor-dev.html'dan avto to'ldirish (?yuk=&summa=&nom=)
 // 9110 hisobi topilmasa yoki param bo'lmasa — hech narsa qilmaydi (sahifa odatdagidek).
@@ -2377,6 +2408,9 @@ window.save=async()=>{
   doSaveAdv();
 };
 async function doSaveAdv(){
+  // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
+  if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
+  try{
   // Valyuta satri: debit/credit SO'MDA (miqdor × kurs), fc_amount esa valyuta miqdori.
   // lineUzs — updateTotals bilan bir xil funksiya, shuning uchun ekranda "To'g'ri ✓"
   // bo'lgan yozuv serverdagi Dt=Kt triggeridan ham o'tadi.
@@ -2421,6 +2455,7 @@ async function doSaveAdv(){
   advBal={};
   lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; window.removeChek(); addLine(); addLine();
   $('saveBtn').textContent='Saqlandi ✓'; setTimeout(()=>{ $('saveBtn').textContent='Saqlash'; },1200);
+  }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 }
 async function init(){
   $('sana').value=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
