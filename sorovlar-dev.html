@@ -257,7 +257,12 @@
   /* --- Qaysi hisobdan to'lanadi (ildiz kassa + Naqd/Click/Payme bolalari) ---
      🔴 Bu TASDIQLOVCHINING O'Z puli — qoldiq ko'rsatiladi, sizish emas.
         (Admin holatida — so'rov kelgan odamniki; SQL 7.3 da asos bilan.) */
-  .srv-picks{display:flex;flex-direction:column;gap:6px;margin-top:7px}
+  /* 🔴 max-height: ro'yxat endi 5 oila × 4 hisob = 20 tugma bo'lishi mumkin
+     (~1180px). `.sheet` scroll qilgani bilan telefonda "Tasdiqlash" tugmasi
+     ro'yxatdan ~900px pastda qolib ketardi — har qarorda butun ro'yxatni
+     aylantirish kerak bo'lardi. Endi ro'yxat o'z ichida scroll bo'ladi. */
+  .srv-picks{display:flex;flex-direction:column;gap:6px;margin-top:7px;
+    max-height:min(46vh,340px);overflow:auto;-webkit-overflow-scrolling:touch}
   .srv-pk{display:flex;align-items:center;justify-content:space-between;gap:12px;
     min-height:46px;padding:9px 13px;border:1px solid var(--line);border-radius:11px;
     background:var(--surface);color:var(--ink);font-family:inherit;font-size:13.5px;
@@ -270,6 +275,13 @@
   .srv-pk.on .pkc,.srv-pk.on .pkb{color:var(--primary)}
   .srv-pk.zero .pkb{color:var(--red)}
   @media(hover:hover){.srv-pk:hover{border-color:var(--primary)}}
+  /* Guruh sarlavhasi — ildiz kassa nomi (bir necha kassa biriktirilgan
+     odamda ro'yxat 5 oila x 3-4 hisob bo'lib ketadi). Bitta guruh bo'lsa
+     sarlavha UMUMAN chizilmaydi -> avvalgi ko'rinish o'zgarmaydi. */
+  .srv-gh{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.02em;
+    text-transform:uppercase;margin:10px 2px 1px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srv-gh:first-child{margin-top:2px}
 
   /* --- bo'sh / skeleton --- */
   .srv-none{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;
@@ -438,7 +450,10 @@
            ishlashi kerak (jonli sinov, 2026-08-25). Ro'yxat serverdan:
            sorov_qaror_ctx.hisoblar (FAQAT UZS — valyutadan to'lash kurs
            konvertatsiyasini talab qiladi, u alohida mexanizm).
-           Bitta bo'lsa avtomat tanlanadi va blok KO'RINMAYDI. -->
+           Bitta bo'lsa avtomat tanlanadi va blok KO'RINMAYDI.
+           2026-08-26: ro'yxatda odamning HAMMA biriktirilgan kassasi bor
+           (PROVODKA_SOROV_KASSA.sql) — shuning uchun ildiz kassa nomi
+           bilan guruhlanadi. Guruh bittada sarlavha chizilmaydi. -->
       <div id="actPickBox" style="display:none">
         <label class="srv-al">Qaysi hisobdan</label>
         <div class="srv-picks" id="actPicks" role="radiogroup"
@@ -805,6 +820,33 @@ function actAccBal(){
   const b=Number(h.qoldiq);
   return isFinite(b)?b:null;
 }
+// Bitta hisob tugmasi (guruhli va tekis ro'yxat AYNAN shuni ishlatadi).
+function actPkHtml(h){
+  const id=esc(String(h.account_id)), on=(String(h.account_id)===String(actAcc));
+  const q=Number(h.qoldiq)||0;
+  return '<button type="button" role="radio" aria-checked="'+(on?'true':'false')+'"'
+    +' class="srv-pk'+(on?' on':'')+(q<=0?' zero':'')+'" onclick="actPick(\''+id+'\')">'
+    +'<span class="pkn"><span class="pkc">'+esc(h.code||'')+'</span>'+esc(h.name||'')+'</span>'
+    +'<span class="pkb">'+money(q)+'</span></button>';
+}
+// Hisoblarni ILDIZ KASSA bo'yicha guruhlaydi (`guruh`/`guruh_id` — SQL 7.3).
+// 🔴 TARTIBGA BOG'LIQ EMAS: guruh birinchi uchraganda ochiladi, qolgan
+//    a'zolari ro'yxatning istalgan joyida bo'lsa ham o'shanga qo'shiladi.
+// 🔴 Kalitlar YO'Q bo'lsa (PROVODKA_SOROV_KASSA.sql hali RUN qilinmagan)
+//    hammasi BITTA guruhga tushadi -> sarlavha chizilmaydi -> eski ko'rinish.
+function actGroups(){
+  const gs=[], byKey=new Map();
+  actAccs.forEach(h=>{
+    const gid=(h && h.guruh_id!=null && h.guruh_id!=='') ? 'i:'+String(h.guruh_id) : '';
+    const gnm=(h && h.guruh!=null && String(h.guruh)!=='') ? String(h.guruh) : '';
+    const key = gid || (gnm ? 'n:'+gnm : '');
+    let g=byKey.get(key);
+    if(!g){ g={nom:gnm, items:[]}; byKey.set(key,g); gs.push(g); }
+    if(!g.nom && gnm) g.nom=gnm;
+    g.items.push(h);
+  });
+  return gs;
+}
 function actPicksRender(){
   const box=$('actPickBox'), list=$('actPicks');
   // Bitta hisob -> tanlov ko'rsatilmaydi (ortiqcha qadam), qoldiq pastda turadi.
@@ -814,14 +856,11 @@ function actPicksRender(){
     $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
     return;
   }
-  list.innerHTML=actAccs.map(h=>{
-    const id=esc(String(h.account_id)), on=(String(h.account_id)===String(actAcc));
-    const q=Number(h.qoldiq)||0;
-    return '<button type="button" role="radio" aria-checked="'+(on?'true':'false')+'"'
-      +' class="srv-pk'+(on?' on':'')+(q<=0?' zero':'')+'" onclick="actPick(\''+id+'\')">'
-      +'<span class="pkn"><span class="pkc">'+esc(h.code||'')+'</span>'+esc(h.name||'')+'</span>'
-      +'<span class="pkb">'+money(q)+'</span></button>';
-  }).join('');
+  const gs=actGroups();
+  list.innerHTML = (gs.length>1)
+    ? gs.map(g=>'<div class="srv-gh" role="presentation">'+esc(g.nom||'Kassa')+'</div>'
+                +g.items.map(actPkHtml).join('')).join('')
+    : actAccs.map(actPkHtml).join('');
   box.style.display='';
   actBal=actAccBal();
   $('actBal').textContent = actBal==null?'—':money(actBal)+" so'm";
