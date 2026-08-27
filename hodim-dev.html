@@ -1280,7 +1280,7 @@ let appShown=false;
 // bo'yicha filtrlanadi (permFilterOp), (2) yozuvda entry_line server guard trigger op ruxsatini
 // tekshiradi. permLoad faqat op_kassa_ids/scope'ni olib kelish uchun chaqiriladi.
 async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
-  init(); }   // TEZLIK: permLoad init() ichida boshqa so'rovlar bilan PARALLEL yuklanadi
+  init().then(()=>{ try{ versiyaTekshir(); }catch(e){} }); }   // TEZLIK: permLoad init() ichida boshqa so'rovlar bilan PARALLEL yuklanadi; versiyaTekshir() init tugagach FONDA (bazaviy ETag shu yerda olinadi)
 const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
 const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
 async function boot(){
@@ -2151,6 +2151,21 @@ async function xarHolat(token,ms){
   return {holat:'nomalum'};
 }
 
+/* Timeout/noaniq holatda AVTOMATIK holat tekshiruvi (2026-08-27) — hodim endi
+   "Qayta urinish"ni bosib kutilmaydi: PROD xavfi aynan shu edi — iOS standalone'da
+   tarmoq uzilib "Saqlanmoqda…" osilib qolganda hodim sahifani yangilab qaytadan
+   kiritardi va pul IKKI MARTA chiqardi. 4 marta, orasida 2.5s kutib, birinchi ANIQ
+   javobda ('toliq'|'yoq'|'chala_tozalandi') darrov qaytadi. Hammasi noaniq bo'lsa
+   'nomalum' — chaqiruvchi eski 'timeout' xabarini ko'rsatadi (xatti-harakat buzilmaydi). */
+async function xarHolatAvto(token){
+  for(let i=0;i<4;i++){
+    const h=await xarHolat(token,8000);
+    if(h.holat!=='nomalum') return h;
+    if(i<3) await new Promise(res=>setTimeout(res,2500));
+  }
+  return {holat:'nomalum'};
+}
+
 // Noaniq/aniqlanmagan holatlar uchun xabar. 🔴 "Saqlanmadi" deb YOLG'ON aytmaymiz —
 // timeout'da natijani BILMAYMIZ.
 function xarMsg(kind){
@@ -2183,6 +2198,7 @@ function xarAllaqachon(){
   mxdReset();
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
+  if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
   loadBalances(); loadHist(); loadMonth();
 }
 
@@ -2380,7 +2396,14 @@ window.saveHodim=async()=>{
     xarHolatUI(hh); resetBtn(); console.timeEnd('hodim:saqlash'); return;
   }
   // Natija NOMA'LUM (yozuv tushgan bo'lishi ham mumkin) — kalit saqlanadi.
-  if(noaniq(r1)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  // AVTOMATIK holat tekshiruvi: hodim "qayta bosish"ni kutmaydi (2026-08-27).
+  if(noaniq(r1)){
+    btn.innerHTML='<span class="spin" aria-hidden="true"></span>Tekshirilmoqda…'; icons();
+    const h=await xarHolatAvto(token);
+    if(h.holat==='toliq'){ xarAllaqachon(); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    if(h.holat==='yoq'||h.holat==='chala_tozalandi'||h.holat==='yoq_rpc'){ xarHolatUI(h.holat); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+  }
   if(e1){
     // Server ANIQ xato qaytardi (4xx) → yozuv tushmagani ma'lum, kalitni bo'shatamiz.
     tokenTugat(); toast(window.permErr?window.permErr(e1):e1.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return;
@@ -2398,7 +2421,13 @@ window.saveHodim=async()=>{
   // bo'lishi mumkin — o'chirsak haqiqiy yozuvni yo'q qilib qo'yardik. Kalit saqlanadi;
   // qayta urinishda xarajat_qayta_urinish() chala yozuvni o'zi tozalaydi ('chala_tozalandi').
   // (entry_line'da ext_ref yo'q — shuning uchun bu yerda 23505 shoxi ham yo'q.)
-  if(noaniq(r2)){ xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+  if(noaniq(r2)){
+    btn.innerHTML='<span class="spin" aria-hidden="true"></span>Tekshirilmoqda…'; icons();
+    const h=await xarHolatAvto(token);
+    if(h.holat==='toliq'){ xarAllaqachon(); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    if(h.holat==='yoq'||h.holat==='chala_tozalandi'||h.holat==='yoq_rpc'){ xarHolatUI(h.holat); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
+    xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+  }
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); tokenTugat(); toast(window.permErr?window.permErr(e2):e2.message,true); resetBtn(); console.timeEnd('hodim:saqlash'); return; }
   // ==== MUVAFFAQIYAT: DARROV javob (optimistik) — chek/n8n/yangilash FONDA ====
   tokenTugat(); bannerYop();   // kalit ishlatildi — keyingi xarajat YANGI kalit oladi
@@ -2420,6 +2449,7 @@ window.saveHodim=async()=>{
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi');
+  if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);   // saqlash tugagach — xavfsiz bo'lsa yangilanish
   setTimeout(()=>{ btn.classList.remove('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlash'; icons(); },1300);
   // ==== FON: chek upload + n8n alert + haqiqiy qoldiq/oy/tarix ====
   (async()=>{
@@ -2522,6 +2552,35 @@ window.confirmTaqsim=async()=>{
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
   const {dtId,ktId,kassa,izoh,chek,mName,calc,mxd:mxdV,mxdn:mxdN}=taqsimCtx;
   const kCur=curOf(kassa);
+  // Muvaffaqiyat yakuni — BIR joyda (odatiy javob va avto-holat tekshiruvi ikkalasi
+  // ham shu funksiyani chaqiradi, kod ikki marta yozilmasin — CLAUDE.md talabi).
+  function taqsimYakun(eids){
+    tokenTugat(); bannerYop();   // kalit ishlatildi
+    // TAKROR OGOHI: BITTA yozuv — JAMI summa bilan (filial ulushlari emas). Sabab: tekshiruv
+    // ham jami summa bilan ketadi (saveHodim taqsim shoxidan OLDIN takrorTop chaqiradi).
+    takrorYoz({m:dtId, mn:mName, k:kassa.id,
+      kn:kassa.name+(kassa.subtitle?' · '+kassa.subtitle:''), s:amt, i:izoh||'',
+      t:new Date().toISOString()});
+    const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
+    closeTaqsim();
+    // Optimistik qoldiq (butun summa chiqdi)
+    if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-amt,
+      fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; swrSet('bal',balMap);   // kesh ham yangilansin
+      renderTurSeg(); renderHero(); renderKassaBal(); }
+    // Forma tozalanadi (kassa + tur qoladi)
+    $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
+    mxdReset();
+    removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+    toast('Saqlandi · '+nFil+' filial');
+    if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
+    // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
+    (async()=>{
+      await mxdYoz(eids, mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
+      if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
+      if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
+      loadBalances(); loadHist(); loadMonth();
+    })();
+  }
   bannerYop();
   // TAKROR-HIMOYA (oddiy yo'l bilan bir xil): ayni kalit — ayni yozuv.
   // Taqsimot ham barmoq iziga kiradi: ulushlar o'zgarsa bu BOSHQA xarajat.
@@ -2564,38 +2623,21 @@ window.confirmTaqsim=async()=>{
     taqsimNoaniq((h.holat==='yoq')?'nomalum':h.holat); return;
   }
   // RPC atomik, lekin JAVOB yo'qolgan (timeout / status 0 / 5xx) — bajarilgan
-  // bo'lishi mumkin. Kalit saqlanadi.
-  if(noaniq(rr)){ taqsimNoaniq('timeout'); return; }
+  // bo'lishi mumkin. Kalit saqlanadi. AVTOMATIK holat tekshiruvi (2026-08-27):
+  // hodim "qayta bosish"ni kutmaydi.
+  if(noaniq(rr)){
+    btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Tekshirilmoqda…';
+    const h=await xarHolatAvto(token);
+    if(h.holat==='toliq'){ taqsimYakun(h.entry_ids||[]); return; }
+    if(h.holat==='yoq'||h.holat==='chala_tozalandi'||h.holat==='yoq_rpc'){ taqsimNoaniq(h.holat); return; }
+    taqsimNoaniq('timeout'); return;
+  }
   if(error){
     // Aniq xato (4xx) → yozuv tushmagan, kalit bo'shatiladi (keyingi urinish yangi kalit oladi).
     tokenTugat();
     $('taqsimMsg').textContent=(window.permErr?window.permErr(error):error.message); $('taqsimMsg').className='tmsg no'; taqsimBtnTikla(); return;
   }
-  tokenTugat(); bannerYop();   // kalit ishlatildi
-  // TAKROR OGOHI: BITTA yozuv — JAMI summa bilan (filial ulushlari emas). Sabab: tekshiruv
-  // ham jami summa bilan ketadi (saveHodim taqsim shoxidan OLDIN takrorTop chaqiradi).
-  takrorYoz({m:dtId, mn:mName, k:kassa.id,
-    kn:kassa.name+(kassa.subtitle?' · '+kassa.subtitle:''), s:amt, i:izoh||'',
-    t:new Date().toISOString()});
-  const eids=(data&&data.entry_ids)||[];
-  const nFil=taqsimFils.length, kName=kassa.name, kSub=kassa.subtitle;
-  closeTaqsim();
-  // Optimistik qoldiq (butun summa chiqdi)
-  if(balMap[kassa.id]){ balMap[kassa.id]={uzs:Number(balMap[kassa.id].uzs)-amt,
-    fc:Number(balMap[kassa.id].fc)-((calc&&calc.fc)||0)}; swrSet('bal',balMap);   // kesh ham yangilansin
-    renderTurSeg(); renderHero(); renderKassaBal(); }
-  // Forma tozalanadi (kassa + tur qoladi)
-  $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
-  mxdReset();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
-  toast('Saqlandi · '+nFil+' filial');
-  // FON: chek (birinchi entryga) + n8n alert (total) + haqiqiy qoldiq/tarix
-  (async()=>{
-    await mxdYoz(eids, mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
-    if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
-    if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
-    loadBalances(); loadHist(); loadMonth();
-  })();
+  taqsimYakun((data&&data.entry_ids)||[]);
   }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
@@ -4022,6 +4064,54 @@ async function mxdYoz(entryIds,vals,need){
 const mxdModdaId=()=>selModda||'';
 const mxdAfterChange=()=>{ updateSave(); };
 const mxdWarn=msg=>toast(msg,true);
+
+/* ============ AVTO-YANGILANISH — iOS "Bosh ekranga qo'shish" muammosi (2026-08-27) ============
+   PROD HODISASI: hodim iPhone'da sahifani "Bosh ekranga qo'shib" (standalone) ochgan — iOS bunday
+   sahifani kunlab qayta yuklamaydi, ya'ni hodim eski JS bilan ishlayveradi (masalan taqsim RPC
+   TIMEOUT'SIZ eski versiya) va tarmoq uzilganda "Saqlanmoqda…" abadiy qolib ketardi.
+   Yechim: sahifaning o'zini (HEAD so'rov) davriy tekshirib, ETag/Last-Modified o'zgargan bo'lsa —
+   BUILD raqami emas, ETag ishlatiladi: u statik fayl serveri (GitHub Pages) tomonidan avtomatik
+   beriladi, promote.sh'da klient/serverni sinxron ushlab turishni talab qilmaydi.
+   `location.pathname` — qattiq `hodim-dev.html` YOZILMAGAN, shuning uchun promote'dan keyin
+   prod (`hodim.html`) da ham o'zgarishsiz ishlaydi. */
+let verBaza=null, verOxirgi=0, yangiVersiya=false;
+const VER_MIN_ORALIQ=60000;   // tekshiruvlar orasida kamida 60s (throttle)
+async function versiyaTekshir(){
+  const hozir=Date.now();
+  if(hozir-verOxirgi<VER_MIN_ORALIQ) return;
+  verOxirgi=hozir;
+  try{
+    const r=await fetch(location.pathname,{method:'HEAD',cache:'no-store'});
+    if(!r||!r.ok) return;
+    const v=r.headers.get('ETag')||r.headers.get('Last-Modified')||'';
+    if(!v) return;
+    if(verBaza===null){ verBaza=v; return; }   // birinchi muvaffaqiyatli javob = bazaviy
+    if(v!==verBaza){ yangiVersiya=true; reloadAgarXavfsiz(); }
+  }catch(e){ /* offline/xato — jimgina e'tiborsiz, sahifa buzilmaydi */ }
+}
+// Xavfsiz paytdagina reload: forma bo'sh, saqlash ketmayapti, modal yopiq. Shart
+// bajarilmasa false qaytaradi — muvaffaqiyatli saqlashdan keyin (saveHodim/
+// confirmTaqsim/xarAllaqachon) qayta chaqiriladi, hodim yozayotgan forma yo'qolmaydi.
+function reloadAgarXavfsiz(){
+  if(!yangiVersiya) return false;
+  try{
+    if(pulBand||srvSaving) return false;               // fonda saqlash/so'rov ketmoqda
+    const tm=$('taqsimModal'), km=$('takrorModal');
+    if(tm&&tm.classList.contains('open')) return false; // taqsim modali ochiq
+    if(km&&km.classList.contains('open')) return false; // takror ogohi ochiq
+    if(saveToken) return false;                          // kutilayotgan noaniq saqlash bor
+    const se=$('summa'), ie=$('izoh');
+    if((se&&se.value)||(ie&&ie.value)) return false;      // hodim forma to'ldirmoqda
+  }catch(e){ return false; }
+  try{ toast('Yangi versiya — sahifa yangilanmoqda'); }catch(e){}
+  setTimeout(()=>{ try{ location.reload(); }catch(e){} },600);
+  return true;
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible') return;
+  if(yangiVersiya) reloadAgarXavfsiz(); else versiyaTekshir();
+});
+setInterval(()=>{ if(yangiVersiya) reloadAgarXavfsiz(); else versiyaTekshir(); },600000);   // 10 daqiqa
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin (TDZ oldini olish).
 boot();
