@@ -243,7 +243,8 @@ begin
                              ) end,
           'taklif_user_id', case when s.user_id is null then (
                                -- YAGONA moslik bo'lsagina taklif (2+ bir xil ism → null, admin o'zi tanlaydi)
-                               select case when count(*) = 1 then min(pr.id) end
+                               -- uuid uchun min() yo'q — array_agg birinchi elementi
+                               select case when count(*) = 1 then (array_agg(pr.id))[1] end
                                  from profiles pr
                                 where nom_norm(to_jsonb(pr) ->> 'full_name') = nom_norm(
                                         coalesce(nullif(btrim(s.toliq_nom), ''),
