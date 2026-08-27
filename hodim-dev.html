@@ -893,9 +893,9 @@
   .ov-info{min-width:0}
   .ov-nom{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ov-sub{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-  .ov-acts{display:flex;gap:6px;flex:none;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-  .ov-btn{min-height:40px;min-width:62px;padding:0 14px;border:1.5px solid var(--line);background:var(--surface);
-    color:var(--ink-2);border-radius:10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  .ov-acts{display:flex;gap:5px;flex:none;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .ov-btn{min-height:36px;min-width:52px;padding:0 10px;border:1.5px solid var(--line);background:var(--surface);
+    color:var(--ink-2);border-radius:10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;
     transition:border-color .15s,background .15s,color .15s,transform .1s}
   @media(hover:hover){.ov-btn:not(:disabled):not(.on):hover{border-color:var(--primary);color:var(--primary-ink)}}
   .ov-btn:not(:disabled):active{transform:scale(.96)}
@@ -1488,7 +1488,10 @@ function kassaJami(pid){
 //  chiqarilmaydi; ular kerak bo'lsa professional-dev.html orqali kiritiladi.)
 function moddaList(){
   // 9110-1 (yo'ldagi tovar) — professional oqimi; hodimda ko'rinmaydi.
-  const xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
+  let xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
+  // RBAC (PROVODKA_RBAC.sql): rolga biriktirilmagan xarajat moddalari yashiriladi.
+  // permFilterModda yo'q bo'lsa (perms-dev.js eski nusxa) — eski xatti-harakat.
+  if(window.permFilterModda) xs=window.permFilterModda(xs);
   xs.sort((a,b)=>{ const fa=FREQ.indexOf(a.code), fb=FREQ.indexOf(b.code);
     if(fa>=0||fb>=0){ if(fa<0) return 1; if(fb<0) return -1; return fa-fb; }
     return String(a.code).localeCompare(String(b.code)); });
@@ -1903,6 +1906,7 @@ function filialOk(){ if(!filialRequired()) return true;
 }
 
 /* ================= OVQAT XARAJATI NAZORATI — funksiyalar ================= */
+function ovqatTurLabel(tur){ return tur==='obed'?'Obed':(tur==='kechki'?'Kechki':'Zavtrak'); }
 function ovqatKey(staffId,tur){ return staffId+':'+tur; }
 function ovqatHas(staffId,tur){ return ovqatSel.has(ovqatKey(staffId,tur)); }
 function ovqatTodayHas(staffId,tur){ return !!ovqatToday[ovqatKey(staffId,tur)]; }
@@ -1910,12 +1914,17 @@ function ovqatTodayHas(staffId,tur){ return !!ovqatToday[ovqatKey(staffId,tur)];
 function ovqatRoyxat(){
   const out=[];
   ovqatSel.forEach(k=>{ const i=k.lastIndexOf(':'); if(i<0) return;
-    out.push({staff_id:Number(k.slice(0,i)), tur:k.slice(i+1)}); });
+    const tur=k.slice(i+1);
+    // RBAC: rol o'zgargach ovqatSel'da qolib ketgan ruxsatsiz tur hisobga kirmaydi.
+    if(window.permOvqatOk && !window.permOvqatOk(tur)) return;
+    out.push({staff_id:Number(k.slice(0,i)), tur}); });
   return out;
 }
 function ovqatRoyxatSumma(){
   if(!ovqatLoaded||!ovqatNarx) return 0;
-  return ovqatRoyxat().reduce((s,it)=>s+(Number(it.tur==='obed'?ovqatNarx.obed:ovqatNarx.zavtrak)||0),0);
+  // 🔴 narx yo'q bo'lgan tur (masalan 'kechki' RUN qilinmagan bazada) -> 0,
+  //    summa mos kelmaydi -> tugma o'chiq qoladi (fail-closed).
+  return ovqatRoyxat().reduce((s,it)=>s+(Number(ovqatNarx[it.tur])||0),0);
 }
 window.ovqatToggle=(staffId,tur)=>{
   if(ovqatTodayHas(staffId,tur)) return;   // himoya — tugma disabled bo'lishi kerak, lekin dasturiy chaqiruvdan ham to'siladi
@@ -1995,7 +2004,7 @@ function renderOvqatCounter(){
     return;
   }
   const items=ovqatRoyxat();
-  const cObed=items.filter(x=>x.tur==='obed').length, cZav=items.filter(x=>x.tur==='zavtrak').length;
+  const cZav=items.filter(x=>x.tur==='zavtrak').length, cObed=items.filter(x=>x.tur==='obed').length, cKechki=items.filter(x=>x.tur==='kechki').length;
   const royxatSumma=ovqatRoyxatSumma();
   const yozilgan=amtVal();
   const mos = items.length>0 && royxatSumma===yozilgan;
@@ -2004,7 +2013,13 @@ function renderOvqatCounter(){
   if(items.length===0) stat='<div class="ov-chint">Hodim tanlang</div>';
   else if(mos) stat='<div class="ov-cok">✅ Mos</div>';
   else stat=`<div class="ov-cbad">🔴 Ro'yxat ${money(royxatSumma)}, yozilgan ${money(yozilgan)} — farq ${money(Math.abs(yozilgan-royxatSumma))}</div>`;
-  box.innerHTML=`<div class="ov-cline"><b>${cObed}</b> obed · <b>${cZav}</b> zavtrak = <b>${money(royxatSumma)}</b> so'm</div>`+stat;
+  // 0 bo'lgan turlar yozilmaydi.
+  const parts=[];
+  if(cZav) parts.push(`<b>${cZav}</b> zavtrak`);
+  if(cObed) parts.push(`<b>${cObed}</b> obed`);
+  if(cKechki) parts.push(`<b>${cKechki}</b> kechki`);
+  const line = parts.length ? parts.join(' · ')+` = <b>${money(royxatSumma)}</b> so'm` : `<b>0</b> tanlangan`;
+  box.innerHTML=`<div class="ov-cline">${line}</div>`+stat;
 }
 function renderOvqatChips(){
   const box=$('ovqatChips'); if(!box) return;
@@ -2013,14 +2028,21 @@ function renderOvqatChips(){
   box.style.display='flex';
   box.innerHTML=items.map(it=>{
     const s=ovqatStaff.find(x=>x.staff_id===it.staff_id);
-    return `<span class="ov-chip">${esc(ovqatNomi(s||{staff_id:it.staff_id}))} · ${it.tur==='obed'?'Obed':'Zavtrak'}`
+    return `<span class="ov-chip">${esc(ovqatNomi(s||{staff_id:it.staff_id}))} · ${ovqatTurLabel(it.tur)}`
       +`<button type="button" onclick="ovqatToggle(${it.staff_id},'${it.tur}')" aria-label="Olib tashlash"><i data-lucide="x"></i></button></span>`;
   }).join('');
   icons();
 }
+function ovqatTurlariRuxsatli(){
+  return !window.permOvqatOk || ['obed','zavtrak','kechki'].some(t=>window.permOvqatOk(t));
+}
 function renderOvqatList(){
   const box=$('ovqatList'); if(!box) return;
   if(!ovqatLoaded){ box.innerHTML=''; return; }
+  if(!ovqatTurlariRuxsatli()){
+    box.innerHTML='<div class="ov-empty">Rolingizda ovqat turi yo\'q — ovqat xarajati yozib bo\'lmaydi.</div>';
+    return;
+  }
   const q=String(($('ovqatSearch')&&$('ovqatSearch').value)||'').trim().toLowerCase();
   const bids=ovqatMeningBranchIds();
   // 🔴 FAQAT "Mening filialim" (Asilbek qarori 2026-08-27): boshqa filial hodimlari
@@ -2035,6 +2057,8 @@ function renderOvqatList(){
     const nom=ovqatNomi(s);
     const sub=[s.lavozim, s.branch_nomi].filter(Boolean).join(' · ');
     const btn=(tur,lbl)=>{
+      // RBAC: rolda yo'q ovqat turi tugmasi umuman chizilmaydi.
+      if(window.permOvqatOk && !window.permOvqatOk(tur)) return '';
       const taken=ovqatToday[ovqatKey(s.staff_id,tur)];
       const on=ovqatHas(s.staff_id,tur);
       const chip=taken?`<span class="ov-chip-taken">olgan ${esc(taken.soat||'')}${taken.kim?' · '+esc(taken.kim):''}</span>`:'';
@@ -2042,7 +2066,7 @@ function renderOvqatList(){
     };
     return `<div class="ov-row"><div class="ov-info"><div class="ov-nom">${esc(nom)}</div>`
       +(sub?`<div class="ov-sub">${esc(sub)}</div>`:'')+'</div>'
-      +`<div class="ov-acts">${btn('obed','Obed')}${btn('zavtrak','Zavtrak')}</div></div>`;
+      +`<div class="ov-acts">${btn('zavtrak','Zavtrak')}${btn('obed','Obed')}${btn('kechki','Kechki')}</div></div>`;
   };
   let html='';
   const k=effKassa(), filialNomi=(k&&k.subtitle)?String(k.subtitle).split(' · ')[0]:'';
@@ -3193,6 +3217,9 @@ function bindInputs(){ if(_bound) return; _bound=true;
   // so'mda — minglik ajratgich + avtomat "000"; valyutada — 2 kasrgacha, "000" YO'Q.
   $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); });
   $('izoh').addEventListener('input',updateSave);
+  // RBAC: ruxsat fonda (fetchFresh) o'zgarsa — tanlangan modda endi ruxsatsiz bo'lishi
+  // mumkin (renderModda() selModda'ni o'zi tozalaydi), ovqat paneli ham qayta chiziladi.
+  if(window.permOnChange) window.permOnChange(()=>{ renderModda(); updateModdaUI(); });
 }
 
 // TEZLIK: mustaqil so'rovlar PARALLEL + keshdan progressiv ko'rsatish.
