@@ -372,8 +372,21 @@
   /* Bo'limlar orasidagi ajratgich (Amallar / Xarajat moddalari / Ovqat) — Nomi/Izoh/Faol
      guruhi bilan aralashmasin, shuning uchun faqat .rb-sec belgilangan qatorda */
   .rb-sec{border-top:1px solid var(--line);padding-top:18px;margin-top:18px!important}
+  /* 🔴 .mxd-save/.mxd-cancel odatda .mxd-facts ichida flex:1 (50/50, ikkita tugma) —
+     bu yerda 2-3 ta tugma bo'lgani uchun flex:1 ularni butun qatorga cho'zib yuborardi
+     va tor ekranda matn/ikonka konteynerdan tashqariga chiqib ketardi. Shu yerda
+     kontent o'lchamiga qaytariladi (flex:0 1 auto), min-width:0 esa uzun matn
+     (masalan "O'chirish") flex-shrink paytida overflow bermasligi uchun. */
   .rb-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;justify-content:flex-end;
-    border-top:1px solid var(--line);padding-top:16px}
+    border-top:1px solid var(--line);padding-top:16px;max-width:100%}
+  .rb-acts .mxd-save,.rb-acts .mxd-cancel{flex:0 1 auto;min-width:0;padding:0 16px;white-space:nowrap}
+  .rb-acts .rb-res{flex:1 1 auto;align-self:center;font-size:13px;font-weight:600;min-width:120px}
+  .rb-res.ok{color:var(--green)}.rb-res.err{color:var(--red)}
+  .rb-users .rb-res{display:inline-block;margin-left:8px;font-size:12px;font-weight:600;vertical-align:middle}
+  @media(max-width:400px){
+    .rb-acts .mxd-save,.rb-acts .mxd-cancel{flex:1 1 auto;justify-content:center}
+    .rb-acts .rb-res{order:-1;flex:1 1 100%;text-align:right}
+  }
 
   /* --- Foydalanuvchilar jadvali ---
      🔴 overflow:hidden ATAYLAB YO'Q: .rb-dd-menu popover shu konteyner ICHIDA absolute
@@ -436,11 +449,21 @@
     justify-content:center;z-index:210;padding:20px;backdrop-filter:blur(1px)}
   .rb-modal.open{display:flex}
   .rb-modal-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;
-    max-width:380px;width:100%;box-shadow:var(--shadow-hover);animation:mxdIn .16s cubic-bezier(.22,.61,.36,1)}
+    max-width:min(380px,calc(100vw - 32px));width:100%;max-height:calc(100vh - 32px);overflow:auto;
+    box-shadow:var(--shadow-hover);animation:mxdIn .16s cubic-bezier(.22,.61,.36,1)}
   .rb-modal-txt{font-size:14.5px;line-height:1.55;color:var(--ink)}
-  .rb-modal-acts{display:flex;gap:8px;margin-top:18px}
+  .rb-modal-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+  .rb-modal-acts .mxd-save,.rb-modal-acts .mxd-cancel{flex:1 1 120px;min-width:0}
   .rb-modal-acts .mxd-save{background:var(--red)}
   .rb-modal-acts .mxd-save:hover{background:var(--red);opacity:.88}
+
+  /* --- Toast (umumiy, sahifada boshqa toast() bo'lmagani uchun shu yerda) --- */
+  .rb-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,12px);z-index:300;
+    background:var(--surface);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--green);
+    border-radius:11px;padding:11px 18px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-hover);
+    opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;max-width:calc(100vw - 32px)}
+  .rb-toast.err{border-left-color:var(--red)}
+  .rb-toast.show{opacity:1;transform:translate(-50%,0)}
 
   /* --- Bo'sh holatlar --- */
   /* display:block emas 'flex' — #rbEditorEmpty JS orqali style.display='block' bilan
@@ -772,7 +795,7 @@
         <div class="rb-modal-txt" id="rbDelTxt"></div>
         <div class="rb-modal-acts">
           <button type="button" class="mxd-cancel" onclick="rbDelCancel()">Bekor</button>
-          <button type="button" class="mxd-save" style="background:var(--red)" onclick="rbDelConfirm()">
+          <button type="button" class="mxd-save" id="rbDelBtn" style="background:var(--red)" onclick="rbDelConfirm()">
             <i data-lucide="trash-2"></i>O'chirish</button>
         </div>
       </div>
@@ -827,6 +850,19 @@ const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',','
 // innerHTML'ga tushadigan HAR foydalanuvchi matni (nom, subtitle, kod) shundan o'tadi —
 // aks holda nomdagi `<`/`&` sahifa tuzilishini buzadi (boshqa sahifalardagi bilan bir xil).
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Umumiy toast — sahifada boshqa toast() yo'q, shu yerda ochiladi ('Rollar' saqlash tugmalari,
+// ovqat narxi, filial moslama). Bir vaqtda bittadan (yangi chaqiruv eskisini almashtiradi).
+let toastTimer=null;
+function toast(type,msg){
+  let el=$('globalToast');
+  if(!el){ el=document.createElement('div'); el.id='globalToast'; el.className='rb-toast'; document.body.appendChild(el); }
+  el.className='rb-toast'+(type==='err'?' err':'')+' show';
+  el.textContent=msg||'';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ el.classList.remove('show'); },2500);
+}
+window.toast=toast;
+const hhmm=()=>{ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
 let accounts=[], curType='kassa', isAdmin=false;
 // RBAC (Rollar va foydalanuvchilar) holati
 let rbOff=false, rbRoles=[], rbAmalRoyxati=[], rbModdalar=[], rbUsers=[],
@@ -1119,13 +1155,16 @@ window.saveOvqNarx=async()=>{
     if(ovqKechkiBor&&k!==ovqNarx.kechki){ const {error}=await sb.rpc('set_ovqat_narx',{p_tur:'kechki',p_narx:k}); if(error) throw error; }
   }catch(error){
     btn.disabled=false; btn.innerHTML=old; icons();
-    $('ovqNarxRes').className='res err'; $('ovqNarxRes').textContent='Xato: '+(window.permErr?window.permErr(error):error.message);
+    const msg=window.permErr?window.permErr(error):error.message;
+    $('ovqNarxRes').className='res err'; $('ovqNarxRes').textContent='Xato: '+msg;
+    toast('err','Xato: '+msg);
     return;
   }
   ovqNarx={obed:o,zavtrak:z,kechki:k};
   btn.innerHTML=old; icons();
-  $('ovqNarxRes').className='res ok'; $('ovqNarxRes').textContent='Narxlar saqlandi.';
-  onOvqNarxInput();
+  toast('ok','Saqlandi ✓');
+  onOvqNarxInput();   // tugma disabled holatini yangilaydi, `.res` ni ham tozalaydi
+  $('ovqNarxRes').className='res ok'; $('ovqNarxRes').textContent='Narxlar saqlandi · '+hhmm();
 };
 
 // ===== Filial moslashtirish (aros-staff <-> Provodka) — PROVODKA_OVQAT.sql =====
@@ -1179,7 +1218,7 @@ function renderStaffMap(){
     return `<div class="item stm${missing?' miss':''}">
       <div class="mid"><div class="t">${esc(r.branch_nomi||('#'+r.branch_id))}</div><div class="c">${meta}</div></div>
       <select id="stm_${r.branch_id}">${opts}</select>
-      <button class="edit" title="Saqlash" onclick="saveStaffMap(${Number(r.branch_id)})"><i data-lucide="save"></i></button>
+      <button class="edit" id="stmSave_${r.branch_id}" title="Saqlash" onclick="saveStaffMap(${Number(r.branch_id)})"><i data-lucide="save"></i></button>
       ${r.manba==='qolda'?`<button class="edit" title="Avto holatga qaytarish" onclick="autoStaffMap(${Number(r.branch_id)})"><i data-lucide="rotate-ccw"></i></button>`:''}
     </div>`;
   }).join('');
@@ -1188,13 +1227,18 @@ function renderStaffMap(){
 window.saveStaffMap=async(bid)=>{
   const sel=$('stm_'+bid); if(!sel) return;
   const val=sel.value.trim();
-  const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:val||null});
-  if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
-  await loadStaffMap();
+  const btn=$('stmSave_'+bid); if(btn) btn.disabled=true;
+  try{
+    const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:val||null});
+    if(error){ const msg=window.permErr?window.permErr(error):error.message; toast('err','Xato: '+msg); return; }
+    toast('ok','Saqlandi ✓');
+    await loadStaffMap();
+  }finally{ const btn2=$('stmSave_'+bid); if(btn2) btn2.disabled=false; }
 };
 window.autoStaffMap=async(bid)=>{
   const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:null});
-  if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
+  if(error){ toast('err','Xato: '+(window.permErr?window.permErr(error):error.message)); return; }
+  toast('ok','Saqlandi ✓');
   await loadStaffMap();
 };
 
@@ -1914,7 +1958,8 @@ function rbRenderEditor(){
 
     <div id="rbEditorRes" class="res"></div>
     <div class="rb-acts">
-      <button type="button" class="mxd-save" onclick="rbSaveRole()"><i data-lucide="save"></i>Saqlash</button>
+      <span id="rbSaveRes" class="rb-res"></span>
+      <button type="button" class="mxd-save" id="rbSaveBtn" onclick="rbSaveRole()"><i data-lucide="save"></i>Saqlash</button>
       ${delBtn}
       <button type="button" class="mxd-cancel" onclick="rbCloseEditor()">Yopish</button>
     </div>`;
@@ -1944,13 +1989,26 @@ window.rbSaveRole=async()=>{
   if(!nom){ res.className='res err'; res.textContent='Rol nomi kerak'; return; }
   const payload={ id:rbEditing.id, nom, izoh:(rbEditing.izoh||'').trim()||null, is_active:!!rbEditing.is_active,
     amallar:Array.from(rbEditing.amallar), moddalar:Array.from(rbEditing.moddalar), ovqat:Array.from(rbEditing.ovqat) };
-  res.className='res'; res.textContent='Saqlanmoqda...';
-  const {data,error}=await sb.rpc('rbac_role_save',{p_data:payload});
-  if(error){ res.className='res err'; res.textContent='Xato: '+(window.permErr?window.permErr(error):error.message); return; }
-  const savedId=(data&&data.id)||rbEditing.id;
-  await rbLoad();
-  const r=rbRoles.find(x=>x.id===savedId); if(r) window.rbSelectRole(r.id);
-  const res2=$('rbEditorRes'); if(res2){ res2.className='res ok'; res2.textContent='Saqlandi.'; }
+  res.className='res'; res.textContent='';
+  const btn=$('rbSaveBtn'), sres=$('rbSaveRes'), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
+  if(sres){ sres.className='rb-res'; sres.textContent=''; }
+  try{
+    const {data,error}=await sb.rpc('rbac_role_save',{p_data:payload});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      toast('err','Xato: '+msg);
+      if(sres){ sres.className='rb-res err'; sres.textContent='Xato: '+msg; }
+      return;
+    }
+    const savedId=(data&&data.id)||rbEditing.id;
+    await rbLoad();
+    const r=rbRoles.find(x=>x.id===savedId); if(r) window.rbSelectRole(r.id);
+    toast('ok','Saqlandi ✓');
+    const sres2=$('rbSaveRes'); if(sres2){ sres2.className='rb-res ok'; sres2.textContent='Saqlandi · '+hhmm(); }
+  }finally{
+    const btn2=$('rbSaveBtn'); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+  }
 };
 
 window.rbAskDelete=id=>{ const r=rbRoles.find(x=>x.id===id); rbPendingDeleteId=id;
@@ -1960,11 +2018,22 @@ window.rbDelCancel=()=>{ rbPendingDeleteId=null; $('rbDelModal').style.display='
 window.rbDelConfirm=async()=>{
   if(!rbPendingDeleteId) return;
   const id=rbPendingDeleteId;
-  const {error}=await sb.rpc('rbac_role_delete',{p_id:id});
-  if(error){ $('rbDelTxt').textContent='Xato: '+(window.permErr?window.permErr(error):error.message); return; }
-  $('rbDelModal').style.display='none'; rbPendingDeleteId=null;
-  if(rbEditing&&rbEditing.id===id) rbCloseEditor();
-  await rbLoad();
+  const btn=$('rbDelBtn'), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='O\'chirilmoqda…'; }
+  try{
+    const {error}=await sb.rpc('rbac_role_delete',{p_id:id});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      $('rbDelTxt').textContent='Xato: '+msg; toast('err','Xato: '+msg);
+      return;
+    }
+    $('rbDelModal').style.display='none'; rbPendingDeleteId=null;
+    if(rbEditing&&rbEditing.id===id) rbCloseEditor();
+    toast('ok',"O'chirildi ✓");
+    await rbLoad();
+  }finally{
+    const btn2=$('rbDelBtn'); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="trash-2"></i>O\'chirish'; icons(); }
+  }
 };
 
 function rbRenderUsers(){
@@ -1989,15 +2058,32 @@ function rbUserRowHtml(u){
     <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
     <td><span class="rb-urole${isUserAdmin?' adm':''}">${isUserAdmin?'Admin — cheklanmaydi':esc(u.role||'user')}</span></td>
     <td>${dd}</td>
-    <td>${isUserAdmin?'':`<button type="button" class="mxd-btn" id="rbUserSave_${u.id}" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button>`}</td>
+    <td>${isUserAdmin?'':`<button type="button" class="mxd-btn" id="rbUserSave_${u.id}" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbUserRes_${u.id}"></span>`}</td>
   </tr>`;
 }
 window.rbSaveUserRoles=async uid=>{
   const s=rbUserPending[uid]||new Set();
-  const {error}=await sb.rpc('rbac_user_set',{p_user:uid,p_roles:Array.from(s)});
-  if(error){ rbBanner('err','Xato: '+(window.permErr?window.permErr(error):error.message)); return; }
-  rbBanner('ok','Rollar saqlandi.');
-  await rbLoadUsers();
+  const btn=$('rbUserSave_'+uid), res=$('rbUserRes_'+uid), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
+  if(res){ res.className='rb-res'; res.textContent=''; }
+  let rerendered=false;
+  try{
+    const {error}=await sb.rpc('rbac_user_set',{p_user:uid,p_roles:Array.from(s)});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      rbBanner('err','Xato: '+msg); toast('err','Xato: '+msg);
+      const res2=$('rbUserRes_'+uid); if(res2){ res2.className='rb-res err'; res2.textContent='Xato: '+msg; }
+      return;
+    }
+    rbBanner('ok','Rollar saqlandi.'); toast('ok','Saqlandi ✓');
+    await rbLoadUsers();               // rbRenderUsers qatorni to'liq qayta chizadi (tugma holati shundan)
+    rerendered=true;
+    const res3=$('rbUserRes_'+uid); if(res3){ res3.className='rb-res ok'; res3.textContent='Saqlandi · '+hhmm(); }
+  }finally{
+    // Faqat rerender bo'LMAGAN (xato) holatda tugmani qo'lda tikla — muvaffaqiyatda
+    // rbRenderUsers allaqachon to'g'ri (dirty=false → disabled) tugma chizgan, uni bosib o'tmaslik kerak.
+    if(!rerendered){ const btn2=$('rbUserSave_'+uid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); } }
+  }
 };
 window.rbFilterUsers=()=>rbRenderUsers();
 
@@ -2116,18 +2202,34 @@ function rbStaffRowHtml(s){
     <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
     <td><span class="rb-urole">${sub}</span></td>
     <td>${rbDdHtml('staff_'+s.staff_id,pending,rbStaffRoles)}</td>
-    <td><button type="button" class="mxd-btn" id="rbStaffSave_${s.staff_id}" ${dirty?'':'disabled'} onclick="rbSaveStaffRoles('${s.staff_id}')"><i data-lucide="save"></i>Saqlash</button></td>
+    <td><button type="button" class="mxd-btn" id="rbStaffSave_${s.staff_id}" ${dirty?'':'disabled'} onclick="rbSaveStaffRoles('${s.staff_id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbStaffRes_${s.staff_id}"></span></td>
   </tr>`;
 }
 window.rbFilterStaff=()=>rbRenderStaff();
 window.rbSaveStaffRoles=async sid=>{
   const s=rbStaffPending[sid]||new Set();
-  const {error}=await sb.rpc('rbac_staff_set',{p_staff:Number(sid),p_roles:Array.from(s)});
-  if(error){ rbBanner('err','Xato: '+(window.permErr?window.permErr(error):error.message)); return; }
-  const st=rbStaff.find(x=>String(x.staff_id)===String(sid));
-  if(st) st.rollar=rbStaffRoles.filter(r=>s.has(r.id)).map(r=>({id:r.id,nom:r.nom}));
-  rbBanner('ok','Rollar saqlandi.');
-  rbRenderStaff();
+  const btn=$('rbStaffSave_'+sid), res=$('rbStaffRes_'+sid), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
+  if(res){ res.className='rb-res'; res.textContent=''; }
+  try{
+    const {error}=await sb.rpc('rbac_staff_set',{p_staff:Number(sid),p_roles:Array.from(s)});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      rbBanner('err','Xato: '+msg); toast('err','Xato: '+msg);
+      const res2=$('rbStaffRes_'+sid); if(res2){ res2.className='rb-res err'; res2.textContent='Xato: '+msg; }
+      const btn2=$('rbStaffSave_'+sid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+      return;
+    }
+    const st=rbStaff.find(x=>String(x.staff_id)===String(sid));
+    if(st) st.rollar=rbStaffRoles.filter(r=>s.has(r.id)).map(r=>({id:r.id,nom:r.nom}));
+    rbBanner('ok','Rollar saqlandi.'); toast('ok','Saqlandi ✓');
+    rbRenderStaff();                  // qatorni qayta chizadi (tugma disabled=true, dirty=false)
+    const res3=$('rbStaffRes_'+sid); if(res3){ res3.className='rb-res ok'; res3.textContent='Saqlandi · '+hhmm(); }
+  }catch(e){
+    const msg=window.permErr?window.permErr(e):(e&&e.message)||String(e);
+    toast('err','Xato: '+msg);
+    const btn2=$('rbStaffSave_'+sid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+  }
 };
 
 // ===== "Rollar" bo'limi alohida ko'rinish (hash #rollar) — Asilbek so'rovi: bo'lim

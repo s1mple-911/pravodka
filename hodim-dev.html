@@ -1926,8 +1926,6 @@ function ovqatRoyxat(){
   ovqatSel.forEach(k=>{ const i=k.lastIndexOf(':'); if(i<0) return;
     const tur=k.slice(i+1);
     const staffId=Number(k.slice(0,i));
-    // RBAC (yozuvchi): rol o'zgargach ovqatSel'da qolib ketgan ruxsatsiz tur hisobga kirmaydi.
-    if(window.permOvqatOk && !window.permOvqatOk(tur)) return;
     // RBAC (yeyuvchi): hodimning o'zida shu ovqat turiga ruxsat bo'lmasa hisobga kirmaydi.
     if(!ovqatStaffOk(staffId,tur)) return;
     out.push({staff_id:staffId, tur}); });
@@ -1941,7 +1939,6 @@ function ovqatRoyxatSumma(){
 }
 window.ovqatToggle=(staffId,tur)=>{
   if(ovqatTodayHas(staffId,tur)) return;   // himoya — tugma disabled bo'lishi kerak, lekin dasturiy chaqiruvdan ham to'siladi
-  if(window.permOvqatOk && !window.permOvqatOk(tur)) return;   // yozuvchi ruxsati yo'q
   if(!ovqatStaffOk(staffId,tur)) return;                       // yeyuvchi (hodim) ruxsati yo'q
   const k=ovqatKey(staffId,tur);
   if(ovqatSel.has(k)) ovqatSel.delete(k); else ovqatSel.add(k);
@@ -2060,7 +2057,7 @@ function renderOvqatChips(){
   icons();
 }
 function ovqatTurlariRuxsatli(){
-  return !window.permOvqatOk || ['obed','zavtrak','kechki'].some(t=>window.permOvqatOk(t));
+  return true;   // Asilbek qarori 2026-08-27: ovqat cheklovi FAQAT yeyuvchi hodim roli bo'yicha — yozuvchi roli hisobga olinmaydi
 }
 function renderOvqatList(){
   const box=$('ovqatList'); if(!box) return;
@@ -2083,8 +2080,6 @@ function renderOvqatList(){
     const nom=ovqatNomi(s);
     const sub=[s.lavozim, s.branch_nomi].filter(Boolean).join(' · ');
     const btn=(tur,lbl)=>{
-      // RBAC (yozuvchi): rolda yo'q ovqat turi tugmasi umuman chizilmaydi.
-      if(window.permOvqatOk && !window.permOvqatOk(tur)) return '';
       // RBAC (yeyuvchi): hodimning o'zida shu ovqat turiga ruxsat bo'lmasa tugma chizilmaydi.
       if(!ovqatStaffOk(s.staff_id,tur)) return '';
       const taken=ovqatToday[ovqatKey(s.staff_id,tur)];

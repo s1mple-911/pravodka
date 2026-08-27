@@ -295,15 +295,10 @@ begin
       raise exception 'Ro''yxatdagi %-satrda tur noto''g''ri (obed|zavtrak|kechki kerak)', v_i using errcode = '22000';
     end if;
 
-    -- 🔴 YOZUVCHI (PROVODKA_RBAC.sql): rolida shu ovqat turi bo'lmagan user yoza olmaydi —
-    --    SERVER tomonda, UI yashirishi yetarli emas. RBAC fayli hali RUN qilinmagan
-    --    bo'lsa (funksiya yo'q) — rol tushunchasi yo'q, eski xatti-harakat (ruxsat).
-    if to_regprocedure('public.rbac_ovqat_ok(text)') is not null then
-      execute 'select rbac_ovqat_ok($1)' into v_rbac_ok using v_tur;
-      if not coalesce(v_rbac_ok, false) then
-        raise exception 'Ruxsat yoq: "%" ovqat turi rolingizda yoq', v_tur using errcode = '42501';
-      end if;
-    end if;
+    -- 🔴 Asilbek qarori (2026-08-27): YOZUVCHI roli ovqatga TA'SIR QILMAYDI —
+    --    faqat yeyuvchi hodim roli (pastdagi rbac_staff_ovqat). Eski yozuvchi
+    --    tekshiruvi (rbac_ovqat_ok) ataylab OLIB TASHLANDI: yozuvchida faqat obed
+    --    bo'lsa hamkasblarining kechki/zavtragi yashirilib qolardi.
 
     v_key := v_staff::text || ':' || v_tur;
     if v_key = any(v_seen_keys) then
