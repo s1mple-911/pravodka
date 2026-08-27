@@ -987,7 +987,7 @@
         <div class="ov-counter" id="ovqatCounter"></div>
         <div id="ovqatChips" class="ov-chips"></div>
         <div id="ovqatErr" class="ov-err" style="display:none"></div>
-        <input class="txt" id="ovqatSearch" placeholder="Hodim qidirish (ism)" autocomplete="off" oninput="renderOvqatList()" aria-label="Hodim qidirish">
+        <input class="txt" id="ovqatSearch" placeholder="Hodim qidirish (ism)" autocomplete="off" aria-label="Hodim qidirish">
         <div id="ovqatList" class="ov-list"></div>
       </div>
 
@@ -2023,11 +2023,14 @@ function renderOvqatList(){
   if(!ovqatLoaded){ box.innerHTML=''; return; }
   const q=String(($('ovqatSearch')&&$('ovqatSearch').value)||'').trim().toLowerCase();
   const bids=ovqatMeningBranchIds();
-  const rows=ovqatStaff.filter(s=>!q || ovqatNomi(s).toLowerCase().includes(q));
-  const mine=[], others=[];
-  rows.forEach(s=>{ (ovqatIsMening(s,bids)?mine:others).push(s); });
+  // 🔴 FAQAT "Mening filialim" (Asilbek qarori 2026-08-27): boshqa filial hodimlari
+  //    umuman ko'rsatilmaydi. Filial mosligi topilmasa — ro'yxat bo'sh + aniq sabab
+  //    (fail-closed: saqlash baribir yopiq, chunki tanlangan hodim bo'lmaydi).
+  const mineAll=ovqatStaff.filter(s=>ovqatIsMening(s,bids));
+  const rows=mineAll.filter(s=>!q || ovqatNomi(s).toLowerCase().includes(q));
+  const mine=rows;
   const byNom=(a,b)=>ovqatNomi(a).localeCompare(ovqatNomi(b));
-  mine.sort(byNom); others.sort(byNom);
+  mine.sort(byNom);
   const rowHtml=s=>{
     const nom=ovqatNomi(s);
     const sub=[s.lavozim, s.branch_nomi].filter(Boolean).join(' · ');
@@ -2042,12 +2045,13 @@ function renderOvqatList(){
       +`<div class="ov-acts">${btn('obed','Obed')}${btn('zavtrak','Zavtrak')}</div></div>`;
   };
   let html='';
-  if(mine.length) html+='<div class="ov-grp">Mening filialim</div>'+mine.map(rowHtml).join('');
-  html+='<div class="ov-grp">Boshqalar</div>'+(others.length?others.map(rowHtml).join(''):'<div class="ov-empty">Topilmadi</div>');
+  const k=effKassa(), filialNomi=(k&&k.subtitle)?String(k.subtitle).split(' · ')[0]:'';
+  if(mine.length) html='<div class="ov-grp">Mening filialim'+(filialNomi?' · '+esc(filialNomi):'')+'</div>'+mine.map(rowHtml).join('');
   // 🔴 Ro'yxat umuman bo'sh (sinxron ishlamagan) — xatosiz bo'lsa ham aniq sabab ko'rsatiladi; saqlash baribir yopiq
   if(!(ovqatStaff&&ovqatStaff.length)) html='<div class="ov-empty">Hodimlar ro\'yxati bo\'sh — aros-staff sinxroni (n8n) hali ishlamagan. Ovqat yozib bo\'lmaydi.</div>';
-  else if(!mine.length && !others.length && !rows.length) html='<div class="ov-empty">Topilmadi</div>';
-  box.innerHTML=html; icons();
+  else if(!mineAll.length) html='<div class="ov-empty">'+(filialNomi?('«'+esc(filialNomi)+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish bo\'limida bog\'lang.'):'Kassangizga filial biriktirilmagan — ovqat yozib bo\'lmaydi.')+'</div>';
+  else if(!mine.length) html='<div class="ov-empty">Topilmadi</div>';
+  box.innerHTML=html;   // qatorlarda lucide ikonka yo'q — icons() chaqirilmaydi (har harfda butun sahifani skan qilib qidiruvni sekinlashtirardi)
 }
 // Modda ostida ko'rinish/berkitish. `updateModdaUI()` faqat modda picker/reset
 // nuqtalarida chaqiriladi (har renderdan emas) — shuning uchun ovqat_bugun() ni
@@ -4482,6 +4486,11 @@ document.addEventListener('visibilitychange',()=>{
   if(yangiVersiya) reloadAgarXavfsiz(); else versiyaTekshir();
 });
 setInterval(()=>{ if(yangiVersiya) reloadAgarXavfsiz(); else versiyaTekshir(); },600000);   // 10 daqiqa
+
+// Ovqat qidiruvi — inline onclick emas (module funksiyasi global emas), debounce 120ms:
+// har harfda 100 qatorli ro'yxatni qayta chizish o'rniga yozib bo'lgach bir marta chiziladi.
+{ const se=$('ovqatSearch'); let st=null;
+  if(se) se.addEventListener('input',()=>{ clearTimeout(st); st=setTimeout(renderOvqatList,120); }); }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin (TDZ oldini olish).
 boot();
