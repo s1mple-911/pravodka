@@ -134,6 +134,9 @@
   .mxd-btn.on{border-color:var(--primary);background:var(--primary-soft);
     color:var(--primary-ink,var(--primary))}
   .mxd-btn[aria-expanded="true"],.mxd-btn.open{box-shadow:0 0 0 3px var(--primary-soft)}
+  /* Saqlash — faqat qator o'zgarganda faol (rb-dd o'zgarishi bilan JS disabled'ni boshqaradi) */
+  .mxd-btn:disabled{opacity:.4;cursor:not-allowed;color:var(--muted)}
+  .mxd-btn:disabled:hover{border-color:var(--line);color:var(--muted)}
 
   /* --- Detal kartasi --- */
   .mxd-card{scroll-margin-top:16px}
@@ -309,6 +312,21 @@
   .rb-wrap{display:grid;grid-template-columns:260px 1fr;gap:18px;margin-top:4px;align-items:start}
   @media(max-width:640px){.rb-wrap{grid-template-columns:1fr}}
 
+  /* --- Alohida ko'rinish sarlavhasi (#rollar hash): orqaga tugma + nom bitta qatorda --- */
+  .rb-headrow{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .rb-back{flex:0 0 auto;width:36px;height:36px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:background .13s,border-color .13s,transform .12s}
+  .rb-back svg{width:19px;height:19px}
+  .rb-back:hover{background:var(--surface-2);border-color:var(--primary);color:var(--primary)}
+  .rb-back:active{transform:translateX(-1px)}
+  .rb-title{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Odatiy holatda (Sozlamalar ichida, orqaga tugmasi yashirin) — boshqa kartalardagi
+     .sec bilan bir xil ko'rinish, "Alohida ko'rinish"ga o'tganda (#rollar) katta sarlavha */
+  .rb-headrow:has(.rb-back[style*="none"]) .rb-title{font-size:13px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+
   /* --- Chap: rollar ro'yxati --- */
   .rb-roles{min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px;min-height:44px}
   .rb-roles-hd{display:flex;gap:8px;margin-bottom:10px}
@@ -351,15 +369,27 @@
     text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;
     transition:text-decoration-color .13s,background .13s}
   .rb-modda-hd .mxd-btn:hover{background:var(--primary-soft);text-decoration-color:var(--primary);color:var(--primary)}
-  .rb-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:16px}
+  /* Bo'limlar orasidagi ajratgich (Amallar / Xarajat moddalari / Ovqat) — Nomi/Izoh/Faol
+     guruhi bilan aralashmasin, shuning uchun faqat .rb-sec belgilangan qatorda */
+  .rb-sec{border-top:1px solid var(--line);padding-top:18px;margin-top:18px!important}
+  .rb-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;justify-content:flex-end;
+    border-top:1px solid var(--line);padding-top:16px}
 
-  /* --- Foydalanuvchilar jadvali --- */
-  .rb-users{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:10px;background:var(--surface)}
-  .rb-users table{width:100%;border-collapse:collapse}
+  /* --- Foydalanuvchilar jadvali ---
+     🔴 overflow:hidden ATAYLAB YO'Q: .rb-dd-menu popover shu konteyner ICHIDA absolute
+     joylashadi (dropdown tugmasi jadval katagida) — overflow:hidden bo'lsa popover
+     radius chizig'idan tashqarida kesilib qolardi. Burchaklar shuning uchun
+     border-collapse:separate + har chekka katakka alohida radius bilan yumaloqlanadi. */
+  .rb-users{border:1px solid var(--line);border-radius:14px;margin-top:10px;background:var(--surface)}
+  .rb-users table{width:100%;border-collapse:separate;border-spacing:0}
   .rb-users th{text-align:left;padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;
     letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line)}
   .rb-users td{text-align:left;padding:12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
   .rb-users tr:last-child td{border-bottom:none}
+  .rb-users thead th:first-child{border-top-left-radius:13px}
+  .rb-users thead th:last-child{border-top-right-radius:13px}
+  .rb-users tbody tr:last-child td:first-child{border-bottom-left-radius:13px}
+  .rb-users tbody tr:last-child td:last-child{border-bottom-right-radius:13px}
   .rb-uinfo{display:flex;align-items:center;gap:10px;min-width:0}
   .rb-avatar{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:var(--primary-soft);
     color:var(--primary);display:flex;align-items:center;justify-content:center;
@@ -367,13 +397,39 @@
   .rb-uname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--ink)}
   .rb-urole{color:var(--muted);font-size:12.5px}
   .rb-urole.adm{color:var(--primary);font-weight:600}
-  .rb-chipwrap{display:flex;flex-wrap:wrap;gap:6px;max-width:340px}
-  .rb-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:5px 11px;
-    min-height:28px;border-radius:999px;border:1px solid var(--line);color:var(--ink);cursor:pointer;
-    background:var(--surface);transition:border-color .13s,background .13s,color .13s}
-  .rb-chip:hover{border-color:var(--primary)}
-  .rb-chip.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
   .rb-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+  /* Dropdown + Saqlash — bitta qatorda (desktop, table td yonma-yon); mobilda .rb-users
+     qoidasi tufayli har td alohida blok bo'lib ustma-ust tushadi (pastdagi @media) */
+  .rb-users td:has(.rb-dd),.rb-users td:has(.mxd-btn){white-space:nowrap}
+
+  /* --- Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi/hodim
+       qatorlarida chip ro'yxati o'rniga. Modda/amal checkbox-gridiga tegilmagan. --- */
+  .rb-dd{position:relative;display:inline-block;min-width:0;max-width:100%;vertical-align:middle}
+  .rb-dd-btn{display:flex;align-items:center;gap:8px;width:220px;max-width:100%;height:36px;padding:0 10px;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);
+    font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:border-color .13s,box-shadow .13s}
+  .rb-dd-btn:hover{border-color:var(--primary)}
+  .rb-dd.open .rb-dd-btn{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .rb-dd-btn svg{width:14px;height:14px;flex:0 0 auto;margin-left:auto;color:var(--muted);transition:transform .13s}
+  .rb-dd.open .rb-dd-btn svg{transform:rotate(180deg)}
+  .rb-dd-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+  /* z-index jadval/kartadan yuqori — .rb-users overflow:hidden ISHLATMAYDI (yuqoriga qarang),
+     shuning uchun bu popover katak chegarasidan tashqariga chiqib to'liq ko'rinadi */
+  .rb-dd-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:45;min-width:230px;
+    max-width:300px;max-height:264px;overflow:auto;background:var(--surface);border:1px solid var(--line);
+    border-radius:11px;box-shadow:var(--shadow-hover);padding:6px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .rb-dd.open .rb-dd-menu{display:block}
+  .rb-dd-item{display:flex;align-items:center;gap:9px;padding:0 10px;border-radius:8px;cursor:pointer;
+    font-size:13px;color:var(--ink);min-height:40px;transition:background .13s,color .13s}
+  .rb-dd-item:hover{background:var(--surface-2)}
+  .rb-dd-item:has(input:checked){background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .rb-dd-item input{margin:0;flex:0 0 auto;width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+  .rb-dd-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .rb-dd-ovq{font-size:10.5px;color:var(--muted);font-style:normal;font-weight:500;flex:0 0 auto}
+  .rb-dd-item:has(input:checked) .rb-dd-ovq{color:var(--primary)}
+  .rb-dd-empty{color:var(--muted);cursor:default}
+  .rb-dd-empty:hover{background:transparent}
 
   /* --- O'chirish modali --- */
   .rb-modal{position:fixed;inset:0;background:rgba(16,24,40,.55);display:none;align-items:center;
@@ -397,7 +453,9 @@
     .rb-users table,.rb-users tbody,.rb-users tr,.rb-users td{display:block;width:100%}
     .rb-users tr{padding:12px;border-bottom:1px solid var(--line)}
     .rb-users td{border-bottom:none;padding:5px 0}
-    .rb-chipwrap{max-width:none}
+    .rb-users tr:last-child td:first-child,.rb-users tr:last-child td:last-child{border-radius:0}
+    .rb-dd-btn{max-width:none;width:100%}
+    .rb-dd-menu{left:0;right:0;min-width:0;max-width:none}
   }
 </style>
 </head>
@@ -662,7 +720,11 @@
     <!-- ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql). Admin-only,
          RPC yo'q bo'lsa (SQL RUN qilinmagan) rpcMissing() bilan jimgina yashirinadi. ===== -->
     <div class="card" id="rollarCard" style="display:none">
-      <div class="sec" id="rollar">Rollar va foydalanuvchilar</div>
+      <div class="rb-headrow">
+        <button type="button" class="rb-back" id="rbBackBtn" style="display:none"
+          onclick="rbBackToSozlama()" aria-label="Sozlamalarga qaytish"><i data-lucide="chevron-left"></i></button>
+        <h2 class="rb-title" id="rollar">Rollar va foydalanuvchilar</h2>
+      </div>
       <div class="hint">Har foydalanuvchiga bir yoki bir nechta rol berilishi mumkin — rolga
         biriktirilgan amallar (sahifalar), xarajat moddalari va ovqat turlari o'sha
         foydalanuvchi uchun ruxsat beradi (eski shaxsiy ruxsat bilan birga, UNION).
@@ -684,9 +746,24 @@
       <div class="rb-empty" id="rbEditorEmpty"><i data-lucide="user-round-cog"></i>
         <span>Chapdan biror rolni tanlang yoki "Yangi rol" tugmasini bosing.</span></div>
 
-      <div class="sec" style="margin-top:22px">Foydalanuvchilar</div>
-      <input class="mxd-in" id="rbUserSearch" placeholder="Foydalanuvchi qidirish..." oninput="rbFilterUsers()">
-      <div class="rb-users" id="rbUserList"></div>
+      <!-- Ikki tab: Supabase auth foydalanuvchilari va aros-staff hodimlari (ovqat/rol).
+           Hodim tab RPC (PROVODKA_RBAC_STAFF.sql) yo'q bo'lsa rpcMissing() bilan yashirinadi. -->
+      <div class="seg" id="rbTabs" style="margin-top:22px;max-width:420px">
+        <button type="button" class="on" id="rbTabUserBtn" onclick="rbSwitchTab('user')">Kirish foydalanuvchilari</button>
+        <button type="button" id="rbTabStaffBtn" style="display:none" onclick="rbSwitchTab('staff')">Hodimlar (aros-staff)</button>
+      </div>
+
+      <div id="rbUserPane">
+        <input class="mxd-in" id="rbUserSearch" placeholder="Foydalanuvchi qidirish..." oninput="rbFilterUsers()">
+        <div class="rb-users" id="rbUserList"></div>
+      </div>
+
+      <div id="rbStaffPane" style="display:none">
+        <div class="rb-note" style="margin:0 0 10px">Hodimning roli uning qaysi ovqatni olishini
+          belgilaydi (obed/zavtrak/kechki).</div>
+        <input class="mxd-in" id="rbStaffSearch" placeholder="Hodim qidirish..." oninput="rbFilterStaff()">
+        <div class="rb-users" id="rbStaffList"></div>
+      </div>
     </div>
 
     <!-- Rol o'chirish tasdig'i — sahifa ichi modal (brauzer confirm() ISHLATILMAYDI) -->
@@ -754,6 +831,8 @@ let accounts=[], curType='kassa', isAdmin=false;
 // RBAC (Rollar va foydalanuvchilar) holati
 let rbOff=false, rbRoles=[], rbAmalRoyxati=[], rbModdalar=[], rbUsers=[],
     rbEditing=null, rbUserPending={}, rbPendingDeleteId=null, rbModdaQ='';
+// RBAC — Hodimlar (aros-staff) tabi holati (PROVODKA_RBAC_STAFF.sql)
+let rbStaffOff=true, rbStaff=[], rbStaffRoles=[], rbStaffPending={}, rbTab='user';
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -1741,9 +1820,11 @@ async function rbLoad(){
   const {data,error}=await sb.rpc('rbac_royxat');
   if(error){
     if(rpcMissing(error)){ rbOff=true; $('rollarCard').style.display='none';
-      const nav=document.getElementById('navRollar'); if(nav) nav.style.display='none'; return; }
+      const nav=document.getElementById('navRollar'); if(nav) nav.style.display='none';
+      sozApplyRollarFocus(); return; }
     rbOff=false; $('rollarCard').style.display='block';
     rbBanner('err',"Rollar o'qilmadi: "+(window.permErr?window.permErr(error):error.message));
+    sozApplyRollarFocus();
     return;
   }
   rbOff=false;
@@ -1758,6 +1839,8 @@ async function rbLoad(){
   else{ rbRenderEditor(); }
   rbRenderRoles();
   await rbLoadUsers();
+  await rbLoadStaff();
+  sozApplyRollarFocus();
 }
 async function rbLoadUsers(){
   if(!isAdmin||rbOff) return;
@@ -1809,11 +1892,11 @@ function rbRenderEditor(){
       <input class="mxd-in" id="rbIzoh" maxlength="200" value="${esc(rbEditing.izoh)}" oninput="rbEditField('izoh',this.value)"></div>
     <label class="chekopt ${rbEditing.is_active?'on':''}"><input type="checkbox" ${rbEditing.is_active?'checked':''} onchange="rbEditField('is_active',this.checked)">Faol</label>
 
-    <div class="rb-frow" style="margin-top:16px"><div class="mxd-l rb-sub">Amallar (sahifalar)</div>
+    <div class="rb-frow rb-sec"><div class="mxd-l rb-sub">Amallar (sahifalar)</div>
       <div class="rb-grid-check">${rbAmalRoyxati.map(a=>`
         <label class="rb-chk"><input type="checkbox" ${rbEditing.amallar.has(a)?'checked':''} onchange="rbToggleSet('amallar','${a}',this.checked)"><span>${esc(rbAmalLabel(a))}</span></label>`).join('')}</div></div>
 
-    <div class="rb-frow" style="margin-top:16px">
+    <div class="rb-frow rb-sec">
       <div class="rb-frow-title"><div class="mxd-l rb-sub" style="margin:0">Xarajat moddalari</div></div>
       <div class="rb-modda-hd">
         <input class="mxd-in" id="rbModdaQ" placeholder="Modda qidirish..." value="${esc(rbModdaQ)}" oninput="rbModdaSearch(this.value)">
@@ -1822,7 +1905,7 @@ function rbRenderEditor(){
       </div>
       <div class="rb-grid-check" id="rbModdaGrid"></div></div>
 
-    <div class="rb-frow" style="margin-top:16px"><div class="mxd-l rb-sub">Ovqat</div>
+    <div class="rb-frow rb-sec"><div class="mxd-l rb-sub">Ovqat</div>
       <div class="rb-grid-check">
         <label class="rb-chk"><input type="checkbox" ${rbEditing.ovqat.has('zavtrak')?'checked':''} onchange="rbToggleSet('ovqat','zavtrak',this.checked)"><span>Zavtrak</span></label>
         <label class="rb-chk"><input type="checkbox" ${rbEditing.ovqat.has('obed')?'checked':''} onchange="rbToggleSet('ovqat','obed',this.checked)"><span>Obed</span></label>
@@ -1900,20 +1983,15 @@ function rbUserRowHtml(u){
   const isUserAdmin=u.role==='admin';
   const pending=rbUserPending[u.id]||new Set();
   const orig=new Set((u.roles||[]).map(r=>r.id));
-  const dirty=pending.size!==orig.size||Array.from(pending).some(id=>!orig.has(id));
-  const chips=rbRoles.map(r=>`<span class="rb-chip ${pending.has(r.id)?'on':''}"${isUserAdmin?'':` onclick="rbToggleUserRole('${u.id}','${r.id}')"`}>${esc(r.nom)}</span>`).join('');
+  const dirty=rbSetsDiffer(pending,orig);
+  const dd=isUserAdmin?'<span class="rb-urole">—</span>':rbDdHtml('user_'+u.id,pending,rbRoles);
   return `<tr>
     <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
     <td><span class="rb-urole${isUserAdmin?' adm':''}">${isUserAdmin?'Admin — cheklanmaydi':esc(u.role||'user')}</span></td>
-    <td>${isUserAdmin?'<span class="rb-urole">—</span>':(chips?`<div class="rb-chipwrap">${chips}</div>`:'<span class="rb-note" style="margin:0">Rolsiz</span>')}</td>
-    <td>${isUserAdmin?'':`<button type="button" class="mxd-btn" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button>`}</td>
+    <td>${dd}</td>
+    <td>${isUserAdmin?'':`<button type="button" class="mxd-btn" id="rbUserSave_${u.id}" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button>`}</td>
   </tr>`;
 }
-window.rbToggleUserRole=(uid,rid)=>{
-  const s=rbUserPending[uid]||(rbUserPending[uid]=new Set());
-  if(s.has(rid)) s.delete(rid); else s.add(rid);
-  rbRenderUsers();
-};
 window.rbSaveUserRoles=async uid=>{
   const s=rbUserPending[uid]||new Set();
   const {error}=await sb.rpc('rbac_user_set',{p_user:uid,p_roles:Array.from(s)});
@@ -1922,6 +2000,163 @@ window.rbSaveUserRoles=async uid=>{
   await rbLoadUsers();
 };
 window.rbFilterUsers=()=>rbRenderUsers();
+
+// ===== Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi VA hodim
+//       qatorlarida bir xil ishlatiladi. ddId shakli "<kind>_<key>" (masalan "user_<uuid>",
+//       "staff_<staff_id>") — kind/key shundan ajratiladi. =====
+function rbSetsDiffer(a,b){ return a.size!==b.size||Array.from(a).some(id=>!b.has(id)); }
+function rbDdLabel(sel,rolesList){
+  const roles=rolesList||rbRoles;
+  if(!sel||!sel.size) return '<span class="rb-note" style="margin:0">Rolsiz</span>';
+  const names=roles.filter(r=>sel.has(r.id)).map(r=>r.nom);
+  if(!names.length) return `<span class="rb-note" style="margin:0">${sel.size} ta</span>`;
+  if(names.length<=2) return esc(names.join(', '));
+  return esc(names[0])+', '+esc(names[1])+` +${names.length-2}`;
+}
+function rbDdHtml(ddId,sel,rolesList){
+  const roles=rolesList||rbRoles;
+  const us=ddId.indexOf('_'); const kind=ddId.slice(0,us), key=ddId.slice(us+1);
+  const items=roles.length?roles.map(r=>`
+      <label class="rb-dd-item"><input type="checkbox" ${sel.has(r.id)?'checked':''}
+        onchange="rbDdCheck('${kind}','${esc(key)}','${r.id}',this.checked)">
+        <span>${esc(r.nom)}</span>${(r.ovqat&&r.ovqat.length)?`<i class="rb-dd-ovq">${esc(r.ovqat.join('·'))}</i>`:''}</label>`).join('')
+    :'<div class="rb-dd-item rb-dd-empty">Rol topilmadi</div>';
+  return `<div class="rb-dd" data-dd-id="${ddId}">
+    <button type="button" class="rb-dd-btn" onclick="rbDdToggle('${ddId}')">
+      <span class="rb-dd-label">${rbDdLabel(sel,roles)}</span><i data-lucide="chevron-down"></i>
+    </button>
+    <div class="rb-dd-menu">${items}</div>
+  </div>`;
+}
+window.rbDdToggle=ddId=>{
+  const wrap=document.querySelector(`.rb-dd[data-dd-id="${ddId}"]`); if(!wrap) return;
+  const wasOpen=wrap.classList.contains('open');
+  document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+  if(!wasOpen) wrap.classList.add('open');
+};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.rb-dd')) document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+});
+window.rbDdCheck=(kind,key,rid,checked)=>{
+  const map=kind==='staff'?rbStaffPending:rbUserPending;
+  const s=map[key]||(map[key]=new Set());
+  if(checked) s.add(rid); else s.delete(rid);
+  rbDdRefreshRow(kind,key);
+};
+function rbDdRefreshRow(kind,key){
+  const ddId=kind+'_'+key;
+  const wrap=document.querySelector(`.rb-dd[data-dd-id="${ddId}"]`); if(!wrap) return;
+  const isStaff=kind==='staff';
+  const map=isStaff?rbStaffPending:rbUserPending;
+  const roles=isStaff?rbStaffRoles:rbRoles;
+  const sel=map[key]||new Set();
+  const lbl=wrap.querySelector('.rb-dd-label'); if(lbl) lbl.innerHTML=rbDdLabel(sel,roles);
+  let orig;
+  if(isStaff){ const st=rbStaff.find(x=>String(x.staff_id)===String(key)); orig=new Set((st&&st.rollar||[]).map(r=>r.id)); }
+  else{ const u=rbUsers.find(x=>String(x.id)===String(key)); orig=new Set((u&&u.roles||[]).map(r=>r.id)); }
+  const dirty=rbSetsDiffer(sel,orig);
+  const saveBtn=document.getElementById((isStaff?'rbStaffSave_':'rbUserSave_')+key);
+  if(saveBtn) saveBtn.disabled=!dirty;
+}
+
+// ===== Rollar — tab almashtirish: "Kirish foydalanuvchilari" / "Hodimlar (aros-staff)" =====
+window.rbSwitchTab=tab=>{
+  rbTab=tab;
+  const ub=$('rbTabUserBtn'), sb2=$('rbTabStaffBtn');
+  if(ub) ub.classList.toggle('on',tab==='user');
+  if(sb2) sb2.classList.toggle('on',tab==='staff');
+  const up=$('rbUserPane'), sp=$('rbStaffPane');
+  if(up) up.style.display=tab==='user'?'block':'none';
+  if(sp) sp.style.display=tab==='staff'?'block':'none';
+};
+
+// ===== Hodimlar (aros-staff) tabi — PROVODKA_RBAC_STAFF.sql: rbac_staff_royxat()/rbac_staff_set().
+//       RPC hali bazada yo'q bo'lsa (rpcMissing) tab jimgina yashirinadi, foydalanuvchilar
+//       tabi (mavjud rbac_users) avvalgidek ishlayveradi. =====
+async function rbLoadStaff(){
+  if(!isAdmin||rbOff) return;
+  const {data,error}=await sb.rpc('rbac_staff_royxat');
+  if(error){
+    if(rpcMissing(error)){ rbStaffOff=true; const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='none';
+      if(rbTab==='staff') window.rbSwitchTab('user'); return; }
+    rbStaffOff=false; const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='';
+    rbBanner('err',"Hodimlar o'qilmadi: "+(window.permErr?window.permErr(error):error.message));
+    return;
+  }
+  rbStaffOff=false;
+  const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='';
+  rbStaff=Array.isArray(data&&data.hodimlar)?data.hodimlar:[];   // SQL kaliti: hodimlar (rollar ichida)
+  rbStaffRoles=Array.isArray(data&&data.rollar)?data.rollar:rbRoles;
+  rbStaffPending={};
+  rbStaff.forEach(s=>{ rbStaffPending[s.staff_id]=new Set((s.rollar||[]).map(r=>r.id)); });
+  rbRenderStaff();
+}
+function rbRenderStaff(){
+  const box=$('rbStaffList'); if(!box) return;
+  const q=(($('rbStaffSearch')&&$('rbStaffSearch').value)||'').trim().toLowerCase();
+  const list=rbStaff.filter(s=>{ if(!q) return true;
+    const nm=(String(s.toliq_nom||'')+' '+String(s.lavozim||'')+' '+String(s.branch_nomi||'')).toLowerCase();
+    return nm.indexOf(q)>=0; });
+  box.innerHTML=list.length?`<table><thead><tr><th>Hodim</th><th>Lavozim · Filial</th><th>Rollar</th><th></th></tr></thead><tbody>${
+    list.map(s=>rbStaffRowHtml(s)).join('')}</tbody></table>`:'<div class="rb-empty"><i data-lucide="user-search"></i><span>Hodim topilmadi</span></div>';
+  icons();
+}
+function rbStaffRowHtml(s){
+  const rawName=s.toliq_nom||('#'+String(s.staff_id));
+  const name=esc(rawName);
+  const initial=esc(String(rawName).trim().charAt(0)||'?');
+  const sub=esc([s.lavozim,s.branch_nomi].filter(Boolean).join(' · '))||'—';
+  const pending=rbStaffPending[s.staff_id]||new Set();
+  const orig=new Set((s.rollar||[]).map(r=>r.id));
+  const dirty=rbSetsDiffer(pending,orig);
+  return `<tr>
+    <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
+    <td><span class="rb-urole">${sub}</span></td>
+    <td>${rbDdHtml('staff_'+s.staff_id,pending,rbStaffRoles)}</td>
+    <td><button type="button" class="mxd-btn" id="rbStaffSave_${s.staff_id}" ${dirty?'':'disabled'} onclick="rbSaveStaffRoles('${s.staff_id}')"><i data-lucide="save"></i>Saqlash</button></td>
+  </tr>`;
+}
+window.rbFilterStaff=()=>rbRenderStaff();
+window.rbSaveStaffRoles=async sid=>{
+  const s=rbStaffPending[sid]||new Set();
+  const {error}=await sb.rpc('rbac_staff_set',{p_staff:Number(sid),p_roles:Array.from(s)});
+  if(error){ rbBanner('err','Xato: '+(window.permErr?window.permErr(error):error.message)); return; }
+  const st=rbStaff.find(x=>String(x.staff_id)===String(sid));
+  if(st) st.rollar=rbStaffRoles.filter(r=>s.has(r.id)).map(r=>({id:r.id,nom:r.nom}));
+  rbBanner('ok','Rollar saqlandi.');
+  rbRenderStaff();
+};
+
+// ===== "Rollar" bo'limi alohida ko'rinish (hash #rollar) — Asilbek so'rovi: bo'lim
+//       ochilganda boshqa sozlama kartalari skroll qilinmasin, faqat Rollar ko'rinsin.
+//       Kartalarning avvalgi inline `display` qiymati dataset'ga saqlanadi va qaytariladi —
+//       ular o'z holatini (mxdCard/filCard/... ko'rinish shartlari) yo'qotmasligi uchun. =====
+function sozApplyRollarFocus(){
+  const card=$('rollarCard');
+  const on=location.hash==='#rollar'&&isAdmin&&!rbOff&&card&&card.style.display!=='none';
+  document.querySelectorAll('.main > .card').forEach(c=>{
+    if(c.id==='rollarCard') return;
+    if(on){
+      if(c.dataset.sozPrevDisplay===undefined) c.dataset.sozPrevDisplay=c.style.display||'';
+      c.style.display='none';
+    }else if(c.dataset.sozPrevDisplay!==undefined){
+      c.style.display=c.dataset.sozPrevDisplay;
+      delete c.dataset.sozPrevDisplay;
+    }
+  });
+  const back=$('rbBackBtn'); if(back) back.style.display=on?'inline-flex':'none';
+  const nav=document.getElementById('navRollar'); if(nav) nav.classList.toggle('active',on);
+  const sozNav=document.querySelector('.nav-item[href="sozlama-dev.html"]');
+  if(sozNav) sozNav.classList.toggle('active',!on);
+}
+window.rbBackToSozlama=()=>{
+  history.replaceState(null,'',location.pathname+location.search);
+  sozApplyRollarFocus();
+};
+window.addEventListener('hashchange',sozApplyRollarFocus);
 
 // loadFilials() Promise.all'dan KEYIN: u `accounts` (filial_ref) va isAdmin
 // tayyor bo'lishiga tayanadi — aks holda "Aros sinxroni" belgisi noto'g'ri chiqadi.

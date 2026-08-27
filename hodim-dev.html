@@ -902,6 +902,7 @@
   .ov-btn.on{border-color:var(--primary);background:var(--primary);color:var(--on-primary)}
   .ov-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
   .ov-chip-taken{font-size:10.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+  .ov-muted{font-size:12.5px;color:var(--muted);font-weight:600}
   .ov-empty{padding:var(--s7) var(--s4);text-align:center;color:var(--muted);font-size:13px;font-weight:600}
   .ov-empty::before{content:'';display:block;width:28px;height:28px;margin:0 auto var(--s2);background:var(--muted);
     opacity:.5;-webkit-mask:var(--ic-receipt) center/contain no-repeat;mask:var(--ic-receipt) center/contain no-repeat}
@@ -1336,6 +1337,9 @@ let amalRows=null, amalOff=false, histReq=0;
    olgan" (ovqat_bugun) esa panel HAR ochilishida FRESH (kesh emas).
    🔴 Fail-closed: ro'yxat/narx yuklanmasa saqlash BUTUNLAY o'chiq. */
 let ovqatStaff=[], ovqatBranchMap=[], ovqatNarx=null;
+// ovqatRuxsat: null = RPC yo'q (42883/PGRST202) -> eski xatti-harakat, hamma tur ochiq.
+// {} yoki {"<staff_id>":["obed",...]} = server javobi (fresh, keshlanmaydi). Boshqa xato -> {} (fail-closed).
+let ovqatRuxsat=null;
 let ovqatLoaded=false, ovqatLoading=false, ovqatFailed=false;
 let ovqatSel=new Set();     // "staffId:tur" — bir hodim BIR marta obed VA BIR marta zavtrak ola oladi
 let ovqatToday={};          // "staffId:tur" -> {soat, kim} — bugun allaqachon olganlar (fresh)
@@ -1910,14 +1914,23 @@ function ovqatTurLabel(tur){ return tur==='obed'?'Obed':(tur==='kechki'?'Kechki'
 function ovqatKey(staffId,tur){ return staffId+':'+tur; }
 function ovqatHas(staffId,tur){ return ovqatSel.has(ovqatKey(staffId,tur)); }
 function ovqatTodayHas(staffId,tur){ return !!ovqatToday[ovqatKey(staffId,tur)]; }
+// YEYUVCHI (hodim) ruxsati — ovqatRuxsat serverdan keladi (ovqat_ruxsatlar RPC), yozuvchi ruxsatidan (permOvqatOk) alohida.
+function ovqatStaffOk(staffId,tur){
+  if(ovqatRuxsat===null) return true;   // RPC yo'q (RUN qilinmagan baza) -> eski xatti-harakat
+  const arr=ovqatRuxsat[staffId]!=null?ovqatRuxsat[staffId]:ovqatRuxsat[String(staffId)];
+  return Array.isArray(arr) && arr.includes(tur);
+}
 // Tanlangan ro'yxat — RPC ga AYNAN shu shaklda ketadi: [{staff_id,tur}]
 function ovqatRoyxat(){
   const out=[];
   ovqatSel.forEach(k=>{ const i=k.lastIndexOf(':'); if(i<0) return;
     const tur=k.slice(i+1);
-    // RBAC: rol o'zgargach ovqatSel'da qolib ketgan ruxsatsiz tur hisobga kirmaydi.
+    const staffId=Number(k.slice(0,i));
+    // RBAC (yozuvchi): rol o'zgargach ovqatSel'da qolib ketgan ruxsatsiz tur hisobga kirmaydi.
     if(window.permOvqatOk && !window.permOvqatOk(tur)) return;
-    out.push({staff_id:Number(k.slice(0,i)), tur}); });
+    // RBAC (yeyuvchi): hodimning o'zida shu ovqat turiga ruxsat bo'lmasa hisobga kirmaydi.
+    if(!ovqatStaffOk(staffId,tur)) return;
+    out.push({staff_id:staffId, tur}); });
   return out;
 }
 function ovqatRoyxatSumma(){
@@ -1928,6 +1941,8 @@ function ovqatRoyxatSumma(){
 }
 window.ovqatToggle=(staffId,tur)=>{
   if(ovqatTodayHas(staffId,tur)) return;   // himoya — tugma disabled bo'lishi kerak, lekin dasturiy chaqiruvdan ham to'siladi
+  if(window.permOvqatOk && !window.permOvqatOk(tur)) return;   // yozuvchi ruxsati yo'q
+  if(!ovqatStaffOk(staffId,tur)) return;                       // yeyuvchi (hodim) ruxsati yo'q
   const k=ovqatKey(staffId,tur);
   if(ovqatSel.has(k)) ovqatSel.delete(k); else ovqatSel.add(k);
   renderOvqatList(); renderOvqatChips(); renderOvqatCounter(); updateSave();
@@ -1981,7 +1996,8 @@ async function ovqatLoad(force){
     renderOvqatCounter(); updateSave();
   }finally{ ovqatLoading=false; }
 }
-// Bugun kim obed/zavtrak olgani — panel HAR ochilishida FRESH (kesh emas).
+// Bugun kim obed/zavtrak olgani + hodimlarning ovqat ruxsati — panel HAR ochilishida FRESH (kesh emas),
+// rol o'zgarsa darrov ta'sir qilsin.
 async function ovqatBugunLoad(){
   try{
     const {data,error}=await sb.rpc('ovqat_bugun',{p_kun:isoDay(nowUz()), p_staff:null});
@@ -1992,6 +2008,16 @@ async function ovqatBugunLoad(){
       ovqatToday=m;
     }
   }catch(e){ ovqatToday={}; }
+  try{
+    const {data,error}=await sb.rpc('ovqat_ruxsatlar');
+    if(error){
+      // RPC hali RUN qilinmagan baza (funksiya yo'q) -> eski xatti-harakat: hamma tur ochiq.
+      // Boshqa xato -> fail-closed: hech kimga ruxsat yo'q deb hisoblanadi.
+      ovqatRuxsat = (error.code==='PGRST202'||error.code==='42883') ? null : {};
+    }else{
+      ovqatRuxsat = (data && typeof data==='object') ? data : {};
+    }
+  }catch(e){ ovqatRuxsat={}; }
   renderOvqatList();
 }
 function renderOvqatCounter(){
@@ -2057,16 +2083,20 @@ function renderOvqatList(){
     const nom=ovqatNomi(s);
     const sub=[s.lavozim, s.branch_nomi].filter(Boolean).join(' · ');
     const btn=(tur,lbl)=>{
-      // RBAC: rolda yo'q ovqat turi tugmasi umuman chizilmaydi.
+      // RBAC (yozuvchi): rolda yo'q ovqat turi tugmasi umuman chizilmaydi.
       if(window.permOvqatOk && !window.permOvqatOk(tur)) return '';
+      // RBAC (yeyuvchi): hodimning o'zida shu ovqat turiga ruxsat bo'lmasa tugma chizilmaydi.
+      if(!ovqatStaffOk(s.staff_id,tur)) return '';
       const taken=ovqatToday[ovqatKey(s.staff_id,tur)];
       const on=ovqatHas(s.staff_id,tur);
       const chip=taken?`<span class="ov-chip-taken">olgan ${esc(taken.soat||'')}${taken.kim?' · '+esc(taken.kim):''}</span>`:'';
       return `<button type="button" class="ov-btn${on?' on':''}" ${taken?'disabled':''} onclick="ovqatToggle(${s.staff_id},'${tur}')">${lbl}</button>${chip}`;
     };
+    const acts=[btn('zavtrak','Zavtrak'),btn('obed','Obed'),btn('kechki','Kechki')];
+    const actsHtml = acts.some(Boolean) ? acts.join('') : '<span class="ov-muted">ovqat ruxsati yo\'q</span>';
     return `<div class="ov-row"><div class="ov-info"><div class="ov-nom">${esc(nom)}</div>`
       +(sub?`<div class="ov-sub">${esc(sub)}</div>`:'')+'</div>'
-      +`<div class="ov-acts">${btn('zavtrak','Zavtrak')}${btn('obed','Obed')}${btn('kechki','Kechki')}</div></div>`;
+      +`<div class="ov-acts">${actsHtml}</div></div>`;
   };
   let html='';
   const k=effKassa(), filialNomi=(k&&k.subtitle)?String(k.subtitle).split(' · ')[0]:'';

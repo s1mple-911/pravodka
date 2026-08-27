@@ -127,6 +127,23 @@ comment on function set_ovqat_narx(text, numeric) is
 -- Boshqa tekshiruvlar (summa aynan teng, takror, staff aktiv, kassa UZS) —
 -- o'zgarmagan.
 -- ---------------------------------------------------------------------
+-- 🔴 QAYTA RUN HIMOYASI: PROVODKA_RBAC_STAFF.sql shu funksiyani yeyuvchi
+--    (rbac_staff_ovqat) tekshiruvi bilan QAYTA YOZADI. Undan keyin bu fayl
+--    yana RUN qilinsa, o'sha tekshiruv JIMGINA o'chib ketardi. Shuning uchun:
+--    joriy tanada 'rbac_staff_ovqat' bo'lsa — butun fayl (bitta tranzaksiya)
+--    xato bilan to'xtaydi. Kechki tuzatishlari RBAC_STAFF ichida allaqachon bor.
+do $kechki_guard$
+declare v_src text;
+begin
+  select p.prosrc into v_src
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'xarajat_saqlash_ovqat'
+   limit 1;
+  if v_src is not null and position('rbac_staff_ovqat' in v_src) > 0 then
+    raise exception 'PROVODKA_OVQAT_KECHKI.sql: xarajat_saqlash_ovqat allaqachon PROVODKA_RBAC_STAFF.sql versiyasida (yeyuvchi tekshiruvi bilan). Bu faylni QAYTA RUN QILMANG — aks holda hodim ovqat cheklovi ochilib qoladi. Hech narsa ozgartirilmadi.';
+  end if;
+end $kechki_guard$;
+
 create or replace function xarajat_saqlash_ovqat(p_data jsonb)
 returns jsonb
 language plpgsql
