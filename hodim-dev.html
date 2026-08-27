@@ -1064,6 +1064,7 @@
       <!-- Spidometr (.ai-*) — faqat modda.spidometr_ai=true VA "Mashina" maydoni tanlangan bo'lsa ko'rinadi -->
       <div class="sect ai-spidsect" id="spidSect" style="display:none">
         <div class="lbl">Spidometr rasmi <span class="opt">(ixtiyoriy)</span></div>
+        <div id="spidNoMashina" style="display:none;color:var(--muted);font-size:13px;margin-bottom:var(--s2)">Km tarixi uchun avval mashinani tanlang</div>
         <label class="chekbtn">
           <input type="file" accept="image/*" capture="environment" id="spidFile" class="vh" onchange="onSpidFile(this)">
           <i data-lucide="gauge"></i><span>Spidometr rasmini olish</span>
@@ -1414,7 +1415,7 @@ let appShown=false;
 // bo'yicha filtrlanadi (permFilterOp), (2) yozuvda entry_line server guard trigger op ruxsatini
 // tekshiradi. permLoad faqat op_kassa_ids/scope'ni olib kelish uchun chaqiriladi.
 async function enterApp(){ if(appShown) return; appShown=true; $('gate').style.display='none'; $('app').style.display='block'; syncThemeIcon();
-  init().then(()=>{ try{ versiyaTekshir(); }catch(e){} }); }   // TEZLIK: permLoad init() ichida boshqa so'rovlar bilan PARALLEL yuklanadi; versiyaTekshir() init tugagach FONDA (bazaviy ETag shu yerda olinadi)
+  init(); setTimeout(()=>{ try{ versiyaTekshir(); }catch(e){} },4000); }   // TEZLIK: permLoad init() ichida boshqa so'rovlar bilan PARALLEL yuklanadi; versiyaTekshir() boot burst tugagach 4s KECHIKTIRILGAN (bazaviy ETag shu yerda olinadi) — interval/visibilitychange avvalgidek
 const AUTH_KEY='sb-kxzerccdpcltmzrxutlo-auth-token';
 const hasStoredSession=()=>{ try{ return !!localStorage.getItem(AUTH_KEY); }catch(e){ return false; } };
 async function boot(){
@@ -1589,7 +1590,9 @@ function renderTurSeg(){
 window.pickSub=id=>{ selSub=id||null; $('summa').value=''; $('summa').dataset.a000='';
   renderTurSeg(); renderHero(); renderKassaBal(); loadRate(); };
 // Hero: kassa/tur tanlanmaguncha JAMI pul, tanlangач aynan o'sha tur qoldig'i.
+let heroFirstMark=false;
 function renderHero(){
+  if(!heroFirstMark){ heroFirstMark=true; try{ performance.mark('hodim:first-render'); }catch(e){} }
   const ks=kassaList();
   const k=accounts.find(a=>a.id===selKassa);
   const eff=effKassa();
@@ -2325,16 +2328,30 @@ function genUuid(){
 function aiChekOk(){ const m=moddaObj(); return !!(m && m.ai_tekshir); }
 function aiSpidOk(){ const m=moddaObj(); return !!(m && m.spidometr_ai); }
 // "Mashina" maxsus maydoni (tur='royxat') — spidometr shu maydon tanlanganda ko'rinadi.
-function mashinaField(){ return mxdFields().find(f=>String(f.maydon_turi||'')==='royxat'
-  && String(f.nom||'').trim().toLowerCase()==='mashina')||null; }
+// 🔴 Nomga qattiq bog'lanmaydi (bazada "Ro'yxatdan tanlang"/"TANLANG" kabi nomlar bo'lishi mumkin):
+// moddaga biriktirilgan birinchi faol `royxat` turidagi maydon olinadi; bir nechtasi bo'lsa
+// nomida mashina/moshina/avto so'zi borlari ustun turadi, aks holda birinchisi.
+function mashinaField(){
+  const royxat=mxdFields().filter(f=>String(f.maydon_turi||'')==='royxat');
+  if(!royxat.length) return null;
+  const nomli=royxat.find(f=>/mashina|moshina|avto/i.test(String(f.nom||'')));
+  return nomli||royxat[0];
+}
 function mashinaSelected(){ const f=mashinaField(); if(!f) return null;
   const v=mxdVals[f.id]; return (v&&v.element_id)?{field:f,element_id:v.element_id}:null; }
 function mashinaNomi(){ const s=mashinaSelected(); if(!s) return ''; const e=mxdElById(s.field,s.element_id); return e?e.nom:''; }
 function aiNoteShow(id,text,warn){ const el=$(id); if(!el) return; el.textContent=text; el.className='ai-note'+(warn?' warn':''); el.style.display='block'; }
 function aiNoteHide(id){ const el=$(id); if(!el) return; el.style.display='none'; el.textContent=''; }
-// Spidometr bo'limi faqat: modda spidometr_ai VA "Mashina" maydoni shu formada tanlangan bo'lsa.
-function updateAiUI(){ const sect=$('spidSect'); if(!sect) return;
-  sect.style.display=(aiSpidOk()&&mashinaSelected())?'block':'none'; }
+// Spidometr bo'limi: modda spidometr_ai bo'lsa darrov ko'rinadi (mashina hali tanlanmagan
+// bo'lsa ham — rasm yuklab AI km o'qishi mumkin), faqat km yozish (`aiKmYoz`) mashina
+// tanlanganda ishlaydi (element_id kerak, `aiSnap()`/`aiKmYoz` o'zi ham buni tekshiradi).
+function updateAiUI(){
+  const sect=$('spidSect'); if(!sect) return;
+  const ok=!!(typeof aiSpidOk==='function' && aiSpidOk());
+  sect.style.display=ok?'block':'none';
+  const note=$('spidNoMashina');
+  if(note) note.style.display=(ok&&!mashinaSelected())?'block':'none';
+}
 function b64Read(blob){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -2697,7 +2714,7 @@ function xarHolatUI(kind){
     // Holatni server tomondan aniqlab bo'lmaydi → AVTOMATIK QAYTA YOZMAYMIZ.
     // Hodim tarixdan o'zi ko'radi; ko'rmasa ataylab yangi kalit bilan qaytadan yozadi.
     xarBanner(xarMsg(kind),[
-      {label:'Tarixni yangilash',fn:()=>{ loadBalances(); loadHist(); loadMonth(); toast('Yangilandi'); }},
+      {label:'Tarixni yangilash',fn:()=>{ loadBalances(); loadHist(); loadMonth(); loadLimits(true); toast('Yangilandi'); }},
       {label:'Qaytadan saqlash',fn:()=>{ tokenTugat(); bannerYop(); toast('Endi «Saqlash» tugmasini bosing'); }}
     ]);
     return;
@@ -2715,7 +2732,7 @@ function xarAllaqachon(){
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
-  loadBalances(); loadHist(); loadMonth();
+  loadBalances(); loadHist(); loadMonth(); loadLimits(true);
 }
 
 /* 4-band: sahifa ochilganda tugallanmagan kalit qolgan bo'lsa — holatini aniqlab
@@ -2727,7 +2744,7 @@ async function xarPendingTekshir(){
   const s=p.summa?' ('+money(p.summa)+' so\'m)':'';
   if(h.holat==='toliq'){ pendClear(); if(saveToken===p.token) saveToken=null;
     xarBanner('Oldingi xarajatingiz saqlangan'+s+'.',[{label:'Yopish',fn:bannerYop}]);
-    loadBalances(); loadHist(); loadMonth(); return; }
+    loadBalances(); loadHist(); loadMonth(); loadLimits(true); return; }
   if(h.holat==='yoq'||h.holat==='chala_tozalandi'){ pendClear(); if(saveToken===p.token) saveToken=null;
     xarBanner('Oldingi urinish saqlanmagan'+s+' — qaytadan kiriting.',[{label:'Yopish',fn:bannerYop}]); return; }
   // RPC yo'q yoki tarmoq javob bermadi — halol aytamiz, lekin kalitni SAQLAYMIZ
@@ -3002,7 +3019,7 @@ window.saveHodim=async()=>{
         fetch(url,{keepalive:true}).catch(()=>{});
       }catch(e){}
     }
-    loadBalances(); loadHist(); loadMonth();   // haqiqiy qiymatlar bilan to'g'rila
+    loadBalances(); loadHist(); loadMonth(); loadLimits(true);   // haqiqiy qiymatlar bilan to'g'rila
   })();
   }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
@@ -3088,7 +3105,7 @@ async function ovqatSaveFlow(kassa, modda, amt, royxat){
         fetch(url,{keepalive:true}).catch(()=>{});
       }catch(e){}
     }
-    loadBalances(); loadHist(); loadMonth();
+    loadBalances(); loadHist(); loadMonth(); loadLimits(true);
   })();
 }
 function ovqatXarAllaqachon(){
@@ -3098,16 +3115,23 @@ function ovqatXarAllaqachon(){
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
-  loadBalances(); loadHist(); loadMonth();
+  loadBalances(); loadHist(); loadMonth(); loadLimits(true);
 }
 
 // ---- Stage 4: Standart limitlar (filial+modda oylik limit) ----
 let limitMap={};   // 'filialId|moddaId' → {limit, qoldi, sarflandi, modda_name}
 const limitFor=(fid,mid)=>limitMap[fid+'|'+mid]||null;
-async function loadLimits(){
-  try{ const oy=isoDay(nowUz()).slice(0,7)+'-01';
+// SWR: kesh 10 daqiqa — kesh bo'lsa DARROV limitMap to'ladi, fonda RPC bilan yangilanadi.
+// `fresh=true` — yozuvdan keyin (saveHodim/taqsim/ovqat) chaqiriladi: keshdan bermay,
+// darrov RPC so'raydi va yangi natijani keshga yozadi (boshqa yozuvlar naqshi bilan bir xil).
+async function loadLimits(fresh){
+  const oy=isoDay(nowUz()).slice(0,7)+'-01';
+  if(!fresh){ const c=swrGet('limits',600000);
+    if(c&&c.oy===oy&&c.map&&typeof c.map==='object'){ limitMap=c.map; updateSave(); } }
+  try{
     const {data}=await sb.rpc('standart_holat',{p_oy:oy});
     limitMap={}; (data||[]).forEach(r=>{ limitMap[r.filial_id+'|'+r.modda_id]={limit:Number(r.limit_uzs)||0,qoldi:Number(r.qoldi)||0,sarflandi:Number(r.sarflandi)||0,modda_name:r.modda_name}; });
+    swrSet('limits',{oy,map:limitMap});
     updateSave();
   }catch(e){}
 }
@@ -3210,7 +3234,7 @@ window.confirmTaqsim=async()=>{
       aiBind(eids, aiSn); aiKmYoz(eids, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
       if(chek && eids[0]){ try{ await sb.storage.from('xarajat-cheklari').upload(`${kassa.id}/${eids[0]}.jpg`, chek, {contentType:'image/jpeg',upsert:true}); }catch(e){} }
       if(amt>=500000){ try{ const payload={summa:amt, hodim:(kName||myName||''), modda:mName, kassa:(kSub||''), izoh}; const url='https://n8n.arosmarket.com/webhook/aros-provodka-xarajat-alert?data='+encodeURIComponent(JSON.stringify(payload)); fetch(url,{keepalive:true}).catch(()=>{}); }catch(e){} }
-      loadBalances(); loadHist(); loadMonth();
+      loadBalances(); loadHist(); loadMonth(); loadLimits(true);
     })();
   }
   bannerYop();
@@ -3298,16 +3322,23 @@ function histRange(){
   return {from,to};
 }
 // Ro'yxatdagi kassalar papkalarini ro'yxatlab, chek bor yozuvlarni belgilaydi ("kassaId/entryId").
+// SWR: kesh 5 daqiqa — ro'yxat CHEKSIZ darrov chiziladi (loadHist), belgilar keyin keladi.
+function histChekCacheApply(){
+  const c=swrGet('chekmap',300000);
+  if(Array.isArray(c)) histChek=new Set(c);
+}
 async function loadHistChek(){
-  histChek=new Set();
   const ids=[...new Set(histRows.map(r=>r.kassa_id).concat((amalRows||[]).map(r=>r.kassa_id)).filter(Boolean))];
+  const fresh=new Set();
   await Promise.all(ids.map(async kid=>{
     try{
       const {data,error}=await sb.storage.from('xarajat-cheklari').list(kid,{limit:1000});
       if(error||!data) return;
-      data.forEach(f=>{ const eid=String(f.name||'').replace(/\.jpg$/i,''); if(eid) histChek.add(kid+'/'+eid); });
+      data.forEach(f=>{ const eid=String(f.name||'').replace(/\.jpg$/i,''); if(eid) fresh.add(kid+'/'+eid); });
     }catch(e){}
   }));
+  histChek=fresh;
+  try{ swrSet('chekmap',[...fresh]); }catch(e){}
 }
 async function loadHist(){
   const {from,to}=histRange();
@@ -3326,6 +3357,10 @@ async function loadHist(){
     renderHistCat((data&&data.kategoriya)||[]);
   }
   const ht=$('histTitle'); if(ht) ht.textContent=amalRows?'Amallarim':'Xarajatlarim';
+  // 2-bosqichli render: ro'yxat CHEK BELGILARISIZ (keshdagi belgilar bilan) darrov chiziladi,
+  // storage.list fonda tugagach chek belgilari bilan qayta chiziladi (`storage.list` sekin).
+  histChekCacheApply();
+  renderHistList();
   await loadHistChek();
   if(my!==histReq) return;
   renderHistList();
@@ -3471,6 +3506,9 @@ async function init(){
   // Qoldiq ham keshdan — hero DARROV raqam ko'rsatadi, "—" da turmaydi.
   // (Kesh 5 daqiqa; fonda loadBalances() haqiqiysini olib almashtiradi.)
   const balKesh=loadBalancesCached();
+  // Top-up chegarasi keshdan — 10 daqiqa TTL, darrov qiymat, fonda RPC bilan yangilanadi (pastda).
+  const cTop=swrGet('topup',600000);
+  if(cTop!=null && isFinite(Number(cTop))){ srvChegara=Math.max(0,Number(cTop)); srvChegaraOk=true; }
   updateModdaUI();
   // 2) Mustaqil so'rovlar — HAMMASI PARALLEL
   const pPerm=window.permLoad(sb);
@@ -3483,16 +3521,17 @@ async function init(){
   const pTop=Promise.resolve(sb.rpc('sorov_topup_chegara'))
     .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}));
   loadHist();                               // tarix mustaqil (server auth.uid()) — fon
-  // TEZLIK: qoldiq keshda YO'Q bo'lsa — accounts keshdan kelgan zahoti so'rovni
-  // BOSHLAB yuboramiz, Promise.all ni kutmasdan. Aks holda qoldiq 2-to'lqinda
-  // kelardi va hodim bo'sh hero'ga qarab turardi.
-  if(!balKesh && cAcc) loadBalances();
+  // 🔴 2026-08-27: avval bu yerda `!balKesh && cAcc` bo'lsa loadBalances() ERTA ham
+  // chaqirilardi ("Promise.all'ni kutmasdan tezroq"), keyin 3530-qatorda YANA — ikkalasi
+  // ham `balSorov/balYana` guardi orqali ketma-ket bajarilardi (2 RPC round). Endi FAQAT
+  // bitta chaqiruv qoldi (pastda, fresh accounts bilan) — semantika: kesh bo'lsa darrov
+  // (`loadBalancesCached()` yuqorida sinxron), kesh bo'lmasa fonda BITTA yangilash.
   const [,aRes,fRes,uRes,tRes]=await Promise.all([pPerm,pAcc,pFil,pUser,pTop]);
   // Chegara: xato / RPC yo'q / buzuq qiymat -> ZAXIRA (500 000). Bu yerda "fail-closed"
   // muammo emas — chegara faqat QAYSI MODAL ochilishini hal qiladi, pul harakati
   // baribir tasdiqdan keyin. Qiymat foydalanuvchiga HECH QAYERDA ko'rsatilmaydi.
   if(tRes&&!tRes.error&&tRes.data!=null&&isFinite(Number(tRes.data))){
-    srvChegara=Math.max(0,Number(tRes.data)); srvChegaraOk=true;
+    srvChegara=Math.max(0,Number(tRes.data)); srvChegaraOk=true; swrSet('topup',srvChegara);
   }
   // accounts (perms endi tayyor → to'g'ri filtr)
   if(aRes.error){ if(!cAcc){ $('banner').style.display='block'; $('banner').textContent='Xato: '+aRes.error.message; } }
@@ -4385,9 +4424,12 @@ async function mxdLoad(force){
   mxdModLoaded=true;
   Object.keys(mxdDefs).forEach(k=>{ if(!mxdMod.has(k)) delete mxdDefs[k]; });   // biriktirish olib tashlangan
   mxdCacheSet(); mxdRender();
-  // OLDINDAN yuklash — modda tanlanganda skeleton umuman chiqmasin.
-  const list=[...mxdMod];
-  if(list.length<=20) list.forEach(id=>{ if(force||!mxdDefs[id]) mxdFetch(id,true); });
+  // 🔴 OLDINDAN yuklash OLIB TASHLANDI (2026-08-27, tezlik): avval har moddaning
+  //    ta'rifi shu yerda parallel yuklanardi (boot burst'ni N ta RPC bilan shishirardi).
+  //    Endi har modda ta'rifi FAQAT o'sha modda tanlanganda `mxdRender()`ning
+  //    'skel' holati orqali `mxdFetch(id)` bilan keladi (pastda), bitta marta
+  //    xotirada (`mxdDefs[id]`) keshlanadi. `mxdOk()`/`mxdNeed()` fail-closed —
+  //    ta'rif hali kelmagan bo'lsa saqlash bloklanadi, shu bilan xavfsizlik saqlanadi.
 }
 async function mxdFetch(id,quiet){
   if(!id||mxdOff||mxdBusy[id]) return;
@@ -4414,9 +4456,16 @@ window.mxdRetry=()=>{
 function mxdFields(){ const id=mxdModdaId(); const d=id?mxdDefs[id]:null; return Array.isArray(d)?d:[]; }
 const mxdReady=()=>{ const id=mxdModdaId(); return !!(id&&Array.isArray(mxdDefs[id])); };
 function mxdHasVal(mid){ const v=mxdVals[mid]; return !!(v&&(v.element_id||String(v.qiymat_text||'').trim())); }
-// 🔴 FAIL-OPEN: ta'riflar kelmagan bo'lsa bloklamaymiz (server ham tekshiradi).
-function mxdOk(){ if(mxdOff||!mxdReady()) return true; return mxdFields().every(f=>!f.required||mxdHasVal(f.id)); }
-function mxdFirstMissing(){ const f=mxdFields().find(x=>x.required&&!mxdHasVal(x.id)); return f?String(f.nom||''):''; }
+// 🔴 FAIL-CLOSED (2026-08-27): preload olib tashlangani uchun ta'rif ko'pincha modda
+//    tanlangandan KEYIN keladi (`mxdRender()`ning 'skel' holati → `mxdFetch`). Shu oraliqda
+//    saqlashga YO'L QO'YILMAYDI — `mxdNeed()` (bu moddada maydon BOR-ligi, `mxdMod`dan,
+//    ta'rifning o'zidan emas) true-yu `mxdReady()` hali false bo'lsa majburiy deb hisoblanadi.
+//    Faqat modda "off" (jadval yo'q) yoki bu moddada umuman maydon yo'qligi aniq bo'lganda ochiq.
+function mxdOk(){ if(mxdOff) return true; if(!mxdReady()) return !mxdNeed(); return mxdFields().every(f=>!f.required||mxdHasVal(f.id)); }
+function mxdFirstMissing(){
+  if(!mxdReady()&&mxdNeed()) return 'Maxsus maydonlar hali yuklanmoqda — biroz kuting';
+  const f=mxdFields().find(x=>x.required&&!mxdHasVal(x.id)); return f?String(f.nom||''):'';
+}
 // Serverga ketadigan shakl: [{maydon_id, element_id}] | [{maydon_id, qiymat}]. Bo'shlar tashlanadi.
 function mxdValues(){
   return mxdFields().map(f=>{ const v=mxdVals[f.id]||{}; const t=String(v.qiymat_text||'').trim();
@@ -4428,8 +4477,8 @@ function mxdValues(){
       yuborishi kerakligini shundan biladi. Busiz serverdagi majburiylik
       tekshiruvi (`entry_maydon_yoz` → `xm_majburiy_yoq`) HECH QACHON
       ishlamasdi: foydalanuvchi hech narsa to'ldirmasa RPC umuman ketmasdi,
-      UI dagi `mxdOk()` esa ta'riflar yuklanmagan bo'lsa (`mxdReady()` false)
-      ataylab FAIL-OPEN.
+      UI dagi `mxdOk()` esa endi ta'riflar yuklanmagan bo'lsa (`mxdReady()` false)
+      FAIL-CLOSED — `mxdNeed()` true bo'lsa saqlash bloklanadi.
    🔴 Manba `mxdMod` (biriktirish ro'yxati), `mxdDefs` EMAS — ta'riflar
       yuklanmagan holatda ham to'g'ri javob beradi (aynan xavfli holat). */
 const mxdNeed=()=>{ const id=mxdModdaId(); return !!(!mxdOff&&id&&mxdMod&&mxdMod.has(id)); };
