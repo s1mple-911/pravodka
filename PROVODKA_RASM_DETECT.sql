@@ -10,7 +10,8 @@
 --
 -- ## RUN TARTIBI (Asilbek, Supabase SQL editor) — BO'LIMLARNI TARTIB BILAN
 --   0-BO'LIM — old shart tekshiruvi (faqat select)
---   1-BO'LIM — accounts.ai_tekshir + set_modda_flag('ai') (imzo saqlanadi)
+--   1-BO'LIM — accounts.ai_tekshir + accounts.spidometr_ai (ikki mustaqil
+--              bayroq) + set_modda_flag('ai'|'spidometr') (imzo saqlanadi)
 --   2-BO'LIM — rasm_tahlil jadvali + RLS (faqat service_role yozadi)
 --   3-BO'LIM — entry ustunlari (rasm_tahlil_id, spidometr_tahlil_id,
 --              shubhali, shubhali_sabab, ai_holat, ai_tekshirildi_at)
@@ -83,19 +84,27 @@ select to_regprocedure('public.is_admin()')                     is not null as i
 
 
 -- #####################################################################
--- ##  1-BO'LIM — accounts.ai_tekshir + set_modda_flag('ai')          ##
+-- ##  1-BO'LIM — accounts.ai_tekshir + spidometr_ai + set_modda_flag  ##
 -- #####################################################################
 
 alter table accounts
   add column if not exists ai_tekshir boolean not null default false;
 
 comment on column accounts.ai_tekshir is
-  'Xarajat moddasi: chek/spidometr AI tekshiruvi yoqilganmi. true bolsa hodim.html '
-  'shu moddaga yozganda rasm yuklashni taklif qiladi (klient ishi — bu ustun faqat bayroq).';
+  'Xarajat moddasi: chek AI tekshiruvi yoqilganmi (UNIVERSAL — istalgan modda). true bolsa hodim.html '
+  'shu moddaga yozganda chek rasmini yuklashni taklif qiladi (klient ishi — bu ustun faqat bayroq).';
+
+alter table accounts
+  add column if not exists spidometr_ai boolean not null default false;
+
+comment on column accounts.spidometr_ai is
+  'Xarajat moddasi: spidometr AI tekshiruvi yoqilganmi. FAQAT benzin/gaz (mashina) moddalarida '
+  'mantiqiy — hodim.html bu bayroq true VA "Mashina" maydoni tanlangandagina spidometr bolimini korsatadi. '
+  'ai_tekshir dan MUSTAQIL (Asilbek qarori — ikki alohida bayroq).';
 
 -- 🔴 IMZO O'ZGARMAYDI (uuid, text, boolean) — PROVODKA_OVQAT.sql dagi eng
---    oxirgi versiya + 'ai' shoxi qoshildi. Eski 5 shox (chek/izoh/davr/
---    filial/ovqat) SOZMA-SOZ saqlandi.
+--    oxirgi versiya + 'ai' va 'spidometr' shoxlari qoshildi. Eski 5 shox
+--    (chek/izoh/davr/filial/ovqat) SOZMA-SOZ saqlandi.
 create or replace function set_modda_flag(p_account uuid, p_flag text, p_bool boolean)
 returns void
 language plpgsql
@@ -118,6 +127,8 @@ begin
     update accounts set ovqat_modda = coalesce(p_bool, false) where id = p_account;
   elsif p_flag = 'ai' then
     update accounts set ai_tekshir = coalesce(p_bool, false) where id = p_account;
+  elsif p_flag = 'spidometr' then
+    update accounts set spidometr_ai = coalesce(p_bool, false) where id = p_account;
   else
     raise exception 'Nomalum bayroq';
   end if;
@@ -127,7 +138,7 @@ revoke all on function set_modda_flag(uuid, text, boolean) from public, anon;
 grant execute on function set_modda_flag(uuid, text, boolean) to authenticated;
 
 comment on function set_modda_flag(uuid, text, boolean) is
-  'Admin: xarajat moddasi bayrogi (chek|izoh|davr|filial|ovqat|ai) yoqadi yoki ochiradi.';
+  'Admin: xarajat moddasi bayrogi (chek|izoh|davr|filial|ovqat|ai|spidometr) yoqadi yoki ochiradi.';
 
 
 -- #####################################################################
@@ -809,6 +820,12 @@ create policy "rasm_tahlil_bucket_select" on storage.objects
 -- ##  9-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/katalog)             ##
 -- #####################################################################
 
+select column_name, data_type
+  from information_schema.columns
+ where table_schema = 'public' and table_name = 'accounts'
+   and column_name in ('ai_tekshir', 'spidometr_ai')
+ order by column_name;
+
 select to_regclass('public.rasm_tahlil')    is not null as t_rasm_tahlil,
        to_regclass('public.mashina_km')     is not null as t_mashina_km,
        to_regprocedure('public.entry_ai_bogla(uuid,uuid,uuid)')      is not null as fn_entry_ai_bogla,
@@ -892,7 +909,7 @@ notify pgrst, 'reload schema';
 -- -- entry ustunlarini OLIB TASHLASH TAQIQ (CLAUDE.md) — faqat qoldiring.
 -- drop policy if exists "rasm_tahlil_bucket_select" on storage.objects;
 -- drop table if exists rasm_tahlil;
--- -- accounts.ai_tekshir ustunini OLIB TASHLASH TAQIQ — faqat qoldiring.
--- -- set_modda_flag 'ai' shoxini olib tashlash uchun PROVODKA_OVQAT.sql dagi
--- -- versiyani qayta RUN qiling ('ai' shoxisiz qaytadi).
+-- -- accounts.ai_tekshir / spidometr_ai ustunlarini OLIB TASHLASH TAQIQ — faqat qoldiring.
+-- -- set_modda_flag 'ai'/'spidometr' shoxlarini olib tashlash uchun PROVODKA_OVQAT.sql dagi
+-- -- versiyani qayta RUN qiling (o'sha shoxlarsiz qaytadi).
 -- =====================================================================

@@ -57,21 +57,32 @@
   .addrow input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
   .addrow button{height:46px;padding:0 20px;border:none;border-radius:11px;background:var(--primary);color:#fff;font-size:15px;font-weight:600;font-family:inherit;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .13s,transform .12s}
   .addrow button svg{width:17px;height:17px}.addrow button:hover{background:var(--primary-hover);transform:translateY(-1px)}
-  .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  /* .item — bitta qator (Kassa/Daromad/Boshqa/Filial) YOKI ikki qatorli (Xarajat, .chekopt
+     chiplari bilan): flex-wrap:wrap + bolalar flex:1 1 100% orqali "sarlavha" va "chiplar"
+     alohida qatorga tushadi, flex-direction o'zgarmaydi — shuning uchun boshqa ro'yxatlar
+     (item-head'siz, to'g'ridan-to'g'ri .mid+.edit+.sw) ham buzilmaydi. */
+  .item{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
   .item:last-child{border-bottom:none}
-  .item .mid{flex:1;min-width:0}.item .mid .t{font-size:15px;font-weight:600}.item .mid .c{font-size:12px;color:var(--muted);margin-top:2px}
+  .item-head{display:flex;align-items:center;gap:12px;flex:1 1 100%;min-width:0}
+  .item .mid{flex:1;min-width:0}
+  .item .mid .t{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .mid .c{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .item.off .mid{opacity:.4}
-  .item .edit{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:7px;display:flex;cursor:pointer;transition:background .13s,color .13s}
+  .item .edit{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:7px;display:flex;flex:0 0 auto;cursor:pointer;transition:background .13s,color .13s}
   .item .edit svg{width:16px;height:16px}.item .edit:hover{background:var(--primary-soft);color:var(--primary)}
   .sw{position:relative;width:44px;height:26px;flex:0 0 auto}
   .sw input{opacity:0;width:0;height:0}
   .sw span{position:absolute;inset:0;background:var(--line);border-radius:26px;transition:.2s;cursor:pointer}
   .sw span:before{content:"";position:absolute;width:22px;height:22px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
   .sw input:checked+span{background:var(--green)}.sw input:checked+span:before{transform:translateX(18px)}
-  /* Chek majburiy checkbox (Xarajat ro'yxati) */
-  .chekopt{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;
-    border:1px solid var(--line);border-radius:9px;padding:6px 9px;transition:border-color .13s,color .13s,background .13s}
-  .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
+  /* Chiplar qatori (Xarajat — Chek/Izoh/Sana/Filial/Ovqat/AI chek/AI spidometr + Maydonlar).
+     flex:1 1 100% .item ichida alohida qatorga tushadi, o'zi ham wrap qiladi — hech qachon
+     kartadan tashqariga chiqmaydi (overflow:hidden shart emas, wrap yetarli). */
+  .item-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;min-width:0}
+  /* Chek majburiy checkbox (Xarajat ro'yxati) — pill chip: 30px, radius 999 */
+  .chekopt{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;height:30px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;
+    border:1px solid var(--line);border-radius:999px;padding:0 11px;transition:border-color .13s,color .13s,background .13s}
+  .chekopt input{width:14px;height:14px;margin:0;accent-color:var(--primary);cursor:pointer}
   .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
   /* Filial moslashtirish (aros-staff <-> Provodka) — mos_filial yo'q qatorlar sariq */
@@ -1004,21 +1015,26 @@ function renderList(elId,arr,showChek){
   // showChek → Xarajat ro'yxatida "Chek" checkbox (admin chek majburiyligini boshqaradi)
   $(elId).innerHTML=arr.length?arr.map(a=>`
     <div class="item ${a.is_active?'':'off'}">
-      <div class="mid"><div class="t">${esc(a.name)}</div><div class="c">${esc(a.code)}${a.subtitle?' · '+esc(a.subtitle):''}</div></div>
-      ${showChek?`<label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
+      <div class="item-head">
+        <div class="mid"><div class="t">${esc(a.name)}</div><div class="c">${esc(a.code)}${a.subtitle?' · '+esc(a.subtitle):''}</div></div>
+        <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
+        <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
+      </div>
+      ${showChek?`<div class="item-chips">
+      <label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
       <label class="chekopt ${a.izoh_majburiy?'on':''}" title="Izoh majburiy"><input type="checkbox" ${a.izoh_majburiy?'checked':''} onchange="setFlag('${a.id}','izoh',this.checked)">Izoh</label>
       <label class="chekopt ${a.davr_majburiy?'on':''}" title="Davr (sana) majburiy"><input type="checkbox" ${a.davr_majburiy?'checked':''} onchange="setFlag('${a.id}','davr',this.checked)">Sana</label>
       <label class="chekopt ${a.filial_majburiy?'on':''}" title="Filial majburiy — xarajat qaysi filial uchun"><input type="checkbox" ${a.filial_majburiy?'checked':''} onchange="setFlag('${a.id}','filial',this.checked)">Filial</label>
-      <label class="chekopt ${a.ovqat_modda?'on':''}" title="Ovqat moddasi — hodim ro'yxati + kuniga 1 obed/1 zavtrak nazorati"><input type="checkbox" ${a.ovqat_modda?'checked':''} onchange="setFlag('${a.id}','ovqat',this.checked)">Ovqat</label>
-      <label class="chekopt ${a.ai_tekshir?'on':''}" title="Chek rasmini Claude o'qiydi (summa/sana), mashina moddasida spidometr (km). Farq bo'lsa admin ko'radi."><input type="checkbox" ${a.ai_tekshir?'checked':''} onchange="setFlag('${a.id}','ai',this.checked)">AI tekshirsin</label>
-      ${mxdBtn(a.id)}`:''}
-      <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
-      <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
+      ${a.ovqat_modda!==undefined?`<label class="chekopt ${a.ovqat_modda?'on':''}" title="Ovqat moddasi — hodim ro'yxati + kuniga 1 obed/1 zavtrak nazorati"><input type="checkbox" ${a.ovqat_modda?'checked':''} onchange="setFlag('${a.id}','ovqat',this.checked)">Ovqat</label>`:''}
+      ${a.ai_tekshir!==undefined?`<label class="chekopt ${a.ai_tekshir?'on':''}" title="Chek rasmini AI o'qiydi — summa/sana; farq bo'lsa admin ko'radi."><input type="checkbox" ${a.ai_tekshir?'checked':''} onchange="setFlag('${a.id}','ai',this.checked)">AI chek</label>`:''}
+      ${a.spidometr_ai!==undefined?`<label class="chekopt ${a.spidometr_ai?'on':''}" title="Faqat benzin/gaz: spidometr rasmi → km tarixi"><input type="checkbox" ${a.spidometr_ai?'checked':''} onchange="setFlag('${a.id}','spidometr',this.checked)">AI spidometr</label>`:''}
+      ${mxdBtn(a.id)}
+      </div>`:''}
     </div>`).join(''):'<div class="empty">—</div>';
 }
 // Modda bayrog'ini (chek|izoh|davr|filial) o'zgartiradi (admin only — RPC).
 // Xato bo'lsa ro'yxat qayta chiziladi (revert). Bitta umumiy set_modda_flag RPC.
-const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda',ai:'ai_tekshir'};
+const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda',ai:'ai_tekshir',spidometr:'spidometr_ai'};
 window.setFlag=async(id,flag,val)=>{
   const {error}=await sb.rpc('set_modda_flag',{p_account:id,p_flag:flag,p_bool:val});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }

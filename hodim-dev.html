@@ -1061,7 +1061,7 @@
         <div id="chekAiNote" class="ai-note" style="display:none"></div>
       </div>
 
-      <!-- Spidometr (.ai-*) — faqat modda.ai_tekshir=true VA "Mashina" maydoni tanlangan bo'lsa ko'rinadi -->
+      <!-- Spidometr (.ai-*) — faqat modda.spidometr_ai=true VA "Mashina" maydoni tanlangan bo'lsa ko'rinadi -->
       <div class="sect ai-spidsect" id="spidSect" style="display:none">
         <div class="lbl">Spidometr rasmi <span class="opt">(ixtiyoriy)</span></div>
         <label class="chekbtn">
@@ -2294,7 +2294,7 @@ window.onChekFile=async(el)=>{
     $('chekPrev').style.display='flex'; icons();
     updateChekUI(); updateSave();
     // AI chek tahlili — modda `ai_tekshir` bo'lsagina, FONDA (forma darrov ochiq qoladi).
-    if(aiModdaOk()) startChekAi(f); else { aiTahlil=null; aiNoteHide('chekAiNote'); }
+    if(aiChekOk()) startChekAi(f); else { aiTahlil=null; aiNoteHide('chekAiNote'); }
   }catch(e){ toast('Rasm yuklanmadi: '+e.message,true); }
 };
 window.removeChek=()=>{ chekBlob=null; $('chekPrev').style.display='none'; $('chekPrev').innerHTML='';
@@ -2320,7 +2320,10 @@ function genUuid(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
     const r=Math.random()*16|0, v=(c==='x')?r:(r&0x3|0x8); return v.toString(16); });
 }
-function aiModdaOk(){ const m=moddaObj(); return !!(m && m.ai_tekshir); }   // ustun yo'q bo'lsa undefined → false
+// Ikki MUSTAQIL bayroq (Asilbek qarori): "AI chek" — universal, "AI spidometr" — faqat
+// benzin/gaz (mashina) moddalarida. Ustun yo'q bo'lsa (`undefined` — SQL RUN qilinmagan) → false.
+function aiChekOk(){ const m=moddaObj(); return !!(m && m.ai_tekshir); }
+function aiSpidOk(){ const m=moddaObj(); return !!(m && m.spidometr_ai); }
 // "Mashina" maxsus maydoni (tur='royxat') — spidometr shu maydon tanlanganda ko'rinadi.
 function mashinaField(){ return mxdFields().find(f=>String(f.maydon_turi||'')==='royxat'
   && String(f.nom||'').trim().toLowerCase()==='mashina')||null; }
@@ -2329,9 +2332,9 @@ function mashinaSelected(){ const f=mashinaField(); if(!f) return null;
 function mashinaNomi(){ const s=mashinaSelected(); if(!s) return ''; const e=mxdElById(s.field,s.element_id); return e?e.nom:''; }
 function aiNoteShow(id,text,warn){ const el=$(id); if(!el) return; el.textContent=text; el.className='ai-note'+(warn?' warn':''); el.style.display='block'; }
 function aiNoteHide(id){ const el=$(id); if(!el) return; el.style.display='none'; el.textContent=''; }
-// Spidometr bo'limi faqat: modda ai_tekshir VA "Mashina" maydoni shu formada tanlangan bo'lsa.
+// Spidometr bo'limi faqat: modda spidometr_ai VA "Mashina" maydoni shu formada tanlangan bo'lsa.
 function updateAiUI(){ const sect=$('spidSect'); if(!sect) return;
-  sect.style.display=(aiModdaOk()&&mashinaSelected())?'block':'none'; }
+  sect.style.display=(aiSpidOk()&&mashinaSelected())?'block':'none'; }
 function b64Read(blob){
   return new Promise((res,rej)=>{
     const r=new FileReader();
