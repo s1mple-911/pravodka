@@ -59,6 +59,11 @@
   @media(min-width:900px){.frow{grid-template-columns:auto 1fr 1fr 1fr;align-items:end}}
   .fnote{font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:9px;padding:8px 11px;margin-top:12px;display:none;line-height:1.5}
   .fld{min-width:0}
+  /* Faqat shubhali (admin) — sozlama-dev.html dagi .chekopt bilan bir xil ko'rinish, shu faylga ko'chirilgan */
+  .chekopt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;
+    border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--surface-2)}
+  .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
+  .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .seg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-top:12px;overflow-x:auto}
   .seg button{flex:1;min-width:74px;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
   .seg button:hover{color:var(--ink)}
@@ -100,6 +105,9 @@
   .je .ftag .tg.pend{background:var(--amber-soft);color:var(--amber);cursor:pointer}
   .je .ftag .tg.komm{background:#fdf3d6;color:#a9791b}
   [data-theme="dark"] .je .ftag .tg.komm{background:#3a2f14;color:#e6b84a}
+  /* AI tekshiruvi (rasm/spidometr) — qizil "shubhali"/"xato", kulrang "hali tekshirmagan" */
+  .je .ftag .tg.warn{background:var(--red-soft);color:var(--red);cursor:pointer}
+  .je .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   /* ===== Stage 6: Jurnal — tushunarli jadval (desktop) + karta (mobil) ===== */
   /* teglar/chek endi .je tashqarisida ham ishlashi kerak — umumiy (unscoped) qoidalar */
   .ftag{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -109,6 +117,8 @@
   .ftag .tg.pend{background:var(--amber-soft);color:var(--amber);cursor:pointer}
   .ftag .tg.komm{background:#fdf3d6;color:#a9791b}
   [data-theme="dark"] .ftag .tg.komm{background:#3a2f14;color:#e6b84a}
+  .ftag .tg.warn{background:var(--red-soft);color:var(--red);cursor:pointer}
+  .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
   .chekpin svg{width:13px;height:13px}
@@ -1031,6 +1041,13 @@
           <label for="q">Qidiruv (izoh)</label>
           <input class="txt" id="q" placeholder="izoh bo'yicha qidirish" oninput="onQ()">
         </div>
+        <!-- AI shubhali filtri — FAQAT admin, init() da ochiladi (permIsAdmin). Klient tomonda,
+             faqat yuklangan qatorlarga (aiMap serverdan admin uchungina yuklanadi). -->
+        <div class="fld" id="fldShubhali" style="display:none">
+          <label class="chekopt" id="lblShubhali" title="Faqat AI 'Shubhali' yoki 'AI xato' deb belgilagan yozuvlar">
+            <input type="checkbox" id="chkShubhali" onchange="toggleShubhali(this.checked)">Faqat shubhali
+          </label>
+        </div>
       </div>
       <div class="fnote" id="filNote"></div>
       <div class="seg" id="turSeg">
@@ -1218,6 +1235,15 @@
     <h3><i data-lucide="package"></i>Yuk ma'lumoti</h3>
     <div id="yukInfoBody"></div>
     <button class="yiclose" onclick="closeYukInfo()">Yopish</button>
+  </div>
+</div>
+
+<!-- AI tekshiruvi (chek/spidometr) — admin only, .yimodal naqshi qayta ishlatiladi -->
+<div class="yimodal" id="aiInfoModal" onclick="if(event.target===this)closeAiInfo()">
+  <div class="yibox">
+    <h3><i data-lucide="sparkles"></i>AI tekshiruvi</h3>
+    <div id="aiInfoBody"></div>
+    <button class="yiclose" onclick="closeAiInfo()">Yopish</button>
   </div>
 </div>
 
@@ -1628,14 +1654,21 @@ let eyMap={};     // entry.id → [{yuk_id, summa_uzs}] (qisman to'lov taqsimoti
 // 🔴 BITTA qo'shimcha so'rov — SAHIFAGA, qatorga emas. View hali yaratilmagan bo'lsa
 // (PGRST205/42P01) mxMap bo'sh qoladi va jurnal avvalgidek to'liq ishlaydi.
 let mxMap={};     // entry.id → [{maydon_nom, maydon_turi, tartib, korinish, rasm_url}]
+// AI tekshiruvi (PROVODKA_RASM_DETECT.sql) — FAQAT admin. entry.shubhali/ai_holat
+// jurnal()/jurnal_v2() javobida yo'q, shuning uchun alohida so'rov (v_entry_maydon
+// naqshi bilan bir xil): ustun/jadval hali yo'q bo'lsa (42703/PGRST205) jimgina bo'sh qoladi.
+let aiMap={};     // entry.id → {shubhali, shubhali_sabab, ai_holat, rasm_tahlil_id, spidometr_tahlil_id}
 async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
-  if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; return; }
+  if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; aiMap={}; return; }
   try{
-    const [mRes, eyRes, mxRes]=await Promise.all([
+    const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
+    const [mRes, eyRes, mxRes, aiRes]=await Promise.all([
       sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',ids),
       sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids),
-      sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids)
+      sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids),
+      isAdm ? sb.from('entry').select('id,shubhali,shubhali_sabab,ai_holat,rasm_tahlil_id,spidometr_tahlil_id').in('id',ids)
+            : Promise.resolve({data:null,error:null})
     ]);
     if(mRes.error||!mRes.data) return;
     const m={}; mRes.data.forEach(r=>{ m[r.id]=r; }); metaMap=m;
@@ -1643,6 +1676,8 @@ async function refreshMeta(){
     // View yo'q / RLS bermadi → mxRes.error, mxMap bo'sh: chip umuman chizilmaydi.
     mxMap={}; if(!mxRes.error) (mxRes.data||[]).forEach(r=>{ (mxMap[r.entry_id]||(mxMap[r.entry_id]=[])).push(r); });
     Object.keys(mxMap).forEach(k=>mxMap[k].sort((a,b)=>(a.tartib||0)-(b.tartib||0)));
+    // Ustunlar hali RUN qilinmagan (42703) yoki admin emas → aiMap bo'sh, chip chizilmaydi.
+    aiMap={}; if(isAdm&&!aiRes.error&&aiRes.data) aiRes.data.forEach(r=>{ aiMap[r.id]=r; });
     render();
   }catch(e){}
 }
@@ -1684,6 +1719,66 @@ window.mxdImgErr=img=>{
   try{ const s=document.createElement('i'); s.setAttribute('data-lucide','tag'); img.replaceWith(s); icons(); }catch(e){}
 };
 const filName=id=>{ const a=accounts.find(x=>x.id===id); return a?a.name:null; };
+// --- AI tekshiruvi popover (Shubhali/AI xato chipi bosilganda) — admin only ---
+window.closeAiInfo=()=>{ const m=$('aiInfoModal'); if(m) m.classList.remove('open'); };
+window.openAiInfo=async entryId=>{
+  const box=$('aiInfoBody'); if(!box) return;
+  box.innerHTML='<div class="yiempty">Yuklanmoqda…</div>';
+  $('aiInfoModal').classList.add('open');
+  const am=aiMap[entryId]||{};
+  try{
+    const rows2=[];
+    if(am.shubhali_sabab) rows2.push(['Sabab', esc(am.shubhali_sabab)]);
+    let rt=null, km=null, imgHtml='';
+    if(am.rasm_tahlil_id){
+      const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.rasm_tahlil_id).maybeSingle();
+      if(!error&&data) rt=data;
+    }
+    // Spidometr: entry.spidometr_tahlil_id = rasm_tahlil.id (tur='spidometr'), mashina_km esa
+    // entry_id bo'yicha unique — ikkalasi ALOHIDA so'raladi (chek `rt` bilan aralashmaydi).
+    let rtSpid=null;
+    if(am.spidometr_tahlil_id){
+      const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.spidometr_tahlil_id).maybeSingle();
+      if(!error&&data) rtSpid=data;
+    }
+    if(am.spidometr_tahlil_id||am.rasm_tahlil_id){
+      const {data,error}=await sb.from('mashina_km').select('*').eq('entry_id',entryId).maybeSingle();
+      if(!error&&data) km=data;
+    }
+    if(rt){
+      rows2.push(['AI summa', rt.ai_summa!=null?money(rt.ai_summa):'—']);
+      rows2.push(['AI sana', esc(rt.ai_sana||'—')]);
+      if(rt.ai_km!=null) rows2.push(['AI km', esc(String(rt.ai_km))]);
+      if(rt.ishonch!=null) rows2.push(['Ishonch', esc(String(rt.ishonch))]);
+      if(rt.holat) rows2.push(['Holat', esc(rt.holat)]);
+      if(rt.user_id&&rt.id){
+        try{
+          const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
+          if(!se&&su) imgHtml=`<img src="${esc(su.signedUrl)}" alt="chek" style="max-width:100%;border-radius:10px;margin-top:10px" onerror="this.style.display='none'">`;
+        }catch(e){}
+      }
+    }
+    if(rtSpid){
+      if(rtSpid.ai_km!=null) rows2.push(['AI km (spidometr)', esc(String(rtSpid.ai_km))]);
+      if(rtSpid.ishonch!=null) rows2.push(['Spidometr ishonch', esc(String(rtSpid.ishonch))]);
+      if(rtSpid.user_id&&rtSpid.id){
+        try{
+          const {data:su2,error:se2}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300);
+          if(!se2&&su2) imgHtml+=`<img src="${esc(su2.signedUrl)}" alt="spidometr" style="max-width:100%;border-radius:10px;margin-top:10px" onerror="this.style.display='none'">`;
+        }catch(e){}
+      }
+    }
+    if(km){
+      rows2.push(['Km', km.km!=null?esc(String(km.km)):'—']);
+      rows2.push(['Oldingi km', km.oldingi_km!=null?esc(String(km.oldingi_km)):'—']);
+      rows2.push(['Yurgan km', km.yurgan_km!=null?esc(String(km.yurgan_km)):'—']);
+      if(km.som_per_km!=null) rows2.push(["So'm/km", money(km.som_per_km)]);
+    }
+    if(!rows2.length&&!imgHtml){ box.innerHTML='<div class="yiempty">Tafsilot topilmadi.</div>'; return; }
+    box.innerHTML=rows2.map(r=>`<div class="yirow"><div class="yl1">${r[0]}</div><div class="yl2">${r[1]}</div></div>`).join('')+imgHtml;
+    icons();
+  }catch(e){ box.innerHTML='<div class="yiempty">Yuklanmadi.</div>'; }
+};
 function metaTags(e){
   const meta=metaMap[e.id]; if(!meta) return '';
   const tags=[];
@@ -1695,6 +1790,23 @@ function metaTags(e){
   if(meta.kommunal_turi){
     const KL={gaz:'🔥 Gaz',svet:'💡 Svet',suv:'💧 Suv',musor:'🗑️ Musor'};
     tags.push(`<span class="tg komm">${KL[meta.kommunal_turi]||esc(meta.kommunal_turi)}</span>`);
+  }
+  // ⚠️ AI tekshiruvi (chek/spidometr) — FAQAT admin. Hodim uchun aiMap doim bo'sh
+  // (refreshMeta admin bo'lmasa so'ramaydi ham), shu tag() umuman ishga tushmaydi.
+  {
+    const am=aiMap[e.id];
+    if(am){
+      if(am.shubhali){
+        tags.push(`<span class="tg warn" onclick="openAiInfo('${e.id}')" title="${esc(am.shubhali_sabab||'AI shubha bildirdi')}"><i data-lucide="triangle-alert"></i>Shubhali</span>`);
+      } else if(am.ai_holat==='xato'){
+        tags.push(`<span class="tg warn" onclick="openAiInfo('${e.id}')" title="AI tekshiruvi xato bilan tugadi"><i data-lucide="triangle-alert"></i>AI xato</span>`);
+      } else if(am.ai_holat==='yoq'){
+        const k=klass(e);
+        const moddaId=(k.kind==='out'&&k.dt)?k.dt.account_id:null;
+        const modda=moddaId?accounts.find(a=>a.id===moddaId):null;
+        if(modda&&modda.ai_tekshir) tags.push(`<span class="tg aiwait" title="AI hali bu yozuvni tekshirmagan"><i data-lucide="clock"></i>AI tekshirmagan</span>`);
+      }
+    }
   }
   // Maxsus maydonlar — mavjud .ftag qatoriga chip bo'lib qo'shiladi (yangi qator YO'Q).
   // Ko'pi bilan 3 ta; qolganlari +N chipiga yig'iladi (karta portlamasin).
@@ -2018,6 +2130,14 @@ function actsHtml(e,k,multi){
   return (editable?`<button class="jact edit" title="Tahrirlash" onclick="openEdit('${e.id}')"><i data-lucide="pencil"></i></button>`:'')
     +`<button class="jact del" title="O'chirish" onclick="softDelete('${e.id}')"><i data-lucide="trash-2"></i></button>`;
 }
+// AI "Faqat shubhali" (admin) — klient tomonda, faqat yuklangan qatorlarga.
+let shubhaliOnly=false;
+window.toggleShubhali=val=>{
+  shubhaliOnly=!!val;
+  const lbl=$('lblShubhali'); if(lbl) lbl.classList.toggle('on',shubhaliOnly);
+  render();
+};
+const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato')); };
 function render(){
   // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
   { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
@@ -2025,6 +2145,7 @@ function render(){
   const list=rows.filter(e=>{
     if(tur!=='all' && klass(e).kind!==tur) return false;
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
+    if(shubhaliOnly && !isShubhaliRow(e)) return false;
     return true;
   });
   // 🔴 useV2 da tur/qidiruv SERVERDA filtrlangan → total to'g'ri son, matn sodda.
@@ -2604,7 +2725,7 @@ function sselWire(){
     const mo=new MutationObserver(ms=>{
       for(const m of ms){ if(m.target.classList&&m.target.classList.contains('open')){ sselCloseAll(); return; } }
     });
-    ['editModal','chekModal','linkModal','moreModal','yukInfoModal'].forEach(id=>{
+    ['editModal','chekModal','linkModal','moreModal','yukInfoModal','aiInfoModal'].forEach(id=>{
       const el=$(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['class']});
     });
   }catch(e){}
@@ -3079,6 +3200,8 @@ async function exportCsvFallback(a){
 
 async function init(){
   wireV2();
+  // AI "Faqat shubhali" — faqat admin ko'radi (checkbox sukut yashirin).
+  if(window.permIsAdmin&&window.permIsAdmin()){ const f=$('fldShubhali'); if(f) f.style.display=''; }
   // 🔴 Default davr — BUGUN (avval oyning 1-sanasi edi). Chip "Bugun" .on holatda.
   const n=nowUz();
   $('from').value=iso(n); $('to').value=iso(n);

@@ -1010,6 +1010,7 @@ function renderList(elId,arr,showChek){
       <label class="chekopt ${a.davr_majburiy?'on':''}" title="Davr (sana) majburiy"><input type="checkbox" ${a.davr_majburiy?'checked':''} onchange="setFlag('${a.id}','davr',this.checked)">Sana</label>
       <label class="chekopt ${a.filial_majburiy?'on':''}" title="Filial majburiy — xarajat qaysi filial uchun"><input type="checkbox" ${a.filial_majburiy?'checked':''} onchange="setFlag('${a.id}','filial',this.checked)">Filial</label>
       <label class="chekopt ${a.ovqat_modda?'on':''}" title="Ovqat moddasi — hodim ro'yxati + kuniga 1 obed/1 zavtrak nazorati"><input type="checkbox" ${a.ovqat_modda?'checked':''} onchange="setFlag('${a.id}','ovqat',this.checked)">Ovqat</label>
+      <label class="chekopt ${a.ai_tekshir?'on':''}" title="Chek rasmini Claude o'qiydi (summa/sana), mashina moddasida spidometr (km). Farq bo'lsa admin ko'radi."><input type="checkbox" ${a.ai_tekshir?'checked':''} onchange="setFlag('${a.id}','ai',this.checked)">AI tekshirsin</label>
       ${mxdBtn(a.id)}`:''}
       <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
       <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
@@ -1017,7 +1018,7 @@ function renderList(elId,arr,showChek){
 }
 // Modda bayrog'ini (chek|izoh|davr|filial) o'zgartiradi (admin only — RPC).
 // Xato bo'lsa ro'yxat qayta chiziladi (revert). Bitta umumiy set_modda_flag RPC.
-const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda'};
+const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda',ai:'ai_tekshir'};
 window.setFlag=async(id,flag,val)=>{
   const {error}=await sb.rpc('set_modda_flag',{p_account:id,p_flag:flag,p_bool:val});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }

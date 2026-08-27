@@ -1,0 +1,150 @@
+=====================================================================
+ !!! DIQQAT: BU FAYL KOD EMAS — O'QISH UCHUN QO'LLANMA !!!
+ Bu matnni `index.ts` ga NUSXALAMANG va Supabase Dashboard'dagi funksiya
+ muharririga QO'YMANG. Kod faqat: supabase/functions/rasm-detect/index.ts
+ (u `// ===` bilan boshlanadi va ichida `Deno.serve` bor).
+
+ EF `rasm-detect` — DEPLOY QO'LLANMASI (Asilbek uchun)
+ Provodka · Supabase project: kxzerccdpcltmzrxutlo
+ Fayl: supabase/functions/rasm-detect/index.ts
+=====================================================================
+
+NIMA QILADI
+-----------
+Hodim chek yoki spidometr rasmini yuklaganda, EF Claude Vision bilan
+rasmni o'qib STRUKTURALI natija qaytaradi: chek uchun {summa, sana,
+valyuta, ...}, spidometr uchun {km, ...}. Maqsad — hodim summani/km ni
+qo'lda kiritmasin, forma AVTO to'lsin (u baribir tekshirib tasdiqlaydi).
+
+TEZ va ARZON: `thinking` YO'Q, `max_tokens:500`, `tool_choice` bilan
+javob MAJBURIY strukturali (model erkin matn yozib o'tirmaydi, bitta
+so'rov — bitta natija, stream yo'q).
+
+Bu EF `ai-chat` bilan BIR XIL xavfsizlik qatlamlariga amal qiladi:
+CORS allowlist, `{data,error}` har doim tekshiriladi, `temperature/
+top_p/top_k/budget_tokens` ishlatilmaydi, ruxsat FAIL-CLOSED.
+
+
+0) OLDIN NIMA BO'LISHI KERAK
+----------------------------
+[a] `PROVODKA_RASM_DETECT.sql` RUN qilingan bo'lsin — `rasm_tahlil`
+    jadvali (+ tamper-proof trigger), `entry`ga AI ustunlari, `mashina_km`,
+    `entry_ai_bogla`/`mashina_km_yoz` RPC'lari va `rasm-tahlil` Storage
+    bucket'i shu yerda yaratiladi. 🔴 Bu fayl KENGROQ tizimning bir qismi
+    (chek/spidometr → xarajat yozuvi → "shubhali" nazorati) — o'zining
+    OLD SHARTLARI bor, ular ham RUN bo'lgan bo'lsin:
+        PROVODKA_PERMS.sql, PROVODKA_XARAJAT_MAYDON.sql,
+        PROVODKA_MAYDON_QOROVUL.sql, PROVODKA_OVQAT.sql, PROVODKA_IJROCHI.sql
+    (Fayl ichidagi 0-BO'LIM shularni SELECT bilan o'zi ham tekshiradi.)
+    Busiz EF har so'rovda audit yozib bo'lmay xato loglaydi (foydalanuvchi
+    baribir javob oladi — insert xatosi fail-closed EMAS, faqat log,
+    lekin kunlik hisoblagich ham noto'g'ri ishlaydi — SHUNING UCHUN
+    SQL RUN QILINMAGUNCHA EF ISHGA TUSHIRILMASIN).
+    🔴 EF kodi `PROVODKA_RASM_DETECT.sql` oxiridagi "KONTRAKTLAR" bo'limiga
+    QAT'IY mos yozilgan: `natija.muammo` — MATN (bo'sh/`null` = muammo yo'q),
+    massiv EMAS (jadvaldagi `trg_rasm_tahlil_aniq` triggeri buni `->>` bilan
+    matn sifatida o'qiydi — massiv bo'lsa `aniq` doim `false` chiqib qolardi).
+    `storage_path` ham aynan `{user_id}/{id}.ext` (bucket nomi PREFIKSSIZ).
+[b] `PROVODKA_PAGES_EMPTY.sql` va boshqa asosiy Provodka SQL fayllar
+    allaqachon RUN qilingan (`my_perms()` funksiyasi mavjud bo'lishi
+    kerak — EF ruxsatni shu bilan tekshiradi).
+[c] `ai-chat` allaqachon deploy qilingan bo'lsa `ANTHROPIC_API_KEY` va
+    `AI_ALLOWED_ORIGINS` secretlari BOR — ular BIR XIL, qayta yozish
+    shart emas.
+[d] Supabase CLI o'rnatilgan (`npm i -g supabase` yoki CLI docs).
+[e] EF faqat `rasm_tahlil` ga yozadi va rasmni Storage'ga yuklaydi —
+    natijani yozuvga BOG'LASH (`entry_ai_bogla`, `mashina_km_yoz`) va
+    "shubhali" ko'rsatish (`v_shubhali`) mijoz (hodim.html/admin) tomonida,
+    ALOHIDA bosqich. Bu EF o'zi hech qanday `entry`/`entry_line` yozmaydi.
+
+
+1) LOGIN VA LOYIHAGA ULANISH
+----------------------------
+    supabase login
+    cd C:\Users\laziz\pravodka
+    supabase link --project-ref kxzerccdpcltmzrxutlo
+
+
+2) SECRETLAR
+-------------
+`ai-chat` bilan BIR XIL secretlar avtomat ishlatiladi (qayta yozish
+shart emas): `ANTHROPIC_API_KEY`, `AI_ALLOWED_ORIGINS`, `AI_MODEL`,
+`AI_SUPABASE_ANON_KEY` (yoki `SUPABASE_PUBLISHABLE_KEY`/`SUPABASE_ANON_KEY`).
+
+`SUPABASE_URL` va `SUPABASE_SERVICE_ROLE_KEY` — Supabase Edge Function
+muhitida HAR DOIM AVTOMAT mavjud (Supabase o'zi qo'yadi), qo'lda
+`secrets set` qilish SHART EMAS va TAVSIYA ETILMAYDI.
+
+Ixtiyoriy (yangi, faqat shu EF uchun):
+
+    supabase secrets set RASM_KUN_MAX=300
+
+    Kunlik chegara — narx qorovuli. `rasm_tahlil` jadvalidagi BUGUNGI
+    (Toshkent kuni) qatorlar soni shu songa yetsa, EF Claude'ga
+    murojaat qilmay 429 qaytaradi ("Bugungi rasm tahlili chegarasiga
+    yetildi"). 🔴 Bu FOYDALANUVCHI bo'yicha EMAS — BUTUN KOMPANIYA
+    bo'yicha umumiy hisoblagich (foydalanuvchi allaqachon 20/daqiqa
+    bilan cheklangan — RL_MAX_HITS, kod ichida, o'zgartirilmaydi).
+    Qiymatni oshirish/kamaytirish uchun EF qayta deploy qilish SHART
+    EMAS — yangi so'rovlar yangi qiymatga darrov o'tadi.
+
+
+3) DEPLOY
+----------
+    supabase functions deploy rasm-detect
+
+`ai-chat` bilan bir xil loyihaga (`kxzerccdpcltmzrxutlo`) deploy
+bo'ladi, alohida funksiya nomi bilan (`rasm-detect`) — ikkalasi ham
+mustaqil ishlaydi, bir-birini almashtirmaydi.
+
+
+4) TEKSHIRISH (curl namunasi)
+-------------------------------
+Avval brauzer konsolida (login qilingan holda) sessiya tokenini oling:
+    (await sb.auth.getSession()).data.session.access_token
+
+    curl -i -X POST \
+      "https://kxzerccdpcltmzrxutlo.supabase.co/functions/v1/rasm-detect" \
+      -H "Authorization: Bearer <TOKEN>" \
+      -H "Content-Type: application/json" \
+      -H "Origin: https://s1mple-911.github.io" \
+      -d "{\"id\":\"<yangi-uuid>\",\"tur\":\"chek\",\"image\":{\"media_type\":\"image/jpeg\",\"data\":\"<base64>\"}}"
+
+Kutilgan javob (muvaffaqiyat): 200,
+    {"ok":true,"id":"...","tur":"chek","natija":{...},"aniq":true/false,
+     "ai_summa":150000,"ai_sana":"2026-08-20","ai_km":null}
+
+Kutilgan javob (AI xato/timeout): 200 (forma qo'lda to'ldirilsin degani),
+    {"ok":false,"code":"ai_xato","error":"..."}
+
+Xato holatlar: 401 (sessiya yo'q/yaroqsiz), 403 (ruxsat yo'q —
+`has_provodka`/`is_admin` false), 429 (tezlik yoki kunlik chegara),
+400 (rasm/kirish noto'g'ri), 500 (server sozlamasi to'liq emas).
+
+Loglarni ko'rish:
+    supabase functions logs rasm-detect
+
+
+5) NARX HISOBI (taxminiy)
+---------------------------
+Bitta rasm tahlili ≈ 1000-1500 kirish tokeni (rasm + system prompt) +
+≤500 chiqish tokeni ≈ jami ~1200-2000 token. `claude-sonnet-5` narxida
+($2/$10 per 1M token intro, keyin $3/$15) bitta so'rov taxminan
+$0.003-0.006 ga tushadi. `RASM_KUN_MAX=300` bilan kunlik yuqori chegara
+≈ $0.20-0.35/kun (kompaniya bo'yicha).
+
+
+6) ROLLBACK
+------------
+Funksiyani o'chirish (kerak bo'lsa):
+    supabase functions delete rasm-detect
+`rasm_tahlil`/`mashina_km` jadvallari, triggerlar va `rasm-tahlil`
+bucket'i o'zi qoladi (audit tarixi yo'qolmasin) — DDL rollback
+`PROVODKA_RASM_DETECT.sql` faylining OXIRIDAGI "ROLLBACK" bo'limida
+tayyor turibdi (izohlangan, Asilbek qo'lda tanlab RUN qiladi).
+Mijoz tomonida (`hodim-dev.html` va h.k.) EF chaqiruvi ishlamasa
+forma avvalgidek QO'LDA to'ldiriladi — hech narsa buzilmaydi, chunki
+bu funksiya YANGI qulaylik, eski oqimni ALMASHTIRMAYDI (mijoz
+integratsiyasi — rasm yuklash UI + `entry_ai_bogla`/`mashina_km_yoz`
+chaqiruvi — keyingi bosqichda, alohida).
+=====================================================================
