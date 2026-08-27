@@ -22,8 +22,8 @@
 <script src="ai-widget-dev.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
@@ -74,6 +74,12 @@
   .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
   .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
+  /* Filial moslashtirish (aros-staff <-> Provodka) — mos_filial yo'q qatorlar sariq */
+  .stm.miss{background:var(--amber-soft);border-radius:11px;padding-left:10px;padding-right:10px;margin:0 -10px}
+  .stm .mid .c b{color:var(--amber)}
+  .stm select{height:38px;min-width:150px;flex:1 1 150px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:9px;padding:0 10px;font-size:13.5px;font-family:inherit;outline:none}
+  .stm select:focus{border-color:var(--primary)}
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 14px;line-height:1.6}
   .res{font-size:14px;font-weight:600;margin-top:12px;min-height:20px}
   /* V8: konvert koridori — kiritilgan foizning real ma'nosi (1$ uchun so'm oralig'i) */
@@ -513,6 +519,31 @@
       <div id="korRes" class="res"></div>
     </div>
 
+    <!-- Ovqat narxlari — 5401+ "Ovqat" moddasiga yozilganda obed/zavtrak necha so'mligi -->
+    <div class="card" id="ovqNarxCard" style="display:none">
+      <div class="sec">Ovqat narxlari</div>
+      <div class="hint">Hodimga bir obed/zavtrak necha so'm hisoblanishi. "Xarajat" tabida
+        modda ustidagi <b>Ovqat</b> belgisi bilan biriktiriladi — o'sha modda uchun xarajat faqat
+        hodim ro'yxati orqali (kuniga 1 obed / 1 zavtrak nazorati bilan) yoziladi.</div>
+      <div class="addrow" style="margin-bottom:10px">
+        <input id="ovqObed" inputmode="numeric" placeholder="Obed narxi (so'm)" autocomplete="off" oninput="onOvqNarxInput()">
+      </div>
+      <div class="addrow">
+        <input id="ovqZavtrak" inputmode="numeric" placeholder="Zavtrak narxi (so'm)" autocomplete="off" oninput="onOvqNarxInput()">
+        <button id="ovqNarxBtn" onclick="saveOvqNarx()" disabled><i data-lucide="save"></i>Saqlash</button>
+      </div>
+      <div id="ovqNarxRes" class="res"></div>
+    </div>
+
+    <!-- Filial moslashtirish — aros_staff.branch_id ni Provodka xarajat filialiga bog'laydi -->
+    <div class="card" id="staffMapCard" style="display:none">
+      <div class="sec">Filial moslashtirish (aros-staff ↔ Provodka)</div>
+      <div class="hint">Aros hodimlar katalogidagi filial nomi Provodka filialiga avtomatik
+        moslashtiriladi. Nom mos kelmasa (sariq qator) — qo'lda tanlang. "↺" tugmasi qo'lda
+        belgilashni bekor qilib, qayta avto-moslashtirishga qaytaradi.</div>
+      <div id="staffMapList"></div>
+    </div>
+
     <div class="card" id="linkCard" style="display:none">
       <div class="sec">Filiallarni bog'lash</div>
       <div class="hint">Aros'dagi filiallarni Provodka hisoblariga bog'laydi — filial bo'yicha foyda shundan hisoblanadi.
@@ -653,6 +684,7 @@ function renderList(elId,arr,showChek){
       <label class="chekopt ${a.izoh_majburiy?'on':''}" title="Izoh majburiy"><input type="checkbox" ${a.izoh_majburiy?'checked':''} onchange="setFlag('${a.id}','izoh',this.checked)">Izoh</label>
       <label class="chekopt ${a.davr_majburiy?'on':''}" title="Davr (sana) majburiy"><input type="checkbox" ${a.davr_majburiy?'checked':''} onchange="setFlag('${a.id}','davr',this.checked)">Sana</label>
       <label class="chekopt ${a.filial_majburiy?'on':''}" title="Filial majburiy — xarajat qaysi filial uchun"><input type="checkbox" ${a.filial_majburiy?'checked':''} onchange="setFlag('${a.id}','filial',this.checked)">Filial</label>
+      <label class="chekopt ${a.ovqat_modda?'on':''}" title="Ovqat moddasi — hodim ro'yxati + kuniga 1 obed/1 zavtrak nazorati"><input type="checkbox" ${a.ovqat_modda?'checked':''} onchange="setFlag('${a.id}','ovqat',this.checked)">Ovqat</label>
       ${mxdBtn(a.id)}`:''}
       <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
       <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
@@ -660,7 +692,7 @@ function renderList(elId,arr,showChek){
 }
 // Modda bayrog'ini (chek|izoh|davr|filial) o'zgartiradi (admin only — RPC).
 // Xato bo'lsa ro'yxat qayta chiziladi (revert). Bitta umumiy set_modda_flag RPC.
-const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy'};
+const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda'};
 window.setFlag=async(id,flag,val)=>{
   const {error}=await sb.rpc('set_modda_flag',{p_account:id,p_flag:flag,p_bool:val});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }
@@ -801,6 +833,127 @@ window.saveKor=async()=>{
   korCur=v;
   $('korRes').className='res ok'; $('korRes').textContent=`Koridor ${v}% qilib saqlandi.`;
   renderKorScale(); onKorInput();
+};
+
+// RPC hali bazada yo'q (PROVODKA_OVQAT.sql RUN qilinmagan) — bo'lim jimgina yashirinadi.
+// Xuddi mxdLoad() dagi MXD_MISS naqshi bilan bir xil kodlar.
+function rpcMissing(error){
+  const code=String((error&&error.code)||''), msg=String((error&&error.message)||'');
+  return ['PGRST202','PGRST205','42883','42P01'].indexOf(code)>=0
+    || /Could not find the function|does not exist|schema cache/i.test(msg);
+}
+
+// ===== Ovqat narxlari — PROVODKA_OVQAT.sql: ovqat_narxlar() / set_ovqat_narx() =====
+let ovqNarx={obed:null,zavtrak:null};
+async function loadOvqNarx(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.rpc('ovqat_narxlar');
+  if(error){
+    if(rpcMissing(error)){ $('ovqNarxCard').style.display='none'; return; }
+    $('ovqNarxCard').style.display='block';
+    $('ovqNarxRes').className='res err';
+    $('ovqNarxRes').textContent="O'qib bo'lmadi: "+(window.permErr?window.permErr(error):error.message);
+    return;
+  }
+  ovqNarx={obed:Number((data&&data.obed))||0, zavtrak:Number((data&&data.zavtrak))||0};
+  $('ovqNarxCard').style.display='block';
+  $('ovqObed').value=String(ovqNarx.obed);
+  $('ovqZavtrak').value=String(ovqNarx.zavtrak);
+  onOvqNarxInput();
+}
+window.onOvqNarxInput=()=>{
+  const o=Number($('ovqObed').value)||0, z=Number($('ovqZavtrak').value)||0;
+  $('ovqNarxBtn').disabled=!(o>0&&z>0&&(o!==ovqNarx.obed||z!==ovqNarx.zavtrak));
+  $('ovqNarxRes').className='res'; $('ovqNarxRes').textContent='';
+};
+window.saveOvqNarx=async()=>{
+  if(!isAdmin){ alert('Faqat admin'); return; }
+  const o=Number($('ovqObed').value)||0, z=Number($('ovqZavtrak').value)||0;
+  if(!(o>0&&z>0)){ $('ovqNarxRes').className='res err'; $('ovqNarxRes').textContent="Narx musbat bo'lishi kerak"; return; }
+  const btn=$('ovqNarxBtn'), old=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='Saqlanmoqda...';
+  try{
+    if(o!==ovqNarx.obed){ const {error}=await sb.rpc('set_ovqat_narx',{p_tur:'obed',p_narx:o}); if(error) throw error; }
+    if(z!==ovqNarx.zavtrak){ const {error}=await sb.rpc('set_ovqat_narx',{p_tur:'zavtrak',p_narx:z}); if(error) throw error; }
+  }catch(error){
+    btn.disabled=false; btn.innerHTML=old; icons();
+    $('ovqNarxRes').className='res err'; $('ovqNarxRes').textContent='Xato: '+(window.permErr?window.permErr(error):error.message);
+    return;
+  }
+  ovqNarx={obed:o,zavtrak:z};
+  btn.innerHTML=old; icons();
+  $('ovqNarxRes').className='res ok'; $('ovqNarxRes').textContent='Narxlar saqlandi.';
+  onOvqNarxInput();
+};
+
+// ===== Filial moslashtirish (aros-staff <-> Provodka) — PROVODKA_OVQAT.sql =====
+// staff_branch_map_royxat() -> joriy moslama + avto tavsiya. Tanlash ro'yxati
+// (hodim kassalari subtitle'idan filial nomi) klientda `accounts`dan hisoblanadi —
+// v_filial_tanlov BILAN BIR XIL manba emas (u savdo qilmaydigan filiallarni ham
+// qamraydi), shu yerda faqat XARAJAT (hodim) kassalari filial nomlari kerak.
+let staffMap=[];
+function filialNamesFromAccounts(){
+  const set=new Set();
+  accounts.forEach(a=>{
+    if(a.kassa_turi==='xarajat' && a.is_active!==false && a.subtitle){
+      const n=String(a.subtitle).split(' · ')[0].trim();
+      if(n) set.add(n);
+    }
+  });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'uz'));
+}
+async function loadStaffMap(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.rpc('staff_branch_map_royxat');
+  if(error){
+    if(rpcMissing(error)){ $('staffMapCard').style.display='none'; return; }
+    $('staffMapCard').style.display='block';
+    $('staffMapList').innerHTML='<div class="empty">O\'qib bo\'lmadi: '+esc(window.permErr?window.permErr(error):error.message)+'</div>';
+    return;
+  }
+  staffMap=Array.isArray(data)?data:[];
+  $('staffMapCard').style.display='block';
+  renderStaffMap();
+}
+function renderStaffMap(){
+  const box=$('staffMapList'); if(!box) return;
+  if(!staffMap.length){ box.innerHTML='<div class="empty">aros_staff hali sinxronlanmagan (n8n)</div>'; return; }
+  const names=filialNamesFromAccounts();
+  const rows=staffMap.slice().sort((a,b)=>{
+    const am=a.mos_filial?1:0, bm=b.mos_filial?1:0;
+    if(am!==bm) return am-bm;                 // mos_filial yo'qlar tepada
+    return String(a.branch_nomi||'').localeCompare(String(b.branch_nomi||''),'uz');
+  });
+  box.innerHTML=rows.map(r=>{
+    const missing=!r.mos_filial;
+    let opts='<option value="">— tanlanmagan —</option>'
+      +names.map(n=>`<option value="${esc(n)}"${r.mos_filial===n?' selected':''}>${esc(n)}</option>`).join('');
+    // Joriy mos_filial ro'yxatda yo'q bo'lsa (masalan eski qo'lda nom) — yo'qotib qo'ymaslik uchun qo'shamiz
+    if(r.mos_filial && names.indexOf(r.mos_filial)<0)
+      opts+=`<option value="${esc(r.mos_filial)}" selected>${esc(r.mos_filial)}</option>`;
+    const meta=[missing?'Mos filial belgilanmagan':('Mos: <b>'+esc(r.mos_filial)+'</b>'),
+                r.manba==='qolda'?"qo'lda":'avto',
+                (r.tavsiya && r.tavsiya!==r.mos_filial)?('tavsiya: '+esc(r.tavsiya)):''].filter(Boolean).join(' · ');
+    return `<div class="item stm${missing?' miss':''}">
+      <div class="mid"><div class="t">${esc(r.branch_nomi||('#'+r.branch_id))}</div><div class="c">${meta}</div></div>
+      <select id="stm_${r.branch_id}">${opts}</select>
+      <button class="edit" title="Saqlash" onclick="saveStaffMap(${Number(r.branch_id)})"><i data-lucide="save"></i></button>
+      ${r.manba==='qolda'?`<button class="edit" title="Avto holatga qaytarish" onclick="autoStaffMap(${Number(r.branch_id)})"><i data-lucide="rotate-ccw"></i></button>`:''}
+    </div>`;
+  }).join('');
+  icons();
+}
+window.saveStaffMap=async(bid)=>{
+  const sel=$('stm_'+bid); if(!sel) return;
+  const val=sel.value.trim();
+  const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:val||null});
+  if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
+  await loadStaffMap();
+};
+window.autoStaffMap=async(bid)=>{
+  const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:null});
+  if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
+  await loadStaffMap();
 };
 
 // ===== MAXSUS MAYDON KONSTRUKTORI (.mxd-*) — PROVODKA_XARAJAT_MAYDON.sql =====
@@ -1412,7 +1565,7 @@ window.linkFilial=async()=>{
 // mxdLoad() ham loadFilials() kabi oxirida: u `accounts` (modda nomi/kodi) va
 // isAdmin tayyor bo'lishiga tayanadi. RPC yo'q bo'lsa (SQL RUN qilinmagan) —
 // mxdOff bo'ladi va konstruktor umuman chizilmaydi, sahifa avvalgidek ishlaydi.
-async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); } }
+async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); } }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
