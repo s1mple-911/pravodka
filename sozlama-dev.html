@@ -428,19 +428,46 @@
      jadvali 4 ustun bilan bir xil .rb-users klassini ishlatadi) kengliklar shu yerda override
      qilinadi — .rb-users-staff ikkinchi klass, umumiy qoidadan (0,1,1) kuchliroq (0,2,1);
      mobil reset ham alohida takrorlangan, aks holda tor ekranda kenglik qotib qolardi. */
-  .rb-users-staff th:nth-child(2){width:15%}
-  .rb-users-staff th:nth-child(3){width:19%}
-  .rb-users-staff th:nth-child(4){width:26%}
+  .rb-users-staff th:nth-child(1){width:26%}
+  .rb-users-staff th:nth-child(2){width:20%}
+  .rb-users-staff th:nth-child(3){width:24%}
+  .rb-users-staff th:nth-child(4){width:20%}
   .rb-users-staff th:nth-child(5){width:118px}
   @media(max-width:640px){.rb-users-staff th:nth-child(n){width:auto}}
-  .rb-link-sel{width:100%;min-width:120px;height:36px;padding:0 10px;border:1px solid var(--line);
-    border-radius:9px;background:var(--surface);color:var(--ink);font-family:inherit;font-size:12.5px;
-    font-weight:500;cursor:pointer}
-  .rb-link-sel:hover{border-color:var(--primary)}
+  /* Hodim ismi to'liq ko'rinsin — .rb-uname umumiy qoidasi (nowrap+ellipsis) faqat
+     kirish foydalanuvchilari jadvali uchun; bu yerda 2 qatorga tushishi kerak. */
+  .rb-users-staff .rb-uname{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3;
+    overflow-wrap:anywhere}
   .rb-taklif-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;
     font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
     color:var(--primary);background:var(--primary-soft);vertical-align:middle}
   .rb-muted-note{color:var(--muted);font-size:12px;font-style:italic;line-height:1.4;display:inline-block}
+
+  /* --- Akkaunt tanlash — qidiruvli combobox (.rb-cb), .rb-dd bilan bir xil vizual til --- */
+  .rb-cb{position:relative;display:block;width:100%;min-width:0;max-width:100%;vertical-align:middle}
+  .rb-cb-btn{display:flex;align-items:center;gap:8px;width:100%;min-width:120px;max-width:100%;height:36px;padding:0 10px;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);
+    font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:border-color .13s,box-shadow .13s}
+  .rb-cb-btn:hover{border-color:var(--primary)}
+  .rb-cb.open .rb-cb-btn{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .rb-cb-btn svg{width:14px;height:14px;flex:0 0 auto;margin-left:auto;color:var(--muted);transition:transform .13s}
+  .rb-cb.open .rb-cb-btn svg{transform:rotate(180deg)}
+  .rb-cb-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+  .rb-cb-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:46;min-width:230px;
+    max-width:300px;background:var(--surface);border:1px solid var(--line);
+    border-radius:11px;box-shadow:var(--shadow-hover);padding:8px}
+  .rb-cb.open .rb-cb-pop{display:block}
+  .rb-cb-input{width:100%;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;
+    background:var(--surface-2);color:var(--ink);font-family:inherit;font-size:12.5px;margin-bottom:6px;box-sizing:border-box}
+  .rb-cb-input:focus{outline:none;border-color:var(--primary)}
+  .rb-cb-list{max-height:224px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .rb-cb-item{display:flex;align-items:center;gap:9px;padding:0 10px;border-radius:8px;cursor:pointer;
+    font-size:13px;color:var(--ink);min-height:40px;transition:background .13s,color .13s}
+  .rb-cb-item:hover,.rb-cb-item.hl{background:var(--surface-2)}
+  .rb-cb-item.sel{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .rb-cb-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .rb-cb-empty{color:var(--muted);cursor:default}
+  .rb-cb-empty:hover{background:transparent}
 
   /* --- Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi/hodim
        qatorlarida chip ro'yxati o'rniga. Modda/amal checkbox-gridiga tegilmagan. --- */
@@ -506,6 +533,8 @@
     .rb-users tr:last-child td:first-child,.rb-users tr:last-child td:last-child{border-radius:0}
     .rb-dd-btn{max-width:none;width:100%}
     .rb-dd-menu{left:0;right:0;min-width:0;max-width:none}
+    .rb-cb-btn{max-width:none;width:100%}
+    .rb-cb-pop{left:0;right:0;min-width:0;max-width:none}
   }
 </style>
 </head>
@@ -2147,6 +2176,7 @@ window.rbDdToggle=ddId=>{
   const wrap=document.querySelector(`.rb-dd[data-dd-id="${ddId}"]`); if(!wrap) return;
   const wasOpen=wrap.classList.contains('open');
   document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+  document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
   if(!wasOpen) wrap.classList.add('open');
 };
 document.addEventListener('click',e=>{
@@ -2225,15 +2255,81 @@ function rbRenderStaff(){
     list.map(s=>rbStaffRowHtml(s)).join('')}</tbody></table>`:'<div class="rb-empty"><i data-lucide="user-search"></i><span>Hodim topilmadi</span></div>';
   icons();
 }
-function rbStaffLinkOpts(current){
-  const cur=String(current||'');
-  const opts=[`<option value="">— bog'lanmagan —</option>`];
-  rbStaffUsers.forEach(u=>{
-    const nm=esc(u.full_name||u.user_nom||('#'+String(u.id)));
-    opts.push(`<option value="${esc(u.id)}" ${cur===String(u.id)?'selected':''}>${nm}</option>`);
-  });
-  return opts.join('');
+// ===== Akkaunt tanlash — qidiruvli combobox (.rb-cb). cbId shakli "staff_<staff_id>",
+//       rbDdToggle/rbDdCheck bilan bir xil ajratish qoidasi (bitta popover ochiq — ikkalasi ham yopiladi). =====
+function rbCbNorm(s){ return String(s||'').toLowerCase().replace(/['`´ʻʼ]/g,''); }
+function rbCbUserName(u){ return (u&&(u.full_name||u.user_nom))||('#'+String(u&&u.id)); }
+function rbCbLabel(current,isTaklif){
+  if(!current) return "— bog'lanmagan —";
+  const u=rbStaffUsers.find(x=>String(x.id)===String(current));
+  const nm=u?rbCbUserName(u):('#'+String(current));
+  return esc(nm)+(isTaklif?' <i class="rb-taklif-badge">taklif</i>':'');
 }
+function rbCbItemsHtml(cbId,current){
+  const cur=String(current||'');
+  const rows=[`<div class="rb-cb-item${cur===''?' sel':''}" data-val="" data-nm="${esc(rbCbNorm("bog'lanmagan"))}" onclick="rbCbPick('${cbId}','')"><span>— bog'lanmagan —</span></div>`];
+  rbStaffUsers.forEach(u=>{
+    const nm=rbCbUserName(u);
+    rows.push(`<div class="rb-cb-item${cur===String(u.id)?' sel':''}" data-val="${esc(u.id)}" data-nm="${esc(rbCbNorm(nm))}" onclick="rbCbPick('${cbId}','${esc(u.id)}')"><span>${esc(nm)}</span></div>`);
+  });
+  return rows.join('');
+}
+function rbCbHtml(cbId,current,isTaklif){
+  return `<div class="rb-cb" data-cb-id="${cbId}">
+    <button type="button" class="rb-cb-btn" onclick="rbCbToggle('${cbId}')">
+      <span class="rb-cb-label">${rbCbLabel(current,isTaklif)}</span><i data-lucide="chevron-down"></i>
+    </button>
+    <div class="rb-cb-pop">
+      <input type="text" class="rb-cb-input" placeholder="Qidirish…" oninput="rbCbFilter('${cbId}',this.value)" onkeydown="rbCbKey(event,'${cbId}')">
+      <div class="rb-cb-list">${rbCbItemsHtml(cbId,current)}</div>
+    </div>
+  </div>`;
+}
+window.rbCbToggle=cbId=>{
+  const wrap=document.querySelector(`.rb-cb[data-cb-id="${cbId}"]`); if(!wrap) return;
+  const wasOpen=wrap.classList.contains('open');
+  document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+  if(!wasOpen){
+    wrap.classList.add('open');
+    const inp=wrap.querySelector('.rb-cb-input');
+    if(inp){ inp.value=''; rbCbFilter(cbId,''); setTimeout(()=>inp.focus(),0); }
+  }
+};
+window.rbCbFilter=(cbId,q)=>{
+  const wrap=document.querySelector(`.rb-cb[data-cb-id="${cbId}"]`); if(!wrap) return;
+  const nq=rbCbNorm(q);
+  let firstShown=null;
+  wrap.querySelectorAll('.rb-cb-item').forEach(it=>{
+    const nm=it.getAttribute('data-nm')||'';
+    const show=!nq||nm.indexOf(nq)>=0;
+    it.style.display=show?'':'none';
+    it.classList.remove('hl');
+    if(show&&!firstShown) firstShown=it;
+  });
+  if(firstShown) firstShown.classList.add('hl');
+};
+window.rbCbKey=(e,cbId)=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const wrap=document.querySelector(`.rb-cb[data-cb-id="${cbId}"]`); if(!wrap) return;
+    const first=Array.from(wrap.querySelectorAll('.rb-cb-item')).find(it=>it.style.display!=='none');
+    if(first) first.click();
+  }else if(e.key==='Escape'){
+    document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  }
+};
+window.rbCbPick=(cbId,val)=>{
+  document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  const us=cbId.indexOf('_'); const kind=cbId.slice(0,us), key=cbId.slice(us+1);
+  if(kind==='staff') window.rbStaffLinkChange(key,val);
+};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.rb-cb')) document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+});
 function rbStaffRowHtml(s){
   const rawName=s.toliq_nom||('#'+String(s.staff_id));
   const name=esc(rawName);
@@ -2248,8 +2344,7 @@ function rbStaffRowHtml(s){
   const linkDirty=String(linkVal)!==String(origLink);
   const rolesDirty=!linked&&rbSetsDiffer(pending,orig);
   const dirty=linkDirty||rolesDirty;
-  const linkCell=`<select class="rb-link-sel" onchange="rbStaffLinkChange('${s.staff_id}',this.value)">${rbStaffLinkOpts(linkVal)}</select>${
-    isTaklif?`<span class="rb-taklif-badge" title="Taklif qilingan — saqlanmaguncha bog'lanmaydi">taklif</span>`:''}`;
+  const linkCell=rbCbHtml('staff_'+s.staff_id,linkVal,isTaklif);
   const rolesCell=linked
     ?`<span class="rb-muted-note">Ovqat ruxsati akkaunt rolidan</span>`
     :rbDdHtml('staff_'+s.staff_id,pending,rbStaffRoles);
