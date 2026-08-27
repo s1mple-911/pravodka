@@ -553,48 +553,64 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  // Storage'ga yuklash — audit, XATOSI natijani TO'XTATMAYDI (faqat log).
-  let storagePath: string | null = null;
-  try {
-    const bytes = Uint8Array.from(atob(image.data), (c) => c.charCodeAt(0));
-    const ext = image.media_type === "image/png" ? "png" : image.media_type === "image/webp" ? "webp" : "jpg";
-    const path = user.id + "/" + id + "." + ext;
-    const { error: upErr } = await admin.storage
-      .from("rasm-tahlil")
-      .upload(path, bytes, { contentType: image.media_type, upsert: true });
-    if (upErr) {
-      console.error("rasm-detect: storage upload xato:", upErr.message);
-    } else {
-      // 🔴 PROVODKA_RASM_DETECT.sql KONTRAKTI: `storage_path` = '{user_id}/{id}.ext'
-      //    — BUCKET NOMI PREFIKS QILIB QO'SHILMAYDI (storage RLS policy ham
-      //    aynan shu yo'l shaklini kutadi: `storage.foldername(name)[1]`).
-      storagePath = path;
+  // --- 10) Javob DARROV qaytadi (Claude javobi keldi) — Storage yuklash +
+  //         audit yozuvi JAVOBDAN KEYIN, fonda (`EdgeRuntime.waitUntil`).
+  //         Hodim uchun kutish vaqti endi FAQAT Claude chaqiruvi bilan
+  //         chegaralanadi (storage/DB I/O javobni bloklamaydi).
+  const persistAudit = async (): Promise<void> => {
+    // Storage'ga yuklash — audit, XATOSI natijani TO'XTATMAYDI (faqat log).
+    let storagePath: string | null = null;
+    try {
+      const bytes = Uint8Array.from(atob(image.data), (c) => c.charCodeAt(0));
+      const ext = image.media_type === "image/png" ? "png" : image.media_type === "image/webp" ? "webp" : "jpg";
+      const path = user.id + "/" + id + "." + ext;
+      const { error: upErr } = await admin.storage
+        .from("rasm-tahlil")
+        .upload(path, bytes, { contentType: image.media_type, upsert: true });
+      if (upErr) {
+        console.error("rasm-detect: storage upload xato:", upErr.message);
+      } else {
+        // 🔴 PROVODKA_RASM_DETECT.sql KONTRAKTI: `storage_path` = '{user_id}/{id}.ext'
+        //    — BUCKET NOMI PREFIKS QILIB QO'SHILMAYDI (storage RLS policy ham
+        //    aynan shu yo'l shaklini kutadi: `storage.foldername(name)[1]`).
+        storagePath = path;
+      }
+    } catch (e) {
+      console.error("rasm-detect: storage upload istisno:", (e as { message?: string })?.message || String(e));
     }
-  } catch (e) {
-    console.error("rasm-detect: storage upload istisno:", (e as { message?: string })?.message || String(e));
-  }
 
-  const { error: insErr } = await admin.from("rasm_tahlil").insert({
-    id,
-    user_id: user.id,
-    tur,
-    storage_path: storagePath,
-    // 🔴 `natija` ustuni NOT NULL (PROVODKA_RASM_DETECT.sql) — hech qachon
-    //    `null` yuborilmaydi, xato holatda bo'sh obyekt yoziladi.
-    natija: natijaOut ?? {},
-    ai_summa: aiSumma,
-    ai_sana: aiSana,
-    ai_km: aiKm,
-    ishonch,
-    aniq,
-    model: usedModel,
-    holat,
-    xato: claudeErr,
-  });
-  if (insErr) {
-    // 🔴 Yozib bo'lmasa ham foydalanuvchi javobsiz qolmaydi — audit
-    //    yo'qolishi Claude natijasidan ko'ra kichikroq muammo.
-    console.error("rasm-detect: rasm_tahlil insert xato:", insErr.message);
+    const { error: insErr } = await admin.from("rasm_tahlil").insert({
+      id,
+      user_id: user.id,
+      tur,
+      storage_path: storagePath,
+      // 🔴 `natija` ustuni NOT NULL (PROVODKA_RASM_DETECT.sql) — hech qachon
+      //    `null` yuborilmaydi, xato holatda bo'sh obyekt yoziladi.
+      natija: natijaOut ?? {},
+      ai_summa: aiSumma,
+      ai_sana: aiSana,
+      ai_km: aiKm,
+      ishonch,
+      aniq,
+      model: usedModel,
+      holat,
+      xato: claudeErr,
+    });
+    if (insErr) {
+      // 🔴 Yozib bo'lmasa ham foydalanuvchi javobsiz qolmaydi — audit
+      //    yo'qolishi Claude natijasidan ko'ra kichikroq muammo.
+      console.error("rasm-detect: rasm_tahlil insert xato:", insErr.message);
+    }
+  };
+
+  const bgTask = persistAudit();
+  const ert = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (ert && typeof ert.waitUntil === "function") {
+    ert.waitUntil(bgTask);
+  } else {
+    // Fonda ishga tushirish qo'llab-quvvatlanmasa — audit yo'qolib
+    // ketmasin deb qo'lda kutamiz (eski xatti-harakat, sekinroq).
+    await bgTask;
   }
 
   if (holat === "xato") {
