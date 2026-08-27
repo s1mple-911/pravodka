@@ -711,6 +711,8 @@ const rlHits = new Map<string, number[]>();
 // (Claude tokenlari) va foydalanuvchi JWT si bilan ishlaydi.
 const DEFAULT_ORIGINS = [
   "https://s1mple-911.github.io", // GitHub Pages (repo: s1mple-911/pravodka)
+  "https://pravodka.com",         // CNAME (2026-08-18) — jonli domen
+  "https://www.pravodka.com",
 ];
 // Repoda CNAME/maxsus domen yo'q — agar keyin qo'shilsa, `AI_ALLOWED_ORIGINS`
 // secret'iga vergul bilan qo'shiladi (kodni o'zgartirish shart emas).

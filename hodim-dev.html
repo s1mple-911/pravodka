@@ -132,15 +132,48 @@
   .kursnote{font-size:12.5px;color:var(--muted);margin:var(--s2) 0 0 2px}
   .kursnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .kursnote.no{color:var(--red-ink)}
-  /* ================= filial multiselect (brend yashil) ================= */
-  .fchips{display:flex;flex-wrap:wrap;gap:var(--s2)}
-  .fchip{display:inline-flex;align-items:center;min-height:44px;border:1.5px solid var(--line);background:var(--surface);
-    color:var(--ink-2);border-radius:999px;padding:0 var(--s4);font-size:14px;font-weight:600;font-family:inherit;
-    cursor:pointer;transition:border-color .15s,background .15s,color .15s}
-  @media(hover:hover){.fchip:hover{border-color:var(--primary);color:var(--ink)}}
-  .fchip.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
-  .fchip.on::before{content:'';width:14px;height:14px;margin-right:6px;background:currentColor;
-    -webkit-mask:var(--ic-check) center/contain no-repeat;mask:var(--ic-check) center/contain no-repeat}
+  /* ================= filial multiselect dropdown (.fd-*) — sozlama-dev .rb-dd bilan bir xil til,
+     lekin hodim ekrani mobil-first bo'lgani uchun tugma balandroq (48px) va popover'da qidiruv bor.
+     🔴 overflow:hidden ATAYLAB YO'Q .sect/.wrap'da — .fd-pop shu konteyner ICHIDA absolute joylashadi
+     va kesilmaydi (sozlama-dev'dagi .rb-dd-menu bilan bir xil sabab). ================= */
+  .fd{position:relative}
+  .fd-btn{display:flex;align-items:center;gap:var(--s2);width:100%;min-height:48px;padding:0 var(--s4);
+    border:1.5px solid var(--line);background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow);
+    font-size:14.5px;font-weight:600;color:var(--ink);font-family:inherit;cursor:pointer;text-align:left;
+    transition:border-color .15s,box-shadow .15s}
+  @media(hover:hover){.fd-btn:hover{border-color:var(--primary)}}
+  .fd.open .fd-btn{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring)}
+  .fd-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fd-label.ph{color:var(--muted);font-weight:500}
+  .fd-btn svg{width:17px;height:17px;flex:0 0 auto;color:var(--muted);transition:transform .15s}
+  .fd.open .fd-btn svg{transform:rotate(180deg)}
+  /* Tanlangan filiallar — tugma ostidagi olib tashlanadigan kichik chip'lar */
+  .fd-tags{display:flex;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s3)}
+  .fd-tag{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 4px 0 var(--s3);
+    border:1.5px solid var(--line);background:var(--primary-soft);color:var(--primary-ink);
+    border-radius:999px;font-size:13px;font-weight:600;max-width:100%}
+  .fd-tag span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+  .fd-tag button{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:28px;height:28px;
+    border:none;background:transparent;color:inherit;border-radius:50%;cursor:pointer;padding:0}
+  .fd-tag button svg{width:14px;height:14px}
+  @media(hover:hover){.fd-tag button:hover{background:rgba(0,0,0,.08)}}
+  .fd-pop{display:none;position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:50;
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);
+    padding:var(--s3);flex-direction:column;animation:fadein .13s ease}
+  .fd.open .fd-pop{display:flex}
+  .fd-search{width:100%;height:40px;flex:0 0 auto;border:1.5px solid var(--line);background:var(--surface-2);
+    color:var(--ink);border-radius:var(--r-sm);padding:0 var(--s3);font-size:14px;font-family:inherit;
+    outline:none;margin-bottom:var(--s2);transition:border-color .15s}
+  .fd-search:focus{border-color:var(--primary)}
+  .fd-list{overflow-y:auto;max-height:248px;display:flex;flex-direction:column;gap:2px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .fd-item{display:flex;align-items:center;gap:var(--s2);min-height:40px;padding:0 var(--s2);border-radius:8px;
+    cursor:pointer;font-size:14px;color:var(--ink-2);transition:background .13s,color .13s}
+  @media(hover:hover){.fd-item:hover{background:var(--surface-2)}}
+  .fd-item.on{background:var(--primary-soft);color:var(--primary-ink);font-weight:600}
+  .fd-item input{margin:0;flex:0 0 auto;width:18px;height:18px;accent-color:var(--primary);cursor:pointer}
+  .fd-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .fd-empty{color:var(--muted);font-size:13.5px;padding:var(--s4);text-align:center}
   .fchips-empty{color:var(--muted);font-size:13.5px;padding:var(--s3) var(--s4);background:var(--surface-2);
     border-radius:var(--r-md);text-align:center}
   /* ================= davr kalendari (ikki oy, uz nomlar) ================= */
@@ -1034,7 +1067,7 @@
 
       <div class="sect">
         <div class="lbl" id="filialLbl">Filial <span class="opt">(ixtiyoriy — bir nechta)</span></div>
-        <div id="filialChips" class="fchips"></div>
+        <div id="filialChips"></div>
         <div id="filialReq" class="chekreq" style="display:none"></div>
         <div id="limitWarn" class="amtwarn" style="display:none;text-align:left;margin-left:2px" role="status" aria-live="polite"></div>
       </div>
@@ -1063,8 +1096,10 @@
 
       <!-- Spidometr (.ai-*) — faqat modda.spidometr_ai=true VA "Mashina" maydoni tanlangan bo'lsa ko'rinadi -->
       <div class="sect ai-spidsect" id="spidSect" style="display:none">
-        <div class="lbl">Spidometr rasmi <span class="opt">(ixtiyoriy)</span></div>
+        <!-- Bo'lim faqat spidometr_ai=true bo'lganda ko'rinadi (yuqoridagi shart) — o'sha holatda rasm shart. -->
+        <div class="lbl">Spidometr rasmi <span class="req">shart — AI tekshiradi</span></div>
         <div id="spidNoMashina" style="display:none;color:var(--muted);font-size:13px;margin-bottom:var(--s2)">Km tarixi uchun avval mashinani tanlang</div>
+        <div id="spidReq" class="chekreq" style="display:none">Spidometr rasmi shart</div>
         <label class="chekbtn">
           <input type="file" accept="image/*" capture="environment" id="spidFile" class="vh" onchange="onSpidFile(this)">
           <i data-lucide="gauge"></i><span>Spidometr rasmini olish</span>
@@ -1912,13 +1947,76 @@ function filNom(s){
   const q=t.replace(/\s+kassa\s*$/i,'').trim();
   return q||t;
 }
-function renderFilials(){
-  const box=$('filialChips');
-  const restricted = window.permFilialScope && window.permFilialScope()==='list';
-  box.innerHTML = filials.length
-    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
-    : `<div class="fchips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
+// ===== Filial ko'p tanlash — ixcham dropdown (.fd-*, sozlama-dev .rb-dd bilan bir xil til).
+//       fdOpen/fdQuery FAQAT ko'rinish holati — selFilials/toggleFilial mantiqi tegilmagan. =====
+let fdOpen=false, fdQuery='';
+function fdNorm(s){ return String(s||'').toLowerCase().replace(/['’ʻʼ`´]/g,''); }
+function fdFilialLabel(){
+  if(!selFilials.size) return 'Filial tanlang';
+  const names=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean).map(f=>filNom(f.name));
+  if(!names.length) return selFilials.size+' ta tanlangan';
+  if(names.length<=2) return names.join(', ');
+  return names[0]+', '+names[1]+` +${names.length-2}`;
 }
+function renderFilials(){
+  const box=$('filialChips'); if(!box) return;
+  const restricted = window.permFilialScope && window.permFilialScope()==='list';
+  if(!filials.length){
+    fdOpen=false;
+    box.innerHTML = `<div class="fchips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
+    return;
+  }
+  const q=fdNorm(fdQuery);
+  const items=filials.map(f=>{
+    const nm=filNom(f.name), on=selFilials.has(f.id), show=!q||fdNorm(nm).indexOf(q)>=0;
+    return `<label class="fd-item${on?' on':''}"${show?'':' style="display:none"'} data-fnm="${esc(fdNorm(nm))}">
+      <input type="checkbox" ${on?'checked':''} onchange="toggleFilial('${f.id}')"><span>${esc(nm)}</span></label>`;
+  }).join('');
+  const anyShown = !q || filials.some(f=>fdNorm(filNom(f.name)).indexOf(q)>=0);
+  const tags=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean).map(f=>{
+    const nm=filNom(f.name);
+    return `<span class="fd-tag"><span>${esc(nm)}</span><button type="button" onclick="toggleFilial('${f.id}')" aria-label="${esc(nm)} — olib tashlash"><i data-lucide="x"></i></button></span>`;
+  }).join('');
+  box.innerHTML = `<div class="fd${fdOpen?' open':''}" id="fdFilial">
+    <button type="button" class="fd-btn" onclick="fdToggleFilial(event)" aria-haspopup="listbox" aria-expanded="${fdOpen?'true':'false'}">
+      <span class="fd-label${selFilials.size?'':' ph'}">${esc(fdFilialLabel())}</span><i data-lucide="chevron-down"></i>
+    </button>
+    <div class="fd-pop">
+      <input type="text" class="fd-search" id="fdFilialSearch" placeholder="Filial qidirish…" value="${esc(fdQuery)}" oninput="fdSearchFilial(this.value)">
+      <div class="fd-list" role="listbox">${items}${anyShown?'':'<div class="fd-empty">Filial topilmadi</div>'}</div>
+    </div>
+  </div>${tags?`<div class="fd-tags">${tags}</div>`:''}`;
+  icons();
+  if(fdOpen){ const inp=$('fdFilialSearch'); if(inp && document.activeElement!==inp) setTimeout(()=>inp.focus(),0); }
+}
+window.fdToggleFilial=e=>{
+  if(e) e.stopPropagation();
+  fdOpen=!fdOpen;
+  renderFilials();
+};
+// Faqat DOM'dagi mavjud qatorlarni filtrlaydi (rbCbFilter naqshi) — har harfda butun
+// popoverni qayta chizsak qidiruv input fokusini yo'qotardi.
+window.fdSearchFilial=v=>{
+  fdQuery=v;
+  const wrap=$('fdFilial'); if(!wrap) return;
+  const q=fdNorm(v);
+  let any=false;
+  wrap.querySelectorAll('.fd-item').forEach(it=>{
+    const show=!q||(it.getAttribute('data-fnm')||'').indexOf(q)>=0;
+    it.style.display=show?'':'none';
+    if(show) any=true;
+  });
+  const list=wrap.querySelector('.fd-list'); if(!list) return;
+  let empty=list.querySelector('.fd-empty');
+  if(!any && !empty) list.insertAdjacentHTML('beforeend','<div class="fd-empty">Filial topilmadi</div>');
+  else if(any && empty) empty.remove();
+};
+document.addEventListener('click',e=>{
+  if(fdOpen && !e.target.closest('#fdFilial')){ fdOpen=false; renderFilials(); }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && fdOpen){ fdOpen=false; renderFilials(); }
+});
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials(); updateFilialUI(); updateDavrUI(); updateSave(); };
 async function loadFilials(){
   try{
@@ -1950,7 +2048,9 @@ function renderKommBtns(){ $('kommBtns').innerHTML=KOMMUNAL.map(x=>
 window.openKomm=()=>{ renderKommBtns(); $('kommModal').classList.add('open'); };
 window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); updateKommUI(); updateSave(); };
 window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
-function chekRequired(){ const m=moddaObj(); return !!(m && m.chek_majburiy); }  // ustun yo'q bo'lsa undefined → false
+// AI rasm MAJBURIY (fail-closed, 2026-08-27): `ai_tekshir` bo'lsa ham chek surati shart —
+// eski `chek_majburiy` bilan bitta talab, ikki marta so'ramaydi (matn updateChekUI'da ajraladi).
+function chekRequired(){ const m=moddaObj(); return !!(m && (m.chek_majburiy || m.ai_tekshir)); }  // ustun yo'q bo'lsa undefined → false
 function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
 function filialRequired(){ const m=moddaObj(); return !!(m && m.filial_majburiy); }  // ustun yo'q bo'lsa undefined → false
@@ -2229,9 +2329,8 @@ function updateModdaUI(){
 }
 function updateChekUI(){
   const req=chekRequired();
-  $('chekLbl').innerHTML = req
-    ? 'Chek surati <span class="req">majburiy</span>'
-    : 'Chek <span class="opt">(ixtiyoriy)</span>';
+  $('chekLbl').innerHTML = !req ? 'Chek <span class="opt">(ixtiyoriy)</span>'
+    : (aiChekOk() ? 'Chek rasmi shart <span class="req">— AI tekshiradi</span>' : 'Chek surati <span class="req">majburiy</span>');
   $('chekReq').style.display = (req && !chekBlob) ? 'block' : 'none';
 }
 function updateIzohUI(){
@@ -2327,6 +2426,13 @@ function genUuid(){
 // benzin/gaz (mashina) moddalarida. Ustun yo'q bo'lsa (`undefined` — SQL RUN qilinmagan) → false.
 function aiChekOk(){ const m=moddaObj(); return !!(m && m.ai_tekshir); }
 function aiSpidOk(){ const m=moddaObj(); return !!(m && m.spidometr_ai); }
+// AI rasm MAJBURIY (fail-closed): spidometr rasmi tanlanmagan (yoki siqish/yuklash butunlay
+// yiqilgan — `holat==='xato'`) bo'lsa saqlash yopiq. AI JAVOBI kutilmaydi — faqat rasmning
+// o'zi bor-yo'qligi tekshiriladi (4-band: saqlash AI natijasini kutmaydi).
+function spidRequired(){ return aiSpidOk() && !spidTahlil; }   // faqat RASM bor-yo'qligi; AI xatosi (holat='ai_xato') saqlashni bloklamaydi — hodim aybi emas
+// Ikkita AI-rasm talabi bitta joyda — 4 ta saqlash oqimi (oddiy/taqsim/so'rov/ovqat) shu
+// yordamchidan foydalanadi, ikki marta yozilmaydi.
+function rasmTalab(){ return { chek: chekRequired() && !chekBlob, spid: spidRequired() }; }
 // "Mashina" maxsus maydoni (tur='royxat') — spidometr shu maydon tanlanganda ko'rinadi.
 // 🔴 Nomga qattiq bog'lanmaydi (bazada "Ro'yxatdan tanlang"/"TANLANG" kabi nomlar bo'lishi mumkin):
 // moddaga biriktirilgan birinchi faol `royxat` turidagi maydon olinadi; bir nechtasi bo'lsa
@@ -2351,6 +2457,8 @@ function updateAiUI(){
   sect.style.display=ok?'block':'none';
   const note=$('spidNoMashina');
   if(note) note.style.display=(ok&&!mashinaSelected())?'block':'none';
+  const req=$('spidReq');
+  if(req) req.style.display=(typeof spidRequired==='function' && spidRequired())?'block':'none';
 }
 function b64Read(blob){
   return new Promise((res,rej)=>{
@@ -2390,16 +2498,18 @@ function startChekAi(file){
   const modda=moddaObj();
   const id=genUuid();
   aiTahlil={id, tur:'chek', holat:'kutilmoqda'};
-  aiNoteHide('chekAiNote');
+  aiNoteShow('chekAiNote','AI o\'qiyapti…', false);
+  console.time('ai:chek');
   (async()=>{
     let small;
-    try{ small=await compressImage(file,1024,0.75); }
-    catch(e){ if(aiTahlil&&aiTahlil.id===id) aiTahlil.holat='xato'; return; }
+    try{ small=await compressImage(file,800,0.7); }
+    catch(e){ if(aiTahlil&&aiTahlil.id===id) aiTahlil.holat='xato'; console.timeEnd('ai:chek'); return; }
     if(!aiTahlil||aiTahlil.id!==id) return;   // shu orada chek almashtirildi — eskirgan urinish
     const kontekst={modda_nomi:(modda&&modda.name)||'', mashina_nomi:mashinaNomi()};
     const data=await aiDetectSend(id,'chek',small,kontekst);
+    console.timeEnd('ai:chek');
     if(!aiTahlil||aiTahlil.id!==id) return;   // forma o'zgargan — javob e'tiborsiz
-    if(!data){ aiTahlil.holat='xato'; return; }
+    if(!data){ aiTahlil.holat='xato'; aiNoteHide('chekAiNote'); return; }
     aiTahlil.holat='ok';
     const nat=(data.natija&&typeof data.natija==='object')?data.natija:{};
     if(String(nat.muammo||'').includes('chek_emas')){   // muammo — vergulli matn (EF sxemasi), massiv emas
@@ -2427,15 +2537,18 @@ window.onSpidFile=async(el)=>{
   const id=genUuid();
   spidTahlil={id, tur:'spidometr', holat:'kutilmoqda'};
   aiNoteHide('spidAiNote');
+  updateAiUI(); updateSave();   // rasm tanlandi — rasmTalab().spid darrov qoniqadi (AI javobini kutmaydi)
   let small;
-  try{ small=await compressImage(f,1024,0.75); }
-  catch(e){ toast('Rasm yuklanmadi: '+e.message,true); if(spidTahlil&&spidTahlil.id===id) spidTahlil.holat='xato'; return; }
-  aiNoteShow('spidAiNote','Rasm tanlandi — AI tekshirmoqda…', false);
+  try{ small=await compressImage(f,800,0.7); }
+  catch(e){ toast('Rasm yuklanmadi: '+e.message,true); if(spidTahlil&&spidTahlil.id===id) spidTahlil=null; updateAiUI(); updateSave(); return; }   // siqish yiqildi = rasm YO'Q
+  aiNoteShow('spidAiNote','AI o\'qiyapti…', false);
+  console.time('ai:spid');
   (async()=>{
     const kontekst={modda_nomi:(modda&&modda.name)||'', mashina_nomi:sel?mashinaNomi():''};
     const data=await aiDetectSend(id,'spidometr',small,kontekst);
+    console.timeEnd('ai:spid');
     if(!spidTahlil||spidTahlil.id!==id) return;   // forma o'zgargan — javob e'tiborsiz
-    if(!data){ spidTahlil.holat='xato'; aiNoteHide('spidAiNote'); return; }
+    if(!data){ spidTahlil.holat='ai_xato'; aiNoteShow('spidAiNote',"AI o'qiy olmadi — km ni qo'lda yozing", true); updateAiUI(); updateSave(); return; }   // rasm BOR, faqat AI javob bermadi — saqlash ochiq
     spidTahlil.holat='ok';
     if(data.aniq&&data.ai_km>0){
       const ki=$('spidKmIn');
@@ -2503,7 +2616,9 @@ function updateSave(){
       w.textContent=`Qoldiqdan oshdi · max ${ac==='UZS'?money(curBal)+" so'm":fcTxt(curBal)+' '+ac}`; }
     else w.style.display='none';
   }
-  const needChek = chekRequired() && !chekBlob;   // 3-band: majburiy chek yo'q bo'lsa saqlash yopiq
+  const rt=rasmTalab();
+  const needChek = rt.chek;   // 3-band + AI (fail-closed): majburiy chek yo'q bo'lsa saqlash yopiq
+  const needSpid = rt.spid;   // AI rasm majburiy: spidometr rasmi yo'q/xato bo'lsa saqlash yopiq
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
   const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
@@ -2526,7 +2641,7 @@ function updateSave(){
     const items=ovqatRoyxat();
     ovqatOk = ovqatLoaded && items.length>0 && ovqatRoyxatSumma()===amt;
   }
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit&&mxdOk()&&ovqatOk);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needSpid&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit&&mxdOk()&&ovqatOk);
   // Qoldiqdan oshgan holatda "Saqlash" O'RNIGA "Pul so'rash" (blok YUMSHATILMAGAN).
   // `over` shu yerda hisoblangan — srvSync() uni QAYTA hisoblamaydi.
   // 🔴 Ovqat moddasida "Pul so'rash" umuman ko'rinmaydi (v1: faqat oddiy yo'l).
@@ -2862,7 +2977,10 @@ window.saveHodim=async()=>{
   if(amtVal()<=0||amt<=0){ toast('Summa kiriting',true); return; }
   // Valyuta xarajatida ikkala tomon ham musbat bo'lsin (yaxlitlanib nolga tushmasin)
   if(calc.cur!=='UZS' && !(calc.fc>0)){ toast('Summa juda kichik — '+calc.cur+' miqdori nolga aylanadi',true); return; }
-  if(chekRequired() && !chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }  // 3-band
+  { const rt=rasmTalab();
+    if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart (AI tekshiradi)':'Bu xarajat uchun chek shart',true); return; }  // 3-band + AI
+    if(rt.spid){ toast('Spidometr rasmi shart',true); return; }   // AI rasm majburiy
+  }
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
   if(!filialOk()){ toast('Bu xarajat uchun filial tanlanishi shart',true); return; }      // V9
@@ -4027,7 +4145,10 @@ window.srvSave=async()=>{
   if(sAmt>Math.ceil(amt/1000)*1000){ no('So\'rov summasi xarajatdan katta bo\'la olmaydi'); return; }
   if(izoh.length<SRV_MIN_IZOH){ no('Nega kerakligini yozing (kamida 3 belgi)'); return; }
   // 🔴 Xarajatning MAVJUD qoidalari o'zgarmaydi (chek/izoh/davr/filial/kommunal).
-  if(chekRequired()&&!chekBlob){ toast('Bu xarajat uchun chek shart',true); return; }
+  { const rt=rasmTalab();
+    if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart (AI tekshiradi)':'Bu xarajat uchun chek shart',true); return; }
+    if(rt.spid){ toast('Spidometr rasmi shart',true); return; }
+  }
   if(izohRequired()&&!$('izoh').value.trim()){ toast('Izoh shart',true); return; }
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }
   if(!filialOk()){ toast('Bu xarajat uchun filial tanlanishi shart',true); return; }

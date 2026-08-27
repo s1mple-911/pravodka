@@ -270,6 +270,18 @@
   .chekdl{display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border-radius:10px;
           padding:9px 15px;font-size:13.5px;font-weight:600;text-decoration:none}
   .chekdl svg{width:16px;height:16px}
+  /* AI tekshiruvi paneli — chek modali ichida, admin only, bo'sh bo'lsa umuman ko'rinmaydi */
+  .chekai:empty{display:none}
+  .chekai{padding:2px 16px 16px;border-top:1px solid var(--line);margin-top:2px}
+  .chekai h4{margin:12px 0 2px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+  .chekai h4:first-child{margin-top:10px}
+  .chekai .airow{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .chekai .airow:last-child{border-bottom:none}
+  .chekai .al1{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+  .chekai .al2{margin-top:2px;font-weight:600}
+  .chekai .aidiff{color:var(--red)}
+  .chekai .aiok{color:var(--green)}
+  .chekai img{max-width:100%;border-radius:8px;margin-top:8px;display:block}
   /* ko'p satrli yozuv */
   .je.multi{align-items:flex-start}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
@@ -1205,11 +1217,12 @@
   </div>
   <!-- /more-sheet -->
 
-  <!-- chek rasm modali -->
+  <!-- chek rasm modali (admin uchun AI tekshiruv paneli #chekAiBody bilan birlashtirilgan) -->
   <div class="chekov" id="chekModal" onclick="if(event.target===this)closeChek()">
     <div class="chekbox">
       <div class="chekhd"><span>Chek / hujjat</span><button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
       <div class="chekimg" id="chekImg"></div>
+      <div class="chekai" id="chekAiBody"></div>
     </div>
   </div>
   <!-- /chek -->
@@ -1235,15 +1248,6 @@
     <h3><i data-lucide="package"></i>Yuk ma'lumoti</h3>
     <div id="yukInfoBody"></div>
     <button class="yiclose" onclick="closeYukInfo()">Yopish</button>
-  </div>
-</div>
-
-<!-- AI tekshiruvi (chek/spidometr) — admin only, .yimodal naqshi qayta ishlatiladi -->
-<div class="yimodal" id="aiInfoModal" onclick="if(event.target===this)closeAiInfo()">
-  <div class="yibox">
-    <h3><i data-lucide="sparkles"></i>AI tekshiruvi</h3>
-    <div id="aiInfoBody"></div>
-    <button class="yiclose" onclick="closeAiInfo()">Yopish</button>
   </div>
 </div>
 
@@ -1625,25 +1629,100 @@ async function refreshCheks(){
 }
 
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
+// openChek — chek/hujjat rasmi + (admin) AI tekshiruv paneli BITTA modalda (#chekModal).
+// kassaId bo'sh/null bo'lishi mumkin (kassaOf(e) topmasa) — shunda faqat AI fallback rasmi ishlatiladi.
 window.openChek=async(kassaId,entryId)=>{
-  const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
+  const box=$('chekImg'), aiBox=$('chekAiBody');
+  box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
+  if(aiBox) aiBox.innerHTML='';
   $('chekModal').classList.add('open');
-  const nm=chekKeys.get(kassaId+'/'+entryId)||(entryId+'.jpg');   // ro'yxat kelmagan bo'lsa eski naqsh
-  const ext=(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
-  try{
-    const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kassaId}/${nm}`,300);
-    if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; return; }
-    const url=esc(data.signedUrl);
-    if(!ext||CHEK_IMG.indexOf(ext)>=0){ box.innerHTML=`<img src="${url}" alt="chek">`; return; }
-    // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
-    if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
-      +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada ochish</a></div>`;
-    else box.innerHTML=`<div class="chekdoc"><div class="chekfn"><i data-lucide="file-text"></i>${esc(nm)}</div>`
-      +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="download"></i>Yuklab olish</a></div>`;
-    icons();
-  }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+  const kid=kassaId||null;
+  const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
+  const am=(isAdm&&aiMap[entryId])||{};
+  const hasChek=!!(kid&&chekKeys.has(kid+'/'+entryId));
+  // --- AI rasm-tahlil qatori (fallback rasm + AI paneli uchun bir vaqtda kerak) ---
+  let rt=null;
+  if(am.rasm_tahlil_id){
+    try{ const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.rasm_tahlil_id).maybeSingle(); if(!error&&data) rt=data; }catch(e){}
+  }
+  if(hasChek){
+    const nm=chekKeys.get(kid+'/'+entryId)||(entryId+'.jpg');   // ro'yxat kelmagan bo'lsa eski naqsh
+    const ext=(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
+    try{
+      const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kid}/${nm}`,300);
+      if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; }
+      else{
+        const url=esc(data.signedUrl);
+        if(!ext||CHEK_IMG.indexOf(ext)>=0) box.innerHTML=`<img src="${url}" alt="chek">`;
+        // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
+        else if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
+          +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada ochish</a></div>`;
+        else box.innerHTML=`<div class="chekdoc"><div class="chekfn"><i data-lucide="file-text"></i>${esc(nm)}</div>`
+          +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="download"></i>Yuklab olish</a></div>`;
+      }
+    }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+  } else if(rt&&rt.user_id&&rt.id){
+    // Haqiqiy chek fayli yo'q, lekin AI rasmi bor (rasm-tahlil) — shu ko'rsatiladi (admin only).
+    try{
+      const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
+      box.innerHTML=(!se&&su)?`<img src="${esc(su.signedUrl)}" alt="AI chek">`:'<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>';
+    }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+  } else {
+    box.innerHTML='<div style="padding:30px;color:var(--muted)">Chek yo\'q</div>';
+  }
+  icons();
+  if(!isAdm||!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
+  await renderChekAi(entryId,am,rt);
 };
-window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; };
+// AI tekshiruv paneli — chek/hujjat rasmi ostida, faqat admin va aiMap'da ma'lumot bo'lsa chizadi.
+async function renderChekAi(entryId,am,rt){
+  const aiBox=$('chekAiBody'); if(!aiBox) return;
+  try{
+    const out=[];
+    const e=rows.find(x=>x.id===entryId);
+    const yozilgan=e?sumDt(e):null;
+    if(rt){
+      const aiSumma=rt.ai_summa!=null?Number(rt.ai_summa):null;
+      out.push(`<div class="airow"><div class="al1">AI o'qidi</div><div class="al2">${aiSumma!=null?money(aiSumma):'—'}`
+        +`${rt.ai_sana?' · '+esc(rt.ai_sana):''}${rt.ishonch!=null?' · ishonch '+esc(String(rt.ishonch)):''}</div></div>`);
+      if(yozilgan!=null) out.push(`<div class="airow"><div class="al1">Yozilgan summa</div><div class="al2">${money(yozilgan)}</div></div>`);
+      if(aiSumma!=null&&yozilgan!=null){
+        const diff=yozilgan-aiSumma;
+        out.push(Math.abs(diff)>0
+          ? `<div class="airow"><div class="al1">Farq</div><div class="al2 aidiff">${diff>0?'+':''}${money(diff)} — ${esc(am.shubhali_sabab||'shubhali')}</div></div>`
+          : `<div class="airow"><div class="al1">Farq</div><div class="al2 aiok">Mos keladi</div></div>`);
+      }
+    } else if(am.rasm_tahlil_id||am.ai_holat==='xato'){
+      out.push('<div class="airow"><div class="al1">AI</div><div class="al2 aidiff">AI aniq o\'qimadi</div></div>');
+    }
+    // Spidometr — alohida bo'lim (chek AI'siga aralashmaydi)
+    let rtSpid=null, km=null, spidImg='';
+    if(am.spidometr_tahlil_id){
+      try{ const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.spidometr_tahlil_id).maybeSingle(); if(!error&&data) rtSpid=data; }catch(e){}
+    }
+    if(am.spidometr_tahlil_id||am.rasm_tahlil_id){
+      try{ const {data,error}=await sb.from('mashina_km').select('*').eq('entry_id',entryId).maybeSingle(); if(!error&&data) km=data; }catch(e){}
+    }
+    if(rtSpid||km){
+      out.push('<h4>Spidometr</h4>');
+      if(km){
+        out.push(`<div class="airow"><div class="al1">Km</div><div class="al2">${km.km!=null?esc(String(km.km)):'—'}</div></div>`);
+        out.push(`<div class="airow"><div class="al1">Oldingi km</div><div class="al2">${km.oldingi_km!=null?esc(String(km.oldingi_km)):'—'}</div></div>`);
+        out.push(`<div class="airow"><div class="al1">Yurgan km</div><div class="al2">${km.yurgan_km!=null?esc(String(km.yurgan_km)):'—'}</div></div>`);
+        if(km.som_per_km!=null) out.push(`<div class="airow"><div class="al1">So'm/km</div><div class="al2">${money(km.som_per_km)}</div></div>`);
+      }
+      if(rtSpid&&rtSpid.user_id&&rtSpid.id){
+        try{
+          const {data:su2,error:se2}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300);
+          if(!se2&&su2) spidImg=`<img src="${esc(su2.signedUrl)}" alt="spidometr">`;
+        }catch(e){}
+      }
+    }
+    aiBox.innerHTML=out.join('')+spidImg;
+    icons();
+  }catch(e){ aiBox.innerHTML=''; }
+}
+window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; const ab=$('chekAiBody'); if(ab) ab.innerHTML=''; };
 
 // --- V6: filial + davr metadata (entry.filial_ids, davr_start/end) ---
 // jurnal() RPC bu ustunlarni qaytarmaydi — yuklangan yozuvlar uchun alohida o'qiladi.
@@ -1719,66 +1798,6 @@ window.mxdImgErr=img=>{
   try{ const s=document.createElement('i'); s.setAttribute('data-lucide','tag'); img.replaceWith(s); icons(); }catch(e){}
 };
 const filName=id=>{ const a=accounts.find(x=>x.id===id); return a?a.name:null; };
-// --- AI tekshiruvi popover (Shubhali/AI xato chipi bosilganda) — admin only ---
-window.closeAiInfo=()=>{ const m=$('aiInfoModal'); if(m) m.classList.remove('open'); };
-window.openAiInfo=async entryId=>{
-  const box=$('aiInfoBody'); if(!box) return;
-  box.innerHTML='<div class="yiempty">Yuklanmoqda…</div>';
-  $('aiInfoModal').classList.add('open');
-  const am=aiMap[entryId]||{};
-  try{
-    const rows2=[];
-    if(am.shubhali_sabab) rows2.push(['Sabab', esc(am.shubhali_sabab)]);
-    let rt=null, km=null, imgHtml='';
-    if(am.rasm_tahlil_id){
-      const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.rasm_tahlil_id).maybeSingle();
-      if(!error&&data) rt=data;
-    }
-    // Spidometr: entry.spidometr_tahlil_id = rasm_tahlil.id (tur='spidometr'), mashina_km esa
-    // entry_id bo'yicha unique — ikkalasi ALOHIDA so'raladi (chek `rt` bilan aralashmaydi).
-    let rtSpid=null;
-    if(am.spidometr_tahlil_id){
-      const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.spidometr_tahlil_id).maybeSingle();
-      if(!error&&data) rtSpid=data;
-    }
-    if(am.spidometr_tahlil_id||am.rasm_tahlil_id){
-      const {data,error}=await sb.from('mashina_km').select('*').eq('entry_id',entryId).maybeSingle();
-      if(!error&&data) km=data;
-    }
-    if(rt){
-      rows2.push(['AI summa', rt.ai_summa!=null?money(rt.ai_summa):'—']);
-      rows2.push(['AI sana', esc(rt.ai_sana||'—')]);
-      if(rt.ai_km!=null) rows2.push(['AI km', esc(String(rt.ai_km))]);
-      if(rt.ishonch!=null) rows2.push(['Ishonch', esc(String(rt.ishonch))]);
-      if(rt.holat) rows2.push(['Holat', esc(rt.holat)]);
-      if(rt.user_id&&rt.id){
-        try{
-          const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
-          if(!se&&su) imgHtml=`<img src="${esc(su.signedUrl)}" alt="chek" style="max-width:100%;border-radius:10px;margin-top:10px" onerror="this.style.display='none'">`;
-        }catch(e){}
-      }
-    }
-    if(rtSpid){
-      if(rtSpid.ai_km!=null) rows2.push(['AI km (spidometr)', esc(String(rtSpid.ai_km))]);
-      if(rtSpid.ishonch!=null) rows2.push(['Spidometr ishonch', esc(String(rtSpid.ishonch))]);
-      if(rtSpid.user_id&&rtSpid.id){
-        try{
-          const {data:su2,error:se2}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300);
-          if(!se2&&su2) imgHtml+=`<img src="${esc(su2.signedUrl)}" alt="spidometr" style="max-width:100%;border-radius:10px;margin-top:10px" onerror="this.style.display='none'">`;
-        }catch(e){}
-      }
-    }
-    if(km){
-      rows2.push(['Km', km.km!=null?esc(String(km.km)):'—']);
-      rows2.push(['Oldingi km', km.oldingi_km!=null?esc(String(km.oldingi_km)):'—']);
-      rows2.push(['Yurgan km', km.yurgan_km!=null?esc(String(km.yurgan_km)):'—']);
-      if(km.som_per_km!=null) rows2.push(["So'm/km", money(km.som_per_km)]);
-    }
-    if(!rows2.length&&!imgHtml){ box.innerHTML='<div class="yiempty">Tafsilot topilmadi.</div>'; return; }
-    box.innerHTML=rows2.map(r=>`<div class="yirow"><div class="yl1">${r[0]}</div><div class="yl2">${r[1]}</div></div>`).join('')+imgHtml;
-    icons();
-  }catch(e){ box.innerHTML='<div class="yiempty">Yuklanmadi.</div>'; }
-};
 function metaTags(e){
   const meta=metaMap[e.id]; if(!meta) return '';
   const tags=[];
@@ -1796,10 +1815,12 @@ function metaTags(e){
   {
     const am=aiMap[e.id];
     if(am){
+      // Endi bitta modal (#chekModal) — chek rasmi + AI paneli birga. kassaOf(e) topilmasa
+      // ham (kassa bo'lmasa) openChek AI fallback rasmi/panelini ko'rsatadi.
       if(am.shubhali){
-        tags.push(`<span class="tg warn" onclick="openAiInfo('${e.id}')" title="${esc(am.shubhali_sabab||'AI shubha bildirdi')}"><i data-lucide="triangle-alert"></i>Shubhali</span>`);
+        tags.push(`<span class="tg warn" onclick="openChek('${kassaOf(e)||''}','${e.id}')" title="${esc(am.shubhali_sabab||'AI shubha bildirdi')}"><i data-lucide="triangle-alert"></i>Shubhali</span>`);
       } else if(am.ai_holat==='xato'){
-        tags.push(`<span class="tg warn" onclick="openAiInfo('${e.id}')" title="AI tekshiruvi xato bilan tugadi"><i data-lucide="triangle-alert"></i>AI xato</span>`);
+        tags.push(`<span class="tg warn" onclick="openChek('${kassaOf(e)||''}','${e.id}')" title="AI tekshiruvi xato bilan tugadi"><i data-lucide="triangle-alert"></i>AI xato</span>`);
       } else if(am.ai_holat==='yoq'){
         const k=klass(e);
         const moddaId=(k.kind==='out'&&k.dt)?k.dt.account_id:null;
@@ -2109,11 +2130,19 @@ function maqsadHtml(e,k,multi){
   if(chala) parts.push(`<div class="jchala-note">${esc(CHALA_IZOH)}</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
-  if(kid&&chekKeys.has(kid+'/'+e.id)){
+  const hasChek=!!(kid&&chekKeys.has(kid+'/'+e.id));
+  if(hasChek){
     // Rasm → "Chek", pdf/hujjat → "Hujjat" (professional-dev.html ixtiyoriy fayl yuklaydi)
     const nm=String(chekKeys.get(kid+'/'+e.id)||''), x=(nm.toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
     const lbl=(!x||CHEK_IMG.indexOf(x)>=0)?'Chek':'Hujjat';
     parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>${lbl}</button>`);
+  } else {
+    // Haqiqiy chek fayli yo'q — lekin admin uchun AI o'qigan rasm bor bo'lishi mumkin
+    // (aiMap faqat admin uchun to'ldiriladi — hodimga hech qachon chiqmaydi).
+    const am=aiMap[e.id];
+    if(am&&am.rasm_tahlil_id){
+      parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid||''}','${e.id}')"><i data-lucide="sparkles"></i><i data-lucide="receipt"></i>AI chek</button>`);
+    }
   }
   // --- Ijrochi + tahrir izi: BITTA metadata qatori (.ijr-meta, joy yetmasa o'raladi) ---
   const im=[];
@@ -2725,7 +2754,7 @@ function sselWire(){
     const mo=new MutationObserver(ms=>{
       for(const m of ms){ if(m.target.classList&&m.target.classList.contains('open')){ sselCloseAll(); return; } }
     });
-    ['editModal','chekModal','linkModal','moreModal','yukInfoModal','aiInfoModal'].forEach(id=>{
+    ['editModal','chekModal','linkModal','moreModal','yukInfoModal'].forEach(id=>{
       const el=$(id); if(el) mo.observe(el,{attributes:true,attributeFilter:['class']});
     });
   }catch(e){}

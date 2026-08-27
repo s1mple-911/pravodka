@@ -37,10 +37,11 @@ import { createClient } from "npm:@supabase/supabase-js@2.110.6";
 const MODEL = (Deno.env.get("AI_MODEL") || "").trim() || "claude-sonnet-5";
 
 // Tez/arzon javob — thinking YO'Q, tool_choice bilan struktura MAJBURIY,
-// shuning uchun 500 token yetarli (erkin matn yozilmaydi).
-const MAX_TOKENS = 500;
+// shuning uchun 350 token yetarli (erkin matn yozilmaydi). 2026-08-27: 500dan
+// tushirildi (tezlik) — tool javobi qisqa struktura, matn erkin yozilmaydi.
+const MAX_TOKENS = 350;
 
-// Bitta rasm, ≤2 MB BASE64 (klient 1024px JPEG 0.75 bilan kichraytiradi).
+// Bitta rasm, ≤2 MB BASE64 (klient 800px JPEG 0.7 bilan kichraytiradi).
 const IMG_MEDIA = ["image/jpeg", "image/png", "image/webp"];
 const IMG_B64_MAX = 2 * 1024 * 1024;
 const B64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
@@ -71,7 +72,9 @@ const RASM_KUN_MAX = (() => {
 // CORS — `ai-chat` bilan BIR XIL allowlist manbasi (bitta secret ikkalasiga
 // ham tegishli: `AI_ALLOWED_ORIGINS`).
 const DEFAULT_ORIGINS = [
-  "https://s1mple-911.github.io",
+  "https://s1mple-911.github.io", // GitHub Pages (repo: s1mple-911/pravodka)
+  "https://pravodka.com",         // CNAME (2026-08-18) — jonli domen
+  "https://www.pravodka.com",
 ];
 const ENV_ORIGINS = (Deno.env.get("AI_ALLOWED_ORIGINS") || "")
   .split(",").map((s) => s.trim()).filter(Boolean);
@@ -164,46 +167,38 @@ const SPIDO_TOOL = {
 //  System promptlar
 // ---------------------------------------------------------------------
 
+// 2026-08-27: qisqartirilgan (tezlik/narx) — mazmun saqlangan: yakuniy summa
+// qoidasi, sana taxmin qilinmasligi, `muammo` matn (massiv emas) shakli.
 const CHEK_SYSTEM = [
   "Sen O'zbekiston savdo cheklarini o'qiydigan aniq tahlilchisan.",
   "`chek_natija` asbobi bilan JAVOB BER — boshqa hech narsa yozma.",
-  "",
-  "`summa` — xaridor TO'LAGAN YAKUNIY summa: ИТОГО / JAMI / К ОПЛАТЕ / ВСЕГО /",
-  "Jami to'lov (chegirmadan KEYINGI, oxirgi summa).",
-  "🔴 BULAR SUMMA EMAS: 'Naqd berildi' / 'Сдача' (qaytim), 'Подытог' (oraliq",
-  "jami, chegirmadan OLDIN), QQS/NDS qatori.",
-  "Bir nechta chek yoki bir nechta 'yakuniy summa' nomzodi ko'rinsa —",
-  "`ishonch` ni PASAYTIR va `muammo` ga `bir_nechta` yoz.",
-  "Format: '150 000,00' / '150000.00' / '150.000' — hammasi SO'MDA BUTUN",
-  "SON deb o'qi (kasr/tiyin tashlanadi). Dollar chek bo'lsa `valyuta:'USD'`.",
-  "`sana` — chekdagi sana, AYNAN `YYYY-MM-DD`. Ko'rinmasa yoki noaniq bo'lsa",
-  "`null` — HECH QACHON TAXMIN QILMA (bugungi sana emas, chekning o'zi).",
-  "Chek umuman ko'rinmasa yoki boshqa hujjat bo'lsa `muammo` ga `chek_emas`",
-  "yoz va `summa:null`.",
-  "`muammo` — MATN maydoni (massiv EMAS): muammo bo'lmasa BO'SH SATR yoki",
-  "`null`; bo'lsa bitta yoki bir nechta tegni vergul bilan yoz (masalan",
-  "'xira, bir_nechta'). Bo'sh/`null` — 'muammo yo'q' degani, aniq() shunga",
-  "qarab hisoblanadi — behuda to'ldirma.",
-  "`ishonch` — 0 (umuman ishonchsiz) dan 1 (aniq) gacha, real baho ber.",
+  "`summa` — YAKUNIY to'lov (ИТОГО/JAMI/К ОПЛАТЕ/ВСЕГО), chegirmadan KEYIN.",
+  "'Сдача' (qaytim) va 'Подытог' (oraliq jami, chegirmadan OLDIN) SUMMA EMAS.",
+  "Bir nechta chek/yakuniy summa nomzodi bo'lsa `ishonch` PASAYTIR,",
+  "`muammo:'bir_nechta'`.",
+  "Summani SO'MDA BUTUN son deb o'qi (kasr/tiyin tashlanadi).",
+  "Dollar chek bo'lsa `valyuta:'USD'`.",
+  "`sana` — AYNAN `YYYY-MM-DD`. Noaniq/ko'rinmasa `null` — HECH QACHON",
+  "TAXMIN QILMA (bugungi sana emas).",
+  "Chek ko'rinmasa/boshqa hujjat bo'lsa `muammo:'chek_emas'`, `summa:null`.",
+  "`muammo` — MATN (massiv EMAS): bo'sh/`null` = muammo yo'q, aks holda",
+  "teg(lar)ni vergul bilan yoz (masalan 'xira, bir_nechta').",
+  "`ishonch` — 0 (ishonchsiz) dan 1 (aniq) gacha, real baho ber.",
 ].join("\n");
 
 const SPIDO_SYSTEM = [
   "Sen avtomobil spidometri (odometr) rasmini o'qiydigan aniq tahlilchisan.",
   "`spidometr_natija` asbobi bilan JAVOB BER — boshqa hech narsa yozma.",
-  "",
-  "`km` — UMUMIY odometr (ODO): eng katta, 5-7 xonali raqam, mashinaning",
-  "umumiy yurgan masofasi. TRIP A / TRIP B (kichik, ko'pincha kasrli, safar",
-  "hisoblagichi) EMAS — ular alohida, kichikroq ko'rsatkich.",
-  "Barcha xonani (raqamlarning har birini) diqqat bilan ko'chir, birortasini",
-  "tashlab ketma yoki qo'shib yozma.",
-  "Ko'rsatkich milда bo'lsa `birlik:'mil'`, aks holda `birlik:'km'`.",
-  "Faqat TRIP ko'rinsa (ODO ko'rinmasa) — `km:null`, `raqam_turi:'trip'`,",
-  "`muammo` ga `trip_korsatilgan` yoz.",
-  "Tezlik strelkasi/ko'rsatkichi RAQAM EMAS — uni km deb o'qima.",
-  "Rasm qisman kesilgan yoki yoritish yomon bo'lsa mos `muammo` yoz va",
-  "ishonchsiz bo'lsa `km:null` qoldir — TAXMIN QILMA.",
-  "`muammo` — MATN maydoni (massiv EMAS): muammo bo'lmasa BO'SH SATR yoki",
-  "`null`; bo'lsa bitta yoki bir nechta tegni vergul bilan yoz.",
+  "`km` — UMUMIY odometr (ODO): eng katta, 5-7 xonali raqam. TRIP A/B",
+  "(kichik, ko'pincha kasrli, safar hisoblagichi) EMAS.",
+  "Har bir raqamni diqqat bilan ko'chir — tashlab ketma, qo'shib yozma.",
+  "Milда bo'lsa `birlik:'mil'`, aks holda `birlik:'km'`.",
+  "Faqat TRIP ko'rinsa (ODO ko'rinmasa): `km:null`, `raqam_turi:'trip'`,",
+  "`muammo:'trip_korsatilgan'`.",
+  "Tezlik strelkasi/ko'rsatkichi RAQAM EMAS.",
+  "Kesilgan/yoritish yomon bo'lsa mos `muammo` yoz, ishonchsiz bo'lsa",
+  "`km:null` qoldir — TAXMIN QILMA.",
+  "`muammo` — MATN (massiv EMAS): bo'sh/`null` = muammo yo'q.",
   "`ishonch` — 0 dan 1 gacha, real baho ber.",
 ].join("\n");
 
@@ -477,6 +472,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let toolInput: Record<string, unknown> | null = null;
   let claudeErr: string | null = null;
   let usedModel = MODEL;
+  const claudeT0 = Date.now();   // Claude chaqiruv davomiyligi — loglarda ko'rinsin (tezlik nazorati)
 
   try {
     const resp = await anthropic.messages.create({
@@ -498,6 +494,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ],
     });
     usedModel = (resp as { model?: string }).model || MODEL;
+    console.log("rasm-detect: Claude javob", tur, Date.now() - claudeT0, "ms");
     const blocks = (resp as { content?: Array<Record<string, unknown>> }).content || [];
     const tu = blocks.find((b) => b.type === "tool_use" && b.name === tool.name);
     if (tu && tu.input && typeof tu.input === "object") {
@@ -507,7 +504,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       claudeErr = "AI strukturali javob bermadi.";
     }
   } catch (e) {
-    console.error("rasm-detect: Anthropic xato:", (e as { message?: string })?.message || String(e));
+    console.error("rasm-detect: Anthropic xato:", (e as { message?: string })?.message || String(e), "·", Date.now() - claudeT0, "ms");
     claudeErr = upstreamMsg(e);
   }
 
