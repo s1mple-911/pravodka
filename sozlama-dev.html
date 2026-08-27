@@ -382,7 +382,7 @@
   .rb-acts .mxd-save,.rb-acts .mxd-cancel{flex:0 1 auto;min-width:0;padding:0 16px;white-space:nowrap}
   .rb-acts .rb-res{flex:1 1 auto;align-self:center;font-size:13px;font-weight:600;min-width:120px}
   .rb-res.ok{color:var(--green)}.rb-res.err{color:var(--red)}
-  .rb-users .rb-res{display:inline-block;margin-left:8px;font-size:12px;font-weight:600;vertical-align:middle}
+  .rb-users .rb-res{display:block;margin:4px 0 0;font-size:11.5px;font-weight:600;white-space:normal}   /* tugma ostida — 118px katakdan chiqmasin */
   @media(max-width:400px){
     .rb-acts .mxd-save,.rb-acts .mxd-cancel{flex:1 1 auto;justify-content:center}
     .rb-acts .rb-res{order:-1;flex:1 1 100%;text-align:right}
@@ -413,12 +413,39 @@
   .rb-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
   /* Dropdown + Saqlash — bitta qatorda (desktop, table td yonma-yon); mobilda .rb-users
      qoidasi tufayli har td alohida blok bo'lib ustma-ust tushadi (pastdagi @media) */
-  .rb-users td:has(.rb-dd),.rb-users td:has(.mxd-btn){white-space:nowrap}
+  /* 🔴 Jadval kartadan chiqib ketmasin (2026-08-27 rasm): dropdown qat'iy 220px + nowrap
+     ustunlarni karta kengligidan oshirib yuborardi. Endi: jadval `table-layout:fixed`,
+     dropdown katagi cho'ziluvchan (dropdown 100%), Saqlash katagi tor (1%), ism katagi
+     so'zni sindiradi. Kartaga overflow BERILMAYDI (popover kesilardi). */
+  .rb-users table{table-layout:fixed}
+  .rb-users td:has(.mxd-btn){white-space:nowrap}
+  .rb-users th:nth-child(2){width:18%}
+  .rb-users th:nth-child(3){width:36%}
+  .rb-users th:nth-child(4){width:118px}
+  @media(max-width:640px){.rb-users th:nth-child(n){width:auto}}
+  .rb-users td{overflow-wrap:anywhere}
+  /* Hodimlar jadvali — "Provodka akkaunti" ustuni qo'shilgani uchun (5 ustun, foydalanuvchilar
+     jadvali 4 ustun bilan bir xil .rb-users klassini ishlatadi) kengliklar shu yerda override
+     qilinadi — .rb-users-staff ikkinchi klass, umumiy qoidadan (0,1,1) kuchliroq (0,2,1);
+     mobil reset ham alohida takrorlangan, aks holda tor ekranda kenglik qotib qolardi. */
+  .rb-users-staff th:nth-child(2){width:15%}
+  .rb-users-staff th:nth-child(3){width:19%}
+  .rb-users-staff th:nth-child(4){width:26%}
+  .rb-users-staff th:nth-child(5){width:118px}
+  @media(max-width:640px){.rb-users-staff th:nth-child(n){width:auto}}
+  .rb-link-sel{width:100%;min-width:120px;height:36px;padding:0 10px;border:1px solid var(--line);
+    border-radius:9px;background:var(--surface);color:var(--ink);font-family:inherit;font-size:12.5px;
+    font-weight:500;cursor:pointer}
+  .rb-link-sel:hover{border-color:var(--primary)}
+  .rb-taklif-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--primary);background:var(--primary-soft);vertical-align:middle}
+  .rb-muted-note{color:var(--muted);font-size:12px;font-style:italic;line-height:1.4;display:inline-block}
 
   /* --- Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi/hodim
        qatorlarida chip ro'yxati o'rniga. Modda/amal checkbox-gridiga tegilmagan. --- */
-  .rb-dd{position:relative;display:inline-block;min-width:0;max-width:100%;vertical-align:middle}
-  .rb-dd-btn{display:flex;align-items:center;gap:8px;width:220px;max-width:100%;height:36px;padding:0 10px;
+  .rb-dd{position:relative;display:block;width:100%;min-width:0;max-width:100%;vertical-align:middle}
+  .rb-dd-btn{display:flex;align-items:center;gap:8px;width:100%;min-width:120px;max-width:100%;height:36px;padding:0 10px;
     border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);
     font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:border-color .13s,box-shadow .13s}
   .rb-dd-btn:hover{border-color:var(--primary)}
@@ -783,9 +810,10 @@
 
       <div id="rbStaffPane" style="display:none">
         <div class="rb-note" style="margin:0 0 10px">Hodimning roli uning qaysi ovqatni olishini
-          belgilaydi (obed/zavtrak/kechki).</div>
+          belgilaydi (obed/zavtrak/kechki). Hodimni Provodka akkauntiga bog'lasangiz, ovqat ruxsati
+          o'sha akkauntning rolidan olinadi (bitta joyda boshqariladi).</div>
         <input class="mxd-in" id="rbStaffSearch" placeholder="Hodim qidirish..." oninput="rbFilterStaff()">
-        <div class="rb-users" id="rbStaffList"></div>
+        <div class="rb-users rb-users-staff" id="rbStaffList"></div>
       </div>
     </div>
 
@@ -869,6 +897,7 @@ let rbOff=false, rbRoles=[], rbAmalRoyxati=[], rbModdalar=[], rbUsers=[],
     rbEditing=null, rbUserPending={}, rbPendingDeleteId=null, rbModdaQ='';
 // RBAC — Hodimlar (aros-staff) tabi holati (PROVODKA_RBAC_STAFF.sql)
 let rbStaffOff=true, rbStaff=[], rbStaffRoles=[], rbStaffPending={}, rbTab='user';
+let rbStaffUsers=[], rbStaffLinkPending={};   // "Provodka akkaunti" ustuni — rbac_staff_link_set()
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -2176,19 +2205,34 @@ async function rbLoadStaff(){
   const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='';
   rbStaff=Array.isArray(data&&data.hodimlar)?data.hodimlar:[];   // SQL kaliti: hodimlar (rollar ichida)
   rbStaffRoles=Array.isArray(data&&data.rollar)?data.rollar:rbRoles;
-  rbStaffPending={};
-  rbStaff.forEach(s=>{ rbStaffPending[s.staff_id]=new Set((s.rollar||[]).map(r=>r.id)); });
+  rbStaffUsers=Array.isArray(data&&data.users)?data.users:[];
+  rbStaffPending={}; rbStaffLinkPending={};
+  rbStaff.forEach(s=>{
+    rbStaffPending[s.staff_id]=new Set((s.rollar||[]).map(r=>r.id));
+    // taklif_user_id bo'lsa (va user_id bo'sh) select oldindan shuni ko'rsatadi — saqlanmaguncha
+    // haqiqiy bog'lanish sodir bo'lmaydi, faqat UI'da tayyor turadi.
+    rbStaffLinkPending[s.staff_id]=s.user_id||s.taklif_user_id||'';
+  });
   rbRenderStaff();
 }
 function rbRenderStaff(){
   const box=$('rbStaffList'); if(!box) return;
   const q=(($('rbStaffSearch')&&$('rbStaffSearch').value)||'').trim().toLowerCase();
   const list=rbStaff.filter(s=>{ if(!q) return true;
-    const nm=(String(s.toliq_nom||'')+' '+String(s.lavozim||'')+' '+String(s.branch_nomi||'')).toLowerCase();
+    const nm=(String(s.toliq_nom||'')+' '+String(s.lavozim||'')+' '+String(s.branch_nomi||'')+' '+String(s.user_nom||'')).toLowerCase();
     return nm.indexOf(q)>=0; });
-  box.innerHTML=list.length?`<table><thead><tr><th>Hodim</th><th>Lavozim · Filial</th><th>Rollar</th><th></th></tr></thead><tbody>${
+  box.innerHTML=list.length?`<table><thead><tr><th>Hodim</th><th>Lavozim · Filial</th><th>Provodka akkaunti</th><th>Rollar</th><th></th></tr></thead><tbody>${
     list.map(s=>rbStaffRowHtml(s)).join('')}</tbody></table>`:'<div class="rb-empty"><i data-lucide="user-search"></i><span>Hodim topilmadi</span></div>';
   icons();
+}
+function rbStaffLinkOpts(current){
+  const cur=String(current||'');
+  const opts=[`<option value="">— bog'lanmagan —</option>`];
+  rbStaffUsers.forEach(u=>{
+    const nm=esc(u.full_name||u.user_nom||('#'+String(u.id)));
+    opts.push(`<option value="${esc(u.id)}" ${cur===String(u.id)?'selected':''}>${nm}</option>`);
+  });
+  return opts.join('');
 }
 function rbStaffRowHtml(s){
   const rawName=s.toliq_nom||('#'+String(s.staff_id));
@@ -2197,38 +2241,69 @@ function rbStaffRowHtml(s){
   const sub=esc([s.lavozim,s.branch_nomi].filter(Boolean).join(' · '))||'—';
   const pending=rbStaffPending[s.staff_id]||new Set();
   const orig=new Set((s.rollar||[]).map(r=>r.id));
-  const dirty=rbSetsDiffer(pending,orig);
-  return `<tr>
+  const linkVal=rbStaffLinkPending[s.staff_id]!==undefined?rbStaffLinkPending[s.staff_id]:(s.user_id||'');
+  const linked=!!linkVal;
+  const isTaklif=!s.user_id&&s.taklif_user_id&&String(linkVal)===String(s.taklif_user_id);
+  const origLink=s.user_id||'';
+  const linkDirty=String(linkVal)!==String(origLink);
+  const rolesDirty=!linked&&rbSetsDiffer(pending,orig);
+  const dirty=linkDirty||rolesDirty;
+  const linkCell=`<select class="rb-link-sel" onchange="rbStaffLinkChange('${s.staff_id}',this.value)">${rbStaffLinkOpts(linkVal)}</select>${
+    isTaklif?`<span class="rb-taklif-badge" title="Taklif qilingan — saqlanmaguncha bog'lanmaydi">taklif</span>`:''}`;
+  const rolesCell=linked
+    ?`<span class="rb-muted-note">Ovqat ruxsati akkaunt rolidan</span>`
+    :rbDdHtml('staff_'+s.staff_id,pending,rbStaffRoles);
+  return `<tr id="rbStaffRow_${s.staff_id}">
     <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
     <td><span class="rb-urole">${sub}</span></td>
-    <td>${rbDdHtml('staff_'+s.staff_id,pending,rbStaffRoles)}</td>
+    <td>${linkCell}</td>
+    <td>${rolesCell}</td>
     <td><button type="button" class="mxd-btn" id="rbStaffSave_${s.staff_id}" ${dirty?'':'disabled'} onclick="rbSaveStaffRoles('${s.staff_id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbStaffRes_${s.staff_id}"></span></td>
   </tr>`;
 }
 window.rbFilterStaff=()=>rbRenderStaff();
+window.rbStaffLinkChange=(sid,val)=>{
+  rbStaffLinkPending[sid]=val||'';
+  const tr=document.getElementById('rbStaffRow_'+sid); const s=rbStaff.find(x=>String(x.staff_id)===String(sid));
+  if(!tr||!s) return;
+  tr.outerHTML=rbStaffRowHtml(s);
+  icons();
+};
 window.rbSaveStaffRoles=async sid=>{
-  const s=rbStaffPending[sid]||new Set();
+  const s=rbStaff.find(x=>String(x.staff_id)===String(sid));
+  const linkVal=rbStaffLinkPending[sid]!==undefined?rbStaffLinkPending[sid]:((s&&s.user_id)||'');
+  const origLink=(s&&s.user_id)||'';
+  const linkDirty=String(linkVal)!==String(origLink);
+  const linked=!!linkVal;
+  const rolesSet=rbStaffPending[sid]||new Set();
+  const origRoles=new Set(((s&&s.rollar)||[]).map(r=>r.id));
+  const rolesDirty=!linked&&rbSetsDiffer(rolesSet,origRoles);
+  if(!linkDirty&&!rolesDirty) return;
   const btn=$('rbStaffSave_'+sid), res=$('rbStaffRes_'+sid), old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
   if(res){ res.className='rb-res'; res.textContent=''; }
+  const fail=msg=>{
+    rbBanner('err','Xato: '+msg); toast('err','Xato: '+msg);
+    const res2=$('rbStaffRes_'+sid); if(res2){ res2.className='rb-res err'; res2.textContent='Xato: '+msg; }
+    const btn2=$('rbStaffSave_'+sid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+  };
   try{
-    const {error}=await sb.rpc('rbac_staff_set',{p_staff:Number(sid),p_roles:Array.from(s)});
-    if(error){
-      const msg=window.permErr?window.permErr(error):error.message;
-      rbBanner('err','Xato: '+msg); toast('err','Xato: '+msg);
-      const res2=$('rbStaffRes_'+sid); if(res2){ res2.className='rb-res err'; res2.textContent='Xato: '+msg; }
-      const btn2=$('rbStaffSave_'+sid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
-      return;
+    if(linkDirty){
+      const {error}=await sb.rpc('rbac_staff_link_set',{p_staff:Number(sid),p_user:linkVal||null});
+      if(error){ fail(window.permErr?window.permErr(error):error.message); return; }
+      if(s) s.user_id=linkVal||null;
     }
-    const st=rbStaff.find(x=>String(x.staff_id)===String(sid));
-    if(st) st.rollar=rbStaffRoles.filter(r=>s.has(r.id)).map(r=>({id:r.id,nom:r.nom}));
-    rbBanner('ok','Rollar saqlandi.'); toast('ok','Saqlandi ✓');
+    if(rolesDirty){
+      const {error}=await sb.rpc('rbac_staff_set',{p_staff:Number(sid),p_roles:Array.from(rolesSet)});
+      if(error){ fail(window.permErr?window.permErr(error):error.message); return; }
+      if(s) s.rollar=rbStaffRoles.filter(r=>rolesSet.has(r.id)).map(r=>({id:r.id,nom:r.nom}));
+    }
+    delete rbStaffLinkPending[sid];
+    rbBanner('ok','Saqlandi.'); toast('ok','Saqlandi ✓');
     rbRenderStaff();                  // qatorni qayta chizadi (tugma disabled=true, dirty=false)
     const res3=$('rbStaffRes_'+sid); if(res3){ res3.className='rb-res ok'; res3.textContent='Saqlandi · '+hhmm(); }
   }catch(e){
-    const msg=window.permErr?window.permErr(e):(e&&e.message)||String(e);
-    toast('err','Xato: '+msg);
-    const btn2=$('rbStaffSave_'+sid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+    fail(window.permErr?window.permErr(e):(e&&e.message)||String(e));
   }
 };
 
