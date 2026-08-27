@@ -242,14 +242,14 @@ begin
                                select to_jsonb(pr) ->> 'full_name' from profiles pr where pr.id = s.user_id
                              ) end,
           'taklif_user_id', case when s.user_id is null then (
-                               select pr.id from profiles pr
+                               -- YAGONA moslik bo'lsagina taklif (2+ bir xil ism → null, admin o'zi tanlaydi)
+                               select case when count(*) = 1 then min(pr.id) end
+                                 from profiles pr
                                 where nom_norm(to_jsonb(pr) ->> 'full_name') = nom_norm(
                                         coalesce(nullif(btrim(s.toliq_nom), ''),
                                                  btrim(coalesce(s.ism, '') || ' ' || coalesce(s.familiya, ''))))
                                   and nom_norm(to_jsonb(pr) ->> 'full_name') is not null
                                   and not exists (select 1 from aros_staff s2 where s2.user_id = pr.id)
-                                having count(*) = 1
-                                group by pr.id
                              ) end
         ) order by coalesce(nullif(btrim(s.toliq_nom), ''), s.staff_id::text))
       from aros_staff s
