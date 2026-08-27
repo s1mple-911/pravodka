@@ -207,7 +207,7 @@ begin
       v_staff_id,
       nullif(it->>'ism', ''),
       nullif(it->>'familiya', ''),
-      nullif(it->>'toliq_nom', ''),
+      coalesce(nullif(it->>'toliq_nom', ''), nullif(btrim(coalesce(it->>'ism','') || ' ' || coalesce(it->>'familiya','')), '')),
       nullif(it->>'lavozim', ''),
       nullif(it->>'telefon', ''),
       nullif(it->>'photo_url', ''),
@@ -216,7 +216,8 @@ begin
       coalesce(it->'branches', '[]'::jsonb),
       coalesce((nullif(it->>'is_active',''))::boolean, true),
       nullif(it->>'work_type', ''),
-      coalesce(nullif(it->>'updated_at', '')::timestamptz, now())
+      coalesce(nullif(it->>'updated_at', '')::timestamptz, now()),
+      now()
     )
     on conflict (staff_id) do update
        set ism         = excluded.ism,
