@@ -269,7 +269,8 @@ set search_path = public
 as $fn$
 declare
   v_lim  constant int := 200;
-  p      user_perms;
+  v_scope text;                       -- user_perms.kassa_scope (row-type ISHLATILMAYDI — 42704)
+  v_op   uuid[];                      -- user_perms.op_kassa_ids
   v_ids  uuid[];
   v_ext  uuid[];
   v_view uuid[] := '{}'::uuid[];      -- fail-closed sukut: hamma begona pul niqoblanadi
@@ -286,13 +287,14 @@ begin
   end if;
 
   -- 2-QAVAT: OILA — hodim_oz_tarix bilan AYNI mantiq
-  select * into p from user_perms where user_id = auth.uid();
-  if found and p.kassa_scope = 'list' then
+  select kassa_scope, op_kassa_ids into v_scope, v_op
+    from public.user_perms where user_id = auth.uid();
+  if found and v_scope = 'list' then
     select array_agg(a.id) into v_ids
       from accounts a
      where a.type = 'aktiv' and a.code like '5%'
        and a.kassa_turi <> 'xarajat_guruh'
-       and perm_op_key(a.id) = any(p.op_kassa_ids);
+       and perm_op_key(a.id) = any(v_op);
   else
     select array_agg(a.id) into v_ids
       from accounts a
