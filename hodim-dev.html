@@ -459,9 +459,27 @@
   .stepnote{color:var(--muted);font-size:13px;line-height:1.45;background:var(--surface-2);border-radius:var(--r-md);
     padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s2)}
   .stepnote svg{width:16px;height:16px;flex:none}
-  /* ================= tarix sarlavhasi + davr chiplari ================= */
-  .histhd{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
+  /* ================= tarix sarlavhasi (akkordeon) + davr chiplari ================= */
+  .histhd{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);flex-wrap:wrap}
   .histhd h2{margin:0}
+  /* Sarlavha butun kengligicha bosiladigan tugma — fon/chegara yo'q, h2 uslubi saqlanadi.
+     Tap-maydoni >=44px: padding+manfiy margin bilan kartaning ichki bo'shlig'iga "bleed" qiladi,
+     shu bilan yopiq holat matni kartaning boshqa qatorlari bilan bir xil chekkada qoladi. */
+  .histtog{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:44px;background:none;border:none;
+    border-radius:var(--r-md);padding:var(--s2);margin:calc(var(--s2) * -1);
+    font:inherit;color:inherit;text-align:left;cursor:pointer;transition:background .15s}
+  @media(hover:hover){.histtog:hover{background:var(--surface-2)}}
+  .histtog:active{background:var(--surface-2)}
+  .histtog:focus-visible{outline:none;box-shadow:0 0 0 3px var(--primary-ring)}
+  .histtog h2{flex:1;min-width:0;margin:0}
+  .histsum{color:var(--muted);font-size:12.5px;font-weight:600;white-space:nowrap;flex:none;font-variant-numeric:tabular-nums}
+  .histchev{flex:none;color:var(--muted);width:18px;height:18px;transition:transform .2s}
+  .histtog[aria-expanded="true"] .histchev{transform:rotate(180deg)}
+  #histBody{margin-top:var(--s4)}
+  /* Ochilish — yumshoq fade+slide (yopilish darrov, boshqa akkordeonlarga xos naqsh) */
+  @keyframes histBodyIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  #histBody:not([hidden]){animation:histBodyIn .22s cubic-bezier(.22,.61,.36,1)}
+  @media(prefers-reduced-motion:reduce){#histBody:not([hidden]){animation:none}}
   .chips2{display:flex;gap:2px;background:var(--surface-2);border-radius:999px;padding:var(--s1)}
   .pchip{border:none;background:transparent;color:var(--muted);border-radius:999px;padding:0 var(--s3);min-height:36px;
     display:inline-flex;align-items:center;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;
@@ -1107,7 +1125,7 @@
         <div style="color:var(--muted);font-size:13px;margin-top:6px">necha km yurganini ko'rsatadigan joy</div>
         <div id="spidAiNote" class="ai-note" style="display:none"></div>
         <div style="margin-top:var(--s3)">
-          <label class="lbl" for="spidKmIn">Necha km yurgan (tablodagi raqam) <span class="opt">(ixtiyoriy)</span></label>
+          <label class="lbl" id="spidKmLbl" for="spidKmIn">Necha km yurgan (tablodagi raqam) <span class="opt">(ixtiyoriy)</span></label>
           <div class="kminp">
             <input class="txt tnum" id="spidKmIn" inputmode="numeric" placeholder="masalan: 123456" oninput="onSpidKmInput(this)">
             <span class="kmsuf">km</span>
@@ -1124,21 +1142,28 @@
 
     <div class="today sect" id="histSect">
       <div class="histhd">
-        <h2 id="histTitle">Xarajatlarim</h2>
+        <button type="button" class="histtog" id="histTog" aria-expanded="false" onclick="histToggle()">
+          <h2 id="histTitle">Xarajatlarim</h2>
+          <span id="histSum" class="histsum"></span>
+          <i data-lucide="chevron-down" class="histchev"></i>
+        </button>
+      </div>
+      <!-- Default YOPIQ — sahifa har ochilganda saqlangan holatsiz yopiq boshlanadi (2026-08-28). -->
+      <div id="histBody" hidden>
         <div class="chips2" role="group" aria-label="Davr">
           <button type="button" class="pchip on" data-p="bugun" onclick="setHistPeriod('bugun')">Bugun</button>
           <button type="button" class="pchip" data-p="hafta" onclick="setHistPeriod('hafta')">Bu hafta</button>
           <button type="button" class="pchip" data-p="oy" onclick="setHistPeriod('oy')">Bu oy</button>
         </div>
-      </div>
-      <div id="histCat" class="histcat"></div>
-      <!-- Tasdiq kutayotgan pul so'rovlari (sorov_menikilar). ALOHIDA blok: pending
-           xarajat hodim_amallar/hodim_oz_tarix javobida YO'Q (status='posted' filtri). -->
-      <div id="srvPend" class="srvpend"></div>
-      <!-- Boshlang'ich skeleton — birinchi yuklashda bo'sh oq joy ko'rinmasin -->
-      <div id="histList" aria-live="polite">
-        <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:52%"></div><div class="skel" style="width:34%"></div></div></div>
-        <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:40%"></div><div class="skel" style="width:28%"></div></div></div>
+        <div id="histCat" class="histcat"></div>
+        <!-- Tasdiq kutayotgan pul so'rovlari (sorov_menikilar). ALOHIDA blok: pending
+             xarajat hodim_amallar/hodim_oz_tarix javobida YO'Q (status='posted' filtri). -->
+        <div id="srvPend" class="srvpend"></div>
+        <!-- Boshlang'ich skeleton — birinchi yuklashda bo'sh oq joy ko'rinmasin -->
+        <div id="histList" aria-live="polite">
+          <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:52%"></div><div class="skel" style="width:34%"></div></div></div>
+          <div class="skrow"><div class="skel skic"></div><div class="skb"><div class="skel" style="width:40%"></div><div class="skel" style="width:28%"></div></div></div>
+        </div>
       </div>
     </div>
   </main>
@@ -2414,11 +2439,13 @@ window.openChek=async(kassaId,entryId)=>{
   }catch(e){ toast('Chek ochilmadi',true); }
 };
 
-/* ================= AI rasm tahlili (chek/spidometr) — 6-BOSQICH =================
-   🔴 TEZLIK: hodim AI'ni KUTMAYDI. Fetch fire-and-forget — forma darrov ochiq,
-   natija kelganda faqat BO'SH maydonlarga yoziladi (hodim yozganini ustidan bosmaydi).
-   `aiTahlil`/`spidTahlil` — `{id, holat}`. `id` klientda OLDINDAN yaratiladi:
-   saqlash AI javobini kutmasdan ham `entry_ai_bogla`/`mashina_km_yoz` shu id bilan
+/* ================= AI rasm tahlili (chek/spidometr) — 7-BOSQICH =================
+   🔴 TO'LIQ FON: hodim AI borligini UMUMAN bilmaydi. Fetch fire-and-forget — forma
+   darrov ochiq, natija kelganda ekranda HECH QANDAY belgi chiqmaydi (avtoto'ldirish
+   ham yo'q — summa/km maydonlarini hodimning o'zi yozadi). Natija faqat `aiTahlil`/
+   `spidTahlil.holat` ('kutilmoqda'|'ok'|'xato'|'ai_xato') ichida saqlanadi — shu holat
+   `entry_ai_bogla`/`mashina_km_yoz` orqali DB'ga yoziladi, admin keyin ko'radi.
+   `id` klientda OLDINDAN yaratiladi: saqlash AI javobini kutmasdan ham shu id bilan
    bog'lay oladi (natija kech kelsa ham EF/RPC tomonda keyinroq to'ldiriladi). */
 function genUuid(){
   try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
@@ -2433,9 +2460,15 @@ function aiSpidOk(){ const m=moddaObj(); return !!(m && m.spidometr_ai); }
 // yiqilgan — `holat==='xato'`) bo'lsa saqlash yopiq. AI JAVOBI kutilmaydi — faqat rasmning
 // o'zi bor-yo'qligi tekshiriladi (4-band: saqlash AI natijasini kutmaydi).
 function spidRequired(){ return aiSpidOk() && !spidTahlil; }   // faqat RASM bor-yo'qligi; AI xatosi (holat='ai_xato') saqlashni bloklamaydi — hodim aybi emas
-// Ikkita AI-rasm talabi bitta joyda — 4 ta saqlash oqimi (oddiy/taqsim/so'rov/ovqat) shu
-// yordamchidan foydalanadi, ikki marta yozilmaydi.
-function rasmTalab(){ return { chek: chekRequired() && !chekBlob, spid: spidRequired() }; }
+// 🔴 Avtoto'ldirish yo'qligi sababli (2026-08-28) km maydoni MAJBURIY: spidometr AI
+// yoqilgan VA "Mashina" maydoni tanlangan bo'lsa hodim km ni O'ZI yozishi shart.
+function kmRequired(){ return aiSpidOk() && !!mashinaSelected(); }
+// Ikkita AI-rasm talabi + km bitta joyda — 4 ta saqlash oqimi (oddiy/taqsim/so'rov/ovqat)
+// shu yordamchidan foydalanadi, ikki marta yozilmaydi.
+function rasmTalab(){
+  const ki=$('spidKmIn'); const kmBosh=!(ki&&String(ki.value||'').trim());
+  return { chek: chekRequired() && !chekBlob, spid: spidRequired(), km: kmRequired() && kmBosh };
+}
 // "Mashina" maxsus maydoni (tur='royxat') — spidometr shu maydon tanlanganda ko'rinadi.
 // 🔴 Nomga qattiq bog'lanmaydi (bazada "Ro'yxatdan tanlang"/"TANLANG" kabi nomlar bo'lishi mumkin):
 // moddaga biriktirilgan birinchi faol `royxat` turidagi maydon olinadi; bir nechtasi bo'lsa
@@ -2462,6 +2495,10 @@ function updateAiUI(){
   if(note) note.style.display=(ok&&!mashinaSelected())?'block':'none';
   const req=$('spidReq');
   if(req) req.style.display=(typeof spidRequired==='function' && spidRequired())?'block':'none';
+  const klbl=$('spidKmLbl');
+  if(klbl) klbl.innerHTML = kmRequired()
+    ? 'Necha km yurgan (tablodagi raqam) <span class="req">majburiy</span>'
+    : 'Necha km yurgan (tablodagi raqam) <span class="opt">(ixtiyoriy)</span>';
 }
 function b64Read(blob){
   return new Promise((res,rej)=>{
@@ -2504,27 +2541,23 @@ async function aiDetectSend(id,tur,blob,kontekst){
 }
 // Chek tahlili — `onChekFile` dan chaqiriladi (fire-and-forget). `blob` —
 // allaqachon siqilgan `chekBlob` (1200px), asl fayl emas.
-// 🔴 Hodimga "AI" so'zi ko'rsatilmaydi (firib nazorati yashirin): neytral
-//    "Yuklanmoqda…" ko'rsatiladi, natija kelganda (muvaffaqiyat/xato/noaniq —
-//    HAMMASIDA) jimgina yo'qoladi. Har chiqish yo'lida note albatta yashiriladi
-//    — aks holda "Yuklanmoqda…" abadiy qotib qolishi mumkin edi.
+// 🔴 Hodimga HECH QANDAY belgi chiqmaydi — "Yuklanmoqda…" yo'q, avtoto'ldirish yo'q,
+//    "Bu chek emas" toast yo'q. Faqat `aiTahlil.holat` yangilanadi (id saqlash uchun
+//    kerak — `aiSnap`/`aiBind` shu bilan ishlaydi), qolgan hammasi DB'da/adminda.
 function startChekAi(blob){
   const modda=moddaObj();
   const id=genUuid();
   aiTahlil={id, tur:'chek', holat:'kutilmoqda'};
-  aiNoteShow('chekAiNote','Yuklanmoqda…', false);
   console.time('ai:chek');
-  // Qorovul: 30s ichida natija kelmasa ham note abadiy qolmasin.
+  // Qorovul: 30s ichida natija kelmasa ham holat abadiy 'kutilmoqda' qolmasin.
   setTimeout(()=>{
-    if(aiTahlil&&aiTahlil.id===id&&aiTahlil.holat==='kutilmoqda'){
-      aiTahlil.holat='xato'; aiNoteHide('chekAiNote');
-    }
+    if(aiTahlil&&aiTahlil.id===id&&aiTahlil.holat==='kutilmoqda') aiTahlil.holat='xato';
   },30000);
   (async()=>{
     let small;
     try{ small=await compressImage(blob,800,0.7); }
     catch(e){
-      if(aiTahlil&&aiTahlil.id===id){ aiTahlil.holat='xato'; aiNoteHide('chekAiNote'); }
+      if(aiTahlil&&aiTahlil.id===id) aiTahlil.holat='xato';
       console.timeEnd('ai:chek'); return;
     }
     if(!aiTahlil||aiTahlil.id!==id) return;   // shu orada chek almashtirildi — eskirgan urinish
@@ -2532,48 +2565,27 @@ function startChekAi(blob){
     const data=await aiDetectSend(id,'chek',small,kontekst);
     console.timeEnd('ai:chek');
     if(!aiTahlil||aiTahlil.id!==id) return;   // forma o'zgargan — javob e'tiborsiz
-    if(!data){ aiTahlil.holat='xato'; aiNoteHide('chekAiNote'); return; }
-    aiTahlil.holat='ok';
-    const nat=(data.natija&&typeof data.natija==='object')?data.natija:{};
-    if(String(nat.muammo||'').includes('chek_emas')){   // muammo — vergulli matn (EF sxemasi), massiv emas
-      aiNoteHide('chekAiNote');
-      if(chekRequired()&&chekBlob){ toast('Bu chek emas',true); removeChek(); }
-      return;
-    }
-    if(data.aniq&&data.ai_summa>0){
-      const se=$('summa');
-      if(se&&!String(se.value||'').trim()){
-        se.value=money(data.ai_summa); se.dataset.a000='1';
-        updateSave();
-      }
-      // summa allaqachon yozilgan bo'lsa — hech narsa o'zgarmaydi
-    }
-    aiNoteHide('chekAiNote');   // natija (aniq bo'lsin, bo'lmasin) — jimgina, matnsiz
+    if(!data){ aiTahlil.holat='xato'; return; }
+    aiTahlil.holat='ok';   // 🔴 "chek_emas" bo'lsa ham 'ok' — bu shubha DB'da qoladi (admin ko'radi), hodimga sezdirilmaydi
   })();
 }
-// Spidometr — rasm tanlangach FONDA tahlil, natija kelganda BO'SH km maydonini to'ldiradi.
-// 🔴 "AI" so'zi ko'rsatilmaydi: neytral "Yuklanmoqda…", natija kelganda (aniq
-//    yoki noaniq) jimgina yo'qoladi; faqat XATO/timeout holatida "Rasm o'qilmadi —
-//    km ni qo'lda yozing" ko'rsatiladi (bu hodimdan aniq harakat talab qiladi).
+// Spidometr — rasm tanlangach FONDA tahlil. 🔴 Hodimga HECH QANDAY belgi chiqmaydi:
+//    "Yuklanmoqda…" yo'q, km maydoni AI bilan TO'LDIRILMAYDI (hodim o'zi yozadi,
+//    km endi majburiy maydon — `kmRequired()`). Rasm siqish xatosi bundan mustasno:
+//    u AI emas, oddiy fayl xatosi — "Rasm yuklanmadi" toast qoladi.
 window.onSpidFile=async(el)=>{
   const f=el.files&&el.files[0]; el.value=''; if(!f) return;
   const modda=moddaObj(), sel=mashinaSelected();
   const id=genUuid();
   spidTahlil={id, tur:'spidometr', holat:'kutilmoqda'};
-  aiNoteHide('spidAiNote');
   updateAiUI(); updateSave();   // rasm tanlandi — rasmTalab().spid darrov qoniqadi (AI javobini kutmaydi)
   let small;
   try{ small=await compressImage(f,800,0.7); }
   catch(e){ toast('Rasm yuklanmadi: '+e.message,true); if(spidTahlil&&spidTahlil.id===id) spidTahlil=null; updateAiUI(); updateSave(); return; }   // siqish yiqildi = rasm YO'Q
-  aiNoteShow('spidAiNote','Yuklanmoqda…', false);
   console.time('ai:spid');
-  // Qorovul: 30s ichida natija kelmasa ham note abadiy qolmasin — xato holatiga o'tadi.
+  // Qorovul: 30s ichida natija kelmasa ham holat abadiy 'kutilmoqda' qolmasin.
   const wid=setTimeout(()=>{
-    if(spidTahlil&&spidTahlil.id===id&&spidTahlil.holat==='kutilmoqda'){
-      spidTahlil.holat='ai_xato';
-      aiNoteShow('spidAiNote',"Rasm o'qilmadi — km ni qo'lda yozing", true);
-      updateAiUI(); updateSave();
-    }
+    if(spidTahlil&&spidTahlil.id===id&&spidTahlil.holat==='kutilmoqda') spidTahlil.holat='ai_xato';
   },30000);
   (async()=>{
     const kontekst={modda_nomi:(modda&&modda.name)||'', mashina_nomi:sel?mashinaNomi():''};
@@ -2581,16 +2593,11 @@ window.onSpidFile=async(el)=>{
     console.timeEnd('ai:spid');
     clearTimeout(wid);
     if(!spidTahlil||spidTahlil.id!==id) return;   // forma o'zgargan — javob e'tiborsiz
-    if(!data){ spidTahlil.holat='ai_xato'; aiNoteShow('spidAiNote',"Rasm o'qilmadi — km ni qo'lda yozing", true); updateAiUI(); updateSave(); return; }   // rasm BOR, faqat AI javob bermadi — saqlash ochiq
+    if(!data){ spidTahlil.holat='ai_xato'; return; }   // rasm BOR, faqat AI javob bermadi — saqlash ochiq
     spidTahlil.holat='ok';
-    if(data.aniq&&data.ai_km>0){
-      const ki=$('spidKmIn');
-      if(ki&&!String(ki.value||'').trim()){ ki.value=String(Math.round(data.ai_km)); spidKm=ki.value; }
-    }
-    aiNoteHide('spidAiNote');   // natija (aniq bo'lsin, bo'lmasin) — jimgina, matnsiz
   })();
 };
-window.onSpidKmInput=el=>{ spidKm=String(el&&el.value||'').replace(/\D/g,''); };
+window.onSpidKmInput=el=>{ spidKm=String(el&&el.value||'').replace(/\D/g,''); updateSave(); };
 // Saqlashdan OLDIN chaqiriladi (mxdValues() bilan bir xil qoida — forma tozalanishidan oldin
 // olinadi, aks holda mxdReset()/removeChek() aiTahlil/spidTahlil ni saqlashdan oldin tozalab qo'yadi).
 function aiSnap(){
@@ -2650,6 +2657,7 @@ function updateSave(){
   const rt=rasmTalab();
   const needChek = rt.chek;   // 3-band + AI (fail-closed): majburiy chek yo'q bo'lsa saqlash yopiq
   const needSpid = rt.spid;   // AI rasm majburiy: spidometr rasmi yo'q/xato bo'lsa saqlash yopiq
+  const needKm = rt.km;       // 2026-08-28: avtoto'ldirish yo'q, km ni hodim o'zi yozadi — majburiy
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
   const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
@@ -2672,7 +2680,7 @@ function updateSave(){
     const items=ovqatRoyxat();
     ovqatOk = ovqatLoaded && items.length>0 && ovqatRoyxatSumma()===amt;
   }
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needSpid&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit&&mxdOk()&&ovqatOk);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needSpid&&!needKm&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit&&mxdOk()&&ovqatOk);
   // Qoldiqdan oshgan holatda "Saqlash" O'RNIGA "Pul so'rash" (blok YUMSHATILMAGAN).
   // `over` shu yerda hisoblangan — srvSync() uni QAYTA hisoblamaydi.
   // 🔴 Ovqat moddasida "Pul so'rash" umuman ko'rinmaydi (v1: faqat oddiy yo'l).
@@ -3011,6 +3019,7 @@ window.saveHodim=async()=>{
   { const rt=rasmTalab();
     if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart':'Bu xarajat uchun chek shart',true); return; }  // 3-band + AI
     if(rt.spid){ toast('Mashina tablosi surati shart',true); return; }   // AI rasm majburiy
+    if(rt.km){ toast('Necha km yurganini yozing',true); return; }        // 2026-08-28: km majburiy
   }
   if(izohRequired() && !$('izoh').value.trim()){ toast('Izoh shart',true); return; }     // V6
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }                          // V6
@@ -3457,6 +3466,22 @@ function toast(msg,err){
   toastTimer=setTimeout(()=>t.classList.remove('show'), err?2600:1600);
 }
 
+// --- Akkordeon (2026-08-28): #histBody default YOPIQ, saqlangan holat YO'Q — har
+// sahifa yuklashda yopiq boshlanadi. Ma'lumot fonda baribir yuklanadi (loadHist/
+// srvPendLoad) — ochilganda darrov ko'rinadi, ochilishni kutib turmaydi.
+window.histToggle=()=>{
+  const body=$('histBody'), btn=$('histTog'); if(!body||!btn) return;
+  const willOpen=!!body.hidden;
+  body.hidden=!willOpen;
+  btn.setAttribute('aria-expanded', willOpen?'true':'false');
+};
+// Yopiq holatdagi kichik sarhisob: "N ta" (amal/xarajat soni) + srvPend bo'lsa "· K kutilmoqda".
+function histSumUpdate(){
+  const el=$('histSum'); if(!el) return;
+  const n=Array.isArray(amalRows)?amalRows.length:histRows.length;
+  const pend=Array.isArray(srvPendRows)?srvPendRows.filter(r=>r&&String(r.status||'')==='pending').length:0;
+  el.textContent=n+' ta'+(pend?' · '+pend+' ta kutilmoqda':'');
+}
 // --- 2-band (V5): hodim o'z tarixi (davr chip + kategoriya xulosa + ro'yxat) ---
 // Manba: hodim_oz_tarix(from,to) — o'z kassalari bo'yicha (server auth.uid()'дан aniqlaydi).
 window.setHistPeriod=k=>{ histPeriod=k;
@@ -3500,7 +3525,7 @@ async function loadHist(){
   if(error){
     histRows=[]; renderHistCat([]);
     // 🔴 Xato ekrani FAQAT zaxira rejimda — amallar kelgan bo'lsa ro'yxat baribir chiziladi.
-    if(!amalRows){ $('histList').innerHTML='<div class="today-err">Tarix yuklanmadi — '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); return; }
+    if(!amalRows){ $('histList').innerHTML='<div class="today-err">Tarix yuklanmadi — '+esc(window.permErr?window.permErr(error):error.message)+'</div>'; icons(); histSumUpdate(); return; }
   }else{
     histRows=(data&&data.royxat)||[];
     renderHistCat((data&&data.kategoriya)||[]);
@@ -3582,9 +3607,9 @@ function renderHistCat(cat){
 function renderHistList(){
   // 🔴 Yangi manba kelgan bo'lsa HAMMA amal ko'rsatiladi; kelmagan bo'lsa (zaxira)
   //    pastdagi ESKI xarajat ro'yxati bayt-ma-bayt avvalgidek ishlaydi.
-  if(Array.isArray(amalRows)) return renderAmalList();
+  if(Array.isArray(amalRows)){ renderAmalList(); histSumUpdate(); return; }
   const box=$('histList');
-  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q<span>Yuqoridagi shakl orqali kiritilgan xarajatlar shu yerda ko\'rinadi</span></div>'; icons(); return; }
+  if(!histRows.length){ box.innerHTML='<div class="today-empty">Bu davrda xarajat yo\'q<span>Yuqoridagi shakl orqali kiritilgan xarajatlar shu yerda ko\'rinadi</span></div>'; icons(); histSumUpdate(); return; }
   box.innerHTML=histRows.map(r=>{
     const amt=Number(r.summa)||0;
     let t=''; try{ t=new Date(new Date(r.created_at).getTime()+5*3600*1000).toISOString().slice(5,16).replace('T',' '); }catch(x){}
@@ -3595,6 +3620,7 @@ function renderHistList(){
       +chek+`<div class="ta">− ${money(amt)}</div></div>`;
   }).join('');
   icons();
+  histSumUpdate();
 }
 // 5-band: bu oy sarflangan jami (hodim_oy_jami RPC). RPC yo'q bo'lsa jimgina yashiriladi.
 async function loadMonth(){
@@ -4179,6 +4205,7 @@ window.srvSave=async()=>{
   { const rt=rasmTalab();
     if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart':'Bu xarajat uchun chek shart',true); return; }
     if(rt.spid){ toast('Mashina tablosi surati shart',true); return; }
+    if(rt.km){ toast('Necha km yurganini yozing',true); return; }
   }
   if(izohRequired()&&!$('izoh').value.trim()){ toast('Izoh shart',true); return; }
   if(!davrOk()){ toast('Davr sanasini tanlang',true); return; }
@@ -4456,7 +4483,7 @@ function srvPendRender(){
   const jav=all.filter(r=>r&&SRV_JAV[String(r.status||'')]&&!jkor[String(r.id)])
     .sort((a,b)=>String(b.qaror_vaqt||b.sana||'').localeCompare(String(a.qaror_vaqt||a.sana||'')))
     .slice(0,5);
-  if(!kut.length&&!kor.length&&!jav.length){ box.style.display='none'; box.innerHTML=''; return; }
+  if(!kut.length&&!kor.length&&!jav.length){ box.style.display='none'; box.innerHTML=''; histSumUpdate(); return; }
   let html='';
   if(kut.length){
     html+='<div class="hcap">Tasdiq kutayotgan so\'rovlar</div>'+kut.map(r=>{
@@ -4518,6 +4545,7 @@ function srvPendRender(){
   }
   box.innerHTML=html;
   box.style.display='block'; icons();
+  histSumUpdate();
 }
 
 /* ============ MAXSUS MAYDONLAR (.mxd-*) — 🔴 UCHALA FAYLDA AYNAN BIR XIL ============
