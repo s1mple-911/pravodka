@@ -1337,7 +1337,19 @@
     <!-- 1) XARAJAT TURI — faqat chaqiruvchiga YOPIQ moddalar (ruxsat_yopiq_moddalar) -->
     <div class="srv-fld">
       <div class="lbl" id="rxModdaLbl">Xarajat turi <span class="req">majburiy</span></div>
+      <input class="txt srv-wsearch" id="rxModdaSearch" placeholder="Nom yoki kod bo'yicha qidirish"
+             autocomplete="off" oninput="rxModdaRender()" aria-label="Xarajat turini qidirish" style="display:none">
       <div class="picklist srv-whos" id="rxModdaList" role="radiogroup" aria-labelledby="rxModdaLbl"></div>
+    </div>
+
+    <!-- 1b) QAYSI HISOBDAN — kassa yoki uning pul-turi bolasi (Naqd/Click/Payme).
+         🔴 Server `sorov_kassa_bal(p_kassa)` AYNAN shu hisobning o'z qoldig'ini tekshiradi
+            (bolalar yig'indisi EMAS) — shuning uchun bola tanlanmasa ota-kassaning o'zi
+            bo'sh bo'lsa "pul yetmaydi" chiqardi (2026-08-29 topilma). Qoldiq har tugmada
+            ko'rinadi — bu hodimning O'Z kassasi, formadagi turSeg bilan bir xil. -->
+    <div class="srv-fld" id="rxHisobFld" style="display:none">
+      <div class="lbl" id="rxHisobLbl">Qaysi hisobdan <span class="req">majburiy</span></div>
+      <div class="turseg" id="rxHisobSeg" role="radiogroup" aria-labelledby="rxHisobLbl"></div>
     </div>
 
     <!-- 2) KIMDAN — Tab 1 dagi srvWhos ro'yxatining O'ZI, alohida rxWho state'i -->
@@ -3944,6 +3956,7 @@ let rxBusy=false;      // ro'yxat yuklanmoqda
 let rxErr=false;       // oxirgi urinish xato (tarmoq) -> "Qayta urinish"
 let rxModda=null;      // tanlangan yopiq modda (id)
 let rxWho=null;        // tanlangan "kimdan" (user_id) — srvWho'dan MUSTAQIL
+let rxHisob=null;      // tanlangan hisob (ota-kassa YOKI pul-turi bolasi) — selSub'dan MUSTAQIL
 let rxSaving=false;
 let rxBandAt=0;
 let srvTab1Locked=false;   // 🔴 faqat srvRuxsatFromHelp() dan kelganda true (balans yetarli)
@@ -4225,8 +4238,15 @@ window.rxModdaRender=()=>{
       : '<div class="pickempty">Yuklanmoqda…</div>';
     return;
   }
-  if(!all.length){ box.innerHTML='<div class="pickempty">Sizga yopiq tur yo\'q — hamma tur ochiq</div>'; return; }
-  box.innerHTML=all.map(rxModdaRow).join('');
+  const inp=$('rxModdaSearch');
+  if(!all.length){ if(inp) inp.style.display='none'; box.innerHTML='<div class="pickempty">Sizga yopiq tur yo\'q — hamma tur ochiq</div>'; return; }
+  // Qidiruv (nom yoki kod) — ro'yxat 6 tadan ko'p bo'lsa (rxWhoRender naqshi)
+  if(inp) inp.style.display=all.length>6?'block':'none';
+  const q=(inp&&inp.style.display!=='none')?String(inp.value||'').trim().toLowerCase():'';
+  const rows=q?all.filter(m=>String(m.name||'').toLowerCase().indexOf(q)>=0
+                            ||String(m.code||'').toLowerCase().indexOf(q)>=0):all;
+  if(!rows.length){ box.innerHTML='<div class="pickempty">«'+esc(q)+'» bo\'yicha tur topilmadi</div>'; return; }
+  box.innerHTML=rows.map(rxModdaRow).join('');
 };
 window.rxPickModda=id=>{
   const v=String(id||'');
@@ -4258,25 +4278,52 @@ function rxAmtVal(){ const e=$('rxAmt'); return e?(Number(String(e.value||'').re
 // Validatsiya: modda + kassa + kimdan + summa>0 + izoh>=3. 🔴 Balans tekshiruvi
 // KLIENT OGOHI — server ham ruxsat_yarat ichida AYNAN shu qoidani tekshiradi
 // (PUL_YETMAYDI prefiksi bilan). Qoldiq raqami HECH QAYERGA chizilmaydi.
+/* Xarajat AYNAN qaysi hisobdan chiqadi: tanlangan bola (Naqd/Click/Payme) yoki ota-kassa.
+   🔴 Server `sorov_kassa_bal(p_kassa)` shu hisobning O'Z qoldig'iga qaraydi — bolalar
+      yig'indisi (`kassaJami`) EMAS. Shuning uchun klient ogohi ham `balOf(hisob).uzs`
+      bilan (o'z qoldig'i), aks holda klient "yetadi" deb, server "yetmaydi" deb
+      qarama-qarshi gapirardi (2026-08-29 topilma). Qoldiq noma'lum -> server hal qiladi. */
+function rxKassa(){
+  const p=srvTopKassa(); if(!p) return null;
+  if(rxHisob && (rxHisob===p || subChildren(p).some(k=>k.id===rxHisob && curOf(k)==='UZS'))) return rxHisob;
+  return p;
+}
+function rxKassaBal(){ const id=rxKassa(); const b=id?balOf(id):null; return b?Number(b.uzs):null; }
+function rxHisobRender(){
+  const fld=$('rxHisobFld'), seg=$('rxHisobSeg'); if(!fld||!seg) return;
+  const p=srvTopKassa();
+  const kids=p?subChildren(p).filter(k=>curOf(k)==='UZS'):[];
+  if(!p||!kids.length){ fld.style.display='none'; seg.innerHTML=''; rxHisob=null; return; }
+  // Sukut: formada tanlangan tur (selSub) bo'lsa o'sha, aks holda ota-kassa.
+  if(!rxHisob || (rxHisob!==p && !kids.some(k=>k.id===rxHisob))) rxHisob=(selSub&&kids.some(k=>k.id===selSub))?selSub:p;
+  const qd=id=>{ const b=balOf(id); return b?`<span class="qd">${money(b.uzs)} so'm</span>`:''; };
+  const bosh=id=>{ const b=balOf(id); return (b&&Number(b.uzs)<=0)?' bosh':''; };
+  const btn=(id,lbl)=>`<button type="button" class="turbtn${id===rxHisob?' on':''}${bosh(id)}" role="radio" aria-checked="${id===rxHisob?'true':'false'}" onclick="rxPickHisob('${id}')">${lbl}${qd(id)}</button>`;
+  fld.style.display='block';
+  seg.innerHTML=btn(p,'Kassa')+kids.map(k=>btn(k.id,esc(subLbl(k)))).join('');
+}
+window.rxPickHisob=id=>{ rxHisob=SRV_UUID.test(String(id||''))?String(id):null; rxHisobRender(); rxUI(); };
+
 window.rxUI=()=>{
   const izoh=String(($('rxIzoh')&&$('rxIzoh').value)||'').trim();
   const v=rxAmtVal(), m=$('rxMsg'), b=$('rxSend');
-  const kassa=srvTopKassa();
+  const kassa=rxKassa();
   let msg='';
   if(!kassa) msg='Avval kassani tanlang';
   else{
-    const bal=srvKassaUzs();
-    if(v>0 && bal!=null && v>bal) msg='Kassangizda pul yetmaydi — bu xarajat uchun ruxsat emas, «Pul so\'rash» tabidan pul so\'rang';
+    const bal=rxKassaBal();
+    if(v>0 && bal!=null && v>bal) msg='Bu hisobda pul yetmaydi — boshqa hisobni tanlang yoki «Pul so\'rash» tabidan pul so\'rang';
   }
   if(m&&!rxSaving){ m.textContent=msg; m.className=msg?'tmsg no':'tmsg'; }
   if(b) b.disabled=rxSaving||!(rxModda&&kassa&&rxWho&&v>0&&!msg&&izoh.length>=SRV_MIN_IZOH);
 };
 function rxReset(){
-  rxModda=null; rxWho=null; rxSaving=false;
-  const a=$('rxAmt'), i=$('rxIzoh'), sc=$('rxWhoSearch'), m=$('rxMsg'), b=$('rxSend');
+  rxModda=null; rxWho=null; rxHisob=null; rxSaving=false;
+  const a=$('rxAmt'), i=$('rxIzoh'), sc=$('rxWhoSearch'), ms=$('rxModdaSearch'), m=$('rxMsg'), b=$('rxSend');
   if(a) a.value='';
   if(i) i.value='';
   if(sc) sc.value='';
+  if(ms) ms.value='';
   if(m){ m.textContent=''; m.className='tmsg'; }
   if(b){ b.disabled=true; b.innerHTML='<i data-lucide="send-horizontal"></i>So\'rov yuborish'; }
   rxModdaRender(); rxWhoRender();
@@ -4301,7 +4348,7 @@ window.srvTab=(n,lock)=>{
   t2.setAttribute('aria-selected',on2?'true':'false');
   // 🔴 srvWhoLoad() faqat #srvWhoList (Tab 1) ni yangilaydi — rxWhoPoll() shu
   //    natijani #rxWhoList (Tab 2) ga ham yetkazadi (yuqoridagi izohga qara).
-  if(on2){ rxModdaLoad(); srvWhoLoad(); rxWhoPoll(6); rxUI(); icons(); }
+  if(on2){ rxHisobRender(); rxModdaLoad(); srvWhoLoad(); rxWhoPoll(6); rxUI(); icons(); }
 };
 
 // 🔴 Bu yerda BALANSDAN hosil qilingan birorta xabar yo'q. Yagona tekshiruv matni
@@ -4744,7 +4791,7 @@ window.rxSave=async()=>{
   // ikkalasi ham BITTA global qulf oilasidan (`bandBoshla()` ga `rxSaving` qo'shilgan).
   if(pulBand||srvSaving){ toast('Oldingi yozuv saqlanmoqda — biroz kuting',true); return; }
   const modda=Array.isArray(rxModdalar)?rxModdalar.find(m=>m&&String(m.id)===rxModda):null;
-  const kassa=srvTopKassa();
+  const kassa=rxKassa();   // ota-kassa YOKI tanlangan pul-turi bolasi (server o'z qoldig'ini tekshiradi)
   const sAmt=rxAmtVal(), izoh=String(($('rxIzoh')&&$('rxIzoh').value)||'').trim();
   const msg=$('rxMsg');
   const no=t=>{ if(msg){ msg.textContent=t; msg.className='tmsg no'; } };
@@ -4753,8 +4800,8 @@ window.rxSave=async()=>{
   if(!rxWho){ no('Kimdan so\'rashni tanlang'); return; }
   if(!(sAmt>0)){ no('Summani yozing'); return; }
   if(izoh.length<SRV_MIN_IZOH){ no('Izohni yozing (kamida 3 belgi)'); return; }
-  const bal=srvKassaUzs();
-  if(bal!=null&&sAmt>bal){ no('Kassangizda pul yetmaydi — bu xarajat uchun ruxsat emas, «Pul so\'rash» tabidan pul so\'rang'); return; }
+  const bal=rxKassaBal();
+  if(bal!=null&&sAmt>bal){ no('Bu hisobda pul yetmaydi — boshqa hisobni tanlang yoki «Pul so\'rash» tabidan pul so\'rang'); return; }
   rxSaving=true; rxBandAt=Date.now();
   const btn=$('rxSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
   if(msg){ msg.textContent=''; msg.className='tmsg'; }

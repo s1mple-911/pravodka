@@ -327,7 +327,7 @@ begin
   -- 7) PUL YETADIMI (Asilbek qarori) — kassangizda pul yetmasa ruxsat emas,
   --    "Pul sorash" orqali sorash kerak. Klient PUL_YETMAYDI prefiksini ushlaydi.
   if sorov_kassa_bal(p_kassa) < p_summa then
-    raise exception 'PUL_YETMAYDI: kassangizda pul yetmaydi — bu xarajat uchun ruxsat emas, «Pul sorash» orqali pul sorang'
+    raise exception 'PUL_YETMAYDI: tanlangan hisobda pul yetmaydi — boshqa hisobni (Naqd/Click/Payme) tanlang yoki «Pul sorash» orqali pul sorang'
       using errcode = '22000';
   end if;
 
