@@ -612,6 +612,20 @@
 
   /* --- modal ichi --- */
   .srv-box{max-width:420px}
+  /* --- Tab 1 "Pul so'rash" / Tab 2 "Ruxsat so'rash" segment (2026-08-29) ---
+     Mavjud rang tokenlaridan, yangi CSS o'zgaruvchi yo'q. Pane ichi TAB 1 uslubini
+     qayta ishlatadi (.srv-fld/.srv-amtw/.picklist/.tmsg/.btn) — .rx-* alohida
+     qoida talab qilmadi, designer keyin pardozlaydi. */
+  .srv-tabs{display:flex;gap:6px;background:var(--surface-2);border-radius:var(--r-md);
+    padding:4px;margin:0 0 var(--s5)}
+  .srv-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+    height:38px;border:none;border-radius:9px;background:transparent;color:var(--muted);
+    font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+    transition:background .15s,color .15s}
+  .srv-tab svg{width:16px;height:16px;flex:none}
+  .srv-tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .srv-tab:disabled{opacity:.45;cursor:not-allowed}
+  @media(hover:hover){.srv-tab:not(.on):not(:disabled):hover{color:var(--ink)}}
   .srv-intro{display:flex;gap:var(--s2);align-items:flex-start;background:var(--surface-2);
     border-radius:var(--r-md);padding:var(--s3);margin:0 0 var(--s5);
     font-size:13px;line-height:1.5;color:var(--ink-2)}
@@ -1244,6 +1258,18 @@
       <button type="button" class="mclose" onclick="srvClose()" aria-label="Yopish"><i data-lucide="x"></i></button>
     </div>
 
+    <!-- ===== TAB QATLAMI (2026-08-29) =====
+         Tab 1 = mavjud "Pul so'rash" (o'zgarmagan). Tab 2 = yangi "Ruxsat so'rash"
+         (yopiq xarajat moddasiga bir martalik ruxsat). window.srvTab(n). -->
+    <div class="srv-tabs" role="tablist" aria-label="So'rov turi">
+      <button type="button" class="srv-tab on" id="srvTab1" role="tab" aria-selected="true"
+              aria-controls="srvPane1" onclick="srvTab(1)"><i data-lucide="hand-coins"></i>Pul so'rash</button>
+      <button type="button" class="srv-tab" id="srvTab2" role="tab" aria-selected="false"
+              aria-controls="srvPane2" onclick="srvTab(2)"><i data-lucide="key-round"></i>Ruxsat so'rash</button>
+    </div>
+
+    <!-- ===== TAB 1 — "Pul so'rash" (.srv-* ichi O'ZGARMAGAN, faqat panega o'ralgan) ===== -->
+    <div id="srvPane1">
     <!-- Matn "qolganini so'rash" rejimida almashadi (srvIntro()) — pul so'rash
          va qolganini so'rash IKKI XIL va'da beradi, bittasi ikkinchisiga yolg'on. -->
     <div class="srv-intro">
@@ -1285,6 +1311,57 @@
       <button type="button" class="btn" id="srvCancel" onclick="srvClose()">Bekor</button>
       <button type="button" class="btn primary" id="srvSend" onclick="srvSave()" disabled><i data-lucide="send-horizontal"></i>So'rov yuborish</button>
     </div>
+    </div>
+
+    <!-- ===== TAB 2 — "Ruxsat so'rash" (.rx-* — yangi, 2026-08-29) =====
+         Yopiq (RBAC rolida yo'q) xarajat moddasiga bir martalik ruxsat. Tasdiqlansa
+         xarajat AVTOMAT hodim kassasidan yoziladi — pul TUSHMAYDI, transfer YO'Q. -->
+    <div id="srvPane2" hidden>
+    <div class="srv-intro">
+      <i data-lucide="info"></i>
+      <span>Bu tur sizga yopiq. Ruxsat berilsa xarajat <b>sizning hisobingizdan</b> yoziladi —
+        pul tushmaydi, transfer bo'lmaydi.</span>
+    </div>
+
+    <!-- 1) XARAJAT TURI — faqat chaqiruvchiga YOPIQ moddalar (ruxsat_yopiq_moddalar) -->
+    <div class="srv-fld">
+      <div class="lbl" id="rxModdaLbl">Xarajat turi <span class="req">majburiy</span></div>
+      <div class="picklist" id="rxModdaList" role="radiogroup" aria-labelledby="rxModdaLbl"></div>
+    </div>
+
+    <!-- 2) KIMDAN — Tab 1 dagi srvWhos ro'yxatining O'ZI, alohida rxWho state'i -->
+    <div class="srv-fld">
+      <div class="lbl" id="rxWhoLbl">Kimdan so'rayman <span class="req">majburiy</span></div>
+      <input class="txt srv-wsearch" id="rxWhoSearch" placeholder="Ism bo'yicha qidirish"
+             autocomplete="off" oninput="rxWhoRender()" aria-label="Ism bo'yicha qidirish" style="display:none">
+      <div class="picklist srv-whos" id="rxWhoList" role="radiogroup" aria-labelledby="rxWhoLbl"></div>
+    </div>
+
+    <!-- 3) SUMMA -->
+    <div class="srv-fld">
+      <label class="lbl" for="rxAmt">Summa <span class="req">majburiy</span></label>
+      <div class="srv-amtw">
+        <span class="srv-cur">so'm</span>
+        <input class="srv-amt num" id="rxAmt" inputmode="numeric" placeholder="0"
+               autocomplete="off" oninput="rxFmt(this)">
+      </div>
+    </div>
+
+    <!-- 4) IZOH — majburiy -->
+    <div class="srv-fld">
+      <label class="lbl" for="rxIzoh">Izoh <span class="req">majburiy</span></label>
+      <input class="txt" id="rxIzoh" maxlength="120" autocomplete="off"
+             placeholder="masalan: yetkazib beruvchiga to'lov" oninput="rxUI()">
+      <div class="srv-hint">Tasdiqlovchi faqat shu matnni ko'radi.</div>
+    </div>
+
+    <div class="tmsg" id="rxMsg" role="status" aria-live="polite"></div>
+
+    <div class="row">
+      <button type="button" class="btn" onclick="srvClose()">Bekor</button>
+      <button type="button" class="btn primary" id="rxSend" onclick="rxSave()" disabled><i data-lucide="send-horizontal"></i>So'rov yuborish</button>
+    </div>
+    </div>
   </div>
 </div>
 
@@ -1318,7 +1395,10 @@
         <b>avtomat kuchga kiradi</b>.</li>
     </ol>
 
+    <!-- 🔴 Yopiq (RBAC rolida yo'q) modda uchun bu yer YAGONA kirish: srvOpen() shu
+         holatda to'g'ridan #srvModal ni ochmaydi (yo'riqnoma so'rov yubormaydi). -->
     <div class="row">
+      <button type="button" class="btn" onclick="srvRuxsatFromHelp()"><i data-lucide="key-round"></i>Ruxsat so'rash</button>
       <button type="button" class="btn primary" id="srvHelpOk" onclick="srvHelpClose()">Tushunarli</button>
     </div>
   </div>
@@ -2764,6 +2844,8 @@ const SRV_BAND_MS=45000;
 function bandBoshla(){
   if(pulBand) return false;
   if(srvSaving && (Date.now()-srvBandAt)<SRV_BAND_MS) return false;
+  // 🆕 Tab 2 "Ruxsat so'rash" (rxSave) — bir xil global qulf oilasi (2026-08-29).
+  if(rxSaving && (Date.now()-rxBandAt)<SRV_BAND_MS) return false;
   pulBand=true; return true;
 }
 function bandTugat(){ pulBand=false; }
@@ -3837,6 +3919,25 @@ const SRV_UUID=/^[0-9a-fA-F-]{36}$/;
 const srvRpcYoq=(e,nom)=>{ const c=String((e&&e.code)||''), m=String((e&&e.message)||'');
   return c==='PGRST202'||c==='42883'||(!!nom&&m.indexOf(nom)>=0)||/function .* does not exist/i.test(m); };
 
+/* ================== TAB 2 — RUXSAT SO'RASH (.rx-*) — 2026-08-29 ==================
+   Yopiq (RBAC rolida yo'q) xarajat moddasiga bir martalik ruxsat sorovi. Tasdiqlansa
+   xarajat AVTOMAT tasdiqlovchi tomonidan yoziladi (Dt modda / Kt hodim kassa) —
+   pul TUSHMAYDI, transfer YO'Q. RPC toplami: ruxsat_yopiq_moddalar/ruxsat_yarat
+   (PROVODKA_RUXSAT_SOROV.sql). "Kimdan" ro'yxati Tab 1 dagi `srvWhos`/`srvWhoLoad()`
+   ning O'ZI (alohida RPC yo'q) — faqat tanlash holati (`rxWho`) alohida.
+   🔴 Tab 1 (`srv*`) BIR QATOR HAM O'ZGARMAGAN — bu blok mustaqil, o'z holatini
+   ishlatadi (`rxSaving`/`rxBandAt` `bandBoshla()` ga QO'SHILGAN, tepaga qara). */
+let rxOff=false;       // ruxsat_yopiq_moddalar RPC yo'q -> Tab 2 tugmasi umuman chizilmaydi
+let rxModdalar=null;   // ruxsat_yopiq_moddalar() javobi. null = hali tasdiqlanmagan
+let rxBusy=false;      // ro'yxat yuklanmoqda
+let rxErr=false;       // oxirgi urinish xato (tarmoq) -> "Qayta urinish"
+let rxModda=null;      // tanlangan yopiq modda (id)
+let rxWho=null;        // tanlangan "kimdan" (user_id) — srvWho'dan MUSTAQIL
+let rxSaving=false;
+let rxBandAt=0;
+let srvTab1Locked=false;   // 🔴 faqat srvRuxsatFromHelp() dan kelganda true (balans yetarli)
+let rxPendOff=false;   // ruxsat_menikilar RPC yo'q -> #srvPend'da ruxsat qatorlari jimgina yo'q
+
 // 🔴 TUGMA KO'RINISHI: faqat RPC tasdiqlangan bo'lsa (fail-closed — `amalOff` naqshi).
 //    FORMA holati (`srvOver`) bu yerga KIRMAYDI: tugma doim ko'rinadi va enable.
 function srvShow(){ return !srvOff && Array.isArray(srvWhos); }
@@ -4011,6 +4112,187 @@ window.srvPickWho=id=>{
   srvUI();
 };
 
+/* ---- Tab 2 "Ruxsat so'rash" — "Kimdan" ro'yxati: srvWhos ning O'ZI, alohida
+   tanlash holati (`rxWho`). srvWhoRow QAYTA YOZILMAGAN (u module o'zgaruvchisi
+   `srvWho` ga bog'liq) — shuning uchun ustuvor nusxa, markup AYNAN bir xil. ---- */
+function rxWhoRow(w){
+  const id=String(w.user_id||''), nom=String(w.nom||'Nomalum'), sub=String(w.subtitle||'').trim();
+  const on=rxWho===id;
+  return '<button type="button" class="pickitem srv-who'+(on?' on':'')+'" role="radio" aria-checked="'+(on?'true':'false')+'"'
+    +' data-v="'+id+'" onclick="rxPickWho(\''+id+'\')">'
+    +'<span class="srv-av" aria-hidden="true">'+esc(srvIni(nom))+'</span>'
+    +'<span class="srv-wm"><span class="pn">'+esc(nom)+'</span>'
+    +(sub?'<span class="pc">'+esc(sub)+'</span>':'')+'</span></button>';
+}
+window.rxWhoRender=()=>{
+  const box=$('rxWhoList'); if(!box) return;
+  const inp=$('rxWhoSearch');
+  const all=Array.isArray(srvWhos)?srvWhos:null;
+  if(!all){
+    if(inp) inp.style.display='none';
+    box.innerHTML=srvErr
+      ? '<div class="pickempty">Ro\'yxat yuklanmadi. <button type="button" class="srv-retry" onclick="rxWhoRetry()">Qayta urinish</button></div>'
+      : '<div class="pickempty">Yuklanmoqda…</div>';
+    return;
+  }
+  if(!all.length){
+    if(inp) inp.style.display='none';
+    box.innerHTML='<div class="pickempty">Hozircha so\'rash mumkin bo\'lgan odam yo\'q</div>';
+    return;
+  }
+  if(inp) inp.style.display=all.length>8?'block':'none';
+  const q=(inp&&inp.style.display!=='none')?String(inp.value||'').trim().toLowerCase():'';
+  const rows=q?all.filter(w=>String(w.nom||'').toLowerCase().indexOf(q)>=0
+                            ||String(w.subtitle||'').toLowerCase().indexOf(q)>=0):all;
+  if(!rows.length){ box.innerHTML='<div class="pickempty">«'+esc(q)+'» bo\'yicha hech kim topilmadi</div>'; return; }
+  box.innerHTML=rows.map(rxWhoRow).join('');
+};
+// 🔴 `srvWhoLoad()` muvaffaqiyati faqat `srvWhoRender()` (Tab 1, #srvWhoList) ni
+//    yangilaydi — shuning uchun Tab 2 ochilganda BOG'LANGAN poll kerak: bir necha
+//    marta (bounded, cheksiz emas) `rxWhoRender()` qayta chaqiriladi toki `srvWhos`
+//    massiv bo'lguncha. `srvWhoLoad`/`srvWhoRender` bir qator ham o'zgarmagan.
+function rxWhoPoll(n){
+  rxWhoRender();
+  if(Array.isArray(srvWhos)||n<=0) return;
+  setTimeout(()=>rxWhoPoll(n-1),500);
+}
+window.rxWhoRetry=()=>{ srvWhoLoad(true); rxWhoPoll(6); };
+window.rxPickWho=id=>{
+  const v=String(id||'');
+  rxWho=SRV_UUID.test(v)?v:null;
+  const box=$('rxWhoList');
+  if(box) box.querySelectorAll('.pickitem.srv-who').forEach(b=>{
+    const on=b.dataset.v===rxWho;
+    b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false'); });
+  rxUI();
+};
+
+/* ---- Tab 2 — yopiq xarajat turlari (ruxsat_yopiq_moddalar). Bir marta yuklanadi
+   (kesh `rxModdalar`), xato bo'lsa "Qayta urinish". Fail-closed: RPC umuman yo'q
+   bo'lsa (`srvRpcYoq`) Tab 2 tugmasi butunlay yashiriladi. ---- */
+window.rxModdaLoad=async function(force){
+  if(rxOff||rxBusy) return;
+  if(!force&&Array.isArray(rxModdalar)){ rxModdaRender(); return; }
+  rxBusy=true; rxErr=false;
+  rxModdaRender();
+  const {data,error}=await Promise.resolve(sb.rpc('ruxsat_yopiq_moddalar'))
+    .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}));
+  rxBusy=false;
+  if(error){
+    if(srvRpcYoq(error,'ruxsat_yopiq_moddalar')){
+      rxOff=true; rxModdalar=null; rxSync(); return;
+    }
+    if(!Array.isArray(rxModdalar)) rxErr=true;
+    rxModdaRender(); rxUI(); return;
+  }
+  rxModdalar=(Array.isArray(data)?data:[]).filter(m=>m&&SRV_UUID.test(String(m.id||'')));
+  if(rxModda&&!rxModdalar.some(m=>String(m.id)===rxModda)) rxModda=null;
+  rxModdaRender(); rxUI(); rxSync();
+}
+// Tab 2 tugmasi ko'rinishini yangilaydi. RPC tasdiqlangan yo'q bo'lsa umuman
+// chizilmaydi (fail-closed) va hozir 2-panelda bo'lsa 1-ga qaytariladi.
+function rxSync(){
+  const t2=$('srvTab2'); if(!t2) return;
+  if(rxOff){
+    t2.hidden=true;
+    const p2=$('srvPane2');
+    if(p2&&!p2.hidden) srvTab(1);
+  }
+}
+function rxModdaRow(m){
+  const id=String(m.id||''), nom=String(m.name||''), kod=String(m.code||'');
+  const on=rxModda===id;
+  return '<button type="button" class="pickitem'+(on?' on':'')+'" role="radio" aria-checked="'+(on?'true':'false')+'"'
+    +' data-v="'+id+'" onclick="rxPickModda(\''+id+'\')"><span class="pn">'+esc(nom)+'</span><span class="pc">'+esc(kod)+'</span></button>';
+}
+window.rxModdaRender=()=>{
+  const box=$('rxModdaList'); if(!box) return;
+  const all=Array.isArray(rxModdalar)?rxModdalar:null;
+  if(!all){
+    box.innerHTML=rxErr
+      ? '<div class="pickempty">Ro\'yxat yuklanmadi. <button type="button" class="srv-retry" onclick="rxModdaLoad(true)">Qayta urinish</button></div>'
+      : '<div class="pickempty">Yuklanmoqda…</div>';
+    return;
+  }
+  if(!all.length){ box.innerHTML='<div class="pickempty">Sizga yopiq tur yo\'q — hamma tur ochiq</div>'; return; }
+  box.innerHTML=all.map(rxModdaRow).join('');
+};
+window.rxPickModda=id=>{
+  const v=String(id||'');
+  rxModda=SRV_UUID.test(v)?v:null;
+  const box=$('rxModdaList');
+  if(box) box.querySelectorAll('.pickitem').forEach(b=>{
+    const on=b.dataset.v===rxModda; b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false'); });
+  rxUI();
+};
+
+// Minglik ajratgich + kursor joyi — srvFmt bilan AYNAN bir xil naqsh, faqat rxUI() chaqiradi.
+window.rxFmt=el=>{
+  if(!el) return 0;
+  const pos=(el.selectionStart==null)?el.value.length:el.selectionStart;
+  const oldin=(el.value.slice(0,pos).match(/\d/g)||[]).length;
+  const raw=(el.value||'').replace(/\D/g,'').slice(0,12);
+  if(!raw){ el.value=''; rxUI(); return 0; }
+  el.value=money(raw);
+  let idx=0;
+  if(oldin>0){ idx=el.value.length; let k=0;
+    for(let i=0;i<el.value.length;i++){ const c=el.value.charCodeAt(i);
+      if(c>47&&c<58&&++k===oldin){ idx=i+1; break; } } }
+  try{ el.setSelectionRange(idx,idx); }catch(e){}
+  rxUI();
+  return Number(raw)||0;
+};
+function rxAmtVal(){ const e=$('rxAmt'); return e?(Number(String(e.value||'').replace(/\D/g,''))||0):0; }
+
+// Validatsiya: modda + kassa + kimdan + summa>0 + izoh>=3. 🔴 Balans tekshiruvi
+// KLIENT OGOHI — server ham ruxsat_yarat ichida AYNAN shu qoidani tekshiradi
+// (PUL_YETMAYDI prefiksi bilan). Qoldiq raqami HECH QAYERGA chizilmaydi.
+window.rxUI=()=>{
+  const izoh=String(($('rxIzoh')&&$('rxIzoh').value)||'').trim();
+  const v=rxAmtVal(), m=$('rxMsg'), b=$('rxSend');
+  const kassa=srvTopKassa();
+  let msg='';
+  if(!kassa) msg='Avval kassani tanlang';
+  else{
+    const bal=srvKassaUzs();
+    if(v>0 && bal!=null && v>bal) msg='Kassangizda pul yetmaydi — bu xarajat uchun ruxsat emas, «Pul so\'rash» tabidan pul so\'rang';
+  }
+  if(m&&!rxSaving){ m.textContent=msg; m.className=msg?'tmsg no':'tmsg'; }
+  if(b) b.disabled=rxSaving||!(rxModda&&kassa&&rxWho&&v>0&&!msg&&izoh.length>=SRV_MIN_IZOH);
+};
+function rxReset(){
+  rxModda=null; rxWho=null; rxSaving=false;
+  const a=$('rxAmt'), i=$('rxIzoh'), sc=$('rxWhoSearch'), m=$('rxMsg'), b=$('rxSend');
+  if(a) a.value='';
+  if(i) i.value='';
+  if(sc) sc.value='';
+  if(m){ m.textContent=''; m.className='tmsg'; }
+  if(b){ b.disabled=true; b.innerHTML='<i data-lucide="send-horizontal"></i>So\'rov yuborish'; }
+  rxModdaRender(); rxWhoRender();
+}
+
+/* Tab almashish. n=1|2. `lock` — FAQAT srvRuxsatFromHelp() true beradi (balans
+   yetarli holatda kelgan hodim uchun Tab 1 "disabled" — .sorov-ui.md oddiy/halol
+   yechim: ikkinchi so'rov shakli yo'q, u yerdan kelganlar shu yerda qoladi,
+   xohlasa Bekor qilib qaytadan "Pul so'rash"ni ochadi). srvOpen()/srvQolOpen()
+   `srvTab(1)` (lock=undefined) bilan chaqirib qulfni HAR DOIM yechadi. */
+window.srvTab=(n,lock)=>{
+  const p1=$('srvPane1'), p2=$('srvPane2'), t1=$('srvTab1'), t2=$('srvTab2');
+  if(!p1||!p2||!t1||!t2) return;
+  if(n===2&&rxOff) n=1;   // fail-closed: RPC tasdiqlanmagan/yo'q bo'lsa 2-tabga o'tilmaydi
+  srvTab1Locked=(n===2)&&!!lock;   // faqat aynan 2-tabga o'tilgan bo'lsa qulflanadi
+  t1.disabled=srvTab1Locked;
+  t1.title=srvTab1Locked?'Balansingiz yetarli — «Bekor» bosib «Saqlash» bilan yozing':'';
+  const on2=(n===2);
+  p1.hidden=on2; p2.hidden=!on2;
+  t1.classList.toggle('on',!on2); t2.classList.toggle('on',on2);
+  t1.setAttribute('aria-selected',on2?'false':'true');
+  t2.setAttribute('aria-selected',on2?'true':'false');
+  // 🔴 srvWhoLoad() faqat #srvWhoList (Tab 1) ni yangilaydi — rxWhoPoll() shu
+  //    natijani #rxWhoList (Tab 2) ga ham yetkazadi (yuqoridagi izohga qara).
+  if(on2){ rxModdaLoad(); srvWhoLoad(); rxWhoPoll(6); rxUI(); icons(); }
+};
+
 // 🔴 Bu yerda BALANSDAN hosil qilingan birorta xabar yo'q. Yagona tekshiruv matni
 //    XARAJAT summasiga tayanadi (u allaqachon ekranda turibdi).
 window.srvUI=()=>{
@@ -4036,6 +4318,7 @@ function srvReset(){
 /* 🔴 QAROR DARAXTI — tugma bosilganda. Tartib QAT'IY (yuqoridagi izoh). */
 window.srvOpen=()=>{
   if(!srvShow()) return;                         // fail-closed: RPC tasdiqlanmagan
+  srvTab(1);   // 🆕 modal doim Tab 1 bilan ochiladi (pane holati, srvQol/srvTop'ga tegmaydi)
   if(srvNeeded()) return srvXarOpen();           // 1) formada oshgan xarajat -> ESKI OQIM
   if(srvBalKam()) return srvTopOpen();           // 2) balans chegaradan kam -> TOP-UP
   return srvHelpOpen();                          // 3) yetarli -> YO'RIQNOMA (so'rov YO'Q)
@@ -4114,6 +4397,7 @@ window.srvClose=()=>{
   //    yo'liga qaytsin. Aks holda keyingi "Pul so'rash" bosilganda so'rov
   //    eski xarajatga ulanib ketardi (yoki top-up bo'lib qolardi).
   if(srvQol||srvTop){ srvQol=null; srvTop=false; srvIntro(''); }
+  rxReset();   // 🆕 Tab 2 formasi ham tozalanadi — Tab 1 mantiqiga tegmaydi
   try{ const b=$('srvBtn'); if(b&&b.style.display!=='none') b.focus(); }catch(e){}
 };
 
@@ -4146,6 +4430,7 @@ window.srvQolOpen=eid=>{
   if(srvOff||srvQolOff) return;                       // fail-closed
   if(!SRV_UUID.test(String(eid||''))) return;
   const m=$('srvModal'); if(!m) return;
+  srvTab(1);   // 🆕 doim Tab 1 bilan ochiladi (pane holati)
   srvQol=String(eid); srvTop=false;
   srvReset();                                          // maydonlar bo'sh (default summa YO'Q)
   srvIntro('qol');
@@ -4156,6 +4441,23 @@ window.srvQolOpen=eid=>{
     if(sc&&sc.style.display!=='none'){ sc.focus(); return; }
     const f=$('srvWhoList')&&$('srvWhoList').querySelector('.pickitem');
     if(f) f.focus({preventScroll:true});   // scroll surilmasin: «So'nggi» sarlavhasi ko'rinib tursin
+  }catch(e){} },60);
+};
+
+/* Yo'riqnoma modalidan Tab 2 ga to'g'ridan kirish (balans yetarli bo'lgan hodim
+   ham yopiq moddaga ruxsat so'rashi mumkin). Tab 1 shu holatda "disabled" — 3-shox
+   (srvHelpOpen) hech qanday so'rov formasini bilmaydi, ikkinchisiga aralashtirmaslik
+   uchun oddiy/halol yechim: xohlasa "Bekor" bosib qayta ochadi (srvOpen() daraxti). */
+window.srvRuxsatFromHelp=()=>{
+  srvHelpClose();
+  const m=$('srvModal'); if(!m) return;
+  if(srvQol||srvTop){ srvQol=null; srvTop=false; srvIntro(''); }
+  m.classList.add('open');
+  srvTab(2,true);
+  icons();
+  setTimeout(()=>{ try{
+    const f=$('rxModdaList')&&$('rxModdaList').querySelector('.pickitem');
+    if(f) f.focus({preventScroll:true});
   }catch(e){} },60);
 };
 
@@ -4397,6 +4699,88 @@ async function srvTopSave(){
   srvQolYopish('So\'rov yuborildi');
 }
 
+/* --- TAB 2 — "Ruxsat so'rash" saqlash (`ruxsat_yarat`) -----------------
+   🔴 srvTopSave() naqshini AYNAN takrorlaydi: tokenBoshla/qTimeout/isDup/noaniq
+      zanjiri, faqat o'z holati (`rxSaving`/`rxBandAt`) va o'z maydonlari (#rx*)
+      bilan. `ruxsat_yarat`da ham `entry` bu bosqichda YOZILMAYDI (faqat
+      `ruxsat_sorov` qatori) — takrorni SERVERDA `ruxsat_sorov_ext_ref_uniq`
+      to'sadi (23505 = "allaqachon yuborilgan", xato emas), YOKI server 200
+      bilan `{ok:false,kod:'takror'}` qaytaradi (unique_violation ICHKARIDA
+      tutilgan — SQL 3-BOLIM). Ikkalasi ham MUVAFFAQIYAT sifatida yopiladi. */
+function rxBtnTikla(){
+  rxSaving=false;
+  const b=$('rxSend'); if(b){ b.innerHTML='<i data-lucide="send-horizontal"></i>So\'rov yuborish'; icons(); }
+  rxUI();
+}
+function rxYopish(msg){
+  tokenTugat(); bannerYop();
+  srvClose(); rxReset(); rxBtnTikla();
+  toast(msg);
+  srvPendLoad();
+}
+// Noaniq holat — mavjud banner qatlami (xarHolatUI/xarMsg) AYNAN qayta ishlatiladi,
+// faqat #rxMsg/#rxSend ga yoziladi (srvNoaniq #srvMsg/#srvSend ga tegishli).
+function rxNoaniq(kind){
+  rxBtnTikla();
+  xarHolatUI(kind);
+  if(kind==='yoq_rpc'){ srvClose(); return; }
+  const m=$('rxMsg');
+  if(m){ m.textContent=xarMsg(kind)+' «So\'rov yuborish» ni qayta bosing — takror yozilmaydi.'; m.className='tmsg no'; }
+}
+window.rxSave=async()=>{
+  if(rxSaving) return;
+  // FON BLOK: Tab 1 (yoki asosiy forma) fonda yozayotgan bo'lsa kutiladi —
+  // ikkalasi ham BITTA global qulf oilasidan (`bandBoshla()` ga `rxSaving` qo'shilgan).
+  if(pulBand||srvSaving){ toast('Oldingi yozuv saqlanmoqda — biroz kuting',true); return; }
+  const modda=Array.isArray(rxModdalar)?rxModdalar.find(m=>m&&String(m.id)===rxModda):null;
+  const kassa=srvTopKassa();
+  const sAmt=rxAmtVal(), izoh=String(($('rxIzoh')&&$('rxIzoh').value)||'').trim();
+  const msg=$('rxMsg');
+  const no=t=>{ if(msg){ msg.textContent=t; msg.className='tmsg no'; } };
+  if(!modda){ no('Xarajat turini tanlang'); return; }
+  if(!kassa){ no('Avval kassani tanlang'); return; }
+  if(!rxWho){ no('Kimdan so\'rashni tanlang'); return; }
+  if(!(sAmt>0)){ no('Summani yozing'); return; }
+  if(izoh.length<SRV_MIN_IZOH){ no('Izohni yozing (kamida 3 belgi)'); return; }
+  const bal=srvKassaUzs();
+  if(bal!=null&&sAmt>bal){ no('Kassangizda pul yetmaydi — bu xarajat uchun ruxsat emas, «Pul so\'rash» tabidan pul so\'rang'); return; }
+  rxSaving=true; rxBandAt=Date.now();
+  const btn=$('rxSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
+  if(msg){ msg.textContent=''; msg.className='tmsg'; }
+  bannerYop();
+  // Barmoq iziga so'rov mazmuni kiradi: mazmun o'zgarsa BOSHQA kalit. `:ruxsat`
+  // qo'shimchasi — `sorov_yarat` tokenlari bilan (ular `:sorov` bilan tugaydi
+  // yoki qo'shimchasiz) bir xil mazmunda ham to'qnashmasligi uchun.
+  const token=tokenBoshla({ruxsat:1, modda:modda.id, kassa:kassa, sorov:rxWho+'|'+sAmt+'|'+izoh})+':ruxsat';
+  retryFn=()=>window.rxSave();
+  const rr=await qTimeout(sb.rpc('ruxsat_yarat',{p_kassa:kassa, p_modda:modda.id, p_summa:sAmt,
+    p_izoh:izoh, p_kimdan:rxWho, p_ext_ref:token}));
+  const data=rr.data, error=rr.error;
+  if(error&&isDup(error)){ rxYopish('So\'rov allaqachon yuborilgan'); return; }
+  if(noaniq(rr)){ rxNoaniq('timeout'); return; }
+  if(error){
+    if(srvRpcYoq(error,'ruxsat_yarat')){    // fail-closed: xususiyat o'chadi
+      tokenTugat(); rxOff=true; rxSync(); srvClose(); rxBtnTikla();
+      toast('Ruxsat so\'rash hali ulanmagan',true); return;
+    }
+    tokenTugat();
+    rxBtnTikla();
+    const raw=String((error&&error.message)||'');
+    // Server PUL_YETMAYDI: prefiksi bilan qaytaradi (ruxsat_yarat 7-band) — prefiks
+    // kesib qizil xabar sifatida ko'rsatiladi, boshqasi permErr() (42501 shu yerda).
+    if(/^PUL_YETMAYDI:/.test(raw)) no(raw.replace(/^PUL_YETMAYDI:\s*/,''));
+    else no(window.permErr?window.permErr(error):raw);
+    return;
+  }
+  if(data&&data.ok===false&&data.kod==='takror'){ rxYopish('So\'rov allaqachon yuborilgan'); return; }
+  // 🔴 FAIL-CLOSED: server AYNAN ruxsat sorovi yaratganini tasdiqlasin.
+  if(!data||data.ok!==true||String(data.turi||'')!=='ruxsat'){ rxNoaniq('nomalum'); return; }
+  tokenTugat(); bannerYop();
+  srvClose(); rxReset(); rxBtnTikla();
+  toast('Ruxsat so\'rovi yuborildi');
+  srvPendLoad();
+};
+
 /* --- Yetim pending xarajatni BEKOR qilish ------------------------------
    Ikki qadamli tasdiq: bu faylda `confirm()` ishlatilmaydi (mavjud uslub).
    🔴 Server ham fail-closed: faqat EGASI (created_by), faqat `pending`,
@@ -4431,13 +4815,26 @@ window.srvBekor=async eid=>{
 async function srvPendLoad(){
   if(srvPendOff) return;
   const box=$('srvPend'); if(!box) return;
-  const {data,error}=await Promise.resolve(sb.rpc('sorov_menikilar',{p_limit:20}))
-    .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}));
+  // 🆕 `ruxsat_menikilar` PARALLEL yuklanadi — RPC yo'q bo'lsa jimgina e'tiborsiz
+  //    (`rxPendOff`), sorov_menikilar mantiqi bir qator ham o'zgarmaydi.
+  const [r1,r2]=await Promise.all([
+    Promise.resolve(sb.rpc('sorov_menikilar',{p_limit:20}))
+      .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}})),
+    rxPendOff ? Promise.resolve({data:[],error:null})
+      : Promise.resolve(sb.rpc('ruxsat_menikilar',{p_limit:20}))
+          .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}))
+  ]);
+  const {data,error}=r1;
   if(error){
     if(srvRpcYoq(error,'sorov_menikilar')) srvPendOff=true;
     box.style.display='none'; box.innerHTML=''; return;
   }
   srvPendRows=Array.isArray(data)?data:[];
+  if(r2.error){
+    if(srvRpcYoq(r2.error,'ruxsat_menikilar')) rxPendOff=true;
+  }else if(Array.isArray(r2.data)){
+    srvPendRows=srvPendRows.concat(r2.data.filter(r=>r&&r.turi==='ruxsat'));
+  }
   srvPendRender();
 }
 // "So'nggi javoblar" nishonlari — `sorovlar-dev.html` dagi ST bilan bir xil til.
@@ -4487,11 +4884,15 @@ function srvPendRender(){
   let html='';
   if(kut.length){
     html+='<div class="hcap">Tasdiq kutayotgan so\'rovlar</div>'+kut.map(r=>{
+      // 🆕 Ruxsat so'rovlari (`turi==='ruxsat'`) shu ro'yxatga ARALASHIB chiziladi —
+      //    tugmasiz, faqat "Ruxsat · <modda_nom>" nishoni bilan (§ #srvPend).
+      const isRx=(r&&r.turi==='ruxsat');
       const nom=String(r.kimdan_nom||'').trim()||'So\'rov';
       const izoh=r.izoh?' · '+esc(String(r.izoh)):'';
-      return '<div class="trow srv-pend"><div class="tic tr"><i data-lucide="hand-coins"></i></div>'
+      const badge=isRx?('Ruxsat · '+esc(String(r.modda_nom||''))+' · Kutilmoqda'):'Tasdiq kutilmoqda';
+      return '<div class="trow srv-pend"><div class="tic tr"><i data-lucide="'+(isRx?'key-round':'hand-coins')+'"></i></div>'
         +'<div class="tm"><div class="tt">'+esc(nom)+'</div><div class="ts">'+esc(srvVaqt(r.sana))+izoh
-        +' <span class="srv-st pend"><i data-lucide="hourglass"></i>Tasdiq kutilmoqda</span></div></div>'
+        +' <span class="srv-st pend"><i data-lucide="hourglass"></i>'+badge+'</span></div></div>'
         +'<div class="ta tr">'+money(Number(r.summa)||0)+'</div></div>';
     }).join('');
   }
@@ -4524,9 +4925,24 @@ function srvPendRender(){
   }
   if(jav.length){
     html+='<div class="hcap">So\'nggi javoblar</div>'+jav.map(r=>{
-      const st=SRV_JAV[String(r.status||'')];
       const rad=(String(r.status||'')==='rad');
       const nom=String(r.kimdan_nom||'').trim()||'So\'rov';
+      // 🆕 Ruxsat javoblari (tasdiq/rad) — mavjud qatorlarga ARALASHIB (sana bo'yicha),
+      //    lekin o'z matni bilan: "Ruxsat berildi — xarajat yozildi" / "Rad: <sabab>".
+      if(r&&r.turi==='ruxsat'){
+        const modda=String(r.modda_nom||'').trim();
+        const st=rad?{k:'rej',i:'circle-x',t:'Rad etildi'}:{k:'full',i:'circle-check',t:'Ruxsat berildi'};
+        const note=rad?'':' — xarajat yozildi';
+        const sabab=(rad && String(r.qaror_izoh||'').trim())
+          ? '<div class="srv-sabab">Rad: '+esc(String(r.qaror_izoh).trim())+'</div>' : '';
+        return '<div class="trow"><div class="tic '+(rad?'':'in')+'"><i data-lucide="'+st.i+'"></i></div>'
+          +'<div class="tm"><div class="tt">'+esc(nom)+(modda?' · '+esc(modda):'')+'</div>'
+          +'<div class="ts">'+esc(srvVaqt(r.qaror_vaqt||r.sana))
+          +' <span class="srv-st '+st.k+'"><i data-lucide="'+st.i+'"></i>'+st.t+'</span>'+note+'</div>'
+          +sabab+'</div>'
+          +'<div class="ta '+(rad?'srv-non':'in')+'">'+money(Number(r.summa)||0)+'</div></div>';
+      }
+      const st=SRV_JAV[String(r.status||'')];
       const sor=Number(r.summa)||0, berdi=Number(r.jonatilgan_summa)||0;
       // Qisman: berilgan / so'ralgan. Rad: so'ralgan summa (pul kelmagan -> o'chirilgan).
       const sum=(String(r.status||'')==='qisman')
@@ -4966,7 +5382,7 @@ async function versiyaTekshir(){
 function reloadAgarXavfsiz(){
   if(!yangiVersiya) return false;
   try{
-    if(pulBand||srvSaving) return false;               // fonda saqlash/so'rov ketmoqda
+    if(pulBand||srvSaving||rxSaving) return false;      // fonda saqlash/so'rov ketmoqda
     const tm=$('taqsimModal'), km=$('takrorModal');
     if(tm&&tm.classList.contains('open')) return false; // taqsim modali ochiq
     if(km&&km.classList.contains('open')) return false; // takror ogohi ochiq

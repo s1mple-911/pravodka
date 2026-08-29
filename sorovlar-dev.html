@@ -674,7 +674,65 @@ function ko(r){
 }
 
 // ---- kartalar --------------------------------------------------------
+/* 🆕 Ruxsat so'rovi kartasi (PROVODKA_RUXSAT_SOROV.sql, `turi==='ruxsat'`).
+   Alohida ko'rinish: modda + "pul tushmaydi" izohi, tugmalar "Ruxsat berish"/"Rad".
+   `modda_menda_yoq` bo'lsa tugma o'rniga kulrang tushuntirish. Mavjud pul so'rovi
+   `cardHtml` tanasi BIR QATOR HAM O'ZGARMAYDI — bu funksiya undan OLDIN chaqiriladi. */
+function rxCardHtml(r){
+  const st=ST[r.status]||ST.pending;
+  const canDo=(r.status==='pending' && r.men_qaror_qila_olaman===true);
+  const noRole=(r.status==='pending' && r.men_qaror_qila_olaman!==true && r.modda_menda_yoq===true);
+  const ro=(r.status==='pending' && !canDo && !noRole);
+  const id=esc(r.id);
+  const to=r.kimdan_nom
+    ? '<span class="srv-to" title="Kimdan so\'ralgan"><i data-lucide="chevron-right"></i><span class="n">'+esc(r.kimdan_nom)+'</span></span>' : '';
+  const just=qarorQilingan.has(String(r.id));
+  const dec=(r.status!=='pending');
+  const dt=dec
+    ? fmtDt(r.qaror_vaqt||r.sana)+(r.qaror_kim?' · '+esc(r.qaror_kim):'')
+    : fmtDt(r.sana);
+  const modda=(esc(r.modda_kod||'')+' '+esc(r.modda_nom||'')).trim();
+
+  let res='';
+  if(r.status==='rad' && r.qaror_izoh)
+    res='<div class="srv-res rej"><i data-lucide="info"></i><span>Sabab: <b>'+esc(r.qaror_izoh)+'</b></span></div>';
+
+  let tail='';
+  if(canDo){
+    tail='<div class="srv-acts">'
+      +'<button type="button" class="srv-b ok" onclick="srvAct(\''+id+'\',\'ruxsat_ok\')"><i data-lucide="check"></i>Ruxsat berish</button>'
+      +'<button type="button" class="srv-b no" onclick="srvAct(\''+id+'\',\'ruxsat_rad\')"><i data-lucide="x"></i>Rad etish</button>'
+      +'</div>';
+  }else if(noRole){
+    tail='<div class="srv-ro"><i data-lucide="info"></i><span>Bu modda sizning rolingizda ham yo\'q — ruxsat bera olmaysiz.</span></div>';
+  }else if(ro){
+    tail='<div class="srv-ro"><i data-lucide="info"></i><span>'
+      +(r.kimdan_nom?'Faqat <b>'+esc(r.kimdan_nom)+'</b> qaror qila oladi.'
+                    :'Faqat so\'rov kelgan odam qaror qila oladi.')
+      +'</span></div>';
+  }
+
+  return '<article class="srv-card rx-card '+st.c+((ro||noRole)?' s-ro':'')+(just?' just':'')+'" data-id="'+id+'">'
+    +'<div class="srv-top">'
+      +'<span class="srv-av rx-av" aria-hidden="true"><i data-lucide="key-round"></i></span>'
+      +'<div class="srv-idn">'
+        +'<div class="srv-nm">Ruxsat so\'rovi</div>'
+        +'<div class="srv-who2">'+esc(r.sorovchi_nom||'—')+(r.sorovchi_sub?' · '+esc(r.sorovchi_sub):'')+'</div>'
+      +'</div>'
+      +to
+      +'<div class="srv-sum num">'+money(r.summa)+'<span class="srv-cur2">so\'m</span></div>'
+    +'</div>'
+    +'<div class="srv-izoh"><b>'+modda+'</b>'+(r.izoh?' · '+esc(r.izoh):'')+'</div>'
+    +'<div class="srv-meta">'
+      +'<span class="srv-st '+st.k+'"><i data-lucide="'+st.i+'"></i>'+st.t+'</span>'
+      +'<span class="srv-dt">'+dt+'</span>'
+    +'</div>'
+    +'<div class="srv-res rx-note"><i data-lucide="info"></i><span>Pul tushmaydi — hodim hisobidan yoziladi.</span></div>'
+    +res+tail
+  +'</article>';
+}
 function cardHtml(r){
+  if(r&&r.turi==='ruxsat') return rxCardHtml(r);
   const st=ST[r.status]||ST.pending;
   // 🔴 fail-closed: maydon aynan `true` bo'lmasa amal tugmasi chizilmaydi
   const canDo=(r.status==='pending' && r.men_qaror_qila_olaman===true);
@@ -774,7 +832,14 @@ window.load=async(force)=>{
     const c=swrGet(ck);
     if(Array.isArray(c)){ rows=c; render(); }
   }
-  const {data,error}=await sb.rpc('sorov_royxat',{p_holat:'all',p_hammasi:all});
+  // 🆕 `ruxsat_royxat` PARALLEL so'raladi (bitta sahifa, ikki manba). RPC yo'q
+  //    bo'lsa (SQL RUN qilinmagan) jimgina e'tiborsiz — `sorov_royxat` yo'li
+  //    bir qator ham o'zgarmaydi.
+  const [r1,r2]=await Promise.all([
+    sb.rpc('sorov_royxat',{p_holat:'all',p_hammasi:all}),
+    sb.rpc('ruxsat_royxat',{p_holat:'all',p_hammasi:all})
+  ]);
+  const {data,error}=r1;
   loading=false;
   if(error){
     const m=rpcMsg(error);
@@ -788,7 +853,13 @@ window.load=async(force)=>{
   }
   // Qaror natijasi xabari BITTA yangilashdan omon qoladi (aks holda u ~200ms da o'chardi)
   if(bannerSaqla) bannerSaqla=false; else banner('');
-  rows=Array.isArray(data)?data:[];
+  let merged=Array.isArray(data)?data:[];
+  // 🆕 Ruxsat qatorlari `turi:'ruxsat'` bilan allaqachon serverdan keladi.
+  if(!r2.error && Array.isArray(r2.data)) merged=merged.concat(r2.data);
+  // Ikkalasi ham `created_at desc` beradi — birlashtirilgach umumiy tartib
+  // uchun `sana` bo'yicha qayta saralanadi (eng yangisi birinchi).
+  merged.sort((a,b)=>String((b&&b.sana)||'').localeCompare(String((a&&a.sana)||'')));
+  rows=merged;
   swrSet(ck,rows);
   render();
 };
@@ -815,6 +886,33 @@ window.srvAct=(id,mode)=>{
   { const sc=$('actSearch'); if(sc){ sc.value=''; sc.style.display='none'; } }   // oldingi qidiruv qolmasin
   $('actPicks').innerHTML=''; $('actPickBox').style.display='none';
   $('actBalLbl').textContent="Qo'lingizdagi pul";
+  // 🆕 RUXSAT REJIMI — bu YOZUV, PUL EMAS: kassa tanlash/qoldiq bloklari
+  //    umuman ko'rinmaydi, `loadCtx` (pul qoldig'i) CHAQIRILMAYDI. Pastdagi
+  //    mavjud full/part/rad tanasi BIR QATOR HAM O'ZGARMAGAN (shu yerda return).
+  if(mode==='ruxsat_ok'||mode==='ruxsat_rad'){
+    $('actBalRow').style.display='none';
+    $('actTitle').textContent = mode==='ruxsat_ok'?'Ruxsat berish':'Rad etish';
+    $('actAv').textContent='';
+    $('actNm').textContent=r.sorovchi_nom||'—';
+    $('actIzoh').textContent=((r.modda_kod||'')+' '+(r.modda_nom||'')).trim()+(r.izoh?' · '+r.izoh:'');
+    $('actSoralgan').textContent=money(actSor);
+    $('actBal').textContent='—';
+    $('actPartBox').style.display='none';
+    $('actRadBox').style.display = mode==='ruxsat_rad'?'':'none';
+    $('actAmt').value=''; $('actSabab').value='';
+    const ok=$('actOk');
+    ok.textContent = mode==='ruxsat_ok'?'Ruxsat berish':'Rad etish';
+    ok.classList.toggle('danger', mode==='ruxsat_rad');
+    ok.classList.toggle('primary', mode!=='ruxsat_rad');
+    actMsg(mode==='ruxsat_ok'
+      ? "Ruxsat berasizmi? Xarajat hodim hisobidan darrov yoziladi."
+      : '', 'pend');
+    $('srvActModal').classList.add('open');
+    actUI();
+    setTimeout(()=>{ if(mode==='ruxsat_rad') $('actSabab').focus(); },30);
+    return;
+  }
+  $('actBalRow').style.display='';   // 🔴 rx rejimidan qaytganda tiklanadi (avvalgidek doim ko'rinadi)
   $('actTitle').textContent = mode==='full'?"To'liq berish":(mode==='part'?'Qisman berish':'Rad etish');
   $('actAv').textContent=initials(r.sorovchi_nom);
   $('actNm').textContent=r.sorovchi_nom||'—';
@@ -1045,6 +1143,15 @@ window.actPick=id=>{
 };
 window.actUI=()=>{
   const ok=$('actOk');
+  // 🆕 RUXSAT REJIMI — summa/qoldiq validatsiyasi umuman qatnashmaydi.
+  if(actMode==='ruxsat_rad'){
+    ok.disabled = actBusy || $('actSabab').value.trim().length<3;
+    return;
+  }
+  if(actMode==='ruxsat_ok'){
+    ok.disabled = actBusy;
+    return;
+  }
   if(actMode==='rad'){
     ok.disabled = actBusy || $('actSabab').value.trim().length<3;
     return;
@@ -1067,6 +1174,37 @@ window.actSave=async()=>{
   const ok=$('actOk'), old=ok.textContent;
   actBusy=true; ok.disabled=true; ok.textContent='Bajarilmoqda…';
   const id=actId, mode=actMode;
+  // 🆕 RUXSAT REJIMI — `ruxsat_tasdiq`/`ruxsat_rad`. Mavjud pul so'rovi yo'li
+  //    (pastda) BIR QATOR HAM O'ZGARMAGAN — bu yerda alohida qaytadi.
+  if(mode==='ruxsat_ok'||mode==='ruxsat_rad'){
+    const rres = mode==='ruxsat_rad'
+      ? await sb.rpc('ruxsat_rad',{p_id:id,p_izoh:$('actSabab').value.trim()})
+      : await sb.rpc('ruxsat_tasdiq',{p_id:id});
+    actBusy=false; ok.textContent=old;
+    if(actId!==id) return;                       // modal orada yopilgan
+    const {data:rd,error:re}=rres;
+    if(re){ actMsg(rpcMsg(re),'err'); actUI(); return; }
+    const dd=rd||{};
+    if(dd.ok===false && dd.kod==='already_decided'){
+      actClose(); qarorQilingan.add(String(id));
+      qarorXabar("Bu so'rov allaqachon hal qilingan.",'warn'); window.load(true); return; }
+    if(dd.ok===false && dd.kod==='hisob_yoq'){
+      actClose(); qarorXabar('Modda yoki kassa faol emas.','warn'); window.load(true); return; }
+    // 🔴 PUL YETMADI — so'rov PENDING QOLADI (modal yopilmaydi, qoldiq raqami
+    //    KO'RSATILMAYDI — server ham bermaydi, balans sizmasin).
+    if(dd.ok===false && dd.kod==='qoldiq_yetmadi'){
+      actMsg("Hodim kassasida pul yetmaydi — avval pul so'rovi kerak, so'rov kutishda qoladi.",'err');
+      return; }
+    if(dd.ok===false){ actMsg(dd.xato||dd.kod||'Bajarilmadi','err'); actUI(); return; }
+    actClose();
+    qarorQilingan.add(String(id));
+    if(mode==='ruxsat_rad')
+      qarorXabar("Rad etildi — so'rov o'chmadi, «Rad etilgan» bo'limida saqlanadi.",'ok');
+    else
+      qarorXabar('Ruxsat berildi — xarajat yozildi.','ok');
+    window.load(true);
+    return;
+  }
   const res = mode==='rad'
     ? await sb.rpc('sorov_rad',{p_id:id,p_izoh:$('actSabab').value.trim()})
     // 🔴 `p_kassa` — tanlangan hisob (null -> server ildiz kassani oladi)
