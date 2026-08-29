@@ -69,7 +69,8 @@
      HAQIQATAN kelganda boshlanadi (loaded=true). */
   var OPEN = { allowed_pages: [], kassa_scope: 'all', view_kassa_ids: [],
                op_kassa_ids: [], can_convert: true,
-               filial_scope: 'all', filial_ids: [], is_admin: false, has_provodka: true };
+               filial_scope: 'all', filial_ids: [], is_admin: false, has_provodka: true,
+               roles: [], moddalar: null, ovqat: ['obed', 'zavtrak', 'kechki'], has_role: false };
 
   var P = null;          // joriy ruxsatlar
   var loaded = false;    // my_perms() javobi (yoki keshi) keldimi
@@ -92,7 +93,15 @@
       // Server bermasa o'zimiz hisoblaymiz — eski my_perms() bilan ham ishlasin
       has_provodka:   typeof p.has_provodka === 'boolean'
                         ? p.has_provodka
-                        : (!!p.is_admin || pages.length > 0)
+                        : (!!p.is_admin || pages.length > 0),
+      // RBAC (PROVODKA_RBAC.sql) — moddalar null = cheklovsiz (admin yoki rol yo'q emas,
+      // server shunday yuboradi), massiv bo'lsa faqat o'sha id'lar ruxsatli.
+      roles:          arr(p.roles),
+      moddalar:       (p.moddalar === null || typeof p.moddalar === 'undefined') ? null : arr(p.moddalar),
+      // ovqat: kalit YO'Q (eski my_perms — RBAC SQL hali RUN qilinmagan) → 3 tur ochiq
+      // (eski xatti-harakat); server massiv bersa faqat o'shalar. Bo'sh massiv = yopiq.
+      ovqat:          (p.ovqat === null || typeof p.ovqat === 'undefined') ? ['obed', 'zavtrak', 'kechki'] : arr(p.ovqat),
+      has_role:       !!p.has_role
     };
   }
   function setP(p) { P = norm(p) || OPEN; loaded = true; window.PERMS = P; return P; }
@@ -158,8 +167,18 @@
     var changed = JSON.stringify(fresh) !== JSON.stringify(P);
     setP(fresh); toCache(fresh);
     if (changed && applied) { applied = false; gate(); }
+    /* Ruxsat fonda o'zgarganda sahifaga xabar berish (masalan hodim sahifasi
+       tanlangan modda/ovqat turini qayta tekshirsin). gate() nav/redirect uchun,
+       bu esa sahifaga xos holatni yangilash uchun — ikkalasi mustaqil. */
+    if (changed) {
+      for (var i = 0; i < changeListeners.length; i++) {
+        try { changeListeners[i](fresh); } catch (e) {}
+      }
+    }
     return fresh;
   }
+  var changeListeners = [];
+  function onChange(fn) { if (typeof fn === 'function') changeListeners.push(fn); }
 
   // ---- sahifalar ------------------------------------------------------
   /* Provodka'ga umuman kirish huquqi bormi (hodim.html bundan mustasno). */
@@ -259,7 +278,18 @@
     hideNav();
     var k = page();
     var p = get();
-    if (PAGES.indexOf(k) < 0) return true;        // hodim va boshqa cheklanmagan sahifalar
+    /* RBAC (PROVODKA_RBAC.sql): 'hodim' PAGES da yo'q va hozirgidek cheklanmaydi,
+       BUNDAN TASHQARI — rol biriktirilgan (has_role=true) userga 'hodim' amali
+       berilmagan bo'lsa Xarajat sahifasi yopiladi. Rolsiz eski user (has_role=false)
+       hozirgidek ochiq qoladi — migratsiya qilinmagan. Faqat loaded=true bo'lganda
+       tekshiriladi ("yuklanmaguncha ochiq" saqlanadi). */
+    if (k === 'hodim') {
+      if (loaded && p.has_role && p.allowed_pages.indexOf('hodim') < 0) {
+        denyScreen(); return false;
+      }
+      return true;
+    }
+    if (PAGES.indexOf(k) < 0) return true;        // boshqa cheklanmagan sahifalar
 
     if (!hasProvodka()) {
       if (k === HOME) { location.replace(hodimUrl()); return false; }
@@ -328,6 +358,28 @@
     return (list || []).filter(function (f) { return ids.indexOf(f.id) >= 0; });
   }
 
+  // ---- RBAC — xarajat moddasi / ovqat turi / rollar ---------------------
+  /* Xarajat moddasiga (accounts.type='xarajat') yozish ruxsati bormi.
+     moddalar===null -> cheklovsiz (admin yoki server shunday bergan).
+     loaded=false -> true ("yuklanmaguncha ochiq" — server guard baribir bloklaydi). */
+  function moddaOk(accountId) {
+    if (!loaded) return true;
+    var p = get();
+    if (p.moddalar === null) return true;
+    return p.moddalar.indexOf(accountId) >= 0;
+  }
+  /* Ro'yxatni filtrlaydi — faqat type==='xarajat' bo'lganlar tekshiriladi,
+     qolgan turdagi hisoblar (pul, daromad, ...) hech qachon cheklanmaydi. */
+  function filterModda(list) {
+    return (list || []).filter(function (a) { return !(a && a.type === 'xarajat') || moddaOk(a.id); });
+  }
+  /* Ovqat turi (obed/zavtrak/kechki) rolda bormi. loaded=false -> true. */
+  function ovqatOk(tur) {
+    if (!loaded) return true;
+    return get().ovqat.indexOf(tur) >= 0;
+  }
+  function roles() { return get().roles; }
+
   // ---- xato matni ------------------------------------------------------
   /* Server guard xatosini odam o'qiydigan matnga aylantiradi. */
   function errText(e) {
@@ -355,6 +407,9 @@
   window.permFilterView = filterView;
   window.permFilterOp  = filterOp;
   window.permConvert   = function () { return get().can_convert; };
+  /* Ruxsat fonda (fetchFresh) o'zgarsa chaqiriladi — masalan hodim sahifasi
+     tanlangan modda/ovqat turini qayta tekshiradi. gate()dan mustaqil. */
+  window.permOnChange  = onChange;
   /* Admin bayrog'i. `sorovlar.html` "Hammaning so'rovlari" almashtirgichini
      shu bilan ko'rsatadi. Ruxsat hali kelmagan bo'lsa OPEN sukutida is_admin=false —
      ya'ni fail-closed (almashtirgich chiqmaydi), bu ataylab: server baribir
@@ -364,6 +419,10 @@
   window.permFilialScope = function () { return get().filial_scope; };
   window.permFilialIds = function () { return get().filial_ids; };
   window.permFilterFilials = filterFilials;
+  window.permModdaOk   = moddaOk;
+  window.permFilterModda = filterModda;
+  window.permOvqatOk   = ovqatOk;
+  window.permRoles     = roles;
   window.permErr       = errText;
   window.permClear     = clear;
 

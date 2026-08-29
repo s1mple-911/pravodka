@@ -22,8 +22,8 @@
 <script src="ai-widget.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--red:#f04438;--red-soft:#feecea;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
   :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
@@ -57,23 +57,40 @@
   .addrow input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
   .addrow button{height:46px;padding:0 20px;border:none;border-radius:11px;background:var(--primary);color:#fff;font-size:15px;font-weight:600;font-family:inherit;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .13s,transform .12s}
   .addrow button svg{width:17px;height:17px}.addrow button:hover{background:var(--primary-hover);transform:translateY(-1px)}
-  .item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  /* .item — bitta qator (Kassa/Daromad/Boshqa/Filial) YOKI ikki qatorli (Xarajat, .chekopt
+     chiplari bilan): flex-wrap:wrap + bolalar flex:1 1 100% orqali "sarlavha" va "chiplar"
+     alohida qatorga tushadi, flex-direction o'zgarmaydi — shuning uchun boshqa ro'yxatlar
+     (item-head'siz, to'g'ridan-to'g'ri .mid+.edit+.sw) ham buzilmaydi. */
+  .item{display:flex;align-items:center;flex-wrap:wrap;gap:12px;row-gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
   .item:last-child{border-bottom:none}
-  .item .mid{flex:1;min-width:0}.item .mid .t{font-size:15px;font-weight:600}.item .mid .c{font-size:12px;color:var(--muted);margin-top:2px}
+  .item-head{display:flex;align-items:center;gap:12px;flex:1 1 100%;min-width:0}
+  .item .mid{flex:1;min-width:0}
+  .item .mid .t{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .mid .c{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .item.off .mid{opacity:.4}
-  .item .edit{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:7px;display:flex;cursor:pointer;transition:background .13s,color .13s}
+  .item .edit{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:7px;display:flex;flex:0 0 auto;cursor:pointer;transition:background .13s,color .13s}
   .item .edit svg{width:16px;height:16px}.item .edit:hover{background:var(--primary-soft);color:var(--primary)}
   .sw{position:relative;width:44px;height:26px;flex:0 0 auto}
   .sw input{opacity:0;width:0;height:0}
   .sw span{position:absolute;inset:0;background:var(--line);border-radius:26px;transition:.2s;cursor:pointer}
   .sw span:before{content:"";position:absolute;width:22px;height:22px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
   .sw input:checked+span{background:var(--green)}.sw input:checked+span:before{transform:translateX(18px)}
-  /* Chek majburiy checkbox (Xarajat ro'yxati) */
-  .chekopt{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;
-    border:1px solid var(--line);border-radius:9px;padding:6px 9px;transition:border-color .13s,color .13s,background .13s}
-  .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
+  /* Chiplar qatori (Xarajat — Chek/Izoh/Sana/Filial/Ovqat/AI chek/AI spidometr + Maydonlar).
+     flex:1 1 100% .item ichida alohida qatorga tushadi, o'zi ham wrap qiladi — hech qachon
+     kartadan tashqariga chiqmaydi (overflow:hidden shart emas, wrap yetarli). */
+  .item-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 100%;min-width:0}
+  /* Chek majburiy checkbox (Xarajat ro'yxati) — pill chip: 30px, radius 999 */
+  .chekopt{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;height:30px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;
+    border:1px solid var(--line);border-radius:999px;padding:0 11px;transition:border-color .13s,color .13s,background .13s}
+  .chekopt input{width:14px;height:14px;margin:0;accent-color:var(--primary);cursor:pointer}
   .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .empty{color:var(--muted);text-align:center;padding:14px;font-size:14px}
+  /* Filial moslashtirish (aros-staff <-> Provodka) — mos_filial yo'q qatorlar sariq */
+  .stm.miss{background:var(--amber-soft);border-radius:11px;padding-left:10px;padding-right:10px;margin:0 -10px}
+  .stm .mid .c b{color:var(--amber)}
+  .stm select{height:38px;min-width:150px;flex:1 1 150px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:9px;padding:0 10px;font-size:13.5px;font-family:inherit;outline:none}
+  .stm select:focus{border-color:var(--primary)}
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 14px;line-height:1.6}
   .res{font-size:14px;font-weight:600;margin-top:12px;min-height:20px}
   /* V8: konvert koridori — kiritilgan foizning real ma'nosi (1$ uchun so'm oralig'i) */
@@ -128,6 +145,9 @@
   .mxd-btn.on{border-color:var(--primary);background:var(--primary-soft);
     color:var(--primary-ink,var(--primary))}
   .mxd-btn[aria-expanded="true"],.mxd-btn.open{box-shadow:0 0 0 3px var(--primary-soft)}
+  /* Saqlash — faqat qator o'zgarganda faol (rb-dd o'zgarishi bilan JS disabled'ni boshqaradi) */
+  .mxd-btn:disabled{opacity:.4;cursor:not-allowed;color:var(--muted)}
+  .mxd-btn:disabled:hover{border-color:var(--line);color:var(--muted)}
 
   /* --- Detal kartasi --- */
   .mxd-card{scroll-margin-top:16px}
@@ -293,6 +313,250 @@
   @media print{
     .mxd-card,.mxd-btn{display:none!important}
   }
+
+  /* ================================================================
+     RBAC — "Rollar va foydalanuvchilar" (.rb-*). Mavjud .card/.sec/
+     .hint/.chekopt/.res/.mxd-in/.mxd-btn/.mxd-add/.mxd-save/.mxd-cancel
+     qoidalari QAYTA TA'RIFLANMAGAN, yangi rang o'zgaruvchisi yo'q —
+     faqat mavjud tokenlar (--primary/--surface/--line/--muted/--red/…).
+     ================================================================ */
+  .rb-wrap{display:grid;grid-template-columns:260px 1fr;gap:18px;margin-top:4px;align-items:start}
+  @media(max-width:640px){.rb-wrap{grid-template-columns:1fr}}
+
+  /* --- Alohida ko'rinish sarlavhasi (#rollar hash): orqaga tugma + nom bitta qatorda --- */
+  .rb-headrow{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .rb-back{flex:0 0 auto;width:36px;height:36px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:background .13s,border-color .13s,transform .12s}
+  .rb-back svg{width:19px;height:19px}
+  .rb-back:hover{background:var(--surface-2);border-color:var(--primary);color:var(--primary)}
+  .rb-back:active{transform:translateX(-1px)}
+  .rb-title{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Odatiy holatda (Sozlamalar ichida, orqaga tugmasi yashirin) — boshqa kartalardagi
+     .sec bilan bir xil ko'rinish, "Alohida ko'rinish"ga o'tganda (#rollar) katta sarlavha */
+  .rb-headrow:has(.rb-back[style*="none"]) .rb-title{font-size:13px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+
+  /* --- Chap: rollar ro'yxati --- */
+  .rb-roles{min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px;min-height:44px}
+  .rb-roles-hd{display:flex;gap:8px;margin-bottom:10px}
+  .rb-roles-hd input{flex:1;height:40px;font-size:13.5px}
+  .rb-roles-hd .mxd-add{height:40px;flex:0 0 auto;font-size:13.5px;white-space:nowrap}
+  .rb-role-list{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:3px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .rb-role-list::-webkit-scrollbar{width:6px}
+  .rb-role-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .rb-role-item{display:flex;align-items:center;gap:9px;padding:10px 10px;border-radius:10px;cursor:pointer;
+    border:1px solid transparent;border-left:3px solid transparent;min-height:44px;
+    transition:background .13s,border-color .13s}
+  .rb-role-item:hover{background:var(--surface-2)}
+  .rb-role-item.sel{background:var(--primary-soft);border-left-color:var(--primary)}
+  .rb-role-item .rb-rn{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rb-role-item.sel .rb-rn{color:var(--primary)}
+  .rb-role-item .rb-rc{font-size:11.5px;color:var(--muted);flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .rb-badge{font-size:10px;font-weight:700;padding:3px 7px;border-radius:999px;flex:0 0 auto;letter-spacing:.02em}
+  .rb-badge.off{background:var(--surface-2);color:var(--muted)}
+  .rb-badge.on{background:var(--primary-soft);color:var(--primary)}
+
+  /* --- O'ng: tahrirlagich --- */
+  .rb-editor{min-width:0;border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--surface-2)}
+  .rb-frow{margin-bottom:14px}
+  .rb-frow>.chekopt{margin-top:2px}
+  .rb-frow-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .mxd-l.rb-sub{font-size:11px!important;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .rb-grid-check{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}
+  .rb-chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink);
+    padding:0 11px;min-height:44px;border:1px solid var(--line);border-radius:9px;cursor:pointer;
+    background:var(--surface);min-width:0;transition:border-color .13s,background .13s,color .13s}
+  .rb-chk:hover{border-color:var(--primary)}
+  .rb-chk input[type=checkbox]{margin:0;flex:0 0 auto;width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+  .rb-chk:has(input:checked){border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+  .rb-chk span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Limit input — belgilangan modda/ovqat qatorida checkbox+span yonida qo'shimcha maydon */
+  .rb-chk-lim{padding-right:8px;grid-column:span 2}
+  @media(max-width:420px){.rb-chk-lim{grid-column:span 1;flex-wrap:wrap}}
+  .rb-chk-lim span{flex:1 1 auto}
+  .rb-chk input.rb-lim-in{width:118px;min-width:96px;flex:0 0 auto;height:32px;margin:0 0 0 auto;border:1px solid var(--line);border-radius:7px;
+    background:var(--surface);color:var(--ink);padding:0 8px;font-size:12.5px;font-family:inherit;
+    outline:none;text-align:right;font-variant-numeric:tabular-nums;cursor:text;transition:border-color .13s}
+  .rb-chk input.rb-lim-in:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .rb-chk input.rb-lim-in::placeholder{color:var(--muted);opacity:.7}
+  .rb-help{font-size:11.5px;color:var(--muted);margin:6px 0 0;line-height:1.4}
+  .rb-modda-hd{display:flex;gap:8px;align-items:center;margin:10px 0 2px;flex-wrap:wrap}
+  .rb-modda-hd input{flex:1 1 160px;height:40px;font-size:13.5px}
+  .rb-modda-hd .mxd-btn{background:transparent;border-color:transparent;color:var(--primary);
+    text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;
+    transition:text-decoration-color .13s,background .13s}
+  .rb-modda-hd .mxd-btn:hover{background:var(--primary-soft);text-decoration-color:var(--primary);color:var(--primary)}
+  /* Bo'limlar orasidagi ajratgich (Amallar / Xarajat moddalari / Ovqat) — Nomi/Izoh/Faol
+     guruhi bilan aralashmasin, shuning uchun faqat .rb-sec belgilangan qatorda */
+  .rb-sec{border-top:1px solid var(--line);padding-top:18px;margin-top:18px!important}
+  /* 🔴 .mxd-save/.mxd-cancel odatda .mxd-facts ichida flex:1 (50/50, ikkita tugma) —
+     bu yerda 2-3 ta tugma bo'lgani uchun flex:1 ularni butun qatorga cho'zib yuborardi
+     va tor ekranda matn/ikonka konteynerdan tashqariga chiqib ketardi. Shu yerda
+     kontent o'lchamiga qaytariladi (flex:0 1 auto), min-width:0 esa uzun matn
+     (masalan "O'chirish") flex-shrink paytida overflow bermasligi uchun. */
+  .rb-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;justify-content:flex-end;
+    border-top:1px solid var(--line);padding-top:16px;max-width:100%}
+  .rb-acts .mxd-save,.rb-acts .mxd-cancel{flex:0 1 auto;min-width:0;padding:0 16px;white-space:nowrap}
+  .rb-acts .rb-res{flex:1 1 auto;align-self:center;font-size:13px;font-weight:600;min-width:120px}
+  .rb-res.ok{color:var(--green)}.rb-res.err{color:var(--red)}
+  .rb-users .rb-res{display:block;margin:4px 0 0;font-size:11.5px;font-weight:600;white-space:normal}   /* tugma ostida — 118px katakdan chiqmasin */
+  @media(max-width:400px){
+    .rb-acts .mxd-save,.rb-acts .mxd-cancel{flex:1 1 auto;justify-content:center}
+    .rb-acts .rb-res{order:-1;flex:1 1 100%;text-align:right}
+  }
+
+  /* --- Foydalanuvchilar jadvali ---
+     🔴 overflow:hidden ATAYLAB YO'Q: .rb-dd-menu popover shu konteyner ICHIDA absolute
+     joylashadi (dropdown tugmasi jadval katagida) — overflow:hidden bo'lsa popover
+     radius chizig'idan tashqarida kesilib qolardi. Burchaklar shuning uchun
+     border-collapse:separate + har chekka katakka alohida radius bilan yumaloqlanadi. */
+  .rb-users{border:1px solid var(--line);border-radius:14px;margin-top:10px;background:var(--surface)}
+  .rb-users table{width:100%;border-collapse:separate;border-spacing:0}
+  .rb-users th{text-align:left;padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line)}
+  .rb-users td{text-align:left;padding:12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+  .rb-users tr:last-child td{border-bottom:none}
+  .rb-users thead th:first-child{border-top-left-radius:13px}
+  .rb-users thead th:last-child{border-top-right-radius:13px}
+  .rb-users tbody tr:last-child td:first-child{border-bottom-left-radius:13px}
+  .rb-users tbody tr:last-child td:last-child{border-bottom-right-radius:13px}
+  .rb-uinfo{display:flex;align-items:center;gap:10px;min-width:0}
+  .rb-avatar{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:var(--primary-soft);
+    color:var(--primary);display:flex;align-items:center;justify-content:center;
+    font-size:12.5px;font-weight:700;text-transform:uppercase}
+  .rb-uname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--ink)}
+  .rb-urole{color:var(--muted);font-size:12.5px}
+  .rb-urole.adm{color:var(--primary);font-weight:600}
+  .rb-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+  /* Dropdown + Saqlash — bitta qatorda (desktop, table td yonma-yon); mobilda .rb-users
+     qoidasi tufayli har td alohida blok bo'lib ustma-ust tushadi (pastdagi @media) */
+  /* 🔴 Jadval kartadan chiqib ketmasin (2026-08-27 rasm): dropdown qat'iy 220px + nowrap
+     ustunlarni karta kengligidan oshirib yuborardi. Endi: jadval `table-layout:fixed`,
+     dropdown katagi cho'ziluvchan (dropdown 100%), Saqlash katagi tor (1%), ism katagi
+     so'zni sindiradi. Kartaga overflow BERILMAYDI (popover kesilardi). */
+  .rb-users table{table-layout:fixed}
+  .rb-users td:has(.mxd-btn){white-space:nowrap}
+  .rb-users th:nth-child(2){width:18%}
+  .rb-users th:nth-child(3){width:36%}
+  .rb-users th:nth-child(4){width:118px}
+  @media(max-width:640px){.rb-users th:nth-child(n){width:auto}}
+  .rb-users td{overflow-wrap:anywhere}
+  /* Hodimlar jadvali — "Provodka akkaunti" ustuni qo'shilgani uchun (5 ustun, foydalanuvchilar
+     jadvali 4 ustun bilan bir xil .rb-users klassini ishlatadi) kengliklar shu yerda override
+     qilinadi — .rb-users-staff ikkinchi klass, umumiy qoidadan (0,1,1) kuchliroq (0,2,1);
+     mobil reset ham alohida takrorlangan, aks holda tor ekranda kenglik qotib qolardi. */
+  .rb-users-staff th:nth-child(1){width:26%}
+  .rb-users-staff th:nth-child(2){width:20%}
+  .rb-users-staff th:nth-child(3){width:24%}
+  .rb-users-staff th:nth-child(4){width:20%}
+  .rb-users-staff th:nth-child(5){width:118px}
+  @media(max-width:640px){.rb-users-staff th:nth-child(n){width:auto}}
+  /* Hodim ismi to'liq ko'rinsin — .rb-uname umumiy qoidasi (nowrap+ellipsis) faqat
+     kirish foydalanuvchilari jadvali uchun; bu yerda 2 qatorga tushishi kerak. */
+  .rb-users-staff .rb-uname{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3;
+    overflow-wrap:anywhere}
+  .rb-taklif-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--primary);background:var(--primary-soft);vertical-align:middle}
+  .rb-muted-note{color:var(--muted);font-size:12px;font-style:italic;line-height:1.4;display:inline-block}
+
+  /* --- Akkaunt tanlash — qidiruvli combobox (.rb-cb), .rb-dd bilan bir xil vizual til --- */
+  .rb-cb{position:relative;display:block;width:100%;min-width:0;max-width:100%;vertical-align:middle}
+  .rb-cb-btn{display:flex;align-items:center;gap:8px;width:100%;min-width:120px;max-width:100%;height:36px;padding:0 10px;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);
+    font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:border-color .13s,box-shadow .13s}
+  .rb-cb-btn:hover{border-color:var(--primary)}
+  .rb-cb.open .rb-cb-btn{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .rb-cb-btn svg{width:14px;height:14px;flex:0 0 auto;margin-left:auto;color:var(--muted);transition:transform .13s}
+  .rb-cb.open .rb-cb-btn svg{transform:rotate(180deg)}
+  .rb-cb-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+  .rb-cb-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:46;min-width:230px;
+    max-width:300px;background:var(--surface);border:1px solid var(--line);
+    border-radius:11px;box-shadow:var(--shadow-hover);padding:8px}
+  .rb-cb.open .rb-cb-pop{display:block}
+  .rb-cb-input{width:100%;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;
+    background:var(--surface-2);color:var(--ink);font-family:inherit;font-size:12.5px;margin-bottom:6px;box-sizing:border-box}
+  .rb-cb-input:focus{outline:none;border-color:var(--primary)}
+  .rb-cb-list{max-height:224px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .rb-cb-item{display:flex;align-items:center;gap:9px;padding:0 10px;border-radius:8px;cursor:pointer;
+    font-size:13px;color:var(--ink);min-height:40px;transition:background .13s,color .13s}
+  .rb-cb-item:hover,.rb-cb-item.hl{background:var(--surface-2)}
+  .rb-cb-item.sel{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .rb-cb-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .rb-cb-empty{color:var(--muted);cursor:default}
+  .rb-cb-empty:hover{background:transparent}
+
+  /* --- Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi/hodim
+       qatorlarida chip ro'yxati o'rniga. Modda/amal checkbox-gridiga tegilmagan. --- */
+  .rb-dd{position:relative;display:block;width:100%;min-width:0;max-width:100%;vertical-align:middle}
+  .rb-dd-btn{display:flex;align-items:center;gap:8px;width:100%;min-width:120px;max-width:100%;height:36px;padding:0 10px;
+    border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);
+    font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:border-color .13s,box-shadow .13s}
+  .rb-dd-btn:hover{border-color:var(--primary)}
+  .rb-dd.open .rb-dd-btn{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .rb-dd-btn svg{width:14px;height:14px;flex:0 0 auto;margin-left:auto;color:var(--muted);transition:transform .13s}
+  .rb-dd.open .rb-dd-btn svg{transform:rotate(180deg)}
+  .rb-dd-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+  /* z-index jadval/kartadan yuqori — .rb-users overflow:hidden ISHLATMAYDI (yuqoriga qarang),
+     shuning uchun bu popover katak chegarasidan tashqariga chiqib to'liq ko'rinadi */
+  .rb-dd-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:45;min-width:230px;
+    max-width:300px;max-height:264px;overflow:auto;background:var(--surface);border:1px solid var(--line);
+    border-radius:11px;box-shadow:var(--shadow-hover);padding:6px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .rb-dd.open .rb-dd-menu{display:block}
+  .rb-dd-item{display:flex;align-items:center;gap:9px;padding:0 10px;border-radius:8px;cursor:pointer;
+    font-size:13px;color:var(--ink);min-height:40px;transition:background .13s,color .13s}
+  .rb-dd-item:hover{background:var(--surface-2)}
+  .rb-dd-item:has(input:checked){background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .rb-dd-item input{margin:0;flex:0 0 auto;width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+  .rb-dd-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+  .rb-dd-ovq{font-size:10.5px;color:var(--muted);font-style:normal;font-weight:500;flex:0 0 auto}
+  .rb-dd-item:has(input:checked) .rb-dd-ovq{color:var(--primary)}
+  .rb-dd-empty{color:var(--muted);cursor:default}
+  .rb-dd-empty:hover{background:transparent}
+
+  /* --- O'chirish modali --- */
+  .rb-modal{position:fixed;inset:0;background:rgba(16,24,40,.55);display:none;align-items:center;
+    justify-content:center;z-index:210;padding:20px;backdrop-filter:blur(1px)}
+  .rb-modal.open{display:flex}
+  .rb-modal-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;
+    max-width:min(380px,calc(100vw - 32px));width:100%;max-height:calc(100vh - 32px);overflow:auto;
+    box-shadow:var(--shadow-hover);animation:mxdIn .16s cubic-bezier(.22,.61,.36,1)}
+  .rb-modal-txt{font-size:14.5px;line-height:1.55;color:var(--ink)}
+  .rb-modal-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+  .rb-modal-acts .mxd-save,.rb-modal-acts .mxd-cancel{flex:1 1 120px;min-width:0}
+  .rb-modal-acts .mxd-save{background:var(--red)}
+  .rb-modal-acts .mxd-save:hover{background:var(--red);opacity:.88}
+
+  /* --- Toast (umumiy, sahifada boshqa toast() bo'lmagani uchun shu yerda) --- */
+  .rb-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,12px);z-index:300;
+    background:var(--surface);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--green);
+    border-radius:11px;padding:11px 18px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-hover);
+    opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;max-width:calc(100vw - 32px)}
+  .rb-toast.err{border-left-color:var(--red)}
+  .rb-toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* --- Bo'sh holatlar --- */
+  /* display:block emas 'flex' — #rbEditorEmpty JS orqali style.display='block' bilan
+     ochiladi, shuning uchun ustunlashtirish flex'ga emas, ichki elementlarga tayanadi */
+  .rb-empty{color:var(--muted);text-align:center;padding:30px 14px;font-size:13.5px;line-height:1.6}
+  .rb-empty svg{display:block;width:26px;height:26px;margin:0 auto 8px;opacity:.5}
+
+  @media(max-width:520px){
+    .rb-users thead{display:none}
+    .rb-users table,.rb-users tbody,.rb-users tr,.rb-users td{display:block;width:100%}
+    .rb-users tr{padding:12px;border-bottom:1px solid var(--line)}
+    .rb-users td{border-bottom:none;padding:5px 0}
+    .rb-users tr:last-child td:first-child,.rb-users tr:last-child td:last-child{border-radius:0}
+    .rb-dd-btn{max-width:none;width:100%}
+    .rb-dd-menu{left:0;right:0;min-width:0;max-width:none}
+    .rb-cb-btn{max-width:none;width:100%}
+    .rb-cb-pop{left:0;right:0;min-width:0;max-width:none}
+  }
 </style>
 </head>
 <body>
@@ -321,6 +585,10 @@
       <a class="nav-item" href="sorovlar.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
       <a class="nav-item active" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <!-- Admin-only, shu sahifaning ICHKI bo'limiga (#rollar) o'tadi — alohida sahifa emas,
+           shuning uchun 15 faylning umumiy nav sanog'iga (sidebar 15 / sheet 9) kirmaydi.
+           RPC (PROVODKA_RBAC.sql) yo'q bo'lsa yoki admin bo'lmasa yashirin turadi. -->
+      <a class="nav-item" id="navRollar" href="#rollar" style="display:none"><i data-lucide="users-round"></i><span>Rollar</span></a>
       <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
       <a class="nav-item" href="ai.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
     </nav>
@@ -513,12 +781,102 @@
       <div id="korRes" class="res"></div>
     </div>
 
+    <!-- Ovqat narxlari — 5401+ "Ovqat" moddasiga yozilganda zavtrak/obed/kechki necha so'mligi -->
+    <div class="card" id="ovqNarxCard" style="display:none">
+      <div class="sec">Ovqat narxlari</div>
+      <div class="hint">Hodimga bir zavtrak/obed/kechki necha so'm hisoblanishi. "Xarajat" tabida
+        modda ustidagi <b>Ovqat</b> belgisi bilan biriktiriladi — o'sha modda uchun xarajat faqat
+        hodim ro'yxati orqali (kuniga 1 zavtrak / 1 obed / 1 kechki nazorati bilan) yoziladi.</div>
+      <div class="addrow" style="margin-bottom:10px">
+        <input id="ovqObed" inputmode="numeric" placeholder="Obed narxi (so'm)" autocomplete="off" oninput="onOvqNarxInput()">
+      </div>
+      <div class="addrow" style="margin-bottom:10px">
+        <input id="ovqZavtrak" inputmode="numeric" placeholder="Zavtrak narxi (so'm)" autocomplete="off" oninput="onOvqNarxInput()">
+      </div>
+      <div class="addrow">
+        <input id="ovqKechki" inputmode="numeric" placeholder="Kechki narxi (so'm)" autocomplete="off" oninput="onOvqNarxInput()">
+        <button id="ovqNarxBtn" onclick="saveOvqNarx()" disabled><i data-lucide="save"></i>Saqlash</button>
+      </div>
+      <div id="ovqNarxRes" class="res"></div>
+    </div>
+
+    <!-- Filial moslashtirish — aros_staff.branch_id ni Provodka xarajat filialiga bog'laydi -->
+    <div class="card" id="staffMapCard" style="display:none">
+      <div class="sec">Filial moslashtirish (aros-staff ↔ Provodka)</div>
+      <div class="hint">Aros hodimlar katalogidagi filial nomi Provodka filialiga avtomatik
+        moslashtiriladi. Nom mos kelmasa (sariq qator) — qo'lda tanlang. "↺" tugmasi qo'lda
+        belgilashni bekor qilib, qayta avto-moslashtirishga qaytaradi.</div>
+      <div id="staffMapList"></div>
+    </div>
+
     <div class="card" id="linkCard" style="display:none">
       <div class="sec">Filiallarni bog'lash</div>
       <div class="hint">Aros'dagi filiallarni Provodka hisoblariga bog'laydi — filial bo'yicha foyda shundan hisoblanadi.
         Bir martalik amal, lekin qayta bosish zarar qilmaydi.</div>
       <div class="addrow"><button id="linkBtn" onclick="linkFilial()"><i data-lucide="link"></i>Filiallarni bog'lash</button></div>
       <div id="linkRes" class="res"></div>
+    </div>
+
+    <!-- ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql). Admin-only,
+         RPC yo'q bo'lsa (SQL RUN qilinmagan) rpcMissing() bilan jimgina yashirinadi. ===== -->
+    <div class="card" id="rollarCard" style="display:none">
+      <div class="rb-headrow">
+        <button type="button" class="rb-back" id="rbBackBtn" style="display:none"
+          onclick="rbBackToSozlama()" aria-label="Sozlamalarga qaytish"><i data-lucide="chevron-left"></i></button>
+        <h2 class="rb-title" id="rollar">Rollar va foydalanuvchilar</h2>
+      </div>
+      <div class="hint">Har foydalanuvchiga bir yoki bir nechta rol berilishi mumkin — rolga
+        biriktirilgan amallar (sahifalar), xarajat moddalari va ovqat turlari o'sha
+        foydalanuvchi uchun ruxsat beradi (eski shaxsiy ruxsat bilan birga, UNION).
+        Rol o'zgarishi hodimga keyingi sahifa ochilishida tushadi; server darhol majburlaydi.</div>
+      <div id="rbBanner" class="res" style="display:none"></div>
+
+      <div class="rb-wrap">
+        <div class="rb-roles">
+          <div class="rb-roles-hd">
+            <input class="mxd-in" id="rbRoleSearch" placeholder="Rol qidirish..." oninput="rbFilterRoles()">
+            <button type="button" class="mxd-add" style="margin:0;width:auto;padding:0 14px" onclick="rbNewRole()">
+              <i data-lucide="plus"></i>Yangi rol</button>
+          </div>
+          <div class="rb-role-list" id="rbRoleList"></div>
+        </div>
+
+        <div class="rb-editor" id="rbEditor" style="display:none"></div>
+      </div>
+      <div class="rb-empty" id="rbEditorEmpty"><i data-lucide="user-round-cog"></i>
+        <span>Chapdan biror rolni tanlang yoki "Yangi rol" tugmasini bosing.</span></div>
+
+      <!-- Ikki tab: Supabase auth foydalanuvchilari va aros-staff hodimlari (ovqat/rol).
+           Hodim tab RPC (PROVODKA_RBAC_STAFF.sql) yo'q bo'lsa rpcMissing() bilan yashirinadi. -->
+      <div class="seg" id="rbTabs" style="margin-top:22px;max-width:420px">
+        <button type="button" class="on" id="rbTabUserBtn" onclick="rbSwitchTab('user')">Kirish foydalanuvchilari</button>
+        <button type="button" id="rbTabStaffBtn" style="display:none" onclick="rbSwitchTab('staff')">Hodimlar (aros-staff)</button>
+      </div>
+
+      <div id="rbUserPane">
+        <input class="mxd-in" id="rbUserSearch" placeholder="Foydalanuvchi qidirish..." oninput="rbFilterUsers()">
+        <div class="rb-users" id="rbUserList"></div>
+      </div>
+
+      <div id="rbStaffPane" style="display:none">
+        <div class="rb-note" style="margin:0 0 10px">Hodimning roli uning qaysi ovqatni olishini
+          belgilaydi (obed/zavtrak/kechki). Hodimni Provodka akkauntiga bog'lasangiz, ovqat ruxsati
+          o'sha akkauntning rolidan olinadi (bitta joyda boshqariladi).</div>
+        <input class="mxd-in" id="rbStaffSearch" placeholder="Hodim qidirish..." oninput="rbFilterStaff()">
+        <div class="rb-users rb-users-staff" id="rbStaffList"></div>
+      </div>
+    </div>
+
+    <!-- Rol o'chirish tasdig'i — sahifa ichi modal (brauzer confirm() ISHLATILMAYDI) -->
+    <div class="rb-modal" id="rbDelModal">
+      <div class="rb-modal-box">
+        <div class="rb-modal-txt" id="rbDelTxt"></div>
+        <div class="rb-modal-acts">
+          <button type="button" class="mxd-cancel" onclick="rbDelCancel()">Bekor</button>
+          <button type="button" class="mxd-save" id="rbDelBtn" style="background:var(--red)" onclick="rbDelConfirm()">
+            <i data-lucide="trash-2"></i>O'chirish</button>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -570,7 +928,26 @@ const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',','
 // innerHTML'ga tushadigan HAR foydalanuvchi matni (nom, subtitle, kod) shundan o'tadi —
 // aks holda nomdagi `<`/`&` sahifa tuzilishini buzadi (boshqa sahifalardagi bilan bir xil).
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Umumiy toast — sahifada boshqa toast() yo'q, shu yerda ochiladi ('Rollar' saqlash tugmalari,
+// ovqat narxi, filial moslama). Bir vaqtda bittadan (yangi chaqiruv eskisini almashtiradi).
+let toastTimer=null;
+function toast(type,msg){
+  let el=$('globalToast');
+  if(!el){ el=document.createElement('div'); el.id='globalToast'; el.className='rb-toast'; document.body.appendChild(el); }
+  el.className='rb-toast'+(type==='err'?' err':'')+' show';
+  el.textContent=msg||'';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ el.classList.remove('show'); },2500);
+}
+window.toast=toast;
+const hhmm=()=>{ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
 let accounts=[], curType='kassa', isAdmin=false;
+// RBAC (Rollar va foydalanuvchilar) holati
+let rbOff=false, rbRoles=[], rbAmalRoyxati=[], rbModdalar=[], rbUsers=[],
+    rbEditing=null, rbUserPending={}, rbPendingDeleteId=null, rbModdaQ='';
+// RBAC — Hodimlar (aros-staff) tabi holati (PROVODKA_RBAC_STAFF.sql)
+let rbStaffOff=true, rbStaff=[], rbStaffRoles=[], rbStaffPending={}, rbTab='user';
+let rbStaffUsers=[], rbStaffLinkPending={};   // "Provodka akkaunti" ustuni — rbac_staff_link_set()
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
 window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-theme')==='dark';
@@ -648,19 +1025,26 @@ function renderList(elId,arr,showChek){
   // showChek → Xarajat ro'yxatida "Chek" checkbox (admin chek majburiyligini boshqaradi)
   $(elId).innerHTML=arr.length?arr.map(a=>`
     <div class="item ${a.is_active?'':'off'}">
-      <div class="mid"><div class="t">${esc(a.name)}</div><div class="c">${esc(a.code)}${a.subtitle?' · '+esc(a.subtitle):''}</div></div>
-      ${showChek?`<label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
+      <div class="item-head">
+        <div class="mid"><div class="t">${esc(a.name)}</div><div class="c">${esc(a.code)}${a.subtitle?' · '+esc(a.subtitle):''}</div></div>
+        <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
+        <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
+      </div>
+      ${showChek?`<div class="item-chips">
+      <label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
       <label class="chekopt ${a.izoh_majburiy?'on':''}" title="Izoh majburiy"><input type="checkbox" ${a.izoh_majburiy?'checked':''} onchange="setFlag('${a.id}','izoh',this.checked)">Izoh</label>
       <label class="chekopt ${a.davr_majburiy?'on':''}" title="Davr (sana) majburiy"><input type="checkbox" ${a.davr_majburiy?'checked':''} onchange="setFlag('${a.id}','davr',this.checked)">Sana</label>
       <label class="chekopt ${a.filial_majburiy?'on':''}" title="Filial majburiy — xarajat qaysi filial uchun"><input type="checkbox" ${a.filial_majburiy?'checked':''} onchange="setFlag('${a.id}','filial',this.checked)">Filial</label>
-      ${mxdBtn(a.id)}`:''}
-      <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
-      <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
+      ${a.ovqat_modda!==undefined?`<label class="chekopt ${a.ovqat_modda?'on':''}" title="Ovqat moddasi — hodim ro'yxati + kuniga 1 obed/1 zavtrak nazorati"><input type="checkbox" ${a.ovqat_modda?'checked':''} onchange="setFlag('${a.id}','ovqat',this.checked)">Ovqat</label>`:''}
+      ${a.ai_tekshir!==undefined?`<label class="chekopt ${a.ai_tekshir?'on':''}" title="Chek rasmini AI o'qiydi — summa/sana; farq bo'lsa admin ko'radi."><input type="checkbox" ${a.ai_tekshir?'checked':''} onchange="setFlag('${a.id}','ai',this.checked)">AI chek</label>`:''}
+      ${a.spidometr_ai!==undefined?`<label class="chekopt ${a.spidometr_ai?'on':''}" title="Faqat benzin/gaz: spidometr rasmi → km tarixi"><input type="checkbox" ${a.spidometr_ai?'checked':''} onchange="setFlag('${a.id}','spidometr',this.checked)">AI spidometr</label>`:''}
+      ${mxdBtn(a.id)}
+      </div>`:''}
     </div>`).join(''):'<div class="empty">—</div>';
 }
 // Modda bayrog'ini (chek|izoh|davr|filial) o'zgartiradi (admin only — RPC).
 // Xato bo'lsa ro'yxat qayta chiziladi (revert). Bitta umumiy set_modda_flag RPC.
-const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy'};
+const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda',ai:'ai_tekshir',spidometr:'spidometr_ai'};
 window.setFlag=async(id,flag,val)=>{
   const {error}=await sb.rpc('set_modda_flag',{p_account:id,p_flag:flag,p_bool:val});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }
@@ -801,6 +1185,146 @@ window.saveKor=async()=>{
   korCur=v;
   $('korRes').className='res ok'; $('korRes').textContent=`Koridor ${v}% qilib saqlandi.`;
   renderKorScale(); onKorInput();
+};
+
+// RPC hali bazada yo'q (PROVODKA_OVQAT.sql RUN qilinmagan) — bo'lim jimgina yashirinadi.
+// Xuddi mxdLoad() dagi MXD_MISS naqshi bilan bir xil kodlar.
+function rpcMissing(error){
+  const code=String((error&&error.code)||''), msg=String((error&&error.message)||'');
+  return ['PGRST202','PGRST205','42883','42P01'].indexOf(code)>=0
+    || /Could not find the function|does not exist|schema cache/i.test(msg);
+}
+
+// ===== Ovqat narxlari — PROVODKA_OVQAT.sql + PROVODKA_OVQAT_KECHKI.sql:
+//       ovqat_narxlar() / set_ovqat_narx() =====
+let ovqNarx={obed:null,zavtrak:null,kechki:null};
+let ovqKechkiBor=false;   // server javobida `kechki` kaliti bormi (PROVODKA_OVQAT_KECHKI.sql RUN qilinganmi)
+async function loadOvqNarx(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.rpc('ovqat_narxlar');
+  if(error){
+    if(rpcMissing(error)){ $('ovqNarxCard').style.display='none'; return; }
+    $('ovqNarxCard').style.display='block';
+    $('ovqNarxRes').className='res err';
+    $('ovqNarxRes').textContent="O'qib bo'lmadi: "+(window.permErr?window.permErr(error):error.message);
+    return;
+  }
+  // 🔴 'kechki' PROVODKA_OVQAT_KECHKI.sql RUN qilinmagan bazada javobda yo'q
+  //    bo'lishi mumkin — shu holatda 0 (input bo'sh), input o'zgarganida
+  //    o'zgarganini yuborish naqshi baribir ishlaydi.
+  ovqNarx={obed:Number((data&&data.obed))||0, zavtrak:Number((data&&data.zavtrak))||0, kechki:Number((data&&data.kechki))||0};
+  $('ovqNarxCard').style.display='block';
+  $('ovqObed').value=String(ovqNarx.obed);
+  $('ovqZavtrak').value=String(ovqNarx.zavtrak);
+  ovqKechkiBor=!!(data&&data.kechki!==undefined&&data.kechki!==null);
+  // 🔴 kechki hali serverda yo'q bo'lsa input o'chiq va majburiy EMAS — obed/zavtrak avvalgidek saqlanaveradi
+  $('ovqKechki').value=ovqKechkiBor?String(ovqNarx.kechki):'';
+  $('ovqKechki').disabled=!ovqKechkiBor;
+  $('ovqKechki').placeholder=ovqKechkiBor?'':'SQL RUN kerak';
+  onOvqNarxInput();
+}
+window.onOvqNarxInput=()=>{
+  const o=Number($('ovqObed').value)||0, z=Number($('ovqZavtrak').value)||0, k=Number($('ovqKechki').value)||0;
+  $('ovqNarxBtn').disabled=!(o>0&&z>0&&(!ovqKechkiBor||k>0)&&(o!==ovqNarx.obed||z!==ovqNarx.zavtrak||(ovqKechkiBor&&k!==ovqNarx.kechki)));
+  $('ovqNarxRes').className='res'; $('ovqNarxRes').textContent='';
+};
+window.saveOvqNarx=async()=>{
+  if(!isAdmin){ alert('Faqat admin'); return; }
+  const o=Number($('ovqObed').value)||0, z=Number($('ovqZavtrak').value)||0, k=Number($('ovqKechki').value)||0;
+  if(!(o>0&&z>0&&(!ovqKechkiBor||k>0))){ $('ovqNarxRes').className='res err'; $('ovqNarxRes').textContent="Narx musbat bo'lishi kerak"; return; }
+  const btn=$('ovqNarxBtn'), old=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='Saqlanmoqda...';
+  try{
+    if(o!==ovqNarx.obed){ const {error}=await sb.rpc('set_ovqat_narx',{p_tur:'obed',p_narx:o}); if(error) throw error; }
+    if(z!==ovqNarx.zavtrak){ const {error}=await sb.rpc('set_ovqat_narx',{p_tur:'zavtrak',p_narx:z}); if(error) throw error; }
+    if(ovqKechkiBor&&k!==ovqNarx.kechki){ const {error}=await sb.rpc('set_ovqat_narx',{p_tur:'kechki',p_narx:k}); if(error) throw error; }
+  }catch(error){
+    btn.disabled=false; btn.innerHTML=old; icons();
+    const msg=window.permErr?window.permErr(error):error.message;
+    $('ovqNarxRes').className='res err'; $('ovqNarxRes').textContent='Xato: '+msg;
+    toast('err','Xato: '+msg);
+    return;
+  }
+  ovqNarx={obed:o,zavtrak:z,kechki:k};
+  btn.innerHTML=old; icons();
+  toast('ok','Saqlandi ✓');
+  onOvqNarxInput();   // tugma disabled holatini yangilaydi, `.res` ni ham tozalaydi
+  $('ovqNarxRes').className='res ok'; $('ovqNarxRes').textContent='Narxlar saqlandi · '+hhmm();
+};
+
+// ===== Filial moslashtirish (aros-staff <-> Provodka) — PROVODKA_OVQAT.sql =====
+// staff_branch_map_royxat() -> joriy moslama + avto tavsiya. Tanlash ro'yxati
+// (hodim kassalari subtitle'idan filial nomi) klientda `accounts`dan hisoblanadi —
+// v_filial_tanlov BILAN BIR XIL manba emas (u savdo qilmaydigan filiallarni ham
+// qamraydi), shu yerda faqat XARAJAT (hodim) kassalari filial nomlari kerak.
+let staffMap=[];
+function filialNamesFromAccounts(){
+  const set=new Set();
+  accounts.forEach(a=>{
+    if(a.kassa_turi==='xarajat' && a.is_active!==false && a.subtitle){
+      const n=String(a.subtitle).split(' · ')[0].trim();
+      if(n) set.add(n);
+    }
+  });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'uz'));
+}
+async function loadStaffMap(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.rpc('staff_branch_map_royxat');
+  if(error){
+    if(rpcMissing(error)){ $('staffMapCard').style.display='none'; return; }
+    $('staffMapCard').style.display='block';
+    $('staffMapList').innerHTML='<div class="empty">O\'qib bo\'lmadi: '+esc(window.permErr?window.permErr(error):error.message)+'</div>';
+    return;
+  }
+  staffMap=Array.isArray(data)?data:[];
+  $('staffMapCard').style.display='block';
+  renderStaffMap();
+}
+function renderStaffMap(){
+  const box=$('staffMapList'); if(!box) return;
+  if(!staffMap.length){ box.innerHTML='<div class="empty">aros_staff hali sinxronlanmagan (n8n)</div>'; return; }
+  const names=filialNamesFromAccounts();
+  const rows=staffMap.slice().sort((a,b)=>{
+    const am=a.mos_filial?1:0, bm=b.mos_filial?1:0;
+    if(am!==bm) return am-bm;                 // mos_filial yo'qlar tepada
+    return String(a.branch_nomi||'').localeCompare(String(b.branch_nomi||''),'uz');
+  });
+  box.innerHTML=rows.map(r=>{
+    const missing=!r.mos_filial;
+    let opts='<option value="">— tanlanmagan —</option>'
+      +names.map(n=>`<option value="${esc(n)}"${r.mos_filial===n?' selected':''}>${esc(n)}</option>`).join('');
+    // Joriy mos_filial ro'yxatda yo'q bo'lsa (masalan eski qo'lda nom) — yo'qotib qo'ymaslik uchun qo'shamiz
+    if(r.mos_filial && names.indexOf(r.mos_filial)<0)
+      opts+=`<option value="${esc(r.mos_filial)}" selected>${esc(r.mos_filial)}</option>`;
+    const meta=[missing?'Mos filial belgilanmagan':('Mos: <b>'+esc(r.mos_filial)+'</b>'),
+                r.manba==='qolda'?"qo'lda":'avto',
+                (r.tavsiya && r.tavsiya!==r.mos_filial)?('tavsiya: '+esc(r.tavsiya)):''].filter(Boolean).join(' · ');
+    return `<div class="item stm${missing?' miss':''}">
+      <div class="mid"><div class="t">${esc(r.branch_nomi||('#'+r.branch_id))}</div><div class="c">${meta}</div></div>
+      <select id="stm_${r.branch_id}">${opts}</select>
+      <button class="edit" id="stmSave_${r.branch_id}" title="Saqlash" onclick="saveStaffMap(${Number(r.branch_id)})"><i data-lucide="save"></i></button>
+      ${r.manba==='qolda'?`<button class="edit" title="Avto holatga qaytarish" onclick="autoStaffMap(${Number(r.branch_id)})"><i data-lucide="rotate-ccw"></i></button>`:''}
+    </div>`;
+  }).join('');
+  icons();
+}
+window.saveStaffMap=async(bid)=>{
+  const sel=$('stm_'+bid); if(!sel) return;
+  const val=sel.value.trim();
+  const btn=$('stmSave_'+bid); if(btn) btn.disabled=true;
+  try{
+    const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:val||null});
+    if(error){ const msg=window.permErr?window.permErr(error):error.message; toast('err','Xato: '+msg); return; }
+    toast('ok','Saqlandi ✓');
+    await loadStaffMap();
+  }finally{ const btn2=$('stmSave_'+bid); if(btn2) btn2.disabled=false; }
+};
+window.autoStaffMap=async(bid)=>{
+  const {error}=await sb.rpc('staff_branch_map_set',{p_branch_id:bid,p_filial:null});
+  if(error){ toast('err','Xato: '+(window.permErr?window.permErr(error):error.message)); return; }
+  toast('ok','Saqlandi ✓');
+  await loadStaffMap();
 };
 
 // ===== MAXSUS MAYDON KONSTRUKTORI (.mxd-*) — PROVODKA_XARAJAT_MAYDON.sql =====
@@ -1407,12 +1931,577 @@ window.linkFilial=async()=>{
   btn.disabled=false; btn.innerHTML=old; icons();
 };
 
+// ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql):
+//       rbac_royxat() / rbac_users() / rbac_role_save() / rbac_role_delete() / rbac_user_set() =====
+// Sahifa kalitlari uchun o'zbekcha yorliq — perms.js PAGES bilan bir xil ro'yxat + 'hodim'.
+// Noma'lum kalit (kelajakda perm_pages()ga qo'shilsa) o'z nomi bilan ko'rsatiladi — yashirilmaydi.
+const RB_LABELS={hodim:'Xarajat kiritish',kassa:'Kassa',jurnal:'Jurnal',professional:'Professional',
+  hisobot:'Hisobot',balans:'Balans',cashflow:'Cashflow',qarzdor:'Qarzdorlar',filial:'Filiallar',
+  valyuta:'Valyuta',konvert:'Konvert',sozlama:'Sozlamalar',provodka:'Kiritish',yuklar:'Yuklar',
+  standart:'Standart xarajatlar',tannarx:'Tannarx',ai:'AI yordamchi',sorovlar:"So'rovlar"};
+const rbAmalLabel=k=>RB_LABELS[k]||k;
+function rbBanner(cls,msg){ const el=$('rbBanner'); if(!el) return;
+  el.style.display=msg?'block':'none'; el.className='res '+(cls||''); el.textContent=msg||''; }
+
+// rbac_royxat() bazada yo'q (PROVODKA_RBAC.sql RUN qilinmagan) — bo'lim jimgina yashirinadi.
+async function rbLoad(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.rpc('rbac_royxat');
+  if(error){
+    if(rpcMissing(error)){ rbOff=true; $('rollarCard').style.display='none';
+      const nav=document.getElementById('navRollar'); if(nav) nav.style.display='none';
+      sozApplyRollarFocus(); return; }
+    rbOff=false; $('rollarCard').style.display='block';
+    rbBanner('err',"Rollar o'qilmadi: "+(window.permErr?window.permErr(error):error.message));
+    sozApplyRollarFocus();
+    return;
+  }
+  rbOff=false;
+  rbAmalRoyxati=Array.isArray(data&&data.amal_royxati)?data.amal_royxati:[];
+  rbModdalar=Array.isArray(data&&data.moddalar)?data.moddalar:[];
+  rbRoles=Array.isArray(data&&data.rollar)?data.rollar:[];
+  $('rollarCard').style.display='block';
+  const nav=document.getElementById('navRollar'); if(nav) nav.style.display='';
+  rbBanner('', '');
+  if(rbEditing&&rbEditing.id){ const still=rbRoles.find(r=>r.id===rbEditing.id);
+    if(still) window.rbSelectRole(still.id); else rbCloseEditor(); }
+  else{ rbRenderEditor(); }
+  rbRenderRoles();
+  await rbLoadUsers();
+  await rbLoadStaff();
+  sozApplyRollarFocus();
+}
+async function rbLoadUsers(){
+  if(!isAdmin||rbOff) return;
+  const {data,error}=await sb.rpc('rbac_users');
+  if(error){ if(rpcMissing(error)) return;
+    rbBanner('err',"Foydalanuvchilar o'qilmadi: "+(window.permErr?window.permErr(error):error.message)); return; }
+  rbUsers=Array.isArray(data)?data:[];
+  rbUserPending={};
+  rbUsers.forEach(u=>{ rbUserPending[u.id]=new Set((u.roles||[]).map(r=>r.id)); });
+  rbRenderUsers();
+}
+
+function rbRenderRoles(){
+  const q=(($('rbRoleSearch')&&$('rbRoleSearch').value)||'').trim().toLowerCase();
+  const list=rbRoles.filter(r=>!q||String(r.nom||'').toLowerCase().indexOf(q)>=0);
+  $('rbRoleList').innerHTML=list.length?list.map(r=>{
+    // modda_limit/ovqat_limit — PROVODKA_RBAC_LIMIT.sql RUN qilinmagan bazada yo'q, shunda 0 (matn chiqmaydi)
+    const limCount=(r.modda_limit?Object.keys(r.modda_limit).length:0)+(r.ovqat_limit?Object.keys(r.ovqat_limit).length:0);
+    return `
+    <div class="rb-role-item ${rbEditing&&rbEditing.id===r.id?'sel':''}" onclick="rbSelectRole('${r.id}')">
+      <div class="rb-rn">${esc(r.nom)}</div>
+      <div class="rb-rc">${Number(r.user_soni)||0} ta${limCount?` · ${limCount} ta limitli`:''}</div>
+      <span class="rb-badge ${r.is_active?'on':'off'}">${r.is_active?'Faol':'Nofaol'}</span>
+    </div>`;
+  }).join(''):'<div class="rb-empty"><i data-lucide="users-round"></i><span>Rol topilmadi</span></div>';
+  icons();
+}
+window.rbFilterRoles=()=>rbRenderRoles();
+
+function rbBlankEditing(){ return {id:null,nom:'',izoh:'',is_active:true,
+  amallar:new Set(),moddalar:new Set(),ovqat:new Set(),rbLimit:{modda:{},ovqat:{}}}; }
+window.rbNewRole=()=>{ rbEditing=rbBlankEditing(); rbRenderEditor(); rbRenderRoles();
+  const ed=$('rbEditor'); if(ed) ed.scrollIntoView({block:'nearest',behavior:'smooth'}); };
+window.rbSelectRole=id=>{ const r=rbRoles.find(x=>x.id===id); if(!r) return;
+  rbEditing={ id:r.id, nom:r.nom||'', izoh:r.izoh||'', is_active:r.is_active!==false,
+    amallar:new Set(r.amallar||[]), moddalar:new Set(r.moddalar||[]), ovqat:new Set(r.ovqat||[]),
+    // modda_limit/ovqat_limit — eski SQL da yo'q kalitlar, shunda bo'sh obyekt (cheksiz)
+    rbLimit:{ modda:Object.assign({},r.modda_limit||{}), ovqat:Object.assign({},r.ovqat_limit||{}) } };
+  rbRenderEditor(); rbRenderRoles(); };
+function rbCloseEditor(){ rbEditing=null; rbRenderEditor(); rbRenderRoles(); }
+window.rbCloseEditor=rbCloseEditor;
+
+function rbRenderEditor(){
+  const ed=$('rbEditor'), empty=$('rbEditorEmpty');
+  if(!rbEditing){ ed.style.display='none'; ed.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  ed.style.display='block';
+  const isNew=!rbEditing.id;
+  const delBtn=isNew?'':`<button type="button" class="mxd-cancel" style="color:var(--red);border-color:var(--red)" onclick="rbAskDelete('${rbEditing.id}')"><i data-lucide="trash-2"></i>O'chirish</button>`;
+  ed.innerHTML=`
+    <div class="mxd-fhd">${isNew?'Yangi rol':'Rolni tahrirlash'}</div>
+    <div class="rb-frow"><label class="mxd-l" for="rbNom">Nomi</label>
+      <input class="mxd-in" id="rbNom" maxlength="60" value="${esc(rbEditing.nom)}" oninput="rbEditField('nom',this.value)"></div>
+    <div class="rb-frow"><label class="mxd-l" for="rbIzoh">Izoh</label>
+      <input class="mxd-in" id="rbIzoh" maxlength="200" value="${esc(rbEditing.izoh)}" oninput="rbEditField('izoh',this.value)"></div>
+    <label class="chekopt ${rbEditing.is_active?'on':''}"><input type="checkbox" ${rbEditing.is_active?'checked':''} onchange="rbEditField('is_active',this.checked)">Faol</label>
+
+    <div class="rb-frow rb-sec"><div class="mxd-l rb-sub">Amallar (sahifalar)</div>
+      <div class="rb-grid-check">${rbAmalRoyxati.map(a=>`
+        <label class="rb-chk"><input type="checkbox" ${rbEditing.amallar.has(a)?'checked':''} onchange="rbToggleSet('amallar','${a}',this.checked)"><span>${esc(rbAmalLabel(a))}</span></label>`).join('')}</div></div>
+
+    <div class="rb-frow rb-sec">
+      <div class="rb-frow-title"><div class="mxd-l rb-sub" style="margin:0">Xarajat moddalari</div></div>
+      <div class="rb-modda-hd">
+        <input class="mxd-in" id="rbModdaQ" placeholder="Modda qidirish..." value="${esc(rbModdaQ)}" oninput="rbModdaSearch(this.value)">
+        <button type="button" class="mxd-btn" onclick="rbModdaAll(true)">Hammasi</button>
+        <button type="button" class="mxd-btn" onclick="rbModdaAll(false)">Hech biri</button>
+      </div>
+      <div class="rb-help">Bo'sh = cheksiz. Limit — shu rolga ega hodimning OYLIK sarfi (ovqatda — yeyuvchi hodimniki).</div>
+      <div class="rb-grid-check" id="rbModdaGrid"></div></div>
+
+    <div class="rb-frow rb-sec"><div class="mxd-l rb-sub">Ovqat</div>
+      <div class="rb-grid-check" id="rbOvqatGrid"></div></div>
+
+    <div id="rbEditorRes" class="res"></div>
+    <div class="rb-acts">
+      <span id="rbSaveRes" class="rb-res"></span>
+      <button type="button" class="mxd-save" id="rbSaveBtn" onclick="rbSaveRole()"><i data-lucide="save"></i>Saqlash</button>
+      ${delBtn}
+      <button type="button" class="mxd-cancel" onclick="rbCloseEditor()">Yopish</button>
+    </div>`;
+  rbRenderModdaGrid();
+  rbRenderOvqatGrid();
+  icons();
+}
+window.rbEditField=(k,v)=>{ if(rbEditing) rbEditing[k]=v; };
+window.rbToggleSet=(field,val,checked)=>{ if(!rbEditing) return;
+  const s=rbEditing[field]; if(checked) s.add(val);
+  else{ s.delete(val);
+    // Belgi olib tashlansa limit ham o'chadi (moddalar/ovqat) — cheksiz bo'lgan holatga qaytadi
+    if(field==='moddalar') delete rbEditing.rbLimit.modda[val];
+    else if(field==='ovqat') delete rbEditing.rbLimit.ovqat[val];
+  }
+  // Limit inputini checkbox holatiga moslab ko'rsatish/yashirish uchun tegishli grid qayta chiziladi
+  if(field==='moddalar') rbRenderModdaGrid();
+  else if(field==='ovqat') rbRenderOvqatGrid();
+};
+
+// Modda/ovqat limit qiymati: bo'sh/0 = cheksiz (obyektdan o'chiriladi, saqlashda null ketadi)
+window.rbSetLimit=(kind,key,val)=>{ if(!rbEditing) return;
+  const n=Number(String(val||'').replace(/[^\d]/g,''))||0;
+  if(n>0) rbEditing.rbLimit[kind][key]=n; else delete rbEditing.rbLimit[kind][key];
+};
+window.rbFormatLimit=el=>{ const n=Number(String(el.value||'').replace(/[^\d]/g,''))||0; el.value=n>0?money(n):''; };
+
+function rbLimRow(checked,label,limVal,kind,key){
+  const lim=`<input type="text" class="rb-lim-in" inputmode="numeric" title="Limit/oy" placeholder="cheksiz"
+      value="${limVal?money(limVal):''}" onclick="event.stopPropagation()"
+      oninput="rbSetLimit('${kind}','${key}',this.value)" onblur="rbFormatLimit(this)">`;
+  return `<label class="rb-chk${checked?' rb-chk-lim':''}"><input type="checkbox" ${checked?'checked':''} onchange="rbToggleSet('${kind==='modda'?'moddalar':'ovqat'}','${key}',this.checked)"><span>${label}</span>${checked?lim:''}</label>`;
+}
+
+function rbRenderModdaGrid(){
+  const grid=$('rbModdaGrid'); if(!grid||!rbEditing) return;
+  const q=rbModdaQ.trim().toLowerCase();
+  const list=rbModdalar.filter(m=>!q||String(m.code||'').toLowerCase().indexOf(q)>=0||String(m.name||'').toLowerCase().indexOf(q)>=0);
+  grid.innerHTML=list.length?list.map(m=>
+    rbLimRow(rbEditing.moddalar.has(m.id), esc(m.code)+' '+esc(m.name), rbEditing.rbLimit.modda[m.id], 'modda', m.id)
+  ).join(''):'<div class="empty">Modda topilmadi</div>';
+}
+window.rbModdaSearch=v=>{ rbModdaQ=v; rbRenderModdaGrid(); };
+window.rbModdaAll=all=>{ if(!rbEditing) return;
+  if(all) rbModdalar.forEach(m=>rbEditing.moddalar.add(m.id)); else{ rbEditing.moddalar.clear(); rbEditing.rbLimit.modda={}; }
+  rbRenderModdaGrid(); };
+
+const RB_OVQAT_LABELS={zavtrak:'Zavtrak',obed:'Obed',kechki:'Kechki'};
+function rbRenderOvqatGrid(){
+  const grid=$('rbOvqatGrid'); if(!grid||!rbEditing) return;
+  grid.innerHTML=['zavtrak','obed','kechki'].map(tur=>
+    rbLimRow(rbEditing.ovqat.has(tur), RB_OVQAT_LABELS[tur], rbEditing.rbLimit.ovqat[tur], 'ovqat', tur)
+  ).join('');
+}
+
+window.rbSaveRole=async()=>{
+  if(!rbEditing) return;
+  const nom=(rbEditing.nom||'').trim();
+  const res=$('rbEditorRes');
+  if(!nom){ res.className='res err'; res.textContent='Rol nomi kerak'; return; }
+  const payload={ id:rbEditing.id, nom, izoh:(rbEditing.izoh||'').trim()||null, is_active:!!rbEditing.is_active,
+    amallar:Array.from(rbEditing.amallar),
+    moddalar:Array.from(rbEditing.moddalar).map(id=>({id, limit:rbEditing.rbLimit.modda[id]||null})),
+    ovqat:Array.from(rbEditing.ovqat).map(tur=>({tur, limit:rbEditing.rbLimit.ovqat[tur]||null})) };
+  res.className='res'; res.textContent='';
+  const btn=$('rbSaveBtn'), sres=$('rbSaveRes'), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
+  if(sres){ sres.className='rb-res'; sres.textContent=''; }
+  try{
+    const {data,error}=await sb.rpc('rbac_role_save',{p_data:payload});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      toast('err','Xato: '+msg);
+      if(sres){ sres.className='rb-res err'; sres.textContent='Xato: '+msg; }
+      return;
+    }
+    const savedId=(data&&data.id)||rbEditing.id;
+    await rbLoad();
+    const r=rbRoles.find(x=>x.id===savedId); if(r) window.rbSelectRole(r.id);
+    toast('ok','Saqlandi ✓');
+    const sres2=$('rbSaveRes'); if(sres2){ sres2.className='rb-res ok'; sres2.textContent='Saqlandi · '+hhmm(); }
+  }finally{
+    const btn2=$('rbSaveBtn'); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+  }
+};
+
+window.rbAskDelete=id=>{ const r=rbRoles.find(x=>x.id===id); rbPendingDeleteId=id;
+  $('rbDelTxt').textContent=`"${(r&&r.nom)||''}" rolini o'chirmoqchimisiz? Bu amalni qaytarib bo'lmaydi.`;
+  $('rbDelModal').style.display='flex'; };
+window.rbDelCancel=()=>{ rbPendingDeleteId=null; $('rbDelModal').style.display='none'; };
+window.rbDelConfirm=async()=>{
+  if(!rbPendingDeleteId) return;
+  const id=rbPendingDeleteId;
+  const btn=$('rbDelBtn'), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='O\'chirilmoqda…'; }
+  try{
+    const {error}=await sb.rpc('rbac_role_delete',{p_id:id});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      $('rbDelTxt').textContent='Xato: '+msg; toast('err','Xato: '+msg);
+      return;
+    }
+    $('rbDelModal').style.display='none'; rbPendingDeleteId=null;
+    if(rbEditing&&rbEditing.id===id) rbCloseEditor();
+    toast('ok',"O'chirildi ✓");
+    await rbLoad();
+  }finally{
+    const btn2=$('rbDelBtn'); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="trash-2"></i>O\'chirish'; icons(); }
+  }
+};
+
+function rbRenderUsers(){
+  const box=$('rbUserList'); if(!box) return;
+  const q=(($('rbUserSearch')&&$('rbUserSearch').value)||'').trim().toLowerCase();
+  const list=rbUsers.filter(u=>{ if(!q) return true;
+    const nm=String(u.full_name||u.id||'').toLowerCase(); return nm.indexOf(q)>=0; });
+  box.innerHTML=list.length?`<table><thead><tr><th>Foydalanuvchi</th><th>Rol</th><th>Rollar</th><th></th></tr></thead><tbody>${
+    list.map(u=>rbUserRowHtml(u)).join('')}</tbody></table>`:'<div class="rb-empty"><i data-lucide="user-search"></i><span>Foydalanuvchi topilmadi</span></div>';
+  icons();
+}
+function rbUserRowHtml(u){
+  const rawName=u.full_name||('#'+String(u.id||'').slice(0,8));
+  const name=esc(rawName);
+  const initial=esc(String(rawName).trim().charAt(0)||'?');
+  const isUserAdmin=u.role==='admin';
+  const pending=rbUserPending[u.id]||new Set();
+  const orig=new Set((u.roles||[]).map(r=>r.id));
+  const dirty=rbSetsDiffer(pending,orig);
+  const dd=isUserAdmin?'<span class="rb-urole">—</span>':rbDdHtml('user_'+u.id,pending,rbRoles);
+  return `<tr>
+    <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
+    <td><span class="rb-urole${isUserAdmin?' adm':''}">${isUserAdmin?'Admin — cheklanmaydi':esc(u.role||'user')}</span></td>
+    <td>${dd}</td>
+    <td>${isUserAdmin?'':`<button type="button" class="mxd-btn" id="rbUserSave_${u.id}" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbUserRes_${u.id}"></span>`}</td>
+  </tr>`;
+}
+window.rbSaveUserRoles=async uid=>{
+  const s=rbUserPending[uid]||new Set();
+  const btn=$('rbUserSave_'+uid), res=$('rbUserRes_'+uid), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
+  if(res){ res.className='rb-res'; res.textContent=''; }
+  let rerendered=false;
+  try{
+    const {error}=await sb.rpc('rbac_user_set',{p_user:uid,p_roles:Array.from(s)});
+    if(error){
+      const msg=window.permErr?window.permErr(error):error.message;
+      rbBanner('err','Xato: '+msg); toast('err','Xato: '+msg);
+      const res2=$('rbUserRes_'+uid); if(res2){ res2.className='rb-res err'; res2.textContent='Xato: '+msg; }
+      return;
+    }
+    rbBanner('ok','Rollar saqlandi.'); toast('ok','Saqlandi ✓');
+    await rbLoadUsers();               // rbRenderUsers qatorni to'liq qayta chizadi (tugma holati shundan)
+    rerendered=true;
+    const res3=$('rbUserRes_'+uid); if(res3){ res3.className='rb-res ok'; res3.textContent='Saqlandi · '+hhmm(); }
+  }finally{
+    // Faqat rerender bo'LMAGAN (xato) holatda tugmani qo'lda tikla — muvaffaqiyatda
+    // rbRenderUsers allaqachon to'g'ri (dirty=false → disabled) tugma chizgan, uni bosib o'tmaslik kerak.
+    if(!rerendered){ const btn2=$('rbUserSave_'+uid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); } }
+  }
+};
+window.rbFilterUsers=()=>rbRenderUsers();
+
+// ===== Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi VA hodim
+//       qatorlarida bir xil ishlatiladi. ddId shakli "<kind>_<key>" (masalan "user_<uuid>",
+//       "staff_<staff_id>") — kind/key shundan ajratiladi. =====
+function rbSetsDiffer(a,b){ return a.size!==b.size||Array.from(a).some(id=>!b.has(id)); }
+function rbDdLabel(sel,rolesList){
+  const roles=rolesList||rbRoles;
+  if(!sel||!sel.size) return '<span class="rb-note" style="margin:0">Rolsiz</span>';
+  const names=roles.filter(r=>sel.has(r.id)).map(r=>r.nom);
+  if(!names.length) return `<span class="rb-note" style="margin:0">${sel.size} ta</span>`;
+  if(names.length<=2) return esc(names.join(', '));
+  return esc(names[0])+', '+esc(names[1])+` +${names.length-2}`;
+}
+function rbDdHtml(ddId,sel,rolesList){
+  const roles=rolesList||rbRoles;
+  const us=ddId.indexOf('_'); const kind=ddId.slice(0,us), key=ddId.slice(us+1);
+  const items=roles.length?roles.map(r=>`
+      <label class="rb-dd-item"><input type="checkbox" ${sel.has(r.id)?'checked':''}
+        onchange="rbDdCheck('${kind}','${esc(key)}','${r.id}',this.checked)">
+        <span>${esc(r.nom)}</span>${(r.ovqat&&r.ovqat.length)?`<i class="rb-dd-ovq">${esc(r.ovqat.join('·'))}</i>`:''}</label>`).join('')
+    :'<div class="rb-dd-item rb-dd-empty">Rol topilmadi</div>';
+  return `<div class="rb-dd" data-dd-id="${ddId}">
+    <button type="button" class="rb-dd-btn" onclick="rbDdToggle('${ddId}')">
+      <span class="rb-dd-label">${rbDdLabel(sel,roles)}</span><i data-lucide="chevron-down"></i>
+    </button>
+    <div class="rb-dd-menu">${items}</div>
+  </div>`;
+}
+window.rbDdToggle=ddId=>{
+  const wrap=document.querySelector(`.rb-dd[data-dd-id="${ddId}"]`); if(!wrap) return;
+  const wasOpen=wrap.classList.contains('open');
+  document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+  document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  if(!wasOpen) wrap.classList.add('open');
+};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.rb-dd')) document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+});
+window.rbDdCheck=(kind,key,rid,checked)=>{
+  const map=kind==='staff'?rbStaffPending:rbUserPending;
+  const s=map[key]||(map[key]=new Set());
+  if(checked) s.add(rid); else s.delete(rid);
+  rbDdRefreshRow(kind,key);
+};
+function rbDdRefreshRow(kind,key){
+  const ddId=kind+'_'+key;
+  const wrap=document.querySelector(`.rb-dd[data-dd-id="${ddId}"]`); if(!wrap) return;
+  const isStaff=kind==='staff';
+  const map=isStaff?rbStaffPending:rbUserPending;
+  const roles=isStaff?rbStaffRoles:rbRoles;
+  const sel=map[key]||new Set();
+  const lbl=wrap.querySelector('.rb-dd-label'); if(lbl) lbl.innerHTML=rbDdLabel(sel,roles);
+  let orig;
+  if(isStaff){ const st=rbStaff.find(x=>String(x.staff_id)===String(key)); orig=new Set((st&&st.rollar||[]).map(r=>r.id)); }
+  else{ const u=rbUsers.find(x=>String(x.id)===String(key)); orig=new Set((u&&u.roles||[]).map(r=>r.id)); }
+  const dirty=rbSetsDiffer(sel,orig);
+  const saveBtn=document.getElementById((isStaff?'rbStaffSave_':'rbUserSave_')+key);
+  if(saveBtn) saveBtn.disabled=!dirty;
+}
+
+// ===== Rollar — tab almashtirish: "Kirish foydalanuvchilari" / "Hodimlar (aros-staff)" =====
+window.rbSwitchTab=tab=>{
+  rbTab=tab;
+  const ub=$('rbTabUserBtn'), sb2=$('rbTabStaffBtn');
+  if(ub) ub.classList.toggle('on',tab==='user');
+  if(sb2) sb2.classList.toggle('on',tab==='staff');
+  const up=$('rbUserPane'), sp=$('rbStaffPane');
+  if(up) up.style.display=tab==='user'?'block':'none';
+  if(sp) sp.style.display=tab==='staff'?'block':'none';
+};
+
+// ===== Hodimlar (aros-staff) tabi — PROVODKA_RBAC_STAFF.sql: rbac_staff_royxat()/rbac_staff_set().
+//       RPC hali bazada yo'q bo'lsa (rpcMissing) tab jimgina yashirinadi, foydalanuvchilar
+//       tabi (mavjud rbac_users) avvalgidek ishlayveradi. =====
+async function rbLoadStaff(){
+  if(!isAdmin||rbOff) return;
+  const {data,error}=await sb.rpc('rbac_staff_royxat');
+  if(error){
+    if(rpcMissing(error)){ rbStaffOff=true; const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='none';
+      if(rbTab==='staff') window.rbSwitchTab('user'); return; }
+    rbStaffOff=false; const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='';
+    rbBanner('err',"Hodimlar o'qilmadi: "+(window.permErr?window.permErr(error):error.message));
+    return;
+  }
+  rbStaffOff=false;
+  const btn=$('rbTabStaffBtn'); if(btn) btn.style.display='';
+  rbStaff=Array.isArray(data&&data.hodimlar)?data.hodimlar:[];   // SQL kaliti: hodimlar (rollar ichida)
+  rbStaffRoles=Array.isArray(data&&data.rollar)?data.rollar:rbRoles;
+  rbStaffUsers=Array.isArray(data&&data.users)?data.users:[];
+  rbStaffPending={}; rbStaffLinkPending={};
+  rbStaff.forEach(s=>{
+    rbStaffPending[s.staff_id]=new Set((s.rollar||[]).map(r=>r.id));
+    // taklif_user_id bo'lsa (va user_id bo'sh) select oldindan shuni ko'rsatadi — saqlanmaguncha
+    // haqiqiy bog'lanish sodir bo'lmaydi, faqat UI'da tayyor turadi.
+    rbStaffLinkPending[s.staff_id]=s.user_id||s.taklif_user_id||'';
+  });
+  rbRenderStaff();
+}
+function rbRenderStaff(){
+  const box=$('rbStaffList'); if(!box) return;
+  const q=(($('rbStaffSearch')&&$('rbStaffSearch').value)||'').trim().toLowerCase();
+  const list=rbStaff.filter(s=>{ if(!q) return true;
+    const nm=(String(s.toliq_nom||'')+' '+String(s.lavozim||'')+' '+String(s.branch_nomi||'')+' '+String(s.user_nom||'')).toLowerCase();
+    return nm.indexOf(q)>=0; });
+  box.innerHTML=list.length?`<table><thead><tr><th>Hodim</th><th>Lavozim · Filial</th><th>Provodka akkaunti</th><th>Rollar</th><th></th></tr></thead><tbody>${
+    list.map(s=>rbStaffRowHtml(s)).join('')}</tbody></table>`:'<div class="rb-empty"><i data-lucide="user-search"></i><span>Hodim topilmadi</span></div>';
+  icons();
+}
+// ===== Akkaunt tanlash — qidiruvli combobox (.rb-cb). cbId shakli "staff_<staff_id>",
+//       rbDdToggle/rbDdCheck bilan bir xil ajratish qoidasi (bitta popover ochiq — ikkalasi ham yopiladi). =====
+function rbCbNorm(s){ return String(s||'').toLowerCase().replace(/['`´ʻʼ]/g,''); }
+function rbCbUserName(u){ return (u&&(u.full_name||u.user_nom))||('#'+String(u&&u.id)); }
+function rbCbLabel(current,isTaklif){
+  if(!current) return "— bog'lanmagan —";
+  const u=rbStaffUsers.find(x=>String(x.id)===String(current));
+  const nm=u?rbCbUserName(u):('#'+String(current));
+  return esc(nm)+(isTaklif?' <i class="rb-taklif-badge">taklif</i>':'');
+}
+function rbCbItemsHtml(cbId,current){
+  const cur=String(current||'');
+  const rows=[`<div class="rb-cb-item${cur===''?' sel':''}" data-val="" data-nm="${esc(rbCbNorm("bog'lanmagan"))}" onclick="rbCbPick('${cbId}','')"><span>— bog'lanmagan —</span></div>`];
+  rbStaffUsers.forEach(u=>{
+    const nm=rbCbUserName(u);
+    rows.push(`<div class="rb-cb-item${cur===String(u.id)?' sel':''}" data-val="${esc(u.id)}" data-nm="${esc(rbCbNorm(nm))}" onclick="rbCbPick('${cbId}','${esc(u.id)}')"><span>${esc(nm)}</span></div>`);
+  });
+  return rows.join('');
+}
+function rbCbHtml(cbId,current,isTaklif){
+  return `<div class="rb-cb" data-cb-id="${cbId}">
+    <button type="button" class="rb-cb-btn" onclick="rbCbToggle('${cbId}')">
+      <span class="rb-cb-label">${rbCbLabel(current,isTaklif)}</span><i data-lucide="chevron-down"></i>
+    </button>
+    <div class="rb-cb-pop">
+      <input type="text" class="rb-cb-input" placeholder="Qidirish…" oninput="rbCbFilter('${cbId}',this.value)" onkeydown="rbCbKey(event,'${cbId}')">
+      <div class="rb-cb-list">${rbCbItemsHtml(cbId,current)}</div>
+    </div>
+  </div>`;
+}
+window.rbCbToggle=cbId=>{
+  const wrap=document.querySelector(`.rb-cb[data-cb-id="${cbId}"]`); if(!wrap) return;
+  const wasOpen=wrap.classList.contains('open');
+  document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  document.querySelectorAll('.rb-dd.open').forEach(w=>w.classList.remove('open'));
+  if(!wasOpen){
+    wrap.classList.add('open');
+    const inp=wrap.querySelector('.rb-cb-input');
+    if(inp){ inp.value=''; rbCbFilter(cbId,''); setTimeout(()=>inp.focus(),0); }
+  }
+};
+window.rbCbFilter=(cbId,q)=>{
+  const wrap=document.querySelector(`.rb-cb[data-cb-id="${cbId}"]`); if(!wrap) return;
+  const nq=rbCbNorm(q);
+  let firstShown=null;
+  wrap.querySelectorAll('.rb-cb-item').forEach(it=>{
+    const nm=it.getAttribute('data-nm')||'';
+    const show=!nq||nm.indexOf(nq)>=0;
+    it.style.display=show?'':'none';
+    it.classList.remove('hl');
+    if(show&&!firstShown) firstShown=it;
+  });
+  if(firstShown) firstShown.classList.add('hl');
+};
+window.rbCbKey=(e,cbId)=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const wrap=document.querySelector(`.rb-cb[data-cb-id="${cbId}"]`); if(!wrap) return;
+    const first=Array.from(wrap.querySelectorAll('.rb-cb-item')).find(it=>it.style.display!=='none');
+    if(first) first.click();
+  }else if(e.key==='Escape'){
+    document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  }
+};
+window.rbCbPick=(cbId,val)=>{
+  document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+  const us=cbId.indexOf('_'); const kind=cbId.slice(0,us), key=cbId.slice(us+1);
+  if(kind==='staff') window.rbStaffLinkChange(key,val);
+};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.rb-cb')) document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.rb-cb.open').forEach(w=>w.classList.remove('open'));
+});
+function rbStaffRowHtml(s){
+  const rawName=s.toliq_nom||('#'+String(s.staff_id));
+  const name=esc(rawName);
+  const initial=esc(String(rawName).trim().charAt(0)||'?');
+  const sub=esc([s.lavozim,s.branch_nomi].filter(Boolean).join(' · '))||'—';
+  const pending=rbStaffPending[s.staff_id]||new Set();
+  const orig=new Set((s.rollar||[]).map(r=>r.id));
+  const linkVal=rbStaffLinkPending[s.staff_id]!==undefined?rbStaffLinkPending[s.staff_id]:(s.user_id||'');
+  const linked=!!linkVal;
+  const isTaklif=!s.user_id&&s.taklif_user_id&&String(linkVal)===String(s.taklif_user_id);
+  const origLink=s.user_id||'';
+  const linkDirty=String(linkVal)!==String(origLink);
+  const rolesDirty=!linked&&rbSetsDiffer(pending,orig);
+  const dirty=linkDirty||rolesDirty;
+  const linkCell=rbCbHtml('staff_'+s.staff_id,linkVal,isTaklif);
+  const rolesCell=linked
+    ?`<span class="rb-muted-note">Ovqat ruxsati akkaunt rolidan</span>`
+    :rbDdHtml('staff_'+s.staff_id,pending,rbStaffRoles);
+  return `<tr id="rbStaffRow_${s.staff_id}">
+    <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
+    <td><span class="rb-urole">${sub}</span></td>
+    <td>${linkCell}</td>
+    <td>${rolesCell}</td>
+    <td><button type="button" class="mxd-btn" id="rbStaffSave_${s.staff_id}" ${dirty?'':'disabled'} onclick="rbSaveStaffRoles('${s.staff_id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbStaffRes_${s.staff_id}"></span></td>
+  </tr>`;
+}
+window.rbFilterStaff=()=>rbRenderStaff();
+window.rbStaffLinkChange=(sid,val)=>{
+  rbStaffLinkPending[sid]=val||'';
+  const tr=document.getElementById('rbStaffRow_'+sid); const s=rbStaff.find(x=>String(x.staff_id)===String(sid));
+  if(!tr||!s) return;
+  tr.outerHTML=rbStaffRowHtml(s);
+  icons();
+};
+window.rbSaveStaffRoles=async sid=>{
+  const s=rbStaff.find(x=>String(x.staff_id)===String(sid));
+  const linkVal=rbStaffLinkPending[sid]!==undefined?rbStaffLinkPending[sid]:((s&&s.user_id)||'');
+  const origLink=(s&&s.user_id)||'';
+  const linkDirty=String(linkVal)!==String(origLink);
+  const linked=!!linkVal;
+  const rolesSet=rbStaffPending[sid]||new Set();
+  const origRoles=new Set(((s&&s.rollar)||[]).map(r=>r.id));
+  const rolesDirty=!linked&&rbSetsDiffer(rolesSet,origRoles);
+  if(!linkDirty&&!rolesDirty) return;
+  const btn=$('rbStaffSave_'+sid), res=$('rbStaffRes_'+sid), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
+  if(res){ res.className='rb-res'; res.textContent=''; }
+  const fail=msg=>{
+    rbBanner('err','Xato: '+msg); toast('err','Xato: '+msg);
+    const res2=$('rbStaffRes_'+sid); if(res2){ res2.className='rb-res err'; res2.textContent='Xato: '+msg; }
+    const btn2=$('rbStaffSave_'+sid); if(btn2){ btn2.disabled=false; btn2.innerHTML=old||'<i data-lucide="save"></i>Saqlash'; icons(); }
+  };
+  try{
+    if(linkDirty){
+      const {error}=await sb.rpc('rbac_staff_link_set',{p_staff:Number(sid),p_user:linkVal||null});
+      if(error){ fail(window.permErr?window.permErr(error):error.message); return; }
+      if(s) s.user_id=linkVal||null;
+    }
+    if(rolesDirty){
+      const {error}=await sb.rpc('rbac_staff_set',{p_staff:Number(sid),p_roles:Array.from(rolesSet)});
+      if(error){ fail(window.permErr?window.permErr(error):error.message); return; }
+      if(s) s.rollar=rbStaffRoles.filter(r=>rolesSet.has(r.id)).map(r=>({id:r.id,nom:r.nom}));
+    }
+    delete rbStaffLinkPending[sid];
+    rbBanner('ok','Saqlandi.'); toast('ok','Saqlandi ✓');
+    rbRenderStaff();                  // qatorni qayta chizadi (tugma disabled=true, dirty=false)
+    const res3=$('rbStaffRes_'+sid); if(res3){ res3.className='rb-res ok'; res3.textContent='Saqlandi · '+hhmm(); }
+  }catch(e){
+    fail(window.permErr?window.permErr(e):(e&&e.message)||String(e));
+  }
+};
+
+// ===== "Rollar" bo'limi alohida ko'rinish (hash #rollar) — Asilbek so'rovi: bo'lim
+//       ochilganda boshqa sozlama kartalari skroll qilinmasin, faqat Rollar ko'rinsin.
+//       Kartalarning avvalgi inline `display` qiymati dataset'ga saqlanadi va qaytariladi —
+//       ular o'z holatini (mxdCard/filCard/... ko'rinish shartlari) yo'qotmasligi uchun. =====
+function sozApplyRollarFocus(){
+  const card=$('rollarCard');
+  const on=location.hash==='#rollar'&&isAdmin&&!rbOff&&card&&card.style.display!=='none';
+  document.querySelectorAll('.main > .card').forEach(c=>{
+    if(c.id==='rollarCard') return;
+    if(on){
+      if(c.dataset.sozPrevDisplay===undefined) c.dataset.sozPrevDisplay=c.style.display||'';
+      c.style.display='none';
+    }else if(c.dataset.sozPrevDisplay!==undefined){
+      c.style.display=c.dataset.sozPrevDisplay;
+      delete c.dataset.sozPrevDisplay;
+    }
+  });
+  const back=$('rbBackBtn'); if(back) back.style.display=on?'inline-flex':'none';
+  const nav=document.getElementById('navRollar'); if(nav) nav.classList.toggle('active',on);
+  const sozNav=document.querySelector('.nav-item[href="sozlama.html"]');
+  if(sozNav) sozNav.classList.toggle('active',!on);
+}
+window.rbBackToSozlama=()=>{
+  history.replaceState(null,'',location.pathname+location.search);
+  sozApplyRollarFocus();
+};
+window.addEventListener('hashchange',sozApplyRollarFocus);
+
 // loadFilials() Promise.all'dan KEYIN: u `accounts` (filial_ref) va isAdmin
 // tayyor bo'lishiga tayanadi — aks holda "Aros sinxroni" belgisi noto'g'ri chiqadi.
 // mxdLoad() ham loadFilials() kabi oxirida: u `accounts` (modda nomi/kodi) va
 // isAdmin tayyor bo'lishiga tayanadi. RPC yo'q bo'lsa (SQL RUN qilinmagan) —
 // mxdOff bo'ladi va konstruktor umuman chizilmaydi, sahifa avvalgidek ishlaydi.
-async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); } }
+// rbLoad() ham xuddi shunday — RPC yo'q bo'lsa rbOff bo'ladi va bo'lim yashirin qoladi.
+async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

@@ -393,13 +393,17 @@ const CARDS=[
   {k:'sorovlar',     href:'sorovlar.html',     t:"So'rovlar",           i:'hand-coins',       d:"Pul so'rovlari: tasdiq va rad"},
   {k:'konvert',      href:'konvert.html',      t:'Konvert',             i:'arrow-right-left', d:"Konvert so'rovlari va tasdiq"},
   {k:'sozlama',      href:'sozlama.html',      t:'Sozlamalar',          i:'settings',         d:'Hisob rejasi boshqaruvi'},
+  {k:'rollar',       href:'sozlama.html#rollar', t:'Rollar',            i:'shield',           d:'Rollar va foydalanuvchi ruxsatlari'},
   {k:'standart',     href:'standart.html',     t:'Standart xarajatlar', i:'gauge',            d:"Takrorlanuvchi xarajat me'yorlari"},
   {k:'yuklar',       href:'yuklar.html',       t:'Yuklar',              i:'package',          d:'Yuk partiyalari'},
   {k:'tannarx',      href:'tannarx.html',      t:'Tannarx',             i:'receipt-text',     d:'Tovar tannarxi hisobi'},
   {k:'ai',           href:'ai.html',           t:'AI yordamchi',        i:'sparkles',         d:'Moliyaviy savol-javob'}
 ];
 /* `provodka` sahifasi ATAYLAB yo'q: u navigatsiyadan yashirilgan (CLAUDE.md),
-   faqat to'g'ridan URL bilan ochiladi. */
+   faqat to'g'ridan URL bilan ochiladi.
+   `rollar` — bu SAHIFA emas, faqat KARTA (sozlama.html ichidagi bo'lim, "UCH joy"
+   qoidasiga kirmaydi: perm_pages()/PAGES da yo'q). renderCards() uni permPageOk()
+   BILAN EMAS, to'g'ridan permIsAdmin() bilan filtrlaydi. */
 
 function cardHtml(c){
   return '<a class="pcard" href="'+c.href+'">'
@@ -417,6 +421,9 @@ function renderCards(){
   /* permPageOk() adminni o'zi o'tkazadi (is_admin -> hammasi true) — qo'shimcha
      `is_admin` sharti yozilmaydi, mantiq bitta joyda (perms.js) qolsin. */
   const list=CARDS.filter(c=>{
+    // 'rollar' PAGES/perm_pages() da yo'q — permPageOk() hammaga true qaytaradi,
+    // shuning uchun bu yerda ALOHIDA, to'g'ridan admin tekshiruvi.
+    if(c.k==='rollar') return !!(window.permIsAdmin && window.permIsAdmin());
     if(!window.permPageOk(c.k)) return false;
     if(c.k==='konvert' && !window.permConvert()) return false;   // konvertga QO'SHIMCHA shart
     return true;

@@ -6,20 +6,20 @@
 <title>Aros Provodka — Jurnal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%20100%20118%22%20fill%3D%22%231ea83a%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M32%206H78A16%2016%200%200%201%2094%2022V86L68%20112H22A16%2016%200%200%201%206%2096V32Z%20M32%2020H68A12%2012%200%200%201%2080%2032V76A12%2012%200%200%201%2068%2088H32A12%2012%200%200%201%2020%2076V32A12%2012%200%200%201%2032%2020Z%22/%3E%3Crect%20x%3D%2240%22%20y%3D%2273%22%20width%3D%2220%22%20height%3D%227%22%20rx%3D%223.5%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
-<link rel="prefetch" href="professional-dev.html">
-<link rel="prefetch" href="kassa-dev.html">
-<link rel="prefetch" href="hisobot-dev.html">
-<link rel="prefetch" href="balans-dev.html">
-<link rel="prefetch" href="cashflow-dev.html">
-<link rel="prefetch" href="qarzdor-dev.html">
-<link rel="prefetch" href="filial-dev.html">
-<link rel="prefetch" href="valyuta-dev.html">
-<link rel="prefetch" href="konvert-dev.html">
-<link rel="prefetch" href="sozlama-dev.html">
+<link rel="prefetch" href="professional.html">
+<link rel="prefetch" href="kassa.html">
+<link rel="prefetch" href="hisobot.html">
+<link rel="prefetch" href="balans.html">
+<link rel="prefetch" href="cashflow.html">
+<link rel="prefetch" href="qarzdor.html">
+<link rel="prefetch" href="filial.html">
+<link rel="prefetch" href="valyuta.html">
+<link rel="prefetch" href="konvert.html">
+<link rel="prefetch" href="sozlama.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
-<script src="perms-dev.js" defer></script>
-<script src="ai-widget-dev.js" defer></script>
+<script src="perms.js" defer></script>
+<script src="ai-widget.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--nt:#667085;--nt-soft:#eef0f3;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
@@ -59,6 +59,11 @@
   @media(min-width:900px){.frow{grid-template-columns:auto 1fr 1fr 1fr;align-items:end}}
   .fnote{font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:9px;padding:8px 11px;margin-top:12px;display:none;line-height:1.5}
   .fld{min-width:0}
+  /* Faqat shubhali (admin) — sozlama.html dagi .chekopt bilan bir xil ko'rinish, shu faylga ko'chirilgan */
+  .chekopt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;
+    border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--surface-2)}
+  .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
+  .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .seg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-top:12px;overflow-x:auto}
   .seg button{flex:1;min-width:74px;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
   .seg button:hover{color:var(--ink)}
@@ -100,6 +105,9 @@
   .je .ftag .tg.pend{background:var(--amber-soft);color:var(--amber);cursor:pointer}
   .je .ftag .tg.komm{background:#fdf3d6;color:#a9791b}
   [data-theme="dark"] .je .ftag .tg.komm{background:#3a2f14;color:#e6b84a}
+  /* AI tekshiruvi (rasm/spidometr) — qizil "shubhali"/"xato", kulrang "hali tekshirmagan" */
+  .je .ftag .tg.warn{background:var(--red-soft);color:var(--red);cursor:pointer}
+  .je .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   /* ===== Stage 6: Jurnal — tushunarli jadval (desktop) + karta (mobil) ===== */
   /* teglar/chek endi .je tashqarisida ham ishlashi kerak — umumiy (unscoped) qoidalar */
   .ftag{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -109,6 +117,8 @@
   .ftag .tg.pend{background:var(--amber-soft);color:var(--amber);cursor:pointer}
   .ftag .tg.komm{background:#fdf3d6;color:#a9791b}
   [data-theme="dark"] .ftag .tg.komm{background:#3a2f14;color:#e6b84a}
+  .ftag .tg.warn{background:var(--red-soft);color:var(--red);cursor:pointer}
+  .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
   .chekpin svg{width:13px;height:13px}
@@ -252,7 +262,7 @@
   .chekhd button svg{width:20px;height:20px}
   .chekimg{padding:12px;overflow:auto;display:flex;justify-content:center;align-items:center;min-height:120px}
   .chekimg img{max-width:100%;height:auto;border-radius:8px}
-  /* PDF/hujjat ko'rinishi — rasm bo'lmagan chek (professional-dev.html ixtiyoriy fayli) */
+  /* PDF/hujjat ko'rinishi — rasm bo'lmagan chek (professional.html ixtiyoriy fayli) */
   .chekdoc{display:flex;flex-direction:column;gap:10px;width:100%;align-items:center}
   .chekdoc iframe{width:100%;height:62vh;border:1px solid var(--line);border-radius:8px;background:#fff}
   .chekfn{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink);padding:18px 6px;word-break:break-all}
@@ -260,6 +270,18 @@
   .chekdl{display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:#fff;border-radius:10px;
           padding:9px 15px;font-size:13.5px;font-weight:600;text-decoration:none}
   .chekdl svg{width:16px;height:16px}
+  /* AI tekshiruvi paneli — chek modali ichida, admin only, bo'sh bo'lsa umuman ko'rinmaydi */
+  .chekai:empty{display:none}
+  .chekai{padding:2px 16px 16px;border-top:1px solid var(--line);margin-top:2px}
+  .chekai h4{margin:12px 0 2px;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+  .chekai h4:first-child{margin-top:10px}
+  .chekai .airow{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .chekai .airow:last-child{border-bottom:none}
+  .chekai .al1{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+  .chekai .al2{margin-top:2px;font-weight:600}
+  .chekai .aidiff{color:var(--red)}
+  .chekai .aiok{color:var(--green)}
+  .chekai img{max-width:100%;border-radius:8px;margin-top:8px;display:block}
   /* ko'p satrli yozuv */
   .je.multi{align-items:flex-start}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
@@ -327,7 +349,7 @@
         matni har doim asosiy rangda bo'lsin (eski kulrang qoida qaytib qolmasin).
      ================================================================ */
 
-  /* ---- Diagramma palitrasi (ai-dev.html --ach-* oilasi: har qadam >=80° tus) ---- */
+  /* ---- Diagramma palitrasi (ai.html --ach-* oilasi: har qadam >=80° tus) ---- */
   :root{--dch-1:#1ea83a;--dch-2:#2f6fe0;--dch-3:#d98324;--dch-4:#8557e8;--dch-5:#0f9f9f;
         --dch-6:#d6455f;--dch-7:#7fa521;--dch-8:#a55bc4;--dch-other:#98a2b3;--dch-grid:#eceef2}
   [data-theme="dark"]{--dch-1:#35cf55;--dch-2:#5b9cff;--dch-3:#f0a94a;--dch-4:#a98bff;--dch-5:#2bc4c4;
@@ -842,22 +864,22 @@
   <aside class="sidebar">
     <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
     <nav class="side-nav">
-      <a class="nav-item active" href="jurnal-dev.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
-      <a class="nav-item" href="professional-dev.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
-      <a class="nav-item" href="kassa-dev.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
-      <a class="nav-item" href="hisobot-dev.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
-      <a class="nav-item" href="balans-dev.html"><i data-lucide="scale"></i><span>Balans</span></a>
-      <a class="nav-item" href="cashflow-dev.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
-      <a class="nav-item" href="qarzdor-dev.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
-      <a class="nav-item" href="filial-dev.html"><i data-lucide="store"></i><span>Filiallar</span></a>
-      <a class="nav-item" href="yuklar-dev.html"><i data-lucide="package"></i><span>Yuklar</span></a>
-      <a class="nav-item" href="tannarx-dev.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
-      <a class="nav-item" href="valyuta-dev.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
-      <a class="nav-item" href="sorovlar-dev.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
-      <a class="nav-item" href="konvert-dev.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
-      <a class="nav-item" href="sozlama-dev.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
-      <a class="nav-item" href="standart-dev.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
-      <a class="nav-item" href="ai-dev.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
+      <a class="nav-item active" href="jurnal.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
+      <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
+      <a class="nav-item" href="kassa.html"><i data-lucide="wallet"></i><span>Kassa</span></a>
+      <a class="nav-item" href="hisobot.html"><i data-lucide="chart-column"></i><span>Hisobot</span></a>
+      <a class="nav-item" href="balans.html"><i data-lucide="scale"></i><span>Balans</span></a>
+      <a class="nav-item" href="cashflow.html"><i data-lucide="waves"></i><span>Cashflow</span></a>
+      <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarzdorlar</span></a>
+      <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
+      <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
+      <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
+      <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
+      <a class="nav-item" href="sorovlar.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
+      <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
+      <a class="nav-item" href="sozlama.html"><i data-lucide="settings"></i><span>Sozlamalar</span></a>
+      <a class="nav-item" href="standart.html"><i data-lucide="gauge"></i><span>Standart xarajatlar</span></a>
+      <a class="nav-item" href="ai.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
     </nav>
     <div class="role-badge" id="roleBadge"></div>
     <div class="side-foot">
@@ -1031,6 +1053,13 @@
           <label for="q">Qidiruv (izoh)</label>
           <input class="txt" id="q" placeholder="izoh bo'yicha qidirish" oninput="onQ()">
         </div>
+        <!-- AI shubhali filtri — FAQAT admin, init() da ochiladi (permIsAdmin). Klient tomonda,
+             faqat yuklangan qatorlarga (aiMap serverdan admin uchungina yuklanadi). -->
+        <div class="fld" id="fldShubhali" style="display:none">
+          <label class="chekopt" id="lblShubhali" title="Faqat AI 'Shubhali' yoki 'AI xato' deb belgilagan yozuvlar">
+            <input type="checkbox" id="chkShubhali" onchange="toggleShubhali(this.checked)">Faqat shubhali
+          </label>
+        </div>
       </div>
       <div class="fnote" id="filNote"></div>
       <div class="seg" id="turSeg">
@@ -1160,12 +1189,12 @@
   </main>
 
   <nav class="bnav mobile-only">
-    <a href="jurnal-dev.html" class="active"><i data-lucide="scroll-text"></i>Jurnal</a>
-    <a href="hisobot-dev.html"><i data-lucide="chart-column"></i>Hisobot</a>
-    <a href="balans-dev.html"><i data-lucide="scale"></i>Balans</a>
-    <a href="cashflow-dev.html"><i data-lucide="waves"></i>Cashflow</a>
-    <a href="qarzdor-dev.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
-    <a href="filial-dev.html"><i data-lucide="store"></i>Filial</a>
+    <a href="jurnal.html" class="active"><i data-lucide="scroll-text"></i>Jurnal</a>
+    <a href="hisobot.html"><i data-lucide="chart-column"></i>Hisobot</a>
+    <a href="balans.html"><i data-lucide="scale"></i>Balans</a>
+    <a href="cashflow.html"><i data-lucide="waves"></i>Cashflow</a>
+    <a href="qarzdor.html"><i data-lucide="hand-coins"></i>Qarzdor</a>
+    <a href="filial.html"><i data-lucide="store"></i>Filial</a>
     <a onclick="openMore()"><i data-lucide="ellipsis"></i>Ko'proq</a>
   </nav>
 
@@ -1173,26 +1202,27 @@
   <div class="mmodal" id="moreModal" onclick="if(event.target===this)closeMore()">
     <div class="msheet">
       <h3>Ko'proq</h3>
-      <a href="professional-dev.html"><i data-lucide="list-plus"></i>Professional</a>
-      <a href="kassa-dev.html"><i data-lucide="wallet"></i>Kassa</a>
-      <a href="valyuta-dev.html"><i data-lucide="banknote"></i>Valyuta</a>
-      <a href="sorovlar-dev.html"><i data-lucide="hand-coins"></i>So'rovlar</a>
-      <a href="konvert-dev.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
-      <a href="sozlama-dev.html"><i data-lucide="settings"></i>Sozlamalar</a>
-      <a href="standart-dev.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
-      <a href="yuklar-dev.html"><i data-lucide="package"></i>Yuklar</a>
-      <a href="tannarx-dev.html"><i data-lucide="receipt-text"></i>Tannarx</a>
-      <a href="ai-dev.html"><i data-lucide="sparkles"></i>AI yordamchi</a>
+      <a href="professional.html"><i data-lucide="list-plus"></i>Professional</a>
+      <a href="kassa.html"><i data-lucide="wallet"></i>Kassa</a>
+      <a href="valyuta.html"><i data-lucide="banknote"></i>Valyuta</a>
+      <a href="sorovlar.html"><i data-lucide="hand-coins"></i>So'rovlar</a>
+      <a href="konvert.html"><i data-lucide="arrow-right-left"></i>Konvert</a>
+      <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
+      <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
+      <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
+      <a href="tannarx.html"><i data-lucide="receipt-text"></i>Tannarx</a>
+      <a href="ai.html"><i data-lucide="sparkles"></i>AI yordamchi</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
   </div>
   <!-- /more-sheet -->
 
-  <!-- chek rasm modali -->
+  <!-- chek rasm modali (admin uchun AI tekshiruv paneli #chekAiBody bilan birlashtirilgan) -->
   <div class="chekov" id="chekModal" onclick="if(event.target===this)closeChek()">
     <div class="chekbox">
       <div class="chekhd"><span>Chek / hujjat</span><button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
       <div class="chekimg" id="chekImg"></div>
+      <div class="chekai" id="chekAiBody"></div>
     </div>
   </div>
   <!-- /chek -->
@@ -1472,7 +1502,7 @@ async function loadAccSel(){
   buildAccSel();
   $('acc').onchange=onAcc;
 }
-// Bola-hisob (tur yoki valyuta) aniqlash — perms-dev.js keyOf() va SQL kassa_oila()
+// Bola-hisob (tur yoki valyuta) aniqlash — perms.js keyOf() va SQL kassa_oila()
 // bilan AYNAN bir xil qoida. parent_id UCH ma'noli: hodim kassasining parenti 5400
 // konteyner guruh, u bola-hisob EMAS. Shuning uchun faqat parent_id ga tayanib bo'lmaydi:
 //   currency <> 'UZS'    → valyuta bolasi (56xx USD, 57xx CNY…)
@@ -1578,7 +1608,7 @@ function withSub(line){ if(!line) return ''; const s=accSub(line.account_id); re
 
 // --- Chek / hujjat (xarajat-cheklari/{kassa_id}/{entry_id}.{kengaytma}) ---
 // Yozuvning pul kassasi (Kt tomon, section='pul') — fayl shu kassa papkasida.
-// professional-dev.html endi PDF/hujjat ham yuklaydi, shuning uchun kengaytma
+// professional.html endi PDF/hujjat ham yuklaydi, shuning uchun kengaytma
 // qat'iy '.jpg' emas: papka ro'yxatidan HAQIQIY fayl nomi eslab qolinadi.
 let chekKeys=new Map();  // "kassaId/entryId" → fayl nomi ("<uuid>.pdf")
 function kassaOf(e){ const l=(e.lines||[]).find(x=>x.section==='pul'&&Number(x.credit)>0); return l?l.account_id:null; }
@@ -1599,25 +1629,100 @@ async function refreshCheks(){
 }
 
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
+// openChek — chek/hujjat rasmi + (admin) AI tekshiruv paneli BITTA modalda (#chekModal).
+// kassaId bo'sh/null bo'lishi mumkin (kassaOf(e) topmasa) — shunda faqat AI fallback rasmi ishlatiladi.
 window.openChek=async(kassaId,entryId)=>{
-  const box=$('chekImg'); box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
+  const box=$('chekImg'), aiBox=$('chekAiBody');
+  box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
+  if(aiBox) aiBox.innerHTML='';
   $('chekModal').classList.add('open');
-  const nm=chekKeys.get(kassaId+'/'+entryId)||(entryId+'.jpg');   // ro'yxat kelmagan bo'lsa eski naqsh
-  const ext=(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
-  try{
-    const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kassaId}/${nm}`,300);
-    if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; return; }
-    const url=esc(data.signedUrl);
-    if(!ext||CHEK_IMG.indexOf(ext)>=0){ box.innerHTML=`<img src="${url}" alt="chek">`; return; }
-    // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
-    if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
-      +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada ochish</a></div>`;
-    else box.innerHTML=`<div class="chekdoc"><div class="chekfn"><i data-lucide="file-text"></i>${esc(nm)}</div>`
-      +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="download"></i>Yuklab olish</a></div>`;
-    icons();
-  }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+  const kid=kassaId||null;
+  const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
+  const am=(isAdm&&aiMap[entryId])||{};
+  const hasChek=!!(kid&&chekKeys.has(kid+'/'+entryId));
+  // --- AI rasm-tahlil qatori (fallback rasm + AI paneli uchun bir vaqtda kerak) ---
+  let rt=null;
+  if(am.rasm_tahlil_id){
+    try{ const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.rasm_tahlil_id).maybeSingle(); if(!error&&data) rt=data; }catch(e){}
+  }
+  if(hasChek){
+    const nm=chekKeys.get(kid+'/'+entryId)||(entryId+'.jpg');   // ro'yxat kelmagan bo'lsa eski naqsh
+    const ext=(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
+    try{
+      const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kid}/${nm}`,300);
+      if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; }
+      else{
+        const url=esc(data.signedUrl);
+        if(!ext||CHEK_IMG.indexOf(ext)>=0) box.innerHTML=`<img src="${url}" alt="chek">`;
+        // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
+        else if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
+          +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada ochish</a></div>`;
+        else box.innerHTML=`<div class="chekdoc"><div class="chekfn"><i data-lucide="file-text"></i>${esc(nm)}</div>`
+          +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="download"></i>Yuklab olish</a></div>`;
+      }
+    }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+  } else if(rt&&rt.user_id&&rt.id){
+    // Haqiqiy chek fayli yo'q, lekin AI rasmi bor (rasm-tahlil) — shu ko'rsatiladi (admin only).
+    try{
+      const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
+      box.innerHTML=(!se&&su)?`<img src="${esc(su.signedUrl)}" alt="AI chek">`:'<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>';
+    }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+  } else {
+    box.innerHTML='<div style="padding:30px;color:var(--muted)">Chek yo\'q</div>';
+  }
+  icons();
+  if(!isAdm||!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
+  await renderChekAi(entryId,am,rt);
 };
-window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; };
+// AI tekshiruv paneli — chek/hujjat rasmi ostida, faqat admin va aiMap'da ma'lumot bo'lsa chizadi.
+async function renderChekAi(entryId,am,rt){
+  const aiBox=$('chekAiBody'); if(!aiBox) return;
+  try{
+    const out=[];
+    const e=rows.find(x=>x.id===entryId);
+    const yozilgan=e?sumDt(e):null;
+    if(rt){
+      const aiSumma=rt.ai_summa!=null?Number(rt.ai_summa):null;
+      out.push(`<div class="airow"><div class="al1">AI o'qidi</div><div class="al2">${aiSumma!=null?money(aiSumma):'—'}`
+        +`${rt.ai_sana?' · '+esc(rt.ai_sana):''}${rt.ishonch!=null?' · ishonch '+esc(String(rt.ishonch)):''}</div></div>`);
+      if(yozilgan!=null) out.push(`<div class="airow"><div class="al1">Yozilgan summa</div><div class="al2">${money(yozilgan)}</div></div>`);
+      if(aiSumma!=null&&yozilgan!=null){
+        const diff=yozilgan-aiSumma;
+        out.push(Math.abs(diff)>0
+          ? `<div class="airow"><div class="al1">Farq</div><div class="al2 aidiff">${diff>0?'+':''}${money(diff)} — ${esc(am.shubhali_sabab||'shubhali')}</div></div>`
+          : `<div class="airow"><div class="al1">Farq</div><div class="al2 aiok">Mos keladi</div></div>`);
+      }
+    } else if(am.rasm_tahlil_id||am.ai_holat==='xato'){
+      out.push('<div class="airow"><div class="al1">AI</div><div class="al2 aidiff">AI aniq o\'qimadi</div></div>');
+    }
+    // Spidometr — alohida bo'lim (chek AI'siga aralashmaydi)
+    let rtSpid=null, km=null, spidImg='';
+    if(am.spidometr_tahlil_id){
+      try{ const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.spidometr_tahlil_id).maybeSingle(); if(!error&&data) rtSpid=data; }catch(e){}
+    }
+    if(am.spidometr_tahlil_id||am.rasm_tahlil_id){
+      try{ const {data,error}=await sb.from('mashina_km').select('*').eq('entry_id',entryId).maybeSingle(); if(!error&&data) km=data; }catch(e){}
+    }
+    if(rtSpid||km){
+      out.push('<h4>Spidometr</h4>');
+      if(km){
+        out.push(`<div class="airow"><div class="al1">Km</div><div class="al2">${km.km!=null?esc(String(km.km)):'—'}</div></div>`);
+        out.push(`<div class="airow"><div class="al1">Oldingi km</div><div class="al2">${km.oldingi_km!=null?esc(String(km.oldingi_km)):'—'}</div></div>`);
+        out.push(`<div class="airow"><div class="al1">Yurgan km</div><div class="al2">${km.yurgan_km!=null?esc(String(km.yurgan_km)):'—'}</div></div>`);
+        if(km.som_per_km!=null) out.push(`<div class="airow"><div class="al1">So'm/km</div><div class="al2">${money(km.som_per_km)}</div></div>`);
+      }
+      if(rtSpid&&rtSpid.user_id&&rtSpid.id){
+        try{
+          const {data:su2,error:se2}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300);
+          if(!se2&&su2) spidImg=`<img src="${esc(su2.signedUrl)}" alt="spidometr">`;
+        }catch(e){}
+      }
+    }
+    aiBox.innerHTML=out.join('')+spidImg;
+    icons();
+  }catch(e){ aiBox.innerHTML=''; }
+}
+window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; const ab=$('chekAiBody'); if(ab) ab.innerHTML=''; };
 
 // --- V6: filial + davr metadata (entry.filial_ids, davr_start/end) ---
 // jurnal() RPC bu ustunlarni qaytarmaydi — yuklangan yozuvlar uchun alohida o'qiladi.
@@ -1628,14 +1733,21 @@ let eyMap={};     // entry.id → [{yuk_id, summa_uzs}] (qisman to'lov taqsimoti
 // 🔴 BITTA qo'shimcha so'rov — SAHIFAGA, qatorga emas. View hali yaratilmagan bo'lsa
 // (PGRST205/42P01) mxMap bo'sh qoladi va jurnal avvalgidek to'liq ishlaydi.
 let mxMap={};     // entry.id → [{maydon_nom, maydon_turi, tartib, korinish, rasm_url}]
+// AI tekshiruvi (PROVODKA_RASM_DETECT.sql) — FAQAT admin. entry.shubhali/ai_holat
+// jurnal()/jurnal_v2() javobida yo'q, shuning uchun alohida so'rov (v_entry_maydon
+// naqshi bilan bir xil): ustun/jadval hali yo'q bo'lsa (42703/PGRST205) jimgina bo'sh qoladi.
+let aiMap={};     // entry.id → {shubhali, shubhali_sabab, ai_holat, rasm_tahlil_id, spidometr_tahlil_id}
 async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
-  if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; return; }
+  if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; aiMap={}; return; }
   try{
-    const [mRes, eyRes, mxRes]=await Promise.all([
+    const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
+    const [mRes, eyRes, mxRes, aiRes]=await Promise.all([
       sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',ids),
       sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids),
-      sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids)
+      sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids),
+      isAdm ? sb.from('entry').select('id,shubhali,shubhali_sabab,ai_holat,rasm_tahlil_id,spidometr_tahlil_id').in('id',ids)
+            : Promise.resolve({data:null,error:null})
     ]);
     if(mRes.error||!mRes.data) return;
     const m={}; mRes.data.forEach(r=>{ m[r.id]=r; }); metaMap=m;
@@ -1643,6 +1755,8 @@ async function refreshMeta(){
     // View yo'q / RLS bermadi → mxRes.error, mxMap bo'sh: chip umuman chizilmaydi.
     mxMap={}; if(!mxRes.error) (mxRes.data||[]).forEach(r=>{ (mxMap[r.entry_id]||(mxMap[r.entry_id]=[])).push(r); });
     Object.keys(mxMap).forEach(k=>mxMap[k].sort((a,b)=>(a.tartib||0)-(b.tartib||0)));
+    // Ustunlar hali RUN qilinmagan (42703) yoki admin emas → aiMap bo'sh, chip chizilmaydi.
+    aiMap={}; if(isAdm&&!aiRes.error&&aiRes.data) aiRes.data.forEach(r=>{ aiMap[r.id]=r; });
     render();
   }catch(e){}
 }
@@ -1695,6 +1809,25 @@ function metaTags(e){
   if(meta.kommunal_turi){
     const KL={gaz:'🔥 Gaz',svet:'💡 Svet',suv:'💧 Suv',musor:'🗑️ Musor'};
     tags.push(`<span class="tg komm">${KL[meta.kommunal_turi]||esc(meta.kommunal_turi)}</span>`);
+  }
+  // ⚠️ AI tekshiruvi (chek/spidometr) — FAQAT admin. Hodim uchun aiMap doim bo'sh
+  // (refreshMeta admin bo'lmasa so'ramaydi ham), shu tag() umuman ishga tushmaydi.
+  {
+    const am=aiMap[e.id];
+    if(am){
+      // Endi bitta modal (#chekModal) — chek rasmi + AI paneli birga. kassaOf(e) topilmasa
+      // ham (kassa bo'lmasa) openChek AI fallback rasmi/panelini ko'rsatadi.
+      if(am.shubhali){
+        tags.push(`<span class="tg warn" onclick="openChek('${kassaOf(e)||''}','${e.id}')" title="${esc(am.shubhali_sabab||'AI shubha bildirdi')}"><i data-lucide="triangle-alert"></i>Shubhali</span>`);
+      } else if(am.ai_holat==='xato'){
+        tags.push(`<span class="tg warn" onclick="openChek('${kassaOf(e)||''}','${e.id}')" title="AI tekshiruvi xato bilan tugadi"><i data-lucide="triangle-alert"></i>AI xato</span>`);
+      } else if(am.ai_holat==='yoq'){
+        const k=klass(e);
+        const moddaId=(k.kind==='out'&&k.dt)?k.dt.account_id:null;
+        const modda=moddaId?accounts.find(a=>a.id===moddaId):null;
+        if(modda&&modda.ai_tekshir) tags.push(`<span class="tg aiwait" title="AI hali bu yozuvni tekshirmagan"><i data-lucide="clock"></i>AI tekshirmagan</span>`);
+      }
+    }
   }
   // Maxsus maydonlar — mavjud .ftag qatoriga chip bo'lib qo'shiladi (yangi qator YO'Q).
   // Ko'pi bilan 3 ta; qolganlari +N chipiga yig'iladi (karta portlamasin).
@@ -1997,11 +2130,19 @@ function maqsadHtml(e,k,multi){
   if(chala) parts.push(`<div class="jchala-note">${esc(CHALA_IZOH)}</div>`);
   const ftag=metaTags(e); if(ftag) parts.push(ftag);
   const kid=kassaOf(e);
-  if(kid&&chekKeys.has(kid+'/'+e.id)){
-    // Rasm → "Chek", pdf/hujjat → "Hujjat" (professional-dev.html ixtiyoriy fayl yuklaydi)
+  const hasChek=!!(kid&&chekKeys.has(kid+'/'+e.id));
+  if(hasChek){
+    // Rasm → "Chek", pdf/hujjat → "Hujjat" (professional.html ixtiyoriy fayl yuklaydi)
     const nm=String(chekKeys.get(kid+'/'+e.id)||''), x=(nm.toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
     const lbl=(!x||CHEK_IMG.indexOf(x)>=0)?'Chek':'Hujjat';
     parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>${lbl}</button>`);
+  } else {
+    // Haqiqiy chek fayli yo'q — lekin admin uchun AI o'qigan rasm bor bo'lishi mumkin
+    // (aiMap faqat admin uchun to'ldiriladi — hodimga hech qachon chiqmaydi).
+    const am=aiMap[e.id];
+    if(am&&am.rasm_tahlil_id){
+      parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid||''}','${e.id}')"><i data-lucide="sparkles"></i><i data-lucide="receipt"></i>AI chek</button>`);
+    }
   }
   // --- Ijrochi + tahrir izi: BITTA metadata qatori (.ijr-meta, joy yetmasa o'raladi) ---
   const im=[];
@@ -2018,6 +2159,14 @@ function actsHtml(e,k,multi){
   return (editable?`<button class="jact edit" title="Tahrirlash" onclick="openEdit('${e.id}')"><i data-lucide="pencil"></i></button>`:'')
     +`<button class="jact del" title="O'chirish" onclick="softDelete('${e.id}')"><i data-lucide="trash-2"></i></button>`;
 }
+// AI "Faqat shubhali" (admin) — klient tomonda, faqat yuklangan qatorlarga.
+let shubhaliOnly=false;
+window.toggleShubhali=val=>{
+  shubhaliOnly=!!val;
+  const lbl=$('lblShubhali'); if(lbl) lbl.classList.toggle('on',shubhaliOnly);
+  render();
+};
+const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato')); };
 function render(){
   // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
   { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
@@ -2025,6 +2174,7 @@ function render(){
   const list=rows.filter(e=>{
     if(tur!=='all' && klass(e).kind!==tur) return false;
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
+    if(shubhaliOnly && !isShubhaliRow(e)) return false;
     return true;
   });
   // 🔴 useV2 da tur/qidiruv SERVERDA filtrlangan → total to'g'ri son, matn sodda.
@@ -2090,7 +2240,7 @@ window.render=render;
    🔴 ZAXIRA: SQL hali RUN qilinmagan bo'lsa birinchi so'rov "funksiya topilmadi"
    beradi (PGRST202 / 42883 / "schema cache") — o'shanda useV2=false bo'lib sahifa
    ESKI jurnal()/jurnal_count() ga tushadi, dashboard va modda filtri yashiriladi.
-   Ya'ni SQL siz ham jurnal avvalgidek to'liq ishlaydi (ai-dev.html "jadval yo'q →
+   Ya'ni SQL siz ham jurnal avvalgidek to'liq ishlaydi (ai.html "jadval yo'q →
    xotira rejimi" naqshi). */
 // 🔴 Tur segmenti → server tasnifi (jurnal_v2_baza). Tekshirilgan xarita, o'zgartirma:
 // server 'tushum' (Dt pul / Kt daromad) klientda ham Kirim, 'xarajat' esa Chiqim bo'lib chiqadi.
@@ -2736,7 +2886,7 @@ window.loadMore=async()=>{
    modal tugmasi ikki marta bosilsa ikkita parallel zanjir ketadi — `entry_history`
    ga ikkita nusxa tushadi va Dt/Kt update'lari bir-birining orasiga tushib
    "yozuv yarim o'zgardi" degan SOXTA ogohlantirish chiqaradi.
-   Naqsh `provodka-dev.html` / `hodim-dev.html` bilan AYNAN bir xil. */
+   Naqsh `provodka.html` / `hodim.html` bilan AYNAN bir xil. */
 let pulBand=false;
 function bandBoshla(){ if(pulBand) return false; pulBand=true; return true; }
 function bandTugat(){ pulBand=false; }
@@ -2756,7 +2906,7 @@ window.softDelete=async id=>{
   }finally{ bandTugat(); }   // 🔴 har return/throw/validatsiya xatosida ham qulf bo'shaydi
 };
 
-// tahrir — provodka-dev.html'dagi mantiq
+// tahrir — provodka.html'dagi mantiq
 // 'xarajat_guruh' (5400) — konteyner, tahrir modalida tanlanmaydi. Hodim kassalari (5401+) tanlanadi.
 function isKassa(a){ return a.type==='aktiv' && a.code.startsWith('5') && a.kassa_turi!=='xarajat_guruh'; }
 // scope='list' bo'lsa — accounts jadvalidan ruxsat etilgan kassa id'larini yig'ib qo'yadi.
@@ -2867,7 +3017,7 @@ window.saveEdit=async()=>{
    Farq faqat hajmda: ekranda "Ko'proq yuklash" bilan qancha yuklangani muhim emas —
    eksport butun davrni sahifalab (XLS_PAGE) serverdan oladi.
    🔴 SheetJS LAZY: <script> tegi yo'q, faqat tugma birinchi bosilganda yuklanadi
-   (ai-dev.html naqshi). Yiqilsa CSV zaxirasi beriladi — Excel uni ochadi. */
+   (ai.html naqshi). Yiqilsa CSV zaxirasi beriladi — Excel uni ochadi. */
 const XLS_SRC='vendor/xlsx-0.18.5.min.js';
 const XLS_PAGE=500;      // bitta jurnal() chaqiruvi
 const XLS_MAX=20000;     // xavfsizlik chegarasi (brauzer xotirasi) — oshsa ogohlantiramiz
@@ -3079,6 +3229,8 @@ async function exportCsvFallback(a){
 
 async function init(){
   wireV2();
+  // AI "Faqat shubhali" — faqat admin ko'radi (checkbox sukut yashirin).
+  if(window.permIsAdmin&&window.permIsAdmin()){ const f=$('fldShubhali'); if(f) f.style.display=''; }
   // 🔴 Default davr — BUGUN (avval oyning 1-sanasi edi). Chip "Bugun" .on holatda.
   const n=nowUz();
   $('from').value=iso(n); $('to').value=iso(n);
