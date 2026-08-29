@@ -688,7 +688,8 @@ function ko(r){
    `modda_menda_yoq` bo'lsa tugma o'rniga kulrang tushuntirish. Mavjud pul so'rovi
    `cardHtml` tanasi BIR QATOR HAM O'ZGARMAYDI — bu funksiya undan OLDIN chaqiriladi. */
 function rxCardHtml(r){
-  const st=ST[r.status]||ST.pending;
+  // Ruxsatda "To'liq berildi" ma'nosiz (pul berilmaydi) — hodim-dev matni bilan bir xil
+  const st=(r.status==='tasdiq')?Object.assign({},ST.tasdiq,{t:'Ruxsat berildi — xarajat yozildi'}):(ST[r.status]||ST.pending);
   const canDo=(r.status==='pending' && r.men_qaror_qila_olaman===true);
   const noRole=(r.status==='pending' && r.men_qaror_qila_olaman!==true && r.modda_menda_yoq===true);
   const ro=(r.status==='pending' && !canDo && !noRole);
@@ -1204,6 +1205,7 @@ window.actSave=async()=>{
     //    KO'RSATILMAYDI — server ham bermaydi, balans sizmasin).
     if(dd.ok===false && dd.kod==='qoldiq_yetmadi'){
       actMsg("Hodim kassasida pul yetmaydi — avval pul so'rovi kerak, so'rov kutishda qoladi.",'err');
+      actUI();   // tugma qayta yoqilsin (QA 2026-08-29) — aks holda modal yopilmaguncha qotib qolardi
       return; }
     if(dd.ok===false){ actMsg(dd.xato||dd.kod||'Bajarilmadi','err'); actUI(); return; }
     actClose();
