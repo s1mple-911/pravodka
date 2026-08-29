@@ -88,6 +88,11 @@ begin
                     and tgname  = 'trg_perm_guard_entry_line') then
     raise exception 'trg_perm_guard_entry_line yoq — pul guardi orin almashgan bolishi mumkin, avval tekshiring';
   end if;
+  -- ruxsat_tasdiq 6-BOLIMda himoyasiz chaqiradi (limit qorovuli) — yoq bolsa
+  -- tasdiq tushunarsiz 42883 bilan yiqilardi, shu yerda aniq xato.
+  if to_regprocedure('public.sorov_post_tosiq(uuid)') is null then
+    raise exception 'sorov_post_tosiq(uuid) yoq — avval PROVODKA_SOROVLAR.sql ni bajaring';
+  end if;
 end
 $ruxsat_pre$;
 
@@ -613,6 +618,12 @@ begin
           'posted',
           'ruxsat:' || r.id::text,
           r.hodim_id,
+          -- ⚠️ ONGLI QAROR (QA 2026-08-29): ruxsat sorovida FILIAL tushunchasi yoq,
+          --    shuning uchun filial_ids bosh. Oqibat: filial-modda OYLIK LIMITI
+          --    (sorov_post_tosiq limit shoxi, trg_limit_guard_entry_line) bu yozuvga
+          --    TAALLUQLI EMAS — faqat kassa qoldigi (sorov_kassa_bal) tekshiriladi.
+          --    Ruxsatni odam (tasdiqlovchi) beradi — limit orniga shu qaror turadi.
+          --    Filial kerak bolsa: ruxsat_yarat ga p_filial_ids qoshiladi (keyingi bosqich).
           '{}'::uuid[])
   returning id into v_entry;
 
