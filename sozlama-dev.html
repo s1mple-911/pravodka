@@ -374,6 +374,15 @@
   .rb-chk input{margin:0;flex:0 0 auto;width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
   .rb-chk:has(input:checked){border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
   .rb-chk span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Limit input — belgilangan modda/ovqat qatorida checkbox+span yonida qo'shimcha maydon */
+  .rb-chk-lim{padding-right:8px}
+  .rb-chk-lim span{flex:1 1 auto}
+  .rb-lim-in{width:120px;flex:0 0 auto;height:30px;border:1px solid var(--line);border-radius:7px;
+    background:var(--surface);color:var(--ink);padding:0 8px;font-size:12.5px;font-family:inherit;
+    outline:none;text-align:right;font-variant-numeric:tabular-nums;cursor:text;transition:border-color .13s}
+  .rb-lim-in:focus{border-color:var(--primary)}
+  .rb-lim-in::placeholder{color:var(--muted);opacity:.7}
+  .rb-help{font-size:11.5px;color:var(--muted);margin:6px 0 0;line-height:1.4}
   .rb-modda-hd{display:flex;gap:8px;align-items:center;margin:10px 0 2px;flex-wrap:wrap}
   .rb-modda-hd input{flex:1 1 160px;height:40px;font-size:13.5px}
   .rb-modda-hd .mxd-btn{background:transparent;border-color:transparent;color:var(--primary);
@@ -1975,23 +1984,29 @@ async function rbLoadUsers(){
 function rbRenderRoles(){
   const q=(($('rbRoleSearch')&&$('rbRoleSearch').value)||'').trim().toLowerCase();
   const list=rbRoles.filter(r=>!q||String(r.nom||'').toLowerCase().indexOf(q)>=0);
-  $('rbRoleList').innerHTML=list.length?list.map(r=>`
+  $('rbRoleList').innerHTML=list.length?list.map(r=>{
+    // modda_limit/ovqat_limit — PROVODKA_RBAC_LIMIT.sql RUN qilinmagan bazada yo'q, shunda 0 (matn chiqmaydi)
+    const limCount=(r.modda_limit?Object.keys(r.modda_limit).length:0)+(r.ovqat_limit?Object.keys(r.ovqat_limit).length:0);
+    return `
     <div class="rb-role-item ${rbEditing&&rbEditing.id===r.id?'sel':''}" onclick="rbSelectRole('${r.id}')">
       <div class="rb-rn">${esc(r.nom)}</div>
-      <div class="rb-rc">${Number(r.user_soni)||0} ta</div>
+      <div class="rb-rc">${Number(r.user_soni)||0} ta${limCount?` · ${limCount} ta limitli`:''}</div>
       <span class="rb-badge ${r.is_active?'on':'off'}">${r.is_active?'Faol':'Nofaol'}</span>
-    </div>`).join(''):'<div class="rb-empty"><i data-lucide="users-round"></i><span>Rol topilmadi</span></div>';
+    </div>`;
+  }).join(''):'<div class="rb-empty"><i data-lucide="users-round"></i><span>Rol topilmadi</span></div>';
   icons();
 }
 window.rbFilterRoles=()=>rbRenderRoles();
 
 function rbBlankEditing(){ return {id:null,nom:'',izoh:'',is_active:true,
-  amallar:new Set(),moddalar:new Set(),ovqat:new Set()}; }
+  amallar:new Set(),moddalar:new Set(),ovqat:new Set(),rbLimit:{modda:{},ovqat:{}}}; }
 window.rbNewRole=()=>{ rbEditing=rbBlankEditing(); rbRenderEditor(); rbRenderRoles();
   const ed=$('rbEditor'); if(ed) ed.scrollIntoView({block:'nearest',behavior:'smooth'}); };
 window.rbSelectRole=id=>{ const r=rbRoles.find(x=>x.id===id); if(!r) return;
   rbEditing={ id:r.id, nom:r.nom||'', izoh:r.izoh||'', is_active:r.is_active!==false,
-    amallar:new Set(r.amallar||[]), moddalar:new Set(r.moddalar||[]), ovqat:new Set(r.ovqat||[]) };
+    amallar:new Set(r.amallar||[]), moddalar:new Set(r.moddalar||[]), ovqat:new Set(r.ovqat||[]),
+    // modda_limit/ovqat_limit — eski SQL da yo'q kalitlar, shunda bo'sh obyekt (cheksiz)
+    rbLimit:{ modda:Object.assign({},r.modda_limit||{}), ovqat:Object.assign({},r.ovqat_limit||{}) } };
   rbRenderEditor(); rbRenderRoles(); };
 function rbCloseEditor(){ rbEditing=null; rbRenderEditor(); rbRenderRoles(); }
 window.rbCloseEditor=rbCloseEditor;
@@ -2022,14 +2037,11 @@ function rbRenderEditor(){
         <button type="button" class="mxd-btn" onclick="rbModdaAll(true)">Hammasi</button>
         <button type="button" class="mxd-btn" onclick="rbModdaAll(false)">Hech biri</button>
       </div>
+      <div class="rb-help">Bo'sh = cheksiz. Limit — shu rolga ega hodimning OYLIK sarfi (ovqatda — yeyuvchi hodimniki).</div>
       <div class="rb-grid-check" id="rbModdaGrid"></div></div>
 
     <div class="rb-frow rb-sec"><div class="mxd-l rb-sub">Ovqat</div>
-      <div class="rb-grid-check">
-        <label class="rb-chk"><input type="checkbox" ${rbEditing.ovqat.has('zavtrak')?'checked':''} onchange="rbToggleSet('ovqat','zavtrak',this.checked)"><span>Zavtrak</span></label>
-        <label class="rb-chk"><input type="checkbox" ${rbEditing.ovqat.has('obed')?'checked':''} onchange="rbToggleSet('ovqat','obed',this.checked)"><span>Obed</span></label>
-        <label class="rb-chk"><input type="checkbox" ${rbEditing.ovqat.has('kechki')?'checked':''} onchange="rbToggleSet('ovqat','kechki',this.checked)"><span>Kechki</span></label>
-      </div></div>
+      <div class="rb-grid-check" id="rbOvqatGrid"></div></div>
 
     <div id="rbEditorRes" class="res"></div>
     <div class="rb-acts">
@@ -2039,23 +2051,56 @@ function rbRenderEditor(){
       <button type="button" class="mxd-cancel" onclick="rbCloseEditor()">Yopish</button>
     </div>`;
   rbRenderModdaGrid();
+  rbRenderOvqatGrid();
   icons();
 }
 window.rbEditField=(k,v)=>{ if(rbEditing) rbEditing[k]=v; };
 window.rbToggleSet=(field,val,checked)=>{ if(!rbEditing) return;
-  const s=rbEditing[field]; if(checked) s.add(val); else s.delete(val); };
+  const s=rbEditing[field]; if(checked) s.add(val);
+  else{ s.delete(val);
+    // Belgi olib tashlansa limit ham o'chadi (moddalar/ovqat) — cheksiz bo'lgan holatga qaytadi
+    if(field==='moddalar') delete rbEditing.rbLimit.modda[val];
+    else if(field==='ovqat') delete rbEditing.rbLimit.ovqat[val];
+  }
+  // Limit inputini checkbox holatiga moslab ko'rsatish/yashirish uchun tegishli grid qayta chiziladi
+  if(field==='moddalar') rbRenderModdaGrid();
+  else if(field==='ovqat') rbRenderOvqatGrid();
+};
+
+// Modda/ovqat limit qiymati: bo'sh/0 = cheksiz (obyektdan o'chiriladi, saqlashda null ketadi)
+window.rbSetLimit=(kind,key,val)=>{ if(!rbEditing) return;
+  const n=Number(String(val||'').replace(/[^\d]/g,''))||0;
+  if(n>0) rbEditing.rbLimit[kind][key]=n; else delete rbEditing.rbLimit[kind][key];
+};
+window.rbFormatLimit=el=>{ const n=Number(String(el.value||'').replace(/[^\d]/g,''))||0; el.value=n>0?money(n):''; };
+
+function rbLimRow(checked,label,limVal,kind,key){
+  const lim=`<input type="text" class="rb-lim-in" inputmode="numeric" title="Limit/oy" placeholder="cheksiz"
+      value="${limVal?money(limVal):''}" onclick="event.stopPropagation()"
+      oninput="rbSetLimit('${kind}','${key}',this.value)" onblur="rbFormatLimit(this)">`;
+  return `<label class="rb-chk${checked?' rb-chk-lim':''}"><input type="checkbox" ${checked?'checked':''} onchange="rbToggleSet('${kind==='modda'?'moddalar':'ovqat'}','${key}',this.checked)"><span>${label}</span>${checked?lim:''}</label>`;
+}
 
 function rbRenderModdaGrid(){
   const grid=$('rbModdaGrid'); if(!grid||!rbEditing) return;
   const q=rbModdaQ.trim().toLowerCase();
   const list=rbModdalar.filter(m=>!q||String(m.code||'').toLowerCase().indexOf(q)>=0||String(m.name||'').toLowerCase().indexOf(q)>=0);
-  grid.innerHTML=list.length?list.map(m=>`
-    <label class="rb-chk"><input type="checkbox" ${rbEditing.moddalar.has(m.id)?'checked':''} onchange="rbToggleSet('moddalar','${m.id}',this.checked)"><span>${esc(m.code)} ${esc(m.name)}</span></label>`).join(''):'<div class="empty">Modda topilmadi</div>';
+  grid.innerHTML=list.length?list.map(m=>
+    rbLimRow(rbEditing.moddalar.has(m.id), esc(m.code)+' '+esc(m.name), rbEditing.rbLimit.modda[m.id], 'modda', m.id)
+  ).join(''):'<div class="empty">Modda topilmadi</div>';
 }
 window.rbModdaSearch=v=>{ rbModdaQ=v; rbRenderModdaGrid(); };
 window.rbModdaAll=all=>{ if(!rbEditing) return;
-  if(all) rbModdalar.forEach(m=>rbEditing.moddalar.add(m.id)); else rbEditing.moddalar.clear();
+  if(all) rbModdalar.forEach(m=>rbEditing.moddalar.add(m.id)); else{ rbEditing.moddalar.clear(); rbEditing.rbLimit.modda={}; }
   rbRenderModdaGrid(); };
+
+const RB_OVQAT_LABELS={zavtrak:'Zavtrak',obed:'Obed',kechki:'Kechki'};
+function rbRenderOvqatGrid(){
+  const grid=$('rbOvqatGrid'); if(!grid||!rbEditing) return;
+  grid.innerHTML=['zavtrak','obed','kechki'].map(tur=>
+    rbLimRow(rbEditing.ovqat.has(tur), RB_OVQAT_LABELS[tur], rbEditing.rbLimit.ovqat[tur], 'ovqat', tur)
+  ).join('');
+}
 
 window.rbSaveRole=async()=>{
   if(!rbEditing) return;
@@ -2063,7 +2108,9 @@ window.rbSaveRole=async()=>{
   const res=$('rbEditorRes');
   if(!nom){ res.className='res err'; res.textContent='Rol nomi kerak'; return; }
   const payload={ id:rbEditing.id, nom, izoh:(rbEditing.izoh||'').trim()||null, is_active:!!rbEditing.is_active,
-    amallar:Array.from(rbEditing.amallar), moddalar:Array.from(rbEditing.moddalar), ovqat:Array.from(rbEditing.ovqat) };
+    amallar:Array.from(rbEditing.amallar),
+    moddalar:Array.from(rbEditing.moddalar).map(id=>({id, limit:rbEditing.rbLimit.modda[id]||null})),
+    ovqat:Array.from(rbEditing.ovqat).map(tur=>({tur, limit:rbEditing.rbLimit.ovqat[tur]||null})) };
   res.className='res'; res.textContent='';
   const btn=$('rbSaveBtn'), sres=$('rbSaveRes'), old=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; }
