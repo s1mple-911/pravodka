@@ -23,8 +23,8 @@
 <script src="ai-widget-dev.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--rx:#6d5dfc;--rx-soft:#efedff;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--amber:#fdb022;--amber-soft:#2e1e05;--rx:#9d8bff;--rx-soft:#241f3f;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
   .num,.kchip .v,.ktot .v,.kgh .t{font-variant-numeric:tabular-nums}
@@ -207,6 +207,15 @@
     background:var(--surface-2);border-radius:10px;font-size:12.5px;color:var(--muted)}
   .srv-ro svg{width:15px;height:15px;flex:none}
   .srv-ro b{color:var(--ink);font-weight:700}
+
+  /* --- Ruxsat so'rovi kartasi (.rx-*) — pul so'rovi bilan bir xil karta tizimi
+     (.srv-card/.srv-st/.srv-b qayta ta'riflanmagan), farq faqat nishon rangi:
+     --primary/--amber o'rniga binafsha/indigo --rx — ro'yxatda ikki turni
+     bir qarashda ajratadi. */
+  .rx-card .rx-av{background:var(--rx-soft);color:var(--rx)}
+  .rx-card.s-pend::before{background:var(--rx)}
+  .rx-kod{color:var(--muted);font-weight:700;margin-right:6px}
+  .rx-note svg{color:var(--rx)}
 
   /* --- amal tugmalari --- */
   .srv-acts{display:flex;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
@@ -691,7 +700,8 @@ function rxCardHtml(r){
   const dt=dec
     ? fmtDt(r.qaror_vaqt||r.sana)+(r.qaror_kim?' · '+esc(r.qaror_kim):'')
     : fmtDt(r.sana);
-  const modda=(esc(r.modda_kod||'')+' '+esc(r.modda_nom||'')).trim();
+  const moddaKod=esc(r.modda_kod||''), moddaNom=esc(r.modda_nom||'');
+  const modda=(moddaKod?'<span class="rx-kod">'+moddaKod+'</span>':'')+moddaNom;
 
   let res='';
   if(r.status==='rad' && r.qaror_izoh)
@@ -704,7 +714,7 @@ function rxCardHtml(r){
       +'<button type="button" class="srv-b no" onclick="srvAct(\''+id+'\',\'ruxsat_rad\')"><i data-lucide="x"></i>Rad etish</button>'
       +'</div>';
   }else if(noRole){
-    tail='<div class="srv-ro"><i data-lucide="info"></i><span>Bu modda sizning rolingizda ham yo\'q — ruxsat bera olmaysiz.</span></div>';
+    tail='<div class="srv-ro"><i data-lucide="lock"></i><span>Bu modda sizning rolingizda ham yo\'q — ruxsat bera olmaysiz.</span></div>';
   }else if(ro){
     tail='<div class="srv-ro"><i data-lucide="info"></i><span>'
       +(r.kimdan_nom?'Faqat <b>'+esc(r.kimdan_nom)+'</b> qaror qila oladi.'

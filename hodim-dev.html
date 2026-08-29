@@ -36,7 +36,8 @@
     --ic-receipt:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z'/%3E%3Cpath d='M8 8h8'/%3E%3Cpath d='M8 12h6'/%3E%3C/svg%3E");
     --ic-sparkles:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z'/%3E%3Cpath d='M20 3v4'/%3E%3Cpath d='M22 5h-4'/%3E%3Cpath d='M4 17v2'/%3E%3Cpath d='M5 18H3'/%3E%3C/svg%3E");
     --ic-gauge:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 14 4-4'/%3E%3Cpath d='M3.34 19a10 10 0 1 1 17.32 0'/%3E%3C/svg%3E");
-    --amber:#b54708;--amber-soft:#fef6e6
+    --amber:#b54708;--amber-soft:#fef6e6;
+    --rx:#6d5dfc;--rx-soft:#efedff
   }
   [data-theme="dark"]{
     --bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--surface-3:#272e3a;
@@ -47,7 +48,8 @@
     --tr:#4f74ff;--tr-soft:#16233b;
     --hero-a:#14682a;--hero-b:#0a3d19;--hero-ink:#fff;--hero-line:rgba(255,255,255,.18);
     --shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55);--shadow-lg:0 18px 44px rgba(0,0,0,.6);
-    --amber:#f0a94e;--amber-soft:#2e2412}
+    --amber:#f0a94e;--amber-soft:#2e2412;
+    --rx:#9d8bff;--rx-soft:#241f3f}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -261,7 +263,8 @@
     .modal,.kmodal,.tmodal{align-items:flex-end;padding:0}
     .modalbox,.kbox,.tbox{max-width:none;border-radius:var(--r-xl) var(--r-xl) 0 0;
       padding:var(--s5) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom));
-      max-height:92vh;display:flex;flex-direction:column;animation:sheetin .22s cubic-bezier(.22,.61,.36,1)}
+      max-height:92vh;display:flex;flex-direction:column;animation:sheetin .22s cubic-bezier(.22,.61,.36,1);
+      overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
     .modalbox::before,.kbox::before,.tbox::before{content:'';flex:none;width:36px;height:4px;border-radius:2px;background:var(--surface-3);
       margin:-6px auto var(--s3)}
     .modalbox>*,.kbox>*,.tbox>*{flex:none}
@@ -619,18 +622,24 @@
   .srv-tabs{display:flex;gap:6px;background:var(--surface-2);border-radius:var(--r-md);
     padding:4px;margin:0 0 var(--s5)}
   .srv-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
-    height:38px;border:none;border-radius:9px;background:transparent;color:var(--muted);
+    height:44px;border:none;border-radius:9px;background:transparent;color:var(--muted);
     font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
     transition:background .15s,color .15s}
   .srv-tab svg{width:16px;height:16px;flex:none}
   .srv-tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
-  .srv-tab:disabled{opacity:.45;cursor:not-allowed}
+  .srv-tab:disabled{opacity:.5;cursor:not-allowed}
   @media(hover:hover){.srv-tab:not(.on):not(:disabled):hover{color:var(--ink)}}
   .srv-intro{display:flex;gap:var(--s2);align-items:flex-start;background:var(--surface-2);
     border-radius:var(--r-md);padding:var(--s3);margin:0 0 var(--s5);
     font-size:13px;line-height:1.5;color:var(--ink-2)}
   .srv-intro svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--muted)}
   .srv-intro b{font-weight:700;color:var(--ink)}
+  /* Tab 2 ("Ruxsat so'rash") intro — ogohlantiruvchi ohang, lekin fon NEYTRAL
+     (sariq/amber emas). Chap chiziq + ikonka --rx bilan — sorovlar-dev.html dagi
+     ruxsat kartasi bilan bir xil rang identifikatori, "pul kelmaydi" ma'nosini
+     bir qarashda ajratadi. */
+  .srv-intro.rx{border-left:3px solid var(--rx)}
+  .srv-intro.rx svg{color:var(--rx)}
   .srv-fld{margin-bottom:var(--s5)}
   .srv-fld:last-of-type{margin-bottom:var(--s4)}
   .srv-hint{font-size:12.5px;color:var(--muted);line-height:1.45;margin:var(--s2) 0 0 2px}
@@ -726,6 +735,8 @@
   @media(max-width:380px){
     .srv-amt{font-size:23px}
     .srv-whos{max-height:180px}
+    .srv-tab{font-size:12.5px;gap:4px}
+    .srv-tab svg{width:14px;height:14px}
   }
   @media print{ .modal,.savebar{display:none!important} }
 
@@ -1317,8 +1328,8 @@
          Yopiq (RBAC rolida yo'q) xarajat moddasiga bir martalik ruxsat. Tasdiqlansa
          xarajat AVTOMAT hodim kassasidan yoziladi — pul TUSHMAYDI, transfer YO'Q. -->
     <div id="srvPane2" hidden>
-    <div class="srv-intro">
-      <i data-lucide="info"></i>
+    <div class="srv-intro rx">
+      <i data-lucide="key-round"></i>
       <span>Bu tur sizga yopiq. Ruxsat berilsa xarajat <b>sizning hisobingizdan</b> yoziladi —
         pul tushmaydi, transfer bo'lmaydi.</span>
     </div>
@@ -1326,7 +1337,7 @@
     <!-- 1) XARAJAT TURI — faqat chaqiruvchiga YOPIQ moddalar (ruxsat_yopiq_moddalar) -->
     <div class="srv-fld">
       <div class="lbl" id="rxModdaLbl">Xarajat turi <span class="req">majburiy</span></div>
-      <div class="picklist" id="rxModdaList" role="radiogroup" aria-labelledby="rxModdaLbl"></div>
+      <div class="picklist srv-whos" id="rxModdaList" role="radiogroup" aria-labelledby="rxModdaLbl"></div>
     </div>
 
     <!-- 2) KIMDAN — Tab 1 dagi srvWhos ro'yxatining O'ZI, alohida rxWho state'i -->
