@@ -351,6 +351,11 @@ begin
     return new;
   end if;
 
+  -- ONGLI QAROR (Asilbek, 2026-08-29): "Ruxsat sorovi" (PROVODKA_RUXSAT_SOROV.sql)
+  -- orqali yozilgan xarajatda modda hodimning OZ rolida YOQ (aynan shu sabab
+  -- sorov yozilgan) -> rbac_limit_modda null -> oylik limit TEKSHIRILMAYDI.
+  -- Bu bug emas: u yerda limit orniga tasdiqlovchi odamning qarori turadi
+  -- (har sorov alohida, summa/modda tasdiqlovchi koradi). Ozgartirilmasin.
   v_lim := rbac_limit_modda(v_ega, new.account_id);
   if v_lim is null then
     return new;                                      -- limit qoyilmagan yoki cheksiz
