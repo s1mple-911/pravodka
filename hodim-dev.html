@@ -1577,9 +1577,12 @@ let amalRows=null, amalOff=false, histReq=0;
    olgan" (ovqat_bugun) esa panel HAR ochilishida FRESH (kesh emas).
    🔴 Fail-closed: ro'yxat/narx yuklanmasa saqlash BUTUNLAY o'chiq. */
 let ovqatStaff=[], ovqatBranchMap=[], ovqatNarx=null;
-// ovqatRuxsat: null = RPC yo'q (42883/PGRST202) -> eski xatti-harakat, hamma tur ochiq.
+// ovqatRuxsat: null = HALI YUKLANMAGAN -> FAIL-CLOSED (hech qaysi tur ochiq emas, tugmalar
+//   chizilmaydi). 2026-08-29 gacha null = "RPC yo'q" ham edi, shu sabab javob kelguncha
+//   HAMMA tur bir zum ochiq ko'rinib, keyin yopilardi (Asilbek topilmasi).
 // {} yoki {"<staff_id>":["obed",...]} = server javobi (fresh, keshlanmaydi). Boshqa xato -> {} (fail-closed).
-let ovqatRuxsat=null;
+// RPC yo'q (42883/PGRST202, RUN qilinmagan baza) -> ovqatRuxsatOff=true -> eski xatti-harakat.
+let ovqatRuxsat=null, ovqatRuxsatOff=false;
 let ovqatLoaded=false, ovqatLoading=false, ovqatFailed=false;
 let ovqatSel=new Set();     // "staffId:tur" — bir hodim BIR marta obed VA BIR marta zavtrak ola oladi
 let ovqatToday={};          // "staffId:tur" -> {soat, kim} — bugun allaqachon olganlar (fresh)
@@ -2237,7 +2240,8 @@ function ovqatHas(staffId,tur){ return ovqatSel.has(ovqatKey(staffId,tur)); }
 function ovqatTodayHas(staffId,tur){ return !!ovqatToday[ovqatKey(staffId,tur)]; }
 // YEYUVCHI (hodim) ruxsati — ovqatRuxsat serverdan keladi (ovqat_ruxsatlar RPC), yozuvchi ruxsatidan (permOvqatOk) alohida.
 function ovqatStaffOk(staffId,tur){
-  if(ovqatRuxsat===null) return true;   // RPC yo'q (RUN qilinmagan baza) -> eski xatti-harakat
+  if(ovqatRuxsatOff) return true;       // RPC yo'q (RUN qilinmagan baza) -> eski xatti-harakat
+  if(ovqatRuxsat===null) return false;  // hali yuklanmagan -> YOPIQ (fail-closed, miltillamasin)
   const arr=ovqatRuxsat[staffId]!=null?ovqatRuxsat[staffId]:ovqatRuxsat[String(staffId)];
   return Array.isArray(arr) && arr.includes(tur);
 }
@@ -2323,8 +2327,15 @@ async function ovqatLoad(force){
 // Bugun kim obed/zavtrak olgani + hodimlarning ovqat ruxsati — panel HAR ochilishida FRESH (kesh emas),
 // rol o'zgarsa darrov ta'sir qilsin.
 async function ovqatBugunLoad(){
+  // Ikki RPC PARALLEL (avval ketma-ket edi — ruxsat javobi 2x kech kelardi va shu vaqt
+  // davomida tugmalar ochiq turardi). Tarmoq xatosi Promise.all'ni yiqitmasin — o'raladi.
+  const wrap=p=>Promise.resolve(p).then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}));
+  const [bRes,rRes]=await Promise.all([
+    wrap(sb.rpc('ovqat_bugun',{p_kun:isoDay(nowUz()), p_staff:null})),
+    wrap(sb.rpc('ovqat_ruxsatlar'))
+  ]);
   try{
-    const {data,error}=await sb.rpc('ovqat_bugun',{p_kun:isoDay(nowUz()), p_staff:null});
+    const {data,error}=bRes;
     if(error||!Array.isArray(data)){ ovqatToday={}; }
     else{
       const m={};
@@ -2333,15 +2344,18 @@ async function ovqatBugunLoad(){
     }
   }catch(e){ ovqatToday={}; }
   try{
-    const {data,error}=await sb.rpc('ovqat_ruxsatlar');
+    const {data,error}=rRes;
     if(error){
       // RPC hali RUN qilinmagan baza (funksiya yo'q) -> eski xatti-harakat: hamma tur ochiq.
       // Boshqa xato -> fail-closed: hech kimga ruxsat yo'q deb hisoblanadi.
-      ovqatRuxsat = (error.code==='PGRST202'||error.code==='42883') ? null : {};
+      ovqatRuxsatOff = (error.code==='PGRST202'||error.code==='42883');
+      ovqatRuxsat = {};
     }else{
+      ovqatRuxsatOff=false;
       ovqatRuxsat = (data && typeof data==='object') ? data : {};
     }
   }catch(e){ ovqatRuxsat={}; }
+  renderOvqatList();   // ruxsat kelishi bilan darrov chiziladi (limit so'rovini kutmaydi)
   // RBAC oylik limit (ovqat, staff+tur) — RPC yo'q (PGRST202/42883) yoki xato bo'lsa
   // jimgina e'tiborsiz (ovqLim eskisicha qoladi/bo'sh), qolgan mantiq buzilmaydi.
   try{
