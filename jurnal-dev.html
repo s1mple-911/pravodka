@@ -31,7 +31,7 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   #app{display:none}.sidebar{display:none}
   .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
-  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1560px}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
   .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
@@ -121,7 +121,7 @@
   .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   /* AI xulosasi ustuni — "Mos" (shubha yo'q, AI tekshirgan) */
   .ftag .tg.ok{background:var(--green-soft);color:var(--green);cursor:pointer}
-  .ai-sub{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.6}
+  .ai-sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.6}
   .ai-sub .ai-diff{color:var(--red);font-weight:600}
   .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
@@ -135,7 +135,7 @@
   .jmuted{color:var(--muted)}
   .jdel-note{font-size:11.5px;color:var(--red);display:flex;align-items:center;gap:4px;margin-top:4px}
   .jdel-note svg{width:12px;height:12px}
-  .jedited{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:4px}
+  .jedited{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:2px}
   .jedited svg{width:12px;height:12px}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
   .jline{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:2px 0;color:var(--muted)}
@@ -151,16 +151,31 @@
   /* kind ranglari (strelka + summa) */
   .kc-in{color:var(--green)}.kc-out{color:var(--red)}.kc-tr{color:var(--tr)}.kc-nt{color:var(--nt)}
   /* --- Desktop jadval --- */
-  .jtbl{width:100%;border-collapse:collapse}
+  /* separate+border-spacing:0 — position:sticky ba'zi brauzerlarda (Safari) collapse
+     modelida ishlamaydi; faqat pastki chegara ishlatilgani uchun ko'rinishga ta'sir yo'q */
+  .jtbl{width:100%;border-collapse:separate;border-spacing:0}
   .jtbl thead th{font-size:11px;color:var(--muted);text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.03em;
-    padding:0 12px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+    padding:0 12px 11px;border-bottom:1px solid var(--line);white-space:nowrap;
+    position:sticky;top:0;background:var(--surface);z-index:1}
   .jtbl thead th.ta-r{text-align:right}
-  .jtbl tbody td{padding:13px 12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
-  .jtbl tbody tr:hover{background:var(--surface-2)}
+  .jtbl tbody td{padding:12px 10px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.45;vertical-align:top}
+  .jtbl tbody tr:hover td{background:var(--surface-2)}
+  /* Ustun kengliklari (2026-08-30): 13/14 ustun 1560px'ga siqilmasin — sana/valyuta/
+     summa/ijrochi ixcham va o'ralmaydi, Maqsad/Izoh/AI moslashuvchan, №/Fayl/Amallar tor.
+     th'lar ham shu klasslarni oladi (render()) — bir xil qoida ikkalasiga ham tegadi. */
+  .jtbl .j-num,.jtbl .j-fayl,.jtbl .j-acts{width:1%}
+  .jtbl .j-date,.jtbl .j-xdate{width:112px}
+  .jtbl .j-ijr{width:132px}
+  .jtbl .j-cur{width:88px}
+  .jtbl .j-amt{width:126px}
+  .jtbl .j-maqsad,.jtbl .j-izoh,.jtbl .j-ai{min-width:160px;max-width:280px}
+  .jtbl td.j-maqsad,.jtbl td.j-izoh,.jtbl td.j-ai{overflow-wrap:anywhere}
   .jtbl .j-num{color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .j-id{display:block;margin-top:2px;font-size:10px;font-weight:500;color:var(--muted);cursor:pointer;letter-spacing:.02em}
+  .j-id{display:block;margin-top:2px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap}
   .j-id:hover{color:var(--primary)}
-  .jtbl .j-date{color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
+  /* tbody bilan cheklangan: th'da ham .j-date klassi bor (kenglik uchun),
+     lekin sarlavha rangi/shrifti .jtbl thead th'dan kelishi shart (uchastuvchi bo'lmasin) */
+  .jtbl tbody .j-date{color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
   .jtbl .j-xdate{white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
   /* Jurnal V3 (2026-08-30): "Kiritilgan" (j-kirit, created_at) va "Xarajat sanasi"
      (j-hisob, entry_date) endi IKKI ALOHIDA ustunda (kiritHtml()/xarajatHtml()) —
@@ -173,17 +188,16 @@
   .j-hisob{display:block;color:var(--ink);font-size:13.5px;font-weight:500;
     font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
   .j-hisob.j-oth{font-style:italic;color:var(--ink);text-decoration:underline dotted;text-underline-offset:2px}
-  .j-davr{display:block;margin-top:2px;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+  .j-davr{display:block;margin-top:2px;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
   .jtbl .j-kt,.jtbl .j-dt{min-width:0;max-width:230px}
   .jtbl .j-kt .aname,.jtbl .j-dt .aname{display:inline}
   .jtbl .j-arrow{text-align:center;width:30px;padding-left:0;padding-right:0}
   .jtbl .j-arrow svg{width:18px;height:18px;vertical-align:middle}
   .jtbl .j-ijr{white-space:nowrap;max-width:180px}
   .jtbl .j-cur{white-space:nowrap;font-variant-numeric:tabular-nums}
-  .j-fc{color:var(--muted);font-size:11px;margin-top:1px}
-  .jtbl .j-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14.5px}
-  .jtbl .j-maqsad,.jtbl .j-izoh{max-width:260px}
-  .jtbl .j-ai{max-width:220px}
+  .j-fc{color:var(--muted);font-size:11.5px;margin-top:2px}
+  /* tbody bilan cheklangan — sabab yuqoridagi .j-date izohi bilan bir xil */
+  .jtbl tbody .j-amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14.5px}
   .jtbl .j-fayl{white-space:nowrap}
   .jtbl .j-acts{white-space:nowrap;text-align:right;width:1%}
   .jtbl tr.del td{opacity:.65}
@@ -211,10 +225,9 @@
   .jc-ar svg{width:20px;height:20px}
   .jc-maqsad{font-size:13.5px}
   /* Jurnal V3: pastdagi yorliqli qatorlar (Xarajat sanasi/Ijrochi/Valyuta/Maqsad/Izoh/
-     AI xulosasi/Fayl) — .jc-maqsad o'rniga (bo'sh qator chizilmaydi, render() hal qiladi). */
-  .jc-body{display:flex;flex-direction:column;gap:9px;margin-top:2px}
-  .jc-row{font-size:13.5px}
-  .jc-row .acap{display:block;font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px}
+     AI xulosasi/Fayl) — .jc-maqsad o'rniga (bo'sh qator chizilmaydi, render() hal qiladi).
+     🔴 .jc-body/.jc-row/.acap ko'rinishi pastda, "JURNAL V3 — dizayn tozaligi" blokida
+     (chapda 84px yorliq, o'ngda qiymat) — shu yerda qayta ta'riflanmagan. */
   .jc-acts{display:flex;justify-content:flex-end;gap:2px;margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
   .jc-multi .jc-acc{flex:1}
   /* Yuk ma'lumoti modali */
@@ -869,6 +882,32 @@
     .jchip-chala{border:1px solid #999!important;color:#000!important}
     .jchala-note,.jtbl tr.chala .j-amt,.jcard.chala .jc-amt{color:#000!important}
   }
+
+  /* ================================================================
+     JURNAL V3 — dizayn tozaligi (2026-08-30). Faqat vizual: chiplar bir
+     xil balandlik, mobil qator yorliq/qiymat yonma-yon.
+     ================================================================ */
+  /* Chiplar (.tg/.ijr/.chekpin) bitta qatorda tekis tursin — faqat DESKTOP
+     jadval doirasida (qator balandligi bir xil bo'lishi shu yerda muhim;
+     mobil kartada .ijr'ning o'zi ataylab kattaroq/touch-friendly qoladi). */
+  .jtbl .tg,.jtbl .ijr,.jtbl .chekpin{height:22px;box-sizing:border-box;border-radius:7px;
+    font-size:11px;font-weight:600;padding:0 8px;line-height:1}
+  .jtbl .tg svg,.jtbl .ijr>svg,.jtbl .chekpin svg{width:12px;height:12px}
+  .jtbl .chekpin{margin-top:0}
+  /* .ftag'ning o'zida flex gap bor (chiplar orasida) — faqat Fayl ustunidagi
+     tugmalar (.chekpin) alohida joylashtiriladi (flex konteyner emas), shuning
+     uchun ularga qo'lda bo'shliq kerak. */
+  .jtbl .j-fayl .chekpin+.chekpin{margin-left:6px}
+
+  /* Mobil karta qatori (.jc-row): chapda 84px yorliq, o'ngda qiymat (yonma-yon) */
+  .jc-body{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+  .jc-row{display:flex;align-items:flex-start;gap:10px;font-size:13.5px}
+  .jc-row .acap{flex:0 0 84px;display:block;font-size:10.5px;color:var(--muted);
+    font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:0;padding-top:2px}
+  .jc-row .jc-val{flex:1;min-width:0}
+  /* Fayl qatoridagi bir nechta tugma — gorizontal, orasida bo'shliq */
+  .jc-val .chekpin{margin-top:0}
+  .jc-val .chekpin+.chekpin{margin-left:6px}
 </style>
 </head>
 <body>
@@ -2374,14 +2413,19 @@ function render(){
       +`<td class="j-acts">${actsHtml(e,k,multi)}</td>`
     +`</tr>`;
   }).join('');
+  // 🔴 th'lar endi td bilan BIR XIL joylashuv klassini oladi (j-num/j-date/...) — faqat
+  // kenglik CSS qoidalari (.jtbl .j-xxx{width:...}) shundan ikkalasiga ham tegadi,
+  // rang/shrift th'niki (.jtbl thead th) bilan belgilanadi, to'qnashuv yo'q.
   const table=`<div class="jwrap desktop-only"><table class="jtbl"><thead><tr>`
-    +`<th>#</th><th>Kiritilgan</th><th>Xarajat sanasi</th><th>Qayerdan (Kt)</th><th></th><th>Qayerga (Dt)</th>`
-    +`<th>Ijrochi</th><th>Valyuta</th><th class="ta-r">Summa</th><th>Maqsad</th><th>Izoh</th>`
-    +(isAdm?'<th>AI xulosasi</th>':'')+`<th>Fayl</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+    +`<th class="j-num">#</th><th class="j-date">Kiritilgan</th><th class="j-xdate">Xarajat sanasi</th>`
+    +`<th class="j-kt">Qayerdan (Kt)</th><th class="j-arrow"></th><th class="j-dt">Qayerga (Dt)</th>`
+    +`<th class="j-ijr">Ijrochi</th><th class="j-cur">Valyuta</th><th class="ta-r j-amt">Summa</th>`
+    +`<th class="j-maqsad">Maqsad</th><th class="j-izoh">Izoh</th>`
+    +(isAdm?'<th class="j-ai">AI xulosasi</th>':'')+`<th class="j-fayl">Fayl</th><th class="j-acts"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 
   // Mobil: karta — Kiritilgan+summa tepada, Qayerdan → Qayerga o'rtada strelka bilan,
   // pastda yorliqli qatorlar (.jc-row). Bo'sh qator chizilmaydi (karta shishmasin).
-  const jcRow=(lbl,html)=>`<div class="jc-row"><span class="acap">${esc(lbl)}</span>${html}</div>`;
+  const jcRow=(lbl,html)=>`<div class="jc-row"><span class="acap">${esc(lbl)}</span><div class="jc-val">${html}</div></div>`;
   const cardsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
     const acts=actsHtml(e,k,multi);
