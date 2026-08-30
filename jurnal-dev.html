@@ -31,7 +31,7 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   #app{display:none}.sidebar{display:none}
   .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
-  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1560px}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1900px}.mobile-only{display:none!important}.bnav{display:none!important}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
   .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
@@ -121,6 +121,10 @@
   .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   /* AI xulosasi ustuni — "Mos" (shubha yo'q, AI tekshirgan) */
   .ftag .tg.ok{background:var(--green-soft);color:var(--green);cursor:pointer}
+  /* Bitta kassa ichidagi harakat (2026-08-30): konvert — ko'k (transfer rangi), ichki — kulrang */
+  .ftag .tg.konv{background:var(--tr-soft);color:var(--tr)}
+  .ftag .tg.ichki{background:var(--nt-soft);color:var(--nt)}
+  .j-konv{white-space:nowrap;color:var(--tr);font-weight:600}
   .ai-sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.6}
   .ai-sub .ai-diff{color:var(--red);font-weight:600}
   .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
@@ -163,12 +167,16 @@
   /* Ustun kengliklari (2026-08-30): 13/14 ustun 1560px'ga siqilmasin — sana/valyuta/
      summa/ijrochi ixcham va o'ralmaydi, Maqsad/Izoh/AI moslashuvchan, №/Fayl/Amallar tor.
      th'lar ham shu klasslarni oladi (render()) — bir xil qoida ikkalasiga ham tegadi. */
-  .jtbl .j-num,.jtbl .j-fayl,.jtbl .j-acts{width:1%}
-  .jtbl .j-date,.jtbl .j-xdate{width:112px}
-  .jtbl .j-ijr{width:132px}
-  .jtbl .j-cur{width:88px}
-  .jtbl .j-amt{width:126px}
-  .jtbl .j-maqsad,.jtbl .j-izoh,.jtbl .j-ai{min-width:160px;max-width:280px}
+  /* 🔴 2026-08-30 (Asilbek): jadval EKRANGA SIG'ISHI shart — Fayl/Amallar chetga chiqmasin.
+     Qat'iy kengliklar olib tashlandi: tor ustunlar mazmuniga qarab (nowrap), keng ustunlar
+     (Maqsad/Izoh/AI) qolgan joyni bo'lishadi va o'raladi. Katak paddingi 12/10 → 10/8. */
+  .jtbl tbody td{padding:10px 8px}
+  .jtbl thead th{padding:0 8px 10px}
+  .jtbl .j-num,.jtbl .j-fayl,.jtbl .j-acts,.jtbl .j-cur,.jtbl .j-amt,.jtbl .j-date,.jtbl .j-xdate{width:1%}
+  .jtbl .j-ijr{width:1%;max-width:150px}
+  .jtbl .j-ijr .ijr-nm{max-width:110px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:bottom}
+  .jtbl .j-kt,.jtbl .j-dt{min-width:120px;max-width:200px}
+  .jtbl .j-maqsad,.jtbl .j-izoh,.jtbl .j-ai{min-width:130px}
   .jtbl td.j-maqsad,.jtbl td.j-izoh,.jtbl td.j-ai{overflow-wrap:anywhere}
   .jtbl .j-num{color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .j-id{display:block;margin-top:2px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap}
@@ -189,11 +197,11 @@
     font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
   .j-hisob.j-oth{font-style:italic;color:var(--ink);text-decoration:underline dotted;text-underline-offset:2px}
   .j-davr{display:block;margin-top:2px;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
-  .jtbl .j-kt,.jtbl .j-dt{min-width:0;max-width:230px}
+  /* (kt/dt kengligi yuqorida — "sig'ishi shart" bloki) */
   .jtbl .j-kt .aname,.jtbl .j-dt .aname{display:inline}
   .jtbl .j-arrow{text-align:center;width:30px;padding-left:0;padding-right:0}
   .jtbl .j-arrow svg{width:18px;height:18px;vertical-align:middle}
-  .jtbl .j-ijr{white-space:nowrap;max-width:180px}
+  .jtbl .j-ijr{white-space:nowrap}
   .jtbl .j-cur{white-space:nowrap;font-variant-numeric:tabular-nums}
   .j-fc{color:var(--muted);font-size:11.5px;margin-top:2px}
   /* tbody bilan cheklangan — sabab yuqoridagi .j-date izohi bilan bir xil */
@@ -203,7 +211,12 @@
   .jtbl tr.del td{opacity:.65}
   .jtbl tr.del .j-amt,.jtbl tr.del .aname{text-decoration:line-through}
   /* Jadval kengaygani uchun gorizontal skroll KONTEYNERGA (.jwrap), sahifaning o'ziga emas */
-  .jwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* 🔴 STICKY SARLAVHA (Asilbek 2026-08-30): .jwrap da overflow-x:auto bo'lsa u alohida
+     skroll konteyneri bo'lib qoladi va thead sticky SAHIFA skrolliga nisbatan ISHLAMAYDI.
+     Shuning uchun keng ekranda overflow yo'q (jadval o'zi sig'adi), faqat 1300px dan tor
+     ekranda gorizontal skroll (u yerda sticky yo'q — ongli almashuv). */
+  .jwrap{overflow-x:visible}
+  @media(max-width:1299px){.jwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}}
   /* --- Mobil kartalar --- */
   .jcards{display:flex;flex-direction:column;gap:10px}
   .jcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow)}
@@ -1597,6 +1610,38 @@ const jCurOf=a=>String((a&&a.currency)||'UZS').toUpperCase();
 const isSubAcc=a=>!!(a&&a.parent_id&&(jCurOf(a)!=='UZS'||a.pul_turi));
 // Kassa + uning barcha bola-hisoblari (nevaralar ham: "Naqd · USD" bo'lishi mumkin).
 // SQL kassa_oila() ning klient nusxasi — jurnal RPC'ga p_accounts sifatida ketadi.
+// Bola-hisobdan ILDIZ kassaga ko'tarilish (perms-dev.js keyOf() qoidasi). accounts hali
+// kelmagan bo'lsa id ning o'zi qaytadi.
+function rootOf(id){
+  let cur=(accounts||[]).find(a=>a.id===id), guard=0;
+  while(cur && isSubAcc(cur) && guard++<6){
+    const p=(accounts||[]).find(a=>a.id===cur.parent_id); if(!p) break; cur=p;
+  }
+  return cur?cur.id:id;
+}
+// Pul→pul yozuv bitta kassa ichidami: 'konvert' (valyuta farq qiladi — 5511 Naqd → 5632 $),
+// 'ichki' (bir ildiz, bir valyuta — Naqd → Click tur o'tkazish), null (haqiqiy transfer).
+// 🔴 Konvert VALYUTADAN aniqlanadi (accounts kerak emas) — keshli birinchi renderda ham to'g'ri.
+function ichkiOf(dt,kt){
+  if(!dt||!kt) return null;
+  const cd=String(dt.currency||'UZS').toUpperCase(), ck=String(kt.currency||'UZS').toUpperCase();
+  if(cd!==ck) return 'konvert';
+  return (accounts&&accounts.length && rootOf(dt.account_id)===rootOf(kt.account_id)) ? 'ichki' : null;
+}
+// Konvert kursi (1 birlik valyuta necha so'm) — satrlardan: so'm summa / valyuta summa.
+function konvKurs(k){
+  const l=[k.dt,k.kt].find(x=>x&&String(x.currency||'UZS').toUpperCase()!=='UZS');
+  const uzs=Number(k.dt&&k.dt.debit)||0, fc=l?Number(l.fc_amount)||0:0;
+  return (uzs>0&&fc>0)?{kurs:Math.round(uzs/fc), fc, cur:String(l.currency).toUpperCase()}:null;
+}
+function ichkiChip(k){
+  if(!k||!k.ichki) return '';
+  if(k.ichki==='konvert'){
+    const r=konvKurs(k);
+    return `<span class="tg konv" title="Bitta kassa ichida valyuta almashinuvi"><i data-lucide="refresh-cw"></i>Konvert${r?` · ${money(r.fc)} ${esc(r.cur)} · kurs ${money(r.kurs)}`:''}</span>`;
+  }
+  return `<span class="tg ichki" title="Bitta kassa ichida pul turi o'tkazish"><i data-lucide="arrow-left-right"></i>Ichki o'tkazma</span>`;
+}
 function kassaOila(id){
   const out=[id], seen=new Set([id]);
   for(let i=0;i<out.length;i++){
@@ -1681,7 +1726,13 @@ function klass(e){
   if(isChala(e)) return {kind:'nt',ic:'circle-dashed',sign:'',chala:true};
   if((e.lines||[]).length>2) return {kind:'nt',ic:'layers',sign:''};
   const dp=isPul(dt), kp=isPul(kt);
-  if(dp&&kp)  return {kind:'tr', ic:'arrow-left-right', sign:'', dt,kt};
+  if(dp&&kp){
+    // Bitta kassa ICHIDAGI harakat (2026-08-30, Asilbek): konvert (5511 Naqd → 5632 $)
+    // va tur o'tkazish (Naqd → Click) ham jurnalda ANIQ ko'rinsin. kind 'tr' QOLADI
+    // (Transfer segmenti/filtri buzilmasin), faqat `ichki` va ikonka farq qiladi.
+    const ich=ichkiOf(dt,kt);
+    return {kind:'tr', ic:ich==='konvert'?'refresh-cw':'arrow-left-right', sign:'', dt,kt, ichki:ich};
+  }
   if(dp)      return {kind:'in', ic:'arrow-down-left',  sign:'+', dt,kt};
   if(kp)      return {kind:'out',ic:'arrow-up-right',   sign:'−', dt,kt};
   return        {kind:'nt', ic:'arrow-right',     sign:'', dt,kt};   // ikkalasi ham pul emas
@@ -2246,8 +2297,12 @@ function izohCell(e,k,multi){
 }
 // Maqsad: foydalanuvchi TANLAGAN struktura (maxsus maydonlar, kommunal, filial, yuk,
 // "Hujjat kutilmoqda") — AI teglari (aiCell) va davr (xarajatHtml) TAKRORLANMAYDI.
-function maqsadCell(e){
-  return metaTags(e,{noAi:true,noDavr:true});
+function maqsadCell(e,k){
+  const ich=ichkiChip(k);
+  const mt=metaTags(e,{noAi:true,noDavr:true});
+  if(!ich) return mt;
+  // Konvert/ichki chipi meta chiplar bilan BITTA .ftag qatorida
+  return mt ? mt.replace('<div class="ftag">', ()=>'<div class="ftag">'+ich) : `<div class="ftag">${ich}</div>`;
 }
 // Fayl: haqiqiy chek/hujjat + (admin) AI rasm-tahlil (chek/tablo) — hammasi bitta modalni ochadi.
 function faylCell(e){
@@ -2299,6 +2354,12 @@ function pulValyutaOf(e,k){
 function valyutaCell(e,k){
   const v=pulValyutaOf(e,k);
   if(!v) return '<span class="jmuted">—</span>';
+  // Konvert: yo'nalish ko'rinsin (Kt valyutasi → Dt valyutasi), ostida valyuta summasi
+  if(k&&k.ichki==='konvert'){
+    const ck=String(k.kt.currency||'UZS').toUpperCase(), cd=String(k.dt.currency||'UZS').toUpperCase();
+    const r=konvKurs(k);
+    return `<span class="j-konv">${esc(ck)} → ${esc(cd)}</span>${r?`<div class="j-fc">${money(r.fc)} ${esc(r.cur)}</div>`:''}`;
+  }
   const sub=(v.cur!=='UZS'&&v.fc)?`<div class="j-fc">${money(v.fc)} ${esc(v.cur)}</div>`:'';
   return `<span>${esc(v.cur)}</span>${sub}`;
 }
@@ -2307,6 +2368,14 @@ function aiCell(e){
   if(!(window.permIsAdmin&&window.permIsAdmin())) return '';   // fail-closed: hodimga hech narsa
   const am=aiMap[e.id];
   if(!am || (!am.rasm_tahlil_id && !am.spidometr_tahlil_id && am.ai_holat==null)) return '<span class="jmuted">—</span>';
+  // `ai_holat='yoq'` rasm-tahlilsiz — faqat MODDA AI talab qilsa ma'noli ("Tekshirmagan");
+  // Aros sinxron/oddiy yozuvlarda bu shovqin edi (har qatorda chip) → "—".
+  if(am.ai_holat==='yoq' && !am.rasm_tahlil_id && !am.spidometr_tahlil_id){
+    const k=klass(e);
+    const moddaId=(k.kind==='out'&&k.dt)?k.dt.account_id:null;
+    const modda=moddaId?accounts.find(a=>a.id===moddaId):null;
+    if(!(modda&&(modda.ai_tekshir||modda.spidometr_ai))) return '<span class="jmuted">—</span>';
+  }
   const kid=kassaOf(e)||'';
   let chip;
   if(am.shubhali) chip=`<span class="tg warn" onclick="openChek('${kid}','${e.id}')" title="${esc(am.shubhali_sabab||'AI shubha bildirdi')}"><i data-lucide="triangle-alert"></i>Shubhali</span>`;
@@ -2395,7 +2464,7 @@ function render(){
     // Ko'p satrli: "N satr" + ostida to'liq ro'yxat (.jlines) — brief 5-band.
     const dtC=chala?'<span class="jmuted">Satr yozilmagan</span>'
       :(multi?`<span class="jmuted">${e.lines.length} satr</span><div class="jlines">${e.lines.map(lineRow).join('')}</div>`:accCell(k.dt));
-    const maqC=maqsadCell(e)||'<span class="jmuted">—</span>';
+    const maqC=maqsadCell(e,k)||'<span class="jmuted">—</span>';
     return `<tr class="jr${e.is_deleted?' del':''}${chala?' chala':''}">`
       +`<td class="j-num">${i+1}<span class="j-id" title="${esc(e.id)}" onclick="copyId('${e.id}')">${esc(String(e.id||'').slice(0,8))}</span></td>`
       +`<td class="j-date">${kiritHtml(e)}</td>`
@@ -2441,8 +2510,8 @@ function render(){
     rowsMob.push(jcRow('Xarajat sanasi', xarajatHtml(e)));
     rowsMob.push(jcRow('Ijrochi', ijrCell(e)));
     const vv=pulValyutaOf(e,k);
-    if(vv && vv.cur!=='UZS') rowsMob.push(jcRow('Valyuta', valyutaCell(e,k)));
-    const mq=maqsadCell(e);
+    if((vv && vv.cur!=='UZS') || k.ichki==='konvert') rowsMob.push(jcRow('Valyuta', valyutaCell(e,k)));
+    const mq=maqsadCell(e,k);
     if(mq) rowsMob.push(jcRow('Maqsad', mq));
     rowsMob.push(jcRow('Izoh', izohCell(e,k,multi)));
     if(isAdm) rowsMob.push(jcRow('AI xulosasi', aiCell(e)));
@@ -3468,7 +3537,10 @@ async function init(){
   $('from').value=iso(n); $('to').value=iso(n);
   davSet('bugun');
   $('from').onchange=onDate; $('to').onchange=onDate;
-  const loadAccounts=async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; buildPermAccIds(); buildHodimSel(); };
+  const loadAccounts=async()=>{ const {data:accs}=await sb.from('accounts').select('*').eq('is_active',true).order('code'); accounts=accs||[]; buildPermAccIds(); buildHodimSel();
+    // Keshli birinchi render accounts'siz o'tgan bo'lishi mumkin — "Ichki o'tkazma" (rootOf)
+    // va kassa subtitle'lari uchun bir marta qayta chiziladi.
+    if(rows.length) render(); };
   // list-scope: ruxsat filtri accounts'ga tayanadi — load()'dan OLDIN yuklab, permAccIds'ni tayyorlaymiz,
   // aks holda birinchi so'rov filtrsiz (hamma kassa) ketardi. Cheklovsiz userda esa parallel qoladi.
   // 🔴 loadUsePul() load() dan OLDIN (await): ikkalasi bitta Promise.all da bo'lsa load()
