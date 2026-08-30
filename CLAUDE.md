@@ -671,6 +671,36 @@ Neytral sarlavha = `<Kt nomi> → <Dt nomi>` (masalan "Chilonzor ombori → Tova
 Transfer sarlavhasi ham shu shaklda. **Ikkitadan ko'p satrli** yozuv (Professional'dan) — satrlari
 ro'yxat qilib ko'rsatiladi, ishorasiz, "Boshqa" turiga kiradi.
 
+### Jurnal V3 (2026-08-30, `BRIEF_PROVODKA_JURNAL_V3.md`) — faqat `jurnal-dev.html`
+
+- **Tovar harakati jurnalda YO'Q** — server filtri, `PROVODKA_JURNAL_PUL.sql`: `jurnal_v2_baza`
+  `p_turlar` ichida **`'pul'` tokeni**ni tushunadi (kamida bitta satri `section='pul'`; chala yozuv
+  n=0 istisno — diagnostika). Token qolgan tur kalitlari bilan AND. Imzo/returns o'zgarmagan
+  (`create or replace`, drop yo'q); `jurnal_v2/count/dash/ijrochilar` avtomat oladi. Prod `jurnal.html`
+  tokenni yubormaydi → ta'sir yo'q. Klient: `jurnal_pul_filtr_ok()` → `usePul` (swr `pulok`, 1 kun);
+  🔴 `loadUsePul()` `init()` da `load()` dan **OLDIN `await`** — bitta `Promise.all` da bo'lsa `load()`
+  `argsV2` ni sinxron qurib tokensiz ketadi. Kesh kaliti `usePul` ni o'z ichiga oladi.
+  🔴 Klientda tovar filtri YOZILMAYDI (sahifalash/count buziladi).
+- **Ustunlar (desktop, 13/14):** № (+id 8 belgi, bosilsa copy) · Kiritilgan (`created_at`) ·
+  Xarajat sanasi (`entry_date` + `davr_start/end`) · Qayerdan (Kt) · Qayerga (Dt) · Ijrochi ·
+  Valyuta (pul satrining `currency`, USD → `fc_amount`) · Summa · Maqsad (`metaTags` chiplari:
+  maxsus maydon, kommunal, filial, yuk — AI va davr tegisiz) · Izoh (`description`, o'chirish/chala
+  izohi) · **AI xulosasi (faqat admin — `<th>`/`<td>` umuman chizilmaydi)** · Fayl (Chek/Hujjat/
+  AI chek/Tablo → `openChek`) · Amallar. `maqsadHtml`/`sanaHtml` yo'q: `kiritHtml`, `xarajatHtml`,
+  `valyutaCell`, `ijrCell`, `maqsadCell`, `izohCell`, `aiCell`, `faylCell`. Mobil `.jc-row` yorliqli.
+- **AI xulosasi ustuni:** `refreshMeta()` 2-bosqich (admin) — `rtMap` (`rasm_tahlil` id bo'yicha)
+  + `kmMap` (`mashina_km` entry bo'yicha). Chip: Shubhali / AI xato / Kutilmoqda / Tekshirmagan /
+  Mos; ostida AI summa·sana (farq qizil), Tablo km (yozilgan farqi, yurgan km, so'm/km). Modal
+  (`openChek`+`renderChekAi`) — batafsil ko'rinish, o'zgarmagan. Excel ustunlari tegilmagan.
+
+### Rasm AI — prod 403 sabog'i (2026-08-30)
+
+`rasm-detect` EF avval `has_provodka || is_admin` talab qilardi; uni chaqiradigan yagona sahifa
+`hodim.html` esa `allowed_pages` bilan cheklanmaydi → 80% user 403 olardi, klient jimgina yutardi.
+Endi EF: yaroqli sessiya + `my_perms()` xatosiz = ruxsat (fail-closed saqlanadi). Klient xatoni
+konsolga HTTP status bilan yozadi. **Spidometr moddasi (`spidometr_ai`) endi chekni ham majburiy +
+AI qiladi** (`chekRequired()`/`aiChekOk()` ikkala bayroqni ko'radi): benzin/gaz = chek + tablo.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:
