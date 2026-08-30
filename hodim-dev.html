@@ -2218,7 +2218,9 @@ window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); update
 window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
 // AI rasm MAJBURIY (fail-closed, 2026-08-27): `ai_tekshir` bo'lsa ham chek surati shart —
 // eski `chek_majburiy` bilan bitta talab, ikki marta so'ramaydi (matn updateChekUI'da ajraladi).
-function chekRequired(){ const m=moddaObj(); return !!(m && (m.chek_majburiy || m.ai_tekshir)); }  // ustun yo'q bo'lsa undefined → false
+// 🔴 `spidometr_ai` ham chekni MAJBURIY qiladi (Asilbek qarori 2026-08-30): benzin/gaz
+//    moddasida chek (summa) HAM, tablo (km) HAM shart — ikkalasi AI, ikkalasi majburiy.
+function chekRequired(){ const m=moddaObj(); return !!(m && (m.chek_majburiy || m.ai_tekshir || m.spidometr_ai)); }  // ustun yo'q bo'lsa undefined → false
 function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
 function filialRequired(){ const m=moddaObj(); return !!(m && m.filial_majburiy); }  // ustun yo'q bo'lsa undefined → false
@@ -2636,9 +2638,10 @@ function genUuid(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
     const r=Math.random()*16|0, v=(c==='x')?r:(r&0x3|0x8); return v.toString(16); });
 }
-// Ikki MUSTAQIL bayroq (Asilbek qarori): "AI chek" — universal, "AI spidometr" — faqat
-// benzin/gaz (mashina) moddalarida. Ustun yo'q bo'lsa (`undefined` — SQL RUN qilinmagan) → false.
-function aiChekOk(){ const m=moddaObj(); return !!(m && m.ai_tekshir); }
+// Ikki bayroq: "AI chek" — universal, "AI spidometr" — faqat benzin/gaz (mashina) moddalarida.
+// 🔴 2026-08-30: spidometr moddasida chek HAM AI bilan tekshiriladi (`spidometr_ai` ⇒ chek AI),
+//    ya'ni `aiChekOk()` ikkala bayroqdan biri bo'lsa true. Ustun yo'q bo'lsa (`undefined`) → false.
+function aiChekOk(){ const m=moddaObj(); return !!(m && (m.ai_tekshir || m.spidometr_ai)); }
 function aiSpidOk(){ const m=moddaObj(); return !!(m && m.spidometr_ai); }
 // AI rasm MAJBURIY (fail-closed): spidometr rasmi tanlanmagan (yoki siqish/yuklash butunlay
 // yiqilgan — `holat==='xato'`) bo'lsa saqlash yopiq. AI JAVOBI kutilmaydi — faqat rasmning
@@ -2710,7 +2713,13 @@ async function aiDetectSend(id,tur,blob,kontekst){
       signal:ctrl?ctrl.signal:undefined
     });
     let data=null; try{ data=await res.json(); }catch(e){}
-    if(!res.ok||!data||data.error) return null;
+    // 🔴 Xato SABABI konsolga (2026-08-30): avval jimgina `null` qaytardi — prod'da EF 403
+    //    ("Sizda Provodka ruxsati yo'q") bergani uch kun sezilmadi. Hodimga baribir
+    //    hech narsa ko'rsatilmaydi, faqat DevTools/log uchun.
+    if(!res.ok||!data||data.error){
+      console.error('AI tahlil ('+tur+'): EF xato — HTTP '+res.status+(data&&data.code?' · '+data.code:'')+(data&&data.error?' · '+data.error:''));
+      return null;
+    }
     return data;
   })();
   let timer;

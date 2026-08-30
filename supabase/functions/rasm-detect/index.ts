@@ -402,7 +402,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return fail(401, "auth", "Sessiya yaroqsiz. Qaytadan kiring.", origin);
   }
 
-  // --- 4) Ruxsat: has_provodka yoki is_admin, FAIL-CLOSED -----------------
+  // --- 4) Ruxsat: yaroqli sessiya + my_perms() xatosiz, FAIL-CLOSED ---------
+  // 🔴 2026-08-30 PROD BUG: avval `has_provodka || is_admin` talab qilinardi. Lekin
+  //    bu EF ni chaqiradigan yagona sahifa `hodim.html` — u `allowed_pages` bilan
+  //    CHEKLANMAYDI (CLAUDE.md: `hodim` ro'yxatga kirmaydi). Userlarning ~80% i
+  //    `allowed_pages=[]` → `has_provodka=false` → EF 403 qaytarardi, klient esa
+  //    xatoni jimgina yutardi (`return null`) → prod'da rasm AI "ishlamaydi".
+  //    Dev'da admin tekshirgani uchun sezilmagan. Endi qoida hodim sahifasi bilan
+  //    BIR XIL: yaroqli sessiya + `my_perms()` xatosiz = ruxsat. Narx qorovullari
+  //    (user 20/daqiqa, kompaniya kunlik RASM_KUN_MAX) o'z joyida.
   const { data: permsData, error: permsErr } = await sb.rpc("my_perms");
   if (permsErr) {
     console.error("rasm-detect: my_perms xato:", permsErr.message);
@@ -413,11 +421,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.error("rasm-detect: my_perms noma'lum shakl qaytardi");
     return fail(403, "perm", "Ruxsat tekshirilmadi. Administratorga murojaat qiling.", origin);
   }
-  const isAdmin = perms.is_admin === true;
-  const hasProvodka = perms.has_provodka === true;
-  if (!isAdmin && !hasProvodka) {
-    return fail(403, "forbidden", "Sizda Provodka ruxsati yo'q.", origin);
-  }
+  // `has_provodka`/`is_admin` ATAYLAB tekshirilmaydi (yuqoridagi izoh). `perms`
+  // obyekt ekani tekshirildi — `my_perms()` shakli o'zgarsa 403 (fail-closed).
 
   // --- 5) Tezlik chegarasi (foydalanuvchi) --------------------------------
   if (rateLimited(user.id)) {
