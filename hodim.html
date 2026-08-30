@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
-<script src="perms.js" defer></script>
+<script src="perms-dev.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   /* ================= DIZAYN TOKENLARI =================
@@ -645,7 +645,7 @@
   .srv-intro svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--muted)}
   .srv-intro b{font-weight:700;color:var(--ink)}
   /* Tab 2 ("Ruxsat so'rash") intro — ogohlantiruvchi ohang, lekin fon NEYTRAL
-     (sariq/amber emas). Chap chiziq + ikonka --rx bilan — sorovlar.html dagi
+     (sariq/amber emas). Chap chiziq + ikonka --rx bilan — sorovlar-dev.html dagi
      ruxsat kartasi bilan bir xil rang identifikatori, "pul kelmaydi" ma'nosini
      bir qarashda ajratadi. */
   .srv-intro.rx{border-left:3px solid var(--rx)}
@@ -838,7 +838,7 @@
   .mxd-chip.on .mxd-cq{color:inherit;opacity:.85}
 
   /* --- Tanlagich chipi (.mxd-pick) — FAQAT tur='royxat' uchun ---------------
-     🔴 Kommunal turi naqshi (hodim.html: .kommchip + #kommModal): formada
+     🔴 Kommunal turi naqshi (hodim-dev.html: .kommchip + #kommModal): formada
      TANLANGAN qiymat turadi, tanlashning o'zi alohida oynada bo'ladi. Farqi —
      bu chip butun kenglikni oladi (rasm eskizi + nom + qiymat sig'sin).
      Balandlik 52px LITERAL: sahifaning .txt balandligi uch faylda uch xil. */
@@ -1448,7 +1448,7 @@
 <!-- ===== MAXSUS MAYDON — TANLOV OYNASI (.mxd-*) =====
      🔴 UCHALA FAYLDA AYNAN BIR XIL (hodim / provodka / professional).
      tur='royxat' maydonining variantlari SHU YERDA chiziladi; formada faqat
-     .mxd-pick chipi turadi. Naqsh — hodim.html dagi kommunal turi
+     .mxd-pick chipi turadi. Naqsh — hodim-dev.html dagi kommunal turi
      (#kommModal + .kommchip), farqi: ro'yxat dinamik (maydon soni noma'lum),
      shuning uchun BITTA modal hamma maydonga xizmat qiladi.
      Esc — har faylning O'Z keydown ilmog'ida (mxdModal birinchi tekshiriladi). -->
@@ -1482,7 +1482,7 @@ const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // RBAC oylik limit (PROVODKA_RBAC_LIMIT.sql): server trigger 42501 bilan rad etadi, xabarida
 // "Oylik limit" so'zi bo'ladi. permErr() 42501/RLS matnini "Ruxsat yo'q: ..." ga o'giradi
-// (perms.js) — bu holatda hodim aynan NIMA sabab bloklanganini bilmay qoladi. Shuning
+// (perms-dev.js) — bu holatda hodim aynan NIMA sabab bloklanganini bilmay qoladi. Shuning
 // uchun saqlash xatolarini toast'ga chiqarishdan oldin shu funksiya orqali o'tkaziladi.
 function saveErrTxt(e){
   const m=String((e&&e.message)||e||'');
@@ -1735,12 +1735,12 @@ function kassaJami(pid){
 }
 // Modda ro'yxati: FAQAT xarajat moddalari (type='xarajat'). Daromad ko'rsatilmaydi.
 // (Kapital xarajat / aktiv moddalar hodim uchun kamdan-kam — chalkashmaslik uchun bu yerda
-//  chiqarilmaydi; ular kerak bo'lsa professional.html orqali kiritiladi.)
+//  chiqarilmaydi; ular kerak bo'lsa professional-dev.html orqali kiritiladi.)
 function moddaList(){
   // 9110-1 (yo'ldagi tovar) — professional oqimi; hodimda ko'rinmaydi.
   let xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
   // RBAC (PROVODKA_RBAC.sql): rolga biriktirilmagan xarajat moddalari yashiriladi.
-  // permFilterModda yo'q bo'lsa (perms.js eski nusxa) — eski xatti-harakat.
+  // permFilterModda yo'q bo'lsa (perms-dev.js eski nusxa) — eski xatti-harakat.
   if(window.permFilterModda) xs=window.permFilterModda(xs);
   xs.sort((a,b)=>{ const fa=FREQ.indexOf(a.code), fb=FREQ.indexOf(b.code);
     if(fa>=0||fb>=0){ if(fa<0) return 1; if(fb<0) return -1; return fa-fb; }
@@ -2218,7 +2218,9 @@ window.pickKomm=k=>{ kommTuri=k; $('kommModal').classList.remove('open'); update
 window.cancelKomm=()=>{ $('kommModal').classList.remove('open'); };
 // AI rasm MAJBURIY (fail-closed, 2026-08-27): `ai_tekshir` bo'lsa ham chek surati shart —
 // eski `chek_majburiy` bilan bitta talab, ikki marta so'ramaydi (matn updateChekUI'da ajraladi).
-function chekRequired(){ const m=moddaObj(); return !!(m && (m.chek_majburiy || m.ai_tekshir)); }  // ustun yo'q bo'lsa undefined → false
+// 🔴 `spidometr_ai` ham chekni MAJBURIY qiladi (Asilbek qarori 2026-08-30): benzin/gaz
+//    moddasida chek (summa) HAM, tablo (km) HAM shart — ikkalasi AI, ikkalasi majburiy.
+function chekRequired(){ const m=moddaObj(); return !!(m && (m.chek_majburiy || m.ai_tekshir || m.spidometr_ai)); }  // ustun yo'q bo'lsa undefined → false
 function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
 function filialRequired(){ const m=moddaObj(); return !!(m && m.filial_majburiy); }  // ustun yo'q bo'lsa undefined → false
@@ -2636,9 +2638,10 @@ function genUuid(){
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
     const r=Math.random()*16|0, v=(c==='x')?r:(r&0x3|0x8); return v.toString(16); });
 }
-// Ikki MUSTAQIL bayroq (Asilbek qarori): "AI chek" — universal, "AI spidometr" — faqat
-// benzin/gaz (mashina) moddalarida. Ustun yo'q bo'lsa (`undefined` — SQL RUN qilinmagan) → false.
-function aiChekOk(){ const m=moddaObj(); return !!(m && m.ai_tekshir); }
+// Ikki bayroq: "AI chek" — universal, "AI spidometr" — faqat benzin/gaz (mashina) moddalarida.
+// 🔴 2026-08-30: spidometr moddasida chek HAM AI bilan tekshiriladi (`spidometr_ai` ⇒ chek AI),
+//    ya'ni `aiChekOk()` ikkala bayroqdan biri bo'lsa true. Ustun yo'q bo'lsa (`undefined`) → false.
+function aiChekOk(){ const m=moddaObj(); return !!(m && (m.ai_tekshir || m.spidometr_ai)); }
 function aiSpidOk(){ const m=moddaObj(); return !!(m && m.spidometr_ai); }
 // AI rasm MAJBURIY (fail-closed): spidometr rasmi tanlanmagan (yoki siqish/yuklash butunlay
 // yiqilgan — `holat==='xato'`) bo'lsa saqlash yopiq. AI JAVOBI kutilmaydi — faqat rasmning
@@ -2710,7 +2713,13 @@ async function aiDetectSend(id,tur,blob,kontekst){
       signal:ctrl?ctrl.signal:undefined
     });
     let data=null; try{ data=await res.json(); }catch(e){}
-    if(!res.ok||!data||data.error) return null;
+    // 🔴 Xato SABABI konsolga (2026-08-30): avval jimgina `null` qaytardi — prod'da EF 403
+    //    ("Sizda Provodka ruxsati yo'q") bergani uch kun sezilmadi. Hodimga baribir
+    //    hech narsa ko'rsatilmaydi, faqat DevTools/log uchun.
+    if(!res.ok||!data||data.error){
+      console.error('AI tahlil ('+tur+'): EF xato — HTTP '+res.status+(data&&data.code?' · '+data.code:'')+(data&&data.error?' · '+data.error:''));
+      return null;
+    }
     return data;
   })();
   let timer;
@@ -3034,7 +3043,7 @@ async function xarHolat(token,ms){
   if(r.error){
     const c=String(r.error.code||''), m=String(r.error.message||'');
     // SQL hali RUN qilinmagan bo'lsa — funksiya yo'q. Mexanizm jimgina soddalashadi,
-    // sahifa buzilmaydi (ai.html dagi "jadval yo'q → xotira rejimi" naqshi).
+    // sahifa buzilmaydi (ai-dev.html dagi "jadval yo'q → xotira rejimi" naqshi).
     if(c==='PGRST202'||c==='42883'||/xarajat_qayta_urinish/i.test(m)||/function .* does not exist/i.test(m)) return {holat:'yoq_rpc'};
     return {holat:'nomalum'};
   }
@@ -5013,7 +5022,7 @@ async function srvPendLoad(){
   }
   srvPendRender();
 }
-// "So'nggi javoblar" nishonlari — `sorovlar.html` dagi ST bilan bir xil til.
+// "So'nggi javoblar" nishonlari — `sorovlar-dev.html` dagi ST bilan bir xil til.
 const SRV_JAV={
   tasdiq:{k:'full',i:'circle-check',t:"To'liq berildi"},
   qisman:{k:'part',i:'split',       t:'Qisman berildi'},
@@ -5535,7 +5544,7 @@ const mxdWarn=msg=>toast(msg,true);
    Yechim: sahifaning o'zini (HEAD so'rov) davriy tekshirib, ETag/Last-Modified o'zgargan bo'lsa —
    BUILD raqami emas, ETag ishlatiladi: u statik fayl serveri (GitHub Pages) tomonidan avtomatik
    beriladi, promote.sh'da klient/serverni sinxron ushlab turishni talab qilmaydi.
-   `location.pathname` — qattiq `hodim.html` YOZILMAGAN, shuning uchun promote'dan keyin
+   `location.pathname` — qattiq `hodim-dev.html` YOZILMAGAN, shuning uchun promote'dan keyin
    prod (`hodim.html`) da ham o'zgarishsiz ishlaydi. */
 let verBaza=null, verOxirgi=0, yangiVersiya=false;
 const VER_MIN_ORALIQ=60000;   // tekshiruvlar orasida kamida 60s (throttle)
