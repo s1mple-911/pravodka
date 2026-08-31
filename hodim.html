@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://kxzerccdpcltmzrxutlo.supabase.co" crossorigin>
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
-<script src="perms-dev.js" defer></script>
+<script src="perms.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
   /* ================= DIZAYN TOKENLARI =================
@@ -645,7 +645,7 @@
   .srv-intro svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--muted)}
   .srv-intro b{font-weight:700;color:var(--ink)}
   /* Tab 2 ("Ruxsat so'rash") intro — ogohlantiruvchi ohang, lekin fon NEYTRAL
-     (sariq/amber emas). Chap chiziq + ikonka --rx bilan — sorovlar-dev.html dagi
+     (sariq/amber emas). Chap chiziq + ikonka --rx bilan — sorovlar.html dagi
      ruxsat kartasi bilan bir xil rang identifikatori, "pul kelmaydi" ma'nosini
      bir qarashda ajratadi. */
   .srv-intro.rx{border-left:3px solid var(--rx)}
@@ -838,7 +838,7 @@
   .mxd-chip.on .mxd-cq{color:inherit;opacity:.85}
 
   /* --- Tanlagich chipi (.mxd-pick) — FAQAT tur='royxat' uchun ---------------
-     🔴 Kommunal turi naqshi (hodim-dev.html: .kommchip + #kommModal): formada
+     🔴 Kommunal turi naqshi (hodim.html: .kommchip + #kommModal): formada
      TANLANGAN qiymat turadi, tanlashning o'zi alohida oynada bo'ladi. Farqi —
      bu chip butun kenglikni oladi (rasm eskizi + nom + qiymat sig'sin).
      Balandlik 52px LITERAL: sahifaning .txt balandligi uch faylda uch xil. */
@@ -1001,13 +1001,17 @@
     border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface)}
   .ov-grp{position:sticky;top:0;z-index:1;background:var(--surface-3);color:var(--muted);
     font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:8px 12px}
-  .ov-row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  /* 2026-08-31 (Asilbek): tor ekranda hodim ismi yarim kesilib qolardi (ellipsis, tugmalar
+     joyning ~80% ini olardi). Endi qator WRAP qiladi: joy yetmasa tugmalar ism OSTIGA tushadi
+     (o'ngga taqalgan), ism hech qachon kesilmaydi (nowrap/ellipsis olib tashlandi). Keng
+     ekranda avvalgidek bitta qator — flex-basis 150px yetsa yonma-yon qoladi. */
+  .ov-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px var(--s3);
     min-height:44px;padding:10px 12px;border-bottom:1px solid var(--line)}
   .ov-row:last-child{border-bottom:none}
-  .ov-info{min-width:0}
-  .ov-nom{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ov-sub{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-  .ov-acts{display:flex;gap:5px;flex:none;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .ov-info{flex:1 1 150px;min-width:0}
+  .ov-nom{font-size:14px;font-weight:700;color:var(--ink);line-height:1.3;overflow-wrap:anywhere}
+  .ov-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:1px;overflow-wrap:anywhere}
+  .ov-acts{display:flex;gap:5px;flex:0 1 auto;margin-left:auto;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .ov-btn{min-height:36px;min-width:52px;padding:0 10px;border:1.5px solid var(--line);background:var(--surface);
     color:var(--ink-2);border-radius:10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;
     transition:border-color .15s,background .15s,color .15s,transform .1s}
@@ -1448,7 +1452,7 @@
 <!-- ===== MAXSUS MAYDON — TANLOV OYNASI (.mxd-*) =====
      🔴 UCHALA FAYLDA AYNAN BIR XIL (hodim / provodka / professional).
      tur='royxat' maydonining variantlari SHU YERDA chiziladi; formada faqat
-     .mxd-pick chipi turadi. Naqsh — hodim-dev.html dagi kommunal turi
+     .mxd-pick chipi turadi. Naqsh — hodim.html dagi kommunal turi
      (#kommModal + .kommchip), farqi: ro'yxat dinamik (maydon soni noma'lum),
      shuning uchun BITTA modal hamma maydonga xizmat qiladi.
      Esc — har faylning O'Z keydown ilmog'ida (mxdModal birinchi tekshiriladi). -->
@@ -1482,7 +1486,7 @@ const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // RBAC oylik limit (PROVODKA_RBAC_LIMIT.sql): server trigger 42501 bilan rad etadi, xabarida
 // "Oylik limit" so'zi bo'ladi. permErr() 42501/RLS matnini "Ruxsat yo'q: ..." ga o'giradi
-// (perms-dev.js) — bu holatda hodim aynan NIMA sabab bloklanganini bilmay qoladi. Shuning
+// (perms.js) — bu holatda hodim aynan NIMA sabab bloklanganini bilmay qoladi. Shuning
 // uchun saqlash xatolarini toast'ga chiqarishdan oldin shu funksiya orqali o'tkaziladi.
 function saveErrTxt(e){
   const m=String((e&&e.message)||e||'');
@@ -1735,12 +1739,12 @@ function kassaJami(pid){
 }
 // Modda ro'yxati: FAQAT xarajat moddalari (type='xarajat'). Daromad ko'rsatilmaydi.
 // (Kapital xarajat / aktiv moddalar hodim uchun kamdan-kam — chalkashmaslik uchun bu yerda
-//  chiqarilmaydi; ular kerak bo'lsa professional-dev.html orqali kiritiladi.)
+//  chiqarilmaydi; ular kerak bo'lsa professional.html orqali kiritiladi.)
 function moddaList(){
   // 9110-1 (yo'ldagi tovar) — professional oqimi; hodimda ko'rinmaydi.
   let xs=accounts.filter(a=>a.type==='xarajat'&&a.code!=='9110-1').slice();
   // RBAC (PROVODKA_RBAC.sql): rolga biriktirilmagan xarajat moddalari yashiriladi.
-  // permFilterModda yo'q bo'lsa (perms-dev.js eski nusxa) — eski xatti-harakat.
+  // permFilterModda yo'q bo'lsa (perms.js eski nusxa) — eski xatti-harakat.
   if(window.permFilterModda) xs=window.permFilterModda(xs);
   xs.sort((a,b)=>{ const fa=FREQ.indexOf(a.code), fb=FREQ.indexOf(b.code);
     if(fa>=0||fb>=0){ if(fa<0) return 1; if(fb<0) return -1; return fa-fb; }
@@ -3043,7 +3047,7 @@ async function xarHolat(token,ms){
   if(r.error){
     const c=String(r.error.code||''), m=String(r.error.message||'');
     // SQL hali RUN qilinmagan bo'lsa — funksiya yo'q. Mexanizm jimgina soddalashadi,
-    // sahifa buzilmaydi (ai-dev.html dagi "jadval yo'q → xotira rejimi" naqshi).
+    // sahifa buzilmaydi (ai.html dagi "jadval yo'q → xotira rejimi" naqshi).
     if(c==='PGRST202'||c==='42883'||/xarajat_qayta_urinish/i.test(m)||/function .* does not exist/i.test(m)) return {holat:'yoq_rpc'};
     return {holat:'nomalum'};
   }
@@ -5022,7 +5026,7 @@ async function srvPendLoad(){
   }
   srvPendRender();
 }
-// "So'nggi javoblar" nishonlari — `sorovlar-dev.html` dagi ST bilan bir xil til.
+// "So'nggi javoblar" nishonlari — `sorovlar.html` dagi ST bilan bir xil til.
 const SRV_JAV={
   tasdiq:{k:'full',i:'circle-check',t:"To'liq berildi"},
   qisman:{k:'part',i:'split',       t:'Qisman berildi'},
@@ -5544,7 +5548,7 @@ const mxdWarn=msg=>toast(msg,true);
    Yechim: sahifaning o'zini (HEAD so'rov) davriy tekshirib, ETag/Last-Modified o'zgargan bo'lsa —
    BUILD raqami emas, ETag ishlatiladi: u statik fayl serveri (GitHub Pages) tomonidan avtomatik
    beriladi, promote.sh'da klient/serverni sinxron ushlab turishni talab qilmaydi.
-   `location.pathname` — qattiq `hodim-dev.html` YOZILMAGAN, shuning uchun promote'dan keyin
+   `location.pathname` — qattiq `hodim.html` YOZILMAGAN, shuning uchun promote'dan keyin
    prod (`hodim.html`) da ham o'zgarishsiz ishlaydi. */
 let verBaza=null, verOxirgi=0, yangiVersiya=false;
 const VER_MIN_ORALIQ=60000;   // tekshiruvlar orasida kamida 60s (throttle)
