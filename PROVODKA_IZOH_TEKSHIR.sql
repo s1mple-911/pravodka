@@ -17,6 +17,13 @@
 
 -- ## 1-BO'LIM — entry ustunlari ---------------------------------------
 
+-- 🔴 QULF HIMOYASI (2026-08-31 saboqi): `alter table entry` ACCESS EXCLUSIVE qulf oladi.
+-- Jonli trafikda uzun tranzaksiya ortida KUTIB qolsa, entry'ga tegadigan HAMMA so'rov
+-- (qoldiq, jurnal, hodim) uning ortida navbatga tizilib sahifalar "qotadi".
+-- lock_timeout bilan 3 soniyada qulf olinmasa shunchaki XATO beradi — trafik zarar
+-- ko'rmaydi; tinchroq paytda qayta RUN qilinadi (hammasi idempotent: if not exists).
+set lock_timeout = '3s';
+
 alter table entry
   add column if not exists izoh_mos        boolean,
   add column if not exists izoh_sabab      text,
