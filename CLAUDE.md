@@ -692,6 +692,21 @@ ro'yxat qilib ko'rsatiladi, ishorasiz, "Boshqa" turiga kiradi.
   + `kmMap` (`mashina_km` entry bo'yicha). Chip: Shubhali / AI xato / Kutilmoqda / Tekshirmagan /
   Mos; ostida AI summa·sana (farq qizil), Tablo km (yozilgan farqi, yurgan km, so'm/km). Modal
   (`openChek`+`renderChekAi`) — batafsil ko'rinish, o'zgarmagan. Excel ustunlari tegilmagan.
+- **Avto-tekshiruv + izoh↔modda AI (2026-08-31, faqat jurnal-dev):** `autoIssues(e,k)` —
+  klientda, AI'siz, faqat CHIQIM: izoh <5 belgi / modda nomini takrorlaydi; sana: `entry_date ≠`
+  kiritilgan kun (davrli yozuv istisno). `flagIssues()` = autoIssues + `entry.izoh_mos===false`
+  + `entry.shubhali` → **Dt (Qayerga) katagi qizil fon** (`td.j-dt.j-flag`, mobil `.jc-acc.j-flag`),
+  sabab title'da + AI xulosasi ustunida qizil satr (`.ai-sub.ai-auto`). "Faqat shubhali" filtri
+  bularni ham oladi. **Izoh↔modda semantikasi — EF `izoh-tekshir`** (Haiku, admin-only, my_perms
+  fail-closed, ≤20 yozuv/so'rov, har yozuv BIR marta): natija `entry.izoh_mos/izoh_sabab/
+  izoh_tekshir_at` (`PROVODKA_IZOH_TEKSHIR.sql` — RUN kutilmoqda; `izoh_tekshir_yoz` RPC user JWT,
+  service_role YO'Q; description tahrirlansa trigger verdictni null qiladi). Deploy:
+  `EF_IZOH_TEKSHIR_DEPLOY.txt`. 🔴 SQL/EF yo'q bo'lsa hech narsa sinmaydi: `aiSel()` 42703 da eski
+  ustun ro'yxatiga tushadi, `izohAiTekshir()` `'izoh_mos' in am` sharti bilan jim chiqadi.
+- **Tor ekran (2026-08-31):** AI xulosasi ustuni 1272px oynada ekrandan chiqib "yo'qolgan" edi —
+  sana/sarlavha/ijrochi `nowrap`lari olib tashlandi (Summa/Valyuta nowrap qoladi), `@media
+  (max-width:1439px)` da padding 4px + `.j-id` yashirin + kt/dt `overflow-wrap:anywhere`.
+  Jadval 1433→~975px, 14 ustun ekranga sig'adi; `<1300px` jwrap skroll zaxirasi qoladi.
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 
@@ -710,7 +725,18 @@ AI qiladi** (`chekRequired()`/`aiChekOk()` ikkala bayroqni ko'radi): benzin/gaz 
    **Kamayish e'tiborsiz qoldiriladi** — u transfer bilan yoziladi, ikki marta tushmasin.
 
 Boshqa workflowlar: `aros-filial-live` + `aros-currencies` (`lco21f7pUcKPpNVU`),
-`aros-currency-rates` (`VDezk7eRnwktu2AX`), `aros-dollar-rate` (`7VyISbPe0ZJqIH0Z`).
+`aros-currency-rates` (`VDezk7eRnwktu2AX`), `aros-dollar-rate` (`7VyISbPe0ZJqIH0Z`),
+`Aros Provodka - Staff Sync` (`gIPsXToNmSWFWF53`, soatlik — aros_staff/staff_branch_map).
+
+🔴 **aros-staff API RATE-LIMIT saboqi (2026-08-31, "Andijon yo'qolishi"):** `api.staff.aros.uz`
+~60 so'rov/daqiqadan keyin HAMMA so'rovga `{"detail":"Request was throttled"}` qaytaradi
+(status xatoga o'xshamaydi, `neverError` bilan jimgina "bo'sh" natija bo'lib o'tib ketadi).
+Staff Sync 150ms interval bilan urardi → 59-so'rovdan keyin detail/branch ma'lumoti yo'qolar,
+faqat list'dagi primary filial qolar edi — primary'siz hodimlar (Andijon, Navoiy yordamchi
+filiallar) `branches:[]` bilan saqlanib "hodim topilmadi" berardi ("33 hodimda 404" afsonasi
+ham aslida shu). Tuzatish: interval 1100ms (~4 daq sinxron), retry 3x, Build Payload detail'ni
+javobning O'Z `id`si bo'yicha juftlaydi va `throttled` hisoblagichini chiqaradi (0 bo'lmasa
+yana sekinlatish kerak). Yangi so'rov qo'shganda shu limitni unutma.
 
 ## n8n bilan ishlash
 

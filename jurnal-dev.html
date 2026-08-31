@@ -1903,6 +1903,14 @@ let aiMap={};     // entry.id → {shubhali, shubhali_sabab, ai_holat, rasm_tahl
 // (id'lar aiMap.rasm_tahlil_id/spidometr_tahlil_id dan yig'iladi).
 let rtMap={};     // rasm_tahlil.id → row
 let kmMap={};     // entry.id → mashina_km row
+// AI ustunlari so'rovi — izoh_mos ustunlari hali RUN qilinmagan bo'lsa (42703)
+// eski ro'yxat bilan QAYTA so'raladi: AI xulosasi ustuni SQL'siz ham avvalgidek ishlaydi.
+const AI_COLS='id,shubhali,shubhali_sabab,ai_holat,rasm_tahlil_id,spidometr_tahlil_id';
+async function aiSel(ids){
+  let r=await sb.from('entry').select(AI_COLS+',izoh_mos,izoh_sabab,izoh_tekshir_at').in('id',ids);
+  if(r.error&&r.error.code==='42703') r=await sb.from('entry').select(AI_COLS).in('id',ids);
+  return r;
+}
 async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
   if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; aiMap={}; rtMap={}; kmMap={}; return; }
@@ -1912,7 +1920,7 @@ async function refreshMeta(){
       sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',ids),
       sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids),
       sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids),
-      isAdm ? sb.from('entry').select('id,shubhali,shubhali_sabab,ai_holat,rasm_tahlil_id,spidometr_tahlil_id').in('id',ids)
+      isAdm ? aiSel(ids)
             : Promise.resolve({data:null,error:null})
     ]);
     if(mRes.error||!mRes.data) return;
@@ -1936,9 +1944,52 @@ async function refreshMeta(){
       ]);
       if(!rtRes.error&&rtRes.data) rtRes.data.forEach(r=>{ rtMap[r.id]=r; });
       if(!kmRes.error&&kmRes.data) kmRes.data.forEach(r=>{ kmMap[r.entry_id]=r; });
+      izohAiTekshir();   // izoh↔modda AI tekshiruvi — fonda, await YO'Q (renderni kutdirmasin)
     }
     render();
   }catch(e){}
+}
+// --- Izoh ↔ modda AI tekshiruvi (2026-08-31): EF `izoh-tekshir` (Haiku) ---
+// Har yozuv BIR MARTA tekshiriladi: natija entry.izoh_mos/izoh_sabab/izoh_tekshir_at
+// da saqlanadi (EF o'zi izoh_tekshir_yoz RPC bilan yozadi, faqat admin). SQL yoki EF
+// hali qo'yilmagan bo'lsa HECH NARSA buzilmaydi: ustun yo'q → aiSel eski ro'yxatga
+// tushadi va bu funksiya jim chiqadi; EF yo'q → konsolda warn, UI o'zgarmaydi.
+const izohSeen=new Set();   // shu sessiyada urinilganlar — EF'ga qayta-qayta bormasin
+async function izohAiTekshir(){
+  try{
+    if(!(window.permIsAdmin&&window.permIsAdmin())) return;
+    const items=[];
+    for(const e of rows){
+      const am=aiMap[e.id];
+      if(!am||!('izoh_mos' in am)) continue;               // ustun hali yo'q (SQL RUN qilinmagan)
+      if(am.izoh_tekshir_at||izohSeen.has(e.id)) continue; // allaqachon tekshirilgan/urinilgan
+      if(e.is_deleted) continue;
+      const k=klass(e);
+      if(k.kind!=='out'||k.chala) continue;
+      const d=String(e.description||'').trim();
+      if(d.length<5) continue;                             // qisqa izoh avto-tekshiruvda baribir qizil
+      const modda=(k.dt&&k.dt.name)?String(k.dt.name):'';
+      if(!modda) continue;
+      items.push({id:e.id, izoh:d.slice(0,400), modda:modda.slice(0,160)});
+      if(items.length>=20) break;                          // EF chegarasi bilan bir xil
+    }
+    if(!items.length) return;
+    items.forEach(it=>izohSeen.add(it.id));
+    const myMap=aiMap;   // race himoyasi: javob kelguncha refreshMeta aiMap'ni almashtirgan bo'lsa, eski xaritaga yozmaymiz
+    const {data,error}=await sb.functions.invoke('izoh-tekshir',{body:{items}});
+    if(myMap!==aiMap) return;   // yangi refreshMeta DB'dan baribir yangi holatni o'qiydi
+    if(error||!data||!Array.isArray(data.natija)){ console.warn('izoh-tekshir:',(error&&error.message)||'javob shakli'); return; }
+    // Natija lokal aiMap'ga darrov qo'yiladi (DB'ga EF o'zi yozdi) va qayta chiziladi.
+    let changed=false;
+    for(const n of data.natija){
+      const am=aiMap[n.id]; if(!am) continue;
+      am.izoh_mos=(n.mos===true||n.mos===false)?n.mos:null;
+      am.izoh_sabab=(typeof n.sabab==='string'&&n.sabab)?n.sabab.slice(0,300):null;
+      am.izoh_tekshir_at=new Date().toISOString();
+      changed=true;
+    }
+    if(changed) render();
+  }catch(e){ console.warn('izoh-tekshir istisno:', e&&e.message); }
 }
 // --- Maxsus maydon chipi (.mxd-tg) — mavjud .ftag qatoriga tushadi, YANGI QATOR YO'Q ---
 // 🔴 Ko'rsatiladigan matn SERVERDAN keladi (v_entry_maydon.korinish) — klientda
@@ -2408,15 +2459,28 @@ function autoIssues(e,k){
   }
   return out;
 }
+// Qizil fon sabablari (Dt katagi + title): avto-tekshiruv + AI verdictlari birga.
+// Asilbek (2026-08-31): AI shubhali degan yozuv ham, izoh moddaga nomos yozuv ham qizil.
+function flagIssues(e,k){
+  const out=autoIssues(e,k);
+  const am=aiMap[e.id];
+  if(am&&!e.is_deleted){
+    if(am.izoh_mos===false) out.push('Izoh moddaga mos emas'+(am.izoh_sabab?': '+am.izoh_sabab:''));
+    if(am.shubhali) out.push(am.shubhali_sabab||'AI shubha bildirdi');
+  }
+  return out;
+}
 // --- AI xulosasi ustuni (admin) ---
 function aiCell(e){
   if(!(window.permIsAdmin&&window.permIsAdmin())) return '';   // fail-closed: hodimga hech narsa
   // Avto-tekshiruv natijasi AI natijasidan MUSTAQIL — AI umuman ishlamagan yozuvda ham chiqadi.
   const kA=klass(e);
-  const iss=autoIssues(e,kA);
-  const autoHtml=iss.length?`<div class="ai-sub ai-auto">${iss.map(s=>esc(s)).join('<br>')}</div>`:'';
-  const autoChip=`<div class="ftag"><span class="tg warn" title="${esc(iss.join(' · '))}"><i data-lucide="triangle-alert"></i>Shubhali (avto)</span></div>`;
   const am=aiMap[e.id];
+  const iss=autoIssues(e,kA);
+  // Izoh↔modda AI verdikti ham shu qizil ro'yxatga (chip "Shubhali" bo'lsa sabab pastda ko'rinadi)
+  if(am&&am.izoh_mos===false) iss.push('Izoh moddaga mos emas'+(am.izoh_sabab?': '+am.izoh_sabab:''));
+  const autoHtml=iss.length?`<div class="ai-sub ai-auto">${iss.map(s=>esc(s)).join('<br>')}</div>`:'';
+  const autoChip=`<div class="ftag"><span class="tg warn" title="${esc(iss.join(' · '))}"><i data-lucide="triangle-alert"></i>Shubhali</span></div>`;
   if(!am || (!am.rasm_tahlil_id && !am.spidometr_tahlil_id && am.ai_holat==null))
     return iss.length ? autoChip+autoHtml : '<span class="jmuted">—</span>';
   // `ai_holat='yoq'` rasm-tahlilsiz — faqat MODDA AI talab qilsa ma'noli ("Tekshirmagan");
@@ -2431,6 +2495,7 @@ function aiCell(e){
   let chip;
   if(am.shubhali) chip=`<span class="tg warn" onclick="openChek('${kid}','${e.id}')" title="${esc(am.shubhali_sabab||'AI shubha bildirdi')}"><i data-lucide="triangle-alert"></i>Shubhali</span>`;
   else if(am.ai_holat==='xato') chip=`<span class="tg warn" onclick="openChek('${kid}','${e.id}')" title="AI tekshiruvi xato bilan tugadi"><i data-lucide="triangle-alert"></i>AI xato</span>`;
+  else if(am.izoh_mos===false) chip=`<span class="tg warn" title="${esc(am.izoh_sabab||'Izoh moddaga mos emas')}"><i data-lucide="triangle-alert"></i>Izoh mos emas</span>`;
   else if(am.ai_holat==='kutilmoqda') chip=`<span class="tg aiwait"><i data-lucide="clock"></i>Kutilmoqda</span>`;
   else if(am.ai_holat==='yoq') chip=`<span class="tg aiwait"><i data-lucide="clock"></i>Tekshirmagan</span>`;
   else chip=`<span class="tg ok" onclick="openChek('${kid}','${e.id}')"><i data-lucide="check"></i>Mos</span>`;
@@ -2484,7 +2549,7 @@ window.toggleShubhali=val=>{
 };
 // Avto-tekshiruv muammosi ham "Faqat shubhali" filtriga kiradi — admin bir bosishda
 // izoh/sana muammoli yozuvlarni ham ko'radi (AI shubhasi bilan bir ro'yxatda).
-const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato')) || autoIssues(e,klass(e)).length>0; };
+const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato'||am.izoh_mos===false)) || autoIssues(e,klass(e)).length>0; };
 function render(){
   // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
   { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
@@ -2512,7 +2577,7 @@ function render(){
   //          Summa | Maqsad | Izoh | (admin) AI xulosasi | Fayl | Amallar
   const rowsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
-    const flag=isAdm?autoIssues(e,k):[];   // avto-tekshiruv: Dt katagi qizil + title'da sabab
+    const flag=isAdm?flagIssues(e,k):[];   // avto + AI (shubhali/izoh nomos): Dt katagi qizil + title'da sabab
     // Chala: Dt/Kt "—" emas, ANIQ matn; summa 0 emas, "—" (yolg'on nol chalkashtirmasin).
     const ktC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt));
     // Ko'p satrli: "N satr" + ostida to'liq ro'yxat (.jlines) — brief 5-band.
@@ -2551,7 +2616,7 @@ function render(){
   const jcRow=(lbl,html)=>`<div class="jc-row"><span class="acap">${esc(lbl)}</span><div class="jc-val">${html}</div></div>`;
   const cardsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
-    const flag=isAdm?autoIssues(e,k):[];   // avto-tekshiruv: Qayerga (Dt) bloki qizil fonda
+    const flag=isAdm?flagIssues(e,k):[];   // avto + AI (shubhali/izoh nomos): Qayerga (Dt) bloki qizil fonda
     const acts=actsHtml(e,k,multi);
     const flow = chala
       ? `<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`

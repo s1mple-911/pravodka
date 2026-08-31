@@ -1,0 +1,69 @@
+=====================================================================
+ !!! DIQQAT: BU FAYL KOD EMAS — O'QISH UCHUN QO'LLANMA !!!
+ Kod faqat: supabase/functions/izoh-tekshir/index.ts
+
+ EF `izoh-tekshir` — DEPLOY QO'LLANMASI (Asilbek uchun)
+ Provodka · Supabase project: kxzerccdpcltmzrxutlo
+ Fayl: supabase/functions/izoh-tekshir/index.ts
+ Bosqich: Jurnal V3 — izoh ↔ xarajat moddasi AI tekshiruvi (2026-08-31)
+=====================================================================
+
+NIMA QILADI
+-----------
+Jurnal (admin) ochilganda tekshirilmagan CHIQIM yozuvlarining izohi
+tanlangan xarajat moddasiga mantiqan mos-nomosligini Claude (Haiku —
+arzon) bilan aniqlaydi. Natija entry jadvalida saqlanadi
+(izoh_mos / izoh_sabab / izoh_tekshir_at) — har yozuv BIR MARTA
+tekshiriladi, keyin jurnal DB'dan o'qiydi (qayta AI so'rovi yo'q).
+Nomos yozuvda jurnal "Qayerga (Dt)" katagi QIZIL bo'ladi, AI xulosasi
+ustunida sabab chiqadi.
+
+Faqat ADMIN chaqira oladi (my_perms().is_admin, fail-closed) — AI
+xulosasi ustuni ham faqat adminda. Yozish izoh_tekshir_yoz RPC orqali
+foydalanuvchi JWT si bilan (service_role YO'Q); RPC ichida ham admin
+tekshiruvi bor — ikki qavat.
+
+0) OLDIN NIMA BO'LISHI KERAK
+----------------------------
+[a] PROVODKA_IZOH_TEKSHIR.sql RUN qilingan bo'lsin (entry'ga 3 ustun +
+    izoh_tekshir_yoz RPC + izoh tahriri reset triggeri).
+    Busiz: EF ishlaydi, natijani qaytaradi, lekin DB'ga yozolmaydi
+    (logda 42883) — har jurnal ochilishida qayta tekshiraveradi (pul!).
+    Klientda esa ustun yo'qligi uchun umuman chaqirilmaydi — ya'ni SQL
+    RUN qilinmaguncha hech narsa buzilmaydi, feature shunchaki o'chiq.
+[b] ANTHROPIC_API_KEY secret allaqachon bor (ai-chat/rasm-detect bilan
+    bir xil kalit) — yangi secret KERAK EMAS.
+
+1) DEPLOY
+---------
+supabase functions deploy izoh-tekshir
+
+⚠️ verify_jwt sukut bo'yicha YOQIQ — O'CHIRMANG (--no-verify-jwt
+   bayrog'ini ISHLATMANG). Ichkarida baribir getUser + my_perms bor,
+   lekin birinchi qavat ham qolsin.
+
+2) IXTIYORIY SECRETLAR (qo'ymasa ham ishlaydi)
+----------------------------------------------
+AI_MODEL_IZOH      — model (sukut: claude-haiku-4-5-20251001).
+AI_ALLOWED_ORIGINS — qo'shimcha originlar (ai-chat bilan bir xil format).
+
+3) TEKSHIRISH
+-------------
+Deploy'dan keyin jurnal-dev.html ni admin bilan oching (ichida chiqim
+yozuvlari bor davr). Konsolda xato bo'lmasin; bir necha soniyada
+"AI xulosasi" ustunida yangi verdictlar paydo bo'ladi (F5 dan keyin
+DB'dan keladi). Muammo bo'lsa:
+    supabase functions logs izoh-tekshir
+Kutiladigan loglar: "Claude javob N ta · X ms".
+
+4) NARX NAZORATI
+----------------
+- Haiku model, ≤20 yozuv bitta so'rovda, MAX_TOKENS 1500.
+- Har yozuv BIR MARTA (izoh_tekshir_at yozilgach qayta so'ralmaydi).
+- Rate-limit: 6 chaqiruv/daqiqa/foydalanuvchi (isolate xotirasida).
+
+5) ROLLBACK
+-----------
+EF o'chirilsa yoki xato bersa klient JIM davom etadi (konsolda warn) —
+jurnal, AI xulosasi ustunining eski qismi, avto-tekshiruv ishlayveradi.
+SQL ustunlari qoladi (additive) — hech narsani DROP QILMANG.
