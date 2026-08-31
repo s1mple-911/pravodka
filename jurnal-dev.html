@@ -127,6 +127,12 @@
   .j-konv{white-space:nowrap;color:var(--tr);font-weight:600}
   .ai-sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.6}
   .ai-sub .ai-diff{color:var(--red);font-weight:600}
+  /* Avto-tekshiruv (2026-08-31): sabab qizil satrda; muammoli CHIQIM moddasi (Qayerga/Dt
+     katagi) qizil fonga kiradi — admin jadvalni ko'z yugurtirib muammoni darrov ko'radi */
+  .ai-sub.ai-auto{color:var(--red)}
+  .jtbl td.j-dt.j-flag{background:var(--red-soft);border-radius:8px}
+  .jtbl tbody tr:hover td.j-dt.j-flag{background:var(--red-soft)}
+  .jc-acc.j-flag{background:var(--red-soft);border-radius:8px;padding:4px 8px}
   .chekpin{display:inline-flex;align-items:center;gap:5px;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--muted);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
   .chekpin svg{width:13px;height:13px}
@@ -159,7 +165,7 @@
      modelida ishlamaydi; faqat pastki chegara ishlatilgani uchun ko'rinishga ta'sir yo'q */
   .jtbl{width:100%;border-collapse:separate;border-spacing:0}
   .jtbl thead th{font-size:11px;color:var(--muted);text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.03em;
-    padding:0 12px 11px;border-bottom:1px solid var(--line);white-space:nowrap;
+    padding:0 12px 11px;border-bottom:1px solid var(--line);
     position:sticky;top:0;background:var(--surface);z-index:1}
   .jtbl thead th.ta-r{text-align:right}
   .jtbl tbody td{padding:12px 10px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.45;vertical-align:top}
@@ -175,16 +181,20 @@
   .jtbl .j-num,.jtbl .j-fayl,.jtbl .j-acts,.jtbl .j-cur,.jtbl .j-amt,.jtbl .j-date,.jtbl .j-xdate{width:1%}
   .jtbl .j-ijr{width:1%;max-width:150px}
   .jtbl .j-ijr .ijr-nm{max-width:110px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:bottom}
-  .jtbl .j-kt,.jtbl .j-dt{min-width:120px;max-width:200px}
-  .jtbl .j-maqsad,.jtbl .j-izoh,.jtbl .j-ai{min-width:130px}
+  .jtbl .j-kt,.jtbl .j-dt{min-width:90px;max-width:200px}
+  .jtbl .j-maqsad,.jtbl .j-izoh,.jtbl .j-ai{min-width:90px}
   .jtbl td.j-maqsad,.jtbl td.j-izoh,.jtbl td.j-ai{overflow-wrap:anywhere}
   .jtbl .j-num{color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .j-id{display:block;margin-top:2px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer;letter-spacing:.02em;white-space:nowrap}
   .j-id:hover{color:var(--primary)}
   /* tbody bilan cheklangan: th'da ham .j-date klassi bor (kenglik uchun),
      lekin sarlavha rangi/shrifti .jtbl thead th'dan kelishi shart (uchastuvchi bo'lmasin) */
-  .jtbl tbody .j-date{color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
-  .jtbl .j-xdate{white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.5}
+  /* 🔴 2026-08-31 (Asilbek): "AI xulosasi" ustuni tor ekranda (≈1270px) ekrandan chiqib
+     "yo'qolib" qolardi — sana/sarlavha/ijrochi nowrap'lari olib tashlandi, ustunlar
+     kerak bo'lganda O'RALADI va jadval oynaga sig'adi. Keng ekranda hech narsa o'zgarmaydi
+     (joy yetarli bo'lsa brauzer baribir o'ramaydi). Summa/valyuta nowrap QOLADI (pul buzilmasin). */
+  .jtbl tbody .j-date{color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.5}
+  .jtbl .j-xdate{font-variant-numeric:tabular-nums;line-height:1.5}
   /* Jurnal V3 (2026-08-30): "Kiritilgan" (j-kirit, created_at) va "Xarajat sanasi"
      (j-hisob, entry_date) endi IKKI ALOHIDA ustunda (kiritHtml()/xarajatHtml()) —
      ilgari bitta katakda edi. .j-oth = entry_date created_at sanasi bilan mos
@@ -192,16 +202,16 @@
      🔴 `opacity` ISHLATILMAYDI — `var(--muted)` ning o'zi allaqachon past kontrastli,
      ustiga shaffoflik qo'shilsa matn o'qilmay qoladi (ayniqsa .j-oth — u eng
      muhim signal). */
-  .j-kirit{display:block;white-space:nowrap}
+  .j-kirit{display:block}
+  .jc-date .j-kirit{white-space:nowrap} /* mobil sarlavhada ellipsis ishlashi uchun */
   .j-hisob{display:block;color:var(--ink);font-size:13.5px;font-weight:500;
-    font-variant-numeric:tabular-nums;white-space:nowrap;cursor:help}
+    font-variant-numeric:tabular-nums;cursor:help}
   .j-hisob.j-oth{font-style:italic;color:var(--ink);text-decoration:underline dotted;text-underline-offset:2px}
   .j-davr{display:block;margin-top:2px;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
   /* (kt/dt kengligi yuqorida — "sig'ishi shart" bloki) */
   .jtbl .j-kt .aname,.jtbl .j-dt .aname{display:inline}
   .jtbl .j-arrow{text-align:center;width:30px;padding-left:0;padding-right:0}
   .jtbl .j-arrow svg{width:18px;height:18px;vertical-align:middle}
-  .jtbl .j-ijr{white-space:nowrap}
   .jtbl .j-cur{white-space:nowrap;font-variant-numeric:tabular-nums}
   .j-fc{color:var(--muted);font-size:11.5px;margin-top:2px}
   /* tbody bilan cheklangan — sabab yuqoridagi .j-date izohi bilan bir xil */
@@ -217,6 +227,20 @@
      ekranda gorizontal skroll (u yerda sticky yo'q — ongli almashuv). */
   .jwrap{overflow-x:visible}
   @media(max-width:1299px){.jwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}}
+  /* 🔴 2026-08-31: tor desktop (≈1270px oyna) — AI xulosasi ustuni ekrandan chiqib ketmasin.
+     Padding/№-id/ijrochi qisqartiriladi, jadval ~965px konteynerga sig'adi. jwrap'ning
+     <1300px zaxira skrolli baribir qoladi (juda tor oynada ham hech narsa yo'qolmaydi). */
+  @media(max-width:1439px){
+    .jtbl tbody td{padding:9px 4px}
+    .jtbl thead th{padding:0 4px 9px}
+    .jtbl .j-id{display:none}          /* id nusxalash keng ekranda qoladi */
+    .jtbl .j-ijr{max-width:110px}
+    .jtbl .j-ijr .ijr-nm{max-width:70px}
+    .jtbl .j-maqsad,.jtbl .j-izoh,.jtbl .j-ai{min-width:78px}
+    .jtbl .j-kt,.jtbl .j-dt{min-width:78px}
+    .jtbl td.j-kt,.jtbl td.j-dt{overflow-wrap:anywhere} /* uzun hisob nomi ustunni cho'zmasin */
+    .jact{padding:4px}
+  }
   /* --- Mobil kartalar --- */
   .jcards{display:flex;flex-direction:column;gap:10px}
   .jcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow)}
@@ -2363,18 +2387,45 @@ function valyutaCell(e,k){
   const sub=(v.cur!=='UZS'&&v.fc)?`<div class="j-fc">${money(v.fc)} ${esc(v.cur)}</div>`:'';
   return `<span>${esc(v.cur)}</span>${sub}`;
 }
+// --- Avto-tekshiruv (2026-08-31, Asilbek): AI'siz, klientda, faqat CHIQIM yozuvlariga ---
+// 1) Izoh: bo'sh/juda qisqa yoki modda nomini aynan takrorlaydi (tafsilot yo'q).
+// 2) Sana: xarajat sanasi kiritilgan kundan farq qiladi. Davrli yozuv (ijara kabi,
+//    davr_start/davr_end bor) istisno — u ataylab boshqa sanaga yoziladi.
+// Semantik moslikni ("benzin" izohi "Oziq-ovqat" moddasiga tushganini) faqat AI biladi —
+// u rasm-detect oqimida (entry.shubhali/shubhali_sabab), bu yerda TAKRORLANMAYDI.
+function autoIssues(e,k){
+  if(!e||e.is_deleted||!k||k.chala||k.kind!=='out') return [];
+  const out=[];
+  const d=String(e.description||'').trim();
+  const moddaNom=(k.dt&&k.dt.name)?String(k.dt.name).trim():'';
+  if(d.length<5) out.push('Izoh yozilmagan yoki juda qisqa');
+  else if(moddaNom&&d.toLowerCase()===moddaNom.toLowerCase()) out.push("Izoh modda nomini takrorlaydi — tafsilot yo'q");
+  const meta=metaMap[e.id];
+  if(!(meta&&(meta.davr_start||meta.davr_end))){
+    const p=uzParts(e.created_at);   // xarajatHtml() dagi .j-oth bilan AYNAN bir xil qoida
+    const ed=e.entry_date?String(e.entry_date).slice(0,10):'';
+    if(p&&ed&&p.sana!==ed) out.push('Sana mos emas: xarajat '+ed.split('-').reverse().join('.')+', kiritilgan '+p.sana.split('-').reverse().join('.'));
+  }
+  return out;
+}
 // --- AI xulosasi ustuni (admin) ---
 function aiCell(e){
   if(!(window.permIsAdmin&&window.permIsAdmin())) return '';   // fail-closed: hodimga hech narsa
+  // Avto-tekshiruv natijasi AI natijasidan MUSTAQIL — AI umuman ishlamagan yozuvda ham chiqadi.
+  const kA=klass(e);
+  const iss=autoIssues(e,kA);
+  const autoHtml=iss.length?`<div class="ai-sub ai-auto">${iss.map(s=>esc(s)).join('<br>')}</div>`:'';
+  const autoChip=`<div class="ftag"><span class="tg warn" title="${esc(iss.join(' · '))}"><i data-lucide="triangle-alert"></i>Shubhali (avto)</span></div>`;
   const am=aiMap[e.id];
-  if(!am || (!am.rasm_tahlil_id && !am.spidometr_tahlil_id && am.ai_holat==null)) return '<span class="jmuted">—</span>';
+  if(!am || (!am.rasm_tahlil_id && !am.spidometr_tahlil_id && am.ai_holat==null))
+    return iss.length ? autoChip+autoHtml : '<span class="jmuted">—</span>';
   // `ai_holat='yoq'` rasm-tahlilsiz — faqat MODDA AI talab qilsa ma'noli ("Tekshirmagan");
   // Aros sinxron/oddiy yozuvlarda bu shovqin edi (har qatorda chip) → "—".
   if(am.ai_holat==='yoq' && !am.rasm_tahlil_id && !am.spidometr_tahlil_id){
-    const k=klass(e);
-    const moddaId=(k.kind==='out'&&k.dt)?k.dt.account_id:null;
+    const moddaId=(kA.kind==='out'&&kA.dt)?kA.dt.account_id:null;
     const modda=moddaId?accounts.find(a=>a.id===moddaId):null;
-    if(!(modda&&(modda.ai_tekshir||modda.spidometr_ai))) return '<span class="jmuted">—</span>';
+    if(!(modda&&(modda.ai_tekshir||modda.spidometr_ai)))
+      return iss.length ? autoChip+autoHtml : '<span class="jmuted">—</span>';
   }
   const kid=kassaOf(e)||'';
   let chip;
@@ -2414,7 +2465,7 @@ function aiCell(e){
       }
     }
   }
-  return `<div class="ftag">${chip}</div>`+(sub.length?`<div class="ai-sub">${sub.join('<br>')}</div>`:'');
+  return `<div class="ftag">${chip}</div>`+(sub.length?`<div class="ai-sub">${sub.join('<br>')}</div>`:'')+autoHtml;
 }
 window.copyId=uid=>{ try{ navigator.clipboard.writeText(String(uid||'')); }catch(e){} };
 // Amallar (admin): tahrir faqat 2 satrli + kassa qatnashgan yozuvga.
@@ -2431,7 +2482,9 @@ window.toggleShubhali=val=>{
   const lbl=$('lblShubhali'); if(lbl) lbl.classList.toggle('on',shubhaliOnly);
   render();
 };
-const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato')); };
+// Avto-tekshiruv muammosi ham "Faqat shubhali" filtriga kiradi — admin bir bosishda
+// izoh/sana muammoli yozuvlarni ham ko'radi (AI shubhasi bilan bir ro'yxatda).
+const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato')) || autoIssues(e,klass(e)).length>0; };
 function render(){
   // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
   { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
@@ -2459,6 +2512,7 @@ function render(){
   //          Summa | Maqsad | Izoh | (admin) AI xulosasi | Fayl | Amallar
   const rowsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
+    const flag=isAdm?autoIssues(e,k):[];   // avto-tekshiruv: Dt katagi qizil + title'da sabab
     // Chala: Dt/Kt "—" emas, ANIQ matn; summa 0 emas, "—" (yolg'on nol chalkashtirmasin).
     const ktC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt));
     // Ko'p satrli: "N satr" + ostida to'liq ro'yxat (.jlines) — brief 5-band.
@@ -2471,7 +2525,7 @@ function render(){
       +`<td class="j-xdate">${xarajatHtml(e)}</td>`
       +`<td class="j-kt">${ktC}</td>`
       +`<td class="j-arrow ${kc(k)}"><i data-lucide="${k.ic}"></i></td>`
-      +`<td class="j-dt">${dtC}</td>`
+      +`<td class="j-dt${flag.length?' j-flag':''}"${flag.length?` title="${esc(flag.join(' · '))}"`:''}>${dtC}</td>`
       +`<td class="j-ijr">${ijrCell(e)}</td>`
       +`<td class="j-cur">${valyutaCell(e,k)}</td>`
       +`<td class="j-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</td>`
@@ -2497,6 +2551,7 @@ function render(){
   const jcRow=(lbl,html)=>`<div class="jc-row"><span class="acap">${esc(lbl)}</span><div class="jc-val">${html}</div></div>`;
   const cardsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
+    const flag=isAdm?autoIssues(e,k):[];   // avto-tekshiruv: Qayerga (Dt) bloki qizil fonda
     const acts=actsHtml(e,k,multi);
     const flow = chala
       ? `<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
@@ -2505,7 +2560,7 @@ function render(){
       ? `<div class="jc-acc"><span class="acap">Ko'p satrli</span><span class="aname">${e.lines.length} satr</span></div>`
       : `<div class="jc-acc"><span class="acap">Qayerdan (Kt)</span>${accCell(k.kt)}</div>`
         +`<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
-        +`<div class="jc-acc"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
+        +`<div class="jc-acc${flag.length?' j-flag':''}"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
     const rowsMob=[];
     rowsMob.push(jcRow('Xarajat sanasi', xarajatHtml(e)));
     rowsMob.push(jcRow('Ijrochi', ijrCell(e)));
