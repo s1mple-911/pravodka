@@ -685,10 +685,12 @@ ro'yxat qilib ko'rsatiladi, ishorasiz, "Boshqa" turiga kiradi.
   Xarajat sanasi (`entry_date` + `davr_start/end`) · Qayerdan (Kt) · Qayerga (Dt) · Ijrochi ·
   Valyuta (pul satrining `currency`, USD → `fc_amount`) · Summa · Maqsad (`metaTags` chiplari:
   maxsus maydon, kommunal, filial, yuk — AI va davr tegisiz) · Izoh (`description`, o'chirish/chala
-  izohi) · **AI xulosasi (faqat admin — `<th>`/`<td>` umuman chizilmaydi)** · Fayl (Chek/Hujjat/
+  izohi) · **AI xulosasi (2026-08-31 dan HAMMAGA — jurnal ruxsati yetarli; EF trigger baribir admin)** · Fayl (Chek/Hujjat/
   AI chek/Tablo → `openChek`) · Amallar. `maqsadHtml`/`sanaHtml` yo'q: `kiritHtml`, `xarajatHtml`,
   `valyutaCell`, `ijrCell`, `maqsadCell`, `izohCell`, `aiCell`, `faylCell`. Mobil `.jc-row` yorliqli.
-- **AI xulosasi ustuni:** `refreshMeta()` 2-bosqich (admin) — `rtMap` (`rasm_tahlil` id bo'yicha)
+- **AI xulosasi ustuni:** `refreshMeta()` 2-bosqich (2026-08-31 dan hammaga; `rasm_tahlil`/
+  `mashina_km` RLS har userga faqat O'Z yozuvini beradi — begonasida chip bor, tafsilot yo'q) —
+  `rtMap` (`rasm_tahlil` id bo'yicha)
   + `kmMap` (`mashina_km` entry bo'yicha). Chip: Shubhali / AI xato / Kutilmoqda / Tekshirmagan /
   Mos; ostida AI summa·sana (farq qizil), Tablo km (yozilgan farqi, yurgan km, so'm/km). Modal
   (`openChek`+`renderChekAi`) — batafsil ko'rinish, o'zgarmagan. Excel ustunlari tegilmagan.

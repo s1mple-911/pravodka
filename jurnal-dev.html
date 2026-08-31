@@ -1149,7 +1149,7 @@
           <label for="q">Qidiruv (izoh)</label>
           <input class="txt" id="q" placeholder="izoh bo'yicha qidirish" oninput="onQ()">
         </div>
-        <!-- AI shubhali filtri — FAQAT admin, init() da ochiladi (permIsAdmin). Klient tomonda,
+        <!-- AI shubhali filtri — hammaga (2026-08-31). Klient tomonda,
              faqat yuklangan qatorlarga (aiMap serverdan admin uchungina yuklanadi). -->
         <div class="fld" id="fldShubhali" style="display:none">
           <label class="chekopt" id="lblShubhali" title="Faqat AI 'Shubhali' yoki 'AI xato' deb belgilagan yozuvlar">
@@ -1798,8 +1798,7 @@ window.openChek=async(kassaId,entryId)=>{
   if(aiBox) aiBox.innerHTML='';
   $('chekModal').classList.add('open');
   const kid=kassaId||null;
-  const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
-  const am=(isAdm&&aiMap[entryId])||{};
+  const am=aiMap[entryId]||{};   // 2026-08-31: AI ma'lumoti endi hammaga (jurnal ruxsati yetarli)
   const hasChek=!!(kid&&chekKeys.has(kid+'/'+entryId));
   // --- AI rasm-tahlil qatori (fallback rasm + AI paneli uchun bir vaqtda kerak) ---
   let rt=null;
@@ -1832,10 +1831,10 @@ window.openChek=async(kassaId,entryId)=>{
     box.innerHTML='<div style="padding:30px;color:var(--muted)">Chek yo\'q</div>';
   }
   icons();
-  if(!isAdm||!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
+  if(!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
   await renderChekAi(entryId,am,rt);
 };
-// AI tekshiruv paneli — chek/hujjat rasmi ostida, faqat admin va aiMap'da ma'lumot bo'lsa chizadi.
+// AI tekshiruv paneli — chek/hujjat rasmi ostida, aiMap'da ma'lumot bo'lsa chizadi.
 async function renderChekAi(entryId,am,rt){
   const aiBox=$('chekAiBody'); if(!aiBox) return;
   try{
@@ -1915,13 +1914,11 @@ async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
   if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; aiMap={}; rtMap={}; kmMap={}; return; }
   try{
-    const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
     const [mRes, eyRes, mxRes, aiRes]=await Promise.all([
       sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',ids),
       sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids),
       sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids),
-      isAdm ? aiSel(ids)
-            : Promise.resolve({data:null,error:null})
+      aiSel(ids)   // 2026-08-31 (Asilbek): AI xulosasi endi HAMMAGA — jurnal ruxsati yetarli
     ]);
     if(mRes.error||!mRes.data) return;
     const m={}; mRes.data.forEach(r=>{ m[r.id]=r; }); metaMap=m;
@@ -1929,11 +1926,13 @@ async function refreshMeta(){
     // View yo'q / RLS bermadi → mxRes.error, mxMap bo'sh: chip umuman chizilmaydi.
     mxMap={}; if(!mxRes.error) (mxRes.data||[]).forEach(r=>{ (mxMap[r.entry_id]||(mxMap[r.entry_id]=[])).push(r); });
     Object.keys(mxMap).forEach(k=>mxMap[k].sort((a,b)=>(a.tartib||0)-(b.tartib||0)));
-    // Ustunlar hali RUN qilinmagan (42703) yoki admin emas → aiMap bo'sh, chip chizilmaydi.
-    aiMap={}; if(isAdm&&!aiRes.error&&aiRes.data) aiRes.data.forEach(r=>{ aiMap[r.id]=r; });
+    // Ustunlar hali RUN qilinmagan (42703) → aiMap bo'sh, chip chizilmaydi.
+    aiMap={}; if(!aiRes.error&&aiRes.data) aiRes.data.forEach(r=>{ aiMap[r.id]=r; });
     // --- AI xulosasi ustuni — IKKINCHI bosqich (id'lar aiMap dan kerak) ---
+    // 2026-08-31: admin sharti olib tashlandi — rasm_tahlil/mashina_km RLS baribir har
+    // userga faqat O'Z yozuvlarini beradi (auth.uid()=user_id or is_admin), begonasi jim tushadi.
     rtMap={}; kmMap={};
-    if(isAdm){
+    {
       const rtIds=[...new Set(Object.values(aiMap).flatMap(r=>[r.rasm_tahlil_id,r.spidometr_tahlil_id]).filter(Boolean))];
       const kmIds=Object.keys(aiMap).filter(id=>{ const r=aiMap[id]; return r&&(r.rasm_tahlil_id||r.spidometr_tahlil_id); });
       const [rtRes,kmRes]=await Promise.all([
@@ -2390,11 +2389,9 @@ function faylCell(e){
     const lbl=(!x||CHEK_IMG.indexOf(x)>=0)?'Chek':'Hujjat';
     parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid}','${e.id}')"><i data-lucide="paperclip"></i>${lbl}</button>`);
   }
-  const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
-  if(isAdm){
+  {
     const am=aiMap[e.id];
-    // Haqiqiy chek fayli yo'q — lekin AI o'qigan rasm bor bo'lishi mumkin (aiMap faqat
-    // admin uchun to'ldiriladi — hodimga hech qachon chiqmaydi).
+    // Haqiqiy chek fayli yo'q — lekin AI o'qigan rasm bor bo'lishi mumkin.
     if(am&&am.rasm_tahlil_id&&!hasChek){
       parts.push(`<button type="button" class="chekpin" onclick="openChek('${kid||''}','${e.id}')"><i data-lucide="sparkles"></i>AI chek</button>`);
     }
@@ -2472,7 +2469,8 @@ function flagIssues(e,k){
 }
 // --- AI xulosasi ustuni (admin) ---
 function aiCell(e){
-  if(!(window.permIsAdmin&&window.permIsAdmin())) return '';   // fail-closed: hodimga hech narsa
+  // 2026-08-31 (Asilbek): ustun endi jurnalni ochola olgan HAMMAGA — qatorlar baribir
+  // jurnal RPC ruxsati (kassa/filial scope) bilan cheklangan, yangi ma'lumot sizmaydi.
   // Avto-tekshiruv natijasi AI natijasidan MUSTAQIL — AI umuman ishlamagan yozuvda ham chiqadi.
   const kA=klass(e);
   const am=aiMap[e.id];
@@ -2571,13 +2569,11 @@ function render(){
   $('moreBtn').style.display = rows.length<total ? 'flex' : 'none';
   if(!list.length){ $('journal').innerHTML='<div class="empty">Bu shartlarga mos yozuv yo\'q</div>'; icons(); return; }
 
-  const isAdm=!!(window.permIsAdmin&&window.permIsAdmin());
-
   // Desktop: jadval — # | Kiritilgan | Xarajat sanasi | Kt | → | Dt | Ijrochi | Valyuta |
   //          Summa | Maqsad | Izoh | (admin) AI xulosasi | Fayl | Amallar
   const rowsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
-    const flag=isAdm?flagIssues(e,k):[];   // avto + AI (shubhali/izoh nomos): Dt katagi qizil + title'da sabab
+    const flag=flagIssues(e,k);   // avto + AI (shubhali/izoh nomos): Dt katagi qizil + title'da sabab
     // Chala: Dt/Kt "—" emas, ANIQ matn; summa 0 emas, "—" (yolg'on nol chalkashtirmasin).
     const ktC=chala?'<span class="jmuted">Satr yozilmagan</span>':(multi?'<span class="jmuted">Ko\'p satrli</span>':accCell(k.kt));
     // Ko'p satrli: "N satr" + ostida to'liq ro'yxat (.jlines) — brief 5-band.
@@ -2596,7 +2592,7 @@ function render(){
       +`<td class="j-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</td>`
       +`<td class="j-maqsad">${maqC}</td>`
       +`<td class="j-izoh">${izohCell(e,k,multi)}</td>`
-      +(isAdm?`<td class="j-ai">${aiCell(e)}</td>`:'')
+      +`<td class="j-ai">${aiCell(e)}</td>`
       +`<td class="j-fayl">${faylCell(e)}</td>`
       +`<td class="j-acts">${actsHtml(e,k,multi)}</td>`
     +`</tr>`;
@@ -2609,14 +2605,14 @@ function render(){
     +`<th class="j-kt">Qayerdan (Kt)</th><th class="j-arrow"></th><th class="j-dt">Qayerga (Dt)</th>`
     +`<th class="j-ijr">Ijrochi</th><th class="j-cur">Valyuta</th><th class="ta-r j-amt">Summa</th>`
     +`<th class="j-maqsad">Maqsad</th><th class="j-izoh">Izoh</th>`
-    +(isAdm?'<th class="j-ai">AI xulosasi</th>':'')+`<th class="j-fayl">Fayl</th><th class="j-acts"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+    +`<th class="j-ai">AI xulosasi</th><th class="j-fayl">Fayl</th><th class="j-acts"></th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 
   // Mobil: karta — Kiritilgan+summa tepada, Qayerdan → Qayerga o'rtada strelka bilan,
   // pastda yorliqli qatorlar (.jc-row). Bo'sh qator chizilmaydi (karta shishmasin).
   const jcRow=(lbl,html)=>`<div class="jc-row"><span class="acap">${esc(lbl)}</span><div class="jc-val">${html}</div></div>`;
   const cardsHtml=list.map((e,i)=>{
     const k=klass(e), amt=sumDt(e), multi=(e.lines||[]).length>2, chala=!!k.chala;
-    const flag=isAdm?flagIssues(e,k):[];   // avto + AI (shubhali/izoh nomos): Qayerga (Dt) bloki qizil fonda
+    const flag=flagIssues(e,k);   // avto + AI (shubhali/izoh nomos): Qayerga (Dt) bloki qizil fonda
     const acts=actsHtml(e,k,multi);
     const flow = chala
       ? `<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
@@ -2634,7 +2630,7 @@ function render(){
     const mq=maqsadCell(e,k);
     if(mq) rowsMob.push(jcRow('Maqsad', mq));
     rowsMob.push(jcRow('Izoh', izohCell(e,k,multi)));
-    if(isAdm) rowsMob.push(jcRow('AI xulosasi', aiCell(e)));
+    rowsMob.push(jcRow('AI xulosasi', aiCell(e)));
     rowsMob.push(jcRow('Fayl', faylCell(e)));
     return `<div class="jcard${e.is_deleted?' del':''}${chala?' chala':''}">`
       +`<div class="jc-top"><span class="jc-date">${kiritHtml(e,' · #'+(i+1))}</span><span class="jc-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</span></div>`
@@ -3651,7 +3647,7 @@ async function exportCsvFallback(a){
 async function init(){
   wireV2();
   // AI "Faqat shubhali" — faqat admin ko'radi (checkbox sukut yashirin).
-  if(window.permIsAdmin&&window.permIsAdmin()){ const f=$('fldShubhali'); if(f) f.style.display=''; }
+  { const f=$('fldShubhali'); if(f) f.style.display=''; }   // 2026-08-31: filtr hammaga
   // 🔴 Default davr — BUGUN (avval oyning 1-sanasi edi). Chip "Bugun" .on holatda.
   const n=nowUz();
   $('from').value=iso(n); $('to').value=iso(n);
