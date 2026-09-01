@@ -109,6 +109,16 @@
   .cv-out{background:var(--primary-soft);border-radius:12px;padding:13px 15px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .cv-out .k{font-size:12.5px;color:var(--muted);font-weight:500}
   .cv-out .v{font-size:22px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .cv-out.lg{padding:15px 16px}
+  .cv-out.lg .v{font-size:27px}
+  .cv-farq{background:var(--surface-2);border-radius:12px;padding:14px 14px 12px;margin-bottom:16px}
+  .cv-farq label{margin:0 0 9px 2px}
+  .cv-farq .cvseg{margin-bottom:10px}
+  .cv-farq .cvseg button.on{box-shadow:none}
+  .cv-farq .cvseg button:first-child.on{background:var(--red-soft);color:var(--red)}
+  .cv-farq .cvseg button:last-child.on{background:var(--green-soft);color:var(--green)}
+  .cv-farq .txt{margin-bottom:0}
+  .cv-farq-hint{font-size:12px;color:var(--muted);margin:8px 2px 0;line-height:1.5}
   .cv-msg{border-radius:11px;padding:12px 14px;font-size:13.5px;margin-bottom:14px;display:none;line-height:1.5}
   .cv-msg.pend{background:var(--amber-soft);color:var(--amber);display:block}
   .cv-msg.err{background:var(--red-soft);color:var(--red);display:block}
@@ -309,7 +319,16 @@
     <label id="cvAmountLbl">Summa (so'm)</label><input class="txt" id="cvAmount" inputmode="decimal" placeholder="0" oninput="cvFmt(this)">
     <label id="cvRateLbl">Kurs (1 birlik necha so'm)</label><input class="txt" id="cvRate" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
     <div class="cv-rate" id="cvArosBox"><i data-lucide="info"></i><span id="cvAros">—</span></div>
-    <div class="cv-out"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
+    <div class="cv-out lg"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
+    <div class="cv-farq">
+      <label>Kurs farqi (so'm) — ixtiyoriy</label>
+      <div class="cvseg" id="cvFarqYon">
+        <button class="on" onclick="cvSetFarqYon('+',this)">Ko'p berildi (+)</button>
+        <button onclick="cvSetFarqYon('-',this)">Kam berildi (−)</button>
+      </div>
+      <input class="txt" id="cvFarq" inputmode="numeric" placeholder="0" oninput="cvFmtFarq(this)">
+      <p class="cv-farq-hint">Mayda pul bo'lmasa: ko'p berilgan farq xarajat, kam berilgani foyda bo'lib yoziladi.</p>
+    </div>
     <label>Izoh</label><input class="txt" id="cvNote" placeholder="ixtiyoriy izoh">
     <div class="mrow"><button onclick="closeConv()">Bekor</button><button class="primary" id="cvSave" onclick="convSave()">Konvert qilish</button></div>
   </div></div>
@@ -723,14 +742,13 @@ window.valSave=async()=>{
 // cvFoiz (koridor foizi) bu yerda YO'Q: koridor ko'rsatilmaydi, shuning uchun uni
 // olib kelishning hojati ham yo'q. Koridorni server (convert_start_v2) hal qiladi;
 // admin uni "Konvert" va "Sozlamalar" bo'limlarida ko'radi.
-let cvKassa=[], cvBaza=null, cvYon='sotib_olish', cvValyutalar=[];
-// Summa sotishda kasrli bo'lishi mumkin, kurs esa butun
+let cvKassa=[], cvBaza=null, cvYon='sotib_olish', cvValyutalar=[], cvFarqSign='+';
+// v3: Summa endi IKKALA rejimda ham VALYUTADA kiritiladi — kasrli, kurs esa butun
 const cvNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
 window.cvFmt=el=>{
-  const kasr=(el.id==='cvAmount'&&cvYon==='sotish');
-  // Avtomat "000" FAQAT so'm summasiga (Sotib olish). Kurs (cvRate) va sotishdagi
-  // summa (valyutada, kasrli) — avtomat nol qo'shilmaydi, aks holda 12 100 kursi buziladi.
-  if(el.id==='cvAmount'&&!kasr){ fmtAmt(el); cvCalc(); return; }
+  const kasr=(el.id==='cvAmount');
+  // cvAmount — har doim valyutada (kasrli, avtomat "000" yo'q). cvRate — butun son,
+  // eski avtomat minglik-formatlashda qoladi.
   let raw=el.value.replaceAll(' ','').replace(',','.').replace(kasr?/[^0-9.]/g:/\D/g,'');
   if(kasr){
     const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
@@ -741,6 +759,15 @@ window.cvFmt=el=>{
   }
   cvCalc();
 };
+// Kurs farqi — butun so'm, minglik ajratgich, avtomat "000" YO'Q (kichik summa ham bo'lishi mumkin)
+window.cvFmtFarq=el=>{
+  const raw=el.value.replace(/\D/g,'');
+  el.value=raw?money(raw):'';
+};
+window.cvSetFarqYon=(y,btn)=>{
+  cvFarqSign=y;
+  [...$('cvFarqYon').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+};
 window.cvSetYon=(y,btn)=>{
   cvYon=y;
   [...$('cvSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
@@ -748,7 +775,8 @@ window.cvSetYon=(y,btn)=>{
   cvFillTo();
 };
 window.openConv=async()=>{
-  $('cvAmount').value=''; $('cvRate').value=''; $('cvNote').value='';
+  $('cvAmount').value=''; $('cvRate').value=''; $('cvNote').value=''; $('cvFarq').value='';
+  cvFarqSign='+'; [...$('cvFarqYon').children].forEach((b,i)=>b.classList.toggle('on',i===0));
   $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
   $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
   $('convModal').classList.add('open');
@@ -808,10 +836,11 @@ async function cvFillTo(){
 }
 async function cvValyutaChanged(){
   const cur=cvCur();
-  $('cvAmountLbl').textContent=cvYon==='sotish'?('Summa ('+(cur||'valyuta')+')'):'Summa (so\'m)';
+  // v3: summa har doim VALYUTADA kiritiladi (ikkala rejimda ham)
+  $('cvAmountLbl').textContent='Summa ('+(cur||'valyuta')+')';
   $('cvRateLbl').textContent='Kurs (1 '+(cur||'birlik')+' necha so\'m)';
-  $('cvOutLbl').textContent=cvYon==='sotish'?'Olinadigan so\'m':('Olinadigan '+(cur||'valyuta'));
-  $('cvAmount').setAttribute('inputmode',cvYon==='sotish'?'decimal':'numeric');
+  $('cvOutLbl').textContent=cvYon==='sotish'?'Olinadigan so\'m':'To\'lanadigan so\'m';
+  $('cvAmount').setAttribute('inputmode','decimal');
   cvBaza=null;
   if(cur){
     // Tayanch kurs: USD → aros_usd_rate(), boshqasi → currency_rate'dagi oxirgisi
@@ -822,10 +851,8 @@ async function cvValyutaChanged(){
 }
 function cvCalc(){
   const amt=cvNum('cvAmount'), rate=cvNum('cvRate'), cur=cvCur()||'';
-  // sotib olish: so'm / kurs = valyuta; sotish: valyuta * kurs = so'm
-  $('cvUsd').textContent = cvYon==='sotish'
-    ? money(rate>0?amt*rate:0)+" so'm"
-    : (rate>0?(amt/rate).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '):'0')+' '+cur;
+  // v3: summa har doim VALYUTADA — so'm = summa × kurs, ikkala rejimda ham
+  $('cvUsd').textContent = money(rate>0?amt*rate:0)+" so'm";
   const box=$('cvArosBox'), el=$('cvRate');
   if(cvBaza===null){
     box.className='cv-rate';
@@ -846,14 +873,26 @@ function cvCalc(){
   $('cvAros').textContent="Kursni kiriting. Kurs odatdagidan sezilarli farq qilsa, so'rov admin tasdig'iga tushadi.";
   el.classList.remove('warn');   // sariq rang ham chegarani oshkor qiladi — qo'yilmaydi
 }
+// v3 funksiyasi bazada hali yo'q bo'lishi (PROVODKA_KONVERT_V3.sql RUN qilinmagan)
+// PostgREST'dan PGRST202 yoki postgres 42883 (undefined function) bo'lib qaytadi.
+function cvFn3Missing(e){
+  const m=(e&&e.message)||'';
+  return (e&&e.code)==='PGRST202'||(e&&e.code)==='42883'
+    ||m.indexOf('convert_start_v3')>-1||m.indexOf('Could not find the function')>-1;
+}
 window.convSave=async()=>{
   const kassa=$('cvFrom').value;
   let valyuta=$('cvTo').value;
   const p_amount=cvNum('cvAmount'), p_rate=cvNum('cvRate');
+  const farqRaw=cvNum('cvFarq');
   $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
   if(!kassa||!valyuta){ cvErr('Kassa va valyutani tanlang'); return; }
   if(p_amount<=0){ cvErr('Summa kiriting'); return; }
   if(p_rate<=0){ cvErr('Kurs kiriting'); return; }
+  const somEkv=p_amount*p_rate;
+  if(farqRaw>0 && farqRaw>=somEkv){ cvErr('Farq summadan katta'); return; }
+  // farq: musbat = hodim ko'p berdi (xarajat), manfiy = kam berdi (foyda)
+  const p_farq = farqRaw>0 ? (cvFarqSign==='-'?-farqRaw:farqRaw) : null;
   $('cvSave').disabled=true; $('cvSave').textContent='Yuborilmoqda...';
   // Kassada bu valyuta hisobi hali yo'q bo'lsa — avval ochamiz (pul harakat qilmaydi).
   // ensure_valyuta_child: konvert + amaliyot ruxsati yetadi, admin shart emas.
@@ -870,9 +909,22 @@ window.convSave=async()=>{
     // Ro'yxatni yangilaymiz — keyingi konvertda "yangi" emas, oddiy hisob bo'lib chiqsin
     swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
   }
-  // p_amount HAR DOIM beruvchi hisobning o'z valyutasida
   const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
-  const {data,error}=await sb.rpc('convert_start_v2',{p_from,p_to,p_amount,p_rate,p_note:$('cvNote').value||null});
+  const p_note=$('cvNote').value||null;
+  // v3: p_amount HAR DOIM valyutada (sotib olishda ham). Hali RUN qilinmagan bo'lsa
+  // PGRST202/42883 bilan zaxiraga o'tamiz — farqli so'rovni FAIL-CLOSED rad etamiz.
+  let {data,error}=await sb.rpc('convert_start_v3',{p_from,p_to,p_amount,p_rate,p_note,p_farq});
+  if(error && cvFn3Missing(error)){
+    if(p_farq!==null){
+      $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+      cvErr('Kurs farqi uchun yangi SQL kerak (PROVODKA_KONVERT_V3.sql) — farqsiz yuboring yoki admin SQL RUN qilsin.');
+      return;
+    }
+    // v2 zaxira: sotib olishda p_amount SO'MDA kutiladi (bu yerda valyutada terilgan —
+    // kursga ko'paytirib aylantiramiz), sotishda o'zgarishsiz (u yerda ham valyuta edi).
+    const p_amount_v2 = cvYon==='sotish' ? p_amount : Math.round(p_amount*p_rate);
+    ({data,error}=await sb.rpc('convert_start_v2',{p_from,p_to,p_amount:p_amount_v2,p_rate,p_note}));
+  }
   $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
   if(error){ cvErr('Xato: '+error.message); return; }
   const r=data||{};

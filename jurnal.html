@@ -22,8 +22,8 @@
 <script src="ai-widget.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--nt:#667085;--nt-soft:#eef0f3;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--nt:#8a93a3;--nt-soft:#1e232d;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--nt:#667085;--nt-soft:#eef0f3;--amber:#b54708;--amber-soft:#fef0c7;--konv:#7c3aed;--konv-soft:#f2ebfe;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--nt:#8a93a3;--nt-soft:#1e232d;--amber:#fdb022;--amber-soft:#2e1e05;--konv:#a78bfa;--konv-soft:#241a3d;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
   .num,.amount,.je .amt,.jline .a{font-variant-numeric:tabular-nums}
@@ -121,10 +121,16 @@
   .ftag .tg.aiwait{background:var(--nt-soft);color:var(--muted)}
   /* AI xulosasi ustuni — "Mos" (shubha yo'q, AI tekshirgan) */
   .ftag .tg.ok{background:var(--green-soft);color:var(--green);cursor:pointer}
-  /* Bitta kassa ichidagi harakat (2026-08-30): konvert — ko'k (transfer rangi), ichki — kulrang */
-  .ftag .tg.konv{background:var(--tr-soft);color:var(--tr)}
+  /* Bitta kassa ichidagi harakat (2026-08-30): konvert — binafsha (2026-09-01 dan, avval ko'k edi), ichki — kulrang */
+  .ftag .tg.konv{background:var(--konv-soft);color:var(--konv)}
   .ftag .tg.ichki{background:var(--nt-soft);color:var(--nt)}
-  .j-konv{white-space:nowrap;color:var(--tr);font-weight:600}
+  .j-konv{white-space:nowrap;color:var(--konv);font-weight:600}
+  /* Konvert (valyuta sotib olish/sotish) — Izoh katagidagi ixcham yo'nalish qatori (isKonvert).
+     nowrap YO'Q — tor ekranda (jtbl td.j-izoh{overflow-wrap:anywhere}) tashqariga chiqib ketmasin. */
+  .j-konvline{color:var(--konv);font-weight:600;font-size:12px;margin-bottom:2px;font-variant-numeric:tabular-nums}
+  .j-konvline .j-kv-out{color:var(--red);font-weight:700}
+  .j-konvline .j-kv-in{color:var(--green);font-weight:700}
+  .j-konvline .j-kv-rate{color:var(--muted);font-weight:600;background:var(--surface-2);border-radius:5px;padding:1px 6px;margin-left:1px;white-space:nowrap}
   .ai-sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.6}
   .ai-sub .ai-diff{color:var(--red);font-weight:600}
   /* Avto-tekshiruv (2026-08-31): sabab qizil satrda; muammoli CHIQIM moddasi (Qayerga/Dt
@@ -160,6 +166,8 @@
   .jact.del:hover{background:var(--red-soft);color:var(--red)}
   /* kind ranglari (strelka + summa) */
   .kc-in{color:var(--green)}.kc-out{color:var(--red)}.kc-tr{color:var(--tr)}.kc-nt{color:var(--nt)}
+  /* Konvert (valyuta sotib olish/sotish) — kind 'tr' ustiga binafsha ohang, keyin turgani uchun ustun keladi */
+  .kc-konv{color:var(--konv)}
   /* --- Desktop jadval --- */
   /* separate+border-spacing:0 — position:sticky ba'zi brauzerlarda (Safari) collapse
      modelida ishlamaydi; faqat pastki chegara ishlatilgani uchun ko'rinishga ta'sir yo'q */
@@ -1169,6 +1177,9 @@
         <button onclick="setTur('out',this)">Chiqim</button>
         <button onclick="setTur('tr',this)">Transfer</button>
         <button onclick="setTur('nt',this)">Boshqa</button>
+        <!-- Fail-safe yashirin: SQL RUN qilinmagan bo'lsa (jurnal_konvert_filtr_ok() yo'q)
+             useKonvertF false qoladi va bu chip hech qachon ko'rinmaydi (init() da ochiladi). -->
+        <button id="turKv" style="display:none" onclick="setTur('kv',this)">Konvert</button>
       </div>
     </div>
 
@@ -1422,6 +1433,37 @@ async function loadUsePul(){
     else if(error) console.warn('jurnal: PROVODKA_JURNAL_PUL.sql RUN qilinmagan — tovar filtri o\'chiq', error.message||error);
   }catch(e){}
 }
+// --- Savdo tushumi (aros_auto) filtri — PROVODKA_KONVERT_V3.sql ---
+// useSavdosiz : jurnal_v2_baza 'savdosiz' tokenini tushunadimi (jurnal_savdosiz_ok() bor-yo'qligi
+//               bilan aniqlanadi, loadUsePul() bilan AYNAN bir xil naqsh). true bo'lsa argsV2()
+//               p_turlar ga 'savdosiz' qo'shadi — aros_auto yozuvlardan faqat transfer qoladi
+//               (avtomatik savdo tushumi yozuvlari jurnaldan chiqib ketadi). false (SQL hali
+//               RUN qilinmagan) — hech narsa o'zgarmaydi (fail-safe: eski to'liq ro'yxat).
+let useSavdosiz=false;
+async function loadUseSavdosiz(){
+  const cached=swrGet('savdosizok',86400000);   // 1 kun — har ochilishda qayta so'ramaslik uchun
+  if(cached===true){ useSavdosiz=true; return; }
+  try{
+    const {data,error}=await sb.rpc('jurnal_savdosiz_ok');
+    if(!error&&data===true){ useSavdosiz=true; swrSet('savdosizok',true); }
+    else if(error) console.warn('jurnal: PROVODKA_KONVERT_V3.sql RUN qilinmagan — savdosiz filtri o\'chiq', error.message||error);
+  }catch(e){}
+}
+// --- "Konvert" filtr chipi — PROVODKA_KONVERT_FILTR.sql ---
+// useKonvertF : jurnal_v2_baza 'konvert' tokenini tushunadimi (jurnal_konvert_filtr_ok()
+//               bor-yo'qligi bilan aniqlanadi, loadUsePul() bilan AYNAN bir xil naqsh).
+//               true bo'lsa "Konvert" chipi ko'rinadi (fail-safe: SQL hali RUN qilinmagan
+//               bo'lsa chip UMUMAN chizilmaydi — bosilganda bo'sh jurnal chiqib qolmasin).
+let useKonvertF=false;
+async function loadUseKonvertF(){
+  const cached=swrGet('konvertok',86400000);   // 1 kun — har ochilishda qayta so'ramaslik uchun
+  if(cached===true){ useKonvertF=true; return; }
+  try{
+    const {data,error}=await sb.rpc('jurnal_konvert_filtr_ok');
+    if(!error&&data===true){ useKonvertF=true; swrSet('konvertok',true); }
+    else if(error) console.warn('jurnal: PROVODKA_KONVERT_FILTR.sql RUN qilinmagan — Konvert chipi yashirin', error.message||error);
+  }catch(e){}
+}
 // Ruxsat (scope='list'): ko'rishga ruxsat etilgan pul-hisob id'lari (valyuta bolalari + hodim
 // kassalari ham). null = cheklovsiz (admin yoki scope='all'). Jurnal so'roviga p_accounts sifatida
 // ketadi — server faqat shu kassalar qatnashgan yozuvlarni qaytaradi (entrylar ham, jurnal_count ham).
@@ -1670,6 +1712,75 @@ function ichkiChip(k){
     return `<span class="tg konv" title="Bitta kassa ichida valyuta almashinuvi"><i data-lucide="refresh-cw"></i>Konvert${r?` · ${money(r.fc)} ${esc(r.cur)} · kurs ${money(r.kurs)}`:''}</span>`;
   }
   return `<span class="tg ichki" title="Bitta kassa ichida pul turi o'tkazish"><i data-lucide="arrow-left-right"></i>Ichki o'tkazma</span>`;
+}
+// --- Konvert badge (2026-09-01, PROVODKA_KONVERT_V3.sql) ---
+// isKonvert — mustaqil aniqlash, faqat `lines`dan (accounts/root kerak emas, ichkiOf'dan
+// FARQLI): 2 satr, ikkalasi ham pul (section='pul'), AYNAN bittasi chet valyutada
+// (fc_amount>0), ikkinchisi UZS. Ikkala tomon ham chet valyuta bo'lsa (professional'dan
+// USD-kassa → USD-kassa o'tkazma) bu KONVERT EMAS — oddiy valyuta transferi, kurs yo'q.
+function isKonvert(e){
+  const ls=(e&&e.lines)||[];
+  if(ls.length!==2) return false;
+  if(!(ls[0]&&ls[0].section==='pul'&&ls[1]&&ls[1].section==='pul')) return false;
+  const cur=l=>String(l.currency||'UZS').toUpperCase();
+  const fcN=ls.filter(l=>cur(l)!=='UZS'&&Number(l.fc_amount)>0).length;
+  const uzN=ls.filter(l=>cur(l)==='UZS').length;
+  return fcN===1&&uzN===1;
+}
+// Valyuta miqdori — 2 kasrgacha, ortiqcha nollar qirqiladi (money() butun songa yaxlitlaydi,
+// dollar/markazlashgan valyutada tiyin yo'qolib qolardi). Guruhlash money() bilan bir xil (probel).
+function money2(n){
+  const v=Number(n)||0, s=v.toFixed(2).replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'');
+  const [ip,fp]=s.split('.'), grouped=ip.replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  return fp?grouped+'.'+fp:grouped;
+}
+// Konvert ixcham qatori: "12 000 000 so'm ↑ · 1 000.5 USD ↓ · kurs 12 000". description
+// PARSE QILINMAYDI — faqat lines'dan. Yo'nalish: valyuta satri debit>0 → sotib olish
+// (so'm chiqdi ↑, valyuta kirdi ↓); aks holda sotish (teskari). Kurs = round(uzs/fc) —
+// debit/credit har doim so'mda yozilgani uchun uz.debit yoki uz.credit ikkalasi ham to'g'ri.
+function konvSatr(e){
+  if(!isKonvert(e)) return null;
+  const ls=e.lines||[];
+  const fc=ls.find(l=>String(l.currency||'UZS').toUpperCase()!=='UZS');
+  const uz=ls.find(l=>l!==fc);
+  if(!fc||!uz) return null;
+  const uzs=Number(uz.debit)||Number(uz.credit)||0, fcAmt=Number(fc.fc_amount)||0;
+  if(!(uzs>0&&fcAmt>0)) return null;
+  const kurs=Math.round(uzs/fcAmt);
+  const sotibOlish=Number(fc.debit)>0;
+  const arr=sotibOlish?['↑','↓']:['↓','↑'];
+  const arrow=s=>`<span class="${s==='↑'?'j-kv-out':'j-kv-in'}">${s}</span>`;
+  let out=`${money(uzs)} so'm ${arrow(arr[0])} · ${money2(fcAmt)} ${esc(String(fc.currency).toUpperCase())} ${arrow(arr[1])} · <span class="j-kv-rate">kurs ${money(kurs)}</span>`;
+  const farq=konvFarqMap.get(e.id);
+  if(farq) out += farq.foyda
+    ? ` · <span class="j-kv-in">farq −${money(farq.summa)} (foyda)</span>`
+    : ` · <span class="j-kv-out">farq +${money(farq.summa)} (xarajat)</span>`;
+  return out;
+}
+// --- Konvert KURS FARQI (2026-09-01, PROVODKA_KONVERT_FILTR.sql) ---
+// convert_start_v3 kurs farqini ALOHIDA yozuv qilib yozadi: ext_ref =
+// 'convfarq:'||<konvert yozuvi id>. Har render() da `rows`dan qayta quriladi
+// (alohida so'rov yo'q) — konvert yozuv/farq yozuvi boshqa SAHIFADA bo'lib
+// qolsa map topolmaydi, bu qabul qilingan cheklov (kod yiqilmaydi).
+// Yo'nalish: farq yozuvida Dt pul (kassa) bo'lsa FOYDA (kam berilgan), Dt
+// xarajat moddasi bo'lsa XARAJAT (ko'p berilgan). SQL/eski javobda `ext_ref`
+// kaliti yo'q bo'lsa (undefined) shunchaki o'tkazib yuboriladi — sinmaydi.
+const CONVFARQ_PFX='convfarq:';
+let konvFarqMap=new Map();
+function buildKonvFarqMap(){
+  konvFarqMap=new Map();
+  (rows||[]).forEach(r=>{
+    const ref=r&&r.ext_ref;
+    if(typeof ref!=='string'||ref.indexOf(CONVFARQ_PFX)!==0) return;
+    const targetId=ref.slice(CONVFARQ_PFX.length);
+    if(!targetId) return;
+    const ls=r.lines||[];
+    const dt=ls.find(l=>Number(l.debit)>0);
+    if(!dt) return;
+    const summa=Number(dt.debit)||0;
+    if(!summa) return;
+    konvFarqMap.set(targetId,{summa, foyda: dt.section==='pul'});
+  });
 }
 function kassaOila(id){
   const out=[id], seen=new Set([id]);
@@ -2233,6 +2344,9 @@ function lineRow(l){
 
 // --- Stage 6: tushunarli jadval helperlari ---
 const kc=k=>'kc-'+k.kind;
+// Konvert (valyuta sotib olish/sotish) — kind 'tr' ustiga qo'shimcha binafsha ohang.
+// kind o'zgarmaydi (tur filtri 'tr' buzilmasin) — faqat rang klassiga 'kc-konv' qo'shiladi.
+const kcE=(e,k)=>kc(k)+(isKonvert(e)?' kc-konv':'');
 // Hisob katakchasi: kod + nom (+ kassa subtitle). Buxgalter bo'lmagan ham o'qiy oladi.
 function accCell(line){
   if(!line) return '<span class="jmuted">—</span>';
@@ -2365,6 +2479,8 @@ function izohCell(e,k,multi){
   const chala=!!(k&&k.chala);
   if(chala) parts.push(`<div><span class="jchip-chala" title="${esc(CHALA_IZOH)}"><i data-lucide="circle-dashed"></i>${esc(CHALA_NOM)}</span></div>`);
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
+  // Konvert (valyuta sotib olish/sotish) — ixcham yo'nalish qatori, description'dan OLDIN.
+  if(!chala){ const ks=konvSatr(e); if(ks) parts.push(`<div class="j-konvline">${ks}</div>`); }
   if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
   // 🔴 Chala yozuvda "Kt → Dt" satri CHIZILMAYDI: hisob yo'q, u bo'sh " → " bo'lib
   // ko'rinardi (aynan foydalanuvchini chalkashtirgan holat).
@@ -2556,9 +2672,14 @@ const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai
 function render(){
   // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
   { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
+  buildKonvFarqMap();   // konvSatr() farq ko'rsatishi uchun — pastda chaqiriladi
   const q=$('q').value.trim().toLowerCase();
   const list=rows.filter(e=>{
-    if(tur!=='all' && klass(e).kind!==tur) return false;
+    // 🔴 'kv' (Konvert) — klass(e).kind da 'kv' YO'Q (konvert kind='tr' bo'lib qoladi),
+    //    shuning uchun isKonvert bilan tekshiriladi. Aks holda chip bosilganda server
+    //    to'g'ri qatorlarni qaytarsa ham klient filtri hammasini yashirib qo'yardi.
+    if(tur==='kv'){ if(!isKonvert(e)) return false; }
+    else if(tur!=='all' && klass(e).kind!==tur) return false;
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
     if(shubhaliOnly && !isShubhaliRow(e)) return false;
     return true;
@@ -2590,11 +2711,11 @@ function render(){
       +`<td class="j-date">${kiritHtml(e)}</td>`
       +`<td class="j-xdate">${xarajatHtml(e)}</td>`
       +`<td class="j-kt">${ktC}</td>`
-      +`<td class="j-arrow ${kc(k)}"><i data-lucide="${k.ic}"></i></td>`
+      +`<td class="j-arrow ${kcE(e,k)}"><i data-lucide="${k.ic}"></i></td>`
       +`<td class="j-dt${flag.length?' j-flag':''}"${flag.length?` title="${esc(flag.join(' · '))}"`:''}>${dtC}</td>`
       +`<td class="j-ijr">${ijrCell(e)}</td>`
       +`<td class="j-cur">${valyutaCell(e,k)}</td>`
-      +`<td class="j-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</td>`
+      +`<td class="j-amt ${kcE(e,k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</td>`
       +`<td class="j-maqsad">${maqC}</td>`
       +`<td class="j-izoh">${izohCell(e,k,multi)}</td>`
       +`<td class="j-ai">${aiCell(e)}</td>`
@@ -2620,12 +2741,12 @@ function render(){
     const flag=flagIssues(e,k);   // avto + AI (shubhali/izoh nomos): Qayerga (Dt) bloki qizil fonda
     const acts=actsHtml(e,k,multi);
     const flow = chala
-      ? `<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
+      ? `<span class="jc-ar ${kcE(e,k)}"><i data-lucide="${k.ic}"></i></span>`
         +`<div class="jc-acc"><span class="acap">Hisoblar</span><span class="aname jmuted">Satr yozilmagan (Dt/Kt yo'q)</span></div>`
       : multi
       ? `<div class="jc-acc"><span class="acap">Ko'p satrli</span><span class="aname">${e.lines.length} satr</span></div>`
       : `<div class="jc-acc"><span class="acap">Qayerdan (Kt)</span>${accCell(k.kt)}</div>`
-        +`<span class="jc-ar ${kc(k)}"><i data-lucide="${k.ic}"></i></span>`
+        +`<span class="jc-ar ${kcE(e,k)}"><i data-lucide="${k.ic}"></i></span>`
         +`<div class="jc-acc${flag.length?' j-flag':''}"><span class="acap">Qayerga (Dt)</span>${accCell(k.dt)}</div>`;
     const rowsMob=[];
     rowsMob.push(jcRow('Xarajat sanasi', xarajatHtml(e)));
@@ -2638,7 +2759,7 @@ function render(){
     rowsMob.push(jcRow('AI xulosasi', aiCell(e)));
     rowsMob.push(jcRow('Fayl', faylCell(e)));
     return `<div class="jcard${e.is_deleted?' del':''}${chala?' chala':''}">`
-      +`<div class="jc-top"><span class="jc-date">${kiritHtml(e,' · #'+(i+1))}</span><span class="jc-amt ${kc(k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</span></div>`
+      +`<div class="jc-top"><span class="jc-date">${kiritHtml(e,' · #'+(i+1))}</span><span class="jc-amt ${kcE(e,k)}"${chala?` title="${esc(CHALA_IZOH)}"`:''}>${chala?'—':k.sign+money(amt)}</span></div>`
       +`<div class="jc-flow${(multi||chala)?' jc-multi':''}">${flow}</div>`
       +`<div class="jc-body">${rowsMob.join('')}</div>`
       +(acts?`<div class="jc-acts">${acts}</div>`:'')
@@ -2660,7 +2781,7 @@ window.render=render;
    xotira rejimi" naqshi). */
 // 🔴 Tur segmenti → server tasnifi (jurnal_v2_baza). Tekshirilgan xarita, o'zgartirma:
 // server 'tushum' (Dt pul / Kt daromad) klientda ham Kirim, 'xarajat' esa Chiqim bo'lib chiqadi.
-const TUR_SRV={all:null,in:['kirim','tushum'],out:['chiqim','xarajat'],tr:['transfer'],nt:['boshqa']};
+const TUR_SRV={all:null,in:['kirim','tushum'],out:['chiqim','xarajat'],tr:['transfer'],nt:['boshqa'],kv:['konvert']};
 const yoqFn=e=>{
   if(!e) return false;
   const c=String(e.code||'');
@@ -2697,6 +2818,9 @@ const argsV2=a=>{
   //    Tovar harakati (ombor→tannarx) shu bilan chiqib ketadi — PROVODKA_JURNAL_PUL.sql.
   let turlar=a.p_turlar;
   if(usePul) turlar = turlar ? [...turlar,'pul'] : ['pul'];
+  // 🔴 'savdosiz' tokeni FAQAT useSavdosiz true bo'lsa qo'shiladi (jurnal_savdosiz_ok() javob berdi).
+  //    aros_auto yozuvlardan faqat transfer qoladi — PROVODKA_KONVERT_V3.sql.
+  if(useSavdosiz) turlar = turlar ? [...turlar,'savdosiz'] : ['savdosiz'];
   const o={p_from:a.p_from,p_to:a.p_to,
     p_accounts:a.p_account?[a.p_account]:a.p_accounts,
     p_moddalar:a.p_moddalar,p_turlar:turlar,p_q:a.p_q};
@@ -3230,9 +3354,10 @@ async function load(){
   // 🔴 Kesh kaliti serverga AYNAN nima ketishidan quriladi: v2 da hamma filtr
   // (modda/tur/qidiruv), zaxirada esa faqat eski imzo — aks holda tur/qidiruv
   // o'zgarganda bir xil javob uchun keraksiz so'rov ketardi.
-  // 🔴 usePul kesh kalitida — SQL RUN bo'lgach ('pul' tokeni yoqilgach) eski kesh
-  //    tovar harakatli ro'yxatni ko'rsatib qolmasin (PROVODKA_JURNAL_PUL.sql).
-  const ck='load:'+(useV2?'v2:'+usePul+':'+JSON.stringify(a):JSON.stringify(argsOld(a)));
+  // 🔴 usePul/useSavdosiz kesh kalitida — SQL RUN bo'lgach (token yoqilgach) eski kesh
+  //    tovar harakatli/savdo tushumli ro'yxatni ko'rsatib qolmasin (PROVODKA_JURNAL_PUL.sql,
+  //    PROVODKA_KONVERT_V3.sql).
+  const ck='load:'+(useV2?'v2:'+usePul+':'+useSavdosiz+':'+JSON.stringify(a):JSON.stringify(argsOld(a)));
   const cached=swrGet(ck);
   if(cached){ rows=cached.rows||[]; offset=rows.length; total=cached.total||rows.length; render();
     if(cached.dash) dashShow(cached.dash); else dashBusy(); }
@@ -3664,11 +3789,17 @@ async function init(){
     if(rows.length) render(); };
   // list-scope: ruxsat filtri accounts'ga tayanadi — load()'dan OLDIN yuklab, permAccIds'ni tayyorlaymiz,
   // aks holda birinchi so'rov filtrsiz (hamma kassa) ketardi. Cheklovsiz userda esa parallel qoladi.
-  // 🔴 loadUsePul() load() dan OLDIN (await): ikkalasi bitta Promise.all da bo'lsa load()
-  //    argsV2 ni birinchi await gacha sinxron quradi va sovuq keshda usePul hali false —
-  //    birinchi ro'yxat tovar yozuvlari bilan kelardi (tester topilmasi 2026-08-30).
-  //    Kesh issiq bo'lsa (swr 'pulok') bu await sinxron qaytadi — kechikish yo'q.
-  await loadUsePul();
+  // 🔴 loadUsePul()/loadUseSavdosiz()/loadUseKonvertF() load() dan OLDIN (await): hammasi
+  //    load() bilan bitta Promise.all da bo'lsa load() argsV2 ni birinchi await gacha
+  //    sinxron quradi va sovuq keshda bu bayroqlar hali false — birinchi ro'yxat tovar/savdo
+  //    yozuvlari bilan kelardi (tester topilmasi 2026-08-30, xuddi shu tuzoq 'savdosiz'/
+  //    'konvert' uchun ham amal qiladi). Uchovi o'zaro mustaqil — bitta Promise.all'ga
+  //    yig'ilgan (CLAUDE.md "Parallel init"). Kesh issiq bo'lsa (swr 'pulok'/'savdosizok'/
+  //    'konvertok') bu await sinxron qaytadi — kechikish yo'q.
+  //    loadUseKonvertF() argsV2()ga hech narsa qo'shmaydi (Konvert chipi foydalanuvchi
+  //    tanlaganda TUR_SRV.kv orqali keladi) — faqat chipni ko'rsatish/yashirish uchun.
+  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF() ]);
+  if(useKonvertF){ const b=$('turKv'); if(b) b.style.display=''; }
   if(window.permScope && window.permScope()==='list'){
     await loadAccounts();
     await Promise.all([ loadRole(), loadAccSel(), loadFilSel(), load() ]);
