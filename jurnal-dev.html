@@ -3563,6 +3563,9 @@ window.saveEdit=async()=>{
      · tur segmenti + izoh qidiruvi → klientda, render() dagi qoidaning O'ZI.
    Farq faqat hajmda: ekranda "Ko'proq yuklash" bilan qancha yuklangani muhim emas —
    eksport butun davrni sahifalab (XLS_PAGE) serverdan oladi.
+   🔴 2026-09-02: yozuvlar BITTA umumiy varaqda EMAS — HAR FILIAL ALOHIDA varaq
+   (xlsSplit, pastda). Umumiy "Yozuvlar" varag'i yo'q; "Xulosa" + filial varaqlari +
+   "Filialsiz" + "Satrlar".
    🔴 SheetJS LAZY: <script> tegi yo'q, faqat tugma birinchi bosilganda yuklanadi
    (ai-dev.html naqshi). Yiqilsa CSV zaxirasi beriladi — Excel uni ochadi. */
 const XLS_SRC='vendor/xlsx-0.18.5.min.js';
@@ -3702,6 +3705,111 @@ function xlsLineRows(list){
   }); });
   return out;
 }
+/* ---- Filial bo'yicha varaqlar (2026-09-02) ----------------------------------
+   Maqsad filiallar (xlsTargetFilials):
+     1) "Filial" filtrida tanlangan  — accounts.warehouse_id = tanlangan warehouse_id
+        (topilmasa filAllow/v_filial_hisob hisoblarining ildizi; u ham bo'lmasa server
+        allaqachon shu filial bo'yicha filtrlagan → hammasi bitta varaq, tanlangan nom bilan),
+     2) tanlanmagan bo'lsa — userning O'Z filiallari (perms filial_scope='list' → filial_ids,
+        permFilterFilials bilan bir xil qoida),
+     3) admin / cheklovsiz — ma'lumotda uchragan HAMMA filial.
+   Yozuv → filial (xlsEntryFilials): entry.filial_ids metadata tegi (hodim/professional)
+   + satr hisobining ILDIZI filial kassasi bo'lsa (Aros tushum, filial→markaz transfer).
+   Ikkala manba BIRGA — xarajat hodim kassasidan (54xx), tushum filial kassasidan (52xx)
+   yoziladi, bittasi yetarli emas.
+   · Tegsiz yozuv "Filialsiz" varag'iga tushadi — jimgina yo'qolmasin.
+   · 1/2-rejimda BOSHQA filialga tegishli yozuv chiqarib tashlanadi (filtr talabi) —
+     soni "Xulosa" varag'ida ochiq yoziladi.
+   🔴 Bir yozuv ikki filialga tegilgan bo'lsa ikkala varaqda ham turadi — varaqlar yig'indisi
+   umumiy summadan katta bo'lishi mumkin; "Xulosa"dagi "Jami (takrorsiz)" haqiqiy jami.
+   🔴 Server filtri (args) O'ZGARMAGAN: filial tanlanganda ekranda nima bo'lsa, shu keladi. */
+const XLS_FIL_RESERVED=['Xulosa','Filialsiz','Satrlar'];
+const XLS_COLS=[{wch:5},{wch:16},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
+  {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:16},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
+  {wch:16},{wch:17},{wch:17},{wch:38},{wch:34}];
+// Filial kassalari — v_filial_tanlov qoidasining klient nusxasi: kassaning O'ZI,
+// tur (·Naqd/·Click) va valyuta (56xx USD) bolasi emas.
+function xlsFilialAccs(){
+  return (accounts||[]).filter(a=>a.kassa_turi==='filial'&&!a.parent_id&&!a.pul_turi&&jCurOf(a)==='UZS'&&a.is_active!==false);
+}
+// Varaq nomi: "… Kassa" qo'shimchasi kesiladi (hodim-dev filNom qoidasi), Excel
+// taqiqlagan belgilar [ ] : * ? / \ olib tashlanadi, ≤31 belgi, takror bo'lsa " (2)".
+function xlsSheetName(nm,used){
+  const raw=String(nm==null?'':nm).trim();
+  let s=raw.replace(/\s+kassa\s*$/i,'').trim()||raw;
+  s=s.replace(/[\[\]:*?\/\\]/g,' ').replace(/\s+/g,' ').trim().slice(0,31)||'Filial';
+  let out=s,k=2;
+  while(used.has(out)){ const suf=' ('+(k++)+')'; out=s.slice(0,31-suf.length)+suf; }
+  used.add(out); return out;
+}
+// → {mode:'tanlangan'|'oz'|'hamma', accs:[account], label}
+function xlsTargetFilials(){
+  const fa=xlsFilialAccs();
+  const fil=$('fil'), w=fil?fil.value:'';
+  if(w){
+    const opt=fil.options&&fil.options[fil.selectedIndex];
+    const label=(opt&&opt.textContent)||'Filial';
+    const hit=fa.filter(a=>a.warehouse_id!=null&&String(a.warehouse_id)===String(w));
+    if(!hit.length&&filAllow){
+      const byId=new Map(fa.map(a=>[a.id,a]));
+      [...filAllow].forEach(id=>{ const r=byId.get(rootOf(id)); if(r&&!hit.includes(r)) hit.push(r); });
+    }
+    return {mode:'tanlangan',accs:hit,label};
+  }
+  // 🔴 FAIL-CLOSED (tester 2026-09-02): filial_scope='list' bo'lsa — filial_ids BO'SH bo'lsa ham —
+  //    'oz' rejimi (accs bo'sh → tegli yozuvlar chiqarib tashlanadi, "Xulosa"da soni). Avval
+  //    own.length&&… sharti 0 da o'tkazib yuborib "Barcha filiallar" ga tushirardi.
+  //    Yuklanmaguncha (permFilialScope 'all' sukuti) va admin → 'hamma'.
+  const restricted=!!(window.permFilialScope&&window.permFilialScope()==='list'&&!(window.permIsAdmin&&window.permIsAdmin()));
+  if(restricted){
+    const own=window.permFilterFilials?window.permFilterFilials(fa):[];
+    return {mode:'oz',accs:own.slice(),label:own.length?'O\'z filiallarim':'O\'z filiallarim (filial biriktirilmagan)'};
+  }
+  return {mode:'hamma',accs:fa.slice(),label:'Barcha filiallar'};
+}
+// Yozuvning filiallari (Set<account_id>): metadata tegi + satr hisobining filial ildizi
+function xlsEntryFilials(e,m,faIds){
+  const s=new Set();
+  ((m&&m.filial_ids)||[]).forEach(id=>{ if(faIds.has(id)) s.add(id); });
+  (e.lines||[]).forEach(l=>{
+    if(!l||!l.account_id) return;
+    if(faIds.has(l.account_id)) s.add(l.account_id);
+    else { const r=rootOf(l.account_id); if(faIds.has(r)) s.add(r); }
+  });
+  return s;
+}
+// Ro'yxatni varaqlarga bo'ladi → {t, sheets:[{nom,rows}], yoq:[], chetda:n, exported:[]}
+// exported — eksportga kirgan yozuvlar TAKRORSIZ, asl tartibda (Satrlar varag'i va CSV uchun).
+function xlsSplit(list,meta){
+  const t=xlsTargetFilials();
+  const fa=xlsFilialAccs(), faIds=new Set(fa.map(a=>a.id));
+  if(t.mode==='tanlangan'&&!t.accs.length){
+    return {t,sheets:[{nom:t.label,rows:list.slice()}],yoq:[],chetda:0,exported:list.slice()};
+  }
+  const target=new Set(t.accs.map(a=>a.id));
+  const by=new Map(t.accs.map(a=>[a.id,[]]));
+  const yoq=[]; let chetda=0;
+  list.forEach(e=>{
+    const fs=xlsEntryFilials(e,meta[e.id],faIds);
+    let hit=false;
+    fs.forEach(id=>{ if(target.has(id)){ by.get(id).push(e); hit=true; } });
+    if(hit) return;
+    if(!fs.size) yoq.push(e); else chetda++;
+  });
+  const sorted=t.accs.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'uz'));
+  const sheets=[];
+  sorted.forEach(a=>{ const r=by.get(a.id); if(r&&r.length) sheets.push({nom:a.name||a.code||'Filial',rows:r}); });
+  const inSet=new Set(); sheets.forEach(sh=>sh.rows.forEach(e=>inSet.add(e.id))); yoq.forEach(e=>inSet.add(e.id));
+  return {t,sheets,yoq,chetda,exported:list.filter(e=>inSet.has(e.id))};
+}
+// Yozuvlar varag'i (bitta filial yoki "Filialsiz") — ustunlar XLS_HEAD, raqam formati bir xil
+function xlsEntrySheet(X,rowsE,meta,ey,cheks,mx){
+  const head=rowsE.map((e,i)=>xlsRow(e,i,meta,ey,cheks,mx));
+  const ws=X.utils.aoa_to_sheet([XLS_HEAD,...head]);
+  ws['!cols']=XLS_COLS;
+  xlsNumFmt(X,ws,{8:'#,##0',10:'#,##0.00'},head.length);
+  return ws;
+}
 function xlsBtn(txt,busy){ const b=$('xlsBtn'); if(!b) return; b.disabled=!!busy; $('xlsTxt').textContent=txt; }
 window.exportExcel=async()=>{
   const a=args();
@@ -3719,20 +3827,38 @@ window.exportExcel=async()=>{
     if(!list.length){ xlsBtn('Excel',false); alert('Bu shartlarga mos yozuv yo\'q'); return; }
     xlsBtn('Tayyorlanmoqda…',true);
     const {meta,ey,mx}=await xlsMeta(list.map(e=>e.id));
-    const cheks=await xlsCheks(list);
-    const head=list.map((e,i)=>xlsRow(e,i,meta,ey,cheks,mx));
-    const lineRows=xlsLineRows(list);
+    // Filial bo'yicha bo'lish (metadata kelgandan KEYIN — filial_ids shu yerda)
+    const sp=xlsSplit(list,meta);
+    if(!sp.exported.length){
+      xlsBtn('Excel',false);
+      alert(sp.chetda?'Tanlangan filial(lar)ga tegishli yozuv yo\'q (boshqa filialga tegishli: '+sp.chetda+' ta)':'Bu shartlarga mos yozuv yo\'q');
+      return;
+    }
+    const cheks=await xlsCheks(sp.exported);
     const X=await loadXlsx();
     const wb=X.utils.book_new();
-    const ws1=X.utils.aoa_to_sheet([XLS_HEAD,...head]);
-    ws1['!cols']=[{wch:5},{wch:16},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
-      {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:16},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
-      {wch:16},{wch:17},{wch:17},{wch:38},{wch:34}];
-    xlsNumFmt(X,ws1,{8:'#,##0',10:'#,##0.00'},head.length);
+    const used=new Set(XLS_FIL_RESERVED);
+    const named=sp.sheets.map(sh=>({...sh,sheet:xlsSheetName(sh.nom,used)}));
+    // 1) Xulosa — qaysi varaqda nechta yozuv, summa; chiqarib tashlanganlar soni
+    const sumOf=arr=>arr.reduce((s,e)=>s+(klass(e).chala?0:sumDt(e)),0);
+    const xul=[['Davr',(a.p_from||'')+' — '+(a.p_to||'')],['Filial rejimi',sp.t.label],[],
+      ['Varaq','Yozuvlar','Summa (so\'m)']];
+    named.forEach(sh=>xul.push([sh.sheet,sh.rows.length,sumOf(sh.rows)]));
+    if(sp.yoq.length) xul.push(['Filialsiz',sp.yoq.length,sumOf(sp.yoq)]);
+    xul.push(['Jami (takrorsiz)',sp.exported.length,sumOf(sp.exported)]);
+    if(sp.chetda) xul.push(['Chiqarib tashlandi (boshqa filial)',sp.chetda,'']);
+    const ws0=X.utils.aoa_to_sheet(xul);
+    ws0['!cols']=[{wch:34},{wch:12},{wch:18}];
+    xlsNumFmt(X,ws0,{2:'#,##0'},xul.length);
+    X.utils.book_append_sheet(wb,ws0,'Xulosa');
+    // 2) Har filial ALOHIDA varaq (+ "Filialsiz")
+    named.forEach(sh=>X.utils.book_append_sheet(wb,xlsEntrySheet(X,sh.rows,meta,ey,cheks,mx),sh.sheet));
+    if(sp.yoq.length) X.utils.book_append_sheet(wb,xlsEntrySheet(X,sp.yoq,meta,ey,cheks,mx),'Filialsiz');
+    // 3) Satrlar — eksportga kirgan yozuvlar (takrorsiz)
+    const lineRows=xlsLineRows(sp.exported);
     const ws2=X.utils.aoa_to_sheet([XLS_LINE_HEAD,...lineRows]);
     ws2['!cols']=[{wch:6},{wch:16},{wch:11},{wch:38},{wch:10},{wch:28},{wch:10},{wch:15},{wch:15},{wch:8},{wch:13},{wch:34},{wch:12}];
     xlsNumFmt(X,ws2,{7:'#,##0',8:'#,##0',10:'#,##0.00'},lineRows.length);
-    X.utils.book_append_sheet(wb,ws1,'Yozuvlar');
     X.utils.book_append_sheet(wb,ws2,'Satrlar');
     X.writeFile(wb,xlsFileName(a,'xlsx'));
     xlsBtn('Excel',false);
@@ -3759,12 +3885,13 @@ function xlsNumFmt(X,ws,fmts,rowCount){
 async function exportCsvFallback(a){
   const all=await xlsFetchAll(a);
   const q=$('q').value.trim().toLowerCase();
-  const list=all.filter(e=>{
+  let list=all.filter(e=>{
     if(tur!=='all' && klass(e).kind!==tur) return false;
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
     return true;
   });
   const {meta,ey,mx}=await xlsMeta(list.map(e=>e.id));
+  list=xlsSplit(list,meta).exported;       // Excel bilan bir xil filial filtri (varaq yo'q, "Filial(lar)" ustuni bor)
   const cheks=await xlsCheks(list);
   const cel=v=>{ const s=String(v==null?'':v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
   const body=[XLS_HEAD,...list.map((e,i)=>xlsRow(e,i,meta,ey,cheks,mx))].map(r=>r.map(cel).join(';')).join('\r\n');
