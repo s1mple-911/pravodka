@@ -93,6 +93,12 @@
   .stm select:focus{border-color:var(--primary)}
   .hint{font-size:13px;color:var(--muted);margin:-4px 0 14px;line-height:1.6}
   .res{font-size:14px;font-weight:600;margin-top:12px;min-height:20px}
+  /* Tilxat shablonlari (Qarz tizimi) — joy-tutuvchi chiplar, textarea ustida */
+  .tlx-chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+  .tlx-chip{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:999px;
+    padding:5px 10px;font-size:11.5px;font-weight:600;font-family:ui-monospace,Menlo,Consolas,monospace;
+    cursor:pointer;transition:border-color .13s,color .13s}
+  .tlx-chip:hover{border-color:var(--primary);color:var(--primary)}
   /* V8: konvert koridori — kiritilgan foizning real ma'nosi (1$ uchun so'm oralig'i) */
   .korscale{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:13px;color:var(--muted)}
   .korscale .kq{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 11px;
@@ -817,6 +823,53 @@
       <div id="linkRes" class="res"></div>
     </div>
 
+    <!-- Tilxat shablonlari — Qarz tizimi (ARX_PROVODKA_QARZ.md, 5-bo'lim). Admin-only.
+         RPC/jadval hali bazada bo'lmasa (PROVODKA_QARZ.sql RUN qilinmagan) rpcMissing()
+         bilan jimgina yashiriladi — boshqa kartalarga tegmaydi. -->
+    <div class="card" id="tilxatCard" style="display:none">
+      <div class="sec">Tilxat shablonlari</div>
+      <div class="hint">Tashqi qarz berishda ishlatiladigan tilxat matni. Joy-tutuvchilar tanlangan
+        qarzdor/summa/muddat bo'yicha avtomat to'ldiriladi — pastdagi chiplarni bosib matn ichiga
+        qo'shing. Bitta shablon <b>Sukut</b> bo'lishi mumkin — qarz berish formasida avtomat tanlanadi.</div>
+
+      <div id="tlxList"><div class="empty">Yuklanmoqda…</div></div>
+
+      <button type="button" class="mxd-add" id="tlxAddBtn" onclick="tlxOpenForm(null)">
+        <i data-lucide="plus"></i>Yangi shablon</button>
+
+      <!-- Shablon formasi (inline). Ochilganda #tlxAddBtn yashirinadi -->
+      <div class="mxd-form" id="tlxForm" style="display:none">
+        <div class="mxd-fhd" id="tlxFormTitle">Yangi shablon</div>
+
+        <div class="mxd-fld">
+          <label class="mxd-l" for="tlxNom">Nomi</label>
+          <input class="mxd-in" id="tlxNom" maxlength="80" autocomplete="off"
+                 placeholder="masalan: Standart tilxat" oninput="tlxFormUI()">
+        </div>
+
+        <div class="mxd-fld">
+          <label class="mxd-l" for="tlxMatn">Matn — joy-tutuvchi qo'shish uchun bosing</label>
+          <div class="tlx-chips" id="tlxChips"></div>
+          <textarea class="mxd-in mxd-ta" id="tlxMatn" rows="11"
+                    style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;min-height:220px"
+                    placeholder="Tilxat matni..." oninput="tlxFormUI()"></textarea>
+        </div>
+
+        <div class="mxd-frow">
+          <label class="chekopt" id="tlxDefLbl"><input type="checkbox" id="tlxDefault">Sukut shablon</label>
+          <label class="chekopt" id="tlxActLbl"><input type="checkbox" id="tlxActive" checked>Faol</label>
+        </div>
+
+        <div class="mxd-facts">
+          <button type="button" class="mxd-cancel" onclick="tlxCancel()">Bekor</button>
+          <button type="button" class="mxd-save" id="tlxSaveBtn" onclick="tlxSave()" disabled>
+            <i data-lucide="save"></i>Saqlash</button>
+        </div>
+      </div>
+
+      <div id="tlxRes" class="res"></div>
+    </div>
+
     <!-- ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql). Admin-only,
          RPC yo'q bo'lsa (SQL RUN qilinmagan) rpcMissing() bilan jimgina yashirinadi. ===== -->
     <div class="card" id="rollarCard" style="display:none">
@@ -1074,6 +1127,7 @@ async function loadRole(){
   $('linkCard').style.display=isAdmin?'block':'none';
   $('korCard').style.display=isAdmin?'block':'none';
   $('filCard').style.display=isAdmin?'block':'none';
+  $('tilxatCard').style.display=isAdmin?'block':'none';
   if(isAdmin) loadKoridor();
 }
 
@@ -1132,6 +1186,80 @@ window.ochirFilial=async id=>{
   if(!r||r.ok!==true){ res.className='res err'; res.textContent='Xato: '+((r&&r.error)||'RPC natija qaytarmadi'); return; }
   res.className='res ok'; res.textContent=`${r.name} (${r.code}) ro'yxatdan olindi`;
   await load(); await loadFilials();
+};
+
+// ===== Tilxat shablonlari (Qarz tizimi) — ARX_PROVODKA_QARZ.md 5-bo'lim. Admin-only.
+//       Ro'yxat to'g'ridan `tilxat_shablon` jadvalidan (RLS: is_admin() yoki
+//       sorov_page_ok('qarzdor') — bu yerda faqat admin so'raydi). Yozish faqat
+//       tilxat_shablon_saqla(jsonb) RPC orqali (server ham admin tekshiradi).
+//       PROVODKA_QARZ.sql hali RUN qilinmagan bo'lsa (42P01) karta rpcMissing()
+//       bilan jimgina yashiriladi — boshqa kartalarga tegmaydi.
+const TLX_PH=['ism','familya','summa','summa_soz','valyuta','sana','muddat','oylik_summa','oylar_soni','tugash','kompaniya'];
+let tilxatList=[], tlxEditId=null;
+async function loadTilxat(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.from('tilxat_shablon').select('*').order('is_default',{ascending:false}).order('nom');
+  if(error){
+    if(rpcMissing(error)){ $('tilxatCard').style.display='none'; return; }
+    $('tlxList').innerHTML='<div class="empty">Xato: '+esc(window.permErr?window.permErr(error):error.message)+'</div>';
+    return;
+  }
+  tilxatList=data||[];
+  renderTilxat();
+}
+function renderTilxat(){
+  $('tlxList').innerHTML=tilxatList.length?tilxatList.map(t=>{
+    const badges=[t.is_default?'Sukut shablon':'',t.is_active?'':'nofaol'].filter(Boolean).join(' · ');
+    return `<div class="item${t.is_active?'':' off'}">
+      <div class="mid"><div class="t">${esc(t.nom)}</div><div class="c">${esc(badges||'—')}</div></div>
+      <button type="button" class="edit" title="Tahrirlash" onclick="tlxOpenForm('${t.id}')"><i data-lucide="pencil"></i></button>
+    </div>`;
+  }).join(''):'<div class="empty">Hali shablon yo\'q</div>';
+  icons();
+}
+// Chip bosilsa — textarea kursori turgan joyga {joy_tutuvchi} qo'shiladi (o'chirilgan
+// matn ustidan YOZMAYDI, faqat kursor pozitsiyasiga qistiradi).
+window.tlxInsertPh=ph=>{
+  const ta=$('tlxMatn'); if(!ta) return;
+  const s=ta.selectionStart??ta.value.length, e=ta.selectionEnd??ta.value.length;
+  const ins='{'+ph+'}';
+  ta.value=ta.value.slice(0,s)+ins+ta.value.slice(e);
+  ta.focus(); const pos=s+ins.length; ta.setSelectionRange(pos,pos);
+  tlxFormUI();
+};
+window.tlxOpenForm=id=>{
+  tlxEditId=id||null;
+  const t=id?tilxatList.find(x=>x.id===id):null;
+  $('tlxFormTitle').textContent=t?'Shablonni tahrirlash':'Yangi shablon';
+  $('tlxNom').value=t?t.nom:'';
+  $('tlxMatn').value=t?t.matn:'';
+  $('tlxDefault').checked=!!(t&&t.is_default);
+  $('tlxActive').checked=t?!!t.is_active:true;
+  $('tlxChips').innerHTML=TLX_PH.map(p=>`<button type="button" class="tlx-chip" onclick="tlxInsertPh('${p}')">{${p}}</button>`).join('');
+  $('tlxRes').className='res'; $('tlxRes').textContent='';
+  $('tlxForm').style.display='block'; $('tlxAddBtn').style.display='none';
+  tlxFormUI(); icons();
+  $('tlxNom').focus();
+};
+window.tlxCancel=()=>{ $('tlxForm').style.display='none'; $('tlxAddBtn').style.display='flex'; tlxEditId=null; };
+window.tlxFormUI=()=>{
+  const nom=($('tlxNom').value||'').trim(), matn=($('tlxMatn').value||'').trim();
+  $('tlxSaveBtn').disabled=!(nom.length>=2 && matn.length>=10);
+};
+window.tlxSave=async()=>{
+  if(!isAdmin){ alert('Faqat admin'); return; }
+  const nom=($('tlxNom').value||'').trim(), matn=$('tlxMatn').value||'';
+  if(nom.length<2||matn.trim().length<10) return;
+  const p={id:tlxEditId||undefined, nom, matn, is_default:$('tlxDefault').checked, is_active:$('tlxActive').checked};
+  const btn=$('tlxSaveBtn'), old=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='Saqlanmoqda…';
+  const {data,error}=await sb.rpc('tilxat_shablon_saqla',{p});
+  btn.disabled=false; btn.innerHTML=old; icons();
+  if(error){ $('tlxRes').className='res err'; $('tlxRes').textContent='Xato: '+(window.permErr?window.permErr(error):error.message); return; }
+  if(data&&data.ok===false){ $('tlxRes').className='res err'; $('tlxRes').textContent='Xato: saqlanmadi'; return; }
+  window.tlxCancel();
+  $('tlxRes').className='res ok'; $('tlxRes').textContent='Shablon saqlandi';
+  await loadTilxat();
 };
 
 // ===== V8 (7-ish): Konvert koridori (%) — provodka_config.konvert_koridor_foiz =====
@@ -2502,7 +2630,7 @@ window.addEventListener('hashchange',sozApplyRollarFocus);
 // isAdmin tayyor bo'lishiga tayanadi. RPC yo'q bo'lsa (SQL RUN qilinmagan) —
 // mxdOff bo'ladi va konstruktor umuman chizilmaydi, sahifa avvalgidek ishlaydi.
 // rbLoad() ham xuddi shunday — RPC yo'q bo'lsa rbOff bo'ladi va bo'lim yashirin qoladi.
-async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
+async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); await loadTilxat(); } }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

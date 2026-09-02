@@ -760,6 +760,29 @@ Chegara: ≤500 qator, ≤16 ustun, klient ≤100 KB (server constraint 120 KB).
 - **`sorovlar-dev.html`**: kartada chip «Jadval · N qator · jami» → `#jdModal` (jurnal-dev nusxasi, z-index 210);
   ruxsat → `ruxsat_sorov.jadval` (RLS: hodim/kimdan/admin), pul so'rash → `entry.jadval` (`entry_id`).
 
+### Qarz (kredit) boshqaruvi (2026-09-02, `ARX_PROVODKA_QARZ.md`, `PROVODKA_QARZ.sql`) — faqat dev
+
+Kompaniya o'z pulidan qarz beradi. Joylashuv: **`qarzdor-dev.html` tablari** (Qarz berish · Kutilayotgan ·
+Tilxat kutilmoqda · Kontragentlar = eski 4010/6010+yuk, `#tab-kontr` ichida, mantiqi tegilmagan) — yangi
+sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish YO'Q**, kechikish 0 kundan.
+- **Hisoblar**: `4700` konteyner → `4710` xodimlarga (ichki), `4720` boshqa shaxslarga (tashqi); `type='aktiv'`,
+  section 4010 niki. 🔴 Qarzdorga alohida hisob OCHILMAYDI — kesim `qarz` jadvalidan. 5xxx kod ishlatilmaydi.
+- **Jadvallar**: `qarzdor` (ichki=`aros_staff.staff_id`, tashqi=ism/familya), `qarz` (holat: `tilxat_kutilmoqda`
+  → `faol` → `yopildi`; `bekor` faqat draft), `qarz_jadval` (grafik: oylik N qator, oxirgisi qoldiqni oladi,
+  `qarz_oy_qosh` oy-oxiri clamp), `qarz_tolov` (FIFO), `tilxat_shablon` (joy-tutuvchilar `{ism}…{summa_soz}`),
+  `qarz_tarix`, `qarz_notify` (outbox). RLS select `qarz_page_ok()` = admin yoki `sorov_page_ok('qarzdor')`
+  (`sorov_page_ok` authenticated'dan revoke — RLS'da to'g'ridan chaqirib bo'lmaydi, shuning uchun qobiq).
+- 🔴 **Pul FAQAT `qarz_faollashtir` (Dt 471x / Kt kassa) va `qarz_tolov` (Dt kassa / Kt 471x) ichida**, user JWT
+  bilan → `trg_perm_guard_entry_line` avtomat. `sorov_kassa_bal ≥ summa`, tashqi qarz rasmsiz faol bo'lolmaydi
+  (RPC + CHECK), `faol` `entry_id`siz bo'lolmaydi (CHECK). `ext_ref` `qarz:<id>` / `qarz_tolov:<id>`;
+  `qarz_yarat` mijoz `ext_ref` qabul qiladi → takror `{ok:false,kod:'takror',id}`. Ichki `qarzdor_yarat` idempotent.
+- **Tilxat**: bucket `qarz-tilxat` (private, `<qarz_id>/tilxat.jpg`, insert/update `qarz_rasm_ok`), shablonlar
+  `sozlama-dev` «Tilxat shablonlari» kartasi (admin), chop etish yangi oynada, rasm `canvas` 1600px.
+- **Telegram**: workflow **`pVAu9s0bL4yJGfGH`** «Aros Provodka - Qarz Notify» (5 daqiqa: `qarz_notify_pending`
+  → `N8N_QARZ_NOTIFY.js` Xabar Tuz → Telegram → `qarz_notify_belgila`; kunlik 09:00 `qarz_eslatma_navbat`).
+  Faqat `hodim_notify_admin` adminlariga. `hodim_notify` jadvaliga tegilmagan. 🔴 `update_workflow` ISHLATILMAYDI.
+- Jurnal: qarz yozuvlari `source='qarz'` — Chiqim/Kirim avtomat; balans 4700 AKTIV; cashflow avtomat.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:
