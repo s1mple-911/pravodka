@@ -718,6 +718,37 @@ Endi EF: yaroqli sessiya + `my_perms()` xatosiz = ruxsat (fail-closed saqlanadi)
 konsolga HTTP status bilan yozadi. **Spidometr moddasi (`spidometr_ai`) endi chekni ham majburiy +
 AI qiladi** (`chekRequired()`/`aiChekOk()` ikkala bayroqni ko'radi): benzin/gaz = chek + tablo.
 
+### Xarajatga JADVAL biriktirish (2026-09-02, `BRIEF_PROVODKA_JADVAL.md`) — faqat dev
+
+Hodim Excel'dan oziq-ovqat ro'yxatini (40 qator × 5 ustun) Izoh maydoniga qo'yardi — `<input>`
+qator/tab belgilarini yutib `description` 1500 belgilik blob bo'lardi (Telegram + jurnal hunuk).
+Endi jadval **izohdan alohida**: `entry.jadval jsonb` (`PROVODKA_JADVAL.sql`, RUN kutilmoqda).
+Shakl: `{v:1, manba:'paste'|'xlsx', fayl, cols:[], rows:[[...]], jami, n}` — katak raqamga
+o'xshasa **number** (`210 000,00` → 210000), aks holda string; `jami` = kataklarida
+`жами|хаммаси|hammasi|jami|итого|всего|total` bo'lgan qatorlardagi eng katta raqam.
+Chegara: ≤500 qator, ≤16 ustun, klient ≤100 KB (server constraint 120 KB).
+- **`hodim-dev.html`** (`.jd*`, `jadvalParse()` sof funksiya): `#izoh` `paste` hodisasi — matnda
+  `
+` VA (`	` yoki ≥3 raqamli qator) bo'lsa jadval deb olinadi, izoh o'zgarmaydi; «Excel yuklash»
+  — `vendor/xlsx` LAZY (`ai-dev` naqshi). Karta: qator soni · jami · oldindan ko'rish · ✕;
+  summa bo'sh bo'lsa jami avtomat to'ldiriladi (faqat UZS), farq bo'lsa sariq ogohlantirish
+  (bloklamaydi). **4 saqlash yo'li**: oddiy insert (`entryPayload.jadval`), taqsim/ovqat
+  (`p_data.jadval` — RPC'larning oxirgi versiyasi `PROVODKA_JADVAL.sql` da qayta e'lon qilingan),
+  pul so'rash (`sorov_yarat` dan KEYIN `entry_jadval_yoz(p_ext_ref, p_jadval)` — imzo o'zgartirish
+  taqiq bo'lgani uchun alohida RPC: egalik `created_by`, 30 daqiqa, bir marta). Top-up yo'lida
+  entry yo'q — chaqirilmaydi. 🔴 `jadval===null` bo'lsa payloadga kalit QO'SHILMAYDI — ustun yo'q
+  bazada oddiy xarajat 42703 bilan yiqilmasin; jadvalli insert 42703 bersa jadvalsiz QAYTA insert
+  qilinmaydi (ext_ref takror), toast + `tokenTugat()`.
+- **`jurnal-dev.html`**: `refreshMeta()` faqat `jd_n:jadval->n,jd_jami:jadval->jami` o'qiydi
+  (to'liq jadval emas; 42703 → eski ustun ro'yxati, `aiSel` naqshi). Izoh katagida chip
+  «Jadval · N qator · jami» → `#jdModal` (`.jd-*`, chek modalidan alohida) — to'liq jadval
+  bosilganda o'qiladi, «Excel» mavjud lazy `loadXlsx()` + CSV zaxira. `autoIssues()` "izoh <5
+  belgi" qoidasi jadvalli yozuvda o'tkazib yuboriladi.
+- **Telegram**: `PROVODKA_JADVAL_NOTIFY.sql` — `hodim_notify_pending` javobiga `jadval_n/jadval_jami`
+  (`to_jsonb(e)` naqshi — ustun yo'q bo'lsa null). `N8N_XABAR_TUZ.js` = `N8N_HODIM_NOTIFY.js`
+  ichidagi `jsCode` (bayt-ma-bayt, ikkalasi birga tahrirlanadi): izoh 300 belgidan kesiladi,
+  «📋 Jadval: N qator · jami X so'm». n8n'ga **qo'lda** qo'yiladi (MCP update kreditlarni uzadi).
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:

@@ -365,6 +365,43 @@
   .chekai .aidiff{color:var(--red)}
   .chekai .aiok{color:var(--green)}
   .chekai img{max-width:100%;border-radius:8px;margin-top:8px;display:block}
+  /* ================================================================
+     JADVAL (entry.jadval) — 2-BOSQICH (BRIEF_PROVODKA_JADVAL.md).
+     Chip Izoh ustunida (.jd-chip), modal ALOHIDA (.jd-ov/.jd-box —
+     .chekov/.chekbox naqshi, lekin chek modaliga tegilmagan). Yangi
+     CSS o'zgaruvchi yo'q — mavjud tokenlar.
+     ================================================================ */
+  .jd-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);border-radius:8px;padding:2px 8px;font-size:11.5px;font-weight:700;line-height:1.6;
+    font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
+  .jd-chip svg{width:12px;height:12px;flex:none}
+  .jd-chip:hover{color:var(--primary);border-color:var(--primary)}
+  .jd-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:200}
+  .jd-ov.open{display:flex}
+  .jd-box{background:var(--surface);border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow:hidden;
+    display:flex;flex-direction:column;box-shadow:var(--shadow-hover)}
+  .jd-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .jd-hd .jd-htxt{min-width:0}
+  .jd-hd h4{margin:0;font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jd-hd .jd-meta{margin-top:3px;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jd-hd button{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;display:flex;flex:none}
+  .jd-hd button svg{width:20px;height:20px}
+  .jd-body{padding:14px 18px;overflow:auto;flex:1 1 auto}
+  .jd-wrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px}
+  .jd-t{width:100%;border-collapse:collapse;font-size:13px}
+  .jd-t th,.jd-t td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  .jd-t td.num,.jd-t th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .jd-t thead th{background:var(--surface-2);color:var(--muted);font-weight:600;position:sticky;top:0}
+  .jd-t tbody tr:last-child td{border-bottom:none}
+  .jd-t tr.jd-jami td{font-weight:700;background:var(--surface-2)}
+  .jd-msg{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+  .jd-msg.err{color:var(--red)}
+  .jd-ft{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+  .jd-ft button{flex:1;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .jd-ft button.primary{border:none;background:var(--primary);color:#fff}
+  @media(max-width:600px){ .jd-box{max-width:100%} }
+  @media print{ .jd-ov{display:none!important} }
   /* ko'p satrli yozuv */
   .je.multi{align-items:flex-start}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
@@ -1339,6 +1376,22 @@
   </div>
   <!-- /chek -->
 
+  <!-- jadval modali (entry.jadval — BRIEF_PROVODKA_JADVAL.md 2-bosqich), chek modaliga tegilmagan -->
+  <div class="jd-ov" id="jdModal" onclick="if(event.target===this)closeJadval()">
+    <div class="jd-box">
+      <div class="jd-hd">
+        <div class="jd-htxt"><h4 id="jdTitle">Jadval</h4><div class="jd-meta" id="jdMeta"></div></div>
+        <button type="button" onclick="closeJadval()" aria-label="Yopish"><i data-lucide="x"></i></button>
+      </div>
+      <div class="jd-body" id="jdBody"><div class="jd-msg">Yuklanmoqda…</div></div>
+      <div class="jd-ft">
+        <button type="button" onclick="jdExportXlsx()">📥 Excel</button>
+        <button type="button" class="primary" onclick="closeJadval()">Yopish</button>
+      </div>
+    </div>
+  </div>
+  <!-- /jadval -->
+
   <div class="modal" id="editModal"><div class="sheet">
     <h3>Yozuvni tahrirlash</h3>
     <div class="eseg">
@@ -2000,6 +2053,80 @@ async function renderChekAi(entryId,am,rt){
 }
 window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; const ab=$('chekAiBody'); if(ab) ab.innerHTML=''; };
 
+/* ==================== JADVAL MODALI (entry.jadval) — 2-BOSQICH ====================
+   Chip izohCell() ichida chizadi (jd_n bor bo'lganda). Bosilganda TO'LIQ jadval shu
+   yerda alohida so'raladi (refreshMeta faqat n/jami olgan edi). Chek modaliga
+   TEGILMAGAN — alohida holat (jdCur) va alohida DOM (#jdModal). */
+let jdCur=null;   // {id, data:{jadval, description, entry_date}} — Excel eksport shundan o'qiydi
+const JD_JAMI_RE=/жами|хаммаси|hammasi|jami|итого|всего|total/i;
+window.openJadval=async(id)=>{
+  const ov=$('jdModal'); if(!ov) return;
+  jdCur=null;
+  $('jdTitle').textContent='Jadval';
+  $('jdMeta').textContent='';
+  $('jdBody').innerHTML='<div class="jd-msg">Yuklanmoqda…</div>';
+  ov.classList.add('open');
+  try{
+    const {data,error}=await sb.from('entry').select('jadval,description,entry_date').eq('id',id).single();
+    if(error) throw error;
+    if(!data||!data.jadval||!Array.isArray(data.jadval.rows)){
+      $('jdBody').innerHTML='<div class="jd-msg err">Jadval topilmadi</div>'; return;
+    }
+    jdCur={id, data};
+    renderJdModal();
+  }catch(e){
+    const msg=window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+    $('jdBody').innerHTML=`<div class="jd-msg err">${esc(msg)}</div>`;
+  }
+};
+window.closeJadval=()=>{ const ov=$('jdModal'); if(ov) ov.classList.remove('open'); jdCur=null; };
+function renderJdModal(){
+  if(!jdCur||!jdCur.data) return;
+  const {jadval:jd, description, entry_date}=jdCur.data;
+  const ed=entry_date?String(entry_date).slice(0,10).split('-').reverse().join('.'):'';
+  $('jdTitle').textContent='Jadval'+(description?' · '+description:'')+(ed?' · '+ed:'');
+  const manba=(jd.manba==='xlsx'&&jd.fayl)?jd.fayl:'Excel nusxasi';
+  $('jdMeta').textContent=manba+' · '+(jd.n!=null?jd.n:(jd.rows||[]).length)+' qator';
+  const rows=jd.rows||[];
+  if(!rows.length){ $('jdBody').innerHTML='<div class="jd-msg">Bo\'sh jadval</div>'; return; }
+  let html='<div class="jd-wrap"><table class="jd-t">';
+  if(jd.cols&&jd.cols.length) html+='<thead><tr>'+jd.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
+  html+='<tbody>'+rows.map(r=>{
+    const isJami=r.some(c=>typeof c==='string'&&JD_JAMI_RE.test(c));
+    return `<tr${isJami?' class="jd-jami"':''}>`+r.map(c=>`<td${typeof c==='number'?' class="num"':''}>${typeof c==='number'?money(c):esc(c)}</td>`).join('')+'</tr>';
+  }).join('')+'</tbody></table></div>';
+  $('jdBody').innerHTML=html;
+}
+// Pastdagi «📥 Excel» — mavjud loadXlsx() (SheetJS, LAZY). Yiqilsa CSV zaxira (BOM + sep=;).
+window.jdExportXlsx=async()=>{
+  if(!jdCur||!jdCur.data||!jdCur.data.jadval) return;
+  const jd=jdCur.data.jadval;
+  const idShort=String(jdCur.id||'').slice(0,8);
+  const sana=jdCur.data.entry_date?String(jdCur.data.entry_date).slice(0,10):'sana';
+  const base=`jadval_${sana}_${idShort}`;
+  const aoa=[]; if(jd.cols&&jd.cols.length) aoa.push(jd.cols); (jd.rows||[]).forEach(r=>aoa.push(r));
+  try{
+    const X=await loadXlsx();
+    const wb=X.utils.book_new();
+    const ws=X.utils.aoa_to_sheet(aoa);
+    X.utils.book_append_sheet(wb,ws,'Jadval');
+    X.writeFile(wb,base+'.xlsx');
+  }catch(ex){
+    console.error('Jadval Excel:',ex);
+    try{
+      const cel=v=>{ const s=String(v==null?'':v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+      const body=aoa.map(r=>r.map(cel).join(';')).join('\r\n');
+      const blob=new Blob(['﻿'+'sep=;\r\n'+body],{type:'text/csv;charset=utf-8'});
+      const url=URL.createObjectURL(blob), aEl=document.createElement('a');
+      aEl.href=url; aEl.download=base+'.csv'; document.body.appendChild(aEl); aEl.click();
+      aEl.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+      alert('Excel tayyorlanmadi — CSV yuklab olindi, Excel uni ochadi.');
+    }catch(e2){ alert('Eksport bo\'lmadi.'); }
+  }
+};
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const ov=$('jdModal'); if(ov&&ov.classList.contains('open')) window.closeJadval(); } });
+/* ==================== /JADVAL MODALI ==================== */
+
 // --- V6: filial + davr metadata (entry.filial_ids, davr_start/end) ---
 // jurnal() RPC bu ustunlarni qaytarmaydi — yuklangan yozuvlar uchun alohida o'qiladi.
 // RLS bermasa (cheklangan user) jimgina bo'sh qoladi — teg ko'rinmaydi, boshqa narsa buzilmaydi.
@@ -2026,12 +2153,21 @@ async function aiSel(ids){
   if(r.error&&r.error.code==='42703') r=await sb.from('entry').select(AI_COLS).in('id',ids);
   return r;
 }
+// entry.jadval (BRIEF_PROVODKA_JADVAL.md 2-bosqich) — faqat n/jami (PostgREST JSON yo'li),
+// to'liq jadval BU YERDA yuklanmaydi (100 qatorda 50 KB×100 og'ir bo'lardi — chip yetarli,
+// modal ochilganda alohida so'raladi). Ustun hali yo'q (42703) bo'lsa mavjud so'rov YIQILMASIN.
+const M_COLS='id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi';
+async function mSel(ids){
+  let r=await sb.from('entry').select(M_COLS+',jd_n:jadval->n,jd_jami:jadval->jami').in('id',ids);
+  if(r.error&&r.error.code==='42703') r=await sb.from('entry').select(M_COLS).in('id',ids);
+  return r;
+}
 async function refreshMeta(){
   const ids=[...new Set(rows.map(e=>e.id).filter(Boolean))];
   if(!ids.length){ metaMap={}; eyMap={}; mxMap={}; aiMap={}; rtMap={}; kmMap={}; return; }
   try{
     const [mRes, eyRes, mxRes, aiRes]=await Promise.all([
-      sb.from('entry').select('id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi').in('id',ids),
+      mSel(ids),
       sb.from('entry_yuk').select('entry_id,yuk_id,summa_uzs').in('entry_id',ids),
       sb.from('v_entry_maydon').select('entry_id,maydon_nom,maydon_turi,tartib,korinish,rasm_url').in('entry_id',ids),
       aiSel(ids)   // 2026-08-31 (Asilbek): AI xulosasi endi HAMMAGA — jurnal ruxsati yetarli
@@ -2481,6 +2617,9 @@ function izohCell(e,k,multi){
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
   // Konvert (valyuta sotib olish/sotish) — ixcham yo'nalish qatori, description'dan OLDIN.
   if(!chala){ const ks=konvSatr(e); if(ks) parts.push(`<div class="j-konvline">${ks}</div>`); }
+  // Jadval chipi (entry.jadval) — description'dan OLDIN. metaMap hali kelmagan/ustun yo'q → chip yo'q.
+  { const m=metaMap[e.id];
+    if(m&&m.jd_n) parts.push(`<div><button type="button" class="jd-chip" onclick="openJadval('${e.id}')"><i data-lucide="table-2"></i>Jadval · ${m.jd_n} qator${m.jd_jami!=null?' · '+money(m.jd_jami):''}</button></div>`); }
   if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
   // 🔴 Chala yozuvda "Kt → Dt" satri CHIZILMAYDI: hisob yo'q, u bo'sh " → " bo'lib
   // ko'rinardi (aynan foydalanuvchini chalkashtirgan holat).
@@ -2567,9 +2706,10 @@ function autoIssues(e,k){
   const out=[];
   const d=String(e.description||'').trim();
   const moddaNom=(k.dt&&k.dt.name)?String(k.dt.name).trim():'';
-  if(d.length<5) out.push('Izoh yozilmagan yoki juda qisqa');
-  else if(moddaNom&&d.toLowerCase()===moddaNom.toLowerCase()) out.push("Izoh modda nomini takrorlaydi — tafsilot yo'q");
   const meta=metaMap[e.id];
+  // Jadval biriktirilgan xarajatda izoh ataylab qisqa — "izoh <5 belgi" qoidasi shu holatda o'tkazib yuboriladi.
+  if(d.length<5){ if(!(meta&&meta.jd_n)) out.push('Izoh yozilmagan yoki juda qisqa'); }
+  else if(moddaNom&&d.toLowerCase()===moddaNom.toLowerCase()) out.push("Izoh modda nomini takrorlaydi — tafsilot yo'q");
   if(!(meta&&(meta.davr_start||meta.davr_end))){
     const p=uzParts(e.created_at);   // xarajatHtml() dagi .j-oth bilan AYNAN bir xil qoida
     const ed=e.entry_date?String(e.entry_date).slice(0,10):'';
