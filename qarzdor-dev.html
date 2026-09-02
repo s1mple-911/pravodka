@@ -1035,7 +1035,9 @@ window.qzTab=name=>{
   if(QZ_TABS.indexOf(name)<0) name='kut';
   try{ localStorage.setItem('prov-qarz-tab',name); }catch(e){}
   document.querySelectorAll('.qz-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
-  document.querySelectorAll('.qz-tabpanel').forEach(p=>{ p.style.display=(p.id==='tab-'+name)?'':'none'; });
+  // 🔴 'block' ANIQ yoziladi: bo'sh inline stil CSS `.qz-tabpanel{display:none}` ni yengmaydi —
+  //    faqat `#tab-kut` (CSS'da block) ko'rinar, qolgan 3 tab bo'sh qolardi (2026-09-02 xatosi).
+  document.querySelectorAll('.qz-tabpanel').forEach(p=>{ p.style.display=(p.id==='tab-'+name)?'block':'none'; });
   if(name==='berish') qzEnsureBerishLoaded();
   else if(name==='kut') qzEnsureKutLoaded();
   else if(name==='tilxat') qzEnsureTilxatLoaded();
