@@ -355,9 +355,48 @@
     .srv-av{width:34px;height:34px;font-size:12px}
   }
 
+  /* ================================================================
+     JADVAL (entry.jadval / ruxsat_sorov.jadval) — BRIEF_PROVODKA_JADVAL.md
+     5-bosqich. Chip kartada (.jd-chip), modal ALOHIDA (.jd-ov/.jd-box —
+     jurnal.html dagi naqsh, .modal/.mmodal ga tegilmagan). Yangi CSS
+     o'zgaruvchi yo'q — mavjud tokenlar. z-index mavjud .modal/.mmodal (200)
+     dan yuqori — ustma-ust ochilsa ham jadval tepada ko'rinadi.
+     ================================================================ */
+  .jd-chiprow{margin-top:9px}
+  .jd-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);border-radius:8px;padding:2px 8px;font-size:11.5px;font-weight:700;line-height:1.6;
+    font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
+  .jd-chip svg{width:12px;height:12px;flex:none}
+  .jd-chip:hover{color:var(--primary);border-color:var(--primary)}
+  .jd-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:210}
+  .jd-ov.open{display:flex}
+  .jd-box{background:var(--surface);border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow:hidden;
+    display:flex;flex-direction:column;box-shadow:var(--shadow-hover)}
+  .jd-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .jd-hd .jd-htxt{min-width:0}
+  .jd-hd h4{margin:0;font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jd-hd .jd-meta{margin-top:3px;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jd-hd button{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;display:flex;flex:none}
+  .jd-hd button svg{width:20px;height:20px}
+  .jd-body{padding:14px 18px;overflow:auto;flex:1 1 auto}
+  .jd-wrap{overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px}
+  .jd-t{width:100%;border-collapse:collapse;font-size:13px}
+  .jd-t th,.jd-t td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  .jd-t td.num,.jd-t th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .jd-t thead th{background:var(--surface-2);color:var(--muted);font-weight:600;position:sticky;top:0}
+  .jd-t tbody tr:last-child td{border-bottom:none}
+  .jd-t tr.jd-jami td{font-weight:700;background:var(--surface-2)}
+  .jd-msg{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+  .jd-msg.err{color:var(--red)}
+  .jd-ft{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+  .jd-ft button{flex:1;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--ink);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .jd-ft button.primary{border:none;background:var(--primary);color:#fff}
+  @media(max-width:600px){ .jd-box{max-width:100%} }
+
   /* --- chop etish: navbat qog'ozda ham o'qilsin --- */
   @media print{
-    .sidebar,.bnav,.mmodal,.modal,.srv-filt,.srv-acts,.srv-rfr,.head-actions{display:none!important}
+    .sidebar,.bnav,.mmodal,.modal,.jd-ov,.srv-filt,.srv-acts,.srv-rfr,.head-actions{display:none!important}
     .main{margin-left:0!important;max-width:none!important;padding:0!important}
     .srv-card{break-inside:avoid;box-shadow:none!important;border-color:#999!important}
     .srv-card.s-pend::before,.srv-card.just::before{background:#000!important}
@@ -540,6 +579,23 @@
       </div>
     </div>
   </div>
+
+  <!-- jadval modali (entry.jadval / ruxsat_sorov.jadval — BRIEF_PROVODKA_JADVAL.md 5-bosqich),
+       qaror modaliga (#srvActModal) tegilmagan, jurnal.html dagi #jdModal naqshi -->
+  <div class="jd-ov" id="jdModal" onclick="if(event.target===this)closeJadval()">
+    <div class="jd-box">
+      <div class="jd-hd">
+        <div class="jd-htxt"><h4 id="jdTitle">Jadval</h4><div class="jd-meta" id="jdMeta"></div></div>
+        <button type="button" onclick="closeJadval()" aria-label="Yopish"><i data-lucide="x"></i></button>
+      </div>
+      <div class="jd-body" id="jdBody"><div class="jd-msg">Yuklanmoqda…</div></div>
+      <div class="jd-ft">
+        <button type="button" onclick="jdExportXlsx()">📥 Excel</button>
+        <button type="button" class="primary" onclick="closeJadval()">Yopish</button>
+      </div>
+    </div>
+  </div>
+  <!-- /jadval -->
 </div>
 
 <script type="module">
@@ -687,6 +743,17 @@ function ko(r){
    Alohida ko'rinish: modda + "pul tushmaydi" izohi, tugmalar "Ruxsat berish"/"Rad".
    `modda_menda_yoq` bo'lsa tugma o'rniga kulrang tushuntirish. Mavjud pul so'rovi
    `cardHtml` tanasi BIR QATOR HAM O'ZGARMAYDI — bu funksiya undan OLDIN chaqiriladi. */
+// Jadval chipi (entry.jadval / ruxsat_sorov.jadval) — `r.jadval_n` kalit yo'q bo'lsa
+// (SQL RUN qilinmagan) hech narsa chizilmaydi, kartaga TA'SIR YO'Q.
+// `r.turi` ruxsat qatorida 'ruxsat', pul so'rashda kelmaydi (undefined -> esc('')).
+function jdChipHtml(r){
+  if(!r || r.jadval_n==null) return '';
+  const id=esc(r.id), turi=esc(r.turi), eid=esc(r.entry_id||'');
+  return '<div class="jd-chiprow"><button type="button" class="jd-chip" '
+    +'onclick="openJadval(\''+id+'\',\''+turi+'\',\''+eid+'\')">'
+    +'<i data-lucide="table-2"></i>Jadval · '+r.jadval_n+' qator'
+    +(r.jadval_jami!=null?' · '+money(r.jadval_jami):'')+'</button></div>';
+}
 function rxCardHtml(r){
   // Ruxsatda "To'liq berildi" ma'nosiz (pul berilmaydi) — hodim-dev matni bilan bir xil
   const st=(r.status==='tasdiq')?Object.assign({},ST.tasdiq,{t:'Ruxsat berildi — xarajat yozildi'}):(ST[r.status]||ST.pending);
@@ -734,6 +801,7 @@ function rxCardHtml(r){
       +'<div class="srv-sum num">'+money(r.summa)+'<span class="srv-cur2">so\'m</span></div>'
     +'</div>'
     +'<div class="srv-izoh"><b>'+modda+'</b>'+(r.izoh?' · '+esc(r.izoh):'')+'</div>'
+    +jdChipHtml(r)
     +'<div class="srv-meta">'
       +'<span class="srv-st '+st.k+'"><i data-lucide="'+st.i+'"></i>'+st.t+'</span>'
       +'<span class="srv-dt">'+dt+'</span>'
@@ -795,6 +863,7 @@ function cardHtml(r){
       +'<div class="srv-sum num">'+sum+'<span class="srv-cur2">so\'m</span></div>'
     +'</div>'
     +'<div class="srv-izoh">'+esc(r.izoh||'')+'</div>'
+    +jdChipHtml(r)
     +'<div class="srv-meta">'
       +'<span class="srv-st '+st.k+'"><i data-lucide="'+st.i+'"></i>'+st.t+'</span>'
       +'<span class="srv-dt">'+dt+'</span>'
@@ -1255,9 +1324,109 @@ window.actSave=async()=>{
   window.load(true);
 };
 
+/* ==================== JADVAL MODALI (entry.jadval / ruxsat_sorov.jadval) ====================
+   BRIEF_PROVODKA_JADVAL.md 5-bosqich — jurnal.html dagi #jdModal naqshi bayt-ma-bayt
+   ko'chirilgan (renderJdModal/jdExportXlsx/loadXlsx), faqat ma'lumot manbai ikki xil:
+   turi==='ruxsat' -> ruxsat_sorov.jadval, aks holda (pul so'rash) entry.jadval (entryId bo'yicha).
+   Qaror modaliga (#srvActModal) TEGILMAGAN — alohida holat (jdCur) va alohida DOM. */
+let jdCur=null;   // {id, turi, data:{jadval, description, entry_date}} — Excel eksport shundan o'qiydi
+const JD_JAMI_RE=/жами|хаммаси|hammasi|jami|итого|всего|total/i;
+window.openJadval=async(id,turi,entryId)=>{
+  const ov=$('jdModal'); if(!ov) return;
+  jdCur=null;
+  $('jdTitle').textContent='Jadval';
+  $('jdMeta').textContent='';
+  $('jdBody').innerHTML='<div class="jd-msg">Yuklanmoqda…</div>';
+  ov.classList.add('open');
+  try{
+    let data=null, error=null;
+    if(turi==='ruxsat'){
+      const r=await sb.from('ruxsat_sorov').select('jadval,izoh,created_at').eq('id',id).single();
+      data=r.data; error=r.error;
+      if(data) data={jadval:data.jadval, description:data.izoh, entry_date:data.created_at};
+    }else{
+      if(!entryId){ $('jdBody').innerHTML='<div class="jd-msg err">Xarajat yozuvi topilmadi</div>'; return; }
+      const r=await sb.from('entry').select('jadval,description,entry_date').eq('id',entryId).single();
+      data=r.data; error=r.error;
+    }
+    if(error) throw error;
+    if(!data||!data.jadval||!Array.isArray(data.jadval.rows)){
+      $('jdBody').innerHTML='<div class="jd-msg err">Jadval topilmadi</div>'; return;
+    }
+    jdCur={id, turi, data};
+    renderJdModal();
+  }catch(e){
+    const msg=window.permErr?window.permErr(e):((e&&e.message)?e.message:'noma\'lum xato');
+    $('jdBody').innerHTML=`<div class="jd-msg err">${esc(msg)}</div>`;
+  }
+};
+window.closeJadval=()=>{ const ov=$('jdModal'); if(ov) ov.classList.remove('open'); jdCur=null; };
+function renderJdModal(){
+  if(!jdCur||!jdCur.data) return;
+  const {jadval:jd, description, entry_date}=jdCur.data;
+  const ed=entry_date?String(entry_date).slice(0,10).split('-').reverse().join('.'):'';
+  $('jdTitle').textContent='Jadval'+(description?' · '+description:'')+(ed?' · '+ed:'');
+  const manba=(jd.manba==='xlsx'&&jd.fayl)?jd.fayl:'Excel nusxasi';
+  $('jdMeta').textContent=manba+' · '+(jd.n!=null?jd.n:(jd.rows||[]).length)+' qator';
+  const rows2=jd.rows||[];
+  if(!rows2.length){ $('jdBody').innerHTML='<div class="jd-msg">Bo\'sh jadval</div>'; return; }
+  let html='<div class="jd-wrap"><table class="jd-t">';
+  if(jd.cols&&jd.cols.length) html+='<thead><tr>'+jd.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
+  html+='<tbody>'+rows2.map(r=>{
+    const isJami=r.some(c=>typeof c==='string'&&JD_JAMI_RE.test(c));
+    return `<tr${isJami?' class="jd-jami"':''}>`+r.map(c=>`<td${typeof c==='number'?' class="num"':''}>${typeof c==='number'?money(c):esc(c)}</td>`).join('')+'</tr>';
+  }).join('')+'</tbody></table></div>';
+  $('jdBody').innerHTML=html;
+}
+// SheetJS LAZY: <script> tegi HEAD'da yo'q, birinchi bosishda yuklanadi (jurnal.html naqshi)
+const XLS_SRC='vendor/xlsx-0.18.5.min.js';
+let _xlsLib=null;
+function loadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_xlsLib) return _xlsLib;
+  const p=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=XLS_SRC; s.async=true;
+    s.onload=()=>{ if(window.XLSX) res(window.XLSX); else rej(new Error('kutubxona yuklandi, lekin topilmadi')); };
+    s.onerror=()=>rej(new Error('kutubxona yuklanmadi'));
+    document.head.appendChild(s);
+  });
+  p.catch(e=>{ _xlsLib=null; console.error('SheetJS:',e); });
+  _xlsLib=p; return p;
+}
+// Pastdagi «📥 Excel» — LAZY SheetJS. Yiqilsa CSV zaxira (BOM + sep=;).
+window.jdExportXlsx=async()=>{
+  if(!jdCur||!jdCur.data||!jdCur.data.jadval) return;
+  const jd=jdCur.data.jadval;
+  const idShort=String(jdCur.id||'').slice(0,8);
+  const sana=jdCur.data.entry_date?String(jdCur.data.entry_date).slice(0,10):'sana';
+  const base=`jadval_${sana}_${idShort}`;
+  const aoa=[]; if(jd.cols&&jd.cols.length) aoa.push(jd.cols); (jd.rows||[]).forEach(r=>aoa.push(r));
+  try{
+    const X=await loadXlsx();
+    const wb=X.utils.book_new();
+    const ws=X.utils.aoa_to_sheet(aoa);
+    X.utils.book_append_sheet(wb,ws,'Jadval');
+    X.writeFile(wb,base+'.xlsx');
+  }catch(ex){
+    console.error('Jadval Excel:',ex);
+    try{
+      const cel=v=>{ const s=String(v==null?'':v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+      const body=aoa.map(r=>r.map(cel).join(';')).join('\r\n');
+      const blob=new Blob(['﻿'+'sep=;\r\n'+body],{type:'text/csv;charset=utf-8'});
+      const url=URL.createObjectURL(blob), aEl=document.createElement('a');
+      aEl.href=url; aEl.download=base+'.csv'; document.body.appendChild(aEl); aEl.click();
+      aEl.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+      alert('Excel tayyorlanmadi — CSV yuklab olindi, Excel uni ochadi.');
+    }catch(e2){ alert('Eksport bo\'lmadi.'); }
+  }
+};
+/* ==================== /JADVAL MODALI ==================== */
+
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
-  if($('srvActModal').classList.contains('open')) window.actClose();
+  if($('jdModal').classList.contains('open')) window.closeJadval();
+  else if($('srvActModal').classList.contains('open')) window.actClose();
   else if($('moreModal').classList.contains('open')) window.closeMore();
 });
 

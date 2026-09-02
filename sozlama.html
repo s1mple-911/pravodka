@@ -1038,13 +1038,14 @@ function renderList(elId,arr,showChek){
       ${a.ovqat_modda!==undefined?`<label class="chekopt ${a.ovqat_modda?'on':''}" title="Ovqat moddasi — hodim ro'yxati + kuniga 1 obed/1 zavtrak nazorati"><input type="checkbox" ${a.ovqat_modda?'checked':''} onchange="setFlag('${a.id}','ovqat',this.checked)">Ovqat</label>`:''}
       ${a.ai_tekshir!==undefined?`<label class="chekopt ${a.ai_tekshir?'on':''}" title="Chek rasmini AI o'qiydi — summa/sana; farq bo'lsa admin ko'radi."><input type="checkbox" ${a.ai_tekshir?'checked':''} onchange="setFlag('${a.id}','ai',this.checked)">AI chek</label>`:''}
       ${a.spidometr_ai!==undefined?`<label class="chekopt ${a.spidometr_ai?'on':''}" title="Faqat benzin/gaz: spidometr rasmi → km tarixi"><input type="checkbox" ${a.spidometr_ai?'checked':''} onchange="setFlag('${a.id}','spidometr',this.checked)">AI spidometr</label>`:''}
+      ${a.excel_jadval!==undefined?`<label class="chekopt ${a.excel_jadval?'on':''}" title="Excel/jadval biriktirish — hodim Excel ro'yxatini qo'yadi yoki .xlsx yuklaydi"><input type="checkbox" ${a.excel_jadval?'checked':''} onchange="setFlag('${a.id}','excel',this.checked)">Excel</label>`:''}
       ${mxdBtn(a.id)}
       </div>`:''}
     </div>`).join(''):'<div class="empty">—</div>';
 }
 // Modda bayrog'ini (chek|izoh|davr|filial) o'zgartiradi (admin only — RPC).
 // Xato bo'lsa ro'yxat qayta chiziladi (revert). Bitta umumiy set_modda_flag RPC.
-const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda',ai:'ai_tekshir',spidometr:'spidometr_ai'};
+const FLAG_COL={chek:'chek_majburiy',izoh:'izoh_majburiy',davr:'davr_majburiy',filial:'filial_majburiy',ovqat:'ovqat_modda',ai:'ai_tekshir',spidometr:'spidometr_ai',excel:'excel_jadval'};
 window.setFlag=async(id,flag,val)=>{
   const {error}=await sb.rpc('set_modda_flag',{p_account:id,p_flag:flag,p_bool:val});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderAll(); return; }
