@@ -214,7 +214,21 @@ for (var k = 0; k < items.length; k++) {
   }
   if (it.pul_turi) qism.push(TURI[it.pul_turi] ? TURI[it.pul_turi] : esc(it.pul_turi));
   if (qism.length) add(qism.join(' · '));
-  if (it.izoh) add('📝 ' + esc(it.izoh));
+  // 📝 Izoh. 🆕 2026-09-02: 300 belgidan uzun izoh KESILADI (eski uslubda Excel
+  //    jadvali izohga blob bo'lib tushardi -- xabarni to'ldirmasin).
+  if (it.izoh) {
+    var iz = String(it.izoh);
+    if (iz.length > 300) iz = iz.slice(0, 300) + '…';
+    add('📝 ' + esc(iz));
+  }
+  // 🆕 2026-09-02: jadval xulosasi (entry.jadval -- PROVODKA_JADVAL.sql,
+  //    hodim_notify_pending -> jadval_n / jadval_jami). Jadvalning o'zi
+  //    Telegram'ga YUBORILMAYDI -- faqat qator soni + jami.
+  var jn = Number(it.jadval_n) || 0;
+  if (jn > 0) {
+    var jj = Number(it.jadval_jami) || 0;
+    add('📋 Jadval: ' + jn + ' qator' + (jj > 0 ? ' · jami ' + money(jj) + ' so\\'m' : ''));
+  }
   add('');
 
   // 4) "shuncha bor edi -- shuncha ketti -- shuncha qoldi"
