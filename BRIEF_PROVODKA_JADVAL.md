@@ -147,3 +147,67 @@ Prefiks `.jd-*`. `</script>` soni 5 qolsin. Yangi CSS o'zgaruvchi yo'q.
    (jami ? ' · jami ' + money(jami) + ' so\'m' : ''))`. Qo'shimcha himoya: izoh 300 belgidan uzun
    bo'lsa kesilib `…` qo'yiladi (eski uslubdagi blob xabarni to'ldirmasin). Arrow function YO'Q.
    🔴 MCP `update_workflow` ISHLATILMAYDI (kreditlar uziladi) — Asilbek matnni n8n'da qo'lda almashtiradi.
+
+## 4–5-BOSQICH (Asilbek 2026-09-02): Excel — modda bayrog'i + Ruxsat so'rash + tasdiqlovchi ko'radi
+Asilbek: «Excel ko'p narsaga kerak bo'lishi mumkin — sozlamalarga Excel katakchasi qo'sh,
+yoqilsa hozirgidek ishlasin; Ruxsat so'rash modalida ham shu turga Excel yoqiq bo'lsa yuklash
+imkoni bo'lsin va so'rovni qabul qiluvchi uni ko'ra olsin.»
+
+### 4A. SQL — `PROVODKA_JADVAL_2.sql` (ADDITIVE; old shart: PROVODKA_JADVAL.sql)
+1. `alter table accounts add column if not exists excel_jadval boolean not null default false;` + comment
+   («Xarajat moddasi: Excel/jadval biriktirish yoqilgan. sozlama → Excel katakchasi»).
+2. `set_modda_flag(p_account uuid, p_flag text, p_bool boolean)` — **PROVODKA_RASM_DETECT.sql dagi
+   ENG OXIRGI versiya** (7 bayroq) ko'chiriladi + `elsif p_flag = 'excel' then update accounts set
+   excel_jadval = coalesce(p_bool,false)`. Imzo o'zgarmaydi.
+3. `alter table ruxsat_sorov add column if not exists jadval jsonb;` + check constraint (entry naqshi,
+   `do` bloki bilan, ≤120000 bayt, `jsonb_typeof='object'`).
+4. `ruxsat_yopiq_moddalar()` — PROVODKA_RUXSAT_SOROV.sql (186) versiyasi + `jsonb_build_object` ga
+   `'excel', coalesce(a.excel_jadval, false)` kaliti.
+5. YANGI `ruxsat_jadval_yoz(p_ext_ref text, p_jadval jsonb) returns jsonb` — `entry_jadval_yoz` ning
+   aynan naqshi, faqat `ruxsat_sorov` uchun: `ext_ref = p_ext_ref`, `hodim_id = auth.uid()`,
+   `created_at > now() - 30 min`, `jadval is null`, `status='pending'`, hajm. security definer,
+   authenticated grant, anon/public revoke.
+6. `ruxsat_qator(r ruxsat_sorov, p_uid uuid)` — PROVODKA_RUXSAT_SOROV.sql (386) + ikki kalit:
+   `'jadval_n', (r.jadval->>'n')::int`, `'jadval_jami', (r.jadval->>'jami')::numeric`
+   (to'liq jadval ro'yxatga KIRMAYDI — bosilganda `ruxsat_sorov.jadval` RLS bilan o'qiladi).
+7. `sorov_qator(...)` — **PROVODKA_SOROVLAR.sql 573-qator** (yagona versiya) + xarajat entry'sidan
+   `'jadval_n'`/`'jadval_jami'` (`xarajat_entry_id` bo'yicha `entry` dan, `to_jsonb(e)` naqshi
+   bilan — ustun yo'q bo'lsa null). Imzo/boshqa kalitlar o'zgarmaydi.
+8. `ruxsat_tasdiq(p_id uuid)` — PROVODKA_RUXSAT_SOROV.sql (549) versiyasi; `insert into entry (...)`
+   ga `jadval` ustuni + `r.jadval` qiymati. Boshqa hech narsa o'zgarmaydi (tartib izohi saqlanadi).
+9. Dollar-teg qoidasi, tekshiruv select'i (ustunlar + 5 funksiya).
+
+### 4B. `sozlama-dev.html` — Excel katakchasi
+`renderList` chiplar qatoriga (`spidometr_ai` dan keyin, `mxdBtn` dan oldin), **faqat
+`a.excel_jadval!==undefined`** bo'lsa (ustun RUN qilinmaguncha chip chiqmaydi — mavjud naqsh):
+`<label class="chekopt …" title="Excel/jadval biriktirish — hodim Excel ro'yxatini qo'yadi yoki .xlsx yuklaydi">…Excel</label>`,
+`setFlag(id,'excel',…)`. `FLAG_COL.excel='excel_jadval'`. Faqat xarajat ro'yxatida (`showChek` bloki ichida).
+
+### 4C. `hodim-dev.html` — bayroq bilan gating + Ruxsat so'rash Tab 2
+1. `jadvalOk()` = `!!(moddaObj() && moddaObj().excel_jadval)`. `updateJdUI()` — `updateModdaUI()` dan
+   chaqiriladi: Excel tugmasi (`.jdxbtn`) faqat `jadvalOk()` da ko'rinadi; modda almashib bayroq
+   yo'q bo'lsa mavjud `jadval` tozalanadi (karta yashirinadi, toast «Bu turda jadval yo'q»).
+   `#izoh` paste handler: `jadvalOk()` bo'lmasa oddiy paste (hech narsa ushlanmaydi).
+   Saqlash yo'llari o'zgarmaydi (jadval null bo'ladi).
+2. **Tab 2 (Ruxsat so'rash)** — `#rxIzoh` maydonidan keyin `#rxJdWrap` (display:none): «Excel yuklash»
+   tugmasi + yashirin `#rxJdFile` + `#rxJdCard`. Ko'rinadi FAQAT tanlangan `rxModda` ning `excel===true`
+   bo'lsa (`rxModdalar` dan; `ruxsat_yopiq_moddalar` javobida `excel` kaliti yo'q = false).
+   `#rxIzoh` paste ham shu shart bilan. Alohida holat `rxJadval`. 🔴 Mavjud `jdRender/jdApply/onJdFile`
+   ni ikki holatga xizmat qiladigan qilib **parametrlash** (`jdApplyTo(state)`, `jdRenderInto(cardEl, obj, onRemove)`)
+   — kodni nusxalama. Summa avto-to'ldirish Tab 2 da `#rxAmt` uchun ham (bo'sh bo'lsa jami), `rxUI()` chaqiriladi.
+   Modda almashsa va yangi moddada excel yo'q → `rxJadval=null`. `rxReset()` ham tozalaydi.
+3. `rxSave()`: `ruxsat_yarat` muvaffaqiyatidan KEYIN (`data.ok===true && turi==='ruxsat'`) `rxJadval` bo'lsa
+   `sb.rpc('ruxsat_jadval_yoz',{p_ext_ref:token, p_jadval:rxJadval})`; xato → toast «So'rov yuborildi,
+   lekin jadval biriktirilmadi». `tokenTugat()` dan OLDIN token qiymatini oling (const bor).
+4. Tab 2 intro matni «Tasdiqlovchi faqat shu matnni ko'radi» → jadval bo'lsa «… va jadvalni ko'radi».
+5. `</script>` 4, `node --check`, LF, `hodim.html` ga tegilmaydi.
+
+### 5. `sorovlar-dev.html` — tasdiqlovchi ko'radi
+1. `rxCardHtml(r)` va `cardHtml(r)` (pul so'rash) — `.srv-izoh` dan keyin `r.jadval_n` bo'lsa chip
+   `<button class="jd-chip">` «Jadval · N qator · jami» (jurnal-dev naqshi, `table-2` lucide),
+   `openJadval(r.id, r.turi)`.
+2. Modal `#jdModal` — jurnal-dev.html dagi `.jd-*` CSS + `renderJdModal` + Excel/CSV eksporti **ko'chiriladi**
+   (o'sha ko'rinish). Ma'lumot: `turi==='ruxsat'` → `sb.from('ruxsat_sorov').select('jadval,izoh,created_at').eq('id',id).single()`;
+   aks holda (pul so'rash) `entry_id` bo'yicha `sb.from('entry').select('jadval,description,entry_date')`.
+   Lazy SheetJS loader (`vendor/xlsx-0.18.5.min.js`) sorovlar-dev'da yo'q bo'lsa qo'shiladi (`loadXlsx` naqshi).
+3. `</script>` soni sorovlar-dev'da qancha bo'lsa shuncha qoladi (avval sanab ol), `sorovlar.html` ga tegilmaydi.

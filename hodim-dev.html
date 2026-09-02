@@ -1217,7 +1217,7 @@
       <div class="sect">
         <div class="izohhd">
           <label class="lbl" id="izohLbl" for="izoh">Izoh <span class="opt">(ixtiyoriy)</span></label>
-          <button type="button" class="jdxbtn" onclick="jdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Excel yuklash</span></button>
+          <button type="button" class="jdxbtn" id="jdXBtn" onclick="jdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Excel yuklash</span></button>
         </div>
         <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
         <!-- Jadval (Excel nusxa/.xlsx) — izohdan alohida, entry.jadval ga yoziladi -->
@@ -1437,7 +1437,17 @@
       <label class="lbl" for="rxIzoh">Izoh <span class="req">majburiy</span></label>
       <input class="txt" id="rxIzoh" maxlength="120" autocomplete="off"
              placeholder="masalan: yetkazib beruvchiga to'lov" oninput="rxUI()">
-      <div class="srv-hint">Tasdiqlovchi faqat shu matnni ko'radi.</div>
+      <div class="srv-hint" id="rxIzohHint">Tasdiqlovchi faqat shu matnni ko'radi.</div>
+    </div>
+
+    <!-- Jadval (Excel nusxa/.xlsx) — faqat tanlangan modda excel===true bo'lsa (rxJdUI) -->
+    <div class="srv-fld" id="rxJdWrap" style="display:none">
+      <div class="izohhd">
+        <div class="lbl">Jadval <span class="opt">(ixtiyoriy)</span></div>
+        <button type="button" class="jdxbtn" id="rxJdXBtn" onclick="rxJdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Excel yuklash</span></button>
+      </div>
+      <input type="file" accept=".xlsx,.xls,.csv" id="rxJdFile" class="vh" onchange="onRxJdFile(this)">
+      <div id="rxJdCard" class="jdcard" style="display:none"></div>
     </div>
 
     <div class="tmsg" id="rxMsg" role="status" aria-live="polite"></div>
@@ -2274,6 +2284,9 @@ function izohRequired(){ const m=moddaObj(); return !!(m && m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m && m.davr_majburiy); }
 function filialRequired(){ const m=moddaObj(); return !!(m && m.filial_majburiy); }  // ustun yo'q bo'lsa undefined → false
 function isOvqat(){ const m=moddaObj(); return !!(m && m.ovqat_modda); }
+// Excel/jadval — moddaga bog'liq bayroq (excel_jadval). Ustun yo'q bo'lsa (SQL run
+// qilinmagan) undefined → false, "Excel yuklash" tugmasi yashirin qoladi.
+function jadvalOk(){ const m=moddaObj(); return !!(m && m.excel_jadval); }
 function davrVals(){ return {s:davrS, e:davrE}; }
 function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
 // Filial majburiy bo'lsa kamida bittasi tanlansin. AMMO foydalanuvchiga umuman filial
@@ -2586,7 +2599,7 @@ function updateModdaUI(){
   box.style.display = has ? 'block' : 'none';
   box.classList.toggle('reveal', has);
   updateChekUI(); updateIzohUI(); updateFilialUI(); updateDavrUI(); updateKommUI(); mxdRender();
-  updateOvqatUI(); updateAiUI();
+  updateOvqatUI(); updateAiUI(); updateJdUI();
 }
 function updateChekUI(){
   const req=chekRequired();
@@ -2746,8 +2759,11 @@ function jdLooksTable(text){
   let n=0; for(const l of lines) if(/\d/.test(l)) n++;
   return n>=3;
 }
-/* Limitlarni tekshirib holatga qo'yadi. Rad etilsa toast, jadval o'zgarmaydi. */
-function jdApply(obj){
+/* Limitlarni tekshirib berilgan HOLATga (state) qo'yadi. Rad etilsa toast, jadval
+   o'zgarmaydi. 🔴 IKKI HOLATga xizmat qiladi — asosiy forma (`jadval`) VA Tab 2
+   "Ruxsat so'rash" (`rxJadval`) — state.set/amtVal/amtSet/render orqali farqlanadi,
+   validatsiya/limit mantiqi BIR JOYDA (nusxalanmagan). */
+function jdApplyTo(state,obj){
   if(!obj || !obj.rows || !obj.rows.length){ toast('Jadval aniqlanmadi',true); return; }
   if(obj.rows.length>JD_MAX_ROWS){ toast(`Jadval juda katta (${JD_MAX_ROWS} qatordan ortiq)`,true); return; }
   const ncols=obj.cols.length||obj.rows[0].length;
@@ -2755,15 +2771,13 @@ function jdApply(obj){
   let bytes=0;
   try{ bytes=new Blob([JSON.stringify(obj)]).size; }catch(e){ bytes=JSON.stringify(obj).length; }
   if(bytes>JD_MAX_BYTES){ toast('Jadval hajmi juda katta',true); return; }
-  jadval=obj;
+  state.set(obj);
   // Summa bo'sh va jami bor bo'lsa — avtomat to'ldiriladi (hodim o'zgartira oladi).
-  if(!amtVal() && obj.jami!=null && amtCur==='UZS'){
-    $('summa').value=money(obj.jami); $('summa').dataset.a000='1';
-    updateSave();
-  }
-  jdRender();
+  if(!state.amtVal() && obj.jami!=null) state.amtSet(obj.jami);
+  state.render();
 }
-window.jdRemove=()=>{ jadval=null; const c=$('jdCard'); if(c){ c.style.display='none'; c.innerHTML=''; } };
+function jdApply(obj){ jdApplyTo(JD_STATE_MAIN,obj); }
+window.jdRemove=()=>{ jadval=null; jdRenderInto($('jdCard'),null); };
 function jdWarnText(){
   if(!jadval || jadval.jami==null) return null;
   const cur=amtVal();
@@ -2776,22 +2790,40 @@ function jdWarnUpdate(){
   if(t){ el.textContent=t; el.style.display='block'; } else { el.style.display='none'; }
 }
 function jdCellTxt(c){ return typeof c==='number' ? money(c) : esc(c); }
-function jdRender(){
-  const card=$('jdCard'); if(!card) return;
-  if(!jadval){ card.style.display='none'; card.innerHTML=''; return; }
-  const parts=['📋 Jadval · '+jadval.n+' qator'];
-  if(jadval.jami!=null) parts.push('jami '+money(jadval.jami)+" so'm");
+/* Umumiy chizuvchi — jadval kartasini istalgan konteynerga (jdCard/rxJdCard) chizadi.
+   `removeFn` — o'chirish tugmasi bosilganda chaqiriladigan GLOBAL funksiya NOMI (string),
+   `warnId` berilsa (faqat asosiy formada) shu id bilan bo'sh ogohlantirish qatori qo'shiladi. */
+function jdRenderInto(cardEl,obj,removeFn,warnId){
+  if(!cardEl) return;
+  if(!obj){ cardEl.style.display='none'; cardEl.innerHTML=''; return; }
+  const parts=['📋 Jadval · '+obj.n+' qator'];
+  if(obj.jami!=null) parts.push('jami '+money(obj.jami)+" so'm");
   let html='<div class="jdhd"><div><div class="jdtitle">'+esc(parts.join(' · '))+'</div>';
-  if(jadval.fayl) html+='<div class="jdfile">'+esc(jadval.fayl)+'</div>';
-  html+='</div><button type="button" class="jdrm" onclick="jdRemove()" title="Olib tashlash" aria-label="Jadvalni olib tashlash"><i data-lucide="x"></i></button></div>';
-  html+='<div id="jdWarn" class="jdwarn" style="display:none"></div>';
+  if(obj.fayl) html+='<div class="jdfile">'+esc(obj.fayl)+'</div>';
+  html+='</div><button type="button" class="jdrm" onclick="'+esc(removeFn)+'()" title="Olib tashlash" aria-label="Jadvalni olib tashlash"><i data-lucide="x"></i></button></div>';
+  if(warnId) html+='<div id="'+esc(warnId)+'" class="jdwarn" style="display:none"></div>';
   html+='<div class="jdwrap"><table class="jdtable">';
-  if(jadval.cols.length) html+='<thead><tr>'+jadval.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
-  html+='<tbody>'+jadval.rows.map(r=>'<tr>'+r.map(c=>'<td'+(typeof c==='number'?' class="num"':'')+'>'+jdCellTxt(c)+'</td>').join('')+'</tr>').join('')+'</tbody>';
+  if(obj.cols.length) html+='<thead><tr>'+obj.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
+  html+='<tbody>'+obj.rows.map(r=>'<tr>'+r.map(c=>'<td'+(typeof c==='number'?' class="num"':'')+'>'+jdCellTxt(c)+'</td>').join('')+'</tr>').join('')+'</tbody>';
   html+='</table></div>';
-  card.innerHTML=html; card.style.display='block';
+  cardEl.innerHTML=html; cardEl.style.display='block';
   icons();
-  jdWarnUpdate();
+}
+function jdRender(){ jdRenderInto($('jdCard'),jadval,'jdRemove','jdWarn'); jdWarnUpdate(); }
+// Asosiy formaning jadval holati — jdApplyTo() shu orqali `jadval`/#summa ga yozadi.
+const JD_STATE_MAIN={
+  set:v=>{ jadval=v; },
+  amtVal:()=>amtVal(),
+  amtSet:v=>{ if(amtCur==='UZS'){ $('summa').value=money(v); $('summa').dataset.a000='1'; updateSave(); } },
+  render:jdRender
+};
+// Modda almashganda chaqiriladi (updateModdaUI): tugma faqat jadvalOk() bo'lganda
+// ko'rinadi; bayroq yo'q moddaga almashilsa mavjud jadval tozalanadi.
+function updateJdUI(){
+  const ok=jadvalOk();
+  const btn=$('jdXBtn');
+  if(btn) btn.style.display=ok?'':'none';
+  if(!ok && jadval){ jadval=null; jdRender(); toast("Bu turda jadval yo'q"); }
 }
 window.jdPickFile=()=>{ const f=$('jdFile'); if(f) f.click(); };
 /* SheetJS LAZY — <script> tegi HEAD'da YO'Q, faqat "Excel yuklash" birinchi bosilganda
@@ -2812,7 +2844,9 @@ function jdLoadXlsx(){
   _jdXlsx=p;
   return p;
 }
-window.onJdFile=async(el)=>{
+/* Umumiy fayl o'qish — Excel yuklash tugmasi ikkala shaklda ham (asosiy forma va
+   Tab 2 "Ruxsat so'rash") shu bittasidan foydalanadi, `applyFn` natijani qabul qiladi. */
+async function jdHandleXlsxInput(el,applyFn){
   const f=el.files&&el.files[0]; el.value='';
   if(!f) return;
   if(f.size>2*1024*1024){ toast('Fayl hajmi 2 MB dan katta',true); return; }
@@ -2825,12 +2859,13 @@ window.onJdFile=async(el)=>{
     const aoa=X.utils.sheet_to_json(ws,{header:1,raw:true});
     const base=jdFromGrid(aoa, jdCellFromXlsx);
     if(!base){ toast('Jadval bo\'sh yoki o\'qib bo\'lmadi',true); return; }
-    jdApply(Object.assign({v:1, manba:'xlsx', fayl:f.name}, base));
+    applyFn(Object.assign({v:1, manba:'xlsx', fayl:f.name}, base));
   }catch(e){
     console.error('Excel o\'qilmadi:',e);
     toast('Excel o\'qib bo\'lmadi — nusxalab qo\'ying',true);
   }
-};
+}
+window.onJdFile=el=>jdHandleXlsxInput(el,jdApply);
 
 /* ================= AI rasm tahlili (chek/spidometr) — 7-BOSQICH =================
    🔴 TO'LIQ FON: hodim AI borligini UMUMAN bilmaydi. Fetch fire-and-forget — forma
@@ -4125,11 +4160,22 @@ function bindInputs(){ if(_bound) return; _bound=true;
   // ushlanadi, Izoh o'zi o'zgarmaydi (BRIEF_PROVODKA_JADVAL.md). Oddiy bir qatorli
   // paste — avvalgidek Izoh ichiga tushadi (preventDefault chaqirilmaydi).
   $('izoh').addEventListener('paste',e=>{
+    if(!jadvalOk()) return;   // bayroq yoq moddada oddiy paste (hech narsa ushlanmaydi)
     const cd=e.clipboardData||window.clipboardData;
     const text=cd?cd.getData('text/plain'):'';
     if(!jdLooksTable(text)) return;
     e.preventDefault();
     jdApply(jadvalParse(text));
+  });
+  // Tab 2 "Ruxsat so'rash" — xuddi shu naqsh, faqat rxJdOk() (tanlangan yopiq
+  // moddaning excel bayrog'i) shart bilan.
+  $('rxIzoh').addEventListener('paste',e=>{
+    if(!rxJdOk()) return;
+    const cd=e.clipboardData||window.clipboardData;
+    const text=cd?cd.getData('text/plain'):'';
+    if(!jdLooksTable(text)) return;
+    e.preventDefault();
+    rxJdApply(jadvalParse(text));
   });
   // RBAC: ruxsat fonda (fetchFresh) o'zgarsa — tanlangan modda endi ruxsatsiz bo'lishi
   // mumkin (renderModda() selModda'ni o'zi tozalaydi), ovqat paneli ham qayta chiziladi.
@@ -4323,6 +4369,7 @@ let rxSaving=false;
 let rxBandAt=0;
 let srvTab1Locked=false;   // 🔴 faqat srvRuxsatFromHelp() dan kelganda true (balans yetarli)
 let rxPendOff=false;   // ruxsat_menikilar RPC yo'q -> #srvPend'da ruxsat qatorlari jimgina yo'q
+let rxJadval=null;     // Tab 2 jadvali (jadval bilan bir xil shakl) — faqat rxJdOk() moddada
 
 // 🔴 TUGMA KO'RINISHI: faqat RPC tasdiqlangan bo'lsa (fail-closed — `amalOff` naqshi).
 //    FORMA holati (`srvOver`) bu yerga KIRMAYDI: tugma doim ko'rinadi va enable.
@@ -4666,6 +4713,36 @@ function rxHisobRender(){
 }
 window.rxPickHisob=id=>{ rxHisob=SRV_UUID.test(String(id||''))?String(id):null; rxHisobRender(); rxUI(); };
 
+/* ---- Tab 2 jadval (Excel/paste) — faqat tanlangan modda excel===true bo'lsa. ----
+   Asosiy formaning `jdApplyTo/jdRenderInto/jdHandleXlsxInput` yadrolarini QAYTA
+   ISHLATADI (kodni nusxalamaslik uchun), faqat o'z holati (`rxJadval`) bilan. */
+function rxModdaObj(){ return Array.isArray(rxModdalar)?rxModdalar.find(m=>m&&String(m.id)===rxModda):null; }
+function rxJdOk(){ const m=rxModdaObj(); return !!(m && m.excel===true); }
+const JD_STATE_RX={
+  set:v=>{ rxJadval=v; },
+  amtVal:()=>rxAmtVal(),
+  amtSet:v=>{ const el=$('rxAmt'); if(el) el.value=money(v); rxUI(); },
+  render:()=>rxJdRender()
+};
+function rxJdRender(){ jdRenderInto($('rxJdCard'),rxJadval,'rxJdRemove'); }
+function rxJdApply(obj){ jdApplyTo(JD_STATE_RX,obj); }
+window.rxJdRemove=()=>{ rxJadval=null; rxJdRender(); };
+window.rxJdPickFile=()=>{ const f=$('rxJdFile'); if(f) f.click(); };
+window.onRxJdFile=el=>jdHandleXlsxInput(el,rxJdApply);
+// Modda almashganda (rxUI ichidan) chaqiriladi: bo'lim faqat rxJdOk() bo'lganda
+// ko'rinadi; bayroq yo'q moddaga o'tilsa mavjud jadval tozalanadi. Izoh tagidagi
+// eslatma jadval biriktirilgan-bo'lmaganiga qarab o'zgaradi.
+function rxJdUI(){
+  const ok=rxJdOk();
+  const wrap=$('rxJdWrap');
+  if(wrap) wrap.style.display=ok?'block':'none';
+  if(!ok && rxJadval){ rxJadval=null; rxJdRender(); toast("Bu turda jadval yo'q"); }
+  const hint=$('rxIzohHint');
+  if(hint) hint.textContent = rxJadval
+    ? "Tasdiqlovchi faqat shu matnni va jadvalni ko'radi."
+    : "Tasdiqlovchi faqat shu matnni ko'radi.";
+}
+
 window.rxUI=()=>{
   const izoh=String(($('rxIzoh')&&$('rxIzoh').value)||'').trim();
   const v=rxAmtVal(), m=$('rxMsg'), b=$('rxSend');
@@ -4678,9 +4755,11 @@ window.rxUI=()=>{
   }
   if(m&&!rxSaving){ m.textContent=msg; m.className=msg?'tmsg no':'tmsg'; }
   if(b) b.disabled=rxSaving||!(rxModda&&kassa&&rxWho&&v>0&&!msg&&izoh.length>=SRV_MIN_IZOH);
+  rxJdUI();
 };
 function rxReset(){
   rxModda=null; rxWho=null; rxHisob=null; rxSaving=false;
+  rxJadval=null;
   const a=$('rxAmt'), i=$('rxIzoh'), sc=$('rxWhoSearch'), ms=$('rxModdaSearch'), m=$('rxMsg'), b=$('rxSend');
   if(a) a.value='';
   if(i) i.value='';
@@ -4688,7 +4767,8 @@ function rxReset(){
   if(ms) ms.value='';
   if(m){ m.textContent=''; m.className='tmsg'; }
   if(b){ b.disabled=true; b.innerHTML='<i data-lucide="send-horizontal"></i>So\'rov yuborish'; }
-  rxModdaRender(); rxWhoRender();
+  rxJdRender();
+  rxModdaRender(); rxWhoRender(); rxJdUI();
 }
 
 /* Tab almashish. n=1|2. `lock` — FAQAT srvRuxsatFromHelp() true beradi (balans
@@ -5211,9 +5291,19 @@ window.rxSave=async()=>{
   // 🔴 FAIL-CLOSED: server AYNAN ruxsat sorovi yaratganini tasdiqlasin.
   if(!data||data.ok!==true||String(data.turi||'')!=='ruxsat'){ rxNoaniq('nomalum'); return; }
   tokenTugat(); bannerYop();
+  const jdSnap=rxJadval;   // rxReset() pastda tozalaydi — oldindan saqlab olamiz
   srvClose(); rxReset(); rxBtnTikla();
   toast('Ruxsat so\'rovi yuborildi');
   srvPendLoad();
+  // 🔴 ruxsat_sorov `ruxsat_yarat` ichida yaratiladi (imzosi o'zgarmaydi) — jadval
+  // MUVAFFAQIYATDAN KEYIN alohida yoziladi (entry_jadval_yoz bilan bir xil naqsh).
+  // So'rovning o'zi buzilmaydi — xato bo'lsa faqat ogohlantiramiz.
+  if(jdSnap){
+    try{
+      const {error:ej}=await sb.rpc('ruxsat_jadval_yoz',{p_ext_ref:token,p_jadval:jdSnap});
+      if(ej) toast('So\'rov yuborildi, lekin jadval biriktirilmadi',true);
+    }catch(e){ toast('So\'rov yuborildi, lekin jadval biriktirilmadi',true); }
+  }
 };
 
 /* --- Yetim pending xarajatni BEKOR qilish ------------------------------

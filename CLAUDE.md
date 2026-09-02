@@ -748,6 +748,17 @@ Chegara: ≤500 qator, ≤16 ustun, klient ≤100 KB (server constraint 120 KB).
   (`to_jsonb(e)` naqshi — ustun yo'q bo'lsa null). `N8N_XABAR_TUZ.js` = `N8N_HODIM_NOTIFY.js`
   ichidagi `jsCode` (bayt-ma-bayt, ikkalasi birga tahrirlanadi): izoh 300 belgidan kesiladi,
   «📋 Jadval: N qator · jami X so'm». n8n'ga **qo'lda** qo'yiladi (MCP update kreditlarni uzadi).
+- **Modda bayrog'i `accounts.excel_jadval`** (`PROVODKA_JADVAL_2.sql`, RUN kutilmoqda; `sozlama-dev`
+  «Excel» katakchasi, `set_modda_flag(...,'excel',...)`): jadval FAQAT yoqilgan xarajat turida —
+  `jadvalOk()` false bo'lsa paste oddiy o'tadi, Excel tugmasi yashirin, modda almashsa jadval tozalanadi.
+  Ustun bazada yo'q bo'lsa (undefined) hamma joyda o'chiq. `jdApplyTo/jdRenderInto` — bitta yadro,
+  ikki holat (`JD_STATE_MAIN` asosiy forma, `JD_STATE_RX` Ruxsat so'rash Tab 2).
+- **Ruxsat so'rash (Tab 2)**: `ruxsat_yopiq_moddalar()` javobida `excel` kaliti; yoqiq bo'lsa `#rxJdWrap`
+  (Excel + paste) → `ruxsat_yarat` dan KEYIN `ruxsat_jadval_yoz(p_ext_ref, p_jadval)` (`ruxsat_sorov.jadval`;
+  egalik `hodim_id`, pending, 30 daqiqa, bir marta). `ruxsat_tasdiq` jadvalni yaratilgan `entry` ga
+  ko'chiradi. `ruxsat_qator`/`sorov_qator` ro'yxatga `jadval_n/jadval_jami` beradi (to'liq jadval emas).
+- **`sorovlar-dev.html`**: kartada chip «Jadval · N qator · jami» → `#jdModal` (jurnal-dev nusxasi, z-index 210);
+  ruxsat → `ruxsat_sorov.jadval` (RLS: hodim/kimdan/admin), pul so'rash → `entry.jadval` (`entry_id`).
 
 ## Avtomatik sinxron (n8n)
 
