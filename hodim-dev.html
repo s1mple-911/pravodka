@@ -553,6 +553,32 @@
   .ai-note.warn{color:var(--amber)}
   .ai-note.warn::before{opacity:1}
   @keyframes aiIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+  /* ================= Jadval (Excel nusxa/.xlsx) — Izoh yonida ================= */
+  .izohhd{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s2)}
+  .izohhd .lbl{margin:0}
+  .jdxbtn{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:32px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--ink-2);border-radius:var(--r-sm);padding:0 var(--s3);
+    font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;transition:background .15s}
+  @media(hover:hover){.jdxbtn:hover{background:var(--surface-3)}}
+  .jdxbtn svg{width:14px;height:14px}
+  .jdcard{margin-top:var(--s3);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);max-width:100%}
+  .jdhd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3)}
+  .jdtitle{font-size:13.5px;font-weight:700;line-height:1.4}
+  .jdfile{color:var(--muted);font-size:12px;font-weight:500;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jdrm{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+    border:none;background:transparent;color:var(--muted);border-radius:var(--r-sm);cursor:pointer;font-family:inherit}
+  @media(hover:hover){.jdrm:hover{background:var(--surface-3);color:var(--ink)}}
+  .jdrm svg{width:16px;height:16px}
+  .jdwrap{margin-top:var(--s3);max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm);
+    background:var(--surface)}
+  .jdtable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .jdtable th,.jdtable td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  .jdtable td.num,.jdtable th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .jdtable thead th{background:var(--surface-2);color:var(--muted);font-weight:600;position:sticky;top:0}
+  .jdtable tbody tr:last-child td{border-bottom:none}
+  .jdwarn{margin-top:var(--s3);color:var(--amber);background:var(--amber-soft);border-radius:var(--r-sm);
+    padding:6px 10px;font-size:12.5px;font-weight:600;line-height:1.4}
   /* ================= spidometr (.ai-*) — chek blokining "muloyim karta" uslubi ================= */
   .ai-spidsect{margin-top:var(--s3);background:var(--surface-2);border-radius:var(--r-lg);padding:var(--s4)}
   .ai-spidsect .lbl::before{content:'';display:inline-block;width:13px;height:13px;margin-right:5px;vertical-align:-2px;
@@ -1189,8 +1215,14 @@
       </div>
 
       <div class="sect">
-        <label class="lbl" id="izohLbl" for="izoh">Izoh <span class="opt">(ixtiyoriy)</span></label>
+        <div class="izohhd">
+          <label class="lbl" id="izohLbl" for="izoh">Izoh <span class="opt">(ixtiyoriy)</span></label>
+          <button type="button" class="jdxbtn" onclick="jdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Excel yuklash</span></button>
+        </div>
         <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
+        <!-- Jadval (Excel nusxa/.xlsx) — izohdan alohida, entry.jadval ga yoziladi -->
+        <input type="file" accept=".xlsx,.xls,.csv" id="jdFile" class="vh" onchange="onJdFile(this)">
+        <div id="jdCard" class="jdcard" style="display:none"></div>
       </div>
 
     </div>
@@ -1576,6 +1608,9 @@ let calBase=null, davrS=null, davrE=null;  // V6: davr kalendari (ikki oy) — b
 const UZ_MON=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
 const UZ_WD=['Du','Se','Cho','Pa','Ju','Sha','Ya'];  // Dushanbadan boshlanadi
 let chekBlob=null;          // 3-band: tanlangan chek surati (siqilgan JPEG blob)
+// Jadval (Excel nusxa/.xlsx) — izohdan alohida saqlanadi (entry.jadval). null = biriktirilmagan.
+// Shakl: BRIEF_PROVODKA_JADVAL.md — {v,manba,fayl,cols,rows,jami,n}.
+let jadval=null;
 // ==== AI chek/spidometr tahlili (fonda — hodim kutmaydi) ====
 // aiTahlil/spidTahlil — {id, holat:'kutilmoqda'|'ok'|'xato'}. `id` klientda oldindan
 // yaratiladi (EF javobini kutmasdan ham entry_ai_bogla shu id bilan bog'lay oladi).
@@ -2639,6 +2674,164 @@ window.openChek=async(kassaId,entryId)=>{
   }catch(e){ toast('Chek ochilmadi',true); }
 };
 
+/* ================= Jadval (Excel nusxa/.xlsx) — BRIEF_PROVODKA_JADVAL.md =================
+   Muammo: Izoh bir qatorli <input> — Excel'dan nusxalangan ko'p qatorli ro'yxat u yerda
+   bitta blob bo'lib yopishib qoladi. Yechim: jadval IZOHDAN ALOHIDA holatda (`jadval`)
+   saqlanadi va saqlashda `entry.jadval` ustuniga yoziladi (izoh o'zgarmaydi, qisqa qoladi).
+   🔴 `jadvalParse(text)` — SOF FUNKSIYA (DOM'ga bog'liq emas, node bilan test qilingan):
+   paste matnidan {v,manba,fayl,cols,rows,jami,n} quradi. Excel (.xlsx/.xls/.csv) yo'li
+   xuddi shu `jdFromGrid()` yadrosidan foydalanadi (SheetJS `sheet_to_json` AOA'sidan).
+   Limitlar (500 qator / 16 ustun / 100000 bayt) — chaqiruvchida (jdApply) tekshiriladi:
+   oshsa toast + jadval QABUL QILINMAYDI (kesilmaydi). Katak matni esa 200 belgida
+   avtomat kesiladi (jdCell ichida) — bu reject emas, oddiy qisqartirish. */
+// 🔴 "hammasi" so'zi ikki yozuvda uchraydi: lotin ("hammasi") va kirill ("ХАММАСИ" — odatiy
+// yozuvda "х" bilan, "ҳ" bilan emas). Ikkalasi ham "jami" qatorini aniqlashi kerak.
+const JD_JAMI_RE=/жами|хаммаси|hammasi|jami|итого|всего|total/i;
+const JD_NUM_RE=/^-?[\d\s ]+([.,]\d+)?$/;
+const JD_MAX_ROWS=500, JD_MAX_COLS=16, JD_MAX_BYTES=100000, JD_MAX_CELL=200;
+/* Katak matnini raqam/matnga ajratadi. Raqam: bo'sh joylar olib tashlanib, vergul -> nuqta. */
+function jdCell(raw){
+  const s=String(raw==null?'':raw).trim();
+  if(s==='') return '';
+  if(JD_NUM_RE.test(s)){
+    const n=Number(s.replace(/[\s ]/g,'').replace(',','.'));
+    if(isFinite(n)) return n;
+  }
+  return s.length>JD_MAX_CELL ? s.slice(0,JD_MAX_CELL) : s;
+}
+/* Excel (SheetJS raw:true) katagi — sonlar allaqachon JS number bo'lib keladi. */
+function jdCellFromXlsx(raw){
+  if(typeof raw==='number') return isFinite(raw)?raw:'';
+  return jdCell(raw);
+}
+function jdSplitLine(line){
+  // Tab bo'lsa tab bilan, bo'lmasa 2+ ketma-ket bo'sh joy ajratgich sifatida.
+  return line.indexOf('\t')>=0 ? line.split('\t') : line.split(/ {2,}/);
+}
+/* Ikki manba (paste matn / Excel AOA) uchun UMUMIY yadro: bo'sh qator/ustunlarni olib
+   tashlaydi, sarlavhani (raqamsiz birinchi qator) ajratadi, "jami"ni topadi. */
+function jdFromGrid(rawGrid, cellFn){
+  let grid=(rawGrid||[]).map(r=>(r||[]).map(cellFn)).filter(r=>r.some(c=>c!==''));
+  if(!grid.length) return null;
+  let ncols=grid.reduce((m,r)=>Math.max(m,r.length),0);
+  grid=grid.map(r=>{ const c=r.slice(); while(c.length<ncols) c.push(''); return c; });
+  // Butunlay bo'sh ustunlar tashlanadi.
+  const keep=[]; for(let c=0;c<ncols;c++) keep.push(grid.some(r=>r[c]!==''));
+  grid=grid.map(r=>r.filter((_,c)=>keep[c]));
+  ncols=grid[0]?grid[0].length:0;
+  if(!ncols) return null;
+  // Birinchi qator sarlavha — undagi HECH bir katak raqam bo'lmasa.
+  let cols=[], rows=grid;
+  if(!grid[0].some(c=>typeof c==='number')){ cols=grid[0].map(String); rows=grid.slice(1); }
+  if(!rows.length) return null;
+  // jami: JD_JAMI_RE ga mos kelgan qatorlar ichidagi eng katta raqam.
+  let jami=null;
+  rows.forEach(r=>{
+    if(r.some(c=>typeof c==='string' && JD_JAMI_RE.test(c)))
+      r.forEach(c=>{ if(typeof c==='number' && (jami===null||c>jami)) jami=c; });
+  });
+  return {cols, rows, jami, n:rows.length};
+}
+/* SOF FUNKSIYA — paste matnidan jadval quradi. Bo'sh/aniqlanmagan bo'lsa null. */
+function jadvalParse(text){
+  const lines=String(text==null?'':text).replace(/\r\n?/g,'\n').split('\n');
+  const base=jdFromGrid(lines.map(jdSplitLine), jdCell);
+  return base && Object.assign({v:1, manba:'paste', fayl:null}, base);
+}
+/* Paste matni jadvalga o'xshaydimi (oddiy bir qatorli paste bilan aralashmasin). */
+function jdLooksTable(text){
+  if(!text || text.indexOf('\n')<0) return false;
+  if(text.indexOf('\t')>=0) return true;
+  const lines=text.split(/\r\n?|\n/);
+  let n=0; for(const l of lines) if(/\d/.test(l)) n++;
+  return n>=3;
+}
+/* Limitlarni tekshirib holatga qo'yadi. Rad etilsa toast, jadval o'zgarmaydi. */
+function jdApply(obj){
+  if(!obj || !obj.rows || !obj.rows.length){ toast('Jadval aniqlanmadi',true); return; }
+  if(obj.rows.length>JD_MAX_ROWS){ toast(`Jadval juda katta (${JD_MAX_ROWS} qatordan ortiq)`,true); return; }
+  const ncols=obj.cols.length||obj.rows[0].length;
+  if(ncols>JD_MAX_COLS){ toast(`Jadval juda keng (${JD_MAX_COLS} ustundan ortiq)`,true); return; }
+  let bytes=0;
+  try{ bytes=new Blob([JSON.stringify(obj)]).size; }catch(e){ bytes=JSON.stringify(obj).length; }
+  if(bytes>JD_MAX_BYTES){ toast('Jadval hajmi juda katta',true); return; }
+  jadval=obj;
+  // Summa bo'sh va jami bor bo'lsa — avtomat to'ldiriladi (hodim o'zgartira oladi).
+  if(!amtVal() && obj.jami!=null && amtCur==='UZS'){
+    $('summa').value=money(obj.jami); $('summa').dataset.a000='1';
+    updateSave();
+  }
+  jdRender();
+}
+window.jdRemove=()=>{ jadval=null; const c=$('jdCard'); if(c){ c.style.display='none'; c.innerHTML=''; } };
+function jdWarnText(){
+  if(!jadval || jadval.jami==null) return null;
+  const cur=amtVal();
+  if(cur===jadval.jami) return null;
+  return `Jadval jami ${money(jadval.jami)}, yozilgan summa ${money(cur)} — tekshiring`;
+}
+function jdWarnUpdate(){
+  const el=$('jdWarn'); if(!el) return;
+  const t=jdWarnText();
+  if(t){ el.textContent=t; el.style.display='block'; } else { el.style.display='none'; }
+}
+function jdCellTxt(c){ return typeof c==='number' ? money(c) : esc(c); }
+function jdRender(){
+  const card=$('jdCard'); if(!card) return;
+  if(!jadval){ card.style.display='none'; card.innerHTML=''; return; }
+  const parts=['📋 Jadval · '+jadval.n+' qator'];
+  if(jadval.jami!=null) parts.push('jami '+money(jadval.jami)+" so'm");
+  let html='<div class="jdhd"><div><div class="jdtitle">'+esc(parts.join(' · '))+'</div>';
+  if(jadval.fayl) html+='<div class="jdfile">'+esc(jadval.fayl)+'</div>';
+  html+='</div><button type="button" class="jdrm" onclick="jdRemove()" title="Olib tashlash" aria-label="Jadvalni olib tashlash"><i data-lucide="x"></i></button></div>';
+  html+='<div id="jdWarn" class="jdwarn" style="display:none"></div>';
+  html+='<div class="jdwrap"><table class="jdtable">';
+  if(jadval.cols.length) html+='<thead><tr>'+jadval.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
+  html+='<tbody>'+jadval.rows.map(r=>'<tr>'+r.map(c=>'<td'+(typeof c==='number'?' class="num"':'')+'>'+jdCellTxt(c)+'</td>').join('')+'</tr>').join('')+'</tbody>';
+  html+='</table></div>';
+  card.innerHTML=html; card.style.display='block';
+  icons();
+  jdWarnUpdate();
+}
+window.jdPickFile=()=>{ const f=$('jdFile'); if(f) f.click(); };
+/* SheetJS LAZY — <script> tegi HEAD'da YO'Q, faqat "Excel yuklash" birinchi bosilganda
+   qo'shiladi (ai-dev.html dagi achLoadXlsx() bilan bir xil naqsh). */
+const JD_XLSX_SRC='vendor/xlsx-0.18.5.min.js';
+let _jdXlsx=null;
+function jdLoadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_jdXlsx) return _jdXlsx;
+  const p=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=JD_XLSX_SRC; s.async=true;
+    s.onload=()=>{ if(window.XLSX) res(window.XLSX); else rej(new Error('kutubxona yuklandi, lekin topilmadi')); };
+    s.onerror=()=>rej(new Error('kutubxona yuklanmadi (tarmoq)'));
+    document.head.appendChild(s);
+  });
+  p.catch(e=>{ _jdXlsx=null; console.error('SheetJS:',e); });
+  _jdXlsx=p;
+  return p;
+}
+window.onJdFile=async(el)=>{
+  const f=el.files&&el.files[0]; el.value='';
+  if(!f) return;
+  if(f.size>2*1024*1024){ toast('Fayl hajmi 2 MB dan katta',true); return; }
+  try{
+    const X=await jdLoadXlsx();
+    if(!X||!X.read||!X.utils) throw new Error('kutubxona to\'liq emas');
+    const buf=await f.arrayBuffer();
+    const wb=X.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=X.utils.sheet_to_json(ws,{header:1,raw:true});
+    const base=jdFromGrid(aoa, jdCellFromXlsx);
+    if(!base){ toast('Jadval bo\'sh yoki o\'qib bo\'lmadi',true); return; }
+    jdApply(Object.assign({v:1, manba:'xlsx', fayl:f.name}, base));
+  }catch(e){
+    console.error('Excel o\'qilmadi:',e);
+    toast('Excel o\'qib bo\'lmadi — nusxalab qo\'ying',true);
+  }
+};
+
 /* ================= AI rasm tahlili (chek/spidometr) — 7-BOSQICH =================
    🔴 TO'LIQ FON: hodim AI borligini UMUMAN bilmaydi. Fetch fire-and-forget — forma
    darrov ochiq, natija kelganda ekranda HECH QANDAY belgi chiqmaydi (avtoto'ldirish
@@ -3111,6 +3304,7 @@ function xarAllaqachon(){
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value='';
   selModda=null; selFilials.clear(); davrS=null; davrE=null;
   mxdReset();
+  jadval=null; jdRender();
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
@@ -3311,6 +3505,8 @@ window.saveHodim=async()=>{
   if(calc.cur!=='UZS') entryPayload.fc_rate=calc.rate;
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
+  const savedJadval=jadval;                 // 🔴 forma tozalanishidan OLDIN (chek/mxd bilan bir xil sabab)
+  if(savedJadval) entryPayload.jadval=savedJadval;
   // 2 ta insert (entry id kerak → entry_line). Qo'shimcha qayta-o'qish YO'Q (insert…returning).
   const r1=await qTimeout(sb.from('entry').insert(entryPayload).select('id').single());
   const ent=r1.data, e1=r1.error;
@@ -3338,6 +3534,12 @@ window.saveHodim=async()=>{
     xarHolatUI('timeout'); resetBtn(); console.timeEnd('hodim:saqlash'); return;
   }
   if(e1){
+    // 🔴 entry.jadval ustuni hali RUN qilinmagan (42703) — jadvalsiz QAYTA insert QILINMAYDI
+    // (ext_ref takror bo'lib 23505 chiqarardi). Kalit tozalanadi; hodim ✕ bilan jadvalni
+    // olib tashlab qayta saqlaydi. Jadvalsiz oddiy xarajatlarga bu shox ta'sir qilmaydi.
+    if(savedJadval && e1.code==='42703' && /jadval/i.test(String(e1.message||''))){
+      tokenTugat(); toast('Jadval hali ulanmagan (SQL run qilinmagan)',true); resetBtn(); console.timeEnd('hodim:saqlash'); return;
+    }
     // Server ANIQ xato qaytardi (4xx) → yozuv tushmagani ma'lum, kalitni bo'shatamiz.
     tokenTugat(); toast(saveErrTxt(e1),true); resetBtn(); console.timeEnd('hodim:saqlash'); return;
   }
@@ -3379,6 +3581,7 @@ window.saveHodim=async()=>{
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null;
   mxdReset();
+  jadval=null; jdRender();
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi');
@@ -3437,6 +3640,7 @@ async function ovqatSaveFlow(kassa, modda, amt, royxat){
     filial_ids:[...selFilials], kun:isoDay(nowUz()), entry_date:isoDay(nowUz()),
     royxat};
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
+  if(jadval) p_data.jadval=jadval;
   const rr=await qTimeout(sb.rpc('xarajat_saqlash_ovqat',{p_data}));
   const data=rr.data, error=rr.error;
   // 🔴 TARTIB oddiy yo'l bilan AYNAN bir xil: (1) 23505 — ANIQ javob, (2) noaniq, (3) aniq xato.
@@ -3472,6 +3676,7 @@ async function ovqatSaveFlow(kassa, modda, amt, royxat){
     swrSet('bal',balMap); renderTurSeg(); renderHero(); renderKassaBal(); }
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null; ovqatSel.clear();
+  jadval=null; jdRender();
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi · '+royxat.length+' kishi');
@@ -3498,6 +3703,7 @@ function ovqatXarAllaqachon(){
   tokenTugat(); bannerYop();
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value='';
   selModda=null; selFilials.clear(); davrS=null; davrE=null; ovqatSel.clear();
+  jadval=null; jdRender();
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
@@ -3552,7 +3758,7 @@ function openTaqsim(amt, dtId, ktId, kassa, calc){
   // har ulush uchun fc = ulush / kurs hisoblaydi (xarajat_saqlash_taqsim → kassa_kurs).
   taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, calc:calc||null,
     izoh:$('izoh').value||'', chek:chekBlob, mName:(moddaObj()&&moddaObj().name)||'',
-    mxd:mxdValues(), mxdn:mxdNeed(), aiSn:aiSnap()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
+    mxd:mxdValues(), mxdn:mxdNeed(), aiSn:aiSnap(), jd:jadval};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
   taqsimEqualCalc(); renderTaqsim();
   $('taqsimModal').classList.add('open');
 }
@@ -3609,7 +3815,7 @@ window.confirmTaqsim=async()=>{
   const amt=Math.round(taqsimCtx.amt), s=taqsimTotal();
   if(s!==amt || taqsimFils.some(f=>(Number(taqsimAlloc[f.id])||0)<=0)) return;
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Saqlanmoqda…';
-  const {dtId,ktId,kassa,izoh,chek,mName,calc,mxd:mxdV,mxdn:mxdN,aiSn}=taqsimCtx;
+  const {dtId,ktId,kassa,izoh,chek,mName,calc,mxd:mxdV,mxdn:mxdN,aiSn,jd:jdV}=taqsimCtx;
   const kCur=curOf(kassa);
   // Muvaffaqiyat yakuni — BIR joyda (odatiy javob va avto-holat tekshiruvi ikkalasi
   // ham shu funksiyani chaqiradi, kod ikki marta yozilmasin — CLAUDE.md talabi).
@@ -3629,6 +3835,10 @@ window.confirmTaqsim=async()=>{
     // Forma tozalanadi (kassa + tur qoladi)
     $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear(); davrS=null; davrE=null;
     mxdReset();
+    // 🔴 taqsimCtx.jd — snapshot olingan payt, joriy `jadval` bilan bir xil bo'lmasligi
+    // mumkin (modal ochiq turganda ✕ bosilgan/qayta yopishtirilgan bo'lishi mumkin emas,
+    // lekin fail-closed): faqat SHU yozuvga tegishli snapshot tozalanadi.
+    if(jadval===jdV){ jadval=null; jdRender(); }
     removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
     toast('Saqlandi · '+nFil+' filial');
     if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
@@ -3671,6 +3881,7 @@ window.confirmTaqsim=async()=>{
   if(kCur!=='UZS' && calc && calc.rate) p_data.kassa_kurs=calc.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
+  if(jdV) p_data.jadval=jdV;
   const rr=await qTimeout(sb.rpc('xarajat_saqlash_taqsim',{p_data}));
   const data=rr.data, error=rr.error;
   // 🔴 TARTIB oddiy yo'l bilan bir xil: (1) 23505 — ANIQ javob, (2) noaniq, (3) aniq xato.
@@ -3908,8 +4119,18 @@ function applyAccounts(data){
 let _bound=false;
 function bindInputs(){ if(_bound) return; _bound=true;
   // so'mda — minglik ajratgich + avtomat "000"; valyutada — 2 kasrgacha, "000" YO'Q.
-  $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); });
+  $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); jdWarnUpdate(); });
   $('izoh').addEventListener('input',updateSave);
+  // Jadval: Izoh maydoniga ko'p qatorli/tab'li matn yopishtirilsa — jadval sifatida
+  // ushlanadi, Izoh o'zi o'zgarmaydi (BRIEF_PROVODKA_JADVAL.md). Oddiy bir qatorli
+  // paste — avvalgidek Izoh ichiga tushadi (preventDefault chaqirilmaydi).
+  $('izoh').addEventListener('paste',e=>{
+    const cd=e.clipboardData||window.clipboardData;
+    const text=cd?cd.getData('text/plain'):'';
+    if(!jdLooksTable(text)) return;
+    e.preventDefault();
+    jdApply(jadvalParse(text));
+  });
   // RBAC: ruxsat fonda (fetchFresh) o'zgarsa — tanlangan modda endi ruxsatsiz bo'lishi
   // mumkin (renderModda() selModda'ni o'zi tozalaydi), ovqat paneli ham qayta chiziladi.
   if(window.permOnChange) window.permOnChange(()=>{ renderModda(); updateModdaUI(); });
@@ -4715,6 +4936,7 @@ window.srvSave=async()=>{
   if(!mxdOk()){ toast('«'+mxdFirstMissing()+'» to\'ldirilishi shart',true); mxdShowReq(); return; }
   const mxdV=mxdValues(), mxdN=mxdNeed();          // 🔴 forma tozalanishidan OLDIN
   const aiSn=aiSnap();                             // 🔴 xuddi shu sabab
+  const jdSnap=jadval;                             // 🔴 xuddi shu sabab — entry keyinroq entry_jadval_yoz bilan yoziladi
   srvSaving=true; srvBandAt=Date.now();
   const btn=$('srvSend'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" aria-hidden="true"></span>Yuborilmoqda…'; }
   if(msg){ msg.textContent=''; msg.className='tmsg'; }
@@ -4771,6 +4993,7 @@ window.srvSave=async()=>{
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value='';
   selModda=null; selFilials.clear(); davrS=null; davrE=null;
   mxdReset();
+  jadval=null; jdRender();
   removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
   toast('So\'rov yuborildi');
   srvPendLoad();
@@ -4779,6 +5002,15 @@ window.srvSave=async()=>{
   (async()=>{
     await mxdYoz(eid, mxdV, mxdN);
     aiBind(eid, aiSn); aiKmYoz(eid, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
+    // 🔴 entry `sorov_yarat` ichida yaratilgan (imzosini o'zgartirib bo'lmaydi) — jadval
+    // MUVAFFAQIYATDAN KEYIN alohida yoziladi. Xato bo'lsa (RPC yo'q/42703/vaqt/egalik) —
+    // so'rovning o'zi buzilmaydi, faqat ogohlantiramiz.
+    if(jdSnap){
+      try{
+        const {error:ej}=await sb.rpc('entry_jadval_yoz',{p_ext_ref:token,p_jadval:jdSnap});
+        if(ej) toast('So\'rov yuborildi, lekin jadval biriktirilmadi',true);
+      }catch(e){ toast('So\'rov yuborildi, lekin jadval biriktirilmadi',true); }
+    }
     if(chekUp&&eid){
       try{ await sb.storage.from('xarajat-cheklari').upload(kId+'/'+eid+'.jpg', chekUp, {contentType:'image/jpeg',upsert:true}); }catch(e){}
     }
@@ -4894,6 +5126,10 @@ async function srvTopSave(){
   }
   // 🔴 FAIL-CLOSED: server AYNAN top-up yozganini tasdiqlasin.
   if(!data||data.ok!==true||String(data.turi||'')!=='topup'){ srvNoaniq('nomalum'); return; }
+  // ℹ️ TOP-UP oqimida `entry` UMUMAN yozilmaydi (yuqoridagi SQL izohiga qara) — jadval
+  //    biriktirishga yozuv yo'q, shuning uchun `entry_jadval_yoz` bu yerda CHAQIRILMAYDI
+  //    (chaqirilsa har safar "biriktirilmadi" degan yolg'on toast chiqardi). Jadval formada
+  //    qoladi — hodim pul kelgach xarajatni yozganda u bilan ketadi.
   // Qoldiq OPTIMISTIK o'zgartirilmaydi: pul hali kelmagan (tasdiq kutilmoqda).
   srvQolYopish('So\'rov yuborildi');
 }
