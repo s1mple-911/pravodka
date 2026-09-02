@@ -253,7 +253,13 @@
   @keyframes sheetin{from{transform:translateY(100%)}to{transform:none}}
   .modalbox,.kbox,.tbox{background:var(--surface);width:100%;border-radius:var(--r-xl);padding:var(--s5);
     box-shadow:var(--shadow-lg);animation:popin .2s cubic-bezier(.22,.61,.36,1)}
-  .modalbox{max-width:400px}
+  /* Desktop: oyna ekrandan baland bo'lsa (masalan "Ruxsat so'rash" tabi — 4 ta maydon +
+     2 ta ro'yxat) ICHIDA aylanadi. Avval max-height yo'q edi: .modal align-items:center
+     bilan tepasi-pastki qismi kesilib, hech qayerda skroll yo'q edi (2026-09-02).
+     Mobil (<560px) o'z qoidasiga ega — u tegilmagan. */
+  .modalbox{max-width:400px;max-height:calc(100vh - 2*var(--s5));overflow-y:auto;
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent}
   .kbox{max-width:380px}
   .tbox{max-width:460px;max-height:88vh;display:flex;flex-direction:column}
   .modalbox h3,.kbox h3,.tbox h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.015em}
