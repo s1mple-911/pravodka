@@ -796,6 +796,15 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   → `N8N_QARZ_NOTIFY.js` Xabar Tuz → Telegram → `qarz_notify_belgila`; kunlik 09:00 `qarz_eslatma_navbat`).
   Faqat `hodim_notify_admin` adminlariga. `hodim_notify` jadvaliga tegilmagan. 🔴 `update_workflow` ISHLATILMAYDI.
 - Jurnal: qarz yozuvlari `source='qarz'` — Chiqim/Kirim avtomat; balans 4700 AKTIV; cashflow avtomat.
+- **4-bosqich (2026-09-03, ARX 14-bo'lim)**: nav yorlig'i «Qarzdorlar» → **«Qarz»** (kalit/`href` `qarzdor`
+  o'zgarmagan). Sahifada yuqori segment (`qzTop`, `localStorage` `qz-top`): **«Bizdan qarzdor»** (yangi tizim:
+  Qarz berish · Kutilayotgan · Tilxatlar) · **«Biz qarzdor»** (`#tab-kontr`, eski 4010/6010 + yuklar, tegilmagan).
+  🔴 **UI'da ichki/tashqi YO'Q** — qarzdor «Mavjud ro'yxatdan» (aros_staff + avval qo'shilgan shaxslar bitta
+  picker, `qzPick={kind:'staff'|'qarzdor'}`) yoki «Yangi qarzdor»; DB'da `qarzdor.tur` o'zi hosil bo'ladi
+  (staff→'ichki'/4710, shaxs→'tashqi'/4720). **Tilxat rasmi**: staff bo'lmagan qarzdorga MAJBURIY (klient +
+  server `tilxat_kerak`), staff'ga ixtiyoriy — `qarz_tilxat_yuklandi` endi `faol` holatni ham qabul qiladi
+  (holat o'zgarmaydi). **`qarz.taskfix_link`** (CHECK `^https?://`, ≤500; `qarz_yarat` xato kodi
+  `taskfix_link_notogri`; `qarz_qator` qaytaradi) — kartalarda chip, faqat http(s) chiziladi.
 
 ## Avtomatik sinxron (n8n)
 

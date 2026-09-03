@@ -72,6 +72,18 @@
 --     `qarz_notify_qoy` ichida `exception when others -> raise warning`).
 --   * `qarz_notify`da RLS bor, lekin POLICY YOQ — faqat service_role va
 --     SECURITY DEFINER funksiyalar yozadi/oqiydi (hodim_notify naqshi).
+--
+-- ## 2026-09-03 OZGARISH (Asilbek qarori — ichki/tashqi UI'dan olib
+--    tashlandi, DB'dagi qarzdor.tur ozgarmadi; har qarzga TaskFix havolasi):
+--   * qarz.taskfix_link (text, ixtiyoriy) — 4-BOLIM (create table + additive
+--     alter + qarz_taskfix_link_chk CHECK).
+--   * qarz_yarat(jsonb) — p->>taskfix_link qabul qiladi, notogri bolsa
+--     {ok:false, kod:'taskfix_link_notogri'} (13-BOLIM).
+--   * qarz_qator(qarz) — jsonb chiqishiga 'taskfix_link' qoshildi (11-BOLIM);
+--     qarz_royxat/qarz_kart shu funksiyadan foydalangani uchun avtomat oladi.
+--   * qarz_tilxat_yuklandi(uuid,text) — endi status='faol' da ham ishlaydi
+--     (staff qarziga tilxat ixtiyoriy va keyinroq yuklanishi mumkin), holat
+--     ozgarmaydi; yopildi/bekor hamon holat_notogri (14-BOLIM).
 -- =====================================================================
 
 
@@ -349,6 +361,7 @@ create table if not exists qarz (
   tilxat_rasm_path   text,
   entry_id           uuid        references entry(id),
   izoh               text,
+  taskfix_link       text,
   ext_ref            text        unique,
   created_by         uuid,
   created_at         timestamptz not null default now(),
@@ -375,6 +388,28 @@ create table if not exists qarz (
 comment on table qarz is
   'Bitta qarz (shartnoma). entry_id FAQAT status=faol/yopildi da toladi (pul harakati '
   'FAQAT qarz_faollashtir() da). foiz_yillik hozircha 0 (1-bosqichda foiz hisoblanmaydi).';
+
+-- 2026-09-03: taskfix_link — har qarzga TaskFix havolasi (ixtiyoriy).
+-- `create table if not exists` allaqachon RUN bolgan bazada ustun qoshmaydi,
+-- shuning uchun alohida additive alter (qarz jadvali hali RUN qilinmagan
+-- bolsa ham bu qator xato bermaydi — ustun create table ichida allaqachon bor).
+alter table qarz add column if not exists taskfix_link text;
+
+comment on column qarz.taskfix_link is
+  'Qarzga tegishli TaskFix vazifa havolasi (ixtiyoriy, http/https, <=500 belgi).';
+
+do $qarz_taskfix_ck$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'qarz_taskfix_link_chk'
+  ) then
+    alter table qarz add constraint qarz_taskfix_link_chk check (
+      taskfix_link is null
+      or (taskfix_link ~ '^https?://' and length(taskfix_link) <= 500)
+    );
+  end if;
+end
+$qarz_taskfix_ck$;
 
 create index if not exists qarz_qarzdor_idx on qarz (qarzdor_id);
 create index if not exists qarz_kassa_idx   on qarz (kassa_id);
@@ -833,6 +868,7 @@ begin
     'tilxat_matn',         q.tilxat_matn,
     'tilxat_rasm_path',    q.tilxat_rasm_path,
     'izoh',                q.izoh,
+    'taskfix_link',        q.taskfix_link,
     'entry_id',            q.entry_id,
     'created_by',          q.created_by,
     'created_at',          q.created_at,
@@ -1098,6 +1134,7 @@ declare
   v_izoh        text := nullif(btrim(coalesce(p->>'izoh', '')), '');
   v_shablon     uuid := nullif(p->>'tilxat_shablon_id', '')::uuid;
   v_tmatn       text := nullif(p->>'tilxat_matn', '');
+  v_taskfix     text := nullif(btrim(coalesce(p->>'taskfix_link', '')), '');
   v_ext_client  text := nullif(btrim(coalesce(p->>'ext_ref', '')), '');
   v_ext         text;
   v_qd          qarzdor;
@@ -1121,6 +1158,11 @@ begin
     raise exception 'ext_ref 6..200 belgi bolishi kerak' using errcode = '22000';
   end if;
   v_ext := coalesce(v_ext_client, 'qarz:' || v_id::text);
+
+  -- 2026-09-03: taskfix_link — ixtiyoriy, lekin berilsa http(s) va <=500 belgi.
+  if v_taskfix is not null and (v_taskfix !~ '^https?://' or length(v_taskfix) > 500) then
+    return jsonb_build_object('ok', false, 'kod', 'taskfix_link_notogri');
+  end if;
 
   -- Qarzdor
   if v_qarzdor_id is null then
@@ -1183,14 +1225,15 @@ begin
 
   insert into qarz (id, qarzdor_id, kassa_id, summa, currency, muddat_turi,
                      oylik_summa, oylar_soni, boshlanish, tugash, foiz_yillik, status,
-                     tilxat_kerak, tilxat_shablon_id, tilxat_matn, izoh, ext_ref, created_by)
+                     tilxat_kerak, tilxat_shablon_id, tilxat_matn, izoh, taskfix_link, ext_ref, created_by)
   values (v_id, v_qarzdor_id, v_kassa_id, v_summa, 'UZS', v_muddat,
           v_oylik_summa, v_oylar_soni, v_boshlanish, v_tugash, 0, 'tilxat_kutilmoqda',
-          v_tilxat_kerak, v_shablon, v_tmatn, v_izoh, v_ext, v_uid);
+          v_tilxat_kerak, v_shablon, v_tmatn, v_izoh, v_taskfix, v_ext, v_uid);
 
   insert into qarz_tarix (qarz_id, hodisa, data, kim)
   values (v_id, 'yaratildi',
-          jsonb_build_object('tur', v_qd.tur, 'summa', v_summa, 'kassa_id', v_kassa_id), v_uid);
+          jsonb_build_object('tur', v_qd.tur, 'summa', v_summa, 'kassa_id', v_kassa_id,
+                              'taskfix_link', v_taskfix), v_uid);
 
   if v_qd.tur = 'ichki' then
     v_res := qarz_faollashtir(v_id);
@@ -1221,7 +1264,8 @@ grant execute on function qarz_yarat(jsonb) to authenticated;
 comment on function qarz_yarat(jsonb) is
   'Qarz yaratadi. Ichki qarzdor -> darrov faollashtiriladi (pul chiqadi, xato bolsa hech '
   'narsa saqlanmaydi). Tashqi -> tilxat_kutilmoqda (draft, pul harakat qilmaydi). '
-  'p->>ext_ref ixtiyoriy (takror bosish himoyasi) — takror kelsa kod=takror + mavjud id qaytadi.';
+  'p->>ext_ref ixtiyoriy (takror bosish himoyasi) — takror kelsa kod=takror + mavjud id qaytadi. '
+  'p->>taskfix_link ixtiyoriy (2026-09-03) — http(s), <=500 belgi, notogri bolsa kod=taskfix_link_notogri.';
 
 
 -- #####################################################################
@@ -1253,7 +1297,9 @@ begin
   if not found then
     raise exception 'Qarz topilmadi' using errcode = '22000';
   end if;
-  if q.status <> 'tilxat_kutilmoqda' then
+  -- 2026-09-03: 'faol' holatda ham ruxsat — staff (ichki) qarzga tilxat
+  -- ixtiyoriy va keyinroq ham yuklanishi mumkin. yopildi/bekor esa hamon TAQIQ.
+  if q.status not in ('tilxat_kutilmoqda', 'faol') then
     return jsonb_build_object('ok', false, 'kod', 'holat_notogri', 'status', q.status);
   end if;
   if q.created_by is distinct from v_uid and not is_admin() then
@@ -1283,7 +1329,9 @@ grant execute on function qarz_tilxat_yuklandi(uuid, text) to authenticated;
 
 comment on function qarz_tilxat_yuklandi(uuid, text) is
   'Tilxat rasmi bucketga yuklangach yolni qarz.tilxat_rasm_path ga yozadi. '
-  'Yol qatiy shaklda tekshiriladi: <qarz_id>/tilxat.jpg, VA bucketda obyekt mavjudligi.';
+  'Yol qatiy shaklda tekshiriladi: <qarz_id>/tilxat.jpg, VA bucketda obyekt mavjudligi. '
+  '2026-09-03: status=faol da ham ishlaydi (ixtiyoriy tilxat, staff qarziga keyin qoshiladi) — '
+  'holat ozgarmaydi, faqat tilxat_rasm_path yoziladi. yopildi/bekor hamon holat_notogri.';
 
 
 -- #####################################################################

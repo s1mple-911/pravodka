@@ -287,3 +287,22 @@ n8n kunlik: bugun/ertaga muddati kelgan va kechikkan qarzlar → admin/qarz beru
 SQL: `PROVODKA_QARZ.sql` hali RUN qilinmagan → o'sha faylning o'zida: `tilxat_shablon.fayl_path text`,
 storage policy `shablon/<id>.<ext>` (admin insert/update, authenticated select), `qarz_royxat` ga
 `p_tilxat boolean default null` (true = rasmi bor), seed 2 shablon.
+
+## 14. 4-BOSQICH — «KATTA O'ZGARISH» (Asilbek, 2026-09-03), TASDIQLANGAN
+1. **Bo'lim nomi «Qarzdorlar» → «Qarz»** (16 dev fayl nav + sozlama xaritasi + index kartasi). Kalit `qarzdor` va
+   `href` O'ZGARMAGAN (ruxsat tizimi tegilmadi).
+2. **Kirganda 2 bo'lim** (yuqori segment, `localStorage` `qz-top`): **«Bizdan qarzdor»** — yangi qarz tizimi
+   (sub-tablar: Qarz berish · Kutilayotgan · Tilxatlar); **«Biz qarzdor»** — eski mantiq (`#tab-kontr`: 4010/6010 +
+   Aros yuklari kelaveradi), mantiqi tegilmagan. «Biz qarzdormiz» sub-tabi olib tashlandi.
+3. **«Ichki/tashqi» tushunchasi UI'da YO'Q.** Qarzdor tanlash: **«Mavjud ro'yxatdan»** (aros_staff + avval
+   qo'shilgan shaxslar bitta ro'yxatda, «avval qo'shilgan» chipi) yoki **«Yangi qarzdor»** (ism/familya/telefon).
+   DB'da `qarzdor.tur` qoladi va o'zi hosil bo'ladi: staff → 'ichki' (4710), shaxs → 'tashqi' (4720) — hisob
+   rejasi va guardlar o'zgarmadi.
+4. **Tilxat rasmi**: staff bo'lmagan qarzdorga (yangi ham, avval qo'shilgan shaxs ham) **MAJBURIY** — formada
+   faylsiz saqlab bo'lmaydi (klient + server `tilxat_kerak`); staff'ga **ixtiyoriy** (fayl bo'lsa `faol` qarzga
+   ham yuklanadi — `qarz_tilxat_yuklandi` endi `faol` holatni qabul qiladi, holat o'zgarmaydi).
+   «Tilxat kutilmoqda» drafti faqat yuklash yiqilganda qoladi (zaxira yo'l).
+5. **TaskFix havola**: `qarz.taskfix_link text` (CHECK `^https?://`, ≤500), `qarz_yarat` `p.taskfix_link`
+   (xato kodi `taskfix_link_notogri`), `qarz_qator`/`qarz_kart` qaytaradi; formada «TaskFix havola (ixtiyoriy)»,
+   Kutilayotgan kartasi va qarz modalida chip (faqat http(s) chiziladi).
+6. Kassa tanlash — 13.4 dagidek (parent → pul turi), tegilmadi.
