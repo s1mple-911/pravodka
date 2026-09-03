@@ -737,6 +737,11 @@ tugagach FAQAT o'sha spanlar patch qilinadi (jadval qayta chizilmaydi); kunlar d
 Panel `.mbbar` (dashboard'dan keyin, jadvaldan oldin; `#mbcTxt` qiymat, `#mbcBuy`/`#mbcSell` **hidden** —
 bank sotib olish/sotish kursi uchun manba tasdiqlanmagan; `nbu.uz/uz/exchange-rates/json/` ehtimoliy manba,
 2026-09-03 da bu mashinadan ulanmadi — tekshirilmagan).
+**Konvert izohida MB kursi (2026-09-03, `kassa-dev.html`)**: konvert modali ochilganda tanlangan valyuta uchun
+MB rasmiy kursi olinadi (`mbFetch`, kesh `prov-mbk:<CUR>:<sana>` 12 soat, 6s timeout) va `p_note` BOSHIGA
+«MB 11 813 (03.09.2026)» qo'shiladi → `do_convert_v2` description'iga («… · kurs X · MB … · izoh»); pending
+bo'lsa `convert_request.note` orqali approve'da ham o'sha (so'rov kunining kursi). Olinmasa izohga hech narsa
+qo'shilmaydi, konvert bloklanmaydi.
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 
