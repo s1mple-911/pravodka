@@ -796,6 +796,10 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   → `N8N_QARZ_NOTIFY.js` Xabar Tuz → Telegram → `qarz_notify_belgila`; kunlik 09:00 `qarz_eslatma_navbat`).
   Faqat `hodim_notify_admin` adminlariga. `hodim_notify` jadvaliga tegilmagan. 🔴 `update_workflow` ISHLATILMAYDI.
 - Jurnal: qarz yozuvlari `source='qarz'` — Chiqim/Kirim avtomat; balans 4700 AKTIV; cashflow avtomat.
+  🔴 **Bazada `entry_source_check` CHECK bor** (repodagi SQL'da yo'q, Supabase'da qo'lda qo'yilgan):
+  `source` faqat ruxsat etilgan qiymatlar (manual, aros_auto, …). Yangi `source` qiymati kiritilsa cheklov
+  kengaytirilishi SHART — `PROVODKA_QARZ.sql` 14a-bo'limi naqshi (`pg_get_constraintdef` o'qib `ARRAY[`
+  boshiga qo'shadi, mavjud ro'yxat tegilmaydi, idempotent).
 - **4-bosqich (2026-09-03, ARX 14-bo'lim)**: nav yorlig'i «Qarzdorlar» → **«Qarz»** (kalit/`href` `qarzdor`
   o'zgarmagan). Sahifada yuqori segment (`qzTop`, `localStorage` `qz-top`): **«Bizdan qarzdor»** (yangi tizim:
   Qarz berish · Kutilayotgan · Tilxatlar) · **«Biz qarzdor»** (`#tab-kontr`, eski 4010/6010 + yuklar, tegilmagan).

@@ -1345,6 +1345,47 @@ comment on function qarz_tilxat_yuklandi(uuid, text) is
 
 
 -- #####################################################################
+-- ##  14a-BOLIM — entry.source CHECK ga 'qarz' qiymati (2026-09-03)   ##
+-- #####################################################################
+-- Bazada `entry_source_check` cheklovi bor (repodagi SQL'da emas —
+-- Supabase'da qolda qoyilgan; malum qiymatlar: manual, aros_auto, aros ...).
+-- qarz_faollashtir/qarz_tolov `source='qarz'` bilan yozadi — cheklov buni
+-- bilmasa 23514 ("violates check constraint entry_source_check") beradi.
+-- Mavjud royxat OZGARTIRILMAYDI: cheklov matni pg_get_constraintdef bilan
+-- oqiladi va ARRAY[...] boshiga 'qarz' qoshib qayta yaratiladi. Cheklov yoq
+-- bolsa yoki 'qarz' allaqachon bor bolsa — hech narsa qilinmaydi (idempotent).
+-- Shakli kutilmagan bolsa (ARRAY[ topilmasa) — XATO: qolda korish kerak.
+do $qarz_src$
+declare
+  v_def text;
+  v_new text;
+begin
+  select pg_get_constraintdef(c.oid)
+    into v_def
+    from pg_constraint c
+   where c.conrelid = 'public.entry'::regclass
+     and c.conname  = 'entry_source_check';
+
+  if v_def is null then
+    raise notice 'entry_source_check yoq — hech narsa qilinmadi';
+    return;
+  end if;
+  if v_def like '%''qarz''%' then
+    raise notice 'entry_source_check allaqachon qarz ni biladi';
+    return;
+  end if;
+  if position('ARRAY[' in v_def) = 0 then
+    raise exception 'entry_source_check shakli kutilmagan, qolda qoshing: %', v_def;
+  end if;
+
+  v_new := replace(v_def, 'ARRAY[', 'ARRAY[''qarz''::text, ');
+  execute 'alter table entry drop constraint entry_source_check';
+  execute 'alter table entry add constraint entry_source_check ' || v_new;
+  raise notice 'entry_source_check yangilandi: %', v_new;
+end $qarz_src$;
+
+
+-- #####################################################################
 -- ##  15-BOLIM — qarz_faollashtir(uuid)  🔴 PUL HARAKATI              ##
 -- #####################################################################
 
@@ -2262,6 +2303,12 @@ begin
   end if;
   if not exists (select 1 from tilxat_shablon where nom = 'Tilxat — oyma-oy') then
     raise exception 'Seed shablon "Tilxat — oyma-oy" topilmadi';
+  end if;
+  -- 23.3a entry.source cheklovi 'qarz' ni biladimi (14a-BOLIM)
+  if exists (select 1 from pg_constraint where conrelid = 'public.entry'::regclass and conname = 'entry_source_check')
+     and not exists (select 1 from pg_constraint where conrelid = 'public.entry'::regclass and conname = 'entry_source_check'
+                       and pg_get_constraintdef(oid) like '%''qarz''%') then
+    raise exception 'entry_source_check hali qarz ni bilmaydi (14a-BOLIM ishlamadi)';
   end if;
   if not exists (
     select 1 from information_schema.columns
