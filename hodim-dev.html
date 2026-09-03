@@ -561,6 +561,7 @@
     font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;transition:background .15s}
   @media(hover:hover){.jdxbtn:hover{background:var(--surface-3)}}
   .jdxbtn svg{width:14px;height:14px}
+  .jdxbtns{display:flex;gap:8px;flex:none;flex-wrap:wrap;justify-content:flex-end}
   .jdcard{margin-top:var(--s3);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);
     padding:var(--s3) var(--s4);max-width:100%}
   .jdhd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3)}
@@ -579,6 +580,8 @@
   .jdtable tbody tr:last-child td{border-bottom:none}
   .jdwarn{margin-top:var(--s3);color:var(--amber);background:var(--amber-soft);border-radius:var(--r-sm);
     padding:6px 10px;font-size:12.5px;font-weight:600;line-height:1.4}
+  /* Jadval jami xarajat summasidan KO'P — bloklovchi (qizil), kam bo'lsa yuqoridagi amber qoladi. */
+  .jdwarn.no{color:var(--red-ink);background:var(--red-soft)}
   /* ================= spidometr (.ai-*) — chek blokining "muloyim karta" uslubi ================= */
   .ai-spidsect{margin-top:var(--s3);background:var(--surface-2);border-radius:var(--r-lg);padding:var(--s4)}
   .ai-spidsect .lbl::before{content:'';display:inline-block;width:13px;height:13px;margin-right:5px;vertical-align:-2px;
@@ -1217,11 +1220,17 @@
       <div class="sect">
         <div class="izohhd">
           <label class="lbl" id="izohLbl" for="izoh">Izoh <span class="opt">(ixtiyoriy)</span></label>
-          <button type="button" class="jdxbtn" id="jdXBtn" onclick="jdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Excel yuklash</span></button>
+          <!-- 2026-09-03: erkin Excel/paste o'chirildi (Asilbek qarori) — endi FAQAT bitta
+               umumiy shablon. "Yuklab olish" bo'sh shablonni beradi, "Yuklash" faqat
+               o'sha shablonni qabul qiladi (jdFromTemplate — fail-closed). -->
+          <div class="jdxbtns" id="jdXBtns">
+            <button type="button" class="jdxbtn" id="jdTplBtn" onclick="jdShablonYuklab()"><i data-lucide="download"></i><span>Shablonni yuklab olish</span></button>
+            <button type="button" class="jdxbtn" id="jdXBtn" onclick="jdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Shablonni yuklash</span></button>
+          </div>
         </div>
         <input class="txt" id="izoh" placeholder="masalan: taksi puli" autocomplete="off">
-        <!-- Jadval (Excel nusxa/.xlsx) — izohdan alohida, entry.jadval ga yoziladi -->
-        <input type="file" accept=".xlsx,.xls,.csv" id="jdFile" class="vh" onchange="onJdFile(this)">
+        <!-- Jadval (Excel shablon) — izohdan alohida, entry.jadval ga yoziladi -->
+        <input type="file" accept=".xlsx,.xls" id="jdFile" class="vh" onchange="onJdFile(this)">
         <div id="jdCard" class="jdcard" style="display:none"></div>
       </div>
 
@@ -1440,13 +1449,17 @@
       <div class="srv-hint" id="rxIzohHint">Tasdiqlovchi faqat shu matnni ko'radi.</div>
     </div>
 
-    <!-- Jadval (Excel nusxa/.xlsx) — faqat tanlangan modda excel===true bo'lsa (rxJdUI) -->
+    <!-- Jadval (Excel shablon) — faqat tanlangan modda excel===true bo'lsa (rxJdUI).
+         2026-09-03: faqat rxJdShablonYuklab() bergan shakl qabul qilinadi. -->
     <div class="srv-fld" id="rxJdWrap" style="display:none">
       <div class="izohhd">
         <div class="lbl">Jadval <span class="opt">(ixtiyoriy)</span></div>
-        <button type="button" class="jdxbtn" id="rxJdXBtn" onclick="rxJdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Excel yuklash</span></button>
+        <div class="jdxbtns">
+          <button type="button" class="jdxbtn" id="rxJdTplBtn" onclick="rxJdShablonYuklab()"><i data-lucide="download"></i><span>Shablonni yuklab olish</span></button>
+          <button type="button" class="jdxbtn" id="rxJdXBtn" onclick="rxJdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Shablonni yuklash</span></button>
+        </div>
       </div>
-      <input type="file" accept=".xlsx,.xls,.csv" id="rxJdFile" class="vh" onchange="onRxJdFile(this)">
+      <input type="file" accept=".xlsx,.xls" id="rxJdFile" class="vh" onchange="onRxJdFile(this)">
       <div id="rxJdCard" class="jdcard" style="display:none"></div>
     </div>
 
@@ -2687,16 +2700,21 @@ window.openChek=async(kassaId,entryId)=>{
   }catch(e){ toast('Chek ochilmadi',true); }
 };
 
-/* ================= Jadval (Excel nusxa/.xlsx) — BRIEF_PROVODKA_JADVAL.md =================
+/* ================= Jadval (Excel shablon) — BRIEF_PROVODKA_JADVAL.md =================
    Muammo: Izoh bir qatorli <input> — Excel'dan nusxalangan ko'p qatorli ro'yxat u yerda
    bitta blob bo'lib yopishib qoladi. Yechim: jadval IZOHDAN ALOHIDA holatda (`jadval`)
    saqlanadi va saqlashda `entry.jadval` ustuniga yoziladi (izoh o'zgarmaydi, qisqa qoladi).
-   🔴 `jadvalParse(text)` — SOF FUNKSIYA (DOM'ga bog'liq emas, node bilan test qilingan):
-   paste matnidan {v,manba,fayl,cols,rows,jami,n} quradi. Excel (.xlsx/.xls/.csv) yo'li
-   xuddi shu `jdFromGrid()` yadrosidan foydalanadi (SheetJS `sheet_to_json` AOA'sidan).
-   Limitlar (500 qator / 16 ustun / 100000 bayt) — chaqiruvchida (jdApply) tekshiriladi:
+   🔴 2026-09-03 (Asilbek qarori): erkin Excel/paste "uncha o'xshamadi" — har hodim
+   o'zicha jadval qilardi. Endi FAQAT bitta umumiy SHABLON: `jdShablonYuklab()` bo'sh
+   shablonni beradi (A1 marker + 6-qatordagi sarlavha), `jdHandleXlsxInput()`/
+   `jdFromTemplate()` FAQAT o'sha aniq shaklni qabul qiladi — boshqa Excel FAIL-CLOSED
+   rad etiladi. Izohga paste qilish endi oddiy matn (jadval qurmaydi).
+   Limitlar (500 qator / 16 ustun / 100000 bayt) — chaqiruvchida (jdApplyTo) tekshiriladi:
    oshsa toast + jadval QABUL QILINMAYDI (kesilmaydi). Katak matni esa 200 belgida
-   avtomat kesiladi (jdCell ichida) — bu reject emas, oddiy qisqartirish. */
+   avtomat kesiladi (jdCell ichida) — bu reject emas, oddiy qisqartirish.
+   `jdFromGrid`/`jdCell`/`jdSplitLine`/`jadvalParse`/`jdLooksTable` — ESKI paste/erkin-Excel
+   yadrosi, endi HECH QAYERDAN chaqirilmaydi (dead code, ataylab o'chirilmagan — eski
+   yozuvlar jurnalda `manba:'paste'`/eski `manba:'xlsx'` bilan hamon o'qiladi). */
 // 🔴 "hammasi" so'zi ikki yozuvda uchraydi: lotin ("hammasi") va kirill ("ХАММАСИ" — odatiy
 // yozuvda "х" bilan, "ҳ" bilan emas). Ikkalasi ham "jami" qatorini aniqlashi kerak.
 const JD_JAMI_RE=/жами|хаммаси|hammasi|jami|итого|всего|total/i;
@@ -2778,16 +2796,20 @@ function jdApplyTo(state,obj){
 }
 function jdApply(obj){ jdApplyTo(JD_STATE_MAIN,obj); }
 window.jdRemove=()=>{ jadval=null; jdRenderInto($('jdCard'),null); };
-function jdWarnText(){
-  if(!jadval || jadval.jami==null) return null;
-  const cur=amtVal();
-  if(cur===jadval.jami) return null;
-  return `Jadval jami ${money(jadval.jami)}, yozilgan summa ${money(cur)} — tekshiring`;
+/* Jadval jami / yozilgan summa nisbati. `over:true` — jami summadan KO'P, saqlash
+   BLOKLANADI (qizil, `.jdwarn.no`); `over:false` — jami summadan KAM, faqat ogohlantirish
+   (amber, bloklamaydi); teng bo'lsa null (hech narsa ko'rsatilmaydi). */
+function jdCheck(jd,amt){
+  if(!jd || jd.jami==null) return null;
+  if(jd.jami>amt) return {over:true, text:`Jadval jami (${money(jd.jami)}) xarajat summasidan (${money(amt)}) ko'p — shablonni to'g'irlang`};
+  if(jd.jami<amt) return {over:false, text:`Jadval jami ${money(jd.jami)}, yozilgan summa ${money(amt)} — tekshiring`};
+  return null;
 }
 function jdWarnUpdate(){
   const el=$('jdWarn'); if(!el) return;
-  const t=jdWarnText();
-  if(t){ el.textContent=t; el.style.display='block'; } else { el.style.display='none'; }
+  const c=jdCheck(jadval, amtVal());
+  if(c){ el.textContent=c.text; el.style.display='block'; el.classList.toggle('no',!!c.over); }
+  else { el.style.display='none'; el.classList.remove('no'); }
 }
 function jdCellTxt(c){ return typeof c==='number' ? money(c) : esc(c); }
 /* Umumiy chizuvchi — jadval kartasini istalgan konteynerga (jdCard/rxJdCard) chizadi.
@@ -2821,8 +2843,8 @@ const JD_STATE_MAIN={
 // ko'rinadi; bayroq yo'q moddaga almashilsa mavjud jadval tozalanadi.
 function updateJdUI(){
   const ok=jadvalOk();
-  const btn=$('jdXBtn');
-  if(btn) btn.style.display=ok?'':'none';
+  const wrap=$('jdXBtns');
+  if(wrap) wrap.style.display=ok?'':'none';
   if(!ok && jadval){ jadval=null; jdRender(); toast("Bu turda jadval yo'q"); }
 }
 window.jdPickFile=()=>{ const f=$('jdFile'); if(f) f.click(); };
@@ -2844,6 +2866,100 @@ function jdLoadXlsx(){
   _jdXlsx=p;
   return p;
 }
+/* ---- Shablon: generatsiya (jdShablonYuklab) + qabul qilish (jdFromTemplate) ----
+   2026-09-03 (Asilbek qarori) — hamma hodimda BIR XIL fayl bo'lsin: A1 marker,
+   2-4 qatorda modda/hodim/sana, 6-qator sarlavha, 7-46 bo'sh qator (F = Miqdor×Narx
+   formulasi), 47-qator JAMI (SUM formula). Faqat shu shakl qabul qilinadi. */
+const JD_TPL_MARKER='AROS-PROVODKA-XARAJAT-V1';
+const JD_TPL_HEAD=['№','Nomi','Miqdor','Birlik','Narx','Summa'];
+const JD_TPL_ROWS=40;   // 7..46
+/* Fayl nomi uchun xavfsiz belgilar (lotin/kirill saqlanadi, boshqasi '-'). */
+function jdSlug(s){
+  const t=String(s||'').toLowerCase()
+    .replace(/['"‘’ʻʼ`]/g,'')
+    .replace(/[^a-z0-9Ѐ-ӿ]+/g,'-')
+    .replace(/-+/g,'-').replace(/^-|-$/g,'');
+  return t.slice(0,40)||'modda';
+}
+function jdTplAoa(moddaName){
+  const aoa=[
+    [JD_TPL_MARKER, "(o'zgartirmang)"],
+    ['Modda:', moddaName||''],
+    ['Hodim:', myName||''],
+    ['Sana:', isoDay(nowUz())],
+    [],
+    JD_TPL_HEAD.slice()
+  ];
+  for(let i=1;i<=JD_TPL_ROWS;i++) aoa.push([i,'','','','','']);
+  aoa.push(['JAMI','','','','','']);
+  return aoa;
+}
+/* MAIN va RX bitta yadrodan foydalanadi — moddaName parametr bilan farqlanadi. */
+async function jdShablonYuklabCore(moddaName){
+  try{
+    const X=await jdLoadXlsx();
+    if(!X||!X.utils||!X.utils.book_new) throw new Error('kutubxona to\'liq emas');
+    const aoa=jdTplAoa(moddaName);
+    const ws=X.utils.aoa_to_sheet(aoa);
+    // F ustuni (Miqdor×Narx) 7..46-qatorlarda formula, 47-qatorda jami SUM.
+    for(let i=0;i<JD_TPL_ROWS;i++){
+      const rExcel=7+i;
+      ws[X.utils.encode_cell({r:rExcel-1,c:5})]={t:'n', f:`C${rExcel}*E${rExcel}`};
+    }
+    ws[X.utils.encode_cell({r:6+JD_TPL_ROWS,c:5})]={t:'n', f:`SUM(F7:F${6+JD_TPL_ROWS})`};
+    ws['!cols']=[{wch:5},{wch:30},{wch:10},{wch:10},{wch:12},{wch:14}];
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb,ws,'Xarajat');
+    X.writeFile(wb,'xarajat-shablon-'+jdSlug(moddaName)+'.xlsx');
+  }catch(e){
+    console.error('Shablon tayyorlanmadi:',e);
+    toast('Shablon tayyorlanmadi — qayta urinib ko\'ring',true);
+  }
+}
+window.jdShablonYuklab=()=>{ const m=moddaObj(); jdShablonYuklabCore(m?m.name:''); };
+window.rxJdShablonYuklab=()=>{ const m=rxModdaObj(); jdShablonYuklabCore(m?m.name:''); };
+/* Sarlavha qatori aynan JD_TPL_HEAD ga mos kelishini tekshiradi (trim, katta-kichik farqsiz). */
+function jdHeadOk(row){
+  if(!Array.isArray(row) || row.length<JD_TPL_HEAD.length) return false;
+  for(let i=0;i<JD_TPL_HEAD.length;i++){
+    if(String(row[i]==null?'':row[i]).trim().toLowerCase()!==JD_TPL_HEAD[i].toLowerCase()) return false;
+  }
+  return true;
+}
+/* Katakni raqamga aylantiradi (JD_NUM_RE bilan bir xil qoida), bo'lmasa null. */
+function jdNum(raw){
+  if(raw==null || raw==='') return null;
+  if(typeof raw==='number') return isFinite(raw)?raw:null;
+  const s=String(raw).trim();
+  if(s==='' || !JD_NUM_RE.test(s)) return null;
+  const n=Number(s.replace(/[\s ]/g,'').replace(',','.'));
+  return isFinite(n)?n:null;
+}
+/* Shablon AOA'sidan jadval quradi. Marker/sarlavha mos kelmasa {err:'shablon_emas'},
+   to'ldirilgan qator topilmasa {err:'bosh'}. Boshqa Excel (marker/sarlavha yo'q) —
+   FAIL-CLOSED rad (erkin Excel endi qabul qilinmaydi). */
+function jdFromTemplate(aoa){
+  if(!Array.isArray(aoa) || !aoa.length) return {err:'shablon_emas'};
+  const marker=String((aoa[0]&&aoa[0][0])!=null?aoa[0][0]:'').trim();
+  if(marker!==JD_TPL_MARKER) return {err:'shablon_emas'};
+  if(!jdHeadOk(aoa[5])) return {err:'shablon_emas'};
+  const rows=[];
+  for(let i=6;i<aoa.length;i++){
+    const r=aoa[i]||[];
+    const nomi=String(r[1]==null?'':r[1]).trim();
+    if(!nomi) continue;   // bo'sh qator VA "JAMI" qatori (B ustuni bo'sh) shu yerda tashlanadi
+    const no=jdNum(r[0]);
+    const miqdor=jdNum(r[2]);
+    const birlik=String(r[3]==null?'':r[3]).trim();
+    const narx=jdNum(r[4]);
+    let summa=jdNum(r[5]);
+    if(summa==null) summa=(miqdor!=null && narx!=null) ? miqdor*narx : 0;   // formula hisoblanmagan fayl uchun
+    rows.push([no==null?'':no, nomi, miqdor==null?'':miqdor, birlik, narx==null?'':narx, summa]);
+  }
+  if(!rows.length) return {err:'bosh'};
+  let jami=0; rows.forEach(r=>{ jami+=Number(r[5])||0; });
+  return {cols:JD_TPL_HEAD.slice(), rows, jami, n:rows.length};
+}
 /* Umumiy fayl o'qish — Excel yuklash tugmasi ikkala shaklda ham (asosiy forma va
    Tab 2 "Ruxsat so'rash") shu bittasidan foydalanadi, `applyFn` natijani qabul qiladi. */
 async function jdHandleXlsxInput(el,applyFn){
@@ -2857,12 +2973,13 @@ async function jdHandleXlsxInput(el,applyFn){
     const wb=X.read(buf,{type:'array'});
     const ws=wb.Sheets[wb.SheetNames[0]];
     const aoa=X.utils.sheet_to_json(ws,{header:1,raw:true});
-    const base=jdFromGrid(aoa, jdCellFromXlsx);
-    if(!base){ toast('Jadval bo\'sh yoki o\'qib bo\'lmadi',true); return; }
-    applyFn(Object.assign({v:1, manba:'xlsx', fayl:f.name}, base));
+    const t=jdFromTemplate(aoa);
+    if(t.err==='shablon_emas'){ toast('Faqat berilgan shablon qabul qilinadi — «Shablonni yuklab olish» tugmasidan oling',true); return; }
+    if(t.err==='bosh'){ toast('Shablonda to\'ldirilgan qator yo\'q',true); return; }
+    applyFn(Object.assign({v:1, manba:'xlsx', fayl:f.name, shablon:'xarajat-v1'}, t));
   }catch(e){
     console.error('Excel o\'qilmadi:',e);
-    toast('Excel o\'qib bo\'lmadi — nusxalab qo\'ying',true);
+    toast('Excel o\'qib bo\'lmadi — shablonni qaytadan yuklab oling',true);
   }
 }
 window.onJdFile=el=>jdHandleXlsxInput(el,jdApply);
@@ -3473,6 +3590,9 @@ window.saveHodim=async()=>{
   if(amtVal()<=0||amt<=0){ toast('Summa kiriting',true); return; }
   // Valyuta xarajatida ikkala tomon ham musbat bo'lsin (yaxlitlanib nolga tushmasin)
   if(calc.cur!=='UZS' && !(calc.fc>0)){ toast('Summa juda kichik — '+calc.cur+' miqdori nolga aylanadi',true); return; }
+  // 🔴 Jadval jami summadan KO'P — saqlash BLOKLANADI (ikkinchi qatlam; birinchisi
+  // jdWarnUpdate() bilan jonli ko'rsatiladi). Bitta joy — oddiy/taqsim/ovqat uchastkasi.
+  { const jc=jdCheck(jadval, amt); if(jc && jc.over){ toast(jc.text,true); return; } }
   { const rt=rasmTalab();
     if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart':'Bu xarajat uchun chek shart',true); return; }  // 3-band + AI
     if(rt.spid){ toast('Mashina tablosi surati shart',true); return; }   // AI rasm majburiy
@@ -4156,27 +4276,8 @@ function bindInputs(){ if(_bound) return; _bound=true;
   // so'mda — minglik ajratgich + avtomat "000"; valyutada — 2 kasrgacha, "000" YO'Q.
   $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); jdWarnUpdate(); });
   $('izoh').addEventListener('input',updateSave);
-  // Jadval: Izoh maydoniga ko'p qatorli/tab'li matn yopishtirilsa — jadval sifatida
-  // ushlanadi, Izoh o'zi o'zgarmaydi (BRIEF_PROVODKA_JADVAL.md). Oddiy bir qatorli
-  // paste — avvalgidek Izoh ichiga tushadi (preventDefault chaqirilmaydi).
-  $('izoh').addEventListener('paste',e=>{
-    if(!jadvalOk()) return;   // bayroq yoq moddada oddiy paste (hech narsa ushlanmaydi)
-    const cd=e.clipboardData||window.clipboardData;
-    const text=cd?cd.getData('text/plain'):'';
-    if(!jdLooksTable(text)) return;
-    e.preventDefault();
-    jdApply(jadvalParse(text));
-  });
-  // Tab 2 "Ruxsat so'rash" — xuddi shu naqsh, faqat rxJdOk() (tanlangan yopiq
-  // moddaning excel bayrog'i) shart bilan.
-  $('rxIzoh').addEventListener('paste',e=>{
-    if(!rxJdOk()) return;
-    const cd=e.clipboardData||window.clipboardData;
-    const text=cd?cd.getData('text/plain'):'';
-    if(!jdLooksTable(text)) return;
-    e.preventDefault();
-    rxJdApply(jadvalParse(text));
-  });
+  // 🔴 2026-09-03: Izoh/Ruxsat-izoh paste'dan jadval qurish O'CHIRILDI (Asilbek qarori —
+  // faqat umumiy shablon qabul qilinadi). Paste endi oddiy matn, Izoh o'zgarmaydi.
   // RBAC: ruxsat fonda (fetchFresh) o'zgarsa — tanlangan modda endi ruxsatsiz bo'lishi
   // mumkin (renderModda() selModda'ni o'zi tozalaydi), ovqat paneli ham qayta chiziladi.
   if(window.permOnChange) window.permOnChange(()=>{ renderModda(); updateModdaUI(); });
@@ -4713,8 +4814,8 @@ function rxHisobRender(){
 }
 window.rxPickHisob=id=>{ rxHisob=SRV_UUID.test(String(id||''))?String(id):null; rxHisobRender(); rxUI(); };
 
-/* ---- Tab 2 jadval (Excel/paste) — faqat tanlangan modda excel===true bo'lsa. ----
-   Asosiy formaning `jdApplyTo/jdRenderInto/jdHandleXlsxInput` yadrolarini QAYTA
+/* ---- Tab 2 jadval (shablon-only Excel) — faqat tanlangan modda excel===true bo'lsa. ----
+   Asosiy formaning `jdApplyTo/jdRenderInto/jdHandleXlsxInput/jdCheck` yadrolarini QAYTA
    ISHLATADI (kodni nusxalamaslik uchun), faqat o'z holati (`rxJadval`) bilan. */
 function rxModdaObj(){ return Array.isArray(rxModdalar)?rxModdalar.find(m=>m&&String(m.id)===rxModda):null; }
 function rxJdOk(){ const m=rxModdaObj(); return !!(m && m.excel===true); }
@@ -4724,7 +4825,13 @@ const JD_STATE_RX={
   amtSet:v=>{ const el=$('rxAmt'); if(el) el.value=money(v); rxUI(); },
   render:()=>rxJdRender()
 };
-function rxJdRender(){ jdRenderInto($('rxJdCard'),rxJadval,'rxJdRemove'); }
+function rxJdWarnUpdate(){
+  const el=$('rxJdWarn'); if(!el) return;
+  const c=jdCheck(rxJadval, rxAmtVal());
+  if(c){ el.textContent=c.text; el.style.display='block'; el.classList.toggle('no',!!c.over); }
+  else { el.style.display='none'; el.classList.remove('no'); }
+}
+function rxJdRender(){ jdRenderInto($('rxJdCard'),rxJadval,'rxJdRemove','rxJdWarn'); rxJdWarnUpdate(); }
 function rxJdApply(obj){ jdApplyTo(JD_STATE_RX,obj); }
 window.rxJdRemove=()=>{ rxJadval=null; rxJdRender(); };
 window.rxJdPickFile=()=>{ const f=$('rxJdFile'); if(f) f.click(); };
@@ -4737,6 +4844,7 @@ function rxJdUI(){
   const wrap=$('rxJdWrap');
   if(wrap) wrap.style.display=ok?'block':'none';
   if(!ok && rxJadval){ rxJadval=null; rxJdRender(); toast("Bu turda jadval yo'q"); }
+  rxJdWarnUpdate();
   const hint=$('rxIzohHint');
   if(hint) hint.textContent = rxJadval
     ? "Tasdiqlovchi faqat shu matnni va jadvalni ko'radi."
@@ -5003,6 +5111,8 @@ window.srvSave=async()=>{
   if(!(sAmt>0)){ no('Qancha so\'rashni yozing'); return; }
   if(sAmt>Math.ceil(amt/1000)*1000){ no('So\'rov summasi xarajatdan katta bo\'la olmaydi'); return; }
   if(izoh.length<SRV_MIN_IZOH){ no('Nega kerakligini yozing (kamida 3 belgi)'); return; }
+  // 🔴 Jadval jami xarajat summasidan KO'P — bloklaydi (pul so'rash yo'li, 3-saqlash nuqtasi).
+  { const jc=jdCheck(jadval, amt); if(jc && jc.over){ no(jc.text); return; } }
   // 🔴 Xarajatning MAVJUD qoidalari o'zgarmaydi (chek/izoh/davr/filial/kommunal).
   { const rt=rasmTalab();
     if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart':'Bu xarajat uchun chek shart',true); return; }
@@ -5257,6 +5367,8 @@ window.rxSave=async()=>{
   if(!rxWho){ no('Kimdan so\'rashni tanlang'); return; }
   if(!(sAmt>0)){ no('Summani yozing'); return; }
   if(izoh.length<SRV_MIN_IZOH){ no('Izohni yozing (kamida 3 belgi)'); return; }
+  // 🔴 Jadval jami summadan KO'P — bloklaydi (ruxsat so'rash yo'li, 4-saqlash nuqtasi).
+  { const jc=jdCheck(rxJadval, sAmt); if(jc && jc.over){ no(jc.text); return; } }
   const bal=rxKassaBal();
   if(bal!=null&&sAmt>bal){ no('Bu hisobda pul yetmaydi — boshqa hisobni tanlang yoki «Pul so\'rash» tabidan pul so\'rang'); return; }
   rxSaving=true; rxBandAt=Date.now();

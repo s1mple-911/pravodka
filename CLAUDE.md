@@ -734,6 +734,9 @@ brauzerdan to'g'ridan, SQL/EF yo'q; vendor qoidasi kutubxonalar uchun, ma'lumot 
 yo'nalish «$ sotib olish»/«$ sotish». 🔴 Render sinxron: kesh bo'lmasa `data-mbk-date` span chiziladi va fetch
 tugagach FAQAT o'sha spanlar patch qilinadi (jadval qayta chizilmaydi); kunlar dedup, `MB_DAY_CAP=30`.
 `init()` da MB so'rovi `await`siz — tarmoq bloklansa jurnal ishlayveradi. MB faqat rasmiy kurs beradi.
+Panel `.mbbar` (dashboard'dan keyin, jadvaldan oldin; `#mbcTxt` qiymat, `#mbcBuy`/`#mbcSell` **hidden** —
+bank sotib olish/sotish kursi uchun manba tasdiqlanmagan; `nbu.uz/uz/exchange-rates/json/` ehtimoliy manba,
+2026-09-03 da bu mashinadan ulanmadi — tekshirilmagan).
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 
@@ -782,6 +785,13 @@ Chegara: ≤500 qator, ≤16 ustun, klient ≤100 KB (server constraint 120 KB).
   (Excel + paste) → `ruxsat_yarat` dan KEYIN `ruxsat_jadval_yoz(p_ext_ref, p_jadval)` (`ruxsat_sorov.jadval`;
   egalik `hodim_id`, pending, 30 daqiqa, bir marta). `ruxsat_tasdiq` jadvalni yaratilgan `entry` ga
   ko'chiradi. `ruxsat_qator`/`sorov_qator` ro'yxatga `jadval_n/jadval_jami` beradi (to'liq jadval emas).
+- 🔴 **6-bosqich (2026-09-03): erkin Excel/paste O'RNIGA BITTA SHABLON** (`BRIEF_PROVODKA_JADVAL.md` 6-bosqich).
+  `hodim-dev`: paste → jadval yo'li O'CHIRILGAN (izoh oddiy matn); «Shablonni yuklab olish» (`jdShablonYuklab`,
+  SheetJS lazy: A1 marker `AROS-PROVODKA-XARAJAT-V1`, 6-qator `№|Nomi|Miqdor|Birlik|Narx|Summa`, 7–46 qator,
+  F=`C*E` formula, 47 `JAMI`) + «To'ldirilgan shablonni yuklash» (`jdFromTemplate`: marker+sarlavha mos
+  kelmasa RAD). JSON shakli o'zgarmagan (+ixtiyoriy `shablon:'xarajat-v1'`) — jurnal/sorovlar/Telegram eskicha.
+  **Jadval jami > xarajat summasi → saqlash BLOKLANADI** (`jdCheck`, `saveHodim`/`srvSave`/`rxSave`),
+  jami < summa → sariq, summa bo'sh → jami avtomat.
 - **`sorovlar-dev.html`**: kartada chip «Jadval · N qator · jami» → `#jdModal` (jurnal-dev nusxasi, z-index 210);
   ruxsat → `ruxsat_sorov.jadval` (RLS: hodim/kimdan/admin), pul so'rash → `entry.jadval` (`entry_id`).
 

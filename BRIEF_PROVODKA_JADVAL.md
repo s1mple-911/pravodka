@@ -211,3 +211,18 @@ imkoni bo'lsin va so'rovni qabul qiluvchi uni ko'ra olsin.»
    aks holda (pul so'rash) `entry_id` bo'yicha `sb.from('entry').select('jadval,description,entry_date')`.
    Lazy SheetJS loader (`vendor/xlsx-0.18.5.min.js`) sorovlar-dev'da yo'q bo'lsa qo'shiladi (`loadXlsx` naqshi).
 3. `</script>` soni sorovlar-dev'da qancha bo'lsa shuncha qoladi (avval sanab ol), `sorovlar.html` ga tegilmaydi.
+
+## 6-BOSQICH (Asilbek 2026-09-03): erkin Excel/paste o'rniga BITTA UMUMIY SHABLON
+Muammo: har hodim istalgan Excel'ni yuklayapti — tuzilish har xil, tekshirib bo'lmaydi.
+Qaror: modda `excel_jadval=true` bo'lsa —
+- izoh oddiy matn (paste → jadval yo'li O'CHIRILDI, `manba:'paste'` endi yaratilmaydi; eski yozuvlar jurnalda o'qiladi);
+- «Shablonni yuklab olish» → xlsx (`jdShablonYuklab`, SheetJS lazy): A1 marker `AROS-PROVODKA-XARAJAT-V1`,
+  A2–B4 Modda/Hodim/Sana, 6-qator sarlavha `№ | Nomi | Miqdor | Birlik | Narx | Summa`, 7–46 qatorlar
+  (F = Miqdor×Narx formula), 47 `JAMI` (SUM);
+- «To'ldirilgan shablonni yuklash» → FAQAT shu shablon qabul qilinadi (marker + sarlavha tekshiruvi), Nomi bo'sh
+  qator tashlanadi, Summa bo'sh bo'lsa Miqdor×Narx, `jami` = Summa yig'indisi (shablondagi JAMI kataki emas);
+- JSON shakli O'ZGARMAGAN (`{v:1,manba:'xlsx',fayl,cols,rows,jami,n}` + ixtiyoriy `shablon:'xarajat-v1'`) —
+  jurnal-dev/sorovlar-dev/Telegram eskicha ko'rsatadi;
+- 🔴 **jadval jami > xarajat summasi → QIZIL, saqlash BLOKLANADI** (4 saqlash yo'li + Ruxsat so'rash);
+  jami < summa → sariq (bloklamaydi); summa bo'sh → jami avtomat (UZS).
+Shablon tuzilishi Asilbek ko'rib chiqadi («kamchilik bo'lsa aytaman»).
