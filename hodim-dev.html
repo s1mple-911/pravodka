@@ -4325,6 +4325,8 @@ async function init(){
   // accounts (perms endi tayyor → to'g'ri filtr)
   if(aRes.error){ if(!cAcc){ $('banner').style.display='block'; $('banner').textContent='Xato: '+aRes.error.message; } }
   else { swrSet('accounts',aRes.data||[]); applyAccounts(aRes.data||[]); }
+  // Ruxsat so'rash — yopiq turlar oldindan (fonda) yuklanadi, modal darrov ochilsin
+  try{ if(typeof window.rxModdaLoad==='function') window.rxModdaLoad(); }catch(e){}
   // filials
   if(!fRes.error){ swrSet('filials',fRes.data||[]); filials=window.permFilterFilials?window.permFilterFilials(fRes.data||[]):(fRes.data||[]); filialsLoaded=true; filialsErr=false; renderFilials(); }
   else { // Xato: filials [] bo'lib qolmasin-u, "biriktirilmagan" bo'lib ko'rinmasin ham.
@@ -4704,22 +4706,34 @@ window.rxPickWho=id=>{
 /* ---- Tab 2 — yopiq xarajat turlari (ruxsat_yopiq_moddalar). Bir marta yuklanadi
    (kesh `rxModdalar`), xato bo'lsa "Qayta urinish". Fail-closed: RPC umuman yo'q
    bo'lsa (`srvRpcYoq`) Tab 2 tugmasi butunlay yashiriladi. ---- */
+// 2026-09-03 TEZLIK (Asilbek: «ko'p vaqt ketyapti / Qayta urinish»):
+//  1) sessionStorage kesh (`rx:moddalar`, 10 daqiqa) — bor bo'lsa DARROV chiziladi,
+//     fonda yangilanadi (stale-while-revalidate, CLAUDE.md naqshi);
+//  2) sahifa ochilganda oldindan yuklanadi (init → rxModdaLoad), modal tayyor turadi;
+//  3) 15s timeout (qTimeout) — tarmoq osilib qolsa aniq xabar, retry mumkin;
+//  4) server tomonda ruxsat_yopiq_moddalar bitta to'plamli so'rov (PROVODKA_RUXSAT_TEZ.sql).
+const RX_CK='rx:moddalar';
 window.rxModdaLoad=async function(force){
   if(rxOff||rxBusy) return;
+  if(!force&&!Array.isArray(rxModdalar)){
+    const c=swrGet(RX_CK,600000);
+    if(Array.isArray(c)){ rxModdalar=c; rxModdaRender(); rxUI(); rxSync(); force='fon'; }
+  }
   if(!force&&Array.isArray(rxModdalar)){ rxModdaRender(); return; }
   rxBusy=true; rxErr=false;
-  rxModdaRender();
-  const {data,error}=await Promise.resolve(sb.rpc('ruxsat_yopiq_moddalar'))
-    .then(r=>r,e=>({data:null,error:{message:String((e&&e.message)||e),code:''}}));
+  if(!Array.isArray(rxModdalar)) rxModdaRender();   // «Yuklanmoqda…» faqat kesh yo'q bo'lsa
+  const r=await qTimeout(sb.rpc('ruxsat_yopiq_moddalar'),15000);
   rxBusy=false;
+  const error=r.timeout?{message:'Server javob bermadi (15s)',code:''}:r.error;
   if(error){
     if(srvRpcYoq(error,'ruxsat_yopiq_moddalar')){
       rxOff=true; rxModdalar=null; rxSync(); return;
     }
-    if(!Array.isArray(rxModdalar)) rxErr=true;
+    if(!Array.isArray(rxModdalar)) rxErr=true;   // kesh bor bo'lsa u qoladi, xato ko'rsatilmaydi
     rxModdaRender(); rxUI(); return;
   }
-  rxModdalar=(Array.isArray(data)?data:[]).filter(m=>m&&SRV_UUID.test(String(m.id||'')));
+  rxModdalar=(Array.isArray(r.data)?r.data:[]).filter(m=>m&&SRV_UUID.test(String(m.id||'')));
+  swrSet(RX_CK,rxModdalar);
   if(rxModda&&!rxModdalar.some(m=>String(m.id)===rxModda)) rxModda=null;
   rxModdaRender(); rxUI(); rxSync();
 }
