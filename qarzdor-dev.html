@@ -450,8 +450,8 @@
     <div class="qz-tabs" role="tablist" aria-label="Qarz bo'limlari">
       <button type="button" class="qz-tab" data-tab="berish" onclick="qzTab('berish')" role="tab">Qarz berish</button>
       <button type="button" class="qz-tab on" data-tab="kut" onclick="qzTab('kut')" role="tab">Kutilayotgan</button>
-      <button type="button" class="qz-tab" data-tab="tilxat" onclick="qzTab('tilxat')" role="tab">Tilxat kutilmoqda<span class="qz-badge" id="tabTilxatN"></span></button>
-      <button type="button" class="qz-tab" data-tab="kontr" onclick="qzTab('kontr')" role="tab">Kontragentlar</button>
+      <button type="button" class="qz-tab" data-tab="tilxat" onclick="qzTab('tilxat')" role="tab">Tilxatlar<span class="qz-badge" id="tabTilxatN"></span></button>
+      <button type="button" class="qz-tab" data-tab="kontr" onclick="qzTab('kontr')" role="tab">Biz qarzdormiz</button>
     </div>
 
     <!-- ============ TAB: Qarz berish ============ -->
@@ -486,8 +486,8 @@
         </div>
         <div id="qzTashqiYangi" style="display:none">
           <div class="qz-grid2">
-            <div><div class="qz-lbl">Ism</div><input class="qz-input" id="qzTIsm" autocomplete="off" oninput="qzTilxatSync()"></div>
-            <div><div class="qz-lbl">Familya</div><input class="qz-input" id="qzTFamilya" autocomplete="off" oninput="qzTilxatSync()"></div>
+            <div><div class="qz-lbl">Ism</div><input class="qz-input" id="qzTIsm" autocomplete="off"></div>
+            <div><div class="qz-lbl">Familya</div><input class="qz-input" id="qzTFamilya" autocomplete="off"></div>
           </div>
           <div class="qz-lbl">Telefon <span class="qz-opt">(ixtiyoriy)</span></div>
           <input class="qz-input" id="qzTTel" placeholder="+998 90 123 45 67" autocomplete="off">
@@ -498,14 +498,14 @@
 
       <div class="sect">
         <div class="qz-lbl">Kassa</div>
-        <div id="qzKassaList" class="qz-kassalist"><div class="empty">Yuklanmoqda…</div></div>
+        <div id="qzKassaList"><div class="empty">Yuklanmoqda…</div></div>
       </div>
 
       <div class="sect">
         <div class="qz-lbl">Summa</div>
         <div class="qz-amtwrap">
           <input class="qz-amtbig" id="qzSumma" inputmode="numeric" placeholder="0" autocomplete="off"
-                 oninput="qzFmtAmt(this);qzUpdatePreview();qzRenderKassaList()">
+                 oninput="qzFmtAmt(this);qzUpdatePreview()">
           <span class="qz-amtcur">so'm</span>
         </div>
       </div>
@@ -532,22 +532,19 @@
         <input class="qz-input" id="qzIzoh" autocomplete="off">
       </div>
 
-      <!-- ============ Tilxat (2-o'tish) — tashqi: majburiy, ichki: ixtiyoriy ============ -->
-      <div class="sect" id="qzTilxatSect">
-        <label class="qz-toggle" id="qzTilxatToggleWrap" style="display:none">
-          <input type="checkbox" id="qzTilxatToggle" onchange="qzTilxatToggleChange()">
-          Tilxat qo'shish <span class="qz-opt">(ixtiyoriy)</span>
-        </label>
-        <div class="qz-lbl" id="qzTilxatReqLbl" style="display:none">Tilxat <span style="color:var(--red)">— majburiy</span></div>
-        <div class="qz-tilxatbox" id="qzTilxatBox" style="display:none">
-          <div class="qz-lbl">Shablon</div>
-          <select class="qz-select" id="qzTilxatShablon" onchange="qzTilxatShablonChange()"><option value="">Yuklanmoqda…</option></select>
-          <div class="qz-lbl">Matn <span class="qz-opt">(kerak bo'lsa tahrirlang)</span></div>
-          <textarea class="qz-tilxatta" id="qzTilxatMatnEl" oninput="qzTilxatDirty=true"></textarea>
-          <div class="qz-tilxatacts">
-            <button type="button" class="qz-btn" onclick="qzTilxatRegen()"><i data-lucide="rotate-ccw"></i>Qayta yaratish</button>
-            <button type="button" class="qz-btn" onclick="qzTilxatPrint()"><i data-lucide="printer"></i>Chop etish</button>
-          </div>
+      <!-- ============ Tilxat (3-BOSQICH) — faqat tashqi qarzda ko'rinadi. Qo'lda yozish
+           YO'Q: shablon "Tilxatlar" bo'limida chop etiladi, imzolatilib rasmi shu yerga
+           (ixtiyoriy) yuklanadi. Fayl tanlansa saqlashda darrov yuklanib qarz faollashadi. ============ -->
+      <div class="sect" id="qzTilxatSect" style="display:none">
+        <div class="qz-lbl">Tilxat <span style="color:var(--red)">— rasmi bo'lmasa "Tilxat kutilmoqda"da qoladi</span></div>
+        <div class="qz-tilxatbox req">
+          <div class="qz-note">Avval <b>Tilxatlar → Shablon tilxatlar</b> bo'limidan mos shablonni chop eting,
+            mijozga imzolatib, rasmini shu yerga yuklang. Hozir yuklamasangiz qarz <b>«Tilxat kutilmoqda»</b>
+            holatida saqlanadi — keyinroq «Tilxatlar» bo'limidan rasm yuklab, qarzni faollashtirasiz.</div>
+          <label class="qz-btn" style="margin-top:10px">
+            <input type="file" accept="image/*" capture="environment" class="vh" id="qzTilxatFile" onchange="qzTilxatFilePick(this)">
+            <i data-lucide="image-up"></i><span id="qzTilxatFileTxt">Rasm tanlash (ixtiyoriy)</span>
+          </label>
         </div>
       </div>
 
@@ -587,10 +584,44 @@
       </div>
     </div>
 
-    <!-- ============ TAB: Tilxat kutilmoqda ============ -->
+    <!-- ============ TAB: Tilxatlar (3-BOSQICH) — 3 segment ============ -->
     <div id="tab-tilxat" class="qz-tabpanel">
-      <p class="sub">Tashqi qarz uchun tilxat kutilayotgan draftlar. Pul hali harakat qilmagan.</p>
-      <div id="qzTilxatList" class="qz-draftlist"><div class="empty">Yuklanmoqda…</div></div>
+      <div class="qz-seg" role="tablist" aria-label="Tilxat bo'limlari">
+        <button type="button" class="qz-segbtn on" data-tlx="kut" onclick="qzTlxSub('kut')">Tilxat kutilmoqda</button>
+        <button type="button" class="qz-segbtn" data-tlx="yuklangan" onclick="qzTlxSub('yuklangan')">Tilxat yuklagan mijozlar</button>
+        <button type="button" class="qz-segbtn" data-tlx="shablon" onclick="qzTlxSub('shablon')">Shablon tilxatlar</button>
+      </div>
+
+      <div id="tlxsub-kut" class="qz-tlxsub">
+        <p class="sub">Tashqi qarz uchun tilxat kutilayotgan draftlar. Pul hali harakat qilmagan.</p>
+        <div id="qzTilxatList" class="qz-draftlist"><div class="empty">Yuklanmoqda…</div></div>
+      </div>
+
+      <div id="tlxsub-yuklangan" class="qz-tlxsub" style="display:none">
+        <p class="sub">Tilxat rasmi yuklangan qarzlar (holatidan qat'i nazar).</p>
+        <div id="qzTilxatYuklanganList" class="qz-draftlist"><div class="empty">Yuklanmoqda…</div></div>
+      </div>
+
+      <div id="tlxsub-shablon" class="qz-tlxsub" style="display:none">
+        <p class="sub">Tashqi qarz berishda ishlatiladigan tilxat matni/fayli. Bitta shablon <b>Sukut</b> bo'lishi mumkin.</p>
+        <div id="qzShablonList" class="qz-draftlist"><div class="empty">Yuklanmoqda…</div></div>
+        <button type="button" class="qz-btn" id="qzShablonAddBtn" onclick="qzShablonOpenForm(null)" style="display:none;margin-top:10px">
+          <i data-lucide="plus"></i>Yangi shablon</button>
+        <div id="qzShablonForm" style="display:none;margin-top:12px">
+          <div class="qz-lbl">Nomi</div>
+          <input class="qz-input" id="qzShNom" maxlength="80" autocomplete="off" oninput="qzShablonFormUI()">
+          <div class="qz-lbl">Matn — joy-tutuvchi qo'shish uchun bosing</div>
+          <div id="qzShChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+          <textarea class="qz-tilxatta" id="qzShMatn" oninput="qzShablonFormUI()"></textarea>
+          <label class="qz-toggle"><input type="checkbox" id="qzShDefault">Sukut shablon</label>
+          <label class="qz-toggle"><input type="checkbox" id="qzShActive" checked>Faol</label>
+          <div class="qz-tilxatacts">
+            <button type="button" class="qz-btn" onclick="qzShablonCancel()">Bekor</button>
+            <button type="button" class="qz-btn primary" id="qzShSaveBtn" onclick="qzShablonSave()" disabled><i data-lucide="save"></i>Saqlash</button>
+          </div>
+          <div class="qz-msg" id="qzShMsg"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ============ TAB: Kontragentlar — eski tarkib, mantiq O'ZGARMAGAN (faqat konteyner + display) ============ -->
@@ -670,6 +701,20 @@
         <button type="button" class="icon-btn" onclick="qzKartClose()" aria-label="Yopish"><i data-lucide="x"></i></button>
       </div>
       <div class="qzm-body" id="qzKartBody"><div class="empty">Yuklanmoqda…</div></div>
+    </div>
+  </div>
+
+  <!-- ============ Tilxat rasmini katta ko'rish (Tilxat yuklagan mijozlar) ============ -->
+  <div class="qzm-ov" id="qzImgModal" onclick="if(event.target===this)qzImgClose()">
+    <div class="qzm-box sm">
+      <div class="qzm-hd">
+        <h3>Tilxat rasmi</h3>
+        <button type="button" class="icon-btn" onclick="qzImgClose()" aria-label="Yopish"><i data-lucide="x"></i></button>
+      </div>
+      <div class="qzm-body"><img id="qzImgEl" src="" alt="Tilxat" style="width:100%;border-radius:12px;display:block"></div>
+      <div class="qz-modalacts">
+        <button type="button" class="qz-btn primary" onclick="qzImgToKart()">Qarz kartasi</button>
+      </div>
     </div>
   </div>
 
@@ -1044,10 +1089,15 @@ window.qzTab=name=>{
 };
 function qzEnsureBerishLoaded(){ if(qzBerishLoaded) return; qzBerishLoaded=true;
   if($('qzBoshlanish') && !$('qzBoshlanish').value) $('qzBoshlanish').value=qzDefaultBoshlanish();
-  qzLoadStaffList(); qzLoadKassaList(); qzLoadTilxatShablon(); }
+  qzLoadStaffList(); qzLoadKassaList(); }
 function qzEnsureKutLoaded(){ if(qzKutLoaded) return; qzKutLoaded=true;
   qzLoadDash(); qzLoadShuOy(); qzLoadQarzdorlar(); }
-function qzEnsureTilxatLoaded(){ if(qzTilxatLoaded) return; qzTilxatLoaded=true; qzLoadTilxat(); }
+// Tilxatlar tabi: 3 segment. Saqlangan sub-tab tiklanadi (localStorage), "kut" ro'yxati
+// har doim (badge/kesh yangi turishi uchun) yuklanadi — qzTlxSub o'zi kerakli segmentni yuklaydi.
+function qzEnsureTilxatLoaded(){ if(qzTilxatLoaded) return; qzTilxatLoaded=true;
+  let sub='kut'; try{ sub=localStorage.getItem('prov-qarz-tlxsub')||'kut'; }catch(e){}
+  window.qzTlxSub(sub);
+  qzLoadTilxat(); }
 function qzRefreshAfterWrite(){ qzLoadDash(true); qzLoadShuOy(true); qzLoadQarzdorlar(true); }
 
 // ---- Dash kartasi (qarz_dash) ------------------------------------------
@@ -1185,7 +1235,7 @@ function qzRenderKartDetail(p){
     <div class="qz-h3">To'lov qabul qilish</div>
     <div class="qz-msg" id="qzPayMsg"></div>
     <div class="qz-lbl">Kassa</div>
-    <div id="qzPayKassaList" class="qz-kassalist"><div class="empty">Yuklanmoqda…</div></div>
+    <div id="qzPayKassaList"><div class="empty">Yuklanmoqda…</div></div>
     <div class="qz-lbl">Summa</div>
     <div class="qz-amtwrap">
       <input class="qz-amtbig" id="qzPaySumma" inputmode="numeric" placeholder="0" autocomplete="off" oninput="qzFmtAmt(this);qzPayCheck()">
@@ -1232,29 +1282,18 @@ function qzRenderKartDetail(p){
     qzLoadPayKassaList();
   }
 }
-// ---- To'lov qabul qilish (qarz_tolov) -----------------------------------
-let qzPayKassaAll=null, qzPaySelKassa=null;
+// ---- To'lov qabul qilish (qarz_tolov) — kassa tanlash qzKassaPicker orqali ----
+let qzPaySelKassa=null;
 async function qzLoadPayKassaList(){
+  qzPaySelKassa=null;   // 🔴 har ochilishda yangi picker — eski qoldiq tanlov sizmasin
+  const picker=qzKassaPicker('qzPayKassaList', id=>{ qzPaySelKassa=id; window.qzPayCheck(); });
+  if(!picker) return;
   let {data,error}=await sb.from('v_kassa_tanlov').select('*').order('code');
   if(error) ({data,error}=await sb.from('v_kassa_toliq').select('*').order('code'));
-  const box=$('qzPayKassaList'); if(!box) return;
-  if(error){ box.innerHTML='<div class="empty">'+esc(rpcMsg(error))+'</div>'; return; }
-  qzPayKassaAll=(data||[]).filter(r=>(r.currency||'UZS')==='UZS' && r.kassa_turi!==QZ_KT_GURUH && window.permOpOk(r));
-  qzRenderPayKassaList();
+  if(error){ $('qzPayKassaList').innerHTML='<div class="empty">'+esc(rpcMsg(error))+'</div>'; return; }
+  const rows=(data||[]).filter(r=>(r.currency||'UZS')==='UZS' && r.kassa_turi!==QZ_KT_GURUH && window.permOpOk(r));
+  picker.setList(rows);
 }
-function qzRenderPayKassaList(){
-  const box=$('qzPayKassaList'); if(!box) return;
-  if(qzPayKassaAll===null){ box.innerHTML='<div class="empty">Yuklanmoqda…</div>'; return; }
-  if(!qzPayKassaAll.length){ box.innerHTML='<div class="empty">Ruxsatli kassa topilmadi</div>'; return; }
-  box.innerHTML=qzPayKassaAll.map(r=>{
-    const on=qzPaySelKassa===r.id;
-    return `<button type="button" class="qz-kbtn${on?' on':''}" onclick="qzPickPayKassa('${esc(r.id)}')">
-      <span class="qz-kn">${esc(r.name)}</span><span class="qz-kq">${money(r.uzs)} so'm</span>
-    </button>`;
-  }).join('');
-  icons();
-}
-window.qzPickPayKassa=id=>{ qzPaySelKassa=id; qzRenderPayKassaList(); };
 window.qzPayFull=()=>{
   const q=(qzKartCur&&qzKartCur.qarz)||{};
   $('qzPaySumma').value=q.qolgan?money(q.qolgan):'';
@@ -1473,6 +1512,175 @@ function qzOpenPrintWindow(matn){
   setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },300);
 }
 
+// =====================================================================
+//  TILXATLAR TABI — 3 segment (3-BOSQICH): Tilxat kutilmoqda (yuqorida,
+//  o'zgarmagan) · Tilxat yuklagan mijozlar · Shablon tilxatlar.
+// =====================================================================
+const QZ_TLX_SUBS=['kut','yuklangan','shablon'];
+let qzTlxYukLoaded=false, qzTlxShablonLoaded=false;
+window.qzTlxSub=name=>{
+  if(QZ_TLX_SUBS.indexOf(name)<0) name='kut';
+  try{ localStorage.setItem('prov-qarz-tlxsub',name); }catch(e){}
+  document.querySelectorAll('#tab-tilxat [data-tlx]').forEach(b=>b.classList.toggle('on',b.dataset.tlx===name));
+  document.querySelectorAll('.qz-tlxsub').forEach(p=>{ p.style.display=(p.id==='tlxsub-'+name)?'block':'none'; });
+  if(name==='yuklangan' && !qzTlxYukLoaded){ qzTlxYukLoaded=true; qzLoadTilxatYuklangan(); }
+  if(name==='shablon' && !qzTlxShablonLoaded){ qzTlxShablonLoaded=true; qzLoadShablon(); }
+};
+
+// ---- Tilxat yuklagan mijozlar (qarz_royxat p_tilxat:true) ----------------
+let qzTilxatYukRows=[];
+async function qzLoadTilxatYuklangan(force){
+  const ck='qarz:tilxatyuk';
+  const cached=force?null:swrGet(ck,60000);
+  if(cached) qzRenderTilxatYuklangan(cached);
+  else $('qzTilxatYuklanganList').innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  const {data,error}=await sb.rpc('qarz_royxat',{p_tilxat:true});
+  if(error){ if(!cached) $('qzTilxatYuklanganList').innerHTML='<div class="empty">'+esc(rpcMsg(error))+'</div>'; return; }
+  const rows=data||[]; swrSet(ck,rows); qzRenderTilxatYuklangan(rows);
+}
+function qzRenderTilxatYuklangan(rows){
+  qzTilxatYukRows=rows||[];
+  if(!rows.length){ $('qzTilxatYuklanganList').innerHTML='<div class="empty">Tilxat rasmi yuklangan qarz yo\'q</div>'; return; }
+  $('qzTilxatYuklanganList').innerHTML=rows.map(q=>`
+    <div class="qz-draft">
+      <div class="qz-dname">${esc(q.qarzdor_ism)} ${esc(q.qarzdor_familya)}</div>
+      <div class="qz-dsub">${q.qarzdor_tur==='ichki'?'Ichki (hodim)':'Tashqi'} · ${money(q.summa)} so'm · ${esc(String(q.created_at||'').slice(0,10))}</div>
+      <div class="qz-dsub"><span class="qz-stchip ${esc(q.status)}">${esc(qzStatusMatn(q.status))}</span></div>
+      <div class="qz-dacts">
+        <button type="button" class="qz-btn" onclick="qzTilxatYukKorish('${esc(q.id)}')"><i data-lucide="image"></i>Rasmni ko'rish</button>
+        <button type="button" class="qz-btn" onclick="qzOpenKart('${esc(q.id)}')"><i data-lucide="wallet"></i>Qarz kartasi</button>
+      </div>
+    </div>`).join('');
+  icons();
+}
+let qzImgQarzId=null;
+window.qzImgClose=()=>{ $('qzImgModal').classList.remove('open'); $('qzImgEl').src=''; qzImgQarzId=null; };
+window.qzImgToKart=()=>{ const id=qzImgQarzId; window.qzImgClose(); if(id) window.qzOpenKart(id); };
+window.qzTilxatYukKorish=async id=>{
+  try{
+    const {data,error}=await sb.storage.from('qarz-tilxat').createSignedUrl(id+'/tilxat.jpg',300);
+    if(error||!data){ alert('Rasm topilmadi'); return; }
+    qzImgQarzId=id; $('qzImgEl').src=data.signedUrl; $('qzImgModal').classList.add('open');
+  }catch(e){ alert('Rasm ochilmadi'); }
+};
+
+// ---- Shablon tilxatlar (tilxat_shablon jadvali + tilxat_shablon_saqla RPC) ----
+// Sozlama-dev.html dagi #tilxatCard mantiqi shu yerga ko'chirildi (3-BOSQICH,
+// bitta joy — Asilbek qarori). Ro'yxat hammaga, tahrir/fayl yuklash faqat admin.
+const TLX_PH=['ism','familya','summa','summa_soz','valyuta','sana','muddat','oylik_summa','oylar_soni','tugash','kompaniya'];
+let qzShablonAll=null, qzShEditId=null;
+async function qzLoadShablon(force){
+  const ck='qarz:shablonlist';
+  const cached=force?null:swrGet(ck,300000);
+  if(cached){ qzShablonAll=cached; qzRenderShablonList(); }
+  else $('qzShablonList').innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  const {data,error}=await sb.from('tilxat_shablon').select('*').order('is_default',{ascending:false}).order('nom');
+  if(error){ if(!cached) $('qzShablonList').innerHTML='<div class="empty">'+esc(rpcMsg(error))+'</div>'; return; }
+  qzShablonAll=data||[]; swrSet(ck,qzShablonAll); qzRenderShablonList();
+}
+function qzShablonIsAdmin(){ return !!(window.permIsAdmin&&window.permIsAdmin()); }
+function qzShablonCard(t){
+  const isAdminNow=qzShablonIsAdmin();
+  const badges=[t.is_default?'Sukut':'',t.is_active?'':'Nofaol'].filter(Boolean).join(' · ');
+  return `<div class="qz-draft">
+    <div class="qz-dname">${esc(t.nom)}</div>
+    ${badges?`<div class="qz-dsub">${esc(badges)}</div>`:''}
+    <div class="qz-dsub muted">${t.fayl_path?'Fayl biriktirilgan':'Fayl biriktirilmagan'}</div>
+    <div class="qz-dacts">
+      <button type="button" class="qz-btn" onclick="qzShablonPrint('${esc(t.id)}')"><i data-lucide="printer"></i>Chop etish</button>
+      ${t.fayl_path?`<button type="button" class="qz-btn" onclick="qzShablonFileOpen('${esc(t.id)}')"><i data-lucide="download"></i>Yuklab olish</button>`:''}
+      ${isAdminNow?`<label class="qz-btn"><input type="file" accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf" class="vh" onchange="qzShablonFileUpload('${esc(t.id)}',this)"><i data-lucide="upload"></i>Fayl yuklash</label>`:''}
+      ${isAdminNow?`<button type="button" class="qz-btn" onclick="qzShablonOpenForm('${esc(t.id)}')"><i data-lucide="pencil"></i>Tahrirlash</button>`:''}
+    </div>
+    <div class="qz-msg" id="qzShMsg-${esc(t.id)}"></div>
+  </div>`;
+}
+function qzRenderShablonList(){
+  const isAdminNow=qzShablonIsAdmin();
+  const list=isAdminNow?(qzShablonAll||[]):(qzShablonAll||[]).filter(t=>t.is_active);
+  $('qzShablonList').innerHTML= list.length ? list.map(qzShablonCard).join('') : '<div class="empty">Hali shablon yo\'q</div>';
+  const addBtn=$('qzShablonAddBtn'); if(addBtn) addBtn.style.display=isAdminNow?'flex':'none';
+  icons();
+}
+// Chop etish — bu YAKKA shablon (biror qarzga bog'lanmagan), joy-tutuvchilar
+// bo'sh chiziq bilan almashtiriladi (qo'lda to'ldirish uchun A4).
+window.qzShablonPrint=id=>{
+  const t=(qzShablonAll||[]).find(x=>x.id===id); if(!t) return;
+  const matn=String(t.matn||'').replace(/\{(\w+)\}/g,'________');
+  qzOpenPrintWindow(matn);
+};
+window.qzShablonFileOpen=async id=>{
+  const t=(qzShablonAll||[]).find(x=>x.id===id); if(!t||!t.fayl_path) return;
+  try{
+    const {data,error}=await sb.storage.from('qarz-tilxat').createSignedUrl(t.fayl_path,300);
+    if(error||!data){ alert('Fayl topilmadi'); return; }
+    window.open(data.signedUrl,'_blank');
+  }catch(e){ alert('Fayl ochilmadi'); }
+};
+function qzShMsgSet(id,text,err){
+  const el=$('qzShMsg-'+id); if(!el) return;
+  el.textContent=text||''; el.className='qz-msg'+(text?(err?' err':' ok'):'');
+}
+window.qzShablonFileUpload=async(id,el)=>{
+  const f=el.files&&el.files[0]; el.value=''; if(!f) return;
+  if(!qzShablonIsAdmin()){ qzShMsgSet(id,'Faqat admin fayl yuklaydi.',true); return; }
+  const okType=f.type==='application/pdf'||f.type==='image/jpeg'||f.type==='image/png';
+  if(!okType){ qzShMsgSet(id,'Faqat PDF, JPG yoki PNG fayl yuklang.',true); return; }
+  if(f.size>4*1024*1024){ qzShMsgSet(id,'Fayl 4MB dan katta.',true); return; }
+  const ext = f.type==='application/pdf' ? 'pdf' : (f.type==='image/png' ? 'png' : 'jpg');
+  const path='shablon/'+id+'.'+ext;
+  qzShMsgSet(id,'Yuklanmoqda…',false);
+  const {error:eu}=await sb.storage.from('qarz-tilxat').upload(path,f,{contentType:f.type,upsert:true});
+  if(eu){ qzShMsgSet(id,'Fayl yuklanmadi: '+eu.message,true); return; }
+  const {data,error}=await sb.rpc('tilxat_shablon_saqla',{p:{id,fayl_path:path}});
+  if(error){ qzShMsgSet(id,qzErr(error),true); return; }
+  if(data&&data.ok===false){ qzShMsgSet(id,'Saqlanmadi',true); return; }
+  qzShMsgSet(id,'Fayl saqlandi',false);
+  qzLoadShablon(true);
+};
+window.qzShablonOpenForm=id=>{
+  if(!qzShablonIsAdmin()) return;
+  qzShEditId=id||null;
+  const t=id?(qzShablonAll||[]).find(x=>x.id===id):null;
+  $('qzShNom').value=t?t.nom:'';
+  $('qzShMatn').value=t?t.matn:'';
+  $('qzShDefault').checked=!!(t&&t.is_default);
+  $('qzShActive').checked=t?!!t.is_active:true;
+  $('qzShChips').innerHTML=TLX_PH.map(p=>`<button type="button" class="qz-btn" style="height:30px;padding:0 9px;font-size:11.5px" onclick="qzShInsertPh('${p}')">{${p}}</button>`).join('');
+  $('qzShMsg').className='qz-msg'; $('qzShMsg').textContent='';
+  $('qzShablonForm').style.display='block';
+  const addBtn=$('qzShablonAddBtn'); if(addBtn) addBtn.style.display='none';
+  window.qzShablonFormUI(); icons();
+  $('qzShNom').focus();
+};
+window.qzShablonCancel=()=>{ $('qzShablonForm').style.display='none'; qzShEditId=null; qzRenderShablonList(); };
+window.qzShablonFormUI=()=>{
+  const nom=($('qzShNom').value||'').trim(), matn=($('qzShMatn').value||'').trim();
+  $('qzShSaveBtn').disabled=!(nom.length>=2 && matn.length>=10);
+};
+window.qzShInsertPh=ph=>{
+  const ta=$('qzShMatn'); if(!ta) return;
+  const s=ta.selectionStart??ta.value.length, e=ta.selectionEnd??ta.value.length;
+  const ins='{'+ph+'}';
+  ta.value=ta.value.slice(0,s)+ins+ta.value.slice(e);
+  ta.focus(); const pos=s+ins.length; ta.setSelectionRange(pos,pos);
+  window.qzShablonFormUI();
+};
+window.qzShablonSave=async()=>{
+  if(!qzShablonIsAdmin()) return;
+  const nom=($('qzShNom').value||'').trim(), matn=$('qzShMatn').value||'';
+  if(nom.length<2||matn.trim().length<10) return;
+  const p={id:qzShEditId||undefined, nom, matn, is_default:$('qzShDefault').checked, is_active:$('qzShActive').checked};
+  const btn=$('qzShSaveBtn'), old=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='Saqlanmoqda…';
+  const {data,error}=await sb.rpc('tilxat_shablon_saqla',{p});
+  btn.disabled=false; btn.innerHTML=old; icons();
+  if(error){ $('qzShMsg').className='qz-msg err'; $('qzShMsg').textContent=qzErr(error); return; }
+  if(data&&data.ok===false){ $('qzShMsg').className='qz-msg err'; $('qzShMsg').textContent='Saqlanmadi'; return; }
+  $('qzShablonForm').style.display='none'; qzShEditId=null;
+  qzLoadShablon(true);
+};
+
 let qzBekorId=null;
 window.qzBekorOpen=id=>{ qzBekorId=id; $('qzSababInput').value=''; $('qzSababMsg').textContent=''; $('qzSababMsg').className='qz-msg'; $('qzSababModal').classList.add('open'); };
 window.qzSababClose=()=>{ $('qzSababModal').classList.remove('open'); qzBekorId=null; };
@@ -1495,20 +1703,15 @@ window.qzSetQType=t=>{
   document.querySelectorAll('#tab-berish [data-qt]').forEach(b=>b.classList.toggle('on',b.dataset.qt===qzQType));
   $('qzIchkiBox').style.display=(qzQType==='ichki')?'':'none';
   $('qzTashqiBox').style.display=(qzQType==='tashqi')?'':'none';
-  // Tilxat: tashqi — majburiy blok doim ochiq (toggle yashirin); ichki — ixtiyoriy toggle.
-  const tashqi=(qzQType==='tashqi');
-  $('qzTilxatToggleWrap').style.display=tashqi?'none':'flex';
-  $('qzTilxatReqLbl').style.display=tashqi?'block':'none';
-  const toggleOn=!!($('qzTilxatToggle')&&$('qzTilxatToggle').checked);
-  $('qzTilxatBox').style.display=(tashqi||toggleOn)?'block':'none';
-  if(tashqi||toggleOn) qzTilxatSync(true);
+  // Tilxat bloki (3-BOSQICH) faqat tashqi qarzda ko'rinadi — qo'lda yozish yo'q,
+  // faqat ixtiyoriy fayl (shablon "Tilxatlar" bo'limida tayyorlanadi).
+  $('qzTilxatSect').style.display=(qzQType==='tashqi')?'block':'none';
 };
 window.qzSetTashqiMode=m=>{
   qzTashqiMode=(m==='yangi')?'yangi':'mavjud';
   document.querySelectorAll('#tab-berish [data-tm]').forEach(b=>b.classList.toggle('on',b.dataset.tm===qzTashqiMode));
   $('qzTashqiMavjud').style.display=(qzTashqiMode==='mavjud')?'':'none';
   $('qzTashqiYangi').style.display=(qzTashqiMode==='yangi')?'':'none';
-  qzTilxatSync();
 };
 window.qzSetMuddat=m=>{
   qzMuddat=(m==='oylik')?'oylik':'bir_martalik';
@@ -1536,7 +1739,6 @@ window.qzUpdatePreview=()=>{
     }
   }
   qzSubmitValidate();
-  qzTilxatSync();
 };
 // Server baribir rad etadi (qoldiq/muddat) — UI ham tugmani o'chiradi, hodim-dev naqshi:
 // xato haqida oldindan ogohlantirish, keyin server yana bir bor tekshiradi (fail-closed ikki qatlam).
@@ -1550,119 +1752,23 @@ function qzSubmitValidate(){
     const on=parseInt(($('qzOylarSoni')&&$('qzOylarSoni').value)||'',10)||0;
     if(summa>0 && os>0 && on>0 && os*(on-1)>=summa) bad="Oylik summa × oylar soni umumiy summadan katta — muddatni to'g'irlang.";
   }
-  if(!bad && summa>0 && qzKassaSelected){
-    const k=(qzKassaAll||[]).find(r=>r.id===qzKassaSelected);
-    if(k && Number(k.uzs||0)<summa) bad="Tanlangan kassada yetarli mablag' yo'q.";
+  if(!bad && summa>0 && qzKassaSelectedRow){
+    if(Number(qzKassaSelectedRow.uzs||0)<summa) bad="Tanlangan kassada yetarli mablag' yo'q.";
   }
+  if(qzKassaPickerForm) qzKassaPickerForm.setAmount(summa);
   if(warnEl){ warnEl.textContent=bad; warnEl.style.display=bad?'block':'none'; }
   btn.disabled=!!bad;
 }
 
-// ---- Tilxat (2-o'tish): shablon tanlash, matn to'ldirish, chop etish ----
-const QZ_KOMPANIYA="Aros Market";
-const QZ_SONLAR1=['','bir','ikki','uch','to\'rt','besh','olti','yetti','sakkiz','to\'qqiz'];
-const QZ_ONLAR=['','o\'n','yigirma','o\'ttiz','qirq','ellik','oltmish','yetmish','sakson','to\'qson'];
-const QZ_SCALE=['','ming','million','milliard'];
-function qzChunk3(n){
-  const h=Math.floor(n/100), r=n%100, t=Math.floor(r/10), o=r%10;
-  const parts=[];
-  if(h>0) parts.push(QZ_SONLAR1[h]+' yuz');
-  if(t>0) parts.push(QZ_ONLAR[t]);
-  if(o>0) parts.push(QZ_SONLAR1[o]);
-  return parts.join(' ');
-}
-// So'mni so'z bilan yozish (tilxat matni uchun, {summa_soz}) — masalan 3100000 ->
-// "uch million bir yuz ming so'm". SQL/serverda ekvivalenti yo'q — faqat matn.
-function qzSummaSoz(n){
-  n=Math.round(Number(n)||0);
-  if(n<=0) return "nol so'm";
-  const groups=[]; let x=n;
-  while(x>0){ groups.push(x%1000); x=Math.floor(x/1000); }
-  const parts=[];
-  for(let i=groups.length-1;i>=0;i--){
-    const g=groups[i]; if(!g) continue;
-    const w=qzChunk3(g);
-    parts.push(QZ_SCALE[i]?(w+' '+QZ_SCALE[i]):w);
-  }
-  return parts.join(' ')+" so'm";
-}
-function qzFmtDateUz(iso){
-  const s=String(iso||'').slice(0,10).split('-');
-  return s.length===3?(s[2]+'.'+s[1]+'.'+s[0]):'';
-}
-// Muddat matni + {tugash} — qzOyQosh bilan (server bilan bir xil oy-oxiri clamp).
-function qzMuddatMatniPreview(){
-  const boshlanish=($('qzBoshlanish')&&$('qzBoshlanish').value)||qzDefaultBoshlanish();
-  if(qzMuddat==='oylik'){
-    const os=qzAmtVal('qzOylikSumma'), on=parseInt(($('qzOylarSoni')&&$('qzOylarSoni').value)||'',10)||0;
-    if(!(os>0)||!(on>0)) return {muddat:'',oylik_summa:0,oylar_soni:0,tugash:boshlanish};
-    const tugash=qzOyQosh(boshlanish,on-1);
-    return {muddat:on+" oy · har oy "+money(os)+" so'm · "+qzFmtDateUz(tugash)+' gacha', oylik_summa:os, oylar_soni:on, tugash};
-  }
-  return {muddat:"Bir martalik · "+qzFmtDateUz(boshlanish)+' gacha', oylik_summa:0, oylar_soni:0, tugash:boshlanish};
-}
-function qzTilxatFields(){
-  let ism='', familya='';
-  if(qzQType==='ichki'){
-    if(qzStaffSelected){ ism=qzStaffSelected.ism||''; familya=qzStaffSelected.familiya||'';
-      if(!ism&&!familya){ const p=qzStaffName(qzStaffSelected).split(' '); ism=p[0]||''; familya=p.slice(1).join(' '); } }
-  } else if(qzTashqiMode==='mavjud'){
-    if(qzTashqiSelected){ ism=qzTashqiSelected.ism||''; familya=qzTashqiSelected.familya||''; }
-  } else {
-    ism=($('qzTIsm')&&$('qzTIsm').value||'').trim(); familya=($('qzTFamilya')&&$('qzTFamilya').value||'').trim();
-  }
-  const summa=qzAmtVal('qzSumma'), md=qzMuddatMatniPreview();
-  return { ism, familya, summa: money(summa), summa_soz: qzSummaSoz(summa),
-    valyuta: "so'm", sana: qzFmtDateUz(isoDay(nowUz())),
-    muddat: md.muddat, oylik_summa: md.oylik_summa?money(md.oylik_summa):'',
-    oylar_soni: md.oylar_soni?String(md.oylar_soni):'', tugash: qzFmtDateUz(md.tugash),
-    kompaniya: QZ_KOMPANIYA };
-}
-// Joy-tutuvchi almashtirish — callback bilan (CLAUDE.md: replace(re,string) XAVFLI, $' kabi
-// maxsus pattern qochib ketishi mumkin; callback funksiya xavfsiz).
-function qzTilxatMatn(shablonMatn, fields){
-  return String(shablonMatn||'').replace(/\{(\w+)\}/g,(m,k)=>(k in fields)?String(fields[k]):m);
-}
-let qzTilxatShablonAll=null, qzTilxatDirty=false;
-async function qzLoadTilxatShablon(){
-  const ck='qarz:shablon';
-  const cached=swrGet(ck,600000);
-  if(cached){ qzTilxatShablonAll=cached; qzRenderTilxatShablonSelect(); }
-  const {data,error}=await sb.from('tilxat_shablon').select('*').eq('is_active',true).order('is_default',{ascending:false}).order('nom');
-  if(error) return;   // jimgina — majburiy bo'lsa forma pastda (bo'sh matn) tekshiradi
-  qzTilxatShablonAll=data||[]; swrSet(ck,qzTilxatShablonAll); qzRenderTilxatShablonSelect();
-}
-function qzRenderTilxatShablonSelect(){
-  const sel=$('qzTilxatShablon'); if(!sel) return;
-  const list=qzTilxatShablonAll||[];
-  if(!list.length){ sel.innerHTML='<option value="">Shablon topilmadi</option>'; return; }
-  const cur=sel.value;
-  sel.innerHTML=list.map(t=>`<option value="${esc(t.id)}">${esc(t.nom)}${t.is_default?' (sukut)':''}</option>`).join('');
-  const def=list.find(t=>t.is_default)||list[0];
-  sel.value=list.some(t=>t.id===cur)?cur:(def?def.id:'');
-  qzTilxatSync(true);
-}
-// 🔴 oninput="qzTilxatSync()" (ism/familya maydonlari) — module ichidagi funksiya global emas,
-//    shuning uchun window ga ko'prik (hoisting tufayli e'lon pastda bo'lsa ham ishlaydi).
-window.qzTilxatSync=function(force){ return qzTilxatSync(force); };
-function qzTilxatSync(force){
-  const box=$('qzTilxatBox'); if(!box || box.style.display==='none') return;
-  if(qzTilxatDirty && !force) return;
-  const sel=$('qzTilxatShablon'), sh=(qzTilxatShablonAll||[]).find(t=>t.id===(sel&&sel.value));
-  const ta=$('qzTilxatMatnEl'); if(!ta) return;
-  ta.value = sh ? qzTilxatMatn(sh.matn, qzTilxatFields()) : '';
-}
-window.qzTilxatToggleChange=()=>{
-  const on=$('qzTilxatToggle').checked;
-  $('qzTilxatBox').style.display=on?'block':'none';
-  if(on) qzTilxatSync(true);
-};
-window.qzTilxatShablonChange=()=>{ qzTilxatDirty=false; qzTilxatSync(true); };
-window.qzTilxatRegen=()=>{ qzTilxatDirty=false; qzTilxatSync(true); };
-window.qzTilxatPrint=()=>{
-  const matn=($('qzTilxatMatnEl')&&$('qzTilxatMatnEl').value||'').trim();
-  if(!matn){ alert("Avval tilxat matnini tayyorlang (shablon tanlang)."); return; }
-  qzOpenPrintWindow(matn);
+// ---- Tilxat fayli (3-BOSQICH) — qarz berish formasida faqat tashqi qarzda,
+//      ixtiyoriy. Tanlangan fayl saqlashgacha xotirada turadi ("qzSubmit" ichida
+//      qarz yaratilgach yuklanadi+faollashtiradi) — shablon matni bu yerda
+//      HISOBLANMAYDI (qo'lda yozish yo'q, faqat "Tilxatlar" bo'limida chop etiladi).
+let qzTilxatPendingFile=null;
+window.qzTilxatFilePick=el=>{
+  const f=el.files&&el.files[0];
+  qzTilxatPendingFile=f||null;
+  const t=$('qzTilxatFileTxt'); if(t) t.textContent=f?f.name:'Rasm tanlash (ixtiyoriy)';
 };
 
 // ---- Ichki qarzdor: aros_staff qidiruv -----------------------------------
@@ -1697,9 +1803,9 @@ window.qzPickStaff=staffId=>{
   $('qzStaffSel').style.display='flex';
   $('qzStaffSel').innerHTML=`<span>${esc(qzStaffName(s))} <span class="qz-muted">${esc([s.lavozim,s.branch_nomi].filter(Boolean).join(' · '))}</span></span>
     <button type="button" onclick="qzClearStaff()" aria-label="Bekor qilish"><i data-lucide="x"></i></button>`;
-  icons(); qzTilxatSync();
+  icons();
 };
-window.qzClearStaff=()=>{ qzStaffSelected=null; $('qzStaffSel').style.display='none'; $('qzStaffSel').innerHTML=''; window.qzStaffFilter(); qzTilxatSync(); };
+window.qzClearStaff=()=>{ qzStaffSelected=null; $('qzStaffSel').style.display='none'; $('qzStaffSel').innerHTML=''; window.qzStaffFilter(); };
 
 // ---- Tashqi qarzdor: mavjuddan tanlash yoki yangi ------------------------
 let qzTashqiResults=[], qzTashqiSelected=null, qzTashqiTimer=null;
@@ -1725,36 +1831,127 @@ window.qzPickTashqi=i=>{
   $('qzTashqiSel').style.display='flex';
   $('qzTashqiSel').innerHTML=`<span>${esc(d.ism)} ${esc(d.familya)}</span>
     <button type="button" onclick="qzClearTashqi()" aria-label="Bekor qilish"><i data-lucide="x"></i></button>`;
-  icons(); qzTilxatSync();
+  icons();
 };
-window.qzClearTashqi=()=>{ qzTashqiSelected=null; $('qzTashqiSel').style.display='none'; $('qzTashqiSel').innerHTML=''; qzTilxatSync(); };
+window.qzClearTashqi=()=>{ qzTashqiSelected=null; $('qzTashqiSel').style.display='none'; $('qzTashqiSel').innerHTML=''; };
 
-// ---- Kassa ro'yxati (v_kassa_tanlov — pul_turi bilan; yo'q bo'lsa v_kassa_toliq) ----
-let qzKassaAll=null, qzKassaSelected=null;
+// ---- Kassa tanlash — UMUMIY komponent (3-BOSQICH, "eski mantiq" — Asilbek talabi):
+//      1-qadam PARENT (ildiz kassa, qidiruv bilan) → 2-qadam pul turi segmenti
+//      (Naqd/Click/Payme — hodim-dev renderTurSeg()/isTuriChild naqshi). Bola yo'q
+//      bo'lsa parentning o'zi avtomat effektiv kassa bo'ladi. Qarz berish VA to'lov
+//      formasi BITTASI ishlatadi (containerId bilan ko'p nusxa yashaydi).
+//      Manba: v_kassa_tanlov (v_kassa_toliq + pul_turi), yo'q bo'lsa v_kassa_toliq.
+window._qzKP=window._qzKP||{};
+function qzKassaPicker(containerId, onChange){
+  const box=$(containerId); if(!box) return null;
+  const id=containerId;
+  const st={ all:null, q:'', parentId:null, childId:null, amt:0 };
+  // ILDIZ: parent_id yo'q, YOKI (pul_turi bo'sh va currency UZS) — bu shart hodim
+  // xarajat kassalarini ham (parent_id=5400 konteyner, lekin pul_turi/valyuta bolasi
+  // emas) to'g'ri "tanlanadigan ildiz" deb hisoblaydi. Valyuta/tur bolalari (pul_turi
+  // to'lgan yoki currency<>'UZS') shu shartdan chiqib 2-qadamga tushadi.
+  const isRoot=r=>r.kassa_turi!==QZ_KT_GURUH && (r.parent_id==null || (!r.pul_turi && (r.currency||'UZS')==='UZS'));
+  const turLbl=r=>({naqd:'Naqd',click:'Click',payme:'Payme'}[String(r.pul_turi||'').toLowerCase()])||r.pul_turi||'Tur';
+  const roots=()=>{
+    const list=(st.all||[]).filter(isRoot);
+    if(!st.q) return list;
+    const q=st.q.toLowerCase();
+    return list.filter(r=>((r.name||'')+' '+(r.code||'')).toLowerCase().indexOf(q)>=0);
+  };
+  const children=pid=>(st.all||[]).filter(r=>r.parent_id===pid && r.pul_turi);
+  const effRow=()=>{
+    if(st.childId) return (st.all||[]).find(r=>r.id===st.childId)||null;
+    if(st.parentId) return (st.all||[]).find(r=>r.id===st.parentId)||null;
+    return null;
+  };
+  const fire=()=>{ const r=effRow(); onChange(r?r.id:null, r); };
+
+  function buildSkeleton(){
+    box.innerHTML=`
+      <div id="${id}-step1">
+        <input class="qz-input" id="${id}-search" placeholder="Kassa qidirish (nom/kod)" autocomplete="off">
+        <div class="qz-picklist" id="${id}-rootlist"></div>
+      </div>
+      <div id="${id}-step2" style="display:none">
+        <div class="crumb"><button type="button" id="${id}-back"><i data-lucide="arrow-left"></i><span id="${id}-backlbl"></span></button></div>
+        <div class="qz-kassalist" id="${id}-childlist"></div>
+      </div>`;
+    $(id+'-search').addEventListener('input', e=>{ st.q=e.target.value; renderRootList(); });
+    $(id+'-back').addEventListener('click', ()=>{ st.parentId=null; st.childId=null; renderView(); fire(); });
+    icons();
+  }
+  function renderRootList(){
+    const elL=$(id+'-rootlist'); if(!elL) return;
+    const list=roots();
+    elL.innerHTML = st.all===null ? '<div class="qz-pickempty">Yuklanmoqda…</div>'
+      : (list.length ? list.map(r=>`<button type="button" class="qz-pickitem" data-id="${esc(r.id)}">
+          <span class="qz-pn">${esc(r.name)}</span>
+          <span class="qz-pc">${esc(r.code||'')} · ${money(r.uzs)} so'm</span>
+        </button>`).join('') : '<div class="qz-pickempty">Ruxsatli kassa topilmadi</div>');
+    elL.querySelectorAll('[data-id]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ st.parentId=btn.dataset.id; st.childId=null; renderView(); fire(); });
+    });
+  }
+  function renderChildList(){
+    const parent=(st.all||[]).find(r=>r.id===st.parentId); if(!parent) return;
+    const lblEl=$(id+'-backlbl'); if(lblEl) lblEl.textContent=parent.name||'';
+    const kids=children(parent.id);
+    const rows = kids.length ? [parent, ...kids] : [parent];
+    const elL=$(id+'-childlist'); if(!elL) return;
+    elL.innerHTML = rows.map(r=>{
+      const on = r.id===parent.id ? !st.childId : st.childId===r.id;
+      const lbl = r.id===parent.id ? (kids.length ? 'Kassa (turlanmagan)' : (parent.name||'')) : turLbl(r);
+      const yetmaydi = st.amt>0 && Number(r.uzs||0)<st.amt;
+      return `<button type="button" class="qz-kbtn${on?' on':''}${yetmaydi?' bosh':''}" data-id="${esc(r.id)}">
+        <span class="qz-kn">${esc(lbl)}</span><span class="qz-kq">${money(r.uzs)} so'm</span>
+      </button>`;
+    }).join('');
+    elL.querySelectorAll('[data-id]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const cid=btn.dataset.id;
+        st.childId = (cid===parent.id) ? null : cid;
+        renderChildList();
+        fire();
+      });
+    });
+    icons();
+  }
+  function renderView(){
+    const s1=$(id+'-step1'), s2=$(id+'-step2'); if(!s1||!s2) return;
+    const inStep2=!!st.parentId;
+    s1.style.display = inStep2?'none':'block';
+    s2.style.display = inStep2?'block':'none';
+    if(inStep2) renderChildList(); else renderRootList();
+  }
+
+  buildSkeleton();
+  renderView();
+
+  const api={
+    setList(rows){ st.all=rows||[]; renderView(); },
+    setAmount(v){ st.amt=Number(v)||0; if(st.parentId) renderChildList(); else renderRootList(); },
+    reset(){ st.parentId=null; st.childId=null; st.q=''; const s=$(id+'-search'); if(s) s.value=''; renderView(); fire(); },
+    getEff: effRow
+  };
+  window._qzKP[id]=api;
+  return api;
+}
+
+// ---- Qarz berish formasi kassa tanlagichi (v_kassa_tanlov — pul_turi bilan) ----
+let qzKassaPickerForm=null, qzKassaSelected=null, qzKassaSelectedRow=null;
 async function qzLoadKassaList(){
+  if(!qzKassaPickerForm){
+    qzKassaPickerForm=qzKassaPicker('qzKassaList', (kid,row)=>{
+      qzKassaSelected=kid; qzKassaSelectedRow=row; qzSubmitValidate();
+    });
+  }
   let {data,error}=await sb.from('v_kassa_tanlov').select('*').order('code');
   if(error) ({data,error}=await sb.from('v_kassa_toliq').select('*').order('code'));
   if(error){ $('qzKassaList').innerHTML='<div class="empty">'+esc(rpcMsg(error))+'</div>'; return; }
-  qzKassaAll=(data||[]).filter(r=>(r.currency||'UZS')==='UZS' && r.kassa_turi!==QZ_KT_GURUH && window.permOpOk(r));
-  window.qzRenderKassaList();
+  const rows=(data||[]).filter(r=>(r.currency||'UZS')==='UZS' && r.kassa_turi!==QZ_KT_GURUH && window.permOpOk(r));
+  qzKassaPickerForm.setList(rows);
   qzSubmitValidate();
 }
-window.qzRenderKassaList=()=>{
-  const box=$('qzKassaList'); if(!box) return;
-  if(qzKassaAll===null){ box.innerHTML='<div class="empty">Yuklanmoqda…</div>'; return; }
-  if(!qzKassaAll.length){ box.innerHTML='<div class="empty">Ruxsatli kassa topilmadi</div>'; return; }
-  const summa=qzAmtVal('qzSumma');
-  box.innerHTML=qzKassaAll.map(r=>{
-    const on=qzKassaSelected===r.id;
-    const yetmaydi=summa>0 && Number(r.uzs||0)<summa;
-    return `<button type="button" class="qz-kbtn${on?' on':''}${yetmaydi?' bosh':''}" onclick="qzPickKassa('${esc(r.id)}')">
-      <span class="qz-kn">${esc(r.name)}</span>
-      <span class="qz-kq">${money(r.uzs)} so'm</span>
-    </button>`;
-  }).join('');
-  icons();
-};
-window.qzPickKassa=id=>{ qzKassaSelected=id; window.qzRenderKassaList(); qzSubmitValidate(); };
 
 // ---- Qarzdor yaratish/aniqlash ------------------------------------------
 // 🔴 2-o'tish: `qarzdor_yarat` ICHKI turi uchun endi o'zi idempotent (mavjud
@@ -1778,12 +1975,12 @@ function qzResetForm(){
   $('qzTIsm').value=''; $('qzTFamilya').value=''; $('qzTTel').value=''; $('qzTIzoh').value='';
   $('qzTashqiQ').value=''; $('qzTashqiList').innerHTML='';
   window.qzClearTashqi(); window.qzClearStaff();
-  qzKassaSelected=null; window.qzRenderKassaList();
+  qzKassaSelected=null; qzKassaSelectedRow=null; if(qzKassaPickerForm) qzKassaPickerForm.reset();
   window.qzSetMuddat('bir_martalik');
   $('qzBoshlanish').value=qzDefaultBoshlanish();
-  if($('qzTilxatToggle')) $('qzTilxatToggle').checked=false;
-  qzTilxatDirty=false;
-  if($('qzTilxatMatnEl')) $('qzTilxatMatnEl').value='';
+  qzTilxatPendingFile=null;
+  if($('qzTilxatFile')) $('qzTilxatFile').value='';
+  if($('qzTilxatFileTxt')) $('qzTilxatFileTxt').textContent='Rasm tanlash (ixtiyoriy)';
   qzTokenReset();
   window.qzSetQType(qzQType);   // tilxat blok ko'rinishini joriy turga qarab qayta hisoblaydi
   window.qzUpdatePreview();
@@ -1831,15 +2028,11 @@ window.qzSubmit=async()=>{
     if(!(payload.oylik_summa>0)||!(payload.oylar_soni>0)){ msg.textContent='Oylik summa va oylar sonini kiriting.'; msg.className='qz-msg err'; return; }
     if(payload.oylik_summa*(payload.oylar_soni-1)>=summa){ msg.textContent='Oylik summa × oylar soni umumiy summadan katta chiqmoqda.'; msg.className='qz-msg err'; return; }
   }
-  const kassaObj=(qzKassaAll||[]).find(r=>r.id===qzKassaSelected);
-  if(kassaObj && Number(kassaObj.uzs||0)<summa){ msg.textContent="Tanlangan kassada yetarli mablag' yo'q."; msg.className='qz-msg err'; return; }
-  // Tilxat — tashqi majburiy, ichki faqat toggle yoqilgan bo'lsa
-  const tilxatOn=$('qzTilxatBox') && $('qzTilxatBox').style.display!=='none';
-  if(tilxatOn){
-    const matn=($('qzTilxatMatnEl')&&$('qzTilxatMatnEl').value||'').trim();
-    if(qzQType==='tashqi' && !matn){ msg.textContent='Tilxat matnini tanlang/kiriting.'; msg.className='qz-msg err'; return; }
-    if(matn){ const sel=$('qzTilxatShablon'); payload.tilxat_shablon_id=(sel&&sel.value)||undefined; payload.tilxat_matn=matn; }
-  }
+  if(qzKassaSelectedRow && Number(qzKassaSelectedRow.uzs||0)<summa){ msg.textContent="Tanlangan kassada yetarli mablag' yo'q."; msg.className='qz-msg err'; return; }
+  // 🔴 3-BOSQICH: tilxat matni endi qo'lda yozilmaydi/yuborilmaydi (tilxat_matn/
+  // tilxat_shablon_id payload'i olib tashlandi). Faqat tashqi qarzda ixtiyoriy fayl —
+  // qarz yaratilgach shu yerda yuklab, bitta bosishda faollashtiramiz.
+  const pendingFile = (qzQType==='tashqi') ? qzTilxatPendingFile : null;
   payload.ext_ref=qzTokenFor();
   btn.disabled=true; const oldTxt=btn.textContent; btn.textContent='Bajarilmoqda…';
   try{
@@ -1859,31 +2052,54 @@ window.qzSubmit=async()=>{
     }
     const {data:yd,error:ye}=await sb.rpc('qarz_yarat',{p:payload});
     if(ye) throw ye;
+    let qarzId=null, statusAfter=null;
     if(yd&&yd.ok===false){
       // 🔴 Idempotent takror: bu ext_ref bilan qarz ALLAQACHON yaratilgan (masalan ikki marta
       // bosilgan/tarmoq sekinlashgan) — server `id` bilan qaytaradi, xato ko'rsatmaymiz.
       if(yd.kod==='takror' && yd.id){
-        let st='faol';
-        try{ const {data:kart}=await sb.rpc('qarz_kart',{p_id:yd.id}); st=(kart&&kart.qarz&&kart.qarz.status)||'faol'; }catch(e){}
-        qzTokenReset();
-        const prefix=ogoh?(ogoh+' — '):'';
-        if(st==='faol'){ msg.className='qz-msg ok'; msg.textContent=prefix+'Qarz allaqachon berilgan (takroriy yuborish aniqlandi).';
-          qzResetForm(); qzRefreshAfterWrite(); }
-        else{ msg.className='qz-msg ok'; msg.textContent=prefix+"Tilxatga allaqachon saqlangan (takroriy yuborish aniqlandi).";
-          qzResetForm(); qzRefreshAfterWrite(); qzTilxatLoaded=false; qzEnsureTilxatLoaded(); window.qzTab('tilxat'); }
-        return;
+        qarzId=yd.id; statusAfter='tilxat_kutilmoqda';
+        try{ const {data:kart}=await sb.rpc('qarz_kart',{p_id:yd.id}); statusAfter=(kart&&kart.qarz&&kart.qarz.status)||statusAfter; }catch(e){}
+      } else {
+        throw new Error(qzKodMatn(yd.kod));
       }
-      throw new Error(qzKodMatn(yd.kod));
+    } else {
+      qarzId=yd.id; statusAfter=yd.status;
     }
     qzTokenReset();
+
+    // 🔴 Fayl tanlangan (faqat tashqi) va hali faol emas — yukla + faollashtir.
+    // Xato bo'lsa qarz "tilxat_kutilmoqda" holatida QOLADI, foydalanuvchi
+    // «Tilxatlar → Tilxat kutilmoqda»dan (qzTilxatUpload) davom etadi.
+    let fileErr=null;
+    if(pendingFile && statusAfter!=='faol' && qarzId){
+      try{
+        let blob=await qzCompressImage(pendingFile,1600,0.82);
+        if(blob.size>1.5*1024*1024) blob=await qzCompressImage(pendingFile,1600,0.6);
+        if(blob.size>1.5*1024*1024) throw new Error("Rasm juda katta (>1.5MB) — boshqa surat tanlang");
+        const path=qarzId+'/tilxat.jpg';
+        const {error:eu}=await sb.storage.from('qarz-tilxat').upload(path,blob,{contentType:'image/jpeg',upsert:true});
+        if(eu) throw new Error('Rasm yuklanmadi: '+eu.message);
+        const {data:ud,error:ue}=await sb.rpc('qarz_tilxat_yuklandi',{p_id:qarzId,p_path:path});
+        if(ue) throw ue;
+        if(ud&&ud.ok===false) throw new Error(qzKodMatn(ud.kod));
+        const {data:fd,error:fe}=await sb.rpc('qarz_faollashtir',{p_id:qarzId});
+        if(fe) throw fe;
+        if(fd&&fd.ok===false && fd.kod!=='already_active') throw new Error(qzKodMatn(fd.kod));
+        statusAfter='faol';
+      }catch(e){ fileErr=qzErr(e); }
+    }
+
     const prefix=ogoh?(ogoh+' — '):'';
-    if(yd.status==='faol'){
+    if(statusAfter==='faol'){
       msg.className='qz-msg ok'; msg.textContent=prefix+'Qarz berildi.';
       qzResetForm(); qzRefreshAfterWrite();
     } else {
-      msg.className='qz-msg ok'; msg.textContent=prefix+"Tilxatga saqlandi — «Tilxat kutilmoqda» bo'limida.";
+      msg.className = fileErr ? 'qz-msg err' : 'qz-msg ok';
+      msg.textContent = fileErr
+        ? (prefix+'Qarz «Tilxat kutilmoqda» holatida saqlandi, lekin rasm/faollashtirish muvaffaqiyatsiz: '+fileErr+" — «Tilxatlar → Tilxat kutilmoqda» bo'limidan davom eting.")
+        : (prefix+"Tilxatga saqlandi — «Tilxatlar → Tilxat kutilmoqda» bo'limida.");
       qzResetForm(); qzRefreshAfterWrite(); qzTilxatLoaded=false; qzEnsureTilxatLoaded();
-      window.qzTab('tilxat');
+      window.qzTab('tilxat'); window.qzTlxSub('kut');
     }
   }catch(e){
     msg.className='qz-msg err'; msg.textContent=qzErr(e);

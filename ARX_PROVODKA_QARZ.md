@@ -268,3 +268,22 @@ n8n kunlik: bugun/ertaga muddati kelgan va kechikkan qarzlar → admin/qarz beru
 4. 3 subsection + qarz kartasi modal (grafik, tarix), dash raqamlari — designer pardozi.
 5. To'lash (qisman/to'liq, FIFO), kechikkan, yopilish; jurnalda `source='qarz'` chip + ✏️ yashirish.
 6. (ixtiyoriy) grafik qayta tuzish, kechirish, Telegram.
+
+## 13. 3-BOSQICH — Asilbek fikri (2026-09-03), TASDIQLANGAN o'zgarishlar
+1. **Tab nomlari/tuzilishi**: «Qarz berish» · «Kutilayotgan» · **«Tilxatlar»** · **«Biz qarzdormiz»**
+   (eski Kontragentlar tarkibi — 4010/6010 + yuklar — «Biz qarzdormiz» nomi bilan, mantiq tegilmaydi).
+2. **«Tilxatlar»** tabi ichida 3 bo'lim (segment): **Tilxat kutilmoqda** (draftlar — rasm yuklash → qarzni berish),
+   **Tilxat yuklagan mijozlar** (rasmi bor qarzlar: qarzdor, summa, holat, sana, thumbnail → to'liq ko'rish),
+   **Shablon tilxatlar** (admin: shablon ro'yxati, chop etish/yuklab olish, tahrir, fayl (pdf/jpg/png) yuklash;
+   `sozlama-dev` dagi karta OLIB TASHLANADI — bitta joy). Seed: **2 shablon** (bir martalik, oyma-oy) — SQL da.
+3. **Tilxat QO'LDA YOZILMAYDI**: forma ichidagi textarea/preview/«Chop etish» OLIB TASHLANADI. Oqim: shablonni
+   chop etadi (Tilxatlar → Shablon) → imzolatadi → **rasm/fayl yuklaydi**. Formada (tashqi) ixtiyoriy fayl maydoni:
+   fayl tanlansa saqlashda darrov yuklanadi va `qarz_faollashtir` chaqiriladi (bitta bosishda faol);
+   tanlanmasa draft → «Tilxat kutilmoqda». `tilxat_matn` endi faqat shablon nomi/ID uchun (ixtiyoriy).
+4. **Kassa tanlash — eski mantiq**: avval **parent kassa** (markaziy/filial ildizlari, qidiruv maydoni bilan),
+   keyin **child pul turi** segmenti (Naqd/Click/Payme — `v_kassa_tanlov.pul_turi`, hodim-dev `renderTurSeg()` naqshi);
+   bola yo'q bo'lsa parentning o'zi. Qoldiq tanlangan hisobniki. To'lov formasida ham shu.
+5. Dizayn/UX — designer to'liq o'tadi (asosiy e'tibor).
+SQL: `PROVODKA_QARZ.sql` hali RUN qilinmagan → o'sha faylning o'zida: `tilxat_shablon.fayl_path text`,
+storage policy `shablon/<id>.<ext>` (admin insert/update, authenticated select), `qarz_royxat` ga
+`p_tilxat boolean default null` (true = rasmi bor), seed 2 shablon.

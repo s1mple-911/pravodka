@@ -209,6 +209,7 @@ create table if not exists tilxat_shablon (
   id          uuid primary key default gen_random_uuid(),
   nom         text        not null,
   matn        text        not null,
+  fayl_path   text,
   is_default  boolean     not null default false,
   is_active   boolean     not null default true,
   created_by  uuid,
@@ -218,6 +219,8 @@ create table if not exists tilxat_shablon (
 comment on table tilxat_shablon is
   'Tashqi qarz uchun tilxat matn shabloni. Joy-tutuvchilar: {ism} {familya} {summa} '
   '{summa_soz} {valyuta} {sana} {muddat} {oylik_summa} {oylar_soni} {tugash} {kompaniya}. '
+  'fayl_path — bucket qarz-tilxat dagi "shablon/<id>.<ext>" (admin yuklagan pdf/jpg/png, '
+  'ixtiyoriy — matn shablon bilan chop etish uchun shart emas). '
   'Yozish faqat tilxat_shablon_saqla() orqali (admin).';
 
 -- Faqat BITTA sukut shablon bolishi mumkin.
@@ -234,12 +237,31 @@ create policy tilxat_shablon_select on tilxat_shablon
   for select to authenticated
   using (qarz_page_ok());
 
--- Sukut shablon — faylning birinchi RUN'ida BIR MARTA seed qilinadi.
--- Keyingi RUN'larda jadval BOSH BOLMAGANI uchun qayta qoshilmaydi (admin
--- tahrirlagan/ozgartirgan bolsa ham TEGILMAYDI).
+-- Sukut shablonlar — faylning birinchi RUN'ida seed qilinadi. Har biri OZ
+-- NOMI boyicha alohida idempotent (qayta RUN qilinsa yoki admin nomini/matnini
+-- ozgartirgan bolsa ham TEGILMAYDI, faqat mavjud bolmasa qoshiladi).
+-- 3-BOSQICH (Asilbek, 2026-09-03): "Standart tilxat" orniga IKKITA nomlangan
+-- shablon — bir martalik va oyma-oy uchun alohida matn. Birinchisi sukut.
 insert into tilxat_shablon (nom, matn, is_default, is_active)
-select 'Standart tilxat',
-$tilxat$TILXAT
+select 'Tilxat — bir martalik',
+$tilxat1$TILXAT
+
+Men, {ism} {familya}, {sana} kuni {kompaniya} tashkilotidan {summa} ({summa_soz}) {valyuta} miqdorida qarz oldim.
+
+Qarzni {tugash} sanasigacha toliq qaytarishga majburiyat olaman.
+
+Tilxat ikki nusxada tuzildi: biri menda, biri {kompaniya} tashkilotida saqlanadi.
+
+Qarz beruvchi: _______________          Sana: {sana}
+
+Qarz oluvchi:  _______________          Sana: {sana}$tilxat1$,
+       true,
+       true
+where not exists (select 1 from tilxat_shablon where nom = 'Tilxat — bir martalik');
+
+insert into tilxat_shablon (nom, matn, is_default, is_active)
+select 'Tilxat — oyma-oy',
+$tilxat2$TILXAT
 
 Men, {ism} {familya}, {sana} kuni {kompaniya} tashkilotidan {summa} ({summa_soz}) {valyuta} miqdorida qarz oldim.
 
@@ -249,10 +271,12 @@ Qarzni {tugash} sanasigacha toliq qaytarishga majburiyat olaman.
 
 Tilxat ikki nusxada tuzildi: biri menda, biri {kompaniya} tashkilotida saqlanadi.
 
-Imzo: _______________          Sana: {sana}$tilxat$,
-       true,
+Qarz beruvchi: _______________          Sana: {sana}
+
+Qarz oluvchi:  _______________          Sana: {sana}$tilxat2$,
+       false,
        true
-where not exists (select 1 from tilxat_shablon);
+where not exists (select 1 from tilxat_shablon where nom = 'Tilxat — oyma-oy');
 
 
 -- #####################################################################
@@ -544,12 +568,39 @@ create policy "qarz_tilxat_select" on storage.objects
   for select to authenticated
   using (bucket_id = 'qarz-tilxat');
 
+-- 🔴 Ikki xil yol shu bitta bucket'da: <qarz_id>/tilxat.jpg (qarz_rasm_ok
+--    orqali — birinchi bolak HAQIQIY uuid) va shablon/<shablon_id>.<ext>
+--    (faqat admin). Birinchi bolak 'shablon' bolsa uuid CAST QILINMAYDI —
+--    aks holda 22P02 butun sorovni yiqitadi (AI jurnal fail-closed naqshi,
+--    CLAUDE.md). Shu sabab regex bilan himoyalangan.
+create or replace function qarz_tilxat_yol_ok(p_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $fn$
+  select case
+    when (storage.foldername(p_name))[1] = 'shablon' then is_admin()
+    when (storage.foldername(p_name))[1] ~ '^[0-9a-fA-F-]{36}$'
+      then qarz_rasm_ok( (storage.foldername(p_name))[1]::uuid )
+    else false
+  end;
+$fn$;
+
+revoke all on function qarz_tilxat_yol_ok(text) from public, anon;
+grant execute on function qarz_tilxat_yol_ok(text) to authenticated;
+
+comment on function qarz_tilxat_yol_ok(text) is
+  'Storage RLS uchun: <qarz_id>/tilxat.jpg -> qarz_rasm_ok (yaratuvchi/admin), '
+  'shablon/<id>.<ext> -> faqat is_admin(). Notanish shakl -> false (fail-closed).';
+
 drop policy if exists "qarz_tilxat_insert" on storage.objects;
 create policy "qarz_tilxat_insert" on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'qarz-tilxat'
-    and qarz_rasm_ok( nullif((storage.foldername(name))[1], '')::uuid )
+    and qarz_tilxat_yol_ok(name)
   );
 
 drop policy if exists "qarz_tilxat_update" on storage.objects;
@@ -557,11 +608,11 @@ create policy "qarz_tilxat_update" on storage.objects
   for update to authenticated
   using (
     bucket_id = 'qarz-tilxat'
-    and qarz_rasm_ok( nullif((storage.foldername(name))[1], '')::uuid )
+    and qarz_tilxat_yol_ok(name)
   )
   with check (
     bucket_id = 'qarz-tilxat'
-    and qarz_rasm_ok( nullif((storage.foldername(name))[1], '')::uuid )
+    and qarz_tilxat_yol_ok(name)
   );
 
 
@@ -1699,7 +1750,7 @@ comment on function qarz_bekor(uuid, text) is
 -- #####################################################################
 
 create or replace function qarz_royxat(p_holat text default null, p_qarzdor uuid default null,
-                                        p_q text default null)
+                                        p_q text default null, p_tilxat boolean default null)
 returns jsonb
 language plpgsql
 stable
@@ -1730,6 +1781,9 @@ begin
         join qarzdor qd on qd.id = q.qarzdor_id
        where (v_h is null or v_h = 'all' or q.status = v_h)
          and (p_qarzdor is null or q.qarzdor_id = p_qarzdor)
+         and (p_tilxat is null
+              or (p_tilxat and q.tilxat_rasm_path is not null)
+              or (not p_tilxat and q.tilxat_rasm_path is null))
          and (v_q is null
               or qd.ism ilike '%'||v_q||'%'
               or qd.familya ilike '%'||v_q||'%'
@@ -1742,11 +1796,12 @@ begin
   return v_out;
 end $fn$;
 
-revoke all on function qarz_royxat(text, uuid, text) from public, anon;
-grant execute on function qarz_royxat(text, uuid, text) to authenticated;
+revoke all on function qarz_royxat(text, uuid, text, boolean) from public, anon;
+grant execute on function qarz_royxat(text, uuid, text, boolean) to authenticated;
 
-comment on function qarz_royxat(text, uuid, text) is
-  'Qarzlar royxati (qarz_qator shakli). Filtr: holat, qarzdor, matn qidiruv. Eng yangi 500 ta.';
+comment on function qarz_royxat(text, uuid, text, boolean) is
+  'Qarzlar royxati (qarz_qator shakli). Filtr: holat, qarzdor, matn qidiruv, tilxat holati '
+  '(p_tilxat true=rasmi bor, false=yoq, null=filtr yoq). Eng yangi 500 ta.';
 
 
 create or replace function qarz_kart(p_id uuid)
@@ -1894,10 +1949,12 @@ as $fn$
 declare
   v_uid     uuid := auth.uid();
   v_id      uuid := nullif(p->>'id', '')::uuid;
-  v_nom     text := nullif(btrim(coalesce(p->>'nom', '')), '');
-  v_matn    text := nullif(p->>'matn', '');
-  v_default boolean := coalesce((p->>'is_default')::boolean, false);
-  v_active  boolean := coalesce((p->>'is_active')::boolean, true);
+  v_old     tilxat_shablon;
+  v_nom     text;
+  v_matn    text;
+  v_default boolean;
+  v_active  boolean;
+  v_fayl    text;
 begin
   if v_uid is null then
     raise exception 'Avtorizatsiya kerak' using errcode = '42501';
@@ -1905,6 +1962,24 @@ begin
   if not is_admin() then
     raise exception 'Faqat admin tilxat shablonini ozgartira oladi' using errcode = '42501';
   end if;
+
+  if v_id is not null then
+    select * into v_old from tilxat_shablon where id = v_id;
+    if not found then
+      raise exception 'Shablon topilmadi' using errcode = '22000';
+    end if;
+  end if;
+
+  -- 🔴 QISMAN YANGILASH: kalit yuborilmasa (masalan faqat fayl yuklanganda
+  --    {id, fayl_path} yuboriladi) eski qiymat SAQLANADI — nom/matn qayta
+  --    yuborilishi shart emas. Yangi yozuvda (v_id null) v_old bosh bolgani
+  --    uchun nom/matn baribir majburiy tekshiruvdan otadi.
+  v_nom     := case when p ? 'nom'        then nullif(btrim(coalesce(p->>'nom', '')), '')      else v_old.nom end;
+  v_matn    := case when p ? 'matn'       then nullif(p->>'matn', '')                           else v_old.matn end;
+  v_default := case when p ? 'is_default' then coalesce((p->>'is_default')::boolean, false)     else coalesce(v_old.is_default, false) end;
+  v_active  := case when p ? 'is_active'  then coalesce((p->>'is_active')::boolean, true)        else coalesce(v_old.is_active, true) end;
+  v_fayl    := case when p ? 'fayl_path'  then nullif(btrim(coalesce(p->>'fayl_path', '')), '') else v_old.fayl_path end;
+
   if v_nom is null or length(v_nom) < 2 then
     raise exception 'Shablon nomi majburiy' using errcode = '22000';
   end if;
@@ -1920,16 +1995,14 @@ begin
   end if;
 
   if v_id is null then
-    insert into tilxat_shablon (nom, matn, is_default, is_active, created_by)
-    values (v_nom, v_matn, v_default, v_active, v_uid)
+    insert into tilxat_shablon (nom, matn, is_default, is_active, fayl_path, created_by)
+    values (v_nom, v_matn, v_default, v_active, v_fayl, v_uid)
     returning id into v_id;
   else
     update tilxat_shablon
-       set nom = v_nom, matn = v_matn, is_default = v_default, is_active = v_active, updated_at = now()
+       set nom = v_nom, matn = v_matn, is_default = v_default, is_active = v_active,
+           fayl_path = v_fayl, updated_at = now()
      where id = v_id;
-    if not found then
-      raise exception 'Shablon topilmadi' using errcode = '22000';
-    end if;
   end if;
 
   return jsonb_build_object('ok', true, 'id', v_id);
@@ -1940,7 +2013,9 @@ grant execute on function tilxat_shablon_saqla(jsonb) to authenticated;
 
 comment on function tilxat_shablon_saqla(jsonb) is
   'Admin: tilxat shablon yaratadi/tahrirlaydi. id berilmasa yangi, berilsa yangilaydi. '
-  'is_default=true bolsa avvalgi sukut shablon avtomat false boladi.';
+  'is_default=true bolsa avvalgi sukut shablon avtomat false boladi. Qisman yangilash: '
+  'jsonb kaliti yuborilmasa (masalan {id,fayl_path} bilan faqat fayl yuklashda) eski '
+  'qiymat saqlanadi — nom/matn/is_default/is_active/fayl_path mustaqil yangilanadi.';
 
 
 -- #####################################################################
@@ -2111,9 +2186,21 @@ begin
   if to_regclass('public.qarz_tarix')     is null then raise exception 'qarz_tarix yaratilmadi'; end if;
   if to_regclass('public.qarz_notify')    is null then raise exception 'qarz_notify yaratilmadi'; end if;
 
-  -- 23.3 Sukut tilxat shablon
+  -- 23.3 Sukut tilxat shablon + ikkinchi seed (3-BOSQICH)
   if not exists (select 1 from tilxat_shablon where is_default = true) then
     raise exception 'Sukut tilxat shabloni topilmadi';
+  end if;
+  if not exists (select 1 from tilxat_shablon where nom = 'Tilxat — bir martalik') then
+    raise exception 'Seed shablon "Tilxat — bir martalik" topilmadi';
+  end if;
+  if not exists (select 1 from tilxat_shablon where nom = 'Tilxat — oyma-oy') then
+    raise exception 'Seed shablon "Tilxat — oyma-oy" topilmadi';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'tilxat_shablon' and column_name = 'fayl_path'
+  ) then
+    raise exception 'tilxat_shablon.fayl_path ustuni yoq';
   end if;
 
   -- 23.4 RLS yoqilgan (har jadval alohida)
@@ -2157,7 +2244,8 @@ begin
   if to_regprocedure('public.qarz_tolov(uuid, uuid, numeric, date, text)')  is null then raise exception 'qarz_tolov(...) funksiyasi yaratilmadi'; end if;
   if to_regprocedure('public.qarz_jadval_qayta(uuid, jsonb)')               is null then raise exception 'qarz_jadval_qayta(uuid,jsonb) yaratilmadi'; end if;
   if to_regprocedure('public.qarz_bekor(uuid, text)')                       is null then raise exception 'qarz_bekor(uuid,text) yaratilmadi'; end if;
-  if to_regprocedure('public.qarz_royxat(text, uuid, text)')                is null then raise exception 'qarz_royxat(text,uuid,text) yaratilmadi'; end if;
+  if to_regprocedure('public.qarz_royxat(text, uuid, text, boolean)')       is null then raise exception 'qarz_royxat(text,uuid,text,boolean) yaratilmadi'; end if;
+  if to_regprocedure('public.qarz_tilxat_yol_ok(text)')                     is null then raise exception 'qarz_tilxat_yol_ok(text) yaratilmadi'; end if;
   if to_regprocedure('public.qarz_kart(uuid)')                              is null then raise exception 'qarz_kart(uuid) yaratilmadi'; end if;
   if to_regprocedure('public.qarz_dash()')                                  is null then raise exception 'qarz_dash() yaratilmadi'; end if;
   if to_regprocedure('public.tilxat_shablon_saqla(jsonb)')                  is null then raise exception 'tilxat_shablon_saqla(jsonb) yaratilmadi'; end if;
