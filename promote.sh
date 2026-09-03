@@ -31,7 +31,7 @@ set -euo pipefail
 #
 # `index` — login + dashboard hub sahifasi (pravodka.com ning birinchi yuzi).
 # U ham oddiy sahifa: `index-dev.html` -> `index.html`.
-PAGES="index kassa jurnal professional hodim hisobot balans cashflow qarzdor filial valyuta konvert sozlama provodka standart yuklar tannarx ai sorovlar"
+PAGES="index kassa jurnal professional hodim hisobot balans cashflow qarzdor filial valyuta konvert sozlama provodka standart yuklar tannarx ai sorovlar ehson"
 
 # Ko'chiriladigan sahifalar: argument berilsa o'shalar, aks holda hammasi.
 if [ "$#" -gt 0 ]; then

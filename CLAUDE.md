@@ -743,6 +743,27 @@ MB rasmiy kursi olinadi (`mbFetch`, kesh `prov-mbk:<CUR>:<sana>` 12 soat, 6s tim
 bo'lsa `convert_request.note` orqali approve'da ham o'sha (so'rov kunining kursi). Olinmasa izohga hech narsa
 qo'shilmaydi, konvert bloklanmaydi.
 
+### Ehson (xayriya) bo'limi — MUSTAQIL (2026-09-03, `ARX_PROVODKA_EHSON.md`, faqat dev)
+
+🔴 **To'liq izolyatsiya**: `accounts` da hisob YO'Q, `entry`/`entry_line` ga YOZILMAYDI (`source='ehson'` varianti
+ham rad etilgan — filtr unutilsa foyda buzilardi). Pul faqat `ehson_kirim` (jamg'armaga kirdi) va `ehson_berish`
+(oilaga chiqdi) jadvallarida; balans = view `v_ehson_kassa`. Jurnal/hisobot/balans/cashflow/kassa/AI ehson
+jadvallarini bilmaydi. Tester isboti: `PROVODKA_EHSON.sql` da `entry`/`accounts` so'zi 0 marta (grep).
+Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xarajat + Ehson kirim), avtomat bog'lanmaydi.
+- **Sahifa** `ehson-dev.html`, kalit **`ehson`** — 18-kalit: `perm_pages()` (`PROVODKA_EHSON.sql`) = `perms-dev.js`
+  `PAGES` = `index-dev.html` `CARDS`; nav 17 dev faylda (sidebar AI'dan keyin + sheet + prefetch), `promote.sh` PAGES;
+  admin-dev `PVS_PAGES` — Asilbek (TaskFix repo). Tablar: Bosh · Oilalar · Ehson berish · Bu oy · Kirim · Tarix
+  (`ehTab`, `localStorage` `eh-tab`). RPC yo'q bazada banner, sahifa buzilmaydi.
+- **Model**: `ehson_kassa` (v1 bitta seed, sxema ko'p jamg'armaga tayyor) · `ehson_kirim` · `ehson_oila`
+  (Excel 16 ustun + holat/hudud/keyingi_korib_chiqish/hujjat_path) · `ehson_azo` (yosh SAQLANMAYDI —
+  `v_ehson_azo` `age()`) · `ehson_berish` (izoh NOT NULL ≥3, `ext_ref` takror, faqat soft-bekor) · `ehson_reja`
+  (oilada bitta faol) · reja vs fakt = `v_ehson_oy` (jadval emas) · `ehson_tarix` audit. RLS: select
+  `ehson_page_ok()`, yozish faqat RPC. Berish/kirim — ruxsatli user; tahrir/bekor/import/reja to'xtatish — admin.
+  Bucket `ehson-hujjat` (private).
+- **Excel** (`Ehson_oilalar_jadvali_togrilangan.xlsx` namuna, 3 varaq): import faqat aynan shu sarlavhalar bilan,
+  upsert `oila_kod`/`azo_kod`, «Yoshi» ustunlari tashlanadi, «Ehson tarixi» v1 da import qilinmaydi.
+- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim · 3 oilalar+a'zolar+Excel · 4 berish · 5 bu oy · 6 tarix+stat+designer.
+
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 
 `rasm-detect` EF avval `has_provodka || is_admin` talab qilardi; uni chaqiradigan yagona sahifa
