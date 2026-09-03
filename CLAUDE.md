@@ -412,6 +412,12 @@ admin-dev'dan qo'lda beriladi. Rollback — `PROVODKA_PAGES_EMPTY.sql` 8-bo'limi
   bloki olib tashlandi (yangi semantikada u aynan teskari natija berardi). Payload kontrakti
   o'zgarmadi — n8n tomonda hech narsa qilinmaydi.
 - `perm_check_accounts(uuid[])`, `perm_can_convert()`, `perm_op_key(uuid)`.
+- 🔴 **Konvert ruxsati = KASSA sahifasi ruxsati** (2026-09-03, `PROVODKA_KONVERT_KASSA_RUXSAT.sql`,
+  RUN kutilmoqda): `perm_can_convert()` = admin OR `'kassa' ∈ allowed_pages` OR `can_convert`.
+  Klient juftligi `perms-dev.js` `convOk()` — `permConvert()`, `firstAllowed()`, `hideNav()`,
+  `gate()` hammasi shundan. Sabab: `can_convert` admin-dev'dagi alohida katakcha, amalda hech
+  kimga berilmaydi — kassa ruxsati bor user «Konvert» tugmasini ko'rmasdi. Ustun/payload
+  o'zgarmagan. Pul harakati baribir `trg_perm_guard_entry_line` (op_kassa) bilan to'silgan.
 
 **SERVER GUARD — `entry_line` ustidagi trigger `trg_perm_guard_entry_line`.** Provodka yozuvlari
 RPC orqali emas, klientdan to'g'ridan `entry`+`entry_line` insert bilan yoziladi — shuning uchun
