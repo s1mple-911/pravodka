@@ -233,6 +233,12 @@ create table if not exists tilxat_shablon (
 -- Additive — yangi bazada no-op.
 alter table tilxat_shablon add column if not exists fayl_path text;
 
+-- 2026-09-03 (5-BOSQICH): yangi shablon endi FAYL bilan ham yaratilishi mumkin
+-- (matnsiz) — 2 bosqichli oqim: avval {nom} bilan insert (matn=null), keyin fayl
+-- yuklab {id,fayl_path} bilan yangilanadi. `alter column drop not null` mavjud
+-- ustunga tegmaydi (idempotent — bazada allaqachon nullable bolsa ham xato bermaydi).
+alter table tilxat_shablon alter column matn drop not null;
+
 comment on table tilxat_shablon is
   'Tashqi qarz uchun tilxat matn shabloni. Joy-tutuvchilar: {ism} {familya} {summa} '
   '{summa_soz} {valyuta} {sana} {muddat} {oylik_summa} {oylar_soni} {tugash} {kompaniya}. '
@@ -1119,9 +1125,10 @@ comment on function qarzdor_royxat(text) is
 -- #####################################################################
 -- ##  13-BOLIM — qarz_yarat(jsonb)                                   ##
 -- #####################################################################
--- Ichki -> darrov qarz_faollashtir() ICHKARIDA chaqiriladi (muvaffaqiyatsiz
--- bolsa BUTUN yaratish rollback boladi — qarz qatori qolib ketmaydi).
--- Tashqi -> tilxat_kutilmoqda holatida qoladi (draft, pul harakat qilmaydi).
+-- 2026-09-03 (5-BOSQICH): ichki qarzdor uchun ham endi DARROV faollashtirilmaydi
+-- — tilxat HAMMAGA majburiy boldi. Har ikkala tur ham 'tilxat_kutilmoqda'
+-- holatida boshlanadi (pul harakat qilmaydi); klient rasmni yuklab
+-- qarz_tilxat_yuklandi + qarz_faollashtir'ni ketma-ket chaqiradi.
 -- #####################################################################
 
 create or replace function qarz_yarat(p jsonb)
@@ -1150,7 +1157,6 @@ declare
   v_qd          qarzdor;
   v_ka          accounts;
   v_tilxat_kerak boolean;
-  v_res         jsonb;
   v_mavjud_id   uuid;
 begin
   perform set_config('lock_timeout', '5s', true);
@@ -1231,7 +1237,11 @@ begin
     raise exception 'Ruxsat yoq: bu kassada amaliyot qilish huquqingiz yoq' using errcode = '42501';
   end if;
 
-  v_tilxat_kerak := (v_qd.tur = 'tashqi');
+  -- 2026-09-03 (5-BOSQICH): tilxat endi HAMMAGA majburiy (hodim uchun ham) —
+  -- avval faqat 'tashqi' uchun edi. Ichki qarzdor endi ham darrov faollashmaydi,
+  -- pastdagi 'ichki' shoxi olib tashlandi — har ikkalasi ham tilxat_kutilmoqda
+  -- bolib boshlanadi, klient rasmni yuklab qarz_faollashtir'ni chaqiradi.
+  v_tilxat_kerak := true;
 
   insert into qarz (id, qarzdor_id, kassa_id, summa, currency, muddat_turi,
                      oylik_summa, oylar_soni, boshlanish, tugash, foiz_yillik, status,
@@ -1244,16 +1254,6 @@ begin
   values (v_id, 'yaratildi',
           jsonb_build_object('tur', v_qd.tur, 'summa', v_summa, 'kassa_id', v_kassa_id,
                               'taskfix_link', v_taskfix), v_uid);
-
-  if v_qd.tur = 'ichki' then
-    v_res := qarz_faollashtir(v_id);
-    if not coalesce((v_res->>'ok')::boolean, false) then
-      raise exception 'Qarz faollashtirilmadi: %', coalesce(v_res->>'kod', 'nomalum xato')
-        using errcode = '22000';
-    end if;
-    return jsonb_build_object('ok', true, 'id', v_id, 'status', 'faol',
-                               'entry_id', v_res->>'entry_id');
-  end if;
 
   perform qarz_notify_qoy(v_id, null, 'draft_yaratildi');
 
@@ -1272,8 +1272,9 @@ revoke all on function qarz_yarat(jsonb) from public, anon;
 grant execute on function qarz_yarat(jsonb) to authenticated;
 
 comment on function qarz_yarat(jsonb) is
-  'Qarz yaratadi. Ichki qarzdor -> darrov faollashtiriladi (pul chiqadi, xato bolsa hech '
-  'narsa saqlanmaydi). Tashqi -> tilxat_kutilmoqda (draft, pul harakat qilmaydi). '
+  'Qarz yaratadi. 2026-09-03 dan hamma tur (ichki va tashqi) tilxat_kutilmoqda '
+  'holatida boshlanadi — tilxat_kerak=true hammaga, pul hali harakat qilmaydi. '
+  'Faollashtirish alohida: klient tilxat rasmini yuklab qarz_faollashtir chaqiradi. '
   'p->>ext_ref ixtiyoriy (takror bosish himoyasi) — takror kelsa kod=takror + mavjud id qaytadi. '
   'p->>taskfix_link ixtiyoriy (2026-09-03) — http(s), <=500 belgi, notogri bolsa kod=taskfix_link_notogri.';
 
@@ -1442,7 +1443,7 @@ begin
     return jsonb_build_object('ok', false, 'kod', 'qoldiq_yetmadi');
   end if;
 
-  -- Tilxat (faqat tashqi)
+  -- Tilxat (2026-09-03 dan HAMMAGA majburiy — tilxat_kerak doim true)
   if q.tilxat_kerak then
     if q.tilxat_rasm_path is null then
       return jsonb_build_object('ok', false, 'kod', 'tilxat_yoq');
@@ -2091,7 +2092,13 @@ begin
   if v_nom is null or length(v_nom) < 2 then
     raise exception 'Shablon nomi majburiy' using errcode = '22000';
   end if;
-  if v_matn is null or length(btrim(v_matn)) < 10 then
+  -- 2026-09-03 (5-BOSQICH): matn endi ixtiyoriy (fayl bilan yaratilishi mumkin) —
+  -- tekshiruv FAQAT matn BERILGANDA (v_matn is not null) ishlaydi. Bosh
+  -- qoldirilsa (yangi shablon 2-bosqichli oqimida birinchi insert) o'tadi;
+  -- "matn yoki fayl kerak" majburiyati ATAYLAB insert'da qoyilmagan — kartada
+  -- "Bo'sh — fayl yuklang/matn qoshing" korinadi, chop etish tugmasi matn
+  -- bolgandagina chiqadi (qzShablonCard).
+  if v_matn is not null and length(btrim(v_matn)) < 10 then
     raise exception 'Shablon matni juda qisqa' using errcode = '22000';
   end if;
 
@@ -2123,7 +2130,9 @@ comment on function tilxat_shablon_saqla(jsonb) is
   'Admin: tilxat shablon yaratadi/tahrirlaydi. id berilmasa yangi, berilsa yangilaydi. '
   'is_default=true bolsa avvalgi sukut shablon avtomat false boladi. Qisman yangilash: '
   'jsonb kaliti yuborilmasa (masalan {id,fayl_path} bilan faqat fayl yuklashda) eski '
-  'qiymat saqlanadi — nom/matn/is_default/is_active/fayl_path mustaqil yangilanadi.';
+  'qiymat saqlanadi — nom/matn/is_default/is_active/fayl_path mustaqil yangilanadi. '
+  '2026-09-03: matn ixtiyoriy — faqat berilganda (10+ belgi) tekshiriladi, bosh '
+  'qoldirilsa (yangi shablonni fayl bilan 2 bosqichda yaratish) xato bermaydi.';
 
 
 -- #####################################################################

@@ -306,3 +306,17 @@ storage policy `shablon/<id>.<ext>` (admin insert/update, authenticated select),
    (xato kodi `taskfix_link_notogri`), `qarz_qator`/`qarz_kart` qaytaradi; formada «TaskFix havola (ixtiyoriy)»,
    Kutilayotgan kartasi va qarz modalida chip (faqat http(s) chiziladi).
 6. Kassa tanlash — 13.4 dagidek (parent → pul turi), tegilmadi.
+
+## 15. 5-BOSQICH — Asilbek buglari/talablari (2026-09-03, kech), TASDIQLANGAN
+1. **Muddat — tugash sanasi ikkala rejimda.** Bir martalik: yorliq «Qaytarish sanasi» (server `boshlanish=tugash`
+   o'zgarmagan). Oyma-oy: Boshlanish + **Tugash** sanasi → oylar soni va oylik summa **hisoblanadi**
+   (`floor(summa/n)`, oxirgi oy qoldiq), oylik summa qo'lda o'zgartirsa bo'ladi; payload avvalgidek.
+2. **Formada «Tilxat shablonini ochish»** tugmasi → Tilxatlar → Shablon (forma holati saqlanadi).
+3. **Tilxat HAMMAGA majburiy** (hodim uchun ham): `qarz_yarat` `tilxat_kerak=true` doim, ichki qarz endi darrov
+   faol EMAS — oqim bitta: yarat → rasm yukla → `qarz_tilxat_yuklandi` → `qarz_faollashtir`. 14.4 bekor.
+4. **Yangi shablon FAYL bilan** (pdf/jpg/png): nom + fayl yoki matn; `tilxat_shablon.matn` null bo'lishi mumkin
+   (`drop not null`), «matn juda qisqa» tekshiruvi faqat matn berilganda; chop etish matn bo'lsa, ochish fayl bo'lsa.
+5. **Jurnalda MB kursi** (`jurnal-dev.html`, klient-only): CBU JSON API (`cbu.uz/uz/arkhiv-kursov-valyut/json/USD/<sana>/`,
+   CORS ochiq) — sarlavhada chip + sana tanlash (kun bo'yicha tekshirish), kesh `sessionStorage` kun bo'yicha;
+   konvert yozuvlarida yo'nalish («$ sotib olish»/«$ sotish»), yozuv kursi, o'sha kun MB kursi, farq % (2% sariq,
+   5% qizil). MB faqat rasmiy kurs beradi — bank sotish/sotib olish kursi manbasi yo'q.

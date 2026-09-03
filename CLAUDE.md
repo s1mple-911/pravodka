@@ -724,6 +724,17 @@ ro'yxat qilib ko'rsatiladi, ishorasiz, "Boshqa" turiga kiradi.
   (max-width:1439px)` da padding 4px + `.j-id` yashirin + kt/dt `overflow-wrap:anywhere`.
   Jadval 1433→~975px, 14 ustun ekranga sig'adi; `<1300px` jwrap skroll zaxirasi qoladi.
 
+### Jurnalda MB (CBU) kursi (2026-09-03, faqat `jurnal-dev.html`, klient-only)
+
+Markaziy bank rasmiy JSON API: `https://cbu.uz/uz/arkhiv-kursov-valyut/json/USD/<YYYY-MM-DD>/` (CORS `*` —
+brauzerdan to'g'ridan, SQL/EF yo'q; vendor qoidasi kutubxonalar uchun, ma'lumot API'si emas). Sarlavhada
+`#mbcBox` chip + `#mbcDate` sana (kun bo'yicha tekshirish); kesh `sessionStorage` `prov-cbu:USD:<sana>` 12 soat
+(`try/catch`), `AbortController` 8s, xato keshlanmaydi. Konvert yozuvlarida (`valyutaCell`, `k.ichki==='konvert'`)
+`mbSpanHtml` — yozuv kursi vs o'sha `entry_date` MB kursi, farq % (`MB_OGOH=2` sariq, `MB_XAVF=5` qizil),
+yo'nalish «$ sotib olish»/«$ sotish». 🔴 Render sinxron: kesh bo'lmasa `data-mbk-date` span chiziladi va fetch
+tugagach FAQAT o'sha spanlar patch qilinadi (jadval qayta chizilmaydi); kunlar dedup, `MB_DAY_CAP=30`.
+`init()` da MB so'rovi `await`siz — tarmoq bloklansa jurnal ishlayveradi. MB faqat rasmiy kurs beradi.
+
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 
 `rasm-detect` EF avval `has_provodka || is_admin` talab qilardi; uni chaqiradigan yagona sahifa
@@ -809,6 +820,12 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   server `tilxat_kerak`), staff'ga ixtiyoriy — `qarz_tilxat_yuklandi` endi `faol` holatni ham qabul qiladi
   (holat o'zgarmaydi). **`qarz.taskfix_link`** (CHECK `^https?://`, ≤500; `qarz_yarat` xato kodi
   `taskfix_link_notogri`; `qarz_qator` qaytaradi) — kartalarda chip, faqat http(s) chiziladi.
+- **5-bosqich (2026-09-03 kech, ARX 15-bo'lim)**: 🔴 **tilxat HAMMAGA majburiy** — `qarz_yarat`
+  `tilxat_kerak=true` doim, ichki qarz ham `tilxat_kutilmoqda` dan boshlanadi (auto-faol yo'li olib
+  tashlandi); oqim bitta: yarat → rasm → `qarz_tilxat_yuklandi` → `qarz_faollashtir`. Oyma-oy: boshlanish +
+  tugash sanasi → oylar soni/oylik summa klientda hisoblanadi (`qzMonthsBetween`, `floor(summa/n)`), payload
+  o'zgarmagan (server `tugash`ni o'zi hisoblaydi). Shablon: `tilxat_shablon.matn` null bo'lishi mumkin —
+  yangi shablon nom + fayl (pdf/jpg/png) bilan yaratiladi (`shablon/<id>.<ext>`), chop etish faqat matn bo'lsa.
 
 ## Avtomatik sinxron (n8n)
 
