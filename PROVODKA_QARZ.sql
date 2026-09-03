@@ -228,6 +228,11 @@ create table if not exists tilxat_shablon (
   updated_at  timestamptz not null default now()
 );
 
+-- 2026-09-03 tuzatish: jadval 1-bosqich RUN'ida fayl_path'siz yaratilgan bolsa
+-- `create table if not exists` ustun qoshmaydi (23.4 tekshiruvi P0001 berardi).
+-- Additive — yangi bazada no-op.
+alter table tilxat_shablon add column if not exists fayl_path text;
+
 comment on table tilxat_shablon is
   'Tashqi qarz uchun tilxat matn shabloni. Joy-tutuvchilar: {ism} {familya} {summa} '
   '{summa_soz} {valyuta} {sana} {muddat} {oylik_summa} {oylar_soni} {tugash} {kompaniya}. '
@@ -1801,6 +1806,15 @@ comment on function qarz_bekor(uuid, text) is
 -- #####################################################################
 -- ##  19-BOLIM — qarz_royxat / qarz_kart / qarz_dash                 ##
 -- #####################################################################
+
+-- 2026-09-03 tuzatish: 1-bosqich RUN'ida 3 argumentli qarz_royxat(text,uuid,text)
+-- bazaga tushgan. `create or replace` yangi 4 argumentli imzoni uning YONIGA
+-- qoshadi (overload), PostgREST esa nomlangan argumentli chaqiruvda ikki
+-- nomzodni ajrata olmay PGRST203 beradi. Eski imzo faqat qarzdor-dev.html
+-- tomonidan chaqirilgan (prod'da yoq) — ochirish xavfsiz. CLAUDE.md "imzo
+-- ozgartirish taqiq" qoidasi prod frontendni himoya qiladi; bu funksiya prod'ga
+-- hali chiqmagan.
+drop function if exists qarz_royxat(text, uuid, text);
 
 create or replace function qarz_royxat(p_holat text default null, p_qarzdor uuid default null,
                                         p_q text default null, p_tilxat boolean default null)
