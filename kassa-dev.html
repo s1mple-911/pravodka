@@ -328,6 +328,7 @@
     <label id="cvAmountLbl">Summa (so'm)</label><input class="txt" id="cvAmount" inputmode="decimal" placeholder="0" oninput="cvFmt(this)">
     <label id="cvRateLbl">Kurs (1 birlik necha so'm)</label><input class="txt" id="cvRate" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
     <div class="cv-rate" id="cvArosBox"><i data-lucide="info"></i><span id="cvAros">—</span></div>
+    <div class="cv-rate" id="cvMbBox" style="display:none" title="O'zbekiston Markaziy banki rasmiy kursi (cbu.uz)"><i data-lucide="landmark"></i><span id="cvMb">—</span></div>
     <div class="cv-out lg"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
     <div class="cv-farq">
       <label>Kurs farqi (so'm) — ixtiyoriy</label>
@@ -879,10 +880,58 @@ window.openConv=async()=>{
   // Ruxsat: faqat amaliyot qilishga ruxsat etilgan kassalar tanlanadi (server ham tekshiradi)
   const from=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH&&window.permOpOk(r));
   $('cvFrom').innerHTML=from.length?from.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join(''):'<option value="">Mos kassa yo\'q</option>';
-  $('cvFrom').onchange=cvFillTo; $('cvTo').onchange=cvValyutaChanged;
+  $('cvFrom').onchange=cvFillTo;
+  $('cvTo').onchange=()=>{ Promise.resolve(cvValyutaChanged()).then(cvMbLoad,cvMbLoad); };
   await cvFillTo(); icons();
+  cvMbLoad();   // await'siz — MB so'rovi modalni ushlab turmaydi
 };
 window.closeConv=()=>$('convModal').classList.remove('open');
+
+// ---- MB (CBU) rasmiy kursi — konvert izohiga yoziladi (Asilbek, 2026-09-03) ----
+// Konvert yozuvi serverda (do_convert_v2) tuziladi, Postgres cbu.uz'ga chiqa olmaydi —
+// shuning uchun kurs MIJOZDA olinadi va p_note ga «MB 11 813 (03.09.2026)» bo'lib
+// qo'shiladi: darrov bajarilsa entry.description ga, pending bo'lsa convert_request.note
+// ga tushadi va approve'da o'sha izoh bilan yoziladi (so'rov kunining MB kursi).
+// Manba: https://cbu.uz/uz/arkhiv-kursov-valyut/json/<CUR>/ (CORS ochiq). Xato bo'lsa
+// izohga hech narsa qo'shilmaydi — konvert bloklanmaydi. Kesh sessionStorage 12 soat.
+let cvMbRate=null, cvMbDate=null, cvMbCur=null;
+const mbTodayIso=()=>new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+const mbDisp=d=>d.split('-').reverse().join('.');
+async function mbFetch(cur,d){
+  const ck='prov-mbk:'+cur+':'+d;
+  try{ const r=sessionStorage.getItem(ck); if(r){ const o=JSON.parse(r); if(Date.now()-o.t<12*3600*1000) return o.rate; } }catch(e){}
+  const ctrl=('AbortController' in window)?new AbortController():null;
+  const t=setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} },6000);
+  try{
+    const res=await fetch('https://cbu.uz/uz/arkhiv-kursov-valyut/json/'+encodeURIComponent(cur)+'/'+d+'/',{signal:ctrl?ctrl.signal:undefined});
+    if(!res.ok) return null;
+    const j=await res.json();
+    const row=Array.isArray(j)?j.find(x=>String(x.Ccy||'').toUpperCase()===cur):null;
+    const rate=row?Number(String(row.Rate||'').replace(',','.'))/Math.max(1,Number(row.Nominal)||1):NaN;
+    if(!isFinite(rate)||rate<=0) return null;
+    try{ sessionStorage.setItem(ck,JSON.stringify({t:Date.now(),rate})); }catch(e){}
+    return rate;
+  }catch(e){ return null; }
+  finally{ clearTimeout(t); }
+}
+async function cvMbLoad(){
+  const box=$('cvMbBox'), el=$('cvMb'); if(!box||!el) return;
+  const cur=String(cvCur()||'').toUpperCase();
+  cvMbRate=null; cvMbDate=null; cvMbCur=null;
+  if(!cur||cur==='UZS'){ box.style.display='none'; return; }
+  box.style.display=''; el.textContent='MB rasmiy kursi yuklanmoqda…';
+  const d=mbTodayIso();
+  const rate=await mbFetch(cur,d);
+  if(String(cvCur()||'').toUpperCase()!==cur) return;   // shu orada valyuta almashdi
+  if(rate==null){ el.textContent='MB rasmiy kursi olinmadi'; return; }
+  cvMbRate=rate; cvMbDate=d; cvMbCur=cur;
+  el.innerHTML='MB rasmiy: 1 '+esc(cur)+' = <b>'+money(Math.round(rate))+"</b> so'm · "+esc(mbDisp(d))+' — izohga yoziladi';
+}
+// Izohga qo'shiladigan MB matni (kurs olinmagan bo'lsa bo'sh)
+function cvMbNote(){
+  if(!cvMbRate||!cvMbDate||cvMbCur!==String(cvCur()||'').toUpperCase()) return '';
+  return 'MB '+money(Math.round(cvMbRate))+' ('+mbDisp(cvMbDate)+')';
+}
 function cvErr(m){ $('cvMsg').className='cv-msg err'; $('cvMsg').textContent=m; }
 // Tanlangan kassaning valyuta bolalari. Yo'nalish shu ro'yxatdan aniqlanadi:
 // sotib olish → Dt bola, Kt kassa; sotish → teskari.
@@ -992,7 +1041,8 @@ window.convSave=async()=>{
     swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
   }
   const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
-  const p_note=$('cvNote').value||null;
+  // MB rasmiy kursi izoh BOSHIDA — jurnal/Excel'da solishtirish oson bo'lsin
+  const p_note=[cvMbNote(),($('cvNote').value||'').trim()].filter(Boolean).join(' · ')||null;
   // v3: p_amount HAR DOIM valyutada (sotib olishda ham). Hali RUN qilinmagan bo'lsa
   // PGRST202/42883 bilan zaxiraga o'tamiz — farqli so'rovni FAIL-CLOSED rad etamiz.
   let {data,error}=await sb.rpc('convert_start_v3',{p_from,p_to,p_amount,p_rate,p_note,p_farq});
