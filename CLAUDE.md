@@ -277,6 +277,14 @@ Klient qoidalari (hamma faylda bir xil):
 - `v_kassa_card`/`v_kassa_toliq`da `parent_id` **ikki ma'noli**: dollar juftligi ham, guruh a'zoligi ham.
   Dollar juftligini izlagan SQL/JS `currency='USD'` shartini ham qo'yishi shart — aks holda 5400'ning
   62 ta bolasi bitta-qator subquery'ni portlatadi va **butun view xato beradi** (kassa sahifasi bo'shab qoladi).
+- **Qo'lda xarajat kassasi ochish (2026-09-03, faqat `kassa-dev.html`)** — 5400 guruh sarlavhasidagi
+  «Kassa qo'shish» (`.kgadd`, `body.is-admin`) → `#xkModal` → RPC **`xarajat_kassa_yarat(p_name, p_subtitle)`**
+  (`PROVODKA_XARAJAT_KASSA_YARAT.sql`, RUN kutilmoqda). Server 54xx kod beradi (`max(54xx)+1`,
+  advisory lock), insert TaskFix kassasi bilan **bir xil shaklda** (type aktiv · section pul ·
+  kassa_turi xarajat · UZS · parent 5400), `taskfix_user_id` YOZILMAYDI. Pul turlari
+  `trg_hodim_kassa_turlar` (AFTER INSERT) bilan o'zi ochiladi, trigger yo'q bazada RPC ichidagi
+  zaxira `_pul_turi_child_ich` (idempotent) ochadi — mijoz `create_pul_turi_child` ni CHAQIRMAYDI.
+  Takror nom → `{ok:false,kod:'takror'}`. Qarz hisobi (6721+) lazy — tegilmaydi.
 
 ### Ko'p-valyuta (v2)
 
