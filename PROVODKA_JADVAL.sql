@@ -410,8 +410,12 @@ begin
                      davr_start, davr_end, ext_ref, jadval)
   values (
     v_entry_date,
-    coalesce(nullif(p_data->>'description', ''),
-             'Ovqat: ' || v_cnt_zavtrak || ' zavtrak, ' || v_cnt_obed || ' obed, ' || v_cnt_kechki || ' kechki — ' || array_to_string(v_names, ', ')),
+    -- 2026-09-03 (Asilbek): hodim izohi royxat matnining ORNIGA emas, YONIGA —
+    -- jurnalda ikkalasi ham korinsin («Ovqat: … — ismlar · 3 kishilik abet puli»).
+    -- Avval izoh yozilsa royxat korinmay qolib chalgitardi (aslida royxat tanlangan,
+    -- entry_ovqat qatorlari bor edi).
+    'Ovqat: ' || v_cnt_zavtrak || ' zavtrak, ' || v_cnt_obed || ' obed, ' || v_cnt_kechki || ' kechki — ' || array_to_string(v_names, ', ')
+      || coalesce(' · ' || nullif(btrim(p_data->>'description'), ''), ''),
     'manual',
     'posted',
     case when jsonb_typeof(p_data->'filial_ids') = 'array'
