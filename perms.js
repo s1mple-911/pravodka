@@ -194,6 +194,15 @@
     if (PAGES.indexOf(k) < 0) return true;   // ro'yxatga kirmaydigan sahifa (hodim) — erkin
     return p.allowed_pages.indexOf(k) >= 0;  // BO'SH = hech narsa (yangi semantika)
   }
+  /* Konvert ruxsati (2026-09-03): admin OR kassa sahifasi ruxsati OR can_convert.
+     Server juftligi — perm_can_convert() (PROVODKA_KONVERT_KASSA_RUXSAT.sql), AYNAN
+     shu qoida. Sabab: `can_convert` admin-dev'dagi alohida katakcha, amalda hech kimga
+     berilmaydi — kassa ruxsati bor user konvert tugmasini ko'rmasdi. */
+  function convOk(p) {
+    if (p.is_admin) return true;
+    if (p.allowed_pages && p.allowed_pages.indexOf('kassa') >= 0) return true;
+    return p.can_convert;
+  }
   /* Birinchi ochiq sahifa. Konvert ruxsati yo'q bo'lsa konvert O'TKAZIB YUBORILADI —
      aks holda gate() uni tanlab, foydalanuvchini yana "Ruxsat yo'q" ekraniga olib borardi. */
   function firstAllowed() {
@@ -202,7 +211,7 @@
     for (var i = 0; i < PAGES.length; i++) {
       var k = PAGES[i];
       if (p.allowed_pages.indexOf(k) < 0) continue;
-      if (k === 'konvert' && !p.can_convert) continue;
+      if (k === 'konvert' && !convOk(p)) continue;
       return k;
     }
     return null;
@@ -223,7 +232,7 @@
     var vis = 0;
     for (var i = 0; i < links.length; i++) {
       var k = hrefKey(links[i]);
-      var ok = pageOk(k) && !(k === 'konvert' && !p.can_convert);
+      var ok = pageOk(k) && !(k === 'konvert' && !convOk(p));
       if (ok) { vis++; } else { links[i].style.display = 'none'; }
     }
     // Sheet'dagi hamma havola yashiringan bo'lsa "Ko'proq" tugmasi ham keraksiz
@@ -295,7 +304,7 @@
       if (k === HOME) { location.replace(hodimUrl()); return false; }
       denyScreen(); return false;
     }
-    if (!pageOk(k) || (k === 'konvert' && !p.can_convert)) {
+    if (!pageOk(k) || (k === 'konvert' && !convOk(p))) {
       /* Bosh sahifa yopiq bo'lsa — "Ruxsat yo'q" ekrani o'rniga birinchi OCHIQ bo'limga
          jimgina o'tkazamiz. Masalan faqat 'ai' ruxsati bor user ildizga/jurnalga kirsa
          darrov AI sahifasiga tushadi (avval bitta ortiqcha klik kerak edi).
@@ -406,7 +415,7 @@
   window.permOpOk      = opOk;
   window.permFilterView = filterView;
   window.permFilterOp  = filterOp;
-  window.permConvert   = function () { return get().can_convert; };
+  window.permConvert   = function () { return convOk(get()); };
   /* Ruxsat fonda (fetchFresh) o'zgarsa chaqiriladi — masalan hodim sahifasi
      tanlangan modda/ovqat turini qayta tekshiradi. gate()dan mustaqil. */
   window.permOnChange  = onChange;

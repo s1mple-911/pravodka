@@ -122,6 +122,7 @@
   .cv-msg{border-radius:11px;padding:12px 14px;font-size:13.5px;margin-bottom:14px;display:none;line-height:1.5}
   .cv-msg.pend{background:var(--amber-soft);color:var(--amber);display:block}
   .cv-msg.err{background:var(--red-soft);color:var(--red);display:block}
+  .cv-msg.ok{background:var(--green-soft);color:var(--green);display:block}
   /* /konvert */
   /* kassa-kartalar */
   .ktot{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 20px;margin-bottom:24px;box-shadow:var(--shadow)}
@@ -163,6 +164,14 @@
   .kadd svg{width:13px;height:13px}
   .kadd:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   body.is-admin .kadd{display:inline-flex}
+  /* "Kassa qo'shish" — 5400 guruh sarlavhasida, faqat admin (body.is-admin).
+     .kgh .n va .kgh .t o'rtasida turadi; .kgr summa bilan bitta o'ng blok. */
+  .kgr{display:inline-flex;align-items:center;gap:10px;margin-left:auto}
+  .kgadd{display:none;align-items:center;gap:5px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;text-transform:none;letter-spacing:0;transition:background .13s,border-color .13s,color .13s}
+  .kgadd svg{width:13px;height:13px}
+  .kgadd:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  body.is-admin .kgadd{display:inline-flex}
+  @media print{.kgadd{display:none!important}}
   /* "+" modali — pul turi bo'limi: qo'shish tugmalari yonma-yon, sig'masa keyingi qatorga */
   .vlwrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .vlwrap .kbtn{height:36px;padding:0 12px;font-size:13.5px}
@@ -373,6 +382,19 @@
     </div>
   </div></div>
 
+  <!-- Xarajat kassasi qo'shish (faqat admin) — 5400 guruh sarlavhasidagi «Kassa qo'shish».
+       Server: xarajat_kassa_yarat(p_name, p_subtitle) — PROVODKA_XARAJAT_KASSA_YARAT.sql.
+       Kod (54xx) server beradi, pul turlari (naqd/click/payme/karta) trigger/zaxira bilan
+       O'ZI ochiladi — mijoz create_pul_turi_child ni chaqirmaydi. -->
+  <div class="modal" id="xkModal" onclick="if(event.target===this)closeXk()"><div class="sheet">
+    <h3>Xarajat kassasi qo'shish</h3>
+    <div id="xkMsg" class="cv-msg"></div>
+    <div class="cv-rate"><i data-lucide="info"></i><span>Kod avtomatik (54xx). Pul turlari — Naqd · Click · Payme · Karta — o'zi ochiladi.</span></div>
+    <label>Nomi</label><input class="txt" id="xkName" maxlength="80" placeholder="hodim ismi yoki kassa nomi" autocomplete="off">
+    <label>Filial · Lavozim (ixtiyoriy)</label><input class="txt" id="xkSub" maxlength="120" placeholder="masalan: Chilonzor · Sotuvchi" autocomplete="off">
+    <div class="mrow"><button onclick="closeXk()">Bekor</button><button class="primary" id="xkSave" onclick="xkSave()">Qo'shish</button></div>
+  </div></div>
+
   <!-- Tasdiq modali — native confirm() o'rniga (u sahifani bloklaydi va dizayn tilidan chiqadi).
        #cfmModal z-index 230 > .modal 200 — "+" modalining ustida ochiladi. -->
   <div class="modal" id="cfmModal" onclick="if(event.target===this)cfmNo()" role="alertdialog" aria-modal="true" aria-labelledby="cfmTitle" aria-describedby="cfmSub">
@@ -575,10 +597,13 @@ function krow(r){
     +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
-function kgroupList(lbl,rows,hc){
+// «Kassa qo'shish» — faqat 5400 guruh sarlavhasida (kgroupList shu guruh uchun);
+// CSS body.is-admin bilan ko'rsatadi, openXk() ham isAdmin ni qayta tekshiradi.
+function kgroupList(lbl,rows,hc,gid){
   const ichi=rows.length ? rows.map(krow).join('')
     : '<div class="krow kempty">Hozircha hodim kassasi yo\'q</div>';
-  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
+  const add=`<button type="button" class="kgadd" title="Yangi xarajat kassasi" onclick="openXk('${esc(gid||'')}')"><i data-lucide="plus"></i>Kassa qo\'shish</button>`;
+  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="kgr">${add}<span class="t">${money(jamiOf(rows))}</span></span></div>`
     +`<div class="klist">${ichi}</div></div>`;
 }
 // Guruhning bolalari. View parent_id bermasa (yoki null bo'lsa) — bitta guruh bo'lgan
@@ -640,7 +665,7 @@ function renderKassalar(list){
       bolalar.forEach(r=>used.add(r.id));
       console.log('[kassa] guruh',g.code,g.name,'bolalar:',bolalar.length);
       html+=kgroupList(g.name||'Guruh',bolalar,
-        Q?bolalar.length+' / '+kbolalar(toliq,g,gAll.length).length:'');
+        Q?bolalar.length+' / '+kbolalar(toliq,g,gAll.length).length:'',g.id);
     }
     // 2) Odatdagi turlar
     for(const g of KT_GRP){
@@ -737,6 +762,63 @@ window.valSave=async()=>{
   await loadKassalar();
 };
 // /valyuta qo'shish
+
+// xarajat kassasi qo'shish (admin) — 5400 konteyner ostiga 54xx kassa.
+// Server: xarajat_kassa_yarat(p_name, p_subtitle) -> {ok, id, code, name, turlar[]}
+//         yoki {ok:false, kod:'takror', code, name}. Turlarni server o'zi ochadi
+//         (trigger trg_hodim_kassa_turlar yoki RPC ichidagi zaxira) — mijoz
+//         create_pul_turi_child ni CHAQIRMAYDI (ikki joyda ochilib takrorlanmasin).
+// RPC bazada yo'q bo'lsa (SQL RUN qilinmagan) — PGRST202 → aniq xabar, sahifa buzilmaydi.
+function xkMsg(cls,m){ $('xkMsg').className='cv-msg'+(cls?' '+cls:''); $('xkMsg').textContent=m||''; }
+let xkGuruh=null;   // bosilgan guruh sarlavhasining id'si (5400) — RPC p_guruh
+window.openXk=gid=>{
+  if(!isAdmin){ alert('Faqat admin kassa ocha oladi'); return; }
+  xkGuruh=gid||null;
+  $('xkName').value=''; $('xkSub').value='';
+  $('xkSave').disabled=false; $('xkSave').textContent='Qo\'shish';
+  xkMsg('','');
+  $('xkModal').classList.add('open'); icons();
+  setTimeout(()=>$('xkName').focus(),50);
+};
+window.closeXk=()=>{ $('xkModal').classList.remove('open'); };
+window.xkSave=async()=>{
+  if(!isAdmin){ xkMsg('err','Faqat admin kassa ocha oladi'); return; }
+  const name=($('xkName').value||'').trim();
+  const sub=($('xkSub').value||'').trim();
+  xkMsg('','');
+  if(name.length<2){ xkMsg('err','Kassa nomini yozing (kamida 2 belgi)'); $('xkName').focus(); return; }
+  $('xkSave').disabled=true; $('xkSave').textContent='Qo\'shilmoqda...';
+  const {data,error}=await sb.rpc('xarajat_kassa_yarat',{p_name:name,p_subtitle:sub||null,p_guruh:xkGuruh});
+  $('xkSave').disabled=false; $('xkSave').textContent='Qo\'shish';
+  if(error){
+    const m=(window.permErr?window.permErr(error):error.message)||'Xato';
+    if(error.code==='PGRST202'||m.indexOf('xarajat_kassa_yarat')>-1||m.indexOf('Could not find the function')>-1)
+      xkMsg('err','Server funksiyasi hali yo\'q — PROVODKA_XARAJAT_KASSA_YARAT.sql RUN qilinmagan.');
+    else xkMsg('err','Xato: '+m);
+    return;
+  }
+  const r=data||{};
+  if(r.ok===false){
+    if(r.kod==='takror') xkMsg('err','Bu nomli kassa allaqachon bor: '+(r.code||'')+' · '+(r.name||name));
+    else xkMsg('err','Xato: '+(r.xabar||r.kod||'noma\'lum'));
+    return;
+  }
+  // Yozuvdan keyin asosiy o'qish fresh — keshdan bermaydi
+  swrSet('cards',null); swrSet('valyutalar',null); swrSet('turlar',null);
+  await loadKassalar();
+  // Modal ochiq qoladi: natija yashil xabarda, maydonlar tozalanadi — ketma-ket
+  // bir nechta kassa ochish mumkin. Yopish — «Bekor» yoki fon.
+  const turlar=Array.isArray(r.turlar)?r.turlar:[];
+  const tl=turlar.map(t=>(TC_LBL[t]||t).replace(/^\S+\s/,'')).join(', ');
+  $('xkName').value=''; $('xkSub').value='';
+  if(tl) xkMsg('ok',(r.code||'')+' · '+(r.name||name)+' qo\'shildi. Turlar: '+tl);
+  else xkMsg('pend',(r.code||'')+' · '+(r.name||name)+' qo\'shildi, lekin pul turlari ochilmadi — '
+    +'ro\'yxatdagi «+» → Pul turi → «Standart turlar».');
+  $('xkName').focus();
+};
+// Enter — saqlash (login maydonidagi naqsh)
+['xkName','xkSub'].forEach(id=>$(id).addEventListener('keydown',e=>{ if(e.key==='Enter') window.xkSave(); }));
+// /xarajat kassasi qo'shish
 
 // konvert — ikki rejim: Sotib olish (so'm → valyuta), Sotish (valyuta → so'm)
 // cvFoiz (koridor foizi) bu yerda YO'Q: koridor ko'rsatilmaydi, shuning uchun uni
