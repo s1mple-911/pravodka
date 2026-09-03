@@ -253,7 +253,8 @@ create policy tilxat_shablon_select on tilxat_shablon
 -- NOMI boyicha alohida idempotent (qayta RUN qilinsa yoki admin nomini/matnini
 -- ozgartirgan bolsa ham TEGILMAYDI, faqat mavjud bolmasa qoshiladi).
 -- 3-BOSQICH (Asilbek, 2026-09-03): "Standart tilxat" orniga IKKITA nomlangan
--- shablon — bir martalik va oyma-oy uchun alohida matn. Birinchisi sukut.
+-- shablon — bir martalik va oyma-oy uchun alohida matn. Birinchisi sukut
+-- (bazada boshqa sukut shablon bolmasa — pastdagi izohga qara).
 insert into tilxat_shablon (nom, matn, is_default, is_active)
 select 'Tilxat — bir martalik',
 $tilxat1$TILXAT
@@ -267,7 +268,11 @@ Tilxat ikki nusxada tuzildi: biri menda, biri {kompaniya} tashkilotida saqlanadi
 Qarz beruvchi: _______________          Sana: {sana}
 
 Qarz oluvchi:  _______________          Sana: {sana}$tilxat1$,
-       true,
+       -- 2026-09-03 tuzatish: bazada allaqachon sukut shablon bolsa (masalan
+       -- 1-2 bosqich seed'i "Standart tilxat") is_default=true bilan kirish
+       -- tilxat_shablon_default_uniq ni buzardi (23505). Sukut faqat hech
+       -- qaysi shablon sukut bolmasa beriladi; aks holda admin UI'da almashtiradi.
+       not exists (select 1 from tilxat_shablon where is_default = true),
        true
 where not exists (select 1 from tilxat_shablon where nom = 'Tilxat — bir martalik');
 
