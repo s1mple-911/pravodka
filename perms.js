@@ -20,12 +20,12 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (17 ta).
+  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (18 ta).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx', 'ai', 'sorovlar'];
+               'tannarx', 'ai', 'sorovlar', 'ehson'];
   var HOME  = 'jurnal';           // Provodka'ning bosh bo'limi (login'dan keyingi ish sahifasi)
   // Login/dashboard hub sahifasi. PAGES ichida ATAYLAB yo'q — u ruxsat bilan
   // cheklanmaydi (o'zi ruxsatli bo'limlar ro'yxatini chizadi).
