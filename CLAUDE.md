@@ -762,7 +762,7 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   Bucket `ehson-hujjat` (private).
 - **Excel** (`Ehson_oilalar_jadvali_togrilangan.xlsx` namuna, 3 varaq): import faqat aynan shu sarlavhalar bilan,
   upsert `oila_kod`/`azo_kod`, «Yoshi» ustunlari tashlanadi, «Ehson tarixi» v1 da import qilinmaydi.
-- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish ✅ · 5 bu oy · 6 tarix+stat+designer.
+- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish ✅ · 5 bu oy ✅ · 6 tarix+stat+designer.
 - **2-bosqich (2026-09-04) — Kirim tabi** (`.ehk-*`, `.eh-modal`): jamg'arma kartasi (`renderKirimKassa`, `renderDash` dan
   chaqiriladi — Kirim tabi birinchi ochilganda `ehLoaded.bosh` orqali `loadDash()` ham ketadi), kirim formasi
   (`ehkSave` → `ehson_kirim_yoz`; manba chip: Kompaniya / «Xayriyachi: ism» / Boshqa; jamg'arma select FAQAT faol
@@ -791,6 +791,14 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   to'xtatmasin. Faol rejani to'xtatish — `ehRejaToxtat*` inline sabab (admin), Berish tanlovi va Oila kartasi Reja
   segmentida bitta kod. So'nggi 15 berish — `ehson_berish` embed `ehson_oila(fio,oila_kod)` (FK bor), admin bekor
   modali `ehson_berish_bekor`.
+- **5-bosqich (2026-09-04) — Bu oy tabi** (`.ehm-*`): `ehson_oy(p_oy)` (swr `oy:YYYY-MM`, oy tanlash ‹ › / «Bu oy»),
+  4 stat (reja · berildi · qoldi · bajarilish % + progress), filtr (hammasi/tugallanmagan/berildi + qidiruv klientda),
+  jadval reja/berildi/farq/holat (`EHM_HOLAT`: berildi·qisman·kutilmoqda·qoldi — view `v_ehson_oy` hisoblaydi),
+  «Rejadan tashqari» ro'yxat, Excel (2 varaq). ⚠️ `v_ehson_oy` muddatsiz reja uchun faqat joriy oygacha qator beradi —
+  kelasi oyda faqat muddatli rejalar ko'rinadi (UI eslatma). Qatordagi «Berish» FAQAT joriy oyda va holat≠berildi:
+  `ehmBer(oila,reja,qoldiq)` → `window.ehBerishOila` + **`window.ehBerishPreset={reja_id,summa}`** → Berish tabi;
+  preset `ehbPick` OXIRIDA (`ehbLoadKart` dan keyin, `ehbResetForm` dan keyin) qo'llanadi: faol reja id mos kelsa
+  rejim `reja`, summa to'ldiriladi, preset tozalanadi. Berish/bekor/reja to'xtatishdan keyin `loadOy(true)`.
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 

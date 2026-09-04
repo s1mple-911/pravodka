@@ -309,6 +309,36 @@
     .ehb-sel{flex-direction:column}
     .ehb-sel-other{width:100%;justify-content:center}
   }
+
+  /* ---- Bu oy tab (.ehm-*) — 5-bosqich ---- */
+  .ehm-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .ehm-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ehm-seg{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:14px;padding:4px;background:var(--surface)}
+  .ehm-navbtn{width:36px;height:36px;padding:0;border-radius:10px;justify-content:center;border:none;background:transparent;color:var(--muted)}
+  .ehm-navbtn:hover{background:var(--surface-2);color:var(--ink);transform:none}
+  .ehm-oy-input{height:34px;width:auto;min-width:132px;border:none;background:var(--surface-2);color:var(--ink);
+    font-size:16px;font-weight:700;letter-spacing:-.01em;text-align:center;padding:0 10px;border-radius:10px}
+  .ehm-oy-input:focus{box-shadow:0 0 0 3px var(--primary-soft)}
+  .ehm-todaybtn{height:36px;padding:0 14px;font-size:13px;font-weight:600;border-radius:10px}
+  .ehm-future{font-size:12.5px;color:var(--amber);background:var(--amber-soft);border-radius:10px;padding:8px 12px;margin-top:12px}
+  .ehm-pctcard .v{font-size:28px}
+  .ehm-bar{height:6px;background:var(--surface-2);border-radius:6px;margin-top:10px;overflow:hidden}
+  .ehm-bar>div{height:100%;background:var(--green);border-radius:6px;transition:width .3s}
+  .ehm-holat{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .ehm-holat::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:5px;flex:0 0 auto}
+  .ehm-holat.berildi{background:var(--green-soft);color:var(--green)}
+  .ehm-holat.qisman{background:var(--amber-soft);color:var(--amber)}
+  .ehm-holat.kutilmoqda{background:var(--tr-soft);color:var(--tr)}
+  .ehm-holat.qoldi{background:var(--red-soft);color:var(--red)}
+  .ehm-num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .ehm-jami-row td{font-weight:800;border-top:2px solid var(--line)}
+  .ehm-fio-link{font-weight:600;color:var(--ink);cursor:pointer}
+  .ehm-fio-link:hover{color:var(--primary)}
+  @media(max-width:600px){
+    .ehm-head{flex-direction:column;align-items:stretch}
+    .ehm-nav{justify-content:center}
+    .ehm-head>.btn.ghost{width:100%;justify-content:center}
+  }
 </style>
 </head>
 <body>
@@ -506,8 +536,47 @@
 
     <!-- Bu oy -->
     <div class="eh-tabpanel" id="eh-tab-oy">
-      <div class="eh-card"><h3 style="margin:0 0 6px;font-size:16px;font-weight:700">Bu oy</h3>
-        <div class="empty">Keyingi bosqichda</div>
+      <div class="eh-card" style="margin-bottom:16px">
+        <div class="ehm-head">
+          <div class="ehm-nav">
+            <div class="ehm-seg">
+              <button type="button" class="btn ghost ehm-navbtn" id="ehmPrev" onclick="ehmMonthShift(-1)"><i data-lucide="chevron-left"></i></button>
+              <input class="ehk-input ehm-oy-input" id="ehmOy" type="month" onchange="ehmOyChange()">
+              <button type="button" class="btn ghost ehm-navbtn" id="ehmNext" onclick="ehmMonthShift(1)"><i data-lucide="chevron-right"></i></button>
+            </div>
+            <button type="button" class="btn ghost ehm-todaybtn" onclick="ehmToday()">Bu oy</button>
+          </div>
+          <button class="btn ghost" onclick="ehmExport()"><i data-lucide="file-down"></i>Excel</button>
+        </div>
+        <div class="ehm-future" id="ehmFutureNote" style="display:none">Kelasi oylar uchun faqat muddatli rejalar ko'rsatiladi</div>
+      </div>
+
+      <div class="eh-cards" id="ehmCards">
+        <div class="eh-chip"><div class="top"><i data-lucide="calendar-check"></i>Reja jami</div><div class="v">—</div></div>
+        <div class="eh-chip"><div class="top"><i data-lucide="hand-coins"></i>Berildi</div><div class="v">—</div></div>
+        <div class="eh-chip"><div class="top"><i data-lucide="circle-dashed"></i>Qoldi</div><div class="v">—</div></div>
+        <div class="eh-chip ehm-pctcard"><div class="top"><i data-lucide="percent"></i>Bajarilish</div><div class="v">—</div><div class="ehm-bar"><div style="width:0%"></div></div></div>
+      </div>
+
+      <div class="eh-card" style="margin-bottom:16px">
+        <div class="eho-searchbar" style="margin-bottom:12px;align-items:center">
+          <div class="eho-chips" id="ehmFiltr">
+            <button type="button" class="ehk-chip on" data-v="" onclick="ehmFiltrSet('')">Hammasi</button>
+            <button type="button" class="ehk-chip" data-v="tugallanmagan" onclick="ehmFiltrSet('tugallanmagan')">Tugallanmagan</button>
+            <button type="button" class="ehk-chip" data-v="berildi" onclick="ehmFiltrSet('berildi')">Berildi</button>
+          </div>
+          <div class="eho-search" style="max-width:260px;margin-left:auto">
+            <i data-lucide="search"></i>
+            <input class="ehk-input" id="ehmQ" placeholder="F.I.Sh. / kod" oninput="ehmOnQ()">
+          </div>
+        </div>
+        <div class="eho-stat" id="ehmStat"></div>
+        <div id="ehmTblWrap"><div class="empty">Yuklanmoqda…</div></div>
+      </div>
+
+      <div class="eh-card">
+        <h3 style="margin:0 0 12px;font-size:16px;font-weight:700">Rejadan tashqari berilganlar</h3>
+        <div id="ehmTashqariWrap"><div class="empty">Yuklanmoqda…</div></div>
       </div>
     </div>
 
@@ -852,7 +921,7 @@ async function loadRole(){
 
 // ---- Tab almashtirish (localStorage: eh-tab) ---------------------------
 const EH_TABS=['bosh','oilalar','berish','oy','kirim','tarix'];
-let ehLoaded={bosh:false,kirim:false,oilalar:false,berish:false};
+let ehLoaded={bosh:false,kirim:false,oilalar:false,berish:false,oy:false};
 window.ehTab=name=>{
   if(EH_TABS.indexOf(name)<0) name='bosh';
   try{ localStorage.setItem('eh-tab',name); }catch(e){}
@@ -875,9 +944,10 @@ window.ehTab=name=>{
     }
     if(window.ehBerishOila){ const id=window.ehBerishOila; window.ehBerishOila=null; window.ehbPick(id); }
   }
+  if(name==='oy' && !ehLoaded.oy){ ehLoaded.oy=true; wireOy(); loadOy(); }
 };
 // Sarlavhadagi "Yangilash" tugmasi — joriy ochiq tabga qarab yangilaydi.
-window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim) loadKirim(true); if(ehLoaded.oilalar) loadOilalar(true); if(ehLoaded.berish) loadBerishRecent(true); };
+window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim) loadKirim(true); if(ehLoaded.oilalar) loadOilalar(true); if(ehLoaded.berish) loadBerishRecent(true); if(ehLoaded.oy) loadOy(true); };
 
 // ---- Bosh: ehson_dash() -------------------------------------------------
 // ehson_dash() javob shakli (PROVODKA_EHSON.sql): {kassalar:[{id,nom,kirim,berildi,qoldiq}],
@@ -1917,6 +1987,7 @@ window.ehRejaToxtatYes=async(prefix,id)=>{
   showErr('');
   if(prefix==='ehb'){ await window.ehbPick(ehbOilaId); }
   else if(prefix==='eho' && ehoKartId){ window.ehoOpen(ehoKartId); }
+  if(ehLoaded.oy) loadOy(true);
 };
 
 let ehbOilaId=null, ehbOila=null, ehbFaolReja=null, ehbMode='once', ehbTur='pul', ehbExtRef=null, ehbKassalarCache=[];
@@ -1981,9 +2052,12 @@ async function ehbSearch(){
 }
 
 // ---- Oila tanlash / kartani yuklash ------------------------------------------
-// ehbPick(id) IKKI vazifani bajaradi: 1) yangi oila tanlanganda — forma to'liq
+// ehbPick(id) UCH vazifani bajaradi: 1) yangi oila tanlanganda — forma to'liq
 // tozalanadi; 2) muvaffaqiyatli saqlashdan keyin O'SHA oila bilan qayta chaqirilsa
-// (id o'zgarmagan) — faqat kartani (jami/reja) yangilaydi, forma tegilmaydi.
+// (id o'zgarmagan) — faqat kartani (jami/reja) yangilaydi, forma tegilmaydi;
+// 3) "Bu oy" tabidagi «Berish» tugmasidan kelgan bo'lsa (`window.ehBerishPreset`)
+// — kartani yuklab bo'lgach (faol reja ma'lum bo'lgach) mos rejim/summani qo'yadi.
+// Tartib muhim: reset AVVAL (formani tozalaydi), preset UNDAN KEYIN (o'chib ketmasin).
 window.ehbPick=async(id)=>{
   const isSame = (id===ehbOilaId);
   ehbOilaId=id;
@@ -1993,6 +2067,14 @@ window.ehbPick=async(id)=>{
     ehbResetForm();
   }
   await ehbLoadKart();
+  if(window.ehBerishPreset){
+    const preset=window.ehBerishPreset; window.ehBerishPreset=null;
+    if(preset.reja_id && ehbFaolReja && String(ehbFaolReja.id)===String(preset.reja_id)){
+      window.ehbModePick('reja');
+    }
+    if(n0(preset.summa)>0) $('ehbSumma').value=money(n0(preset.summa));
+    window.ehbCheckQoldiq();
+  }
 };
 window.ehbClear=()=>{
   ehbOilaId=null; ehbOila=null; ehbFaolReja=null;
@@ -2113,6 +2195,7 @@ async function ehbAfterSaveRefresh(){
   loadBerishRecent(true);
   if(ehLoaded.oilalar) loadOilalar(true);
   if(ehLoaded.kirim) loadKirim(true);
+  if(ehLoaded.oy) loadOy(true);
 }
 window.ehbSave=async()=>{
   const msg=$('ehbMsg'); msg.className='ehk-msg'; msg.textContent='';
@@ -2275,7 +2358,178 @@ window.ehbBekorSave=async()=>{
     window.ehbBekorClose();
     await Promise.all([ loadDash(true), loadBerishRecent(true) ]);
     if(ehbOilaId) await window.ehbPick(ehbOilaId);
+    if(ehLoaded.oy) loadOy(true);
   } finally { btn.disabled=false; }
+};
+
+// ---- Bu oy tab: reja vs fakt + rejadan tashqari (5-bosqich) --------------------
+// ehson_oy(p_oy) javobi (PROVODKA_EHSON.sql 8.12, v_ehson_oy): {oy, rows:[{oila_id,
+// oila_kod, fio, reja_id, reja_summa, fakt_summa, farq, holat}], jami_reja, jami_fakt,
+// rejadan_tashqari:[{oila_id,oila_kod,fio,summa,sana,tur}]}. Tur/qidiruv filtri KLIENTDA
+// (o'sha oy uchun allaqachon yuklangan qatorlarga). RPC yo'q bo'lsa (PGRST202/42883)
+// banner ko'rsatiladi, sahifa buzilmaydi.
+const EHM_HOLAT={berildi:'Berildi',qisman:'Qisman',kutilmoqda:'Kutilmoqda',qoldi:'Qoldi'};
+let ehmData={filtr:'',q:'',rows:[],tashqari:[],jami_reja:0,jami_fakt:0};
+let ehmWired=false;
+function ehmCurOy(){ return todayUz().slice(0,7); }
+function ehmIsCurrentMonth(){ return ($('ehmOy').value||ehmCurOy())===ehmCurOy(); }
+function ehmOyKey(){ return 'oy:'+($('ehmOy').value||ehmCurOy()); }
+function wireOy(){
+  if(ehmWired) return; ehmWired=true;
+  $('ehmOy').value=ehmCurOy();
+}
+window.ehmOyChange=()=>{ if(!$('ehmOy').value) $('ehmOy').value=ehmCurOy(); loadOy(); };
+window.ehmMonthShift=delta=>{
+  const v=$('ehmOy').value||ehmCurOy();
+  const parts=v.split('-'); const y0=Number(parts[0])||0, m0=Number(parts[1])||1;
+  const total=(y0*12+(m0-1))+delta;
+  const y=Math.floor(total/12), m=(total%12)+1;
+  $('ehmOy').value=y+'-'+String(m).padStart(2,'0');
+  loadOy();
+};
+window.ehmToday=()=>{ $('ehmOy').value=ehmCurOy(); loadOy(); };
+window.ehmFiltrSet=v=>{
+  ehmData.filtr=v;
+  document.querySelectorAll('#ehmFiltr .ehk-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  renderOyTable();
+};
+let ehmQTimer=null;
+window.ehmOnQ=()=>{ clearTimeout(ehmQTimer); ehmQTimer=setTimeout(()=>{ ehmData.q=($('ehmQ').value||'').trim(); renderOyTable(); },250); };
+
+async function loadOy(fresh){
+  const oyStr=$('ehmOy').value||ehmCurOy();
+  const key=ehmOyKey();   // so'rov paytidagi oy — javob kelguncha oy almashsa eskirgan javob chizilmaydi
+  const cached=fresh?null:swrGet(key);
+  if(cached) renderOy(cached);
+  const {data,error}=await sb.rpc('ehson_oy',{p_oy:oyStr+'-01'});
+  if(key!==ehmOyKey()) { if(!error) swrSet(key,data); return; }
+  if(error){
+    if(error.code==='PGRST202' || error.code==='42883' || /function .* does not exist/i.test(error.message||'')){
+      showInfo("Ehson SQL hali RUN qilinmagan (PROVODKA_EHSON.sql)");
+    } else if(!cached){ showErr('Xato: '+error.message); }
+    return;
+  }
+  showErr(''); showInfo('');
+  swrSet(key,data);
+  renderOy(data);
+}
+function renderOy(d){
+  d=d||{};
+  ehmData.rows=Array.isArray(d.rows)?d.rows:[];
+  ehmData.tashqari=Array.isArray(d.rejadan_tashqari)?d.rejadan_tashqari:[];
+  ehmData.jami_reja=n0(d.jami_reja); ehmData.jami_fakt=n0(d.jami_fakt);
+  renderOyStats();
+  renderOyTable();
+  renderOyTashqari();
+  const oyStr=$('ehmOy').value||ehmCurOy();
+  const note=$('ehmFutureNote'); if(note) note.style.display=(oyStr>ehmCurOy())?'block':'none';
+}
+function renderOyStats(){
+  const reja=ehmData.jami_reja, fakt=ehmData.jami_fakt;
+  const qoldi=Math.max(reja-fakt,0);
+  const pct=reja>0?Math.round(fakt/reja*100):null;
+  const cards=$('ehmCards').children;
+  cards[0].querySelector('.v').textContent=money(reja);
+  cards[1].querySelector('.v').textContent=money(fakt);
+  cards[2].querySelector('.v').textContent=money(qoldi);
+  cards[3].querySelector('.v').textContent = pct==null ? '—' : (pct+'%');
+  const bar=cards[3].querySelector('.ehm-bar>div'); if(bar) bar.style.width=(pct==null?0:Math.min(pct,100))+'%';
+}
+function ehmFarqHtml(farq){
+  farq=n0(farq);
+  if(farq<0) return `<span style="color:var(--red);font-weight:700">−${money(Math.abs(farq))}</span>`;
+  if(farq===0) return `<span style="color:var(--green);font-weight:700">0</span>`;
+  return `<span style="color:var(--green);font-weight:700">+${money(farq)}</span>`;
+}
+function ehmRowDesktop(r){
+  const qoldiq=Math.max(n0(r.reja_summa)-n0(r.fakt_summa),0);
+  const showBer = ehmIsCurrentMonth() && r.holat!=='berildi';
+  return `<tr>
+    <td><span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(r.oila_id)}')">${escapeHtml(r.fio||'')}</span><div class="eho-kod">${escapeHtml(r.oila_kod||'')}</div></td>
+    <td class="ehm-num">${money(n0(r.reja_summa))}</td>
+    <td class="ehk-amt">${money(n0(r.fakt_summa))}</td>
+    <td class="ehm-num">${ehmFarqHtml(r.farq)}</td>
+    <td><span class="ehm-holat ${escapeHtml(r.holat||'')}">${escapeHtml(EHM_HOLAT[r.holat]||r.holat||'')}</span></td>
+    <td>${showBer?`<button class="btn" style="height:32px;padding:0 12px;font-size:12.5px" onclick="ehmBer('${escapeHtml(r.oila_id)}','${escapeHtml(r.reja_id)}',${qoldiq})"><i data-lucide="hand-coins"></i>Berish</button>`:''}</td>
+  </tr>`;
+}
+function ehmRowMobile(r){
+  const qoldiq=Math.max(n0(r.reja_summa)-n0(r.fakt_summa),0);
+  const showBer = ehmIsCurrentMonth() && r.holat!=='berildi';
+  return `<div class="ehk-row">
+    <div class="ehk-row-top">
+      <span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(r.oila_id)}')">${escapeHtml(r.fio||'')}</span>
+      <span class="ehm-holat ${escapeHtml(r.holat||'')}">${escapeHtml(EHM_HOLAT[r.holat]||r.holat||'')}</span>
+    </div>
+    <div class="ehk-row-meta">${escapeHtml(r.oila_kod||'')}</div>
+    <div class="ehk-row-manba">Reja ${money(n0(r.reja_summa))} · Berildi ${money(n0(r.fakt_summa))} · Farq ${ehmFarqHtml(r.farq)}</div>
+    ${showBer?`<button class="btn" style="margin-top:8px;width:100%;justify-content:center" onclick="ehmBer('${escapeHtml(r.oila_id)}','${escapeHtml(r.reja_id)}',${qoldiq})"><i data-lucide="hand-coins"></i>Berish</button>`:''}
+  </div>`;
+}
+function renderOyTable(){
+  const filt=ehmData.filtr, q=ehoNorm(ehmData.q);
+  let rows=ehmData.rows.slice();
+  if(filt==='tugallanmagan') rows=rows.filter(r=>r.holat!=='berildi');
+  else if(filt==='berildi') rows=rows.filter(r=>r.holat==='berildi');
+  if(q) rows=rows.filter(r=>ehoNorm(r.fio).includes(q)||ehoNorm(r.oila_kod).includes(q));
+  $('ehmStat').textContent = rows.length+' ta oila';
+  const wrap=$('ehmTblWrap');
+  if(!rows.length){
+    const filtrBor = !!ehmData.filtr || !!(ehmData.q||'').trim();
+    wrap.innerHTML='<div class="empty">'+(filtrBor ? 'Filtrga mos oila topilmadi' : "Bu oyda faol reja yo'q")+'</div>'; return; }
+  const jamiReja=rows.reduce((s,r)=>s+n0(r.reja_summa),0);
+  const jamiFakt=rows.reduce((s,r)=>s+n0(r.fakt_summa),0);
+  wrap.innerHTML = `<div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
+      <th>Oila</th><th style="text-align:right">Reja</th><th style="text-align:right">Berildi</th><th style="text-align:right">Farq</th><th>Holat</th><th></th>
+    </tr></thead><tbody>${rows.map(ehmRowDesktop).join('')}</tbody>
+    <tfoot><tr class="ehm-jami-row"><td>Jami</td><td class="ehm-num">${money(jamiReja)}</td><td class="ehm-num">${money(jamiFakt)}</td><td class="ehm-num">${ehmFarqHtml(jamiFakt-jamiReja)}</td><td></td><td></td></tr></tfoot>
+    </table></div>
+    <div class="ehk-mlist">${rows.map(ehmRowMobile).join('')}</div>`;
+  icons();
+}
+function ehmTashqariRow(t){
+  return `<div class="ehk-row-top" style="padding:8px 0;border-bottom:1px solid var(--line)">
+    <div>${fmtDate(t.sana)} · <span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(t.oila_id)}')">${escapeHtml(t.fio||'')}</span> <span class="eho-kod">(${escapeHtml(t.oila_kod||'')})</span> <span class="eho-tur-chip">${escapeHtml(EHB_TUR[t.tur]||t.tur||'')}</span></div>
+    <div class="ehk-amt">${money(n0(t.summa))}</div>
+  </div>`;
+}
+function renderOyTashqari(){
+  const list=ehmData.tashqari;
+  const wrap=$('ehmTashqariWrap');
+  if(!list.length){ wrap.innerHTML='<div class="empty">Yo\'q</div>'; return; }
+  const jami=list.reduce((s,t)=>s+n0(t.summa),0);
+  wrap.innerHTML = list.map(ehmTashqariRow).join('')
+    + `<div class="ehk-row-top" style="padding-top:10px;font-weight:800"><div>Jami</div><div>${money(jami)}</div></div>`;
+  icons();
+}
+// «Bu oy» jadvalidagi «Berish» tugmasi — Berish tabiga o'tadi, oila+reja+summa
+// oldindan to'ldiriladi (ehbPick ichida iste'mol qilinadi va o'chiriladi).
+window.ehmBer=(oilaId,rejaId,summa)=>{
+  window.ehBerishOila=oilaId;
+  window.ehBerishPreset={reja_id:rejaId, summa:n0(summa)};
+  window.ehTab('berish');
+};
+window.ehmExport=async()=>{
+  if(!ehmData.rows.length && !ehmData.tashqari.length){ showErr("Bu oyda eksport qilinadigan ma'lumot yo'q"); return; }
+  try{
+    const X=await ehoLoadXlsx();
+    const oyStr=$('ehmOy').value||ehmCurOy();
+    const rows=ehmData.rows, tashqari=ehmData.tashqari;
+    const jamiReja=rows.reduce((s,r)=>s+n0(r.reja_summa),0);
+    const jamiFakt=rows.reduce((s,r)=>s+n0(r.fakt_summa),0);
+    const aoa1=[['Oila ID','F.I.Sh.','Reja','Berildi','Farq','Holat']];
+    rows.forEach(r=>aoa1.push([r.oila_kod||'', r.fio||'', n0(r.reja_summa), n0(r.fakt_summa), n0(r.farq), EHM_HOLAT[r.holat]||r.holat||'']));
+    aoa1.push(['','Jami', jamiReja, jamiFakt, jamiFakt-jamiReja, '']);
+    const aoa2=[['Sana','Oila ID','F.I.Sh.','Tur','Summa']];
+    tashqari.forEach(t=>aoa2.push([fmtDate(t.sana), t.oila_kod||'', t.fio||'', EHB_TUR[t.tur]||t.tur||'', n0(t.summa)]));
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(aoa1), 'Bu oy '+oyStr);
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(aoa2), 'Rejadan tashqari');
+    X.writeFile(wb, 'Ehson_oy_'+oyStr+'.xlsx');
+  }catch(e){
+    console.error('Ehson oy eksport xato:',e);
+    showErr('Excel eksport qilinmadi: '+((e&&e.message)||e));
+  }
 };
 
 document.addEventListener('keydown',e=>{
