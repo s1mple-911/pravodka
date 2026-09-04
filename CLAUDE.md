@@ -762,7 +762,7 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   Bucket `ehson-hujjat` (private).
 - **Excel** (`Ehson_oilalar_jadvali_togrilangan.xlsx` namuna, 3 varaq): import faqat aynan shu sarlavhalar bilan,
   upsert `oila_kod`/`azo_kod`, «Yoshi» ustunlari tashlanadi, «Ehson tarixi» v1 da import qilinmaydi.
-- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish · 5 bu oy · 6 tarix+stat+designer.
+- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish ✅ · 5 bu oy · 6 tarix+stat+designer.
 - **2-bosqich (2026-09-04) — Kirim tabi** (`.ehk-*`, `.eh-modal`): jamg'arma kartasi (`renderKirimKassa`, `renderDash` dan
   chaqiriladi — Kirim tabi birinchi ochilganda `ehLoaded.bosh` orqali `loadDash()` ham ketadi), kirim formasi
   (`ehkSave` → `ehson_kirim_yoz`; manba chip: Kompaniya / «Xayriyachi: ism» / Boshqa; jamg'arma select FAQAT faol
@@ -781,6 +781,16 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   ustunlari tashlanadi, muhtojlik matni → `yuqori|orta|past`, oldindan ko'rish (yangi/yangilanadi/xato) → `ehson_import`.
   **Eksport** (hammaga): 3 varaq namuna sarlavhalari bilan, `ehoFetchAll` 1000+ qator sahifalab. «Ehson berish» tugmasi
   `window.ehBerishOila=id` + `ehTab('berish')` — 4-bosqich shu global'ni o'qiydi.
+- **4-bosqich (2026-09-04) — Ehson berish tabi** (`.ehb-*`): oila qidiruv (`ehson_royxat`, keshsiz) → tanlash
+  (`ehson_oila_kart`, `window.ehBerishOila` tab ochilganda o'qilib TOZALANADI) → forma: qoldiq (dash `kassalar`),
+  summa > qoldiq → tugma o'chiq, tur segmenti (`EHB_TUR` — YAGONA xarita, Oilalar kartasi ham shundan), **izoh majburiy
+  ≥3**, muddat rejimi `once` / `reja` (faol reja bo'lsa, `reja_id`) / `new` (avval `ehson_reja_saqla`, keyin
+  «Birinchi oyni hozir berish» bo'lsa `ehson_ber` reja_id bilan). 🔴 `ext_ref='ehson:'+randomUUID()` forma uchun BIR
+  marta, muvaffaqiyatdan keyin yangilanadi — `takror` javobi muvaffaqiyat (retry xavfsiz). 🔴 Reja yaratilib berish
+  bajarilmasa (yoki «berish yo'q») rejim avtomat `reja` ga o'tadi — qayta bosilganda ikkinchi reja ochilib eskisini
+  to'xtatmasin. Faol rejani to'xtatish — `ehRejaToxtat*` inline sabab (admin), Berish tanlovi va Oila kartasi Reja
+  segmentida bitta kod. So'nggi 15 berish — `ehson_berish` embed `ehson_oila(fio,oila_kod)` (FK bor), admin bekor
+  modali `ehson_berish_bekor`.
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 
