@@ -3,12 +3,15 @@
 -- ---------------------------------------------------------------------
 -- Brief: ARX_PROVODKA_EHSON.md (Asilbek TASDIQLADI, 2026-09-03).
 --
--- 🔴 IZOLYATSIYA — BU FAYLNING BOSH QOIDASI: Ehson tizimi Provodka'ning
--- ikki tomonlama buxgalteriya moduliga UMUMAN KIRMAYDI. Buxgalteriya
--- jadvallari (yozuv sarlavhasi, yozuv qatorlari, hisob rejasi) bu faylda
--- BIR MARTA HAM tilga OLINMAYDI — na o'qish, na yozish. Pul harakati
--- FAQAT shu faylning o'z jadvallari (ehson_kirim / ehson_berish) ichida.
--- Buni buzadigan har qanday keyingi o'zgarish RAD etilishi kerak.
+-- 🔴 IZOLYATSIYA — BU FAYLNING BOSH QOIDASI (2026-09-04 kech aniqlashtirildi):
+-- Ehson tizimi buxgalteriya moduliga YOZMAYDI. YAGONA istisno — 12-BO'LIM:
+-- buxgalter Professional'da Dt «Ehson jamg'armasi» (94xx modda) / Kt kassa
+-- provodkasini qiladi (pul kompaniyadan chiqadi), trigger uni ehson_kirim ga
+-- AVTOMAT tushiradi — bu bo'lim buxgalteriya jadvallarini faqat O'QIYDI
+-- (+ 94xx moddani bir marta ochadi), entry/entry_line ga yozmaydi va hech
+-- qachon to'smaydi. Berish/reja — FAQAT ehson_* jadvallarida. 12-BO'LIMdan
+-- tashqarida buxgalteriya jadvallari tilga olinmaydi — buni buzadigan
+-- o'zgarish RAD etilishi kerak.
 --
 -- ## RUN TARTIBI — butun faylni birdaniga RUN qilish mumkin.
 --   1-BOLIM   — old shart tekshiruvi (faqat select/raise)
@@ -21,6 +24,8 @@
 --   7-BOLIM   — ichki yordamchilar: _ehson_tarix_yoz, _ehson_kod_next
 --   8-BOLIM   — RPC'lar (dashboard, kirim, oila/a'zo, import, berish, reja, ro'yxat)
 --   9-BOLIM   — bucket `ehson-hujjat` + storage policy
+--  12-BOLIM   — kirim faqat jurnal orqali: 94xx modda seed, entry_line DEFERRED
+--               trigger → ehson_kirim avtomat (fayl tartibida 9 va 10 orasida)
 --  10-BOLIM   — PostgREST sxema keshi
 --  11-BOLIM   — YAKUNIY TEKSHIRUV (faqat select)
 --
@@ -1895,19 +1900,19 @@ create policy "ehson_hujjat_update" on storage.objects
 
 
 -- #####################################################################
--- ##  12-BOLIM — KIRIM FAQAT KOMPANIYA KASSASIDAN (2026-09-04, Asilbek)  ##
+-- ##  12-BOLIM — KIRIM FAQAT JURNAL ORQALI (2026-09-04 kech, Asilbek)  ##
 -- #####################################################################
--- Qaror: jamg'armaga pul FAQAT Provodka kassasidan kiradi. Har kirim uchun
--- jurnalga BITTA provodka tushadi: Dt «Ehson jamg'armasi» (xarajat moddasi,
--- 94xx) / Kt kassa — pul kompaniyadan CHIQADI (foyda/kapital kamayadi) va
--- shundan keyin Ehson ichidagi hamma harakat (berish, reja) FAQAT ehson_*
--- jadvallarida — entry'ga boshqa hech narsa yozilmaydi. Ehson qoldig'i
--- kompaniya balansiga kirmaydi (u allaqachon xarajat qilib chiqarilgan).
--- Bekor (admin) — ehson_kirim soft-delete + o'sha entry soft-delete
--- (jurnal naqshi: is_deleted + entry_history 'delete').
--- Yozuv foydalanuvchi JWT bilan → trg_perm_guard_entry_line op_kassa ruxsatini
--- o'zi tekshiradi (42501 → butun tranzaksiya qaytadi, yetim qator qolmaydi).
--- entry.source = 'ehson' (12.5 — entry_source_check kengaytiriladi, 14a naqshi).
+-- Qaror (yakuniy): Ehson ichida KIRIM YOZISH JOYI YO'Q. Buxgalter Professional'da
+-- oddiy provodka qiladi: Dt «Ehson jamg'armasi» (xarajat moddasi, 94xx) / Kt kassa.
+-- Pul shu yerda kompaniyadan CHIQADI (xarajat → foyda/kapital kamayadi), jurnalda
+-- bir marta ko'rinadi. Shu yozuv AVTOMAT jamg'armaga tushadi (ehson_kirim) —
+-- DEFERRED trigger (commit paytida, ovqat_line_guard naqshi). Ehson bilan
+-- shug'ullanuvchi userga faqat kirim TARIXI (o'qish) ochiq — RPC yo'q.
+-- Jurnalda yozuv tahrirlansa/o'chirilsa — ehson_kirim ham o'zi yangilanadi.
+-- Shundan keyin Ehson ichidagi hamma harakat (berish, reja) FAQAT ehson_*
+-- jadvallarida — entry'ga hech narsa yozilmaydi, Ehson qoldig'i kompaniya
+-- balansiga kirmaydi.
+-- Trigger HECH QACHON buxgalteriya yozuvini to'smaydi: xato → warning.
 -- Izohda dollar-qavs yozilmaydi. Tanalar nomlangan teg bilan.
 -- #####################################################################
 
@@ -1918,13 +1923,15 @@ alter table ehson_kirim add column if not exists ext_ref      text;
 alter table ehson_kassa add column if not exists xarajat_account_id uuid;
 create index if not exists ehson_kirim_entry_idx on ehson_kirim (entry_id);
 create unique index if not exists ehson_kirim_ext_ref_uniq on ehson_kirim (ext_ref) where ext_ref is not null;
-comment on column ehson_kirim.entry_id     is 'Jurnal yozuvi (Dt ehson xarajat moddasi / Kt kassa). FK ataylab yoq — modul DDL bogliqligi bolmasin.';
-comment on column ehson_kirim.pul_kassa_id is 'Qaysi Provodka kassasidan chiqdi (accounts.id).';
-comment on column ehson_kassa.xarajat_account_id is 'Shu jamgarma uchun Provodka xarajat moddasi (94xx). Birinchi kirimda ochiladi.';
+create unique index if not exists ehson_kirim_entry_kassa_uniq on ehson_kirim (entry_id, kassa_id) where entry_id is not null;
+comment on column ehson_kirim.entry_id     is 'Jurnal yozuvi (Dt ehson xarajat moddasi / Kt kassa). Trigger sinxronlaydi. FK ataylab yoq.';
+comment on column ehson_kirim.pul_kassa_id is 'Qaysi Provodka kassasidan chiqdi (Kt pul qatori, accounts.id).';
+comment on column ehson_kassa.xarajat_account_id is 'Shu jamgarma uchun Provodka xarajat moddasi (94xx). Professional da Dt shu modda = kirim.';
 
 -- 12.2 _ehson_xarajat_modda(p_kassa) — jamg'arma uchun xarajat moddasi (bor bo'lsa qaytaradi,
 --      yo'q bo'lsa 94xx blokida ochadi: sozlama-dev bilan bir xil shakl — type xarajat,
---      section operatsion, kod max(94xx)+1). ICHKI.
+--      section operatsion, kod max(94xx)+1). ICHKI. 12.9 da RUN paytida chaqiriladi —
+--      buxgalter Professional'da moddani darrov ko'rsin.
 create or replace function _ehson_xarajat_modda(p_kassa uuid)
 returns uuid
 language plpgsql
@@ -1968,202 +1975,169 @@ $fn$;
 
 revoke all on function _ehson_xarajat_modda(uuid) from public, anon, authenticated;
 
--- 12.3 ehson_kirim_yoz(p) — QAYTA (imzo o'zgarmagan). p: {kassa_id? (ehson_kassa), pul_kassa_id (accounts —
---      MAJBURIY), summa, sana, izoh, manba?, ext_ref?}. Qaytish: {ok, id, entry_id} yoki {ok:false, kod}:
---      summa_notogri · kassa_tanlanmagan · kassa_topilmadi · pul_kassa_kerak · pul_kassa_notogri ·
---      kassa_qoldiq_yetmadi · takror. Ruxsat: entry_line trigger (op_kassa) — 42501 raise.
+-- 12.3 _ehson_kirim_sync(p_entry) — BITTA entry uchun ehson_kirim holatini jurnal bilan tenglashtiradi.
+--      Har jamg'arma moddasi uchun: summa = sum(Dt) - sum(Kt) shu moddaga (>0 bo'lsa kirim);
+--      pul_kassa_id = eng katta Kt pul qatori; sana/izoh entry'dan. Entry o'chirilgan/posted emas
+--      yoki summa<=0 → ehson_kirim soft-delete. Idempotent — takror chaqiruv zarar qilmaydi.
+--      Yangi qatorda created_by = entry.created_by (buxgalter), manba 'Jurnal', ext_ref 'entry:<id>:<kassa>'.
+create or replace function _ehson_kirim_sync(p_entry uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_e     entry%rowtype;
+  k       record;
+  v_summa numeric;
+  v_pul   uuid;
+  v_row   ehson_kirim;
+  v_id    uuid;
+  v_faol  boolean;
+begin
+  if p_entry is null then return; end if;
+  select * into v_e from entry where id = p_entry;
+  v_faol := found and coalesce(v_e.is_deleted, false) = false and coalesce(v_e.status, 'posted') = 'posted';
+
+  for k in select id, xarajat_account_id from ehson_kassa where xarajat_account_id is not null loop
+    select coalesce(sum(l.debit), 0) - coalesce(sum(l.credit), 0) into v_summa
+      from entry_line l where l.entry_id = p_entry and l.account_id = k.xarajat_account_id;
+
+    select l.account_id into v_pul
+      from entry_line l join accounts a on a.id = l.account_id
+     where l.entry_id = p_entry and l.credit > 0 and a.section = 'pul'
+     order by l.credit desc limit 1;
+
+    select * into v_row from ehson_kirim where entry_id = p_entry and kassa_id = k.id;
+
+    if v_faol and v_summa > 0 then
+      if found then
+        update ehson_kirim
+           set summa = v_summa, sana = v_e.entry_date, izoh = v_e.description, pul_kassa_id = v_pul,
+               is_deleted = false, deleted_by = null, deleted_at = null
+         where id = v_row.id
+           and (summa is distinct from v_summa or sana is distinct from v_e.entry_date
+                or izoh is distinct from v_e.description or pul_kassa_id is distinct from v_pul
+                or is_deleted);
+        if found then
+          perform _ehson_tarix_yoz('kirim', v_row.id, 'jurnal_yangilandi',
+            jsonb_build_object('entry_id', p_entry, 'summa', v_summa));
+        end if;
+      else
+        insert into ehson_kirim (kassa_id, summa, sana, manba, izoh, created_by, entry_id, pul_kassa_id, ext_ref)
+        values (k.id, v_summa, v_e.entry_date, 'Jurnal', v_e.description, v_e.created_by, p_entry, v_pul,
+                'entry:' || p_entry::text || ':' || k.id::text)
+        returning id into v_id;
+        perform _ehson_tarix_yoz('kirim', v_id, 'jurnaldan_keldi',
+          jsonb_build_object('entry_id', p_entry, 'summa', v_summa, 'pul_kassa_id', v_pul));
+      end if;
+    elsif found and not v_row.is_deleted then
+      update ehson_kirim set is_deleted = true, deleted_at = now(), deleted_by = v_e.created_by
+       where id = v_row.id;
+      perform _ehson_tarix_yoz('kirim', v_row.id, 'jurnalda_ochirildi',
+        jsonb_build_object('entry_id', p_entry));
+    end if;
+  end loop;
+end
+$fn$;
+
+revoke all on function _ehson_kirim_sync(uuid) from public, anon, authenticated;
+
+-- 12.4 Trigger funksiyalari. HECH QACHON buxgalteriya yozuvini to'smaydi — xato bo'lsa warning.
+--      (a) entry_line — DEFERRED constraint trigger (commit paytida, hamma qator tayyor). Faqat
+--          shu entry'da jamg'arma moddasi qatori bo'lsa ishlaydi (indeksli tekshiruv).
+--      (b) entry — is_deleted/status/entry_date/description o'zgarsa, ehson_kirim bog'langan bo'lsa.
+create or replace function _ehson_trg_line()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_entry uuid := coalesce(new.entry_id, old.entry_id);
+begin
+  begin
+    if exists (
+      select 1 from entry_line l
+        join ehson_kassa k on k.xarajat_account_id = l.account_id
+       where l.entry_id = v_entry
+    ) or exists (select 1 from ehson_kirim where entry_id = v_entry) then
+      perform _ehson_kirim_sync(v_entry);
+    end if;
+  exception when others then
+    raise warning 'ehson kirim sinxron (entry_line %): %', v_entry, sqlerrm;
+  end;
+  return null;
+end
+$fn$;
+
+create or replace function _ehson_trg_entry()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+begin
+  begin
+    if exists (select 1 from ehson_kirim where entry_id = new.id) then
+      perform _ehson_kirim_sync(new.id);
+    end if;
+  exception when others then
+    raise warning 'ehson kirim sinxron (entry %): %', new.id, sqlerrm;
+  end;
+  return null;
+end
+$fn$;
+
+revoke all on function _ehson_trg_line()  from public, anon, authenticated;
+revoke all on function _ehson_trg_entry() from public, anon, authenticated;
+
+drop trigger if exists trg_ehson_kirim_line on entry_line;
+create constraint trigger trg_ehson_kirim_line
+  after insert or update or delete on entry_line
+  deferrable initially deferred
+  for each row execute function _ehson_trg_line();
+
+drop trigger if exists trg_ehson_kirim_entry on entry;
+create trigger trg_ehson_kirim_entry
+  after update of is_deleted, status, entry_date, description on entry
+  for each row execute function _ehson_trg_entry();
+
+comment on function _ehson_kirim_sync(uuid) is
+  'Jurnal yozuvi (Dt ehson moddasi / Kt kassa) -> ehson_kirim avtomat. Tahrir/ochirish ham sinxron. Hech qachon entry ni tosmaydi.';
+
+-- 12.5 entry_source_check — TEGILMAYDI (buxgalter Professional'da yozadi, source oddiy 'manual').
+
+-- 12.6 ehson_kirim_yoz / ehson_kirim_bekor — Ehson ichidan kirim yozish/bekor qilish TAQIQ.
+--      Imzo saqlanadi (11.7 tekshiruv, eski mijoz), tana — aniq xato. authenticated'dan revoke.
 create or replace function ehson_kirim_yoz(p jsonb)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $fn$
-declare
-  v_uid    uuid    := auth.uid();
-  v_kassa  uuid    := nullif(p->>'kassa_id', '')::uuid;
-  v_pul    uuid    := nullif(p->>'pul_kassa_id', '')::uuid;
-  v_summa  numeric := nullif(p->>'summa', '')::numeric;
-  v_sana   date    := coalesce(nullif(p->>'sana', '')::date, (now() at time zone 'Asia/Tashkent')::date);
-  v_manba  text    := nullif(btrim(coalesce(p->>'manba', '')), '');
-  v_izoh   text    := nullif(btrim(coalesce(p->>'izoh', '')), '');
-  v_ext    text    := nullif(btrim(coalesce(p->>'ext_ref', '')), '');
-  v_cnt    int;
-  v_id     uuid;
-  v_exist  uuid;
-  v_acc    accounts%rowtype;
-  v_modda  uuid;
-  v_entry  uuid;
-  v_bal    numeric;
 begin
-  if v_uid is null then
-    raise exception 'Avtorizatsiya kerak' using errcode = '42501';
-  end if;
-  if not ehson_page_ok() then
-    raise exception 'Ehson sahifasi ruxsatingizda yo''q' using errcode = '42501';
-  end if;
-  if v_summa is null or v_summa <= 0 then
-    return jsonb_build_object('ok', false, 'kod', 'summa_notogri');
-  end if;
-
-  if v_ext is not null then
-    select id into v_exist from ehson_kirim where ext_ref = v_ext;
-    if found then
-      return jsonb_build_object('ok', false, 'kod', 'takror', 'id', v_exist);
-    end if;
-  else
-    v_ext := 'ehson_kirim:' || gen_random_uuid()::text;
-  end if;
-
-  if v_kassa is null then
-    select count(*) into v_cnt from ehson_kassa where is_active;
-    if v_cnt <> 1 then
-      return jsonb_build_object('ok', false, 'kod', 'kassa_tanlanmagan');
-    end if;
-    select id into v_kassa from ehson_kassa where is_active limit 1;
-  end if;
-  if not exists (select 1 from ehson_kassa where id = v_kassa and is_active) then
-    return jsonb_build_object('ok', false, 'kod', 'kassa_topilmadi');
-  end if;
-
-  -- Provodka kassasi (majburiy): pul hisobi, faol, UZS, konteyner emas.
-  if v_pul is null then
-    return jsonb_build_object('ok', false, 'kod', 'pul_kassa_kerak');
-  end if;
-  select * into v_acc from accounts where id = v_pul;
-  if not found or not coalesce(v_acc.is_active, true) or v_acc.type <> 'aktiv'
-     or v_acc.code not like '5%' or coalesce(v_acc.kassa_turi, '') = 'xarajat_guruh'
-     or coalesce(v_acc.currency, 'UZS') <> 'UZS' then
-    return jsonb_build_object('ok', false, 'kod', 'pul_kassa_notogri');
-  end if;
-
-  -- Kassa qoldig'i (sorov_kassa_bal bor bo'lsa — hodim/qarz bilan bir xil manba)
-  if to_regprocedure('public.sorov_kassa_bal(uuid)') is not null then
-    execute 'select sorov_kassa_bal($1)' into v_bal using v_pul;
-    if coalesce(v_bal, 0) < v_summa then
-      return jsonb_build_object('ok', false, 'kod', 'kassa_qoldiq_yetmadi', 'qoldiq', coalesce(v_bal, 0));
-    end if;
-  end if;
-
-  v_modda := _ehson_xarajat_modda(v_kassa);
-
-  -- Jurnal yozuvi: Dt ehson xarajat moddasi / Kt kassa. Trigger op ruxsatini tekshiradi.
-  insert into entry (entry_date, description, source, status, ext_ref, created_by, filial_ids)
-  values (v_sana,
-          'Ehson jamg''armasiga o''tkazma: ' || v_acc.name || coalesce(' · ' || v_izoh, ''),
-          'ehson', 'posted', v_ext, v_uid, '{}'::uuid[])
-  returning id into v_entry;
-
-  insert into entry_line (entry_id, account_id, debit, credit)
-  values (v_entry, v_modda, v_summa, 0),
-         (v_entry, v_pul,   0,       v_summa);
-
-  insert into ehson_kirim (kassa_id, summa, sana, manba, izoh, created_by, entry_id, pul_kassa_id, ext_ref)
-  values (v_kassa, v_summa, v_sana, coalesce(v_manba, 'Kassa: ' || v_acc.name), v_izoh, v_uid, v_entry, v_pul, v_ext)
-  returning id into v_id;
-
-  perform _ehson_tarix_yoz('kirim', v_id, 'yaratildi',
-    jsonb_build_object('summa', v_summa, 'kassa_id', v_kassa, 'pul_kassa_id', v_pul, 'entry_id', v_entry));
-
-  return jsonb_build_object('ok', true, 'id', v_id, 'entry_id', v_entry);
-exception when unique_violation then
-  select id into v_exist from ehson_kirim where ext_ref = v_ext;
-  return jsonb_build_object('ok', false, 'kod', 'takror', 'id', v_exist);
+  raise exception 'Ehson ichida kirim yozilmaydi. Buxgalter Professional sahifasida Dt «Ehson jamg''armasi» / Kt kassa provodkasini qiladi — u jamg''armaga o''zi tushadi.'
+    using errcode = '42501';
 end
 $fn$;
+revoke all on function ehson_kirim_yoz(jsonb) from public, anon, authenticated;
 
-revoke all on function ehson_kirim_yoz(jsonb) from public, anon;
-grant execute on function ehson_kirim_yoz(jsonb) to authenticated;
-
--- 12.4 ehson_kirim_bekor(p_id, p_sabab) — QAYTA: jurnal yozuvi ham soft-delete (jurnal naqshi).
 create or replace function ehson_kirim_bekor(p_id uuid, p_sabab text)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $fn$
-declare
-  v_uid          uuid := auth.uid();
-  v_sabab        text := nullif(btrim(coalesce(p_sabab, '')), '');
-  v_row          ehson_kirim;
-  v_kirim_qolgan numeric;
-  v_berildi      numeric;
-  v_nom          text;
-  v_e            entry%rowtype;
 begin
-  if v_uid is null then
-    raise exception 'Avtorizatsiya kerak' using errcode = '42501';
-  end if;
-  if not _ehson_is_admin() then
-    raise exception 'Faqat admin bekor qila oladi' using errcode = '42501';
-  end if;
-  if v_sabab is null then
-    return jsonb_build_object('ok', false, 'kod', 'sabab_kerak');
-  end if;
-
-  select * into v_row from ehson_kirim where id = p_id and is_deleted = false;
-  if not found then
-    return jsonb_build_object('ok', false, 'kod', 'topilmadi');
-  end if;
-
-  select coalesce(sum(summa), 0) into v_kirim_qolgan
-    from ehson_kirim where kassa_id = v_row.kassa_id and is_deleted = false and id <> p_id;
-  select coalesce(sum(summa), 0) into v_berildi
-    from ehson_berish where kassa_id = v_row.kassa_id and holat = 'berildi';
-  if v_kirim_qolgan - v_berildi < 0 then
-    return jsonb_build_object('ok', false, 'kod', 'qoldiq_manfiy');
-  end if;
-
-  update ehson_kirim set is_deleted = true, deleted_by = v_uid, deleted_at = now()
-   where id = p_id;
-
-  -- Jurnal yozuvi: is_deleted + entry_history (jurnal-dev bilan bir xil shakl)
-  if v_row.entry_id is not null then
-    select * into v_e from entry where id = v_row.entry_id and is_deleted = false;
-    if found then
-      select coalesce(nullif(btrim(full_name), ''), 'admin') into v_nom from profiles where id = v_uid;
-      insert into entry_history (entry_id, action, snapshot, changed_by_name)
-      values (v_e.id, 'delete', to_jsonb(v_e), coalesce(v_nom, 'admin'));
-      update entry set is_deleted = true, deleted_at = now(), deleted_by_name = coalesce(v_nom, 'admin')
-       where id = v_e.id;
-    end if;
-  end if;
-
-  perform _ehson_tarix_yoz('kirim', p_id, 'bekor', jsonb_build_object('sabab', v_sabab, 'entry_id', v_row.entry_id));
-
-  return jsonb_build_object('ok', true);
+  raise exception 'Kirim Ehson ichida bekor qilinmaydi — jurnaldagi provodkani o''chiring, jamg''arma o''zi yangilanadi.'
+    using errcode = '42501';
 end
 $fn$;
+revoke all on function ehson_kirim_bekor(uuid, text) from public, anon, authenticated;
 
-revoke all on function ehson_kirim_bekor(uuid, text) from public, anon;
-grant execute on function ehson_kirim_bekor(uuid, text) to authenticated;
-
--- 12.5 entry_source_check ga 'ehson' (PROVODKA_QARZ.sql 14a naqshi, idempotent)
-do $ehson_src$
-declare
-  v_def text;
-  v_new text;
-begin
-  select pg_get_constraintdef(c.oid) into v_def
-    from pg_constraint c
-   where c.conrelid = 'public.entry'::regclass and c.conname = 'entry_source_check';
-  if v_def is null then
-    raise notice 'entry_source_check yoq — hech narsa qilinmadi';
-    return;
-  end if;
-  if v_def like '%''ehson''%' then
-    raise notice 'entry_source_check allaqachon ehson ni biladi';
-    return;
-  end if;
-  if position('ARRAY[' in v_def) = 0 then
-    raise exception 'entry_source_check shakli kutilmagan, qolda qoshing: %', v_def;
-  end if;
-  v_new := replace(v_def, 'ARRAY[', 'ARRAY[''ehson''::text, ');
-  execute 'alter table entry drop constraint entry_source_check';
-  execute 'alter table entry add constraint entry_source_check ' || v_new;
-  raise notice 'entry_source_check yangilandi: %', v_new;
-end $ehson_src$;
-
--- 12.6 ehson_kirim_royxat — QAYTA: pul_kassa_nom/kod + entry_id qatorlarda (imzo/qolgan shakl o'zgarmagan)
+-- 12.7 ehson_kirim_royxat — QAYTA: pul_kassa_nom/kod + entry_id (imzo/qolgan shakl o'zgarmagan).
+--      Ehson useriga faqat O'QISH — shu RPC.
 create or replace function ehson_kirim_royxat(p jsonb default '{}'::jsonb)
 returns jsonb
 language plpgsql
@@ -2182,12 +2156,29 @@ declare
   v_rows   jsonb;
   v_jami   int;
   v_summa  numeric;
+  v_all    boolean := false;   -- kassa nomini ko'rish: admin yoki kassa_scope<>'list'
+  v_ok_ids uuid[]  := '{}';    -- 'list' bo'lsa: view_kassa_ids ga kiruvchi kassalar (perm_op_key orqali)
+  v_view   uuid[];
 begin
   if v_uid is null then
     raise exception 'Avtorizatsiya kerak' using errcode = '42501';
   end if;
   if not ehson_page_ok() then
     raise exception 'Ehson sahifasi ruxsatingizda yo''q' using errcode = '42501';
+  end if;
+
+  -- Kassa nomi/kodi — faqat o'sha kassani ko'rish ruxsati bor userga (aks holda «Kompaniya kassasi»).
+  -- Sabab: faqat `ehson` ruxsatli user kompaniya kassalari tuzilmasini ko'rmasin (tester).
+  if _ehson_is_admin() then
+    v_all := true;
+  else
+    select u.view_kassa_ids into v_view from user_perms u where u.user_id = v_uid and u.kassa_scope = 'list';
+    if not found then
+      v_all := true;
+    elsif to_regprocedure('public.perm_op_key(uuid)') is not null then
+      execute 'select coalesce(array_agg(a.id), ''{}''::uuid[]) from accounts a where perm_op_key(a.id) = any($1)'
+         into v_ok_ids using coalesce(v_view, '{}'::uuid[]);
+    end if;
   end if;
 
   select count(*), coalesce(sum(k.summa) filter (where not k.is_deleted), 0)
@@ -2203,13 +2194,17 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', k.id, 'sana', k.sana, 'summa', k.summa, 'manba', k.manba, 'izoh', k.izoh,
            'kassa_id', k.kassa_id, 'kassa_nom', ks.nom,
-           'pul_kassa_id', k.pul_kassa_id, 'pul_kassa_nom', pa.name, 'pul_kassa_kod', pa.code,
+           'pul_kassa_id', case when v_all or k.pul_kassa_id = any(v_ok_ids) then k.pul_kassa_id end,
+           'pul_kassa_nom', case when k.pul_kassa_id is null then null
+                                 when v_all or k.pul_kassa_id = any(v_ok_ids) then pa.name
+                                 else 'Kompaniya kassasi' end,
+           'pul_kassa_kod', case when v_all or k.pul_kassa_id = any(v_ok_ids) then pa.code end,
            'entry_id', k.entry_id,
            'kim', coalesce(nullif(btrim(pr.full_name), ''), 'Noma''lum'),
            'created_at', k.created_at,
            'is_deleted', k.is_deleted, 'deleted_at', k.deleted_at,
-           'bekor_kim', case when k.is_deleted then coalesce(nullif(btrim(pd.full_name), ''), 'Noma''lum') end,
-           'bekor_sabab', case when k.is_deleted then t.sabab end
+           'bekor_kim', case when k.is_deleted then coalesce(nullif(btrim(pd.full_name), ''), 'Jurnal') end,
+           'bekor_sabab', case when k.is_deleted then coalesce(t.sabab, 'Jurnalda o''chirildi') end
          ) order by k.sana desc, k.created_at desc), '[]'::jsonb)
     into v_rows
     from (
@@ -2241,38 +2236,9 @@ $fn$;
 revoke all on function ehson_kirim_royxat(jsonb) from public, anon;
 grant execute on function ehson_kirim_royxat(jsonb) to authenticated;
 
--- 12.7a _ehson_pul_kassa_ruxsat(p_acc) — SERVER tomonda op_kassa filtri (ICHKI): admin yoki
---       kassa_scope<>'list' → true; 'list' → perm_op_key(p_acc) ∈ op_kassa_ids (pul_turi/valyuta bolasi
---       parent orqali). Sabab: faqat `ehson` ruxsatli user kompaniya kassalari qoldig'ini ko'rmasin
---       (tester eslatmasi). perm_op_key yo'q bazada — fail-closed (false).
-create or replace function _ehson_pul_kassa_ruxsat(p_acc uuid)
-returns boolean
-language plpgsql
-stable
-security definer
-set search_path = public
-as $fn$
-declare
-  v_uid uuid := auth.uid();
-  v_p   user_perms%rowtype;
-  v_key uuid;
-begin
-  if v_uid is null then return false; end if;
-  if _ehson_is_admin() then return true; end if;
-  select * into v_p from user_perms where user_id = v_uid;
-  if not found or coalesce(v_p.kassa_scope, 'all') <> 'list' then return true; end if;
-  if to_regprocedure('public.perm_op_key(uuid)') is null then return false; end if;
-  execute 'select perm_op_key($1)' into v_key using p_acc;
-  return v_key = any(coalesce(v_p.op_kassa_ids, '{}'::uuid[]));
-end
-$fn$;
-
-revoke all on function _ehson_pul_kassa_ruxsat(uuid) from public, anon, authenticated;
-
--- 12.7 ehson_pul_kassalar() — kirim formasi uchun Provodka kassalari ro'yxati (pul hisoblari, UZS,
---      konteyner emas, qoldiq bilan). Ruxsat filtri SERVERDA (_ehson_pul_kassa_ruxsat) + klientda
---      (permFilterOp) + yozishda trigger — uch qavat.
-create or replace function ehson_pul_kassalar()
+-- 12.8 ehson_dash — QAYTA: + moddalar:[{kassa_id, id, code, name}] (Kirim tabida «Modda: 9428 Ehson
+--      jamg'armasi» ko'rsatish uchun). Qolgan kalitlar o'zgarmagan.
+create or replace function ehson_dash()
 returns jsonb
 language plpgsql
 stable
@@ -2280,9 +2246,15 @@ security definer
 set search_path = public
 as $fn$
 declare
-  v_uid uuid := auth.uid();
-  v_out jsonb;
-  v_bal boolean := to_regprocedure('public.sorov_kassa_bal(uuid)') is not null;
+  v_uid        uuid := auth.uid();
+  v_kassalar   jsonb;
+  v_oila_holat jsonb;
+  v_muhtojlik  jsonb;
+  v_bu_oy      date := date_trunc('month', (now() at time zone 'Asia/Tashkent'))::date;
+  v_oy_reja    numeric;
+  v_oy_fakt    numeric;
+  v_jami_yil   numeric;
+  v_moddalar   jsonb;
 begin
   if v_uid is null then
     raise exception 'Avtorizatsiya kerak' using errcode = '42501';
@@ -2290,36 +2262,80 @@ begin
   if not ehson_page_ok() then
     raise exception 'Ehson sahifasi ruxsatingizda yo''q' using errcode = '42501';
   end if;
-  if v_bal then
-    execute $q$
-      select coalesce(jsonb_agg(jsonb_build_object(
-               'id', a.id, 'code', a.code, 'name', a.name, 'subtitle', a.subtitle,
-               'kassa_turi', a.kassa_turi, 'parent_id', a.parent_id, 'currency', coalesce(a.currency, 'UZS'),
-               'pul_turi', a.pul_turi, 'qoldiq', sorov_kassa_bal(a.id)
-             ) order by a.code), '[]'::jsonb)
-        from accounts a
-       where coalesce(a.is_active, true) and a.type = 'aktiv' and a.code like '5%'
-         and coalesce(a.currency, 'UZS') = 'UZS' and coalesce(a.kassa_turi, '') <> 'xarajat_guruh'
-         and _ehson_pul_kassa_ruxsat(a.id)
-    $q$ into v_out;
-  else
-    select coalesce(jsonb_agg(jsonb_build_object(
-             'id', a.id, 'code', a.code, 'name', a.name, 'subtitle', a.subtitle,
-             'kassa_turi', a.kassa_turi, 'parent_id', a.parent_id, 'currency', coalesce(a.currency, 'UZS'),
-             'pul_turi', a.pul_turi, 'qoldiq', null
-           ) order by a.code), '[]'::jsonb)
-      into v_out
-      from accounts a
-     where coalesce(a.is_active, true) and a.type = 'aktiv' and a.code like '5%'
-       and coalesce(a.currency, 'UZS') = 'UZS' and coalesce(a.kassa_turi, '') <> 'xarajat_guruh'
-       and _ehson_pul_kassa_ruxsat(a.id);
-  end if;
-  return v_out;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', id, 'nom', nom, 'is_active', is_active,
+           'kirim', kirim, 'berildi', berildi, 'qoldiq', qoldiq
+         ) order by nom), '[]'::jsonb)
+    into v_kassalar
+    from v_ehson_kassa;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'kassa_id', k.id, 'id', a.id, 'code', a.code, 'name', a.name
+         ) order by a.code), '[]'::jsonb)
+    into v_moddalar
+    from ehson_kassa k join accounts a on a.id = k.xarajat_account_id;
+
+  select coalesce(jsonb_object_agg(holat, soni), '{}'::jsonb)
+    into v_oila_holat
+    from (select holat, count(*) as soni from ehson_oila group by holat) x;
+
+  select coalesce(jsonb_object_agg(coalesce(muhtojlik_daraja, 'belgilanmagan'), soni), '{}'::jsonb)
+    into v_muhtojlik
+    from (
+      select muhtojlik_daraja, count(*) as soni
+        from ehson_oila where holat <> 'yopildi'
+       group by muhtojlik_daraja
+    ) x;
+
+  select coalesce(sum(oylik_summa), 0) into v_oy_reja
+    from ehson_reja where holat = 'faol';
+
+  select coalesce(sum(summa), 0) into v_oy_fakt
+    from ehson_berish
+   where holat = 'berildi' and date_trunc('month', sana) = v_bu_oy;
+
+  select coalesce(sum(summa), 0) into v_jami_yil
+    from ehson_berish
+   where holat = 'berildi'
+     and date_trunc('year', sana) = date_trunc('year', (now() at time zone 'Asia/Tashkent'));
+
+  return jsonb_build_object(
+    'kassalar',      v_kassalar,
+    'moddalar',      v_moddalar,
+    'oilalar_holat', v_oila_holat,
+    'muhtojlik',     v_muhtojlik,
+    'bu_oy_reja',    v_oy_reja,
+    'bu_oy_fakt',    v_oy_fakt,
+    'jami_oy',       v_oy_fakt,
+    'jami_yil',      v_jami_yil
+  );
 end
 $fn$;
 
-revoke all on function ehson_pul_kassalar() from public, anon;
-grant execute on function ehson_pul_kassalar() to authenticated;
+revoke all on function ehson_dash() from public, anon;
+grant execute on function ehson_dash() to authenticated;
+
+-- 12.9 Modda seed — har faol jamg'arma uchun xarajat moddasi RUN paytida ochiladi
+--      (buxgalter Professional'da darrov ko'radi). Idempotent.
+do $ehson_modda$
+declare k record;
+begin
+  for k in select id from ehson_kassa where is_active loop
+    perform _ehson_xarajat_modda(k.id);
+  end loop;
+end $ehson_modda$;
+
+-- 12.10 Eski yozuvlar (modda ochilgunga qadar qo'lda shu nomdagi moddaga yozilgan bo'lsa) — bir marta sinxron.
+do $ehson_sync0$
+declare e record;
+begin
+  for e in select distinct l.entry_id
+             from entry_line l join ehson_kassa k on k.xarajat_account_id = l.account_id
+  loop
+    perform _ehson_kirim_sync(e.entry_id);
+  end loop;
+end $ehson_sync0$;
 
 
 -- #####################################################################
@@ -2403,10 +2419,12 @@ begin
   if to_regprocedure('public.ehson_kirim_royxat(jsonb)')       is null then raise exception 'ehson_kirim_royxat(jsonb) yaratilmadi'; end if;
   if to_regprocedure('public.ehson_berish_royxat(jsonb)')      is null then raise exception 'ehson_berish_royxat(jsonb) yaratilmadi'; end if;
   if to_regprocedure('public._ehson_xarajat_modda(uuid)')      is null then raise exception '_ehson_xarajat_modda(uuid) yaratilmadi'; end if;
-  if to_regprocedure('public.ehson_pul_kassalar()')             is null then raise exception 'ehson_pul_kassalar() yaratilmadi'; end if;
+  if to_regprocedure('public._ehson_kirim_sync(uuid)')         is null then raise exception '_ehson_kirim_sync(uuid) yaratilmadi'; end if;
+  if not exists (select 1 from pg_trigger where tgname = 'trg_ehson_kirim_line')  then raise exception 'trg_ehson_kirim_line trigger yoq'; end if;
+  if not exists (select 1 from pg_trigger where tgname = 'trg_ehson_kirim_entry') then raise exception 'trg_ehson_kirim_entry trigger yoq'; end if;
+  if exists (select 1 from ehson_kassa where is_active and xarajat_account_id is null) then raise exception 'Faol jamgarma uchun xarajat moddasi ochilmadi'; end if;
   if not exists (select 1 from information_schema.columns where table_name='ehson_kirim' and column_name='entry_id') then raise exception 'ehson_kirim.entry_id ustuni yoq'; end if;
   if not exists (select 1 from information_schema.columns where table_name='ehson_kirim' and column_name='ext_ref') then raise exception 'ehson_kirim.ext_ref ustuni yoq'; end if;
-  if to_regprocedure('public._ehson_pul_kassa_ruxsat(uuid)')   is null then raise exception '_ehson_pul_kassa_ruxsat(uuid) yaratilmadi'; end if;
   if to_regprocedure('public.ehson_hujjat_yol_ok(text)')       is null then raise exception 'ehson_hujjat_yol_ok(text) yaratilmadi'; end if;
 
   -- 11.8 GRANT/REVOKE tekshiruvi (namuna)

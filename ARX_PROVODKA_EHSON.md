@@ -193,3 +193,11 @@ provodkasi tushadi; shundan keyin Ehson ichida nima qilinsa ham faqat Ehson ichi
 kapitaliga kirmaydi». Yechim — `PROVODKA_EHSON.sql` 12-BO'LIM: `ehson_kirim_yoz` bitta `entry` yozadi (Dt xarajat moddasi
 «Ehson jamg'armasi (<nom>)» 94xx / Kt kassa, `source='ehson'`), `ehson_kirim.entry_id` bog'lanadi; bekor — ikkalasi soft-delete.
 Berish/reja — avvalgidek faqat `ehson_*`. 4-bo'limdagi «avtomat bog'lanmaydi» bandi shu bilan bekor.
+
+## 17. Qaror o'zgarishi 2 (2026-09-04 kech) — Ehson ichida kirim yozish YO'Q
+
+Asilbek: «kirim qilish joyi ehson ichida bo'lmasin — Professional'da Dt/Kt qilib pul chiqarib beradi buxgalterlar, shu bilan u
+jamg'armaga tushishi kerak; ehson bilan shug'ullanuvchi odamda bu dostup bo'lmasin, faqat kirim tarixi ochiq tursin».
+Yechim — 12-BO'LIM qayta: modda RUN paytida ochiladi (12.9), `entry_line` DEFERRED trigger + `entry` trigger →
+`_ehson_kirim_sync` (avtomat kirim / tahrir / o'chirish), `ehson_kirim_yoz`/`ehson_kirim_bekor` — 42501 stub.
+16-bo'limdagi «kirim formasi kassa tanlash bilan» bekor.

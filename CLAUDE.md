@@ -745,17 +745,17 @@ qo'shilmaydi, konvert bloklanmaydi.
 
 ### Ehson (xayriya) bo'limi — MUSTAQIL (2026-09-03, `ARX_PROVODKA_EHSON.md`, faqat dev)
 
-🔴 **Izolyatsiya (2026-09-04 kech, Asilbek qarori bilan aniqlashtirildi)**: jamg'armaga pul FAQAT kompaniya
-(Provodka) kassasidan kiradi — **`ehson_kirim_yoz` BITTA provodka yozadi**: Dt «Ehson jamg'armasi (<nom>)» xarajat
-moddasi (94xx, `_ehson_xarajat_modda` birinchi kirimda ochadi, `ehson_kassa.xarajat_account_id`) / Kt tanlangan kassa,
-`source='ehson'` (`entry_source_check` 12.5 da kengaytiriladi, qarz 14a naqshi), `ext_ref='ehson_kirim:<uuid>'`,
-foydalanuvchi JWT → `trg_perm_guard_entry_line` op_kassa ruxsatini tekshiradi, `sorov_kassa_bal` yetmasa
-`kassa_qoldiq_yetmadi`. Pul shu yerda kompaniyadan CHIQADI (xarajat → foyda/kapital kamayadi); jurnalda oddiy Chiqim
-bo'lib ko'rinadi. **Shundan keyin hamma harakat (berish, reja, bekor) FAQAT `ehson_*` jadvallarida** — `entry`ga
-boshqa hech narsa yozilmaydi, Ehson qoldig'i kompaniya balansiga kirmaydi. Kirim bekor (admin) — `ehson_kirim`
-soft-delete + o'sha `entry` soft-delete (`is_deleted`, `deleted_by_name`, `entry_history 'delete'` — jurnal naqshi).
-`ehson_kirim.entry_id/pul_kassa_id/ext_ref` (FK ataylab yo'q). Klient: `ehson_pul_kassalar()` (serverda ham `_ehson_pul_kassa_ruxsat` op_kassa filtri — faqat `ehson` ruxsatli user kompaniya kassalari qoldig'ini ko'rmasin) → `permFilterOp`
-(op_kassa) → «Qaysi kassadan» select (`localStorage eh-pulkassa`). Tester isboti: `entry`/`accounts` faqat 12-BO'LIMda.
+🔴 **Izolyatsiya — YAKUNIY (2026-09-04 kech, Asilbek)**: **Ehson ichida KIRIM YOZISH JOYI YO'Q.** Buxgalter
+`professional-dev.html` da oddiy provodka qiladi: Dt «Ehson jamg'armasi» (xarajat moddasi 94xx, `PROVODKA_EHSON.sql`
+12.9 RUN paytida ochiladi, `ehson_kassa.xarajat_account_id`) / Kt kassa — pul shu yerda kompaniyadan CHIQADI (xarajat →
+foyda/kapital kamayadi), jurnalda bir marta ko'rinadi. Shu yozuv **DEFERRED trigger** (`trg_ehson_kirim_line` on
+`entry_line`, commit paytida — `ovqat_line_guard` naqshi; `trg_ehson_kirim_entry` — tahrir/o'chirish) orqali
+`_ehson_kirim_sync(entry_id)` bilan `ehson_kirim` ga AVTOMAT tushadi (summa = Dt−Kt shu moddaga, `pul_kassa_id` = Kt
+pul qatori, `ext_ref='entry:<id>:<kassa>'`); jurnalda o'chirilsa/tahrirlansa ehson_kirim ham o'zi yangilanadi.
+🔴 Trigger HECH QACHON buxgalteriya yozuvini to'smaydi (xato → `raise warning`). `ehson_kirim_yoz`/`ehson_kirim_bekor`
+imzosi qoldi, tanasi 42501 xato (+ authenticated'dan revoke) — Ehson useriga faqat kirim TARIXI (`ehson_kirim_royxat`)
+o'qish. Shundan keyin hamma harakat (berish, reja) FAQAT `ehson_*` jadvallarida, Ehson qoldig'i kompaniya balansiga
+kirmaydi. Tester isboti: `entry`/`entry_line`/`accounts` faqat 12-BO'LIMda (o'qish + trigger), `entry` ga yozuv YO'Q.
 - **Sahifa** `ehson-dev.html`, kalit **`ehson`** — 18-kalit: `perm_pages()` (`PROVODKA_EHSON.sql`) = `perms-dev.js`
   `PAGES` = `index-dev.html` `CARDS`; nav 17 dev faylda (sidebar AI'dan keyin + sheet + prefetch), `promote.sh` PAGES;
   admin-dev `PVS_PAGES` — Asilbek (TaskFix repo). Tablar: Bosh · Oilalar · Ehson berish · Bu oy · Kirim · Tarix
