@@ -762,7 +762,14 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   Bucket `ehson-hujjat` (private).
 - **Excel** (`Ehson_oilalar_jadvali_togrilangan.xlsx` namuna, 3 varaq): import faqat aynan shu sarlavhalar bilan,
   upsert `oila_kod`/`azo_kod`, «Yoshi» ustunlari tashlanadi, «Ehson tarixi» v1 da import qilinmaydi.
-- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim · 3 oilalar+a'zolar+Excel · 4 berish · 5 bu oy · 6 tarix+stat+designer.
+- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel · 4 berish · 5 bu oy · 6 tarix+stat+designer.
+- **2-bosqich (2026-09-04) — Kirim tabi** (`.ehk-*`, `.eh-modal`): jamg'arma kartasi (`renderKirimKassa`, `renderDash` dan
+  chaqiriladi — Kirim tabi birinchi ochilganda `ehLoaded.bosh` orqali `loadDash()` ham ketadi), kirim formasi
+  (`ehkSave` → `ehson_kirim_yoz`; manba chip: Kompaniya / «Xayriyachi: ism» / Boshqa; jamg'arma select FAQAT faol
+  kassa >1 bo'lsa), tarix (`loadKirim` → **`ehson_kirim_royxat(p)`** — 2-bosqichda qo'shilgan RPC, 8.16-bo'lim:
+  `{rows[{…,kim,bekor_kim,bekor_sabab}], jami, jami_summa}`; ism `profiles.full_name` dan security definer ichida,
+  bekor sababi `ehson_tarix` dan; swr kalit `kirim:{from,to,q,bekor}`, «Yana 50 ta» keshlanmaydi), admin bekor
+  modali (`ehson_kirim_bekor`, `qoldiq_manfiy` → rad). Sarlavha «Yangilash» = `ehRefresh()` (dash + ochiq tab).
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 

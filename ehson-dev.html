@@ -99,12 +99,72 @@
   #eh-tab-bosh{display:block}
 
   .eh-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:20px}
-  .eh-chip{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+  .eh-chip{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);transition:box-shadow .15s,transform .15s}
+  .eh-chip:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}
   .eh-chip .top{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:8px}
   .eh-chip .top svg{width:15px;height:15px}
   .eh-chip .v{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .eh-chip .sub{font-size:11.5px;color:var(--muted);margin-top:4px}
-  .eh-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+  .eh-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);transition:box-shadow .15s}
+  .eh-card:hover{box-shadow:var(--shadow-hover)}
+
+  /* ---- Kirim tab (.ehk-*) — 2-bosqich ---- */
+  .ehk-kassas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .ehk-kcard{background:var(--surface-2);border-radius:14px;padding:18px 20px}
+  .ehk-kcard .nom{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
+  .ehk-kcard .v{font-size:28px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .ehk-kcard .stats{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px}
+  .ehk-mstat{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .ehk-mstat::before{content:'';width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .ehk-mstat.in::before{background:var(--green)}
+  .ehk-mstat.out::before{background:var(--red)}
+  .ehk-mstat b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .ehk-frow{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+  .ehk-field{flex:1 1 160px;display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .ehk-frow>.ehk-field{margin-bottom:0}
+  .ehk-field label{font-size:12.5px;color:var(--muted);font-weight:600}
+  .ehk-input{height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 12px;font-size:14.5px;font-family:inherit;outline:none;width:100%;transition:border-color .13s,box-shadow .13s}
+  .ehk-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .ehk-input-lg{font-size:19px;font-weight:700}
+  textarea.ehk-input{height:auto;padding:10px 12px;resize:vertical}
+  .ehk-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:0 16px;height:38px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
+  .ehk-chip:hover{background:var(--surface-2)}
+  .ehk-chip.on{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+  .ehk-actions{display:flex;justify-content:flex-end;margin-top:4px}
+  .ehk-msg{display:none;font-size:13.5px;margin:0 0 12px;padding:10px 12px;border-radius:10px}
+  .ehk-msg.err{display:block;color:var(--red);background:var(--red-soft)}
+  .ehk-msg.ok{display:block;color:var(--green);background:var(--green-soft)}
+  .ehk-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  .ehk-filters .ehk-input{width:auto;min-width:130px}
+  .ehk-stat{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .ehk-dtbl-wrap{overflow-x:auto}
+  .ehk-dtbl{display:none;width:100%;border-collapse:separate;border-spacing:0}
+  .ehk-dtbl th{text-align:left;font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .ehk-dtbl td{padding:10px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+  .ehk-dtbl tbody tr{transition:background .1s}
+  .ehk-dtbl tbody tr:hover{background:var(--surface-2)}
+  .ehk-dtbl tr.del{opacity:.55}
+  .ehk-dtbl .strike,.ehk-row .strike{text-decoration:line-through}
+  .ehk-amt{text-align:right;white-space:nowrap;color:var(--green);font-weight:700;font-variant-numeric:tabular-nums}
+  .ehk-cancel-btn{height:30px;padding:0 10px;font-size:12.5px;color:var(--red);background:transparent;border-color:transparent}
+  .ehk-cancel-btn:hover{background:var(--red-soft)}
+  .ehk-mlist{display:block}
+  .ehk-row{background:var(--surface-2);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+  .ehk-row.del{opacity:.6}
+  .ehk-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ehk-row-meta{color:var(--muted);font-size:12px}
+  .ehk-row-manba{font-weight:600;margin-top:2px}
+  .ehk-row-izoh{color:var(--muted);font-size:13px;margin-top:2px}
+  .ehk-cancelnote{font-size:11.5px;color:var(--red);margin-top:4px}
+  @media(min-width:700px){ .ehk-dtbl{display:table} .ehk-mlist{display:none} }
+  @media(max-width:600px){ .ehk-actions{justify-content:stretch} .ehk-actions .btn{width:100%;justify-content:center} }
+  .eh-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:200}
+  .eh-modal.open{display:flex}
+  .eh-modal-box{background:var(--surface);border-radius:20px;max-width:420px;width:100%;padding:20px;box-shadow:var(--shadow-hover)}
+  @media(max-width:600px){
+    .eh-modal{align-items:flex-end;padding:0}
+    .eh-modal-box{border-radius:20px 20px 0 0;max-width:100%;padding:20px 20px calc(20px + env(safe-area-inset-bottom))}
+  }
 </style>
 </head>
 <body>
@@ -149,7 +209,7 @@
     <div class="page-head">
       <h1>Ehson</h1>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn ghost" onclick="loadDash(true)"><i data-lucide="refresh-cw"></i>Yangilash</button>
+        <button class="btn ghost" onclick="ehRefresh()"><i data-lucide="refresh-cw"></i>Yangilash</button>
         <div class="mobile-only" style="display:flex;gap:2px">
           <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
           <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -203,8 +263,51 @@
 
     <!-- Kirim -->
     <div class="eh-tabpanel" id="eh-tab-kirim">
-      <div class="eh-card"><h3 style="margin:0 0 6px;font-size:16px;font-weight:700">Kirim</h3>
-        <div class="empty">2-bosqichda</div>
+      <div class="eh-card" style="margin-bottom:16px">
+        <h3 style="margin:0 0 12px;font-size:16px;font-weight:700">Jamg'arma</h3>
+        <div class="ehk-kassas" id="ehkKassas"><div class="empty">Yuklanmoqda…</div></div>
+      </div>
+
+      <div class="eh-card" style="margin-bottom:16px">
+        <h3 style="margin:0 0 14px;font-size:16px;font-weight:700">Kirim yozish</h3>
+        <div class="ehk-frow">
+          <div class="ehk-field"><label>Summa (so'm)</label><input class="ehk-input ehk-input-lg" id="ehkSumma" inputmode="numeric" placeholder="0" oninput="ehFmtAmt(this)"></div>
+          <div class="ehk-field"><label>Sana</label><input class="ehk-input" id="ehkSana" type="date"></div>
+        </div>
+        <div class="ehk-field">
+          <label>Manba</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="ehk-chip on" data-manba="kompaniya" onclick="ehkManba('kompaniya')">Kompaniya</button>
+            <button type="button" class="ehk-chip" data-manba="xayriyachi" onclick="ehkManba('xayriyachi')">Xayriyachi</button>
+            <button type="button" class="ehk-chip" data-manba="boshqa" onclick="ehkManba('boshqa')">Boshqa</button>
+          </div>
+          <input class="ehk-input" id="ehkManbaIsm" placeholder="Ism / manba nomi" style="display:none;margin-top:8px">
+        </div>
+        <div class="ehk-field" id="ehkKassaSelWrap" style="display:none">
+          <label>Jamg'arma</label>
+          <select class="ehk-input" id="ehkKassaSel"></select>
+        </div>
+        <div class="ehk-field">
+          <label>Izoh (ixtiyoriy)</label>
+          <textarea class="ehk-input" id="ehkIzoh" rows="2" maxlength="300"></textarea>
+        </div>
+        <div id="ehkMsg" class="ehk-msg"></div>
+        <div class="ehk-actions"><button class="btn" id="ehkSaveBtn" onclick="ehkSave()"><i data-lucide="plus"></i>Kirim yozish</button></div>
+      </div>
+
+      <div class="eh-card">
+        <h3 style="margin:0 0 12px;font-size:16px;font-weight:700">Kirim tarixi</h3>
+        <div class="ehk-filters">
+          <input class="ehk-input" id="ehkFrom" type="date" title="Dan">
+          <input class="ehk-input" id="ehkTo" type="date" title="Gacha">
+          <input class="ehk-input" id="ehkQ" placeholder="Manba / izoh" style="flex:1 1 160px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);white-space:nowrap;cursor:pointer">
+            <input type="checkbox" id="ehkBekorChk" checked> Bekor qilinganlar
+          </label>
+        </div>
+        <div class="ehk-stat" id="ehkStat"></div>
+        <div id="ehkListWrap"><div class="empty">Yuklanmoqda…</div></div>
+        <button class="btn ghost" id="ehkMore" style="display:none;width:100%;justify-content:center;margin-top:12px" onclick="ehkLoadMore()">Yana 50 ta</button>
       </div>
     </div>
 
@@ -245,6 +348,21 @@
     </div>
   </div>
   <!-- /more-sheet -->
+
+  <!-- Ehson kirim: bekor qilish modali -->
+  <div class="eh-modal" id="ehkBekorModal" onclick="if(event.target===this)ehkBekorClose()">
+    <div class="eh-modal-box">
+      <h3 style="margin:0 0 10px;font-size:17px;font-weight:800">Kirimni bekor qilish</h3>
+      <div id="ehkBekorInfo" style="font-size:13.5px;color:var(--muted);margin-bottom:12px"></div>
+      <textarea class="ehk-input" id="ehkBekorSabab" rows="3" placeholder="Bekor qilish sababi (kamida 3 belgi)" style="width:100%"></textarea>
+      <div id="ehkBekorMsg" class="ehk-msg" style="margin-top:10px"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" id="ehkBekorBtn" style="background:var(--red);flex:1;justify-content:center" onclick="ehkBekorSave()">Bekor qilish</button>
+        <button class="btn ghost" style="flex:1;justify-content:center" onclick="ehkBekorClose()">Yopish</button>
+      </div>
+    </div>
+  </div>
+  <!-- /Ehson kirim bekor modali -->
 </div>
 
 <script type="module">
@@ -313,7 +431,7 @@ async function loadRole(){
 
 // ---- Tab almashtirish (localStorage: eh-tab) ---------------------------
 const EH_TABS=['bosh','oilalar','berish','oy','kirim','tarix'];
-let ehLoaded={bosh:false};
+let ehLoaded={bosh:false,kirim:false};
 window.ehTab=name=>{
   if(EH_TABS.indexOf(name)<0) name='bosh';
   try{ localStorage.setItem('eh-tab',name); }catch(e){}
@@ -321,7 +439,16 @@ window.ehTab=name=>{
   // 'block' ANIQ yoziladi: bo'sh inline stil CSS `.eh-tabpanel{display:none}` ni yengmaydi.
   document.querySelectorAll('.eh-tabpanel').forEach(p=>{ p.style.display=(p.id==='eh-tab-'+name)?'block':'none'; });
   if(name==='bosh' && !ehLoaded.bosh){ ehLoaded.bosh=true; loadDash(); }
+  if(name==='kirim' && !ehLoaded.kirim){
+    ehLoaded.kirim=true;
+    // Jamg'arma kartasi dash'dan chiziladi — Bosh hali ochilmagan bo'lsa (kesh bor-yo'qligidan
+    // qat'i nazar) loadDash() shart: kesh bo'lsa renderDash darrov, fonda yangilanadi.
+    if(!ehLoaded.bosh){ ehLoaded.bosh=true; loadDash(); }
+    loadKirim();
+  }
 };
+// Sarlavhadagi "Yangilash" tugmasi — joriy ochiq tabga qarab yangilaydi.
+window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim) loadKirim(true); };
 
 // ---- Bosh: ehson_dash() -------------------------------------------------
 // ehson_dash() javob shakli (PROVODKA_EHSON.sql): {kassalar:[{id,nom,kirim,berildi,qoldiq}],
@@ -345,6 +472,7 @@ function renderDash(d){
   cards[2].querySelector('.v').textContent=money(berish);
   cards[3].querySelector('.v').textContent = reja>0 ? (money(fakt)+' / '+money(reja)) : money(fakt);
   $('ehOilalarSoni').textContent = oilalarSoni ? (oilalarSoni+" ta oila kuzatuvda") : '';
+  renderKirimKassa(kass);
   icons();
 }
 async function loadDash(fresh){
@@ -365,8 +493,198 @@ async function loadDash(fresh){
   renderDash(d);
 }
 
+// ---- Kirim tab: jamg'arma balansi + kirim yozish + tarix -----------------
+// escapeHtml — bu faylda foydalanuvchi matni (manba/izoh/kim) HAR DOIM shu bilan chiziladi.
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// qarzdor-dev.html dagi qzFmtAmt naqshi — pul input probel bilan formatlanadi.
+window.ehFmtAmt=el=>{ const v=String((el&&el.value)||'').replace(/\D/g,''); if(el) el.value=v?money(v):''; };
+function todayUz(){ return new Date(Date.now()+5*3600*1000).toISOString().slice(0,10); }
+function fmtDate(s){ const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}.${m[2]}.${m[1]}`:''; }
+
+let ehkManbaSel='kompaniya';
+function renderKirimKassa(kass){
+  kass=Array.isArray(kass)?kass:[];
+  const box=$('ehkKassas'); if(!box) return;
+  if(!kass.length){ box.innerHTML='<div class="empty">Jamg\'arma topilmadi</div>'; return; }
+  box.innerHTML=kass.map(k=>`<div class="ehk-kcard">
+      <div class="nom">${escapeHtml(k.nom||"Jamg'arma")}</div>
+      <div class="v">${money(n0(k.qoldiq))}</div>
+      <div class="stats">
+        <span class="ehk-mstat in">To'plandi <b>${money(n0(k.kirim))}</b></span>
+        <span class="ehk-mstat out">Berildi <b>${money(n0(k.berildi))}</b></span>
+      </div>
+    </div>`).join('');
+  // Kassa tanlash select — faqat FAOL kassa 1 tadan ko'p bo'lsa ko'rinadi (v1 bitta → yashirin).
+  const faol=kass.filter(k=>k.is_active!==false);
+  const wrap=$('ehkKassaSelWrap'), sel=$('ehkKassaSel');
+  if(wrap && sel){
+    if(faol.length>1){
+      wrap.style.display='block';
+      sel.innerHTML=faol.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||"Jamg'arma")}</option>`).join('');
+    }else{
+      wrap.style.display='none'; sel.innerHTML='';
+    }
+  }
+}
+
+window.ehkManba=k=>{
+  ehkManbaSel=(k==='xayriyachi'||k==='boshqa')?k:'kompaniya';
+  document.querySelectorAll('.ehk-chip').forEach(b=>b.classList.toggle('on',b.dataset.manba===ehkManbaSel));
+  const ismEl=$('ehkManbaIsm'); if(ismEl) ismEl.style.display=(ehkManbaSel==='kompaniya')?'none':'block';
+};
+
+const EHK_YOZ_XATO={ summa_notogri:"Summani to'g'ri kiriting", kassa_tanlanmagan:"Jamg'armani tanlang", kassa_topilmadi:"Jamg'arma topilmadi" };
+window.ehkSave=async()=>{
+  const msg=$('ehkMsg'); msg.className='ehk-msg'; msg.textContent='';
+  const summa=Number(String($('ehkSumma').value||'').replace(/\D/g,''))||0;
+  const sana=$('ehkSana').value||'';
+  const izoh=($('ehkIzoh').value||'').trim().slice(0,300);
+  if(summa<=0){ msg.classList.add('err'); msg.textContent="Summani to'g'ri kiriting"; return; }
+  if(!sana){ msg.classList.add('err'); msg.textContent='Sanani tanlang'; return; }
+  let manba='Kompaniya';
+  if(ehkManbaSel!=='kompaniya'){
+    const ism=($('ehkManbaIsm').value||'').trim();
+    if(ism.length<2){ msg.classList.add('err'); msg.textContent="Ism/manba nomini kiriting (kamida 2 belgi)"; return; }
+    manba=(ehkManbaSel==='xayriyachi'?'Xayriyachi: ':'')+ism;
+  }
+  const p={summa,sana,manba,izoh};
+  const selWrap=$('ehkKassaSelWrap');
+  if(selWrap && selWrap.style.display!=='none' && $('ehkKassaSel').value) p.kassa_id=$('ehkKassaSel').value;
+  const btn=$('ehkSaveBtn'); btn.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('ehson_kirim_yoz',{p});
+    if(error){ msg.classList.add('err'); msg.textContent=window.permErr?window.permErr(error):error.message; return; }
+    if(!data || data.ok===false){
+      const kod=data&&data.kod;
+      msg.classList.add('err'); msg.textContent=EHK_YOZ_XATO[kod]||('Xato: '+(kod||"noma'lum")); return;
+    }
+    msg.classList.add('ok'); msg.textContent='Kirim yozildi · '+money(summa)+" so'm";
+    $('ehkSumma').value=''; $('ehkIzoh').value=''; $('ehkManbaIsm').value='';
+    window.ehkManba('kompaniya'); $('ehkSana').value=todayUz();
+    await Promise.all([ loadDash(true), loadKirim(true) ]);
+  } finally { btn.disabled=false; }
+};
+
+const EHK_LIMIT=50;
+let ehkKirim={from:'',to:'',q:'',bekor:true,offset:0,rows:[],jami:0,jami_summa:0};
+function ehkFilterKey(){ return 'kirim:'+JSON.stringify({from:ehkKirim.from,to:ehkKirim.to,q:ehkKirim.q,bekor:ehkKirim.bekor}); }
+async function loadKirim(fresh){
+  const from=$('ehkFrom').value||'', to=$('ehkTo').value||'', q=($('ehkQ').value||'').trim(), bekor=$('ehkBekorChk').checked;
+  const changed = from!==ehkKirim.from || to!==ehkKirim.to || q!==ehkKirim.q || bekor!==ehkKirim.bekor;
+  if(changed) ehkKirim.offset=0;
+  ehkKirim.from=from; ehkKirim.to=to; ehkKirim.q=q; ehkKirim.bekor=bekor;
+  const isFirstPage=(ehkKirim.offset===0);
+  if(isFirstPage){
+    const cached=fresh?null:swrGet(ehkFilterKey());
+    if(cached){ ehkKirim.rows=cached.rows||[]; ehkKirim.jami=n0(cached.jami); ehkKirim.jami_summa=n0(cached.jami_summa); renderKirimList(); }
+  }
+  const p={ from:from||undefined, to:to||undefined, q:q||undefined, bekor, limit:EHK_LIMIT, offset:ehkKirim.offset };
+  const {data,error}=await sb.rpc('ehson_kirim_royxat',{p});
+  if(error){
+    // «Yana» sahifasi kelmasa offset ORQAGA qaytadi — aks holda keyingi bosishda o'sha 50 qator
+    // butunlay o'tkazib yuborilardi (tester 2026-09-04).
+    if(!isFirstPage) ehkKirim.offset=Math.max(0,ehkKirim.offset-EHK_LIMIT);
+    if(error.code==='PGRST202' || error.code==='42883'){ showInfo("Ehson SQL hali RUN qilinmagan (PROVODKA_EHSON.sql)"); }
+    else if(!ehkKirim.rows.length){ showErr('Xato: '+error.message); }
+    return;
+  }
+  showErr(''); showInfo('');
+  const rows=Array.isArray(data&&data.rows)?data.rows:[];
+  if(isFirstPage){
+    ehkKirim.rows=rows;
+    swrSet(ehkFilterKey(),{rows, jami:n0(data.jami), jami_summa:n0(data.jami_summa)});
+  }else{
+    ehkKirim.rows=ehkKirim.rows.concat(rows);
+  }
+  ehkKirim.jami=n0(data.jami); ehkKirim.jami_summa=n0(data.jami_summa);
+  renderKirimList();
+}
+window.ehkLoadMore=()=>{ ehkKirim.offset+=EHK_LIMIT; loadKirim(); };
+
+function ehkCancelNote(r){
+  return `<div class="ehk-cancelnote">Bekor: ${escapeHtml(r.bekor_sabab||'')} · ${escapeHtml(r.bekor_kim||'')} · ${fmtDate(r.deleted_at)}</div>`;
+}
+function ehkRowDesktop(r){
+  const del=!!r.is_deleted;
+  return `<tr class="${del?'del':''}">
+    <td>${fmtDate(r.sana)}</td>
+    <td class="${del?'strike':''}">${escapeHtml(r.manba||'')}</td>
+    <td>${escapeHtml(r.izoh||'')}${del?ehkCancelNote(r):''}</td>
+    <td>${escapeHtml(r.kim||'')}</td>
+    <td class="ehk-amt${del?' strike':''}">${del?'':'+'}${money(n0(r.summa))}</td>
+    ${isAdmin?`<td>${del?'':`<button class="btn ghost ehk-cancel-btn" onclick="ehkBekor('${escapeHtml(r.id)}')">Bekor</button>`}</td>`:''}
+  </tr>`;
+}
+function ehkRowMobile(r){
+  const del=!!r.is_deleted;
+  return `<div class="ehk-row${del?' del':''}">
+    <div class="ehk-row-top">
+      <div class="ehk-row-meta">${fmtDate(r.sana)} · ${escapeHtml(r.kim||'')}</div>
+      <div class="ehk-amt${del?' strike':''}">${del?'':'+'}${money(n0(r.summa))}</div>
+    </div>
+    <div class="ehk-row-manba${del?' strike':''}">${escapeHtml(r.manba||'')}</div>
+    ${r.izoh?`<div class="ehk-row-izoh">${escapeHtml(r.izoh)}</div>`:''}
+    ${del?ehkCancelNote(r):''}
+    ${(isAdmin&&!del)?`<button class="btn ghost ehk-cancel-btn" style="margin-top:8px" onclick="ehkBekor('${escapeHtml(r.id)}')">Bekor qilish</button>`:''}
+  </div>`;
+}
+function renderKirimList(){
+  const rows=ehkKirim.rows;
+  $('ehkStat').textContent = ehkKirim.jami ? (ehkKirim.jami+" ta kirim · jami "+money(ehkKirim.jami_summa)+" so'm") : '';
+  const wrap=$('ehkListWrap');
+  if(!rows.length){ wrap.innerHTML='<div class="empty">Hali kirim yo\'q</div>'; $('ehkMore').style.display='none'; return; }
+  wrap.innerHTML = `<div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
+      <th>Sana</th><th>Manba</th><th>Izoh</th><th>Kim</th><th style="text-align:right">Summa</th>${isAdmin?'<th></th>':''}
+    </tr></thead><tbody>${rows.map(ehkRowDesktop).join('')}</tbody></table></div>
+    <div class="ehk-mlist">${rows.map(ehkRowMobile).join('')}</div>`;
+  $('ehkMore').style.display = (ehkKirim.rows.length < ehkKirim.jami) ? 'block' : 'none';
+  icons();
+}
+
+let ehkQTimer=null;
+window.ehkOnQ=()=>{ clearTimeout(ehkQTimer); ehkQTimer=setTimeout(()=>loadKirim(),300); };
+function wireKirim(){
+  $('ehkSana').value=todayUz(); $('ehkSana').max=todayUz();
+  $('ehkFrom').addEventListener('change',()=>loadKirim());
+  $('ehkTo').addEventListener('change',()=>loadKirim());
+  $('ehkQ').addEventListener('input',window.ehkOnQ);
+  $('ehkBekorChk').addEventListener('change',()=>loadKirim());
+}
+
+// ---- Bekor modali (admin) -------------------------------------------------
+let ehkBekorId=null;
+window.ehkBekor=id=>{
+  const r=ehkKirim.rows.find(x=>String(x.id)===String(id)); if(!r) return;
+  ehkBekorId=id;
+  $('ehkBekorInfo').textContent = fmtDate(r.sana)+' · '+(r.manba||'')+' · '+money(n0(r.summa))+" so'm";
+  $('ehkBekorSabab').value=''; $('ehkBekorMsg').className='ehk-msg';
+  $('ehkBekorModal').classList.add('open');
+};
+window.ehkBekorClose=()=>{ $('ehkBekorModal').classList.remove('open'); ehkBekorId=null; };
+const EHK_BEKOR_XATO={ sabab_kerak:'Bekor qilish sababini kiriting', topilmadi:'Yozuv topilmadi',
+  qoldiq_manfiy:"Bekor qilib bo'lmaydi: jamg'arma qoldig'i manfiy bo'lib qoladi" };
+window.ehkBekorSave=async()=>{
+  if(!ehkBekorId) return;
+  const sabab=($('ehkBekorSabab').value||'').trim();
+  const msg=$('ehkBekorMsg'); msg.className='ehk-msg';
+  if(sabab.length<3){ msg.classList.add('err'); msg.textContent='Sababni kiriting (kamida 3 belgi)'; return; }
+  const btn=$('ehkBekorBtn'); btn.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('ehson_kirim_bekor',{p_id:ehkBekorId,p_sabab:sabab});
+    if(error){ msg.classList.add('err'); msg.textContent=window.permErr?window.permErr(error):error.message; return; }
+    if(!data || data.ok===false){
+      const kod=data&&data.kod;
+      msg.classList.add('err'); msg.textContent=EHK_BEKOR_XATO[kod]||('Xato: '+(kod||"noma'lum")); return;
+    }
+    window.ehkBekorClose();
+    await Promise.all([ loadDash(true), loadKirim(true) ]);
+  } finally { btn.disabled=false; }
+};
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const m=$('ehkBekorModal'); if(m&&m.classList.contains('open')) window.ehkBekorClose(); } });
+
 async function init(){
   let saved='bosh'; try{ saved=localStorage.getItem('eh-tab')||'bosh'; }catch(e){}
+  wireKirim();
   await Promise.all([ loadRole() ]);
   window.ehTab(saved);
 }
