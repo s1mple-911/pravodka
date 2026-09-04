@@ -107,8 +107,41 @@
   .eh-chip .top svg{width:15px;height:15px}
   .eh-chip .v{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .eh-chip .sub{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .eh-chip-primary{background:var(--primary-soft);border-color:var(--primary-soft)}
+  .eh-chip-primary .top{color:var(--primary)}
+  .eh-chip-primary .v{color:var(--primary)}
+  @media(min-width:900px){ #ehCards{grid-template-columns:repeat(5,1fr)} }
+  @media(max-width:600px){ .eh-cards{grid-template-columns:repeat(2,1fr)} }
   .eh-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);transition:box-shadow .15s}
   .eh-card:hover{box-shadow:var(--shadow-hover)}
+  @media(max-width:600px){ .eh-card{border-radius:14px;padding:16px} }
+  .eh-more-link{background:none;border:none;padding:0;color:var(--primary);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:opacity .13s;flex:0 0 auto}
+  .eh-more-link:hover{opacity:.7}
+  .eh-dash-list{display:flex;flex-direction:column}
+  .eh-dash-row{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+  .eh-dash-row:first-child{padding-top:0}
+  .eh-dash-row:last-child{border-bottom:none;padding-bottom:0}
+  .eh-dash-main{min-width:0}
+  .eh-dash-fio{font-size:14px;font-weight:600}
+  .eh-dash-meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .eh-dash-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:0 0 auto}
+  .eh-dash-amt{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .eh-dash-btn{height:30px;padding:0 12px;font-size:12.5px}
+  .eht-tchip{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--ink)}
+  .eht-tchip b{font-variant-numeric:tabular-nums;font-weight:700}
+  .eho-reja-chip.sm{padding:2px 8px;font-size:11px;margin-top:0}
+
+  /* ---- Bosh tab: muhtojlik taqsimoti + qo'shimcha kartalar (6-bosqich) ---- */
+  .eh-bosh-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px}
+  .eh-dist{display:flex;height:10px;border-radius:10px;overflow:hidden;background:var(--surface-2);margin:4px 0 10px}
+  .eh-dist>div{height:100%}
+  .eh-dist-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted)}
+  .eh-dist-legend b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .eh-dist-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .eh-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+  .eh-card-head h3{margin:0;font-size:16px;font-weight:700}
+  .eh-card-head h3.click{cursor:pointer}
+  .eh-card-head h3.click:hover{color:var(--primary)}
 
   /* ---- Kirim tab (.ehk-*) — 2-bosqich ---- */
   .ehk-kassas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
@@ -148,7 +181,7 @@
   .ehk-dtbl tbody tr{transition:background .1s}
   .ehk-dtbl tbody tr:hover{background:var(--surface-2)}
   .ehk-dtbl tr.del{opacity:.55}
-  .ehk-dtbl .strike,.ehk-row .strike{text-decoration:line-through}
+  .ehk-dtbl .strike,.ehk-row .strike,.eh-dash-row .strike{text-decoration:line-through}
   .ehk-amt{text-align:right;white-space:nowrap;color:var(--green);font-weight:700;font-variant-numeric:tabular-nums}
   .ehk-cancel-btn{height:30px;padding:0 10px;font-size:12.5px;color:var(--red);background:transparent;border-color:transparent}
   .ehk-cancel-btn:hover{background:var(--red-soft)}
@@ -339,6 +372,12 @@
     .ehm-nav{justify-content:center}
     .ehm-head>.btn.ghost{width:100%;justify-content:center}
   }
+
+  /* ---- Chop etish (print) ---- */
+  @media print{
+    .sidebar,.bnav,.mmodal,.eh-modal,.eh-tabs,.btn,.eh-more-link,.mobile-only{display:none!important}
+    .main{margin-left:0!important;max-width:100%!important;padding:0!important}
+  }
 </style>
 </head>
 <body>
@@ -406,12 +445,33 @@
     <!-- Bosh -->
     <div class="eh-tabpanel" id="eh-tab-bosh">
       <div class="eh-cards" id="ehCards">
-        <div class="eh-chip"><div class="top"><i data-lucide="wallet"></i>Jamg'arma qoldig'i</div><div class="v">—</div></div>
+        <div class="eh-chip eh-chip-primary"><div class="top"><i data-lucide="wallet"></i>Jamg'arma qoldig'i</div><div class="v">—</div></div>
         <div class="eh-chip"><div class="top"><i data-lucide="arrow-down-circle"></i>Jami to'plandi</div><div class="v">—</div></div>
         <div class="eh-chip"><div class="top"><i data-lucide="arrow-up-circle"></i>Jami berildi</div><div class="v">—</div></div>
         <div class="eh-chip"><div class="top"><i data-lucide="calendar-check"></i>Bu oy reja/fakt</div><div class="v">—</div></div>
+        <div class="eh-chip" id="ehCardYil"><div class="top"><i data-lucide="calendar-range"></i>Bu yil berildi</div><div class="v">—</div></div>
       </div>
-      <div id="ehOilalarSoni" class="note" style="font-size:12.5px;color:var(--muted);margin:0 2px 4px"></div>
+      <div id="ehOilalarSoni" class="note" style="font-size:12.5px;color:var(--muted);margin:0 2px 14px"></div>
+
+      <div class="eh-card" style="margin-bottom:16px">
+        <h3 class="click" onclick="ehTab('oilalar')" style="margin:0 0 12px;font-size:16px;font-weight:700">Muhtojlik taqsimoti</h3>
+        <div id="ehDistBody"><div class="empty">Yuklanmoqda…</div></div>
+      </div>
+
+      <div class="eh-bosh-row">
+        <div class="eh-card">
+          <div class="eh-card-head"><h3>Bu oy kutilayotgan</h3>
+            <button type="button" class="eh-more-link" onclick="ehTab('oy')">Hammasi →</button>
+          </div>
+          <div id="ehDashOyWrap"><div class="empty">Yuklanmoqda…</div></div>
+        </div>
+        <div class="eh-card">
+          <div class="eh-card-head"><h3>Oxirgi berishlar</h3>
+            <button type="button" class="eh-more-link" onclick="ehTab('tarix')">Hammasi →</button>
+          </div>
+          <div id="ehDashRecentWrap"><div class="empty">Yuklanmoqda…</div></div>
+        </div>
+      </div>
     </div>
 
     <!-- Oilalar -->
@@ -632,8 +692,46 @@
 
     <!-- Tarix -->
     <div class="eh-tabpanel" id="eh-tab-tarix">
-      <div class="eh-card"><h3 style="margin:0 0 6px;font-size:16px;font-weight:700">Tarix</h3>
-        <div class="empty">Keyingi bosqichda</div>
+      <div class="eh-card">
+        <div class="eho-toolbar">
+          <div class="eho-searchbar">
+            <div class="eho-search">
+              <i data-lucide="search"></i>
+              <input class="ehk-input" id="ehtQ" placeholder="Qidirish: F.I.Sh. / kod / izoh" oninput="ehtOnQ()">
+            </div>
+            <input class="ehk-input eho-select" id="ehtFrom" type="date" title="Dan" onchange="ehtFilterChange()">
+            <input class="ehk-input eho-select" id="ehtTo" type="date" title="Gacha" onchange="ehtFilterChange()">
+            <select class="ehk-input eho-select" id="ehtKim" onchange="ehtFilterChange()"><option value="">Mas'ul (hammasi)</option></select>
+          </div>
+          <div class="eho-filterline">
+            <div class="eho-fgroup">
+              <span class="eho-flabel">Tur</span>
+              <div class="eho-chips" id="ehtTurChips">
+                <button type="button" class="ehk-chip on" data-v="" onclick="ehtTurFilter('')">Hammasi</button>
+                <button type="button" class="ehk-chip" data-v="pul" onclick="ehtTurFilter('pul')">Pul</button>
+                <button type="button" class="ehk-chip" data-v="oziq_ovqat" onclick="ehtTurFilter('oziq_ovqat')">Oziq-ovqat</button>
+                <button type="button" class="ehk-chip" data-v="kiyim" onclick="ehtTurFilter('kiyim')">Kiyim</button>
+                <button type="button" class="ehk-chip" data-v="dori" onclick="ehtTurFilter('dori')">Dori</button>
+                <button type="button" class="ehk-chip" data-v="boshqa" onclick="ehtTurFilter('boshqa')">Boshqa</button>
+              </div>
+            </div>
+            <div class="eho-fgroup">
+              <span class="eho-flabel">Holat</span>
+              <div class="eho-chips" id="ehtHolatChips">
+                <button type="button" class="ehk-chip on" data-v="" onclick="ehtHolatFilter('')">Hammasi</button>
+                <button type="button" class="ehk-chip" data-v="berildi" onclick="ehtHolatFilter('berildi')">Berildi</button>
+                <button type="button" class="ehk-chip" data-v="bekor" onclick="ehtHolatFilter('bekor')">Bekor</button>
+              </div>
+            </div>
+          </div>
+          <div class="eho-actions-top">
+            <button class="btn ghost" onclick="ehtExport()"><i data-lucide="file-down"></i>Excel</button>
+          </div>
+        </div>
+        <div class="eho-stat" id="ehtStat"></div>
+        <div class="eho-chips" id="ehtTurJami" style="margin-bottom:10px"></div>
+        <div id="ehtWrap"><div class="empty">Yuklanmoqda…</div></div>
+        <button class="btn ghost" id="ehtMore" style="display:none;width:100%;justify-content:center;margin-top:12px" onclick="ehtLoadMore()">Yana 50 ta</button>
       </div>
     </div>
   </main>
@@ -921,7 +1019,7 @@ async function loadRole(){
 
 // ---- Tab almashtirish (localStorage: eh-tab) ---------------------------
 const EH_TABS=['bosh','oilalar','berish','oy','kirim','tarix'];
-let ehLoaded={bosh:false,kirim:false,oilalar:false,berish:false,oy:false};
+let ehLoaded={bosh:false,kirim:false,oilalar:false,berish:false,oy:false,tarix:false};
 window.ehTab=name=>{
   if(EH_TABS.indexOf(name)<0) name='bosh';
   try{ localStorage.setItem('eh-tab',name); }catch(e){}
@@ -945,9 +1043,10 @@ window.ehTab=name=>{
     if(window.ehBerishOila){ const id=window.ehBerishOila; window.ehBerishOila=null; window.ehbPick(id); }
   }
   if(name==='oy' && !ehLoaded.oy){ ehLoaded.oy=true; wireOy(); loadOy(); }
+  if(name==='tarix' && !ehLoaded.tarix){ ehLoaded.tarix=true; wireTarix(); loadTarix(); }
 };
 // Sarlavhadagi "Yangilash" tugmasi — joriy ochiq tabga qarab yangilaydi.
-window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim) loadKirim(true); if(ehLoaded.oilalar) loadOilalar(true); if(ehLoaded.berish) loadBerishRecent(true); if(ehLoaded.oy) loadOy(true); };
+window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim) loadKirim(true); if(ehLoaded.oilalar) loadOilalar(true); if(ehLoaded.berish) loadBerishRecent(true); if(ehLoaded.oy) loadOy(true); if(ehLoaded.tarix) loadTarix(true); };
 
 // ---- Bosh: ehson_dash() -------------------------------------------------
 // ehson_dash() javob shakli (PROVODKA_EHSON.sql): {kassalar:[{id,nom,kirim,berildi,qoldiq}],
@@ -973,11 +1072,14 @@ function renderDash(d){
   const soniEl=$('ehOilalarSoni');
   if(oilalarSoni){ soniEl.textContent=oilalarSoni+" ta oila kuzatuvda"; soniEl.style.cursor='pointer'; soniEl.onclick=()=>window.ehTab('oilalar'); }
   else{ soniEl.textContent=''; soniEl.style.cursor=''; soniEl.onclick=null; }
+  const yilEl=$('ehCardYil'); if(yilEl) yilEl.querySelector('.v').textContent=money(n0(d.jami_yil));
+  renderDist(d);
   renderKirimKassa(kass);
   renderBerishQoldiq(kass);
   icons();
 }
 async function loadDash(fresh){
+  loadDashOy(fresh); loadDashRecent(fresh);   // mustaqil — ehson_dash() dan qat'i nazar, parallel
   const cached=fresh?null:swrGet('dash');
   if(cached) renderDash(cached);
   const {data,error}=await sb.rpc('ehson_dash');
@@ -993,6 +1095,90 @@ async function loadDash(fresh){
   const d=Array.isArray(data)?data[0]:data;
   swrSet('dash',d);
   renderDash(d);
+}
+// Muhtojlik taqsimoti — ehson_dash().muhtojlik/oilalar_holat (mustaqil chizuvchi, xato bo'lsa banner yetarli).
+function renderDist(d){
+  const wrap=$('ehDistBody'); if(!wrap) return;
+  const m=(d&&d.muhtojlik)||{}, oh=(d&&d.oilalar_holat)||{};
+  const yu=n0(m.yuqori), or_=n0(m.orta), pa=n0(m.past), bel=n0(m.belgilanmagan);
+  const total=yu+or_+pa+bel;
+  const holatChips='<span class="eho-badge faol">Faol '+n0(oh.faol)+'</span>'
+    +'<span class="eho-badge kuzatuv">Kuzatuv '+n0(oh.kuzatuv)+'</span>'
+    +'<span class="eho-badge yopildi">Yopildi '+n0(oh.yopildi)+'</span>';
+  if(!total){
+    wrap.innerHTML='<div class="empty">Oilalar hali yo\'q</div><div class="eh-dist-legend">'+holatChips+'</div>';
+    return;
+  }
+  const pct=v=>total?(v/total*100):0;
+  wrap.innerHTML = `
+    <div class="eh-dist">
+      ${yu?`<div style="width:${pct(yu)}%;background:var(--red)"></div>`:''}
+      ${or_?`<div style="width:${pct(or_)}%;background:var(--amber)"></div>`:''}
+      ${pa?`<div style="width:${pct(pa)}%;background:var(--green)"></div>`:''}
+      ${bel?`<div style="width:${pct(bel)}%;background:var(--muted)"></div>`:''}
+    </div>
+    <div class="eh-dist-legend">
+      <span><span class="eh-dist-dot" style="background:var(--red)"></span>Yuqori <b>${yu}</b></span>
+      <span><span class="eh-dist-dot" style="background:var(--amber)"></span>O'rta <b>${or_}</b></span>
+      <span><span class="eh-dist-dot" style="background:var(--green)"></span>Past <b>${pa}</b></span>
+      <span><span class="eh-dist-dot" style="background:var(--muted)"></span>Belgilanmagan <b>${bel}</b></span>
+    </div>
+    <div class="eh-dist-legend" style="margin-top:6px">${holatChips}</div>`;
+}
+// Bosh: "Bu oy kutilayotgan" (ehson_oy) va "Oxirgi berishlar" (ehson_berish_royxat) —
+// loadDash'dan mustaqil, parallel chaqiriladi (Promise.all EMAS — biri yiqilsa boshqasi ishlayveradi).
+async function loadDashOy(fresh){
+  const cached=fresh?null:swrGet('dash:oy');
+  if(cached) renderDashOy(cached);
+  const {data,error}=await sb.rpc('ehson_oy',{p_oy:null});
+  if(error){ if(!cached) $('ehDashOyWrap').innerHTML='<div class="empty">Yuklanmadi</div>'; return; }
+  swrSet('dash:oy',data);
+  renderDashOy(data);
+}
+function renderDashOy(d){
+  const wrap=$('ehDashOyWrap'); if(!wrap) return;
+  const rows=(Array.isArray(d&&d.rows)?d.rows:[]).filter(r=>r.holat!=='berildi').slice(0,5);
+  if(!rows.length){ wrap.innerHTML='<div class="empty">Bu oyda kutilayotgan yo\'q</div>'; return; }
+  wrap.innerHTML = '<div class="eh-dash-list">' + rows.map(r=>{
+    const qoldiq=Math.max(n0(r.reja_summa)-n0(r.fakt_summa),0);
+    return `<div class="eh-dash-row">
+      <div class="eh-dash-main">
+        <div class="eh-dash-fio">${escapeHtml(r.fio||'')}</div>
+        <div class="eh-dash-meta">Reja ${money(n0(r.reja_summa))} · Berildi ${money(n0(r.fakt_summa))}</div>
+      </div>
+      <div class="eh-dash-side">
+        <span class="ehm-holat ${escapeHtml(r.holat||'')}">${escapeHtml(EHM_HOLAT[r.holat]||r.holat||'')}</span>
+        <div class="eh-dash-amt">${money(qoldiq)}</div>
+        <button class="btn eh-dash-btn" onclick="ehmBer('${escapeHtml(r.oila_id)}','${escapeHtml(r.reja_id)}',${qoldiq})"><i data-lucide="hand-coins"></i>Berish</button>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+  icons();
+}
+async function loadDashRecent(fresh){
+  const cached=fresh?null:swrGet('dash:recent');
+  if(cached) renderDashRecent(cached);
+  const {data,error}=await sb.rpc('ehson_berish_royxat',{p:{limit:5}});
+  if(error || !data || data.ok===false){ if(!cached) $('ehDashRecentWrap').innerHTML='<div class="empty">Yuklanmadi</div>'; return; }
+  const rows=Array.isArray(data.rows)?data.rows:[];
+  swrSet('dash:recent',rows);
+  renderDashRecent(rows);
+}
+function renderDashRecent(rows){
+  const wrap=$('ehDashRecentWrap'); if(!wrap) return;
+  rows=rows||[];
+  if(!rows.length){ wrap.innerHTML='<div class="empty">Hali berish yo\'q</div>'; return; }
+  wrap.innerHTML = '<div class="eh-dash-list">' + rows.map(b=>{
+    const bekor=b.holat==='bekor';
+    return `<div class="eh-dash-row">
+      <div class="eh-dash-main">
+        <div class="eh-dash-fio${bekor?' strike':''}">${escapeHtml(b.fio||'')} <span class="eho-kod">(${escapeHtml(b.oila_kod||'')})</span></div>
+        <div class="eh-dash-meta">${fmtDate(b.sana)} · <span class="eho-tur-chip">${escapeHtml(EHB_TUR[b.tur]||b.tur||'')}</span></div>
+      </div>
+      <div class="ehk-amt${bekor?' strike':''}">${money(n0(b.summa))}</div>
+    </div>`;
+  }).join('') + '</div>';
+  icons();
 }
 
 // ---- Kirim tab: jamg'arma balansi + kirim yozish + tarix -----------------
@@ -2196,6 +2382,7 @@ async function ehbAfterSaveRefresh(){
   if(ehLoaded.oilalar) loadOilalar(true);
   if(ehLoaded.kirim) loadKirim(true);
   if(ehLoaded.oy) loadOy(true);
+  if(ehLoaded.tarix) loadTarix(true);
 }
 window.ehbSave=async()=>{
   const msg=$('ehbMsg'); msg.className='ehk-msg'; msg.textContent='';
@@ -2332,11 +2519,14 @@ function renderBerishRecent(rows){
 
 // ---- Berishni bekor qilish (admin) --------------------------------------------
 let ehbBekorId=null;
-window.ehbBekor=id=>{
-  const r=ehbRecentRows.find(x=>String(x.id)===String(id)); if(!r) return;
+// row berilsa (Tarix tabidan — RPC natijasi, flat {fio,oila_kod}) o'shandan, aks holda
+// ehbRecentRows dan (Berish tabi — sb.from(...) natijasi, ichma-ich {ehson_oila:{fio,...}}) izlanadi.
+window.ehbBekor=(id,row)=>{
+  const r=row || ehbRecentRows.find(x=>String(x.id)===String(id)); if(!r) return;
   ehbBekorId=id;
   const o=r.ehson_oila||{};
-  $('ehbBekorInfo').textContent = fmtDate(r.sana)+' · '+(o.fio||'')+' · '+money(n0(r.summa))+" so'm";
+  const fio = o.fio!=null ? o.fio : r.fio;
+  $('ehbBekorInfo').textContent = fmtDate(r.sana)+' · '+(fio||'')+' · '+money(n0(r.summa))+" so'm";
   $('ehbBekorSabab').value=''; $('ehbBekorMsg').className='ehk-msg';
   $('ehbBekorModal').classList.add('open');
 };
@@ -2359,6 +2549,7 @@ window.ehbBekorSave=async()=>{
     await Promise.all([ loadDash(true), loadBerishRecent(true) ]);
     if(ehbOilaId) await window.ehbPick(ehbOilaId);
     if(ehLoaded.oy) loadOy(true);
+    if(ehLoaded.tarix) loadTarix(true);
   } finally { btn.disabled=false; }
 };
 
@@ -2528,6 +2719,172 @@ window.ehmExport=async()=>{
     X.writeFile(wb, 'Ehson_oy_'+oyStr+'.xlsx');
   }catch(e){
     console.error('Ehson oy eksport xato:',e);
+    showErr('Excel eksport qilinmadi: '+((e&&e.message)||e));
+  }
+};
+
+// ---- Tarix tab: ehson_berish_royxat() — filtr + Excel (6-bosqich) --------------
+// ehson_berish_royxat(p) javobi (PROVODKA_EHSON.sql 8.17): {rows:[{id,sana,summa,tur,izoh,
+// holat,reja_id,oila_id,oila_kod,fio,kim,created_at,keyingi_korib_chiqish,bekor_sabab,
+// bekor_kim,deleted_at}], jami, jami_summa (faqat berildi), tur_jami:{...}, masullar:[{id,nom}]}.
+// RPC yo'q bo'lsa (PGRST202/42883) banner ko'rsatiladi, sahifa buzilmaydi.
+const EHT_LIMIT=50;
+let ehtData={from:'',to:'',q:'',tur:'',holat:'',kim:'',offset:0,rows:[],jami:0,jami_summa:0,tur_jami:{},masullar:[]};
+let ehtWired=false, ehtQTimer=null;
+function ehtYearStart(){ return todayUz().slice(0,4)+'-01-01'; }
+function wireTarix(){
+  if(ehtWired) return; ehtWired=true;
+  ehtData.from=ehtYearStart(); ehtData.to=todayUz();
+  $('ehtFrom').value=ehtData.from; $('ehtTo').value=ehtData.to;
+}
+window.ehtOnQ=()=>{ clearTimeout(ehtQTimer); ehtQTimer=setTimeout(()=>{ ehtData.q=($('ehtQ').value||'').trim(); ehtData.offset=0; loadTarix(); },300); };
+window.ehtFilterChange=()=>{
+  ehtData.from=$('ehtFrom').value||''; ehtData.to=$('ehtTo').value||''; ehtData.kim=$('ehtKim').value||'';
+  ehtData.offset=0; loadTarix();
+};
+window.ehtTurFilter=v=>{
+  ehtData.tur=v; ehtData.offset=0;
+  document.querySelectorAll('#ehtTurChips .ehk-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  loadTarix();
+};
+window.ehtHolatFilter=v=>{
+  ehtData.holat=v; ehtData.offset=0;
+  document.querySelectorAll('#ehtHolatChips .ehk-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  loadTarix();
+};
+window.ehtLoadMore=()=>{ ehtData.offset+=EHT_LIMIT; loadTarix(); };
+function ehtFiltrKey(){ return 'tarix:'+JSON.stringify({from:ehtData.from,to:ehtData.to,q:ehtData.q,tur:ehtData.tur,holat:ehtData.holat,kim:ehtData.kim}); }
+function ehtPayload(){
+  const p={ limit:EHT_LIMIT, offset:ehtData.offset };
+  if(ehtData.from) p.from=ehtData.from;
+  if(ehtData.to) p.to=ehtData.to;
+  if(ehtData.q) p.q=ehtData.q;
+  if(ehtData.tur) p.tur=ehtData.tur;
+  if(ehtData.holat) p.holat=ehtData.holat;
+  if(ehtData.kim) p.kim=ehtData.kim;
+  return p;
+}
+async function loadTarix(fresh){
+  const isMore=ehtData.offset>0;
+  const key=ehtFiltrKey();
+  const cached=(fresh||isMore)?null:swrGet(key);
+  if(cached) renderTarix(cached,false);
+  const {data,error}=await sb.rpc('ehson_berish_royxat',{p:ehtPayload()});
+  if(error){
+    if(isMore) ehtData.offset-=EHT_LIMIT;
+    if(error.code==='PGRST202' || error.code==='42883' || /function .* does not exist/i.test(error.message||'')){
+      showInfo("Ehson SQL hali RUN qilinmagan (PROVODKA_EHSON.sql)");
+    } else if(!cached){ showErr('Xato: '+error.message); }
+    return;
+  }
+  if(!data || data.ok===false){
+    if(isMore) ehtData.offset-=EHT_LIMIT;
+    showErr('Xato: '+((data&&data.kod)||"noma'lum"));
+    return;
+  }
+  showErr(''); showInfo('');
+  if(!isMore) swrSet(key,data);   // "Yana" keshlanmaydi — faqat birinchi sahifa
+  renderTarix(data,isMore);
+}
+function renderTarixMasullar(){
+  const sel=$('ehtKim'); const cur=ehtData.kim;
+  sel.innerHTML='<option value="">Mas\'ul (hammasi)</option>'+ehtData.masullar.map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.nom)}</option>`).join('');
+  sel.value=cur||'';
+}
+function renderTarixStat(){
+  $('ehtStat').innerHTML = '<b>'+ehtData.jami+"</b> ta berish · jami <b>"+money(ehtData.jami_summa)+"</b> so'm";
+  const tj=ehtData.tur_jami||{};
+  const chips=Object.keys(EHB_TUR).filter(k=>n0(tj[k])>0)
+    .map(k=>`<span class="eht-tchip">${escapeHtml(EHB_TUR[k])} <b>${money(n0(tj[k]))}</b></span>`).join('');
+  $('ehtTurJami').innerHTML=chips;
+}
+function ehtBekorNote(b){
+  return `<div class="ehk-cancelnote">Bekor: ${escapeHtml(b.bekor_sabab||'')} · ${escapeHtml(b.bekor_kim||'')} · ${fmtDate(b.deleted_at)}</div>`;
+}
+function ehtRowDesktop(b){
+  const bekor=b.holat==='bekor';
+  return `<tr class="${bekor?'del':''}">
+    <td>${fmtDate(b.sana)}</td>
+    <td class="${bekor?'strike':''}"><span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(b.oila_id)}')">${escapeHtml(b.fio||'')}</span><br><span class="eho-kod">${escapeHtml(b.oila_kod||'')}</span></td>
+    <td><span class="eho-tur-chip">${escapeHtml(EHB_TUR[b.tur]||b.tur||'')}</span></td>
+    <td>${escapeHtml(b.izoh||'')}${bekor?ehtBekorNote(b):''}</td>
+    <td>${escapeHtml(b.kim||'')}</td>
+    <td>${b.reja_id?'<span class="eho-reja-chip sm">reja</span>':'—'}</td>
+    <td class="ehk-amt${bekor?' strike':''}">${money(n0(b.summa))}</td>
+    ${isAdmin?`<td>${bekor?'':`<button class="btn ghost ehk-cancel-btn" onclick="ehtBekorOpen('${escapeHtml(b.id)}')">Bekor</button>`}</td>`:''}
+  </tr>`;
+}
+function ehtRowMobile(b){
+  const bekor=b.holat==='bekor';
+  return `<div class="ehk-row${bekor?' del':''}">
+    <div class="ehk-row-top">
+      <div class="ehk-row-meta">${fmtDate(b.sana)} · <span class="eho-tur-chip">${escapeHtml(EHB_TUR[b.tur]||b.tur||'')}</span></div>
+      <div class="ehk-amt${bekor?' strike':''}">${money(n0(b.summa))}</div>
+    </div>
+    <div class="ehk-row-manba${bekor?' strike':''}"><span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(b.oila_id)}')">${escapeHtml(b.fio||'')}</span> <span class="eho-kod">(${escapeHtml(b.oila_kod||'')})</span></div>
+    ${b.izoh?`<div class="ehk-row-izoh">${escapeHtml(b.izoh)}</div>`:''}
+    <div class="ehk-row-meta">Mas'ul: ${escapeHtml(b.kim||'')}${b.reja_id?' · <span class="eho-reja-chip sm">reja</span>':''}</div>
+    ${bekor?ehtBekorNote(b):''}
+    ${(isAdmin&&!bekor)?`<button class="btn ghost ehk-cancel-btn" style="margin-top:8px" onclick="ehtBekorOpen('${escapeHtml(b.id)}')">Bekor qilish</button>`:''}
+  </div>`;
+}
+function renderTarixTable(){
+  const wrap=$('ehtWrap');
+  if(!ehtData.rows.length){ wrap.innerHTML='<div class="empty">Berish topilmadi</div>'; $('ehtMore').style.display='none'; return; }
+  wrap.innerHTML = `<div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
+      <th>Sana</th><th>Oila</th><th>Tur</th><th>Izoh</th><th>Mas'ul</th><th>Reja</th><th style="text-align:right">Summa</th>${isAdmin?'<th></th>':''}
+    </tr></thead><tbody>${ehtData.rows.map(ehtRowDesktop).join('')}</tbody></table></div>
+    <div class="ehk-mlist">${ehtData.rows.map(ehtRowMobile).join('')}</div>`;
+  $('ehtMore').style.display = ehtData.rows.length<ehtData.jami ? '' : 'none';
+  icons();
+}
+function renderTarix(d,append){
+  d=d||{};
+  const rows=Array.isArray(d.rows)?d.rows:[];
+  ehtData.rows = append ? ehtData.rows.concat(rows) : rows;
+  ehtData.jami=n0(d.jami); ehtData.jami_summa=n0(d.jami_summa); ehtData.tur_jami=d.tur_jami||{};
+  if(Array.isArray(d.masullar)) ehtData.masullar=d.masullar;
+  renderTarixMasullar();
+  renderTarixStat();
+  renderTarixTable();
+}
+// Tarix qatoridagi «Bekor» — inline handlerda faqat uuid, qator shu yerda topiladi va
+// umumiy window.ehbBekor(id,row) ga uzatiladi (mavjud Berish tabidagi chaqiruvlar buzilmaydi).
+window.ehtBekorOpen=id=>{
+  const r=ehtData.rows.find(x=>String(x.id)===String(id)); if(!r) return;
+  window.ehbBekor(id,r);
+};
+window.ehtExport=async()=>{
+  try{
+    const base=ehtPayload(); delete base.offset; delete base.limit;
+    let all=[], offset=0, jami=0; const size=200, cap=5000;
+    for(;;){
+      const p=Object.assign({},base,{limit:size,offset});
+      const {data,error}=await sb.rpc('ehson_berish_royxat',{p});
+      if(error) throw error;
+      if(!data || data.ok===false) throw new Error((data&&data.kod)||"noma'lum xato");
+      const rows=Array.isArray(data.rows)?data.rows:[];
+      jami=n0(data.jami);
+      all=all.concat(rows);
+      offset+=size;
+      if(rows.length<size || all.length>=jami || all.length>=cap) break;
+    }
+    if(!all.length){ showErr("Eksport qilinadigan ma'lumot topilmadi"); return; }
+    const X=await ehoLoadXlsx();
+    const aoa=[EHO_HEAD_TARIX.slice()];
+    all.forEach((b,i)=>{
+      aoa.push([
+        i+1, b.oila_kod||'', b.fio||'', fmtDate(b.sana), EHB_TUR[b.tur]||b.tur||'',
+        Number(b.summa)||0, b.izoh||'', b.holat==='bekor'?'Bekor qilingan':'Berildi',
+        b.kim||'', b.keyingi_korib_chiqish?fmtDate(b.keyingi_korib_chiqish):'',
+        b.holat==='bekor'?('Bekor: '+(b.bekor_sabab||'')):''
+      ]);
+    });
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(aoa), 'Ehson tarixi');
+    X.writeFile(wb, 'Ehson_tarix_'+(ehtData.from||'boshi')+'_'+(ehtData.to||'oxiri')+'.xlsx');
+  }catch(e){
+    console.error('Ehson tarix eksport xato:',e);
     showErr('Excel eksport qilinmadi: '+((e&&e.message)||e));
   }
 };

@@ -762,7 +762,7 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   Bucket `ehson-hujjat` (private).
 - **Excel** (`Ehson_oilalar_jadvali_togrilangan.xlsx` namuna, 3 varaq): import faqat aynan shu sarlavhalar bilan,
   upsert `oila_kod`/`azo_kod`, «Yoshi» ustunlari tashlanadi, «Ehson tarixi» v1 da import qilinmaydi.
-- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish ✅ · 5 bu oy ✅ · 6 tarix+stat+designer.
+- Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish ✅ · 5 bu oy ✅ · 6 tarix+stat+designer ✅.
 - **2-bosqich (2026-09-04) — Kirim tabi** (`.ehk-*`, `.eh-modal`): jamg'arma kartasi (`renderKirimKassa`, `renderDash` dan
   chaqiriladi — Kirim tabi birinchi ochilganda `ehLoaded.bosh` orqali `loadDash()` ham ketadi), kirim formasi
   (`ehkSave` → `ehson_kirim_yoz`; manba chip: Kompaniya / «Xayriyachi: ism» / Boshqa; jamg'arma select FAQAT faol
@@ -799,6 +799,13 @@ Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xaraj
   `ehmBer(oila,reja,qoldiq)` → `window.ehBerishOila` + **`window.ehBerishPreset={reja_id,summa}`** → Berish tabi;
   preset `ehbPick` OXIRIDA (`ehbLoadKart` dan keyin, `ehbResetForm` dan keyin) qo'llanadi: faol reja id mos kelsa
   rejim `reja`, summa to'ldiriladi, preset tozalanadi. Berish/bekor/reja to'xtatishdan keyin `loadOy(true)`.
+- **6-bosqich (2026-09-04) — Tarix tabi + Bosh stat** (`.eht-*`): **`ehson_berish_royxat(p)`** (8.17, yangi RPC —
+  `{from,to,oila_id,tur,holat,kim,q,limit,offset}` → `{rows[…,fio,oila_kod,kim,bekor_sabab,bekor_kim], jami,
+  jami_summa, tur_jami, masullar}`; STABLE — temp jadval YO'Q, filtr `uuid[]` massiv orqali bir marta), Excel «Ehson
+  tarixi» varag'i namuna sarlavhalari bilan (filtr bo'yicha hammasi, ≤5000 qator sahifalab). Bekor — Berish tabidagi
+  `ehbBekor(id,row)` umumiy modal (ikkinchi argument Tarix qatori). Bosh tab: muhtojlik taqsimoti (`d.muhtojlik`,
+  stacked bar), «Bu oy kutilayotgan» 5 ta (`ehson_oy()`, swr `dash:oy`), «Oxirgi 5 berish» (`ehson_berish_royxat
+  {limit:5}`, swr `dash:recent`), «Bu yil berildi» kartasi (`d.jami_yil`).
 
 ### Rasm AI — prod 403 sabog'i (2026-08-30)
 

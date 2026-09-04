@@ -1736,6 +1736,115 @@ comment on function ehson_kirim_royxat(jsonb) is
   'Kirim tarixi (filtr: from/to/q/bekor, sahifalash). Ism profiles.full_name dan, bekor sababi ehson_tarix dan. 2-bosqich.';
 
 
+-- 8.17 ehson_berish_royxat(p) — 6-BOSQICH (2026-09-04). Berish tarixi (Tarix tabi):
+--      filtr oila/tur/oy oralig'i/holat/mas'ul, ism (profiles.full_name — security
+--      definer), sahifalash. p: {from:date, to:date, oila_id:uuid, tur:text,
+--      holat:'berildi'|'bekor'|null(hammasi), q:text (fio/kod/izoh), limit(≤200), offset}.
+--      Qaytish: {rows:[{id, sana, summa, tur, izoh, holat, reja_id, oila_id, oila_kod, fio,
+--      kim, created_at, bekor_sabab, bekor_kim, deleted_at, keyingi_korib_chiqish}],
+--      jami, jami_summa (faqat holat='berildi'), tur_jami:{pul:…, oziq_ovqat:…, …},
+--      masullar:[{id, nom}] (filtr dropdown uchun — HAMMA mas'ullar, joriy filtrga bog'liq emas,
+--      aks holda tanlangan mas'ul ro'yxatdan yo'qolib filtrni bekor qilib bo'lmasdi)}.
+create or replace function ehson_berish_royxat(p jsonb default '{}'::jsonb)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_uid    uuid    := auth.uid();
+  v_from   date    := nullif(p->>'from', '')::date;
+  v_to     date    := nullif(p->>'to', '')::date;
+  v_oila   uuid    := nullif(p->>'oila_id', '')::uuid;
+  v_tur    text    := nullif(p->>'tur', '');
+  v_holat  text    := nullif(p->>'holat', '');
+  v_kim    uuid    := nullif(p->>'kim', '')::uuid;
+  v_q      text    := nullif(btrim(coalesce(p->>'q', '')), '');
+  v_limit  int     := greatest(1, least(coalesce(nullif(p->>'limit', '')::int, 50), 200));
+  v_offset int     := greatest(0, coalesce(nullif(p->>'offset', '')::int, 0));
+  v_rows   jsonb;
+  v_jami   int;
+  v_summa  numeric;
+  v_tur_j  jsonb;
+  v_masul  jsonb;
+  v_ids    uuid[];
+begin
+  if v_uid is null then
+    raise exception 'Avtorizatsiya kerak' using errcode = '42501';
+  end if;
+  if not ehson_page_ok() then
+    raise exception 'Ehson sahifasi ruxsatingizda yo''q' using errcode = '42501';
+  end if;
+  if v_tur is not null and v_tur not in ('pul','oziq_ovqat','kiyim','dori','boshqa') then
+    return jsonb_build_object('ok', false, 'kod', 'tur_notogri');
+  end if;
+  if v_holat is not null and v_holat not in ('berildi','bekor') then
+    return jsonb_build_object('ok', false, 'kod', 'holat_notogri');
+  end if;
+
+  -- Umumiy filtr BIR marta (id massivi) — count, summa, tur kesimi va rows bir xil to'plamdan.
+  -- (STABLE funksiyada temp jadval/insert taqiq — shuning uchun massiv.)
+  select coalesce(array_agg(b.id), '{}'::uuid[]) into v_ids
+    from ehson_berish b
+    join ehson_oila o on o.id = b.oila_id
+   where (v_from  is null or b.sana >= v_from)
+     and (v_to    is null or b.sana <= v_to)
+     and (v_oila  is null or b.oila_id = v_oila)
+     and (v_tur   is null or b.tur = v_tur)
+     and (v_holat is null or b.holat = v_holat)
+     and (v_kim   is null or b.created_by = v_kim)
+     and (v_q is null or o.fio ilike '%' || v_q || '%' or o.oila_kod ilike '%' || v_q || '%'
+                      or b.izoh ilike '%' || v_q || '%');
+
+  select count(*), coalesce(sum(b.summa) filter (where b.holat = 'berildi'), 0)
+    into v_jami, v_summa
+    from ehson_berish b where b.id = any(v_ids);
+
+  select coalesce(jsonb_object_agg(tur, s), '{}'::jsonb) into v_tur_j
+    from (select b.tur, sum(b.summa) as s
+            from ehson_berish b where b.id = any(v_ids)
+             and b.holat = 'berildi' group by b.tur) x;
+
+  select coalesce(jsonb_agg(jsonb_build_object('id', id, 'nom', nom) order by nom), '[]'::jsonb) into v_masul
+    from (select distinct b.created_by as id,
+                 coalesce(nullif(btrim(pr.full_name), ''), 'Noma''lum') as nom
+            from ehson_berish b
+            left join profiles pr on pr.id = b.created_by
+           where b.created_by is not null) m;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', b.id, 'sana', b.sana, 'summa', b.summa, 'tur', b.tur, 'izoh', b.izoh,
+           'holat', b.holat, 'reja_id', b.reja_id, 'oila_id', b.oila_id,
+           'oila_kod', o.oila_kod, 'fio', o.fio,
+           'kim', coalesce(nullif(btrim(pr.full_name), ''), 'Noma''lum'),
+           'created_at', b.created_at, 'keyingi_korib_chiqish', b.keyingi_korib_chiqish,
+           'bekor_sabab', case when b.holat = 'bekor' then b.bekor_sabab end,
+           'bekor_kim', case when b.holat = 'bekor' then coalesce(nullif(btrim(pd.full_name), ''), 'Noma''lum') end,
+           'deleted_at', b.deleted_at
+         ) order by b.sana desc, b.created_at desc), '[]'::jsonb)
+    into v_rows
+    from (
+      select b.* from ehson_berish b where b.id = any(v_ids)
+       order by b.sana desc, b.created_at desc
+       limit v_limit offset v_offset
+    ) b
+    join ehson_oila o on o.id = b.oila_id
+    left join profiles pr on pr.id = b.created_by
+    left join profiles pd on pd.id = b.deleted_by;
+
+  return jsonb_build_object('rows', coalesce(v_rows, '[]'::jsonb), 'jami', v_jami,
+                            'jami_summa', v_summa, 'tur_jami', v_tur_j, 'masullar', v_masul);
+end
+$fn$;
+
+revoke all on function ehson_berish_royxat(jsonb) from public, anon;
+grant execute on function ehson_berish_royxat(jsonb) to authenticated;
+
+comment on function ehson_berish_royxat(jsonb) is
+  'Berish tarixi (filtr: from/to/oila_id/tur/holat/kim/q, sahifalash). Ism profiles.full_name dan. 6-bosqich.';
+
+
 -- #####################################################################
 -- ##  9-BOLIM — bucket `ehson-hujjat` + storage policy                ##
 -- #####################################################################
@@ -1864,6 +1973,7 @@ begin
   if to_regprocedure('public.ehson_oila_kart(uuid)')           is null then raise exception 'ehson_oila_kart(uuid) yaratilmadi'; end if;
   if to_regprocedure('public.ehson_royxat(jsonb)')             is null then raise exception 'ehson_royxat(jsonb) yaratilmadi'; end if;
   if to_regprocedure('public.ehson_kirim_royxat(jsonb)')       is null then raise exception 'ehson_kirim_royxat(jsonb) yaratilmadi'; end if;
+  if to_regprocedure('public.ehson_berish_royxat(jsonb)')      is null then raise exception 'ehson_berish_royxat(jsonb) yaratilmadi'; end if;
   if to_regprocedure('public.ehson_hujjat_yol_ok(text)')       is null then raise exception 'ehson_hujjat_yol_ok(text) yaratilmadi'; end if;
 
   -- 11.8 GRANT/REVOKE tekshiruvi (namuna)
