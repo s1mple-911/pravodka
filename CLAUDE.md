@@ -352,6 +352,11 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   (teskari juftlik bo'lsa `1/rate`). **null bo'lishi mumkin** → koridor yo'q, to'g'ridan pending.
 - `acc_fc_balance(p_id)` — valyuta qoldig'i. Sotishda va sotish approve'ida tekshiriladi.
 - `convert_approve` koridorni **qayta tekshirmaydi** (ataylab, eski xatti-harakat).
+- 🔴 **Egalik tekshiruvi `kassa_root()` bilan** (`PROVODKA_KONVERT_V3_ROOT.sql`, 2026-09-04, RUN kutilmoqda): «Toshkent
+  kassa · Naqd» (pul turi bola-hisobi) dan «$» ga konvert «Valyuta hisobi shu kassaga tegishli emas» berardi — v3
+  `t.parent_id = f.id` deb tekshirardi, valyuta hisobi esa ILDIZ kassaga bog'langan. Endi v2 kabi
+  `kassa_root(p_to) = kassa_root(p_from)`. Klient (`kassa-dev.html` `cvRoot`) allaqachon shunday edi.
+  Konvert modalida kassa qidiruvi `#cvFromQ` (`cvFromRender/cvFromFilter`, nom/kod/pul turi/subtitle).
 - `convert_request`ga ustun qo'shilmagan — yo'nalish `from`/`to` hisob valyutasidan tiklanadi
   (`konvert.html` → `yonalish()`).
 

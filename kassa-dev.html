@@ -326,7 +326,8 @@
       <button class="on" id="cvBuy" onclick="cvSetYon('sotib_olish',this)">Sotib olish</button>
       <button id="cvSell" onclick="cvSetYon('sotish',this)">Sotish</button>
     </div>
-    <label>Kassa</label><select id="cvFrom"></select>
+    <label>Kassa</label><input class="txt" id="cvFromQ" placeholder="Kassa qidirish… (nom, kod, Naqd/Click)" autocomplete="off" oninput="cvFromFilter()" style="margin-bottom:6px">
+    <select id="cvFrom"></select>
     <label>Valyuta</label><select id="cvTo"></select>
     <label id="cvAmountLbl">Summa (so'm)</label><input class="txt" id="cvAmount" inputmode="decimal" placeholder="0" oninput="cvFmt(this)">
     <label id="cvRateLbl">Kurs (1 birlik necha so'm)</label><input class="txt" id="cvRate" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
@@ -881,14 +882,28 @@ window.openConv=async()=>{
   // Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi.
   // Guruh (5400) — konteyner, unga to'g'ridan pul yozilmaydi, tanlanmaydi.
   // Ruxsat: faqat amaliyot qilishga ruxsat etilgan kassalar tanlanadi (server ham tekshiradi)
-  const from=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH&&window.permOpOk(r));
-  $('cvFrom').innerHTML=from.length?from.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join(''):'<option value="">Mos kassa yo\'q</option>';
+  cvFromList=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH&&window.permOpOk(r));
+  $('cvFromQ').value='';
+  cvFromRender('');
   $('cvFrom').onchange=cvFillTo;
   $('cvTo').onchange=()=>{ Promise.resolve(cvValyutaChanged()).then(cvMbLoad,cvMbLoad); };
   await cvFillTo(); icons();
   cvMbLoad();   // await'siz — MB so'rovi modalni ushlab turmaydi
 };
 window.closeConv=()=>$('convModal').classList.remove('open');
+// Kassa qidiruvi (Asilbek 2026-09-04): ro'yxat uzun — nom/kod/pul turi bo'yicha filtr.
+// Tanlangan kassa filtrda qolsa saqlanadi, aks holda birinchisi; keyin valyuta ro'yxati qayta.
+let cvFromList=[];
+const cvNorm=v=>String(v||'').toLowerCase().replace(/[’‘ʻ`´]/g,"'");
+function cvFromRender(q){
+  q=cvNorm(q).trim();
+  const prev=$('cvFrom').value;
+  const list=q?cvFromList.filter(r=>cvNorm(accLbl(r)+' '+(r.code||'')+' '+(r.pul_turi||'')+' '+(r.subtitle||'')).indexOf(q)>-1):cvFromList;
+  $('cvFrom').innerHTML=list.length?list.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join('')
+    :(cvFromList.length?"<option value=''>Qidiruvga mos kassa yo'q</option>":"<option value=''>Mos kassa yo'q</option>");
+  if(prev&&list.some(r=>r.id===prev)) $('cvFrom').value=prev;
+}
+window.cvFromFilter=()=>{ const prev=$('cvFrom').value; cvFromRender($('cvFromQ').value); if($('cvFrom').value!==prev) cvFillTo(); };
 
 // ---- MB (CBU) rasmiy kursi — konvert izohiga yoziladi (Asilbek, 2026-09-03) ----
 // Konvert yozuvi serverda (do_convert_v2) tuziladi, Postgres cbu.uz'ga chiqa olmaydi —
