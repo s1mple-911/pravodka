@@ -2057,7 +2057,8 @@ window.openChek=async(kassaId,entryId)=>{
       }
     }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
   } else if(rt&&rt.user_id&&rt.id){
-    // Haqiqiy chek fayli yo'q, lekin AI rasmi bor (rasm-tahlil) — shu ko'rsatiladi (admin only).
+    // Haqiqiy chek fayli yo'q, lekin AI rasmi bor (rasm-tahlil) — shu ko'rsatiladi. Ruxsat serverda:
+    // egasi / admin / jurnal ruxsati + kassa doirasi (PROVODKA_RASM_JURNAL_RUXSAT.sql, 2026-09-05).
     try{
       const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
       box.innerHTML=(!se&&su)?`<img src="${esc(su.signedUrl)}" alt="AI chek">`:'<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>';

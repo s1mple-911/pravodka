@@ -707,8 +707,11 @@ ro'yxat qilib ko'rsatiladi, ishorasiz, "Boshqa" turiga kiradi.
   izohi) · **AI xulosasi (2026-08-31 dan HAMMAGA — jurnal ruxsati yetarli; EF trigger baribir admin)** · Fayl (Chek/Hujjat/
   AI chek/Tablo → `openChek`) · Amallar. `maqsadHtml`/`sanaHtml` yo'q: `kiritHtml`, `xarajatHtml`,
   `valyutaCell`, `ijrCell`, `maqsadCell`, `izohCell`, `aiCell`, `faylCell`. Mobil `.jc-row` yorliqli.
-- **AI xulosasi ustuni:** `refreshMeta()` 2-bosqich (2026-08-31 dan hammaga; `rasm_tahlil`/
-  `mashina_km` RLS har userga faqat O'Z yozuvini beradi — begonasida chip bor, tafsilot yo'q) —
+- **AI xulosasi ustuni:** `refreshMeta()` 2-bosqich (2026-08-31 dan hammaga). 🔴 `rasm_tahlil`/`mashina_km` RLS va
+  `rasm-tahlil` bucket 2026-09-05 gacha «faqat o'zi/admin» edi — AI chek/Tablo fayli boshqa jurnal userlariga
+  ochilmasdi. `PROVODKA_RASM_JURNAL_RUXSAT.sql` (RUN kutilmoqda): `jurnal_entry_korish_ok(entry)` = admin OR
+  (jurnal sahifasi ruxsati AND kassa view doirasi, `perm_op_key`), `jurnal_rasm_ok(rt)` — tahlil bog'langan
+  yozuv orqali; policy'lar shu bilan kengaytirildi (egasi/admin saqlanadi) —
   `rtMap` (`rasm_tahlil` id bo'yicha)
   + `kmMap` (`mashina_km` entry bo'yicha). Chip: Shubhali / AI xato / Kutilmoqda / Tekshirmagan /
   Mos; ostida AI summa·sana (farq qizil), Tablo km (yozilgan farqi, yurgan km, so'm/km). Modal
