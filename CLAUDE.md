@@ -745,11 +745,17 @@ qo'shilmaydi, konvert bloklanmaydi.
 
 ### Ehson (xayriya) bo'limi — MUSTAQIL (2026-09-03, `ARX_PROVODKA_EHSON.md`, faqat dev)
 
-🔴 **To'liq izolyatsiya**: `accounts` da hisob YO'Q, `entry`/`entry_line` ga YOZILMAYDI (`source='ehson'` varianti
-ham rad etilgan — filtr unutilsa foyda buzilardi). Pul faqat `ehson_kirim` (jamg'armaga kirdi) va `ehson_berish`
-(oilaga chiqdi) jadvallarida; balans = view `v_ehson_kassa`. Jurnal/hisobot/balans/cashflow/kassa/AI ehson
-jadvallarini bilmaydi. Tester isboti: `PROVODKA_EHSON.sql` da `entry`/`accounts` so'zi 0 marta (grep).
-Kompaniya kassasidan jamg'armaga o'tkazish — IKKI alohida amal (Provodka xarajat + Ehson kirim), avtomat bog'lanmaydi.
+🔴 **Izolyatsiya (2026-09-04 kech, Asilbek qarori bilan aniqlashtirildi)**: jamg'armaga pul FAQAT kompaniya
+(Provodka) kassasidan kiradi — **`ehson_kirim_yoz` BITTA provodka yozadi**: Dt «Ehson jamg'armasi (<nom>)» xarajat
+moddasi (94xx, `_ehson_xarajat_modda` birinchi kirimda ochadi, `ehson_kassa.xarajat_account_id`) / Kt tanlangan kassa,
+`source='ehson'` (`entry_source_check` 12.5 da kengaytiriladi, qarz 14a naqshi), `ext_ref='ehson_kirim:<uuid>'`,
+foydalanuvchi JWT → `trg_perm_guard_entry_line` op_kassa ruxsatini tekshiradi, `sorov_kassa_bal` yetmasa
+`kassa_qoldiq_yetmadi`. Pul shu yerda kompaniyadan CHIQADI (xarajat → foyda/kapital kamayadi); jurnalda oddiy Chiqim
+bo'lib ko'rinadi. **Shundan keyin hamma harakat (berish, reja, bekor) FAQAT `ehson_*` jadvallarida** — `entry`ga
+boshqa hech narsa yozilmaydi, Ehson qoldig'i kompaniya balansiga kirmaydi. Kirim bekor (admin) — `ehson_kirim`
+soft-delete + o'sha `entry` soft-delete (`is_deleted`, `deleted_by_name`, `entry_history 'delete'` — jurnal naqshi).
+`ehson_kirim.entry_id/pul_kassa_id/ext_ref` (FK ataylab yo'q). Klient: `ehson_pul_kassalar()` (serverda ham `_ehson_pul_kassa_ruxsat` op_kassa filtri — faqat `ehson` ruxsatli user kompaniya kassalari qoldig'ini ko'rmasin) → `permFilterOp`
+(op_kassa) → «Qaysi kassadan» select (`localStorage eh-pulkassa`). Tester isboti: `entry`/`accounts` faqat 12-BO'LIMda.
 - **Sahifa** `ehson-dev.html`, kalit **`ehson`** — 18-kalit: `perm_pages()` (`PROVODKA_EHSON.sql`) = `perms-dev.js`
   `PAGES` = `index-dev.html` `CARDS`; nav 17 dev faylda (sidebar AI'dan keyin + sheet + prefetch), `promote.sh` PAGES;
   admin-dev `PVS_PAGES` — Asilbek (TaskFix repo). Tablar: Bosh · Oilalar · Ehson berish · Bu oy · Kirim · Tarix

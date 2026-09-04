@@ -185,3 +185,11 @@ Klientda RPC yo'q (PGRST202) → sahifa «SQL RUN qilinmagan» bannerini ko'rsat
 5. Oilaga hujjat/rasm (ma'lumotnoma, foto) biriktirish kerakmi? (sukut: ha, ixtiyoriy)
 6. Excel «Ehson tarixi» varag'ida eski yozuvlar bormi — import kerakmi? (sukut: v1 da yo'q)
 7. Kompaniya kassasidan jamg'armaga o'tkazish — avtomat bog'lansinmi? (sukut: YO'Q, ikki alohida amal — izolyatsiya)
+
+## 16. Qaror o'zgarishi (2026-09-04 kech) — kirim faqat kompaniya kassasidan
+
+Asilbek: «jamg'armaga pul birorta kassamizdan kirishi kerak, shu bilan bu pul Aros tizimidan chiqadi, jurnalda ham 1 marta
+provodkasi tushadi; shundan keyin Ehson ichida nima qilinsa ham faqat Ehson ichida qoladi, Ehsondagi pul kompaniya
+kapitaliga kirmaydi». Yechim — `PROVODKA_EHSON.sql` 12-BO'LIM: `ehson_kirim_yoz` bitta `entry` yozadi (Dt xarajat moddasi
+«Ehson jamg'armasi (<nom>)» 94xx / Kt kassa, `source='ehson'`), `ehson_kirim.entry_id` bog'lanadi; bekor — ikkalasi soft-delete.
+Berish/reja — avvalgidek faqat `ehson_*`. 4-bo'limdagi «avtomat bog'lanmaydi» bandi shu bilan bekor.
