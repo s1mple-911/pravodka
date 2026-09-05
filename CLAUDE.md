@@ -764,6 +764,15 @@ pul qatori, `ext_ref='entry:<id>:<kassa>'`); jurnalda o'chirilsa/tahrirlansa ehs
 imzosi qoldi, tanasi 42501 xato (+ authenticated'dan revoke) — Ehson useriga faqat kirim TARIXI (`ehson_kirim_royxat`)
 o'qish. Shundan keyin hamma harakat (berish, reja) FAQAT `ehson_*` jadvallarida, Ehson qoldig'i kompaniya balansiga
 kirmaydi. Tester isboti: `entry`/`entry_line`/`accounts` faqat 12-BO'LIMda (o'qish + trigger), `entry` ga yozuv YO'Q.
+- 🔴 **«Ehson kirim» ruxsati (2026-09-06, Asilbek) — `ehson_kirim` BAYROG'I, sahifa emas.** Buxgalterga Ehson sahifasi
+  berilmaydi, lekin jamg'armaga pul o'tkazishi kerak. `perm_pages()` 19 ta (18 sahifa + `ehson_kirim`); `perms-dev.js`
+  da **`FLAGS`** (PAGES ga QO'SHILMAYDI — `firstAllowed()` uni sahifa deb 404 ga yo'naltirardi), `permFlagOk('ehson_kirim')`;
+  index CARDS / promote PAGES yo'q; admin-dev `PVS_PAGES` ga `{key:'ehson_kirim', label:'Ehson jamg'armaga kirim'}` (Asilbek).
+  Server: `accounts.ehson_kassa_id` (modda belgisi, `_ehson_xarajat_modda` yozadi) + **`trg_ehson_kirim_guard`** (BEFORE,
+  12.11) — ehson moddasiga `entry_line` yozish faqat `ehson_kirim_ok()` (admin YOKI bayroq), service_role o'tadi. Klient:
+  `professional-dev` accounts va `hodim-dev` `moddaList()` bayroqsiz userga moddani yashiradi (ustun yo'q → yashirmaydi).
+  Semantika: `ehson_kirim` = faqat kirim · `ehson` = ko'rish + berish (kirim BERMAYDI) · ikkalasi = hammasi. Ehson Kirim
+  tabida Professional'ga havola YO'Q (olib tashlandi).
 - **Sahifa** `ehson-dev.html`, kalit **`ehson`** — 18-kalit: `perm_pages()` (`PROVODKA_EHSON.sql`) = `perms-dev.js`
   `PAGES` = `index-dev.html` `CARDS`; nav 17 dev faylda (sidebar AI'dan keyin + sheet + prefetch), `promote.sh` PAGES;
   admin-dev `PVS_PAGES` — Asilbek (TaskFix repo). Tablar: Bosh · Oilalar · Ehson berish · Bu oy · Kirim · Tarix

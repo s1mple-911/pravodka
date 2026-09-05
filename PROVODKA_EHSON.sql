@@ -15,7 +15,7 @@
 --
 -- ## RUN TARTIBI — butun faylni birdaniga RUN qilish mumkin.
 --   1-BOLIM   — old shart tekshiruvi (faqat select/raise)
---   2-BOLIM   — perm_pages() ga 'ehson' kaliti (17 -> 18)
+--   2-BOLIM   — perm_pages() ga 'ehson' kaliti + 'ehson_kirim' BAYROG'I (17 -> 19)
 --   3-BOLIM   — _ehson_is_admin() (moslashuvchan) + ehson_page_ok()
 --   4-BOLIM   — jadvallar: ehson_kassa, ehson_oila, ehson_reja, ehson_azo,
 --               ehson_kirim, ehson_berish, ehson_tarix (+ RLS + trigger)
@@ -25,7 +25,8 @@
 --   8-BOLIM   — RPC'lar (dashboard, kirim, oila/a'zo, import, berish, reja, ro'yxat)
 --   9-BOLIM   — bucket `ehson-hujjat` + storage policy
 --  12-BOLIM   — kirim faqat jurnal orqali: 94xx modda seed, entry_line DEFERRED
---               trigger → ehson_kirim avtomat (fayl tartibida 9 va 10 orasida)
+--               trigger → ehson_kirim avtomat (fayl tartibida 9 va 10 orasida);
+--               12.11 — 'ehson_kirim' ruxsat GUARDI (moddaga yozish faqat bayroq bilan)
 --  10-BOLIM   — PostgREST sxema keshi
 --  11-BOLIM   — YAKUNIY TEKSHIRUV (faqat select)
 --
@@ -77,7 +78,7 @@ $ehson_pre$;
 
 
 -- #####################################################################
--- ##  2-BOLIM — perm_pages() ga 'ehson' kaliti (17 -> 18)             ##
+-- ##  2-BOLIM — perm_pages() ga 'ehson' + 'ehson_kirim' (17 -> 19)     ##
 -- #####################################################################
 -- 🔴 KLIENT TOMONI — BUSIZ ISHLAMAYDI (boshqa agent bajaradi):
 --    (a) `perms-dev.js` dagi `PAGES` massiviga 'ehson';
@@ -85,6 +86,16 @@ $ehson_pre$;
 --    (c) 15 dev faylda nav (sidebar + "Ko'proq" sheet);
 --    (d) `promote.sh` `PAGES` ga 'ehson';
 --    (e) admin-dev `PVS_PAGES` ga {key:'ehson', label:'Ehson'} (boshqa repo).
+--
+--    'ehson_kirim' (2026-09-06, Asilbek) — SAHIFA EMAS, BAYROQ. allowed_pages ichida
+--    saqlanadi (ustun/payload o'zgarmasin), lekin unga fayl/karta/nav yo'q:
+--      perms-dev.js `FLAGS` (PAGES emas!) + `permFlagOk('ehson_kirim')`;
+--      index-dev CARDS / promote.sh PAGES — QO'SHILMAYDI;
+--      admin-dev `PVS_PAGES` ga {key:'ehson_kirim', label:'Ehson jamg''armaga kirim'}.
+--    Ma'nosi: Professional/hodim'da «Ehson jamg'armasi» (94xx) moddasiga yozish
+--    (= jamg'armaga KIRIM) faqat shu bayroq (yoki admin) bilan — 12.11 guard.
+--    'ehson' sahifasi kirimga ruxsat BERMAYDI (ko'rish + berish); ikkalasi bo'lsa —
+--    kirim ham, berish ham.
 --    Aks holda `admin_set_provodka_perms` kalitni "noma'lum" deb JIMGINA
 --    tashlab yuboradi.
 -- #####################################################################
@@ -96,14 +107,14 @@ immutable
 as $perm_pages$
   select array['kassa','jurnal','professional','hisobot','balans','cashflow',
                'qarzdor','filial','valyuta','konvert','sozlama','provodka',
-               'yuklar','standart','tannarx','ai','sorovlar','ehson']::text[];
+               'yuklar','standart','tannarx','ai','sorovlar','ehson','ehson_kirim']::text[];
 $perm_pages$;
 
 revoke all on function perm_pages() from public, anon;
 grant execute on function perm_pages() to authenticated, service_role;
 
 comment on function perm_pages() is
-  'Provodka sahifa kalitlari (18 ta). perms.js dagi PAGES va admin-dev PVS_PAGES bilan bir xil. '
+  'Provodka ruxsat kalitlari (19 ta: 18 sahifa + ehson_kirim bayrogi). perms.js PAGES+FLAGS va admin-dev PVS_PAGES bilan bir xil. '
   'hodim.html bu ro''yxatga KIRMAYDI — u hech qachon cheklanmaydi.';
 
 
@@ -1932,6 +1943,11 @@ comment on column ehson_kassa.xarajat_account_id is 'Shu jamgarma uchun Provodka
 --      yo'q bo'lsa 94xx blokida ochadi: sozlama-dev bilan bir xil shakl — type xarajat,
 --      section operatsion, kod max(94xx)+1). ICHKI. 12.9 da RUN paytida chaqiriladi —
 --      buxgalter Professional'da moddani darrov ko'rsin.
+-- Modda belgisi accounts'ning o'zida — mijoz (professional/hodim) va 12.11 guard
+-- ehson_kassa'ga qaramasdan (u RLS bilan yopiq) moddani taniydi. ADDITIVE.
+alter table accounts add column if not exists ehson_kassa_id uuid;
+comment on column accounts.ehson_kassa_id is 'Ehson jamgarmasi moddasi (94xx) -> ehson_kassa.id. Bu moddaga yozish = jamgarmaga kirim, faqat ehson_kirim ruxsati bilan (trg_ehson_kirim_guard).';
+
 create or replace function _ehson_xarajat_modda(p_kassa uuid)
 returns uuid
 language plpgsql
@@ -1950,6 +1966,7 @@ begin
   v_modda_nom := case when lower(coalesce(v_nom, '')) like '%ehson%' then v_nom
                       else 'Ehson: ' || coalesce(v_nom, 'jamg''arma') end;
   if v_acc is not null and exists (select 1 from accounts a where a.id = v_acc and coalesce(a.is_active, true)) then
+    update accounts set ehson_kassa_id = p_kassa where id = v_acc and ehson_kassa_id is distinct from p_kassa;
     return v_acc;
   end if;
   -- Nomi bo'yicha mavjud modda (qayta RUN / qo'lda ochilgan bo'lsa)
@@ -1964,10 +1981,11 @@ begin
     if v_code::int > 9499 then
       raise exception 'Xarajat moddalari kod bloki (9421–9499) to''ldi';
     end if;
-    insert into accounts (code, name, type, section, is_active)
-    values (v_code, v_modda_nom, 'xarajat', 'operatsion', true)
+    insert into accounts (code, name, type, section, is_active, ehson_kassa_id)
+    values (v_code, v_modda_nom, 'xarajat', 'operatsion', true, p_kassa)
     returning id into v_acc;
   end if;
+  update accounts set ehson_kassa_id = p_kassa where id = v_acc and ehson_kassa_id is distinct from p_kassa;
   update ehson_kassa set xarajat_account_id = v_acc where id = p_kassa;
   return v_acc;
 end
@@ -2337,6 +2355,69 @@ begin
   end loop;
 end $ehson_sync0$;
 
+-- 12.11 «Ehson kirim» ruxsat GUARDI (2026-09-06, Asilbek). Jamg'arma moddasiga (accounts.ehson_kassa_id
+--       is not null) entry_line yozish = jamg'armaga KIRIM. Bu faqat 'ehson_kirim' bayrog'i
+--       (allowed_pages) yoki admin bilan. 'ehson' sahifasi ruxsati kirim BERMAYDI (u ko'rish + berish).
+--       Buxgalterga Ehson sahifasi ochilmaydi, faqat shu bayroq — u Professional'da Dt modda / Kt kassa yozadi.
+--       BEFORE trigger (perm_guard_entry_line naqshi): service_role (auth.uid() null, n8n) o'tadi.
+--       Kt tomoni ham to'siladi (moddaga kredit = jamg'armadan qaytarish). UI yashirish yetarli emas —
+--       yangi yozuv yo'li (hodim, standart, provodka) ham shu triggerdan o'tadi.
+create or replace function ehson_kirim_ok()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then return false; end if;
+  if is_admin() then return true; end if;
+  return coalesce(
+    (select 'ehson_kirim' = any(coalesce(allowed_pages, '{}'::text[]))
+       from user_perms where user_id = v_uid),
+    false);
+end
+$fn$;
+
+revoke all on function ehson_kirim_ok() from public, anon;
+grant execute on function ehson_kirim_ok() to authenticated;
+
+comment on function ehson_kirim_ok() is
+  'Ehson jamgarmasi moddasiga yozish (= kirim) ruxsati: admin YOKI allowed_pages ∋ ehson_kirim. ehson sahifasi ruxsati kirim BERMAYDI.';
+
+create or replace function _ehson_kirim_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_lbl text;
+begin
+  if auth.uid() is null then return new; end if;                    -- service_role / n8n
+  if not exists (select 1 from accounts a where a.id = new.account_id and a.ehson_kassa_id is not null) then
+    return new;                                                     -- oddiy hisob — tegilmaydi
+  end if;
+  if ehson_kirim_ok() then return new; end if;
+  select coalesce(a.code || ' ' || a.name, new.account_id::text) into v_lbl from accounts a where a.id = new.account_id;
+  raise exception 'Ruxsat yoq: % moddasiga yozish (Ehson jamg''armasiga kirim) uchun «Ehson kirim» ruxsati kerak', v_lbl
+    using errcode = '42501';
+end
+$fn$;
+
+revoke all on function _ehson_kirim_guard() from public, anon, authenticated;
+
+drop trigger if exists trg_ehson_kirim_guard on entry_line;
+create trigger trg_ehson_kirim_guard
+  before insert or update of account_id on entry_line
+  for each row execute function _ehson_kirim_guard();
+
+comment on function _ehson_kirim_guard() is
+  'entry_line BEFORE guard: ehson moddasiga (accounts.ehson_kassa_id) yozish faqat ehson_kirim_ok(). service_role otadi.';
+
+
 
 -- #####################################################################
 -- ##  10-BOLIM — PostgREST sxema keshi                                ##
@@ -2352,12 +2433,15 @@ do $ehson_check$
 declare
   v_n int;
 begin
-  -- 11.1 perm_pages() 18 ta va 'ehson' bor
-  if array_length(perm_pages(), 1) <> 18 then
-    raise exception 'perm_pages() 18 ta bulishi kerak, hozir: %', array_length(perm_pages(), 1);
+  -- 11.1 perm_pages() 19 ta: 'ehson' sahifasi + 'ehson_kirim' bayrog'i bor
+  if array_length(perm_pages(), 1) <> 19 then
+    raise exception 'perm_pages() 19 ta bulishi kerak, hozir: %', array_length(perm_pages(), 1);
   end if;
   if not ('ehson' = any(perm_pages())) then
     raise exception 'perm_pages() da ehson kaliti yoq';
+  end if;
+  if not ('ehson_kirim' = any(perm_pages())) then
+    raise exception 'perm_pages() da ehson_kirim bayrogi yoq';
   end if;
 
   -- 11.2 Jadvallar
@@ -2423,6 +2507,11 @@ begin
   if not exists (select 1 from pg_trigger where tgname = 'trg_ehson_kirim_line')  then raise exception 'trg_ehson_kirim_line trigger yoq'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'trg_ehson_kirim_entry') then raise exception 'trg_ehson_kirim_entry trigger yoq'; end if;
   if exists (select 1 from ehson_kassa where is_active and xarajat_account_id is null) then raise exception 'Faol jamgarma uchun xarajat moddasi ochilmadi'; end if;
+  if not exists (select 1 from information_schema.columns where table_name='accounts' and column_name='ehson_kassa_id') then raise exception 'accounts.ehson_kassa_id ustuni yoq'; end if;
+  if exists (select 1 from ehson_kassa k join accounts a on a.id = k.xarajat_account_id where k.is_active and a.ehson_kassa_id is distinct from k.id) then raise exception 'Ehson moddasida accounts.ehson_kassa_id belgilanmagan'; end if;
+  if to_regprocedure('public.ehson_kirim_ok()')                is null then raise exception 'ehson_kirim_ok() yaratilmadi'; end if;
+  if not exists (select 1 from pg_trigger where tgname = 'trg_ehson_kirim_guard') then raise exception 'trg_ehson_kirim_guard trigger yoq (ehson_kirim ruxsati ishlamaydi)'; end if;
+  if not has_function_privilege('authenticated', 'public.ehson_kirim_ok()', 'execute') then raise exception 'ehson_kirim_ok() authenticated uchun yopiq'; end if;
   if not exists (select 1 from information_schema.columns where table_name='ehson_kirim' and column_name='entry_id') then raise exception 'ehson_kirim.entry_id ustuni yoq'; end if;
   if not exists (select 1 from information_schema.columns where table_name='ehson_kirim' and column_name='ext_ref') then raise exception 'ehson_kirim.ext_ref ustuni yoq'; end if;
   if to_regprocedure('public.ehson_hujjat_yol_ok(text)')       is null then raise exception 'ehson_hujjat_yol_ok(text) yaratilmadi'; end if;

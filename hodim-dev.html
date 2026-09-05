@@ -1814,6 +1814,9 @@ function moddaList(){
   // RBAC (PROVODKA_RBAC.sql): rolga biriktirilmagan xarajat moddalari yashiriladi.
   // permFilterModda yo'q bo'lsa (perms-dev.js eski nusxa) — eski xatti-harakat.
   if(window.permFilterModda) xs=window.permFilterModda(xs);
+  // «Ehson jamg'armasi» moddasi (accounts.ehson_kassa_id) — faqat 'ehson_kirim' bayrog'i/admin
+  // (server: trg_ehson_kirim_guard). Ustun yo'q bazada hech narsa yashirilmaydi.
+  xs=xs.filter(a=>!a.ehson_kassa_id || !window.permFlagOk || window.permFlagOk('ehson_kirim'));
   xs.sort((a,b)=>{ const fa=FREQ.indexOf(a.code), fb=FREQ.indexOf(b.code);
     if(fa>=0||fb>=0){ if(fa<0) return 1; if(fb<0) return -1; return fa-fb; }
     return String(a.code).localeCompare(String(b.code)); });

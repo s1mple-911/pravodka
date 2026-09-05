@@ -201,3 +201,13 @@ jamg'armaga tushishi kerak; ehson bilan shug'ullanuvchi odamda bu dostup bo'lmas
 Yechim — 12-BO'LIM qayta: modda RUN paytida ochiladi (12.9), `entry_line` DEFERRED trigger + `entry` trigger →
 `_ehson_kirim_sync` (avtomat kirim / tahrir / o'chirish), `ehson_kirim_yoz`/`ehson_kirim_bekor` — 42501 stub.
 16-bo'limdagi «kirim formasi kassa tanlash bilan» bekor.
+
+## 18. «Ehson kirim» ruxsati (2026-09-06)
+
+Asilbek: «jamg'armaga pulni faqat ehson page ruxsati bor odam o'tkaza olyapti — buxgalterlarga ehson page bermayman, lekin pul
+chiqara olishi kerak; faqat kirim qiladigan ruxsat qo'sh; ehson page ham bo'lsa kirim ham chiqim ham. Kirim tabidagi Professional
+havolasini o'chir».
+Yechim: `allowed_pages` ichida **`ehson_kirim` bayrog'i** (ustun/payload o'zgarmaydi; `perm_pages()` 19). Server —
+`accounts.ehson_kassa_id` + `trg_ehson_kirim_guard` (BEFORE, 12.11): ehson moddasiga yozish = `ehson_kirim_ok()` (admin yoki bayroq).
+Klient — `perms-dev.js` `FLAGS`/`permFlagOk`, professional-dev/hodim-dev modda filtri. `ehson` sahifasi kirim BERMAYDI.
+Ehson Kirim tabidan Professional havolasi olib tashlandi. admin-dev `PVS_PAGES` ga `ehson_kirim` — Asilbek.

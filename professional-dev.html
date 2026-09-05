@@ -2515,6 +2515,10 @@ async function init(){
   // Ruxsat: kassa_scope='list' bo'lsa faqat amaliyot kassalari tanlanadi.
   // Xarajat/daromad moddalari cheklanmaydi (permFilterOp faqat 5xxx pul hisoblariga tegadi).
   accounts=window.permFilterOp((data||[]).filter(a=>a.kassa_turi!=='xarajat_guruh'));
+  // «Ehson jamg'armasi» moddasi (accounts.ehson_kassa_id, PROVODKA_EHSON.sql 12.2): unga yozish =
+  // jamg'armaga kirim — faqat 'ehson_kirim' bayrog'i (yoki admin). Server: trg_ehson_kirim_guard (42501).
+  // Ustun yo'q bazada (undefined) hech narsa yashirilmaydi.
+  accounts=accounts.filter(a=>!a.ehson_kassa_id || !window.permFlagOk || window.permFlagOk('ehson_kirim'));
   // Oddiy rejim: modda ro'yxati + kassa chiplari + filial multiselect
   $('modda').innerHTML=moddaOptions();
   window.renderModdaList(); syncModdaBtn();          // qidiruvli modal ro'yxati + tugma yorlig'i
