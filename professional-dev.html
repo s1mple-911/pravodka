@@ -1271,7 +1271,9 @@ function updateTotals(){
   // qayta hisoblanadi. Tekshiruv faqat adv'da: simple rejimda saveBtn boshqa tugma (updateSimple).
   let fok=true;
   if(curMode==='adv'){ updateFilialUI(); fok=filialOk(); }   // sabab #filialReq da ko'rinadi
-  $('balRow').className='tot bal'+(teng?'':' no'); $('saveBtn').disabled=!balanced||!fok;
+  // 2026-09-06: adv'da chek/AI-chek majburiy modda Dt'da bo'lsa chek yuklanmaguncha Saqlash yopiq.
+  const cok=(curMode!=='adv')||!chekRequiredAdv()||!!chekBlob;
+  $('balRow').className='tot bal'+(teng?'':' no'); $('saveBtn').disabled=!balanced||!fok||!cok;
   { const h=document.getElementById('balHint'); if(h) h.style.display=(dt>0&&!teng)?'block':'none'; }
   { const kw=document.getElementById('advKursWarn');
     if(kw){ const u=[...new Set(kursYoq)];
@@ -1318,7 +1320,18 @@ window.setMode=m=>{
 function moddaObj(){ return accounts.find(a=>a.id===$('modda').value); }
 function izohRequired(){ const m=moddaObj(); return !!(m&&m.izoh_majburiy); }
 function davrRequired(){ const m=moddaObj(); return !!(m&&m.davr_majburiy); }
-function chekRequired(){ const m=moddaObj(); return !!(m&&m.chek_majburiy); }   // ustun yo'q bo'lsa undefined → false
+// 🔴 URGENT 2026-09-06 (Asilbek, modda 9432 «Internet Tulov»): avval faqat `chek_majburiy`
+// tekshirilardi — `ai_tekshir` (AI chek) yoqilgan moddada chek IXTIYORIY bo'lib, buxgalter
+// 12 ta yozuvni cheksiz yozgan. Endi hodim-dev.html `chekRequired()` bilan BIR XIL qoida:
+// chek_majburiy YOKI ai_tekshir YOKI spidometr_ai — uchalasi ham chekni majburiy qiladi.
+const chekFlag=a=>!!(a&&(a.chek_majburiy||a.ai_tekshir||a.spidometr_ai));   // ustun yo'q bo'lsa undefined → false
+function chekRequired(){ return curMode==='adv' ? chekRequiredAdv() : chekFlag(moddaObj()); }
+// Kengaytirilgan rejim: modda dropdowni yo'q → talab DEBET satrlaridan (filialRequiredAdv naqshi).
+// Avval adv'da chek UMUMAN talab qilinmasdi — «Kengaytirilgan» orqali chekni chetlab o'tish mumkin edi.
+function chekRequiredAdv(){
+  const flag=id=>{ const a=id&&accounts.find(x=>x.id===id); return chekFlag(a); };
+  return (lines||[]).some(l=>l.side==='debit'&&(flag(l.account_id)||flag(l.root_id)));
+}
 // Filial talabi — YOZUV darajasida (satr darajasida EMAS). Sabab: entry.filial_ids butun
 // yozuvga tegishli uuid[] va undan jurnal teglari, ai_rep_*, hodim taqsimoti, v_filial_tanlov
 // oziqlanadi. Satr darajasidagi filial yangi jadval/jsonb talab qilardi va shu iste'molchilarning
@@ -1476,9 +1489,10 @@ function advChekKassaId(){
   return null;
 }
 function updateChekUI(){
-  const adv=(curMode==='adv'), req=chekRequired()&&!adv, w=$('chekReq');
+  // 2026-09-06: adv'da ham majburiy (chekRequired o'zi rejimga qaraydi) — avval `&&!adv` bilan o'chirilgan edi.
+  const adv=(curMode==='adv'), req=chekRequired(), w=$('chekReq');
   $('chekLbl').textContent = req ? '📎 Chek / hujjat (majburiy)' : '📎 Chek / hujjat (ixtiyoriy)';
-  if(req && !chekBlob){ w.textContent='Bu modda uchun chek yoki hujjat shart'; w.style.display='block'; return; }
+  if(req && !chekBlob){ w.textContent=adv?'Dt satridagi modda uchun chek yoki hujjat shart':'Bu modda uchun chek yoki hujjat shart'; w.style.display='block'; return; }
   if(adv && chekBlob && !advChekKassaId()){
     w.textContent='Fayl biriktirilmaydi — Kt (chiqim) tomonida kassa satri yo\'q';
     w.style.display='block'; return;
@@ -1543,7 +1557,8 @@ window.removeChek=()=>{ chekBlob=null; chekExt='jpg'; chekType='image/jpeg'; che
   $('chekPrev').style.display='none'; $('chekPrev').innerHTML=''; chekSync(); };
 // Oddiy rejimda updateSimple() Saqlash tugmasini ham qayta hisoblaydi (chek majburiy bo'lishi mumkin);
 // kengaytirilgan rejimda esa faqat chek matnini yangilash kerak — updateSimple() u yerda ortiqcha.
-function chekSync(){ if(curMode==='adv') updateChekUI(); else updateSimple(); }
+// 2026-09-06: adv'da ham updateTotals() — chek majburiy bo'lsa Saqlash tugmasi chek yuklangach qayta ochilsin.
+function chekSync(){ if(curMode==='adv') updateTotals(); else updateSimple(); }
 // Fayl YOZUVNI BLOKLAMAYDI: entry saqlangach fonda yuklanadi, xato bo'lsa faqat ogohlantiramiz.
 // ext/type — chaqirilgan paytdagi qiymatlar (removeChek() dan keyin global tozalanadi).
 async function uploadChek(kassaId, entryId, blob, ext, type){
@@ -2684,6 +2699,9 @@ async function doSaveAdv(){
   // (openYukSave(...,doSaveAdv,'adv')) ham kelinadi, ya'ni ikkala yo'l ham qamralgan.
   // Adv'da BLOKLAYDI (ogohlantirish emas) — Asilbek qarori.
   if(!filialOk()){ alert('Bu yozuv uchun filial tanlanishi shart — Dt satrida filial majburiy modda bor'); return; }
+  // 2026-09-06 URGENT: chek/AI-chek majburiy modda Dt satrida bo'lsa adv'da ham BLOKLAYDI
+  // (avval faqat oddiy rejim tekshirardi — kengaytirilgan orqali cheksiz o'tib ketardi).
+  if(chekRequiredAdv() && !chekBlob){ alert('Bu yozuv uchun chek yoki hujjat majburiy — Dt satrida chek/AI tekshiruvli modda bor'); updateChekUI(); return; }
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
   // filial_ids — oddiy rejim bilan AYNAN bir xil shakl: har doim massiv (bo'sh bo'lsa []),
   // null yozilmaydi. Ikki rejim bitta ustunga bir xil yozsin, iste'molchi (jurnal, ai_rep_*)
