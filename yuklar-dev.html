@@ -116,14 +116,19 @@
   .fchip.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   .fchip span{opacity:.65;font-weight:700;margin-left:3px}
   .filtbar select.datepick{margin-left:auto;min-width:180px}
+    /* 2026-09-06: 11 ustun desktop'da SKROLLSIZ sig'sin — main to'liq kenglik (pastda),
+     min-width yo'q, matnli ustunlar (ombor/yetkazuvchi/to'lov) o'raladi; raqam/sana/ID nowrap. */
   .yscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .ytbl{width:100%;border-collapse:collapse;min-width:980px}
-  .ytbl th{font-size:11px;color:var(--muted);text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:0 10px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
-  .ytbl td{padding:12px 10px;border-bottom:1px solid var(--line);font-size:13.5px;white-space:nowrap;vertical-align:middle}
+  .ytbl{width:100%;border-collapse:collapse;min-width:0}
+  .ytbl th{font-size:11px;color:var(--muted);text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:0 10px 11px;border-bottom:1px solid var(--line);white-space:normal;vertical-align:bottom;line-height:1.25}
+  .ytbl td{padding:11px 8px;border-bottom:1px solid var(--line);font-size:13.5px;white-space:normal;overflow-wrap:anywhere;vertical-align:middle}
+  .ytbl td.num,.ytbl td.yid,.ytbl td.dt{white-space:nowrap}
+  @media(min-width:900px){.main{max-width:none}}
+  @media(min-width:900px) and (max-width:1500px){.ytbl td{padding:10px 6px;font-size:12.5px}.ytbl th{padding:0 6px 10px;font-size:10.5px}.ytbl .paidsub{font-size:10.5px}}
   .ytbl tr:last-child td{border-bottom:none}
   .ytbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
   .ytbl .yid{color:var(--muted);font-weight:700}
-  .ytbl .prov{max-width:210px;overflow:hidden;text-overflow:ellipsis}
+  .ytbl .prov{max-width:220px}
   .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;white-space:nowrap}
   .pill.g{background:var(--green-soft);color:var(--green)}
   .pill.gray{background:var(--surface-2);color:var(--muted)}
@@ -572,7 +577,7 @@ function renderYuklar(){
     else tol='<span class="pill gray">To\'lanmagan</span>';
     return '<tr>'
       +'<td class="yid" data-l="ID">#'+esc(y.id)+'</td>'
-      +'<td data-l="Sana">'+dF(y.sana||y.created_datetime)+'</td>'
+      +'<td class="dt" data-l="Sana">'+dF(y.sana||y.created_datetime)+'</td>'
       +'<td data-l="Ombor">'+esc(y.ombor||'—')+'</td>'
       +'<td class="prov" data-l="Yetkazuvchi">'+esc(y.yetkazuvchi||'—')+'</td>'
       +'<td class="num" data-l="Aros narxi">'+priceF(y.narx,y.valyuta)+(y.valyuta&&String(y.valyuta).toUpperCase()!=='UZS'&&aros!=null?'<div class="paidsub">≈ '+money(aros)+' so\'m</div>':'')+'</td>'
