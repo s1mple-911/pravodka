@@ -941,6 +941,30 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   o'zgarmagan (server `tugash`ni o'zi hisoblaydi). Shablon: `tilxat_shablon.matn` null bo'lishi mumkin —
   yangi shablon nom + fayl (pdf/jpg/png) bilan yaratiladi (`shablon/<id>.<ext>`), chop etish faqat matn bo'lsa.
 
+### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
+
+Aros'da filial jo'natgan (`sent`) pul markaziy kassa «qabul qildi» bosguncha hech qayerda ko'rinmasdi.
+Yechim — **pul harakati YO'Q, faqat registr**: `aros_transfer_yolda` (transfer_id PK, status
+`sent|received|canceled|nomalum`, sender/receiver `accounts.id` — `aros_kassa_topish` bilan, `s_*` = sotuvchi
+sanagan `items[].document.seller_*`, `c_*` = qabulda tasdiqlangan `items[].confirmed_*`, received'gacha null).
+`entry` ga TEGILMAYDI — pul hamon `sync_transfer_balans` (Transfer Sync v2) bilan received'da yoziladi.
+- **n8n** `Aros Provodka - Yolda Sync` (`xRARQu9MiZmQ1sAO`, har 5 daq, `N8N_YOLDA_SYNC.js` repo nusxasi):
+  Aros PG `cachier_transfers` (status≠received HAMMASI + received 14 kun) → `sync_transfer_yolda(p_data)`
+  (**service_role ONLY**, upsert; payloadda yo'q qolgan `sent` → `nomalum`; 🔴 bo'sh payload sweep QILMAYDI).
+  HTTP node krediti (Supabase API, service_role) va Activate — Asilbek. Transfer Sync v2 ga tegilmagan.
+- **RPC** `yolda_royxat()` → `{rows[…yo'lda], jami_uzs, soni, qabul[…48 soat, s_/c_/farq_uzs], synced_at}`,
+  `yolda_farq(p_ids text[])` → jurnal uchun xom sonlar. Ruxsat `yolda_korish_ok(sender, receiver)`: admin YOKI
+  (`kassa`/`jurnal` sahifasi VA kassa doirasi `perm_op_key`); ko'rolmaydigan tomon nomi «Boshqa kassa».
+  🔴 `yolda_royxat` sahifa ruxsatini O'ZI ham tekshiradi (`v_rejim='yoq'`) — RLS'ga tayanmaydi.
+- **UI**: `kassa-dev.html` — `#yolda` bo'limi (`renderYolda`, `.yl-*`: «🚚 Yo'ldagi pullar · N ta», har transfer
+  yo'nalish + tur taqsimoti + «N soat oldin», >2 kun sariq/>5 kun qizil; yig'iq «Yaqinda qabul qilingan»
+  sotuvchi/qabul/farq), kartada `🚚 Yo'lda: ±N` (`ylIdx`, `jami` ga QO'SHILMAYDI); `loadKassalar` Promise.all
+  4-element, swr `yolda`; RPC yo'q → jim. `jurnal-dev.html` — `M_COLS`+`ext_ref`, `YOLDA_RE`
+  `^aros_tr:(id):(cash|click|payme|dollar_usd)$` → `loadYolda()` → `izohCell` ostida `.j-yolda` kichik satr
+  «Sotuvchi sanadi X · Kassa qabul qildi Y · Farq ±Z» (+ jo'natildi/qabul vaqti).
+- Keyingi bosqich (hali qilinmagan): tranzit HISOBI (sent → Dt transit / Kt filial; received → Dt markaziy /
+  Kt transit) — `PROVODKA_TRANSFER.sql` sarlavhasida rejalashtirilgan, delta sync bilan o'zaro ta'siri bor.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:

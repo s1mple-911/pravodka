@@ -159,6 +159,25 @@
      puli borlaridan ajralib tursin. Yo'q qilib yuborilsa "tur qo'shdim, ko'rinmayapti" bo'ladi. */
   .kchip .sub .zq,.krow .tq .zq{opacity:.5}
   .krow.kempty{color:var(--muted);font-size:13px;justify-content:flex-start;padding:14px}
+  /* Yo'ldagi pullar (.yl-*) — .krow/.klist naqshini qayta ishlatadi, lekin nom/matn
+     mobil'da o'ralishi kerak — .krow .nm/.st dagi nowrap shu yerda bekor qilinadi. */
+  .yl-row{align-items:flex-start;flex-wrap:wrap}
+  .yl-row .nm,.yl-row .st{white-space:normal;overflow:visible;text-overflow:clip}
+  .yl-row .yl-time{margin-top:2px}
+  .yl-time.yl-ogoh{color:var(--amber)}
+  .yl-time.yl-xavf{color:var(--red)}
+  .yl-qwrap{margin-top:10px}
+  .yl-toggle{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:600;font-family:inherit;padding:7px 12px;border-radius:9px;cursor:pointer;transition:background .13s,border-color .13s,color .13s}
+  .yl-toggle:hover{border-color:var(--primary);color:var(--primary)}
+  .yl-toggle svg{width:13px;height:13px;transition:transform .15s}
+  .yl-toggle.open svg{transform:rotate(180deg)}
+  .yl-qlist{margin-top:8px}
+  .yl-mos{color:var(--muted)}
+  .yl-neg{color:var(--red);font-weight:700}
+  .yl-pos{color:var(--green);font-weight:700}
+  .kchip .yl-badge{font-size:11px;margin-top:4px;display:flex;align-items:center;gap:4px}
+  .kchip .yl-badge.in{color:var(--tr)}
+  .kchip .yl-badge.out{color:var(--muted)}
   /* "Valyuta qo'shish" — faqat adminda ko'rinadi (body.is-admin) */
   .kchip .top{position:relative}
   .kadd{display:none;margin-left:auto;flex:0 0 auto;width:24px;height:24px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted);cursor:pointer;padding:0}
@@ -276,6 +295,11 @@
       <div class="k"><i data-lucide="landmark"></i>Umumiy jami</div>
       <div class="v" id="jami">0</div>
     </div>
+
+    <!-- Yo'ldagi pullar — Aros filialdan markaziy kassaga jo'natilgan, hali qabul qilinmagan pul.
+         RPC yolda_royxat() (PROVODKA_YOLDA.sql, RUN kutilmoqda) — yo'q/bo'sh bo'lsa #yolda bo'sh qoladi,
+         bo'lim umuman chizilmaydi (renderYolda()). -->
+    <div id="yolda"></div>
 
     <!-- Qidiruv — jurnal-dev.html dagi #q naqshi (label + .txt + oninput, klientda filtr).
          🔴 #jami qidiruvga qarab O'ZGARMAYDI (.sorov-ui.md §4.3-b) — topilganlar
@@ -579,8 +603,15 @@ function kcard(r){
   const t=taqsimot(r,true);
   const sub=(t.valBor.length||t.turBor) ? `<div class="sub">${t.qism.join(' · ')}</div>` : '';
   const add=`<button class="kadd" title="Valyuta / pul turi qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
+  // Yo'ldagi pullar — bu kassa Aros transferida qatnashgan bo'lsa kichik ko'rsatkich.
+  // `jami`ga qo'shilmaydi (pul hali kelmagan), faqat ma'lumot uchun.
+  const ylIn=ylIdx.inn[r.id]||0, ylOut=ylIdx.out[r.id]||0;
+  const ylTtl="Aros'da jo'natilgan, hali qabul qilinmagan";
+  const ylBadge = ylIn
+    ? `<div class="yl-badge in" title="${esc(ylTtl)}">🚚 Yo'lda: ${money(ylIn)}</div>`
+    : ylOut ? `<div class="yl-badge out" title="${esc(ylTtl)}">🚚 Yo'lda: −${money(ylOut)}</div>` : '';
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
-    +`<div class="v">${money(r.jami)}</div>${sub}</div>`;
+    +`<div class="v">${money(r.jami)}</div>${sub}${ylBadge}</div>`;
 }
 // hc — "3 / 62" sanoq chipi. FAQAT qidiruv faol bo'lganda beriladi, aks holda bo'sh
 // satr (chip umuman chizilmaydi) — guruh sarlavhasi odatdagidek qoladi.
@@ -699,25 +730,117 @@ const kturIndex=rows=>{ const m={};
   (rows||[]).slice().sort((a,b)=>(TURI_TART[a.pul_turi]||9)-(TURI_TART[b.pul_turi]||9))
     .forEach(t=>{ (m[t.parent_id]||(m[t.parent_id]=[])).push(t); });
   return m; };
+
+// ===================== Yo'ldagi pullar (2026-09-06, PROVODKA_YOLDA.sql — RUN kutilmoqda) =====================
+// RPC yolda_royxat() → {rows:[yo'lda transferlar], jami_uzs, soni, qabul:[yaqinda qabul qilingan], synced_at}.
+// Funksiya bazada hali yo'q bo'lishi mumkin (42883/PGRST202) — o'sha holatda `yolda=null`, #yolda bo'sh
+// qoladi va kartadagi 🚚 belgisi ham chiqmaydi (ylIdx bo'sh). Sahifa sinmaydi.
+let yolda=null;
+// account_id -> yo'lda summa (kiruvchi/chiquvchi) — kcard() shundan o'qiydi.
+let ylIdx={inn:{},out:{}};
+const YL_IKO={cash:'💵',click:'💳',payme:'📱'};
+// created_at bilan bir xil naqsh (jurnal-dev.html uzParts) — brauzer zonasiga tayanmaslik uchun
+// UTC dan +5 soat siljitib o'qiymiz.
+function ylUzParts(x){
+  if(!x) return null;
+  const d=new Date(x); if(isNaN(d.getTime())) return null;
+  const s=new Date(d.getTime()+5*3600*1000).toISOString();
+  const p=s.slice(0,10).split('-');
+  return {qisqa:p[2]+'.'+p[1]+' '+s.slice(11,16), ms:d.getTime()};
+}
+function ylAgo(ms){
+  const diff=Date.now()-ms; if(diff<60000) return 'hozir';
+  const min=Math.floor(diff/60000);
+  if(min<60) return min+' daqiqa oldin';
+  const soat=Math.floor(min/60);
+  if(soat<24) return soat+' soat oldin';
+  return Math.floor(soat/24)+' kun oldin';
+}
+// Vaqt matni + 2 kundan oshsa sariq, 5 kundan oshsa qizil ogohlantirish (uzoq yo'lda qolgan pul).
+function ylTime(iso){
+  const p=ylUzParts(iso);
+  if(!p) return {txt:'',cls:''};
+  const kun=(Date.now()-p.ms)/86400000;
+  return {txt:p.qisqa+' · '+ylAgo(p.ms), cls: kun>5?'yl-xavf':(kun>2?'yl-ogoh':'')};
+}
+function ylRow(r){
+  const parts=[];
+  const push=(ic,v)=>{ const n=Number(v)||0; if(n) parts.push(ic+' '+money(n)); };
+  push(YL_IKO.cash,r.cash); push(YL_IKO.click,r.click); push(YL_IKO.payme,r.payme);
+  if(Number(r.usd)) parts.push('$ '+fc(r.usd));
+  const t=ylTime(r.sent_at);
+  return `<div class="krow yl-row"><div class="l"><div class="nm">${esc(r.sender_nom||'Boshqa kassa')} → ${esc(r.receiver_nom||'Boshqa kassa')}</div>`
+    +`<div class="st tq">${parts.join(' · ')||'—'}</div>`
+    +(t.txt?`<div class="st yl-time${t.cls?' '+t.cls:''}">${esc(t.txt)}</div>`:'')
+    +`</div><div class="v">${money(r.jami_uzs)}</div></div>`;
+}
+// Sotuvchi/kassa jami — usd qism dollar_rate bilan so'mga o'girilgan (server shu tartibda hisoblagan).
+const ylSum=(r,pfx)=>(Number(r[pfx+'_cash'])||0)+(Number(r[pfx+'_click'])||0)+(Number(r[pfx+'_payme'])||0)+(Number(r[pfx+'_usd'])||0)*(Number(r.dollar_rate)||0);
+function ylQabulRow(r){
+  const farq=Number(r.farq_uzs)||0;
+  const farqHtml = farq===0 ? '<span class="yl-mos">mos</span>'
+    : `<span class="${farq<0?'yl-neg':'yl-pos'}">${farq>0?'+':''}${money(farq)}</span>`;
+  return `<div class="krow yl-row yl-qrow"><div class="l"><div class="nm">${esc(r.sender_nom||'Boshqa kassa')} → ${esc(r.receiver_nom||'Boshqa kassa')}</div>`
+    +`<div class="st tq">sotuvchi: ${money(ylSum(r,'s'))} · qabul: ${money(ylSum(r,'c'))} · farq: ${farqHtml}</div></div></div>`;
+}
+// #yolda blokini to'liq qayta chizadi. yolda=null yoki rows bo'sh → bo'lim umuman chizilmaydi.
+// Qidiruv faol bo'lsa (oddiy qoida, filtrlanmaydi) bo'lim yashiriladi.
+function renderYolda(){
+  const el=$('yolda'); if(!el) return;
+  ylIdx={inn:{},out:{}};
+  const y=yolda, rows=(y&&Array.isArray(y.rows))?y.rows:[];
+  rows.forEach(r=>{
+    if(r.receiver_id) ylIdx.inn[r.receiver_id]=(ylIdx.inn[r.receiver_id]||0)+(Number(r.jami_uzs)||0);
+    if(r.sender_id) ylIdx.out[r.sender_id]=(ylIdx.out[r.sender_id]||0)+(Number(r.jami_uzs)||0);
+  });
+  const Qraw=(($('q')||{}).value||'').trim();
+  if(!rows.length||Qraw){ el.innerHTML=''; return; }
+  const jami=rows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
+  const qabul=(y&&Array.isArray(y.qabul))?y.qabul:[];
+  const qOpen=localStorage.getItem('yl-qabul')==='1';
+  const qBlock=qabul.length
+    ? `<div class="yl-qwrap"><button type="button" class="yl-toggle${qOpen?' open':''}" onclick="toggleYlQabul()">`
+      +`<i data-lucide="chevron-down"></i>Yaqinda qabul qilingan (${qabul.length})</button>`
+      +`<div class="klist yl-qlist" id="yoldaQabul" style="${qOpen?'':'display:none'}">${qabul.map(ylQabulRow).join('')}</div></div>`
+    : '';
+  el.innerHTML=`<div class="kgrp yl-grp"><div class="kgh"><span class="n">🚚 Yo'ldagi pullar · ${rows.length} ta</span><span class="t">${money(jami)}</span></div>`
+    +`<div class="klist">${rows.map(ylRow).join('')}</div>${qBlock}</div>`;
+  icons();
+}
+window.toggleYlQabul=()=>{
+  const box=$('yoldaQabul'); if(!box) return;
+  const open=box.style.display==='none';
+  box.style.display=open?'block':'none';
+  localStorage.setItem('yl-qabul',open?'1':'0');
+  const btn=document.querySelector('.yl-toggle'); if(btn) btn.classList.toggle('open',open);
+};
+// /Yo'ldagi pullar
+
 async function loadKassalar(){
   // SWR: keshdagi qatorlarni darrov ko'rsat, aks holda "Yuklanmoqda…" placeholder
   const cachedVal=swrGet('valyutalar'); if(cachedVal) kval=kvalIndex(cachedVal);
   const cachedTur=swrGet('turlar'); if(cachedTur) ktur=kturIndex(cachedTur);
+  const cachedYolda=swrGet('yolda'); if(cachedYolda) yolda=cachedYolda;
+  renderYolda();
   const cached=swrGet('cards');
   if(cached) renderKassalar(cached);
   else $('kassalar').innerHTML='<div class="empty">Yuklanmoqda…</div>';
   // Ikkalasi parallel — lekin render ikkovi kelgach bo'ladi, aks holda karta
   // valyutasiz chizilib, keyin sassiz eskirib qoladi. View hali yaratilmagan
   // bo'lsa xato yutiladi va karta eski ko'rinishda (faqat jami) chiziladi.
-  const [{data,error},{data:vs,error:ve},{data:ts,error:te}]=await Promise.all([
+  const [{data,error},{data:vs,error:ve},{data:ts,error:te},{data:yl,error:ye}]=await Promise.all([
     sb.from('v_kassa_card').select('*').order('code'),
     sb.from('v_kassa_valyutalar').select('*').order('code'),
     sb.from('v_kassa_turlar').select('*').order('code'),
+    sb.rpc('yolda_royxat'),
   ]);
   if(!ve&&vs){ swrSet('valyutalar',vs); kval=kvalIndex(vs); }
   // View bo'lmasa (PROVODKA_VALYUTA.sql RUN qilinmagan) xato jimgina yutiladi —
   // taqsimot() zaxira yo'lga (karta ustunlariga) tushadi, sahifa sinmaydi.
   if(!te&&ts){ swrSet('turlar',ts); ktur=kturIndex(ts); }
+  // yolda_royxat() hali RUN qilinmagan bo'lsa (42883/PGRST202) jimgina yutiladi — bo'lim chizilmaydi.
+  if(!ye&&yl&&typeof yl==='object'){ yolda=yl; swrSet('yolda',yl); renderYolda(); }
+  else if(ye) console.warn('yolda_royxat:',ye.message);
   // Xato bo'lsa har doim ko'rsat — keshdagi eski raqam jimgina qolib ketmasin
   if(error){
     $('banner').style.display='block';
@@ -1422,7 +1545,7 @@ function srvNone(q){
     +'<button type="button" class="srv-retry" onclick="qClear()">Qidiruvni tozalash</button></div>';
 }
 // Debounce yo'q: ro'yxat ~100 qator, filtr bitta o'tish (jurnaldagi #q server so'rovi edi).
-window.onQ=()=>renderKassalar(lastList);
+window.onQ=()=>{ renderKassalar(lastList); renderYolda(); };
 window.qClear=()=>{ const el=$('q'); if(el) el.value=''; window.onQ(); if(el) el.focus(); };
 // /qidiruv
 

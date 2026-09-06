@@ -184,6 +184,11 @@
   .jmuted{color:var(--muted)}
   .jdel-note{font-size:11.5px;color:var(--red);display:flex;align-items:center;gap:4px;margin-top:4px}
   .jdel-note svg{width:12px;height:12px}
+  /* Yo'ldagi pullar (transfer) — sotuvchi vs kassa taqsimoti (2026-09-06) */
+  .j-yolda{font-size:11.5px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .j-yolda-ok{color:var(--muted)}
+  .j-yolda-neg{color:var(--red);font-weight:600}
+  .j-yolda-pos{color:var(--green);font-weight:600}
   .jedited{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:2px}
   .jedited svg{width:12px;height:12px}
   .jlines{margin-top:8px;border-left:2px solid var(--line);padding-left:10px}
@@ -1681,6 +1686,8 @@ function uzParts(x){
   const sana=s.slice(0,10), soat=s.slice(11,16), p=sana.split('-');
   return {sana, soat, toliq:p[2]+'.'+p[1]+'.'+p[0]+' '+soat};
 }
+// Qisqa shakl (yilsiz) — "06.09 14:22". Yo'ldagi pullar sent_at/received_at uchun.
+function uzShort(x){ const p=uzParts(x); if(!p) return ''; const d=p.sana.split('-'); return d[2]+'.'+d[1]+' '+p.soat; }
 // Sana katagi: ASOSIY sana endi kiritilgan vaqt (created_at, "27.08.2026 10:06"),
 // pastda kichik ikkinchi satr — hisob sanasi (entry_date, hodim qo'lda tanlagan).
 // 🔴 2026-08-27: filtr/tartib created_at'ga o'tdi (Asilbek qarori) — ko'rinish ham
@@ -2212,6 +2219,12 @@ let aiMap={};     // entry.id → {shubhali, shubhali_sabab, ai_holat, rasm_tahl
 // (id'lar aiMap.rasm_tahlil_id/spidometr_tahlil_id dan yig'iladi).
 let rtMap={};     // rasm_tahlil.id → row
 let kmMap={};     // entry.id → mashina_km row
+// --- Yo'ldagi pullar (2026-09-06, PROVODKA_YOLDA.sql — RUN kutilmoqda) ---
+// Aros sinxroni transfer yozuvlarini `ext_ref='aros_tr:<transfer_id>:<cash|click|payme|dollar_usd>'`
+// bilan yozadi (n8n Auto Sync). transfer_id → yolda_farq() javobi (sotuvchi/kassa taqsimoti).
+// RPC hali yo'q bo'lsa (42883/PGRST202) yoldaMap bo'sh qoladi — izohCell hech narsa chizmaydi.
+const YOLDA_RE=/^aros_tr:(.+):(cash|click|payme|dollar_usd)$/;
+let yoldaMap={};  // transfer_id → yolda_farq() qatori
 // AI ustunlari so'rovi — izoh_mos ustunlari hali RUN qilinmagan bo'lsa (42703)
 // eski ro'yxat bilan QAYTA so'raladi: AI xulosasi ustuni SQL'siz ham avvalgidek ishlaydi.
 const AI_COLS='id,shubhali,shubhali_sabab,ai_holat,rasm_tahlil_id,spidometr_tahlil_id';
@@ -2223,7 +2236,7 @@ async function aiSel(ids){
 // entry.jadval (BRIEF_PROVODKA_JADVAL.md 2-bosqich) — faqat n/jami (PostgREST JSON yo'li),
 // to'liq jadval BU YERDA yuklanmaydi (100 qatorda 50 KB×100 og'ir bo'lardi — chip yetarli,
 // modal ochilganda alohida so'raladi). Ustun hali yo'q (42703) bo'lsa mavjud so'rov YIQILMASIN.
-const M_COLS='id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi';
+const M_COLS='id,filial_ids,davr_start,davr_end,yuk_ids,yuk_kutilmoqda,kommunal_turi,ext_ref';
 async function mSel(ids){
   let r=await sb.from('entry').select(M_COLS+',jd_n:jadval->n,jd_jami:jadval->jami').in('id',ids);
   if(r.error&&r.error.code==='42703') r=await sb.from('entry').select(M_COLS).in('id',ids);
@@ -2263,9 +2276,28 @@ async function refreshMeta(){
       if(!rtRes.error&&rtRes.data) rtRes.data.forEach(r=>{ rtMap[r.id]=r; });
       if(!kmRes.error&&kmRes.data) kmRes.data.forEach(r=>{ kmMap[r.entry_id]=r; });
       izohAiTekshir();   // izoh↔modda AI tekshiruvi — fonda, await YO'Q (renderni kutdirmasin)
+      loadYolda();        // yo'ldagi pullar farqi — fonda, await YO'Q (renderni kutdirmasin)
     }
     render();
   }catch(e){}
+}
+// --- Yo'ldagi pullar farqi — metaMap (ext_ref) tayyor bo'lgach fonda so'raladi ---
+async function loadYolda(){
+  try{
+    const ids=new Set();
+    Object.values(metaMap).forEach(r=>{
+      const ref=r&&r.ext_ref;
+      const mm=(typeof ref==='string')?ref.match(YOLDA_RE):null;
+      if(mm) ids.add(mm[1]);
+    });
+    const arr=[...ids];
+    if(!arr.length){ if(Object.keys(yoldaMap).length){ yoldaMap={}; render(); } return; }
+    const {data,error}=await sb.rpc('yolda_farq',{p_ids:arr});
+    if(error||!Array.isArray(data)){ console.warn('yolda_farq:',(error&&error.message)||'javob shakli'); return; }
+    const m={}; data.forEach(r=>{ if(r&&r.transfer_id) m[r.transfer_id]=r; });
+    yoldaMap=m;
+    render();
+  }catch(e){ console.warn('yolda_farq istisno:', e&&e.message); }
 }
 // --- Izoh ↔ modda AI tekshiruvi (2026-08-31): EF `izoh-tekshir` (Haiku) ---
 // Har yozuv BIR MARTA tekshiriladi: natija entry.izoh_mos/izoh_sabab/izoh_tekshir_at
@@ -2676,6 +2708,25 @@ async function loadIjrSel(){
 // maqsadCell (Maqsad ustuni — foydalanuvchi tanlagan teglar), faylCell (Fayl ustuni).
 // Ko'p satrli yozuvning .jlines ro'yxati endi Dt ustunida (render() ichida).
 
+// Yo'ldagi pullar (transfer) satri — sotuvchi sanagan vs kassa qabul qilgan taqsimot + farq.
+// `tur` — YOLDA_RE dagi ext_ref suffiksi (cash|click|payme|dollar_usd), `yr` — yolda_farq() qatori.
+function yoldaSatr(tur,yr){
+  const isUsd=tur==='dollar_usd', key=isUsd?'usd':tur;
+  const sVal=Number(yr['s_'+key])||0, cVal=Number(yr['c_'+key])||0;
+  const fmt=isUsd?money2:money, suf=isUsd?' $':'';
+  const farq=Math.round((cVal-sVal)*(isUsd?100:1))/(isUsd?100:1);
+  let txt;
+  if(Math.abs(farq)<(isUsd?0.01:1)){
+    txt=`Sotuvchi ${fmt(sVal)}${suf} · qabul ${fmt(cVal)}${suf} · <span class="j-yolda-ok">mos</span>`;
+  }else{
+    const cls=farq<0?'j-yolda-neg':'j-yolda-pos';
+    txt=`Sotuvchi sanadi: ${fmt(sVal)}${suf} · Kassa qabul qildi: ${fmt(cVal)}${suf} · Farq: <span class="${cls}">${farq>0?'+':''}${fmt(farq)}${suf}</span>`;
+  }
+  const vaqt=[];
+  if(yr.sent_at) vaqt.push("jo'natildi "+uzShort(yr.sent_at));
+  if(yr.received_at) vaqt.push('qabul '+uzShort(yr.received_at));
+  return `<div class="j-yolda">${txt}${vaqt.length?' · '+vaqt.join(' · '):''}</div>`;
+}
 // Izoh: description yoki "Kt → Dt" (mavjud description bo'lmasa), o'chirish/chala izi.
 function izohCell(e,k,multi){
   const parts=[];
@@ -2693,6 +2744,12 @@ function izohCell(e,k,multi){
   else if(!chala) parts.push(!multi
     ? `<div class="jgoal muted">${esc(k.kt?.name||'')} → ${esc(k.dt?.name||'')}</div>`
     : `<div class="jgoal muted">Ko'p satrli yozuv</div>`);
+  // Yo'ldagi pullar farqi — description'dan KEYIN, chala/o'chirilgan yozuvda chizilmaydi.
+  if(!chala&&!e.is_deleted){
+    const ref=metaMap[e.id]&&metaMap[e.id].ext_ref;
+    const mm=(typeof ref==='string')?ref.match(YOLDA_RE):null;
+    if(mm){ const yr=yoldaMap[mm[1]]; if(yr) parts.push(yoldaSatr(mm[2],yr)); }
+  }
   if(chala) parts.push(`<div class="jchala-note">${esc(CHALA_IZOH)}</div>`);
   return parts.join('')||'<span class="jmuted">—</span>';
 }
