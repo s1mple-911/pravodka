@@ -58,8 +58,8 @@
   .txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
   .line{background:var(--surface-2);border-radius:13px;padding:13px;margin-bottom:12px}
   .line .lr{display:flex;gap:9px;align-items:center}
-  .line select{flex:1;min-width:0;height:44px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 11px;font-size:14.5px;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;transition:border-color .13s}
-  .line select:focus{outline:none;border-color:var(--primary)}
+  /* Hisob tanlagich endi qidiruvli modal tugmasi (#accModal) — .mdl-btn hajmi .lr qatoriga moslanadi */
+  .line .mdl-btn{flex:1;min-width:0;height:44px;font-size:14.5px;margin-bottom:0}
   .line .rm{background:transparent;border:none;color:var(--muted);border-radius:9px;padding:8px;display:flex;cursor:pointer;transition:background .13s,color .13s}
   .line .rm svg{width:18px;height:18px}.line .rm:hover{background:var(--red-soft);color:var(--red)}
   .line .lr2{display:flex;gap:9px;margin-top:10px}
@@ -82,13 +82,6 @@
   .modeseg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:18px;gap:3px}
   .modeseg button{border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:8px 16px;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
   .modeseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
-  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
-  .chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:118px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 14px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .13s,background .13s,box-shadow .13s}
-  .chip:hover{border-color:var(--primary)}
-  .chip.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px var(--primary-soft)}
-  .chip-code{font-size:12px;font-weight:700;color:var(--muted)}
-  .chip.on .chip-code{color:var(--primary)}
-  .chip-name{font-size:14px;font-weight:600}
   .chips-empty{color:var(--muted);font-size:14px;padding:10px 0}
   .dirhint{font-size:13px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:none}
   .dirhint b{color:var(--ink)}
@@ -618,7 +611,11 @@
       <!-- ODDIY: kassa (chip) + modda + summa; Dt/Kt modda turidan avtomatik -->
       <div id="simpleBox">
         <label>Kassa</label>
-        <div id="kassaChips" class="chips"></div>
+        <!-- select naqshidagidek: tanlash qidiruvli #kassaModal orqali (60+ kassa chip
+             bo'lib yoyilganda ekranni to'ldirardi). Kassa yo'q holatda tugma yashirin,
+             #kassaEmptyMsg chiqadi (mavjud "ruxsat berilmagan" xabari). -->
+        <button type="button" class="mdl-btn empty" id="kassaBtn" onclick="openKassaModal()"><span class="mdl-lbl" id="kassaBtnLbl">— kassa tanlang —</span><i data-lucide="chevron-down"></i></button>
+        <div id="kassaEmptyMsg" class="chips-empty" style="display:none">Sizga biror kassada amaliyot ruxsati berilmagan.</div>
         <div id="curSeg" class="curseg" style="display:none"></div>
         <label>Modda</label>
         <!-- select QOLADI (holat manbai — kodning ~12 joyi $('modda').value bilan ishlaydi),
@@ -644,7 +641,11 @@
              almashganda tanlangan filiallar yo'qolardi (renderFilials bitta konteynerga chizadi). -->
         <div id="filialSlotSimple"><div id="filialWrap">
           <label id="filialLbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
-          <div id="filialChips" class="fchips"></div>
+          <!-- select naqshidagidek: tanlash qidiruvli #filialModal orqali (multi-select,
+               checkbox — modal YOPILMAYDI). Ro'yxat bo'sh (ruxsat cheklangan) bo'lsa tugma
+               yashirin, #filialEmptyMsg chiqadi (mavjud "biriktirilmagan" xabari). -->
+          <button type="button" class="mdl-btn empty" id="filialBtn" onclick="openFilialModal()"><span class="mdl-lbl" id="filialBtnLbl">— filial tanlang —</span><i data-lucide="chevron-down"></i></button>
+          <div id="filialEmptyMsg" class="chips-empty" style="display:none">Filiallar topilmadi</div>
           <div id="filialReq" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
         </div></div>
         <div id="limitWarn" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
@@ -785,6 +786,39 @@
     <input class="txt" id="moddaSearch" placeholder="Qidirish (kod yoki nom)" autocomplete="off" oninput="renderModdaList()">
     <div id="moddaList" class="mdl-list"></div>
     <div class="mdl-acts"><button type="button" onclick="closeModda()">Yopish</button></div>
+  </div>
+</div>
+
+<!-- Oddiy rejim: kassa tanlash (qidiruvli, #moddaModal naqshi) -->
+<div class="mdl-wrap" id="kassaModal" onclick="if(event.target===this)closeKassaModal()">
+  <div class="mdl-box">
+    <h3>Kassa tanlash</h3>
+    <input class="txt" id="kassaSearch" placeholder="Qidirish (nom, kod, filial)" autocomplete="off" oninput="renderKassaList()">
+    <div id="kassaList" class="mdl-list"></div>
+    <div class="mdl-acts"><button type="button" onclick="closeKassaModal()">Yopish</button></div>
+  </div>
+</div>
+
+<!-- Filial tanlash — MULTI-SELECT (checkbox), bosilganda modal YOPILMAYDI (#moddaModal naqshi,
+     lekin bekor/tayyor ikkita amal). Tanlanganlar ro'yxat boshiga ko'chirilmaydi — tartib
+     chalg'itmasin (filials massivi tartibida qoladi). -->
+<div class="mdl-wrap" id="filialModal" onclick="if(event.target===this)closeFilialModal()">
+  <div class="mdl-box">
+    <h3 id="filialModalTitle">Filial tanlash</h3>
+    <input class="txt" id="filialSearch" placeholder="Qidirish (filial nomi)" autocomplete="off" oninput="renderFilialList()">
+    <div id="filialModalList" class="mdl-list"></div>
+    <div class="mdl-acts"><button type="button" onclick="filialClearAll()">Tozalash</button><button type="button" onclick="closeFilialModal()">Tayyor</button></div>
+  </div>
+</div>
+
+<!-- Kengaytirilgan rejim: har satr hisobini tanlash (qidiruvli, #moddaModal naqshi).
+     Bitta umumiy modal — qaysi satr uchun ochilgani accModalIdx da saqlanadi. -->
+<div class="mdl-wrap" id="accModal" onclick="if(event.target===this)closeAccModal()">
+  <div class="mdl-box">
+    <h3>Hisob tanlash</h3>
+    <input class="txt" id="accSearch" placeholder="Qidirish (kod yoki nom)" autocomplete="off" oninput="renderAccList()">
+    <div id="accList" class="mdl-list"></div>
+    <div class="mdl-acts"><button type="button" onclick="closeAccModal()">Yopish</button></div>
   </div>
 </div>
 
@@ -937,23 +971,32 @@ const accByCode=c=>accounts.find(a=>a.code===c);
 // 9110-1 (yo'ldagi tovar) tanlagichda ko'rinmaydi — u 9110 modalidagi "Hujjat hali yo'q"
 // tugmasi orqali dasturiy tanlanadi (yo'ldagi tovar oqimi).
 const modaShow=a=>a.type==='xarajat'&&a.code!=='9110-1';
-function accOptions(sel){
-  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
-  // Hodim kassalari (54xx, kassa_turi='xarajat') — oddiy kassa, faqat alohida guruhda ko'rinadi
-  // BOLA-HISOBLAR bu ro'yxatda YO'Q — na pul turi (· Naqd/Click/Payme), na valyuta
-  // (56xx USD, 57xx CNY…). Ular satr ostidagi segment bilan tanlanadi (lineSeg): aks holda
-  // ro'yxat 60+ hodim × 4 tur bo'lib shishardi va odam ildizni tanlab "puli yo'q" xatosiga
-  // tushardi. Ya'ni bu yerda faqat ILDIZ (parent, UZS) hisoblar turadi.
-  // Shart pul_turi/currency bo'yicha, parent_id bo'yicha EMAS — hodim kassasining
-  // parenti 5400 konteyner, u bola-hisob emas va ro'yxatda qolishi kerak.
+// Kengaytirilgan rejimda hisob endi <select> emas, qidiruvli #accModal — guruhlash
+// shu yerda BIR marta hisoblanadi (accOptions ham, accModal ro'yxati ham shundan oladi,
+// ikkalasi ajralib ketmasin). Hodim kassalari (54xx, kassa_turi='xarajat') — oddiy kassa,
+// faqat alohida guruhda ko'rinadi. BOLA-HISOBLAR bu ro'yxatda YO'Q — na pul turi
+// (· Naqd/Click/Payme), na valyuta (56xx USD, 57xx CNY…). Ular satr ostidagi segment
+// bilan tanlanadi (lineSeg): aks holda ro'yxat 60+ hodim × 4 tur bo'lib shishardi va
+// odam ildizni tanlab "puli yo'q" xatosiga tushardi. Ya'ni bu yerda faqat ILDIZ
+// (parent, UZS) hisoblar turadi. Shart pul_turi/currency bo'yicha, parent_id bo'yicha
+// EMAS — hodim kassasining parenti 5400 konteyner, u bola-hisob emas va ro'yxatda qolishi kerak.
+function accGroups(){
   const kassaOk=a=>isKassa(a)&&(a.currency||'UZS')==='UZS'&&!isTuriChild(a);
   const xk=accounts.filter(a=>kassaOk(a)&&a.kassa_turi==='xarajat');
   const xkId=new Set(xk.map(a=>a.id));
-  return g('Kassalar',accounts.filter(a=>kassaOk(a)&&!xkId.has(a.id)))
-    +g('Xarajat kassalar',xk)
-    +g('Xarajatlar',accounts.filter(modaShow))
-    +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
-    +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
+  return [
+    ['Kassalar',        accounts.filter(a=>kassaOk(a)&&!xkId.has(a.id))],
+    ['Xarajat kassalar',xk],
+    ['Xarajatlar',      accounts.filter(modaShow)],
+    ['Daromadlar',      accounts.filter(a=>a.type==='daromad')],
+    ['Boshqa',          accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad')]
+  ];
+}
+// 🔴 Endi hech qayerda select chizilmaydi — funksiya faqat orqaga moslik uchun qoldi
+// (accGroups ustida yupqa qobiq), boshqa kod uni chaqirmaydi.
+function accOptions(sel){
+  const g=(t,arr)=>arr.length?`<optgroup label="${t}">`+arr.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(accLbl(a))}</option>`).join('')+'</optgroup>':'';
+  return accGroups().map(([t,arr])=>g(t,arr)).join('');
 }
 // Satr tuzilishi: {root_id — selectda tanlangan ILDIZ hisob, account_id — YOZILADIGAN
 // yakuniy hisob (ildiz yoki uning tur bolasi), side, amount}. doSaveAdv faqat account_id'ni
@@ -1039,6 +1082,14 @@ function lineSeg(i,ln){
   return '<div class="curseg">'+btn(ln.root_id,'Kassa',ln.account_id===ln.root_id)
     +kids.map(k=>btn(k.id,esc(subLbl(k)),ln.account_id===k.id)).join('')+'</div>';
 }
+// Satr sarlavhasidagi hisob tugmasi — bosilsa #accModal shu satr uchun ochiladi
+// (accModalIdx). ln.root_id yo'q bo'lsa (bo'sh boshlang'ich holat, amalda bo'lmaydi
+// chunki addLine firstAccId beradi) tugma "tanlanmagan" ko'rinishda chiqadi.
+function accBtnHtml(i,ln){
+  const a=accounts.find(x=>x.id===(ln.root_id||ln.account_id));
+  return `<button type="button" class="mdl-btn${a?'':' empty'}" onclick="openAccModal(${i})">`
+    +`<span class="mdl-lbl">${a?esc(accLbl(a)):'— hisob tanlang —'}</span><i data-lucide="chevron-down"></i></button>`;
+}
 function renderLines(){
   $('lines').innerHTML=lines.map((ln,i)=>{
     const cur=lineCur(ln), val=cur!=='UZS';
@@ -1046,7 +1097,7 @@ function renderLines(){
     return `
     <div class="line">
       <div class="lr">
-        <select onchange="setAcc(${i},this.value)">${accOptions(ln.root_id||ln.account_id)}</select>
+        ${accBtnHtml(i,ln)}
         <button class="rm" onclick="rmLine(${i})"><i data-lucide="x"></i></button>
       </div>
       <div class="lr2">
@@ -1062,10 +1113,10 @@ function renderLines(){
     </div>`;}).join('');
   icons(); updateTotals(); fetchAdvBal(); loadAdvRates();
 }
-// Yangi satrning standart hisobi = dropdowndagi BIRINCHI option. accounts[0] emas:
+// Yangi satrning standart hisobi = accGroups dagi BIRINCHI hisob. accounts[0] emas:
 // tur bola-hisoblari ro'yxatdan chiqarilgani uchun u yerda bo'lmasligi mumkin va
-// select ko'rsatgan hisob bilan lines[i].root_id mos kelmay qolardi.
-function firstAccId(){ const m=accOptions('').match(/value="([^"]+)"/); return m?m[1]:''; }
+// tugma ko'rsatgan hisob bilan lines[i].root_id mos kelmay qolardi.
+function firstAccId(){ for(const g of accGroups()) if(g[1].length) return g[1][0].id; return ''; }
 window.addLine=()=>{ const id=firstAccId(); lines.push({account_id:id,root_id:id,side:'debit',amount:0}); renderLines(); };
 window.rmLine=i=>{ lines.splice(i,1); renderLines(); };
 // Ildiz almashsa tur/valyuta tanlovi bekor bo'ladi (yangi kassaning bolalari boshqa) —
@@ -1075,6 +1126,45 @@ window.setAcc=(i,v)=>{ const ln=lines[i]; if(!ln) return;
   const eski=lineCur(ln); ln.root_id=v; ln.account_id=v;
   if(lineCur(ln)!==eski) ln.amount=0;
   renderLines(); };
+// ---- Kengaytirilgan rejim: hisob tanlash (qidiruvli #accModal, #moddaModal naqshi) ----
+let accModalIdx=null;
+function accMatch(a,words){
+  if(!words.length) return true;
+  const hay=(accLbl(a)+' '+(a.code||'')+' '+(a.name||'')+' '+(a.subtitle||'')).toLowerCase();
+  return words.every(w=>hay.includes(w));
+}
+window.renderAccList=()=>{
+  const box=$('accList'); if(!box) return;
+  const q=($('accSearch')?$('accSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const ln=lines[accModalIdx], cur=ln?(ln.root_id||ln.account_id):'';
+  let html='', n=0;
+  accGroups().forEach(g=>{
+    const list=g[1].filter(a=>accMatch(a,words));
+    if(!list.length) return;
+    n+=list.length;
+    html+='<div class="mdl-grp">'+esc(g[0])+'</div>';
+    html+=list.map(a=>'<button type="button" class="mdl-row'+(a.id===cur?' on':'')+'" onclick="pickAcc(\''+a.id+'\')">'
+      +'<span class="mdl-tick">'+(a.id===cur?'✓':'')+'</span><span class="mdl-main">'
+      +'<span class="mdl-l1">'+esc(a.name)+'</span>'
+      +'<span class="mdl-l2">'+esc(a.code+(a.subtitle?' · '+a.subtitle:''))+'</span></span></button>').join('');
+  });
+  if(!n && words.length) html+='<div class="mdl-empty">Mos hisob yo\'q</div>';
+  box.innerHTML=html; icons();
+};
+window.openAccModal=i=>{
+  accModalIdx=i;
+  const s=$('accSearch'); if(s) s.value='';
+  window.renderAccList();
+  $('accModal').classList.add('open');
+  if(s && window.matchMedia && window.matchMedia('(min-width:900px)').matches){ try{ s.focus(); }catch(e){} }
+};
+window.closeAccModal=()=>{ $('accModal').classList.remove('open'); accModalIdx=null; };
+window.pickAcc=id=>{
+  if(accModalIdx==null) return;
+  window.setAcc(accModalIdx,id);
+  window.closeAccModal();
+};
 // Tur/valyuta tugmasi: null = "Kassa" (ildizning o'zi), aks holda tanlangan bola-hisob.
 // O'lchov birligi almashsa (so'm ↔ valyuta) summa tozalanadi — so'mda terilgan 500 000
 // valyutaga o'tganda 500 000 dollar bo'lib qolmasin (oddiy rejimdagi pickSub bilan bir xil).
@@ -1486,17 +1576,62 @@ function filNom(s){
   const q=t.replace(/\s+kassa\s*$/i,'').trim();
   return q||t;
 }
-function renderFilials(){ const box=$('filialChips');
+// Tugma yorlig'i: renderFilials() endi #filialChips o'rniga #filialBtn (qidiruvli
+// #filialModal, multi-select). filials massivi tartibida (Set tartibi emas) — bir xil
+// filial ro'yxati doim bir xil ketma-ketlikda ko'rinsin.
+function renderFilials(){
   const restricted=window.permFilialScope&&window.permFilialScope()==='list';
-  box.innerHTML=filials.length
-    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
-    : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
+  const btn=$('filialBtn'), lbl=$('filialBtnLbl'), empty=$('filialEmptyMsg');
+  if(btn) btn.style.display = filials.length?'':'none';
+  if(empty){ empty.style.display = filials.length?'none':'block';
+    if(!filials.length) empty.textContent = restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'; }
+  if(lbl){
+    const chosen=filials.filter(f=>selFilials.has(f.id));
+    let text='';
+    if(chosen.length===1) text=filNom(chosen[0].name);
+    else if(chosen.length>=2 && chosen.length<=3) text=chosen.map(f=>filNom(f.name)).join(', ');
+    else if(chosen.length>3) text=chosen.slice(0,2).map(f=>filNom(f.name)).join(', ')+' +'+(chosen.length-2);
+    lbl.textContent = text || '— filial tanlang —';
+    if(btn) btn.classList.toggle('empty', !text);
+  }
+  const fm=$('filialModal');
+  if(fm && fm.classList.contains('open')) window.renderFilialList();
 }
 // updateSimple() shart: filial o'zgarsa limit ogohlantirishi ham qayta hisoblanadi.
 // V10: adv rejimda updateSimple() emas, updateTotals() — saqlash tugmasini o'sha boshqaradi
 // (aks holda filial tanlangach ham tugma o'chiq qolardi).
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials();
   if(curMode==='adv') updateTotals(); else updateSimple(); };
+window.filialClearAll=()=>{ selFilials.clear(); renderFilials();
+  if(curMode==='adv') updateTotals(); else updateSimple(); };
+function filMatch(f,words){
+  if(!words.length) return true;
+  return words.every(w=>filNom(f.name).toLowerCase().includes(w));
+}
+function filialRowHtml(f){
+  const on=selFilials.has(f.id);
+  return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="toggleFilial(\''+f.id+'\')">'
+    +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+    +'<span class="mdl-l1">'+esc(filNom(f.name))+'</span></span></button>';
+}
+window.renderFilialList=()=>{
+  const box=$('filialModalList'); if(!box) return;
+  const q=($('filialSearch')?$('filialSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const list=filials.filter(f=>filMatch(f,words));
+  box.innerHTML = list.length ? list.map(filialRowHtml).join('') : '<div class="mdl-empty">Mos filial yo\'q</div>';
+  icons();
+  const t=$('filialModalTitle');
+  if(t) t.textContent='Filial tanlash'+(selFilials.size?(' · '+selFilials.size+' tanlangan'):'');
+};
+window.openFilialModal=()=>{
+  if(!filials.length) return;   // ruxsat yo'q holatda tugma yashirin, baribir himoya
+  const s=$('filialSearch'); if(s) s.value='';
+  window.renderFilialList();
+  $('filialModal').classList.add('open');
+  if(s && window.matchMedia && window.matchMedia('(min-width:900px)').matches){ try{ s.focus(); }catch(e){} }
+};
+window.closeFilialModal=()=>{ $('filialModal').classList.remove('open'); };
 // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
 async function loadFilials(){
   try{
@@ -1536,18 +1671,93 @@ function effKassa(){ const p=accounts.find(a=>a.id===selKassa); if(!p) return nu
   if(!selSub) return p;
   return accounts.find(a=>a.id===selSub && a.parent_id===selKassa) || p; }
 function kassaList(){ return accounts.filter(a=>isKassa(a) && !isSubChild(a)); }   // faqat parentlar
+// Oddiy rejimdagi kassa tugmasi yorlig'i — chiplar o'rniga (60+ kassa ekranni to'ldirardi).
+// Tanlash #kassaModal (qidiruvli, #moddaModal naqshi) orqali, holat manbai o'zgarmagan (selKassa).
 function renderChips(){
   const ks=kassaList();
   if(ks.length===1) selKassa=ks[0].id;                       // bitta bo'lsa — avtomat tanlangan
   if(selKassa && !ks.some(k=>k.id===selKassa)){ selKassa=null; selSub=null; }
-  $('kassaChips').innerHTML = ks.length
-    ? ks.map(k=>`<button type="button" class="chip${k.id===selKassa?' on':''}" onclick="pickKassa('${k.id}')">`
-        +`<span class="chip-code">${esc(k.code)}</span>`
-        +`<span class="chip-name">${esc(k.name)}${k.subtitle?' · '+esc(k.subtitle):''}</span></button>`).join('')
-    : '<div class="chips-empty">Sizga biror kassada amaliyot ruxsati berilmagan.</div>';
+  const btn=$('kassaBtn'), lbl=$('kassaBtnLbl'), empty=$('kassaEmptyMsg');
+  if(btn) btn.style.display = ks.length?'':'none';
+  if(empty) empty.style.display = ks.length?'none':'block';
+  if(lbl){
+    const k=accounts.find(a=>a.id===selKassa);
+    lbl.textContent = k ? (k.code+' · '+k.name+(k.subtitle?' · '+k.subtitle:'')) : '— kassa tanlang —';
+    if(btn) btn.classList.toggle('empty', !k);
+  }
+  if($('kassaModal') && $('kassaModal').classList.contains('open')) window.renderKassaList();
   renderCurSeg();
   updateSimple();
 }
+// So'nggi tanlangan 3 kassa — modal ochilganda, qidiruv bo'sh bo'lsa yuqorida "So'nggi" guruhi.
+function kassaRecentGet(){
+  try{ const a=JSON.parse(localStorage.getItem('pro-kassa-recent')||'[]'); return Array.isArray(a)?a:[]; }
+  catch(e){ return []; }
+}
+function kassaRecentPush(id){
+  try{
+    const arr=kassaRecentGet().filter(x=>x!==id);
+    arr.unshift(id);
+    localStorage.setItem('pro-kassa-recent', JSON.stringify(arr.slice(0,3)));
+  }catch(e){}
+}
+// Kassa tanlash: qidiruvli modal (#kassaModal), #moddaModal bilan bir xil naqsh.
+function kassaGroups(){
+  const ks=kassaList();
+  const xk=ks.filter(a=>a.kassa_turi==='xarajat');
+  const xkId=new Set(xk.map(a=>a.id));
+  return [
+    ['Kassalar',        ks.filter(a=>!xkId.has(a.id))],
+    ['Xarajat kassalar',xk]
+  ];
+}
+function kassaMatch(a,words){
+  if(!words.length) return true;
+  const hay=(a.code+' '+a.name+' '+(a.subtitle||'')).toLowerCase();
+  return words.every(w=>hay.includes(w));
+}
+function kassaRowHtml(a,cur){
+  return '<button type="button" class="mdl-row'+(a.id===cur?' on':'')+'" onclick="pickKassaFromModal(\''+a.id+'\')">'
+    +'<span class="mdl-tick">'+(a.id===cur?'✓':'')+'</span><span class="mdl-main">'
+    +'<span class="mdl-l1">'+esc(a.name)+(a.subtitle?' · '+esc(a.subtitle):'')+'</span>'
+    +'<span class="mdl-l2">'+esc(a.code)+'</span></span></button>';
+}
+window.renderKassaList=()=>{
+  const box=$('kassaList'); if(!box) return;
+  const q=($('kassaSearch')?$('kassaSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const cur=selKassa||'';
+  const ks=kassaList();
+  let html='', n=0;
+  if(!words.length){
+    const recent=kassaRecentGet().map(id=>ks.find(k=>k.id===id)).filter(Boolean);
+    if(recent.length){
+      html+='<div class="mdl-grp">So\'nggi</div>'+recent.map(a=>kassaRowHtml(a,cur)).join('');
+      n+=recent.length;
+    }
+  }
+  kassaGroups().forEach(g=>{
+    const list=g[1].filter(a=>kassaMatch(a,words));
+    if(!list.length) return;
+    n+=list.length;
+    html+='<div class="mdl-grp">'+esc(g[0])+'</div>'+list.map(a=>kassaRowHtml(a,cur)).join('');
+  });
+  if(!n && words.length) html+='<div class="mdl-empty">Mos kassa yo\'q</div>';
+  box.innerHTML=html; icons();
+};
+window.openKassaModal=()=>{
+  if(!kassaList().length) return;   // ruxsat yo'q holatda tugma yashirin, baribir himoya
+  const s=$('kassaSearch'); if(s) s.value='';
+  window.renderKassaList();
+  $('kassaModal').classList.add('open');
+  if(s && window.matchMedia && window.matchMedia('(min-width:900px)').matches){ try{ s.focus(); }catch(e){} }
+};
+window.closeKassaModal=()=>{ $('kassaModal').classList.remove('open'); };
+window.pickKassaFromModal=id=>{
+  window.closeKassaModal();
+  kassaRecentPush(id);
+  window.pickKassa(id);
+};
 // Pul turi / valyuta segmenti — tanlangan kassada bola-hisob bo'lsa ko'rinadi.
 // Birinchi tugma "Kassa" — parentning o'z qoldig'i (turga ajratilmagan pul).
 // Har tugmada qoldiq yozilib turadi: odam qaysi turdan pul chiqayotganini ko'radi.
@@ -1742,7 +1952,10 @@ document.addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
   // mxdModal birinchi: u boshqa modallar ustidan ochiladi (z-index 240)
   if($('mxdModal')&&$('mxdModal').classList.contains('open')) return window.mxdMClose();
-  const m=$('moddaModal'); if(m&&m.classList.contains('open')) window.closeModda();
+  const m=$('moddaModal'); if(m&&m.classList.contains('open')) return window.closeModda();
+  const km=$('kassaModal'); if(km&&km.classList.contains('open')) return window.closeKassaModal();
+  const fm=$('filialModal'); if(fm&&fm.classList.contains('open')) return window.closeFilialModal();
+  const am=$('accModal'); if(am&&am.classList.contains('open')) return window.closeAccModal();
 });
 // ⚠️ AVTOMAT "000" faqat SO'M uchun. Valyuta hisobi tanlanganda summa
 // valyutada o'qiladi (7 800 $) — "7" tersa "7 000" bo'lib qolishi 1000 barobar
