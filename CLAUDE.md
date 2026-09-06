@@ -850,6 +850,19 @@ Endi EF: yaroqli sessiya + `my_perms()` xatosiz = ruxsat (fail-closed saqlanadi)
 konsolga HTTP status bilan yozadi. **Spidometr moddasi (`spidometr_ai`) endi chekni ham majburiy +
 AI qiladi** (`chekRequired()`/`aiChekOk()` ikkala bayroqni ko'radi): benzin/gaz = chek + tablo.
 
+### Professional'da chek majburiyligi + AI chek (2026-09-06 URGENT, faqat `professional-dev.html`)
+
+Modda 9432 «Internet Tulov» (`ai_tekshir=true`, `chek_majburiy=false`) — buxgalter Professional'dan 12 yozuvni
+cheksiz/AI'siz yozgan. Sabab: `chekRequired()` faqat `chek_majburiy` ni ko'rardi (hodim'da `ai_tekshir`/`spidometr_ai`
+ham), kengaytirilgan rejimda esa chek UMUMAN talab qilinmasdi. Endi `chekFlag(a)` = uchala bayroq (hodim bilan BIR XIL),
+`chekRequired()` rejimga qaraydi: adv → `chekRequiredAdv()` (Dt satr moddasi, `filialRequiredAdv` naqshi), Saqlash
+`updateTotals` da `cok` bilan bloklanadi, `doSaveAdv` alert guard, `chekSync` adv'da `updateTotals()`.
+**AI tahlil** hodim-dev'dan aynan ko'chirildi: `aiChekOk` (adv: `aiModdaAdv()`), `startChekAi` → EF `rasm-detect`
+(user JWT, 25s), `aiSnap()` saqlashdan OLDIN / `aiBind()` KEYIN → RPC `entry_ai_bogla` (egalik `xm_entry_yoz_ok`),
+4 yo'l: `doSaveSimple`, `doSavePending`, `confirmTaqsim` (`taqsimCtx.ai`), `doSaveAdv`. PDF/hujjat → AI yo'q.
+Spidometr (tablo) professional'ga ko'chirilmagan. Ma'lum chegara: adv'da Dt bayroqli modda + Kt kassa satri YO'Q bo'lsa
+fayl biriktirilmaydi (avvaldan shunday).
+
 ### Xarajatga JADVAL biriktirish (2026-09-02, `BRIEF_PROVODKA_JADVAL.md`) — faqat dev
 
 Hodim Excel'dan oziq-ovqat ro'yxatini (40 qator × 5 ustun) Izoh maydoniga qo'yardi — `<input>`
