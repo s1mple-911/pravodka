@@ -357,6 +357,12 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   `t.parent_id = f.id` deb tekshirardi, valyuta hisobi esa ILDIZ kassaga bog'langan. Endi v2 kabi
   `kassa_root(p_to) = kassa_root(p_from)`. Klient (`kassa-dev.html` `cvRoot`) allaqachon shunday edi.
   Konvert modalida kassa qidiruvi `#cvFromQ` (`cvFromRender/cvFromFilter`, nom/kod/pul turi/subtitle).
+- 🔴 **Kurs farqi moddasi (9437) RBAC guardida istisno** (`PROVODKA_KONVERT_FARQ_RUXSAT.sql`, 2026-09-06,
+  RUN kutilmoqda): v3 farqni Dt «Konvert kurs farqi» (`type='xarajat'`) ga yozadi, `trg_rbac_guard_entry_line`
+  esa har xarajat Dt satrini «rolda modda bormi» deb tekshirardi → konvert ruxsati bor buxgalter «9437 …
+  rolingizda yoq» olardi. Endi `rbac_guard_entry_line()` ichida `account_id = conv_farq_hisob_id()` VA
+  `perm_can_convert()` bo'lsa rol tekshirilmaydi (dinamik `execute` — funksiya yo'q bazada guard eskicha).
+  Konvert ruxsati = shu moddaga yozish ruxsati; alohida rol/modda berish KERAK EMAS.
 - `convert_request`ga ustun qo'shilmagan — yo'nalish `from`/`to` hisob valyutasidan tiklanadi
   (`konvert.html` → `yonalish()`).
 
@@ -782,7 +788,13 @@ kirmaydi. Tester isboti: `entry`/`entry_line`/`accounts` faqat 12-BO'LIMda (o'qi
   `v_ehson_azo` `age()`) · `ehson_berish` (izoh NOT NULL ≥3, `ext_ref` takror, faqat soft-bekor) · `ehson_reja`
   (oilada bitta faol) · reja vs fakt = `v_ehson_oy` (jadval emas) · `ehson_tarix` audit. RLS: select
   `ehson_page_ok()`, yozish faqat RPC. Berish/kirim — ruxsatli user; tahrir/bekor/import/reja to'xtatish — admin.
-  Bucket `ehson-hujjat` (private).
+  Bucket `ehson-hujjat` (private). 🔴 **`storage.objects` policy'siga qo'yilgan funksiya `authenticated` ga
+  OCHIQ bo'lishi SHART** (2026-09-06 prod sabog'i): `_ehson_is_admin()` «ichki» deb revoke qilingan edi, lekin
+  storage.objects bitta jadval — policy'lar OR bilan yig'iladi va `bucket_id=… and fn()` short-circuit'siz
+  baholanadi → `xarajat-cheklari`/`rasm-tahlil`/`qarz-tilxat` ga yuklashda ham HAMMA non-admin user
+  «permission denied for function _ehson_is_admin» olardi (yozuv saqlanib, chek yuklanmasdi). Grant
+  `PROVODKA_KONVERT_FARQ_RUXSAT.sql` 2-bo'lim + `PROVODKA_EHSON.sql` moslashtirildi. Yangi bucket policy
+  yozganda funksiya grantini tekshir.
 - **Excel** (`Ehson_oilalar_jadvali_togrilangan.xlsx` namuna, 3 varaq): import faqat aynan shu sarlavhalar bilan,
   upsert `oila_kod`/`azo_kod`, «Yoshi» ustunlari tashlanadi, «Ehson tarixi» v1 da import qilinmaydi.
 - Bosqichlar (ARX 7): 1 SQL+skelet+ruxsat ✅ · 2 jamg'arma+kirim ✅ · 3 oilalar+a'zolar+Excel ✅ · 4 berish ✅ · 5 bu oy ✅ · 6 tarix+stat+designer ✅.

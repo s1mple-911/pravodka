@@ -154,7 +154,12 @@ begin
 end
 $ehson_is_admin_setup$;
 
-revoke all on function _ehson_is_admin() from public, anon, authenticated;
+revoke all on function _ehson_is_admin() from public, anon;
+-- 2026-09-06 (PROVODKA_KONVERT_FARQ_RUXSAT.sql): authenticated uchun EXECUTE OCHIQ —
+-- storage.objects policy (13-bolim) ichida chaqiriladi; policy'lar OR bilan
+-- yigilgani uchun BOSHQA bucket'ga yuklashda ham baholanadi, yopiq bolsa hamma
+-- non-admin user 42501 olardi (chek yuklanmasdi). Faqat boolean qaytaradi.
+grant execute on function _ehson_is_admin() to authenticated;
 
 comment on function _ehson_is_admin() is
   'ICHKI: admin tekshiruvi. is_admin() bor bo''lsa shuni, bo''lmasa profiles.role=admin ni ishlatadi. '
@@ -2526,8 +2531,8 @@ begin
   if has_function_privilege('anon', 'public.ehson_ber(jsonb)', 'execute') then
     raise exception 'ehson_ber(jsonb) anon uchun ochiq qolgan';
   end if;
-  if has_function_privilege('authenticated', 'public._ehson_is_admin()', 'execute') then
-    raise exception '_ehson_is_admin() authenticated uchun ochiq qolgan (ICHKI bulishi kerak)';
+  if not has_function_privilege('authenticated', 'public._ehson_is_admin()', 'execute') then
+    raise exception '_ehson_is_admin() authenticated uchun yopiq — storage policy hamma bucket uchun 42501 beradi (2026-09-06)';
   end if;
 
   -- 11.9 Bucket
