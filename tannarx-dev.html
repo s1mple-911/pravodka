@@ -34,6 +34,7 @@
     --primary-line:rgba(30,168,58,.30);--primary-chip:rgba(30,168,58,.14);--on-primary:#fff;
     --green:#1ea83a;--green-soft:#e6f6ea;
     --red:#d92d20;--red-soft:#fef3f2;--red-ink:#b42318;--red-line:rgba(217,45,32,.20);
+    --amber:#b54708;--amber-soft:#fef0c7;
     --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
     --shadow-hover:0 6px 16px rgba(16,24,40,.10);--shadow-lg:0 16px 40px rgba(16,24,40,.18);
     --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s7:32px;
@@ -47,6 +48,7 @@
     --primary-line:rgba(46,194,74,.34);--primary-chip:rgba(46,194,74,.18);--on-primary:#07130b;
     --green:#2ec24a;--green-soft:#12281a;
     --red:#ff6259;--red-soft:#33150f;--red-ink:#ff8a82;--red-line:rgba(255,98,89,.28);
+    --amber:#fdb022;--amber-soft:#2e1e05;
     --shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55);--shadow-lg:0 18px 44px rgba(0,0,0,.6);
     --ic-chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a93a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -227,6 +229,16 @@
   .pill.g{background:var(--primary-soft);color:var(--primary-ink)}
   .pill.gray{background:var(--surface-2);color:var(--muted)}
   .pill.b{background:var(--primary-soft);color:var(--primary-ink)}
+  /* ===== Aros bojxona limiti — kichik ko'rsatkich (jadval katagida) ===== */
+  .bojx{min-width:104px}
+  .bojx-top{font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .bojx-top.warn{color:var(--amber)}
+  .bojx-top.over{color:var(--red-ink)}
+  .bojx-bar{height:5px;border-radius:999px;background:var(--surface-2);margin-top:3px;overflow:hidden}
+  .bojx-bar span{display:block;height:100%;border-radius:999px;background:var(--primary)}
+  .bojx-bar span.warn{background:var(--amber)}
+  .bojx-bar span.over{background:var(--red-ink)}
+  .tmsg.warn{color:var(--amber);background:var(--amber-soft)}
   /* ===== skeleton (birinchi yuklash) ===== */
   .skel{height:12px;border-radius:6px;background:var(--surface-2);position:relative;overflow:hidden}
   .skel::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
@@ -605,6 +617,7 @@
       </div>
     </div>
     <div class="tsum" id="tanSum"></div>
+    <div class="tsum" id="tanBoj"></div>
     <div class="tmsg" id="tanMsg" role="status" aria-live="polite"></div>
     <div class="tacts">
       <button type="button" onclick="closeTan()">Bekor</button>
@@ -721,7 +734,7 @@ const LOADSKEL='<div class="ldsk" aria-hidden="true">'+SKEL_ROW+SKEL_ROW+SKEL_RO
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
 const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
-let yuklar=[], rateMap={}, tanMap={}, sabablar=[];
+let yuklar=[], rateMap={}, tanMap={}, sabablar=[], bojxonaMap={};
 let sel=new Set(), openDet=new Set(), filt='all', isAdmin=false;
 // RPC hali bazada bo'lmasligi mumkin — sahifa shundan sinmasin, faqat ustun "—" bo'ladi.
 let tanRpcErr='', sababRpcErr='';
@@ -737,6 +750,12 @@ function tanOf(y){ const t=tanMap&&tanMap[String(y.id)]; return (t&&typeof t==='
 function qoshilgan(y){ const t=tanOf(y); return t?(Number(t.jami_uzs)||0):0; }
 function qatorlarOf(y){ const t=tanOf(y); return (t&&Array.isArray(t.qatorlar))?t.qatorlar:[]; }
 function jamiTannarx(y){ const n=narxUzs(y); return (n==null)?null:n+qoshilgan(y); }
+// yuk_bojxona_jami: { "1204": {bojxona_uzs,fare_uzs,limit_uzs,qoshilgan_uzs,qoldi_uzs,rejim,currency,synced_at} }
+// — faqat Aros bilan sinxron bo'lgan yuklar uchun kalit bor. RPC hali bazada bo'lmasligi
+// mumkin — loadBojxona() jim (konsol warn) qoladi, bu yerda faqat "ma'lumot yo'q" holati.
+function bojOf(y){ const b=bojxonaMap&&bojxonaMap[String(y.id)]; return (b&&typeof b==='object')?b:null; }
+function bojQoldi(b){ if(!b||b.limit_uzs==null) return null; const lim=Number(b.limit_uzs); if(!isFinite(lim)) return null;
+  return (b.qoldi_uzs!=null)?Number(b.qoldi_uzs):(lim-(Number(b.qoshilgan_uzs)||0)); }
 
 function showBanner(txt,ok){ const b=$('banner'); if(!txt){ b.style.display='none'; return; }
   b.textContent=txt; b.className='banner'+(ok?' ok':''); b.style.display='block'; }
@@ -758,7 +777,7 @@ window.loadYuklar=async(mode)=>{
   const key='yuk:'+from+':'+to;
   if(mode!=='fresh'){
     const c=swrGet(key);
-    if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; fillOmbor(); renderYuklar(); }
+    if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; fillOmbor(); renderYuklar(); }
     else $('yukBody').innerHTML=LOADSKEL;
   }
   let arr;
@@ -772,14 +791,15 @@ window.loadYuklar=async(mode)=>{
   yuklar=arr;
   const ids=yuklar.map(y=>Number(y.id)).filter(x=>Number.isFinite(x));
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
-  rateMap={}; tanMap={};
+  rateMap={}; tanMap={}; bojxonaMap={};
   if(curs.length){ const {data:kr,error}=await sb.rpc('yuk_kurslar',{p_curs:curs});
     if(!error) rateMap=kr||{}; }
   // ⚠️ Tannarx XATO bergan bo'lsa keshga YOZMAYMIZ: bo'sh tanMap keshlansa
   // keyingi ochilishda "Qo'shilgan" ustuni bannersiz "—" bo'lib chiqardi
   // (foydalanuvchi qiymat yo'q deb o'ylardi). Xato bo'lsa kesh eskiligicha qoladi.
-  const tanOk=ids.length?await loadTannarx(ids):true;
-  if(tanOk) swrSet(key,{yuklar,rateMap,tanMap});
+  // Bojxona (yuk_bojxona_jami) parallel — u alohida, jim (kod 4-bo'limga qara).
+  const [tanOk]=ids.length?await Promise.all([loadTannarx(ids),loadBojxona(ids)]):[true];
+  if(tanOk) swrSet(key,{yuklar,rateMap,tanMap,bojxonaMap});
   fillOmbor(); renderYuklar();
 };
 
@@ -794,6 +814,17 @@ async function loadTannarx(ids){
   // keyingi "Saqlandi…" xabari darrov o'chib ketardi (tanSave → loadYuklar('fresh')).
   if(tanRpcErr){ tanRpcErr=''; showBanner(''); }
   return true;
+}
+
+/* Aros bojxona limiti (yuk_bojxona_jami). Bu RPC SQL RUN qilinmaguncha bazada
+   bo'lmasligi mumkin — tannarxdan farqli, bu yerda banner CHIQARILMAYDI (jim,
+   faqat konsol warn): ustun shunchaki "—" bo'lib qoladi, sahifa sinmaydi. */
+async function loadBojxona(ids){
+  try{
+    const {data,error}=await sb.rpc('yuk_bojxona_jami',{p_ids:ids});
+    if(error){ console.warn('yuk_bojxona_jami:',error.message||error); bojxonaMap={}; return; }
+    bojxonaMap=(data&&typeof data==='object')?data:{};
+  }catch(e){ console.warn('yuk_bojxona_jami istisno:',e); bojxonaMap={}; }
 }
 
 function fillOmbor(){
@@ -826,6 +857,24 @@ function yakuniyHtml(rows){
     +' · qo\'shilgan tannarx <b>'+money(qosh)+'</b>'
     +' · jami <b>'+money(aros+qosh)+' so\'m</b>'
     +(kurssiz?' · <span class="kz"><b>'+kurssiz+' ta</b> kurssiz (hisobga olinmadi)</span>':'')
+    +'</div>';
+}
+
+/* Aros bojxona limiti — kichik ko'rsatkich. Ma'lumot yo'q yuk (Aros hali sinxron
+   qilmagan) → kulrang tire, title bilan sabab tushuntiriladi. */
+function bojCellHtml(y){
+  const b=bojOf(y);
+  if(!b||b.limit_uzs==null) return '<span class="dash" title="Yuk Bojxona Sync hali sinxron qilmagan">—</span>';
+  // Bojxona 0 (rejim 'yoq') — server ham tekshirmaydi, "0 / 0" chalg'itmasin (tester 2026-09-06)
+  if(!(Number(b.limit_uzs)>0)) return '<span class="dash" title="Aros\'da bu yuk uchun bojxona kiritilmagan — limit tekshirilmaydi">—</span>';
+  const lim=Number(b.limit_uzs)||0, qosh=Number(b.qoshilgan_uzs)||0;
+  const pct=lim>0?Math.round(qosh/lim*100):0;
+  const cls=pct>=100?'over':(pct>=90?'warn':'');
+  const rejimTxt=b.rejim==='doc'?'Hujjat darajasida (bir xil limit)':(b.rejim==='item'?'Har tovar alohida':'');
+  const title='Aros bojxona limiti: '+money(lim)+' so\'m'+(rejimTxt?' · '+rejimTxt:'');
+  return '<div class="bojx" title="'+esc(title)+'">'
+    +'<div class="bojx-top'+(cls?' '+cls:'')+'">'+money(qosh)+' / '+money(lim)+'</div>'
+    +'<div class="bojx-bar"><span class="'+cls+'" style="width:'+Math.max(0,Math.min(100,pct))+'%"></span></div>'
     +'</div>';
 }
 
@@ -862,6 +911,7 @@ function renderYuklar(){
       +'<td class="num c-aros" data-l="Aros narxi">'+narxTxt+'</td>'
       +'<td class="num c-qo" data-l="Qo\'shilgan">'+qoTxt+'</td>'
       +'<td class="num c-jami" data-l="Jami tannarx">'+jamiTxt+'</td>'
+      +'<td data-l="Aros bojxona">'+bojCellHtml(y)+'</td>'
       +'<td data-l="Qatorlar">'+qsTxt+'</td>'
       +'</tr>';
     if(openDet.has(id)&&qs.length){
@@ -871,14 +921,14 @@ function renderYuklar(){
         +'<div class="dt2">'+dF(q.sana)+(q.kim?' · '+esc(q.kim):'')+(q.izoh?' · '+esc(q.izoh):'')+'</div></div>'
         +'<div class="damt">'+money(q.summa_uzs)+'</div>'
         +'<button type="button" class="ddel" title="O\'chirish" onclick="tanOchir(\''+esc(q.id)+'\')"><i data-lucide="trash-2"></i></button></div>').join('');
-      tr+='<tr class="drow"><td colspan="9"><div class="dlist">'+items+'</div></td></tr>';
+      tr+='<tr class="drow"><td colspan="10"><div class="dlist">'+items+'</div></td></tr>';
     }
     return tr;
   }).join('');
   $('yukBody').innerHTML='<div class="yscroll"><table class="ytbl"><thead><tr>'
     +'<th><input type="checkbox" class="ck" id="ckAll"'+(allOn?' checked':'')+' onchange="toggleAll(this)" aria-label="Hammasini tanlash"></th>'
     +'<th>ID</th><th>Sana</th><th>Ombor</th><th>Yetkazib beruvchi</th><th class="num">Aros narxi</th>'
-    +'<th class="num">Qo\'shilgan tannarx</th><th class="num hi">Jami tannarx</th><th>Qatorlar</th>'
+    +'<th class="num">Qo\'shilgan tannarx</th><th class="num hi">Jami tannarx</th><th>Aros bojxona</th><th>Qatorlar</th>'
     +'</tr></thead><tbody>'+body+'</tbody></table></div>'
     +yakuniyHtml(rows);
   renderSelbar();
@@ -1014,26 +1064,56 @@ window.tanEqual=()=>{ tanEqualCalc(); renderTanRows(); tanValidate(); };
 function renderTanRows(){
   $('tanRows').innerHTML=tanYuks.map(y=>{
     const id=Number(y.id), v=Number(tanAlloc[id])||0;
+    const b=bojOf(y), qoldi=bojQoldi(b);
+    // Aros bojxona qoldig'i — ma'lumot bo'lsa .tf2 satriga qo'shiladi (ombor keyin).
+    const bojTxt=(b&&qoldi!=null)?(' · bojxona qoldi '+money(qoldi)):'';
     return '<div class="talloc"><div class="tfn"><div class="tf1">#'+esc(y.id)+'</div>'
-      +'<div class="tf2">'+esc(y.ombor||'—')+'</div></div>'
+      +'<div class="tf2">'+esc(y.ombor||'—')+bojTxt+'</div></div>'
       +'<input inputmode="numeric" placeholder="0" value="'+(v?money(v):'')+'" oninput="setTanAlloc('+id+',this)" aria-label="Yuk summasi"></div>';
   }).join('');
 }
 window.setTanAlloc=(id,el)=>{ id=Number(id); const raw=(el.value||'').replace(/\D/g,'');
   tanAlloc[id]=Number(raw)||0; el.value=raw?money(raw):''; tanValidate(); };
 window.onTanSumma=el=>{ fmtAmt(el); if(tanYuks.length>1){ tanEqualCalc(); renderTanRows(); } tanValidate(); };
+/* Aros bojxona limitini oldindan tekshiradi — yakuniy so'zni server aytadi
+   (`yuk_tannarx_qosh` `{ok:false,kod:'limit'}`), bu yerda faqat ogohlantirish.
+   Qaytishi: {rows: html qatorlar, missing: n, viol: [{y,qoldi,limit,amtY}]}. */
+function bojCheck(multi,amt){
+  const rows=[]; let missing=0; const viol=[];
+  tanYuks.forEach(y=>{
+    const b=bojOf(y);
+    const amtY=multi?(Number(tanAlloc[Number(y.id)])||0):amt;
+    if(!b||b.limit_uzs==null){ missing++; return; }
+    const qoldi=bojQoldi(b), limit=Number(b.limit_uzs)||0;
+    const over=qoldi!=null&&amtY>qoldi;
+    if(over) viol.push({y,qoldi,limit,amtY});
+    rows.push('<div class="tsrow"><span>Yuk #'+esc(y.id)+' bojxona qoldig\'i</span>'
+      +'<b'+(over?' style="color:var(--red-ink)"':'')+'>'+money(qoldi)+'</b></div>');
+  });
+  return {rows,missing,viol};
+}
 window.tanValidate=()=>{
   const msg=$('tanMsg'), btn=$('tanSaveBtn');
   const sabab=Number($('tanSabab').value)||0, amt=tanTotal();
   const multi=tanYuks.length>1, alloc=allocTotal(), diff=alloc-amt;
   $('tanSum').innerHTML='<div class="tsrow"><span>Umumiy summa</span><b>'+money(amt)+' so\'m</b></div>'
     +(multi?'<div class="tsrow"><span>Taqsimlangan ('+tanYuks.length+' yuk)</span><b>'+money(alloc)+' so\'m</b></div>':'');
+  const boj=bojCheck(multi,amt);
+  let bojHtml=boj.rows.join('');
+  if(boj.missing) bojHtml+='<div class="tmsg warn" style="margin-top:'+(boj.rows.length?'8px':'0')+'">Aros bojxona ma\'lumoti yo\'q ('
+    +boj.missing+' ta yuk) — limit tekshirilmaydi</div>';
+  $('tanBoj').innerHTML=bojHtml;
   let m='',ok=false;
   if(!sabab) m='Sababni tanlang';
   else if(amt<=0) m='Summa kiriting';
   else if(multi&&diff<0) m='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m';
   else if(multi&&diff>0) m='Ortiqcha: '+money(diff)+' so\'m';
   else if(multi&&tanYuks.some(y=>(Number(tanAlloc[Number(y.id)])||0)<=0)) m='Har yukka summa yozing';
+  else if(boj.viol.length){
+    const v=boj.viol[0];
+    m='Yuk #'+v.y.id+': Aros bojxona limiti '+money(v.limit)+', qoldi '+money(v.qoldi)+' — oshib ketdi'
+      +(boj.viol.length>1?' (yana '+(boj.viol.length-1)+' ta yuk)':'');
+  }
   else { ok=true; m='✓ '+tanYuks.length+' ta yukka '+money(amt)+' so\'m'; }
   msg.textContent=m; msg.className='tmsg '+(ok?'ok':'no'); btn.disabled=!ok;
   return ok;
