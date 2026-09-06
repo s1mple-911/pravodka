@@ -624,7 +624,7 @@ as $yolda_farq$
            order by t.sent_at desc nulls last), '[]'::jsonb)
     from aros_transfer_yolda t
    where auth.uid() is not null
-     and t.transfer_id = any(coalesce(p_ids, '{}'::text[])[1:500])
+     and t.transfer_id = any((coalesce(p_ids, '{}'::text[]))[1:500])
      and yolda_korish_ok(t.sender_id, t.receiver_id);
 $yolda_farq$;
 
