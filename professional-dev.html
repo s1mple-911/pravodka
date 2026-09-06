@@ -641,7 +641,11 @@
              almashganda tanlangan filiallar yo'qolardi (renderFilials bitta konteynerga chizadi). -->
         <div id="filialSlotSimple"><div id="filialWrap">
           <label id="filialLbl">Filial <span style="font-weight:400">(ixtiyoriy — bir nechta)</span></label>
-          <div id="filialChips" class="fchips"></div>
+          <!-- select naqshidagidek: tanlash qidiruvli #filialModal orqali (multi-select,
+               checkbox — modal YOPILMAYDI). Ro'yxat bo'sh (ruxsat cheklangan) bo'lsa tugma
+               yashirin, #filialEmptyMsg chiqadi (mavjud "biriktirilmagan" xabari). -->
+          <button type="button" class="mdl-btn empty" id="filialBtn" onclick="openFilialModal()"><span class="mdl-lbl" id="filialBtnLbl">— filial tanlang —</span><i data-lucide="chevron-down"></i></button>
+          <div id="filialEmptyMsg" class="chips-empty" style="display:none">Filiallar topilmadi</div>
           <div id="filialReq" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
         </div></div>
         <div id="limitWarn" class="simplewarn" style="display:none;text-align:left;margin:6px 0 14px 2px"></div>
@@ -792,6 +796,18 @@
     <input class="txt" id="kassaSearch" placeholder="Qidirish (nom, kod, filial)" autocomplete="off" oninput="renderKassaList()">
     <div id="kassaList" class="mdl-list"></div>
     <div class="mdl-acts"><button type="button" onclick="closeKassaModal()">Yopish</button></div>
+  </div>
+</div>
+
+<!-- Filial tanlash — MULTI-SELECT (checkbox), bosilganda modal YOPILMAYDI (#moddaModal naqshi,
+     lekin bekor/tayyor ikkita amal). Tanlanganlar ro'yxat boshiga ko'chirilmaydi — tartib
+     chalg'itmasin (filials massivi tartibida qoladi). -->
+<div class="mdl-wrap" id="filialModal" onclick="if(event.target===this)closeFilialModal()">
+  <div class="mdl-box">
+    <h3 id="filialModalTitle">Filial tanlash</h3>
+    <input class="txt" id="filialSearch" placeholder="Qidirish (filial nomi)" autocomplete="off" oninput="renderFilialList()">
+    <div id="filialModalList" class="mdl-list"></div>
+    <div class="mdl-acts"><button type="button" onclick="filialClearAll()">Tozalash</button><button type="button" onclick="closeFilialModal()">Tayyor</button></div>
   </div>
 </div>
 
@@ -1560,17 +1576,62 @@ function filNom(s){
   const q=t.replace(/\s+kassa\s*$/i,'').trim();
   return q||t;
 }
-function renderFilials(){ const box=$('filialChips');
+// Tugma yorlig'i: renderFilials() endi #filialChips o'rniga #filialBtn (qidiruvli
+// #filialModal, multi-select). filials massivi tartibida (Set tartibi emas) — bir xil
+// filial ro'yxati doim bir xil ketma-ketlikda ko'rinsin.
+function renderFilials(){
   const restricted=window.permFilialScope&&window.permFilialScope()==='list';
-  box.innerHTML=filials.length
-    ? filials.map(f=>`<button type="button" class="fchip${selFilials.has(f.id)?' on':''}" onclick="toggleFilial('${f.id}')">${esc(filNom(f.name))}</button>`).join('')
-    : `<div class="chips-empty">${restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'}</div>`;
+  const btn=$('filialBtn'), lbl=$('filialBtnLbl'), empty=$('filialEmptyMsg');
+  if(btn) btn.style.display = filials.length?'':'none';
+  if(empty){ empty.style.display = filials.length?'none':'block';
+    if(!filials.length) empty.textContent = restricted?'Sizga filial biriktirilmagan':'Filiallar topilmadi'; }
+  if(lbl){
+    const chosen=filials.filter(f=>selFilials.has(f.id));
+    let text='';
+    if(chosen.length===1) text=filNom(chosen[0].name);
+    else if(chosen.length>=2 && chosen.length<=3) text=chosen.map(f=>filNom(f.name)).join(', ');
+    else if(chosen.length>3) text=chosen.slice(0,2).map(f=>filNom(f.name)).join(', ')+' +'+(chosen.length-2);
+    lbl.textContent = text || '— filial tanlang —';
+    if(btn) btn.classList.toggle('empty', !text);
+  }
+  const fm=$('filialModal');
+  if(fm && fm.classList.contains('open')) window.renderFilialList();
 }
 // updateSimple() shart: filial o'zgarsa limit ogohlantirishi ham qayta hisoblanadi.
 // V10: adv rejimda updateSimple() emas, updateTotals() — saqlash tugmasini o'sha boshqaradi
 // (aks holda filial tanlangach ham tugma o'chiq qolardi).
 window.toggleFilial=id=>{ if(selFilials.has(id)) selFilials.delete(id); else selFilials.add(id); renderFilials();
   if(curMode==='adv') updateTotals(); else updateSimple(); };
+window.filialClearAll=()=>{ selFilials.clear(); renderFilials();
+  if(curMode==='adv') updateTotals(); else updateSimple(); };
+function filMatch(f,words){
+  if(!words.length) return true;
+  return words.every(w=>filNom(f.name).toLowerCase().includes(w));
+}
+function filialRowHtml(f){
+  const on=selFilials.has(f.id);
+  return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="toggleFilial(\''+f.id+'\')">'
+    +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+    +'<span class="mdl-l1">'+esc(filNom(f.name))+'</span></span></button>';
+}
+window.renderFilialList=()=>{
+  const box=$('filialModalList'); if(!box) return;
+  const q=($('filialSearch')?$('filialSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const list=filials.filter(f=>filMatch(f,words));
+  box.innerHTML = list.length ? list.map(filialRowHtml).join('') : '<div class="mdl-empty">Mos filial yo\'q</div>';
+  icons();
+  const t=$('filialModalTitle');
+  if(t) t.textContent='Filial tanlash'+(selFilials.size?(' · '+selFilials.size+' tanlangan'):'');
+};
+window.openFilialModal=()=>{
+  if(!filials.length) return;   // ruxsat yo'q holatda tugma yashirin, baribir himoya
+  const s=$('filialSearch'); if(s) s.value='';
+  window.renderFilialList();
+  $('filialModal').classList.add('open');
+  if(s && window.matchMedia && window.matchMedia('(min-width:900px)').matches){ try{ s.focus(); }catch(e){} }
+};
+window.closeFilialModal=()=>{ $('filialModal').classList.remove('open'); };
 // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
 async function loadFilials(){
   try{
@@ -1893,6 +1954,7 @@ document.addEventListener('keydown',e=>{
   if($('mxdModal')&&$('mxdModal').classList.contains('open')) return window.mxdMClose();
   const m=$('moddaModal'); if(m&&m.classList.contains('open')) return window.closeModda();
   const km=$('kassaModal'); if(km&&km.classList.contains('open')) return window.closeKassaModal();
+  const fm=$('filialModal'); if(fm&&fm.classList.contains('open')) return window.closeFilialModal();
   const am=$('accModal'); if(am&&am.classList.contains('open')) return window.closeAccModal();
 });
 // ⚠️ AVTOMAT "000" faqat SO'M uchun. Valyuta hisobi tanlanganda summa
