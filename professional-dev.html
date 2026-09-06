@@ -1469,6 +1469,9 @@ function updateFilialUI(){
 //   · storage RLS 1-papkani kassa id deb tekshiradi (PROVODKA_HODIM_V3.sql) → kassa MAJBURIY,
 //   · jurnal-dev.html papkani ro'yxatlab 📎 belgisini shu nomdan topadi (SQL kerak emas).
 let chekBlob=null, chekExt='jpg', chekType='image/jpeg', chekName='';
+// aiTahlil — {id, tur:'chek', holat:'kutilmoqda'|'ok'|'xato'}. hodim-dev.html bilan BIR XIL
+// oqim (2026-09-06): `id` klientda OLDINDAN yaratiladi, saqlash AI javobini kutmaydi.
+let aiTahlil=null;
 const CHEK_MAX=15*1024*1024;                 // rasm bo'lmagan fayl chegarasi
 const CHEK_EXT=['pdf','doc','docx','xls','xlsx','csv','txt','jpg','jpeg','png','webp','heic','heif'];
 const IMG_EXT=['jpg','jpeg','png','webp','heic','heif'];
@@ -1520,6 +1523,101 @@ function setChekDoc(name,size){
   $('chekPrev').innerHTML=`<div class="chekdoc"><i data-lucide="file-text"></i><span class="fnm">${esc(name)}</span><span class="fsz">${esc(fmtSize(size))}</span></div>`
     +`<button type="button" class="chekrm" onclick="removeChek()"><i data-lucide="x"></i>O'chirish</button>`;
 }
+/* ================= AI chek tahlili (hodim-dev.html bilan BIR XIL oqim, 2026-09-06) =================
+   🔴 Faqat RASM uchun — PDF/hujjat AI'ga yuborilmaydi (hodim-dev.html'da ham faqat chek surat bor).
+   🔴 To'liq fon: buxgalter AI borligini umuman bilmaydi — belgi/toast yo'q, natija faqat DB'da
+   (`entry.rasm_tahlil_id`), admin/jurnal ko'radi. Ikkinchi implementatsiya emas — SHU naqsh. */
+function genUuid(){
+  try{ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0, v=(c==='x')?r:(r&0x3|0x8); return v.toString(16); });
+}
+// AI bayrog'i — `chek_majburiy` KIRMAYDI (chek majburiy bo'lishi mumkin, AI'siz ham).
+function aiFlag(a){ return !!(a&&(a.ai_tekshir||a.spidometr_ai)); }
+// Kengaytirilgan rejim: modda dropdowni yo'q — AI bayrog'i bor BIRINCHI Dt moddasi
+// (chekRequiredAdv naqshi bilan bir xil qidiruv), kontekst nomi ham shundan olinadi.
+function aiModdaAdv(){
+  for(const l of (lines||[])){
+    if(l.side!=='debit') continue;
+    let a=accounts.find(x=>x.id===l.account_id); if(a&&aiFlag(a)) return a;
+    a=accounts.find(x=>x.id===l.root_id); if(a&&aiFlag(a)) return a;
+  }
+  return null;
+}
+function aiChekOk(){ return curMode==='adv' ? !!aiModdaAdv() : aiFlag(moddaObj()); }
+function b64Read(blob){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=()=>rej(new Error('fayl o\'qilmadi'));
+    r.onload=()=>{ const s=String(r.result||''); const i=s.indexOf(','); res(i<0?'':s.slice(i+1)); };
+    r.readAsDataURL(blob);
+  });
+}
+// EF `rasm-detect` — 25s qattiq umumiy chegara (hodim-dev.html bilan bir xil naqsh).
+async function aiDetectSend(id,tur,blob,kontekst){
+  const ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  const work=(async()=>{
+    const {data:sess,error:sErr}=await sb.auth.getSession();
+    if(sErr) console.error('AI tahlil: sessiya o\'qilmadi',sErr);
+    const token=sess&&sess.session&&sess.session.access_token;
+    if(!token) return null;
+    const b64=await b64Read(blob);
+    const res=await fetch(SUPABASE_URL+'/functions/v1/rasm-detect',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':SUPABASE_ANON_KEY},
+      body:JSON.stringify({id, tur, image:{media_type:'image/jpeg', data:b64}, kontekst:kontekst||{}}),
+      signal:ctrl?ctrl.signal:undefined
+    });
+    let data=null; try{ data=await res.json(); }catch(e){}
+    if(!res.ok||!data||data.error){
+      console.error('AI tahlil ('+tur+'): EF xato — HTTP '+res.status+(data&&data.code?' · '+data.code:'')+(data&&data.error?' · '+data.error:''));
+      return null;
+    }
+    return data;
+  })();
+  let timer;
+  const timeout=new Promise((_,rej)=>{ timer=setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} rej(new Error('timeout')); },25000); });
+  try{ return await Promise.race([work, timeout]); }
+  catch(e){
+    if(e&&e.name==='AbortError') console.error('AI tahlil: vaqt tugadi ('+tur+')');
+    else console.error('AI tahlil xatosi ('+tur+'):',e);
+    return null;
+  } finally { clearTimeout(timer); }
+}
+// Chek tahlili — rasm tanlanganda fire-and-forget chaqiriladi. `blob` — allaqachon
+// siqilgan chek surati (1200px), asl fayl emas (hodim-dev.html bilan bir xil).
+function startChekAi(blob){
+  const id=genUuid();
+  aiTahlil={id, tur:'chek', holat:'kutilmoqda'};
+  setTimeout(()=>{ if(aiTahlil&&aiTahlil.id===id&&aiTahlil.holat==='kutilmoqda') aiTahlil.holat='xato'; },30000);
+  (async()=>{
+    let small;
+    try{ small=await compressImage(blob,800,0.7); }
+    catch(e){ if(aiTahlil&&aiTahlil.id===id) aiTahlil.holat='xato'; return; }
+    if(!aiTahlil||aiTahlil.id!==id) return;   // shu orada chek almashtirildi — eskirgan urinish
+    const modda=curMode==='adv'?aiModdaAdv():moddaObj();
+    const kontekst={modda_nomi:(modda&&modda.name)||'', mashina_nomi:''};
+    const data=await aiDetectSend(id,'chek',small,kontekst);
+    if(!aiTahlil||aiTahlil.id!==id) return;   // forma o'zgargan — javob e'tiborsiz
+    if(!data){ aiTahlil.holat='xato'; return; }
+    aiTahlil.holat='ok';   // 🔴 "chek_emas" bo'lsa ham 'ok' — shubha DB'da qoladi, buxgalterga sezdirilmaydi
+  })();
+}
+// Saqlashdan OLDIN chaqiriladi (mxdValues() bilan bir xil qoida — forma tozalanishidan
+// oldin olinadi, aks holda removeChek() aiTahlil ni saqlashdan oldin tozalab qo'yadi).
+function aiSnap(){ return { aiId:(aiTahlil&&aiTahlil.id)||null }; }
+// Saqlashdan keyin FONDA — hech qachon saqlashni bloklamaydi, xato jim (console).
+async function aiBind(entryIds, snap){
+  if(!snap||!snap.aiId) return;
+  const ids=Array.isArray(entryIds)?entryIds:[entryIds];
+  for(const eid of ids){
+    if(!eid) continue;
+    try{
+      const {error}=await sb.rpc('entry_ai_bogla',{p_entry:eid, p_tahlil:snap.aiId, p_spidometr:null});
+      if(error) console.error('entry_ai_bogla xatosi:',error);
+    }catch(e){ console.error('entry_ai_bogla xatosi:',e); }
+  }
+}
 window.onChekFile=async el=>{
   const f=el.files&&el.files[0]; el.value='';
   if(!f) return;
@@ -1551,9 +1649,13 @@ window.onChekFile=async el=>{
     }
     $('chekPrev').style.display='flex'; icons();
   }catch(e){ alert('Faylni o\'qib bo\'lmadi'); return; }
+  // AI chek tahlili — FAQAT rasm (PDF/hujjat AI'ga yuborilmaydi), modda ai_tekshir/spidometr_ai
+  // bo'lsagina, FONDA (forma darrov ochiq qoladi, buxgalterga hech qanday belgi chiqmaydi).
+  if(isImg && aiChekOk()) startChekAi(chekBlob); else aiTahlil=null;
   chekSync();
 };
 window.removeChek=()=>{ chekBlob=null; chekExt='jpg'; chekType='image/jpeg'; chekName='';
+  aiTahlil=null;   // eski chekka tegishli AI natijasi endi ma'nosiz
   $('chekPrev').style.display='none'; $('chekPrev').innerHTML=''; chekSync(); };
 // Oddiy rejimda updateSimple() Saqlash tugmasini ham qayta hisoblaydi (chek majburiy bo'lishi mumkin);
 // kengaytirilgan rejimda esa faqat chek matnini yangilash kerak — updateSimple() u yerda ortiqcha.
@@ -2426,6 +2528,7 @@ async function doSavePending(izohP){
   //    TANLANGAN moddaga emas, `9110-1` (yo'ldagi tovar) ga ketadi, shuning
   //    uchun "kerakmi" bayrog'i ham AYNAN o'sha modda bo'yicha hisoblanadi.
   const mxdV=mxdValues();
+  const aiSn=aiSnap();   // 🔴 forma tozalanishidan OLDIN — removeChek() aiTahlil ni tozalab qo'yadi
   const mxdPendN=!!(!mxdOff&&mxdMod&&mxdMod.has(modda1.id));
   // Valyuta kassasi: debit/credit SO'MDA (amt × kurs), fc_amount esa valyuta miqdori.
   // Avval ikkalasiga ham `amt` yozilardi — dollar soni so'm ustuniga tushib ketardi.
@@ -2442,6 +2545,7 @@ async function doSavePending(izohP){
   const res=await yozBir(entryPayload,rows);
   if(!res.ok){ btn.textContent='Saqlash'; $('modda').value=''; updateSimple(); return; }
   if(chekBlob) chekYukla(res, kassa.id);
+  aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
   /* 🔴 QIYMAT JIMGINA YO'QOLMASIN: bu yozuv `9110-1` ga ketdi, maxsus maydonlar
      esa foydalanuvchi tanlagan moddaga (9110) biriktirilgan bo'lishi mumkin.
        • `9110-1` ga ham biriktirilgan bo'lsa — odatdagidek yoziladi (oxirgi
@@ -2471,6 +2575,7 @@ async function doSaveSimple(){
   const {modda,kassa,income}=simpleDir();
   if(!kassa||!modda||amt<=0) return;
   const mxdV=mxdValues(), mxdN=mxdNeed();   // 🔴 forma tozalanishidan OLDIN (taqsim yo'liga openTaqsim o'zi oladi)
+  const aiSn=aiSnap();                      // 🔴 xuddi shu sabab: AI bog'lash id'lari ham OLDIN olinadi
   // V9: filial majburiy — bu yerga yuk modalidan va doSaveSimpleForce'dan ham kelinadi,
   // shuning uchun tekshiruv saveSimple'dan tashqari SHU YERDA ham turadi.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
@@ -2501,6 +2606,7 @@ async function doSaveSimple(){
   if(!res.ok){ btn.textContent='Saqlash'; updateSimple(); return; }
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   if(chekBlob) chekYukla(res, kassa.id);
+  aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
   // 🔴 TARTIB: entry → entry_line → entry_maydon_yoz (qorovul yozuv SATRLARIGA qaraydi).
   //    Xato bo'lsa yozuv O'CHIRILMAYDI — chek yuklash naqshi (pul harakati to'g'ri).
   mxdYoz(res.entry_id||null, mxdV, mxdN);
@@ -2530,7 +2636,7 @@ let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
 function openTaqsim(amt, dtId, ktId, kassa, pair){
   const moddaId=(dtId===kassa.id)?ktId:dtId;   // kassa bo'lmagan tomon = modda (limit shu bo'yicha)
   taqsimCtx={amt:Math.round(amt), dtId, ktId, kassa, moddaId, pair:pair||null,
-    mxd:mxdValues(), mxdn:mxdNeed()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
+    mxd:mxdValues(), mxdn:mxdNeed(), ai:aiSnap()};   // 🔴 har filial yozuviga BIR XIL qiymat yoziladi
   taqsimFils=[...selFilials].map(id=>filials.find(f=>f.id===id)).filter(Boolean);
   // himoya (filial ro'yxati kelmasa). 🔴 FON BLOK zanjiri: bu yerga doSaveSimple()
   // ICHIDAN kelinadi va qulf hali O'SHA chaqiruvda. To'g'ridan chaqirsak
@@ -2582,7 +2688,7 @@ window.confirmTaqsim=async()=>{
   // hech qachon bajarilmaydi; taqsim yo'li kelajakda o'zgarsa ham ochilib qolmasin.
   if(!filialOk()){ alert('Bu modda uchun filial tanlanishi shart'); return; }
   const btn=$('taqsimSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
-  const {dtId,ktId,kassa,pair,mxd:mxdV,mxdn:mxdN}=taqsimCtx;
+  const {dtId,ktId,kassa,pair,mxd:mxdV,mxdn:mxdN,ai:aiSn}=taqsimCtx;
   const p_data={
     entry_date:$('sana').value||null, description:$('izoh').value||null,
     source:'manual', status:'posted',
@@ -2623,6 +2729,7 @@ window.confirmTaqsim=async()=>{
     // Chek — bir nechta entry yozildi, surat BIRINCHISIGA biriktiriladi (hodim-dev.html'dagidek).
     if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
     mxdYoz((data&&data.entry_ids)||[], mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
+    aiBind((data&&data.entry_ids)||[], aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
   }
   // 🔴 Tugma yorlig'i TIKLANADI: `renderTaqsimSum()` faqat `disabled` ni tiklaydi,
   //    matn esa "Saqlanmoqda…" bo'lib qolardi va modal keyingi ochilishida shunday
@@ -2702,6 +2809,7 @@ async function doSaveAdv(){
   // 2026-09-06 URGENT: chek/AI-chek majburiy modda Dt satrida bo'lsa adv'da ham BLOKLAYDI
   // (avval faqat oddiy rejim tekshirardi — kengaytirilgan orqali cheksiz o'tib ketardi).
   if(chekRequiredAdv() && !chekBlob){ alert('Bu yozuv uchun chek yoki hujjat majburiy — Dt satrida chek/AI tekshiruvli modda bor'); updateChekUI(); return; }
+  const aiSn=aiSnap();   // 🔴 lines/chek tozalanishidan OLDIN
   $('saveBtn').disabled=true; $('saveBtn').textContent='Saqlanmoqda...';
   // filial_ids — oddiy rejim bilan AYNAN bir xil shakl: har doim massiv (bo'sh bo'lsa []),
   // null yozilmaydi. Ikki rejim bitta ustunga bir xil yozsin, iste'molchi (jurnal, ai_rep_*)
@@ -2732,6 +2840,7 @@ async function doSaveAdv(){
     if(kid) chekYukla(res, kid);
     else alert('Yozuv saqlandi. Fayl biriktirilmadi — yozuvda Kt (chiqim) tomonida kassa satri yo\'q.');
   }
+  aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
   // Yozuvdan keyin qoldiqlar o'zgardi — kesh tozalanadi, addLine() qayta yuklatadi
   advBal={};
   lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; window.removeChek(); addLine(); addLine();
