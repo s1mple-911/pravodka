@@ -162,6 +162,7 @@
   /* Yo'ldagi pullar (.yl-*) — .krow/.klist naqshini qayta ishlatadi, lekin nom/matn
      mobil'da o'ralishi kerak — .krow .nm/.st dagi nowrap shu yerda bekor qilinadi. */
   .yl-row{align-items:flex-start;flex-wrap:wrap}
+  .kgh .t.yl-st{font-size:12.5px;font-weight:500;color:var(--muted);text-align:right}
   .yl-row .nm,.yl-row .st{white-space:normal;overflow:visible;text-overflow:clip}
   .yl-row .yl-time{margin-top:2px}
   .yl-time.yl-ogoh{color:var(--amber)}
@@ -794,9 +795,26 @@ function renderYolda(){
     if(r.sender_id) ylIdx.out[r.sender_id]=(ylIdx.out[r.sender_id]||0)+(Number(r.jami_uzs)||0);
   });
   const Qraw=(($('q')||{}).value||'').trim();
-  if(!rows.length||Qraw){ el.innerHTML=''; return; }
-  const jami=rows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
+  // RPC hali kelmagan/yo'q (y=null) yoki qidiruv faol -> bo'lim umuman chizilmaydi.
+  if(!y||Qraw){ el.innerHTML=''; return; }
   const qabul=(y&&Array.isArray(y.qabul))?y.qabul:[];
+  // 2026-09-06 (Asilbek: «yo'ldagi pullar paydo bo'lmadi»): yo'lda pul YO'Q bo'lsa ham bo'lim
+  // ixcham holat satri bilan turadi — foydalanuvchi tizim ishlayotganini ko'rsin.
+  // synced_at null = registr bo'sh = n8n «Yolda Sync» hali birorta ham yozmagan.
+  if(!rows.length){
+    const st=y.synced_at
+      ? `Hozir yo'lda pul yo'q · sinxron ${(ylUzParts(y.synced_at)||{}).qisqa||''}`
+      : `Sinxron hali ishlamagan (n8n «Yolda Sync» ma'lumot yozmagan)`;
+    const qOpen0=localStorage.getItem('yl-qabul')==='1';
+    const qb0=qabul.length
+      ? `<div class="yl-qwrap"><button type="button" class="yl-toggle${qOpen0?' open':''}" onclick="toggleYlQabul()">`
+        +`<i data-lucide="chevron-down"></i>Yaqinda qabul qilingan (${qabul.length})</button>`
+        +`<div class="klist yl-qlist" id="yoldaQabul" style="${qOpen0?'':'display:none'}">${qabul.map(ylQabulRow).join('')}</div></div>`
+      : '';
+    el.innerHTML=`<div class="kgrp yl-grp"><div class="kgh"><span class="n">🚚 Yo'ldagi pullar</span><span class="t yl-st">${esc(st)}</span></div>${qb0}</div>`;
+    icons(); return;
+  }
+  const jami=rows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
   const qOpen=localStorage.getItem('yl-qabul')==='1';
   const qBlock=qabul.length
     ? `<div class="yl-qwrap"><button type="button" class="yl-toggle${qOpen?' open':''}" onclick="toggleYlQabul()">`
