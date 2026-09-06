@@ -451,7 +451,7 @@
     <div class="eh-tabpanel" id="eh-tab-bosh">
       <div class="eh-cards" id="ehCards">
         <div class="eh-chip eh-chip-primary"><div class="top"><i data-lucide="wallet"></i>Jamg'arma qoldig'i</div><div class="v">—</div></div>
-        <div class="eh-chip"><div class="top"><i data-lucide="arrow-down-circle"></i>Jami to'plandi</div><div class="v">—</div><div class="sub">jurnaldan (Professional)</div></div>
+        <div class="eh-chip"><div class="top"><i data-lucide="arrow-down-circle"></i>Jami to'plandi</div><div class="v">—</div><div class="sub">jurnaldan</div></div>
         <div class="eh-chip"><div class="top"><i data-lucide="arrow-up-circle"></i>Jami berildi</div><div class="v">—</div></div>
         <div class="eh-chip"><div class="top"><i data-lucide="calendar-check"></i>Bu oy reja/fakt</div><div class="v">—</div></div>
         <div class="eh-chip" id="ehCardYil"><div class="top"><i data-lucide="calendar-range"></i>Bu yil berildi</div><div class="v">—</div></div>
@@ -651,7 +651,7 @@
         <h3 style="margin:0 0 12px;font-size:16px;font-weight:700">Jamg'arma</h3>
         <div class="ehk-kassas" id="ehkKassas"><div class="empty">Yuklanmoqda…</div></div>
         <div class="ehb-hint" style="margin-top:10px">Jamg'arma kompaniya balansiga kirmaydi — kassadan chiqqan pul.</div>
-        <div class="ehk-info" id="ehkInfo"><i data-lucide="info"></i><div><span id="ehkInfoTxt"></span><br><a class="btn ghost" id="ehkInfoLink" href="professional.html" style="display:none;margin-top:8px;height:30px;padding:0 12px;font-size:12.5px"><i data-lucide="arrow-right"></i>Professional →</a></div></div>
+        <div class="ehk-info" id="ehkInfo"><i data-lucide="info"></i><div><span id="ehkInfoTxt"></span></div></div>
       </div>
 
       <div class="eh-card">
@@ -1157,9 +1157,9 @@ function fmtDate(s){ const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/); re
 function fmtDateTime(s){ const d=fmtDate(s); const m=String(s||'').match(/T(\d{2}):(\d{2})/); return d+(m?(' '+m[1]+':'+m[2]):''); }
 
 // ---- Jamg'arma kartasi + ma'lumot bloki -----------------------------------
-// Kirim FAQAT jurnal orqali tushadi (buxgalter Professional'da Dt <ehson modda>/Kt kassa
+// Kirim FAQAT jurnal orqali tushadi (buxgalter — 'ehson_kirim' ruxsati bilan — Dt <ehson modda>/Kt kassa
 // yozadi, server trigger uni ehson_kirim'ga tushiradi) — Ehson ichida yozish/bekor qilish yo'q
-// (Asilbek qarori, 2026-09-04). `moddalar` — ehson_dash() dan `[{kassa_id,id,code,name}]`.
+// (Asilbek qarori, 2026-09-04). Professional'ga havola YO'Q (2026-09-06, Asilbek) — Ehson useri u yerga bormaydi. `moddalar` — ehson_dash() dan `[{kassa_id,id,code,name}]`.
 function renderKirimKassa(kass, moddalar){
   kass=Array.isArray(kass)?kass:[];
   moddalar=Array.isArray(moddalar)?moddalar:[];
@@ -1179,8 +1179,7 @@ function renderKirimKassa(kass, moddalar){
 function renderKirimInfo(m){
   const txt=$('ehkInfoTxt'); if(!txt) return;
   const modda = m ? (escapeHtml(m.code||'')+' '+escapeHtml(m.name||'')).trim() : "Ehson jamg'armasi moddasi (SQL RUN'dan keyin ochiladi)";
-  txt.innerHTML = `Jamg'armaga pul faqat jurnal orqali tushadi: buxgalter Professional sahifasida <b>Dt ${modda} / Kt kassa</b> provodkasini qiladi — u shu yerda avtomat ko'rinadi. Ehson ichida kirim yozilmaydi va bekor qilinmaydi (jurnalda o'chirilsa — shu yerda ham bekor bo'ladi).`;
-  const link=$('ehkInfoLink'); if(link) link.style.display = isAdmin ? 'inline-flex' : 'none';
+  txt.innerHTML = `Jamg'armaga pul faqat jurnal orqali tushadi — buxgalteriya <b>Dt ${modda} / Kt kassa</b> provodkasini qiladi, u shu yerda avtomat ko'rinadi. Ehson ichida kirim yozilmaydi va bekor qilinmaydi (jurnalda o'chirilsa — shu yerda ham bekor bo'ladi).`;
 }
 
 const EHK_LIMIT=50;

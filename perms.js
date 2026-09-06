@@ -20,12 +20,19 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() bilan bir xil bo'lishi shart (18 ta).
+  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (19 ta: 18 sahifa + 1 bayroq).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
                'tannarx', 'ai', 'sorovlar', 'ehson'];
+  /* BAYROQLAR (2026-09-06): allowed_pages ichida saqlanadigan, lekin SAHIFA BO'LMAGAN
+     kalitlar. PAGES ga QO'SHILMAYDI — aks holda firstAllowed()/gate() ularni sahifa deb
+     `ehson_kirim-dev.html` ga yo'naltirardi (404). Nav/karta/promote'da yo'q.
+       ehson_kirim — Professional/hodim'da «Ehson jamg'armasi» (94xx, accounts.ehson_kassa_id)
+                     moddasiga yozish = jamg'armaga kirim. Server juftligi: ehson_kirim_ok() +
+                     trg_ehson_kirim_guard (PROVODKA_EHSON.sql 12.11). 'ehson' sahifasi kirim BERMAYDI. */
+  var FLAGS = ['ehson_kirim'];
   var HOME  = 'jurnal';           // Provodka'ning bosh bo'limi (login'dan keyingi ish sahifasi)
   // Login/dashboard hub sahifasi. PAGES ichida ATAYLAB yo'q — u ruxsat bilan
   // cheklanmaydi (o'zi ruxsatli bo'limlar ro'yxatini chizadi).
@@ -193,6 +200,14 @@
     if (p.is_admin) return true;
     if (PAGES.indexOf(k) < 0) return true;   // ro'yxatga kirmaydigan sahifa (hodim) — erkin
     return p.allowed_pages.indexOf(k) >= 0;  // BO'SH = hech narsa (yangi semantika)
+  }
+  /* Bayroq ruxsati (FLAGS): admin yoki allowed_pages ∋ k. Yuklanmaguncha ochiq (UI qulayligi;
+     pul harakati server guard bilan to'silgan). */
+  function flagOk(k) {
+    if (!loaded) return true;
+    var p = get();
+    if (p.is_admin) return true;
+    return FLAGS.indexOf(k) >= 0 && p.allowed_pages.indexOf(k) >= 0;
   }
   /* Konvert ruxsati (2026-09-03): admin OR kassa sahifasi ruxsati OR can_convert.
      Server juftligi — perm_can_convert() (PROVODKA_KONVERT_KASSA_RUXSAT.sql), AYNAN
@@ -416,6 +431,7 @@
   window.permFilterView = filterView;
   window.permFilterOp  = filterOp;
   window.permConvert   = function () { return convOk(get()); };
+  window.permFlagOk    = flagOk;
   /* Ruxsat fonda (fetchFresh) o'zgarsa chaqiriladi — masalan hodim sahifasi
      tanlangan modda/ovqat turini qayta tekshiradi. gate()dan mustaqil. */
   window.permOnChange  = onChange;
