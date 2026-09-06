@@ -850,6 +850,24 @@ Endi EF: yaroqli sessiya + `my_perms()` xatosiz = ruxsat (fail-closed saqlanadi)
 konsolga HTTP status bilan yozadi. **Spidometr moddasi (`spidometr_ai`) endi chekni ham majburiy +
 AI qiladi** (`chekRequired()`/`aiChekOk()` ikkala bayroqni ko'radi): benzin/gaz = chek + tablo.
 
+### Aros yuk BOJXONA limiti (2026-09-06, `AROS_YUK_DETAIL_API.md`, `PROVODKA_YUK_BOJXONA.sql`, faqat dev, RUN kutilmoqda)
+
+Provodka'da yukka qo'shilgan tannarx (`yuk_tannarx`) jami Aros'dagi bojxona (+ yo'l foizi) dan OSHMASIN.
+Bojxona faqat Aros **detail** API'da (`product-incomes/{id}/`): har qatorda `custom_clearance_uzs` (BIR DONA, so'mda);
+hujjat darajasidagi `custom_clearance_uzs`/`fare_percent` null bo'lsa har tovar alohida. Jami HAR DOIM qatorlardan:
+Σ custom × quantity (2794 → 600 000). `currency_rate` (hujjat, 67) ISHONCHSIZ — ishlatilmaydi.
+- **n8n**: `Aros Provodka - Yuk Bojxona Sync` (`yFKvjPrdBWCciaTK`, har 30 daq, 30 kun oyna, detail 1.1s intervalda —
+  rate-limit; `N8N_YUK_BOJXONA_SYNC.js`) → `sync_yuk_bojxona` (service_role) → `aros_yuk_bojxona`. Kreditlar (Aros
+  Basic Auth ×2, Supabase API) — Asilbek. `Aros Provodka - Yuk Detail API` (`yZkGLRDs1ujk8EFo`, `N8N_YUK_DETAIL_API.js`)
+  — xom detail'ni ko'rish uchun proxy (`?id=`).
+- **RPC** `yuk_bojxona_jami(p_ids int[])` → `{ "<id>": {bojxona_uzs, fare_uzs, limit_uzs, qoshilgan_uzs, qoldi_uzs, rejim, currency,
+  synced_at} }`; **`yuk_tannarx_qosh` qayta e'lon** (imzo bir xil, tana PROVODKA_YUK_TANNARX.sql 5-BO'LIM + «1.5-BOSQICH»
+  limit, advisory lock): qo'shilgan + yangi > limit → `{ok:false, kod:'limit', error, yuk_id, limit_uzs, qoshilgan_uzs,
+  qoldi_uzs}`, HECH NARSA yozilmaydi; Aros qatori yo'q / limit 0 → tekshirilmaydi (ogohlantirish). 🔴 Keyingi safar
+  `yuk_tannarx_qosh` o'zgartirilsa — ENG OXIRGI versiya shu faylda.
+- **UI** `tannarx-dev.html`: ustun «Aros bojxona» (`bojCellHtml`, progress ≥90% sariq, ≥100% qizil; ma'lumot yo'q/limit 0 → «—»),
+  modal `bojCheck` (har yuk qoldi, oshsa Saqlash yopiq), `loadBojxona` (`yuk_bojxona_jami`, swr `yuk:` kaliti ichida; RPC yo'q → jim).
+
 ### Professional'da chek majburiyligi + AI chek (2026-09-06 URGENT, faqat `professional-dev.html`)
 
 Modda 9432 «Internet Tulov» (`ai_tekshir=true`, `chek_majburiy=false`) — buxgalter Professional'dan 12 yozuvni
