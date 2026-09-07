@@ -35,5 +35,5 @@ Har ikkisida ham tovar qatorlari YAKUNIY qiymatni ko'rsatadi → **jami har doim
 ⚠️ `currency_rate: 67` (hujjat) ishonchsiz — CHY kursi ~1783 so'm (181.82−165=16.82 CHY = 30000 so'm). So'm qiymatlar faqat `custom_clearance_uzs` dan olinadi. `last_income_data.currency_rate 7.07` — CHY/USD.
 
 ## Provodka'da (`PROVODKA_YUK_BOJXONA.sql`, `N8N_YUK_BOJXONA_SYNC.js`)
-`aros_yuk_bojxona` jadvali (n8n har 30 daq, 30 kunlik oyna, detail 1.1s intervalda — rate-limit),
+`aros_yuk_bojxona` jadvali (n8n har 30 daq, 30 kunlik oyna, detail batch 5/2500ms — rate-limit; batch 1 n8n bug tufayli osiladi),
 `yuk_bojxona_jami(p_ids)`, `yuk_tannarx_qosh` limit: qo'shilgan + yangi > bojxona + fare → `{ok:false, kod:'limit'}`.

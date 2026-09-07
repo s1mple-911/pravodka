@@ -21,7 +21,7 @@
 // Tuzilma:
 //   Har 30 daqiqa ─────────┐
 //   Qolda ishga tushirish  ┴─> Sana Oraligi -> Get Product Incomes
-//                              -> Split Ids -> Get Detail (batch 1/1100ms)
+//                              -> Split Ids -> Get Detail (batch 5/2500ms)
 //                              -> Hisobla -> sync_yuk_bojxona (HTTP POST)
 //
 // Asilbek qolda qiladi (yaratilgan workflow'da):
@@ -36,9 +36,13 @@
 // 🔴 Aros rate-limit sabogi (CLAUDE.md, "Andijon yoqolishi"): api.aros.uz
 // tez-tez so'ralsa "Request was throttled" (jimgina "bosh" natija bolib
 // otib ketishi mumkin) qaytarishi mumkin — shuning uchun «Get Detail»
-// batch 1 ta / 1100ms interval bilan chaqiriladi va onError bilan bitta
+// batch 5 ta / 2500ms interval bilan chaqiriladi va onError bilan bitta
 // yukning xatosi butun oqimni toxtatmaydi.
 //
+// 🔴 n8n BUG (2026-09-07): HTTP Request node «Items per Batch = 1» da ABADIY osilib qoladi —
+// 49 id bilan 2 daqiqada ham tugamadi, prod executionlar 15 soat «running» turdi. Batch 5 / 2500ms
+// bilan 49 detail ~25 soniyada keladi (48 yuk yozildi, 2794 = 600 000). Batch 1 ga QAYTARMA.
+// n8n UI da qo'lda tuzatilgan (kreditlar saqlanib qoldi); bu fayl shu holatga moslangan.
 // SDK qoidalari: faqat `const` (var taqiq), template string (`.join` taqiq),
 // kredit `newCredential('Nom')`, oxirida `export default wf`.
 // jsCode ichida arrow function YOQ (CLAUDE.md).
@@ -240,7 +244,7 @@ const getDetail = node({
       authentication: 'genericCredentialType',
       genericAuthType: 'httpBasicAuth',
       options: {
-        batching: { batch: { batchSize: 1, batchInterval: 1100 } },
+        batching: { batch: { batchSize: 5, batchInterval: 2500 } },
         timeout: 30000
       }
     },

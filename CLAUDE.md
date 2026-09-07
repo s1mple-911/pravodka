@@ -856,7 +856,7 @@ Provodka'da yukka qo'shilgan tannarx (`yuk_tannarx`) jami Aros'dagi bojxona (+ y
 Bojxona faqat Aros **detail** API'da (`product-incomes/{id}/`): har qatorda `custom_clearance_uzs` (BIR DONA, so'mda);
 hujjat darajasidagi `custom_clearance_uzs`/`fare_percent` null bo'lsa har tovar alohida. Jami HAR DOIM qatorlardan:
 Σ custom × quantity (2794 → 600 000). `currency_rate` (hujjat, 67) ISHONCHSIZ — ishlatilmaydi.
-- **n8n**: `Aros Provodka - Yuk Bojxona Sync` (`yFKvjPrdBWCciaTK`, har 30 daq, 30 kun oyna, detail 1.1s intervalda —
+- **n8n**: `Aros Provodka - Yuk Bojxona Sync` (`yFKvjPrdBWCciaTK`, har 30 daq, 30 kun oyna, detail batch 5/2500ms —
   rate-limit; `N8N_YUK_BOJXONA_SYNC.js`) → `sync_yuk_bojxona` (service_role) → `aros_yuk_bojxona`. Kreditlar (Aros
   Basic Auth ×2, Supabase API) — Asilbek. `Aros Provodka - Yuk Detail API` (`yZkGLRDs1ujk8EFo`, `N8N_YUK_DETAIL_API.js`)
   — xom detail'ni ko'rish uchun proxy (`?id=`).
