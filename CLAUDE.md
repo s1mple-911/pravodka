@@ -972,6 +972,22 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   o'zgarmagan (server `tugash`ni o'zi hisoblaydi). Shablon: `tilxat_shablon.matn` null bo'lishi mumkin —
   yangi shablon nom + fayl (pdf/jpg/png) bilan yaratiladi (`shablon/<id>.<ext>`), chop etish faqat matn bo'lsa.
 
+### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
+
+`tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +
+`.selbar`, «Tannarx qo'shish» modali (`tanModal`, taqsimlash, `bojCheck`, RPC `yuk_tannarx_qosh`), qatorlar/`tanOchir`,
+Sabablar modali, `cfmModal`, «Aros bojxona» ustuni, Hammasi/Tannarxli/Tannarxsiz chiplari (`setFiltTan`) + yuklar'ning
+To'lanmagan/Qisman/To'langan chiplari (`setFiltPay`, AND), to'lovlar (`loadPaid`, To'langan/Qoldiq ustunlari), pending tab,
+«Yukka bog'lash» modali. 13 ustun: ☐ · ID · Sana (ostida nashr vaqti) · Ombor · Yetkazib beruvchi · Aros narxi · Qo'shilgan
+tannarx · Jami tannarx · Aros bojxona · To'langan · Qoldiq · Holat (status + yetkazish pill) · Qatorlar. `.main{max-width:none}`,
+≤1300px karta, 1301–1500px zich rejim. Tannarx amallari faqat `permIsAdmin() || permPageOk('tannarx')` (server guard
+`yuk_tannarx_ruxsat()` 'tannarx' kalitini talab qiladi).
+- **`tannarx-dev.html` — faqat redirect stub** (`meta refresh` + `location.replace('yuklar-dev.html')`), navigatsiyasiz, `</script>`
+  soni qoidasi unga tegishli emas. 16 dev fayl sidebar/sheet'dan «Tannarx» havolasi olib tashlandi; `index-dev.html` CARDS'da
+  `tannarx` kartasi yo'q. `promote.sh` PAGES va `perms-dev.js` PAGES'da `tannarx` QOLADI (ruxsat kaliti server uchun).
+- 🔴 `perms-dev.js` `pageOk('yuklar')` — `allowed_pages ∋ 'tannarx'` bo'lsa ham true (aks holda faqat tannarx ruxsatli user
+  hech qayerga kira olmasdi: dashboard'da karta yo'q, nav yopiq). Nav soni endi 14 sidebar (tester: barcha dev faylda bir xil).
+
 ### Aros qarzdorlar — mijoz qarzlari registri (2026-09-07, `ARX_PROVODKA_AROS_QARZDOR.md`, `PROVODKA_AROS_QARZDOR.sql`, faqat dev, RUN kutilmoqda)
 
 «Bizdan qarzdor» segmentida qo'lda berilgan qarz (`qarz` tizimi) bilan birga Aros mijozlarining tovar qarzi ham

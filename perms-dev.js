@@ -199,6 +199,13 @@
     var p = get();
     if (p.is_admin) return true;
     if (PAGES.indexOf(k) < 0) return true;   // ro'yxatga kirmaydigan sahifa (hodim) — erkin
+    /* 2026-09-07: Tannarx yuklar-dev.html ga birlashtirildi (endi alohida UI sahifa
+       emas — tannarx-dev.html faqat redirect). 'tannarx' kaliti allowed_pages ichida
+       faqat SERVER guard (yuk_tannarx_ruxsat()) uchun saqlanadi, shuning uchun uni
+       ko'rgan user 'yuklar' sahifasini ham ochishi kerak — aks holda 'yuklar'siz
+       'tannarx'li user hech qayerga kira olmasdi (dashboard'da karta ham yo'q,
+       nav ham yopiq, firstAllowed() esa uni aynan shu sahifaga yo'naltiradi). */
+    if (k === 'yuklar' && p.allowed_pages.indexOf('tannarx') >= 0) return true;
     return p.allowed_pages.indexOf(k) >= 0;  // BO'SH = hech narsa (yangi semantika)
   }
   /* Bayroq ruxsati (FLAGS): admin yoki allowed_pages ∋ k. Yuklanmaguncha ochiq (UI qulayligi;
