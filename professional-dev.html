@@ -238,6 +238,9 @@
   .pill.g{background:var(--green-soft);color:var(--green);border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   .pill.y{background:#fdf3d6;color:#a9791b;border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   [data-theme="dark"] .pill.y{background:#3a2f14;color:#e6b84a}
+  /* Ehson kaskadi: bloklamaydigan valyuta ogohlantirishi — qizil emas, sariq (--pill.y bilan bir xil tus) */
+  .ehwarn{color:#a9791b;font-weight:600}
+  [data-theme="dark"] .ehwarn{color:#e6b84a}
   .ysc{color:var(--muted);font-weight:500}
   /* Qisman taqsimlash qatorlari */
   .yrow2{border-bottom:1px solid var(--line);padding:10px 6px;cursor:pointer;border-radius:10px}
@@ -779,7 +782,7 @@
 <!-- Modda tanlash — qidiruvli modal (#yukModal naqshi) -->
 <div class="mdl-wrap" id="moddaModal" onclick="if(event.target===this)closeModda()">
   <div class="mdl-box">
-    <h3>Modda tanlash</h3>
+    <h3 id="moddaModalTitle">Modda tanlash</h3>
     <!-- autofocus ATAYLAB yo'q — mobil'da klaviatura sakramasin -->
     <input class="txt" id="moddaSearch" placeholder="Qidirish (kod yoki nom)" autocomplete="off" oninput="renderModdaList()">
     <div id="moddaList" class="mdl-list"></div>
@@ -813,7 +816,7 @@
      Bitta umumiy modal — qaysi satr uchun ochilgani accModalIdx da saqlanadi. -->
 <div class="mdl-wrap" id="accModal" onclick="if(event.target===this)closeAccModal()">
   <div class="mdl-box">
-    <h3>Hisob tanlash</h3>
+    <h3 id="accModalTitle">Hisob tanlash</h3>
     <input class="txt" id="accSearch" placeholder="Qidirish (kod yoki nom)" autocomplete="off" oninput="renderAccList()">
     <div id="accList" class="mdl-list"></div>
     <div class="mdl-acts"><button type="button" onclick="closeAccModal()">Yopish</button></div>
@@ -982,10 +985,13 @@ function accGroups(){
   const kassaOk=a=>isKassa(a)&&(a.currency||'UZS')==='UZS'&&!isTuriChild(a);
   const xk=accounts.filter(a=>kassaOk(a)&&a.kassa_turi==='xarajat');
   const xkId=new Set(xk.map(a=>a.id));
+  // Ehson bola moddalari (accounts.ehson_kassa_id) — kaskad ISHLASA (ehsonDaraxt yuklangan)
+  // "Xarajatlar" ro'yxatidan chiqariladi, o'rniga #accModal'da alohida kaskad guruhi chiqadi.
+  const ehsonOn=!!(ehsonDaraxt&&ehsonDaraxt.ildiz);
   return [
     ['Kassalar',        accounts.filter(a=>kassaOk(a)&&!xkId.has(a.id))],
     ['Xarajat kassalar',xk],
-    ['Xarajatlar',      accounts.filter(modaShow)],
+    ['Xarajatlar',      accounts.filter(modaShow).filter(a=>!ehsonOn||!isEhsonAcc(a))],
     ['Daromadlar',      accounts.filter(a=>a.type==='daromad')],
     ['Boshqa',          accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad')]
   ];
@@ -1085,8 +1091,10 @@ function lineSeg(i,ln){
 // chunki addLine firstAccId beradi) tugma "tanlanmagan" ko'rinishda chiqadi.
 function accBtnHtml(i,ln){
   const a=accounts.find(x=>x.id===(ln.root_id||ln.account_id));
+  // Ehson bola moddasi tanlangan bo'lsa — «Ehson jamg'armasi › Zakot › Naqd» kaskad yorlig'i.
+  const eh=(a&&ehsonDaraxt&&isEhsonAcc(a))?ehsonChipLbl(a.id,ln.ehson_pul_turi):'';
   return `<button type="button" class="mdl-btn${a?'':' empty'}" onclick="openAccModal(${i})">`
-    +`<span class="mdl-lbl">${a?esc(accLbl(a)):'— hisob tanlang —'}</span><i data-lucide="chevron-down"></i></button>`;
+    +`<span class="mdl-lbl">${a?esc(eh||accLbl(a)):'— hisob tanlang —'}</span><i data-lucide="chevron-down"></i></button>`;
 }
 function renderLines(){
   $('lines').innerHTML=lines.map((ln,i)=>{
@@ -1121,7 +1129,7 @@ window.rmLine=i=>{ lines.splice(i,1); renderLines(); };
 // account_id ildizga qaytadi, segment qayta chiziladi, qoldiqlar fonda yuklanadi.
 // O'lchov birligi o'zgarsa summa tozalanadi (pastdagi pickLineSub izohiga qara).
 window.setAcc=(i,v)=>{ const ln=lines[i]; if(!ln) return;
-  const eski=lineCur(ln); ln.root_id=v; ln.account_id=v;
+  const eski=lineCur(ln); ln.root_id=v; ln.account_id=v; ln.ehson_pul_turi=null;
   if(lineCur(ln)!==eski) ln.amount=0;
   renderLines(); };
 // ---- Kengaytirilgan rejim: hisob tanlash (qidiruvli #accModal, #moddaModal naqshi) ----
@@ -1133,7 +1141,10 @@ function accMatch(a,words){
 }
 window.renderAccList=()=>{
   const box=$('accList'); if(!box) return;
-  const q=($('accSearch')?$('accSearch').value:'')||'';
+  const t0=$('accModalTitle'); if(t0) t0.textContent='Hisob tanlash';
+  const s0=$('accSearch'); if(s0) s0.style.display='';
+  if(ehsonAccView){ ehsonRenderAcc(box); return; }
+  const q=(s0?s0.value:'')||'';
   const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const ln=lines[accModalIdx], cur=ln?(ln.root_id||ln.account_id):'';
   let html='', n=0;
@@ -1147,17 +1158,29 @@ window.renderAccList=()=>{
       +'<span class="mdl-l1">'+esc(a.name)+'</span>'
       +'<span class="mdl-l2">'+esc(a.code+(a.subtitle?' · '+a.subtitle:''))+'</span></span></button>').join('');
   });
+  // Ehson jamg'armasi — alohida kaskad guruhi (RPC yuklangan bo'lsagina). Qidiruv bo'sh
+  // bo'lsa doim ko'rinadi; qidiruv bilan faqat ildiz/child nomi mos kelsa ko'rinadi.
+  if(ehsonCascadeVisible(words)){
+    const ea=accounts.find(x=>x.id===cur), on=!!(ea&&isEhsonAcc(ea));
+    n++;
+    html+='<div class="mdl-grp">'+esc(ehsonDaraxt.ildiz.nom)+'</div>'
+      +'<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="ehsonAccOpenKassa()">'
+      +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+      +'<span class="mdl-l1">'+esc(ehsonDaraxt.ildiz.nom)+'</span>'
+      +'<span class="mdl-l2">'+(on?esc(ehsonChipLbl(cur,ln&&ln.ehson_pul_turi)):'Kichik jamg\'arma va pul turini tanlash')+'</span></span></button>';
+  }
   if(!n && words.length) html+='<div class="mdl-empty">Mos hisob yo\'q</div>';
   box.innerHTML=html; icons();
 };
 window.openAccModal=i=>{
   accModalIdx=i;
+  ehsonAccView=null; ehsonAccKassa=null;
   const s=$('accSearch'); if(s) s.value='';
   window.renderAccList();
   $('accModal').classList.add('open');
   if(s && window.matchMedia && window.matchMedia('(min-width:900px)').matches){ try{ s.focus(); }catch(e){} }
 };
-window.closeAccModal=()=>{ $('accModal').classList.remove('open'); accModalIdx=null; };
+window.closeAccModal=()=>{ $('accModal').classList.remove('open'); accModalIdx=null; ehsonAccView=null; ehsonAccKassa=null; };
 window.pickAcc=id=>{
   if(accModalIdx==null) return;
   window.setAcc(accModalIdx,id);
@@ -1241,13 +1264,18 @@ function advWarn(){
   const birlik=id=>{ const a=accounts.find(x=>x.id===id); return isValAcc(id)?(' '+a.currency):''; };
   const yomon=Object.keys(net).filter(id=>{ const q=qol(id);
       return net[id]>0 && q!==undefined && q<net[id]; })
-    // textContent bilan yoziladi — esc() shart emas (aks holda & belgisi buzilardi).
+    // innerHTML bilan yoziladi (ehson qismi rangi boshqacha) — shuning uchun esc() shart.
     // Bola-hisob nomida tur allaqachon bor ("Izza Showroom · Naqd").
     .map(id=>{ const a=accounts.find(x=>x.id===id)||{}; const b=birlik(id);
       return (a.name||'')+' — qoldiq '+money(qol(id))+b+', chiqim '+money(net[id])+b; });
-  if(!yomon.length){ el.style.display='none'; el.textContent=''; return; }
+  let html='';
+  if(yomon.length) html='Qoldiqdan oshdi (saqlash to‘silmaydi): '+esc(yomon.join('; '));
+  // Ehson valyuta mos emas — bloklamaydigan ogohlantirish, qizil emas (.ehwarn — sariq).
+  const em=ehsonAdvWarnMsgs();
+  if(em.length) html=(html?html+' · ':'')+'<span class="ehwarn">Ehson valyuta mos emas: '+esc(em.join('; '))+'</span>';
+  if(!html){ el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='block';
-  el.textContent='Qoldiqdan oshdi (saqlash to‘silmaydi): '+yomon.join('; ');
+  el.innerHTML=html;
 }
 function updateTotals(){
   // \u26a0\ufe0f Dt=Kt tekshiruvi HAR DOIM SO'MDA: valyuta satrining xom soni (100 $) emas, so'm
@@ -1995,13 +2023,232 @@ function moddaOptions(){
     +g('Daromadlar',accounts.filter(a=>a.type==='daromad'))
     +g('Boshqa',accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad'));
 }
+// ============================================================================
+// Ehson jamg'armasi kaskadi (2026-09-07, ARX_PROVODKA_EHSON_ZAKOT.md 3-bo'lim)
+// RPC ehson_kassa_daraxt(): {ildiz:{id,nom}, kassalar:[{id,nom,izoh,is_active,tartib,
+//   modda:{id,code,name}, pul_turlari:[{id,kod,nom,valyuta,is_active,tartib,qoldiq,fc_qoldiq}],
+//   qoldiq}]}. RPC yo'q/xato/ruxsat yo'q -> ehsonDaraxt=null -> ESKI XATTI-HARAKAT: ehson
+// bola moddalari (accounts.ehson_kassa_id) oddiy "Xarajatlar" ro'yxatida qoladi, kaskad
+// chizilmaydi (moddaGroups/accGroups shartida ehsonOn=false).
+// ============================================================================
+let ehsonDaraxt=null;
+// ehsonPulTuriModdaId — qaysi modda uchun tanlangani; $('modda').value bilan mos kelmasa
+// (modda boshqa yo'l bilan almashtirilgan) updateSimple() uni tozalaydi.
+let ehsonPulTuri=null, ehsonPulTuriModdaId=null;
+let ehsonModalView=null, ehsonModalKassa=null;   // #moddaModal kaskad qadami: null|'kassa'|'pul'
+let ehsonAccView=null, ehsonAccKassa=null;       // #accModal kaskad qadami (kengaytirilgan rejim)
+function ehsonSwrGet(){
+  try{ const raw=sessionStorage.getItem('prov-swr:professional:ehsonDaraxt'); if(!raw) return null;
+    const o=JSON.parse(raw); if(!o||(Date.now()-o.t)>300000) return null; return o.v; }catch(e){ return null; }
+}
+function ehsonSwrSet(v){ try{ sessionStorage.setItem('prov-swr:professional:ehsonDaraxt',JSON.stringify({t:Date.now(),v})); }catch(e){} }
+const ehsonAllowed=()=>!!((window.permFlagOk&&window.permFlagOk('ehson_kirim'))||(window.permIsAdmin&&window.permIsAdmin()));
+const isEhsonAcc=a=>!!(a&&a.ehson_kassa_id);
+async function loadEhsonDaraxt(){
+  ehsonDaraxt=null;
+  if(!ehsonAllowed()) return;
+  const cached=ehsonSwrGet(); if(cached&&cached.ildiz) ehsonDaraxt=cached;
+  try{
+    const {data,error}=await sb.rpc('ehson_kassa_daraxt');
+    if(!error&&data&&data.ildiz){ ehsonDaraxt=data; ehsonSwrSet(data); }
+  }catch(e){}
+}
+function ehsonChildOf(moddaId){
+  if(!ehsonDaraxt) return null;
+  return (ehsonDaraxt.kassalar||[]).find(k=>k.modda&&k.modda.id===moddaId)||null;
+}
+// «Ehson jamg'armasi › Zakot › Naqd» — PLAIN matn (esc() chaqiruvchida qo'llanadi).
+function ehsonChipLbl(moddaId,pulKod){
+  const k=ehsonChildOf(moddaId); if(!k) return '';
+  const pt=(k.pul_turlari||[]).find(p=>p.kod===pulKod);
+  return ehsonDaraxt.ildiz.nom+' › '+k.nom+(pt?(' › '+pt.nom):'');
+}
+function ehsonPulQd(p){ return (p&&p.valyuta&&p.valyuta!=='UZS') ? (money(p.fc_qoldiq)+' '+p.valyuta) : money(p?p.qoldiq:0); }
+// Qidiruv (Tester #2, 2026-09-07): kaskad guruhi ehson child moddalarini ro'yxatdan
+// chiqargani uchun «Zakot»/«Ehson» qidirilganda hech narsa chiqmasdi. Endi ildiz yoki
+// biror child nomi qidiruv so'ziga mos kelsa guruh ko'rinadi (bo'sh qidiruv — doim ko'rinadi).
+function ehsonWordsMatch(text,words){
+  const hay=String(text||'').toLowerCase();
+  return words.every(w=>hay.includes(w));
+}
+function ehsonCascadeVisible(words){
+  if(!ehsonDaraxt||!ehsonDaraxt.ildiz) return false;
+  if(!words.length) return true;
+  if(ehsonWordsMatch(ehsonDaraxt.ildiz.nom,words)) return true;
+  return (ehsonDaraxt.kassalar||[]).some(k=>k.is_active!==false&&ehsonWordsMatch(k.nom,words));
+}
+// Qidiruv aynan BITTA child'ga mos kelsa (ildiz mos kelmasa) — to'g'ridan pul turi
+// qadamiga o'tiladi, aks holda oddiy 'kassa' qadami.
+function ehsonMatchedKids(words){
+  if(!words.length||ehsonWordsMatch(ehsonDaraxt.ildiz.nom,words)) return null;
+  return (ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false&&ehsonWordsMatch(k.nom,words));
+}
+
+// -- SIMPLE rejim (#moddaModal) -- 2-qadam: child kassa, 3-qadam: pul turi -----
+window.ehsonOpenKassa=()=>{
+  const q=($('moddaSearch')?$('moddaSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const mk=ehsonMatchedKids(words);
+  if(mk&&mk.length===1){ ehsonModalKassa=mk[0]; ehsonModalView='pul'; window.renderModdaList(); return; }
+  ehsonModalView='kassa'; ehsonModalKassa=null; window.renderModdaList();
+};
+window.ehsonBackToRoot=()=>{ ehsonModalView=null; ehsonModalKassa=null; window.renderModdaList(); };
+window.ehsonBackToKassa=()=>{ ehsonModalView='kassa'; ehsonModalKassa=null; window.renderModdaList(); };
+window.ehsonPickKassa=id=>{
+  const k=(ehsonDaraxt.kassalar||[]).find(x=>x.id===id); if(!k) return;
+  ehsonModalKassa=k; ehsonModalView='pul'; window.renderModdaList();
+};
+window.ehsonPickPul=kod=>{
+  const k=ehsonModalKassa; if(!k||!k.modda) return;
+  $('modda').value=k.modda.id; ehsonPulTuri=kod; ehsonPulTuriModdaId=k.modda.id;
+  ehsonModalView=null; ehsonModalKassa=null;
+  window.closeModda();
+  window.onModda();             // mavjud mantiq: kommunal / davr / chek / izoh — hammasi o'sha yerda
+  syncModdaBtn();
+};
+function ehsonRenderModal(box){
+  const t=$('moddaModalTitle'), s=$('moddaSearch');
+  if(ehsonModalView==='kassa'){
+    if(t) t.textContent=ehsonDaraxt.ildiz.nom; if(s) s.style.display='none';
+    const curModda=$('modda').value, curA=accounts.find(x=>x.id===curModda);
+    const cur=(curA&&isEhsonAcc(curA))?curModda:'';
+    const kids=(ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false);
+    box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonBackToRoot()">'
+        +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'
+      +(kids.length?kids.map(k=>{
+          const on=!!(k.modda&&k.modda.id===cur);
+          return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="ehsonPickKassa(\''+k.id+'\')">'
+            +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+            +'<span class="mdl-l1">'+esc(k.nom)+'</span>'
+            +'<span class="mdl-l2">'+money(k.qoldiq)+" so'm"+(k.izoh?(' · '+esc(k.izoh)):'')+'</span></span></button>';
+        }).join('')
+        :'<div class="mdl-empty">Kichik jamg\'arma yo\'q</div>');
+    icons(); return;
+  }
+  if(ehsonModalView==='pul'){
+    const k=ehsonModalKassa; if(!k){ ehsonModalView='kassa'; return ehsonRenderModal(box); }
+    if(t) t.textContent=k.nom; if(s) s.style.display='none';
+    const cur=($('modda').value===((k.modda||{}).id))?ehsonPulTuri:'';
+    const list=(k.pul_turlari||[]).filter(p=>p.is_active!==false);
+    box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonBackToKassa()">'
+        +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'
+      +(list.length?list.map(p=>'<button type="button" class="mdl-row'+(p.kod===cur?' on':'')+'" onclick="ehsonPickPul(\''+p.kod+'\')">'
+          +'<span class="mdl-tick">'+(p.kod===cur?'✓':'')+'</span><span class="mdl-main">'
+          +'<span class="mdl-l1">'+esc(p.nom)+'</span>'
+          +'<span class="mdl-l2">'+esc(ehsonPulQd(p))+'</span></span></button>').join('')
+        :'<div class="mdl-empty">Pul turi yo\'q</div>');
+    icons(); return;
+  }
+}
+// Kassa currency vs pul turi valyutasi mos kelmasa — ogohlantirish (bloklamaydi).
+function ehsonCurWarn(modda,kassa){
+  if(!ehsonPulTuri||!modda||!ehsonDaraxt||!isEhsonAcc(modda)) return '';
+  const k=ehsonChildOf(modda.id); if(!k) return '';
+  const pt=(k.pul_turlari||[]).find(p=>p.kod===ehsonPulTuri); if(!pt) return '';
+  const want=pt.valyuta||'UZS', have=(kassa&&kassa.currency)||'UZS';
+  return want===have ? '' : ('Diqqat: pul turi '+want+', tanlangan kassa '+have+' — valyutalar mos emas');
+}
+
+// -- ADV rejim (#accModal) -- kaskad bitta satr uchun, accModalIdx orqali ----
+window.ehsonAccOpenKassa=()=>{
+  const q=($('accSearch')?$('accSearch').value:'')||'';
+  const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const mk=ehsonMatchedKids(words);
+  if(mk&&mk.length===1){ ehsonAccKassa=mk[0]; ehsonAccView='pul'; window.renderAccList(); return; }
+  ehsonAccView='kassa'; ehsonAccKassa=null; window.renderAccList();
+};
+window.ehsonAccBackToRoot=()=>{ ehsonAccView=null; ehsonAccKassa=null; window.renderAccList(); };
+window.ehsonAccBackToKassa=()=>{ ehsonAccView='kassa'; ehsonAccKassa=null; window.renderAccList(); };
+window.ehsonAccPickKassa=id=>{
+  const k=(ehsonDaraxt.kassalar||[]).find(x=>x.id===id); if(!k) return;
+  ehsonAccKassa=k; ehsonAccView='pul'; window.renderAccList();
+};
+window.ehsonAccPickPul=kod=>{
+  const i=accModalIdx, k=ehsonAccKassa; if(i==null||!k||!k.modda) return;
+  const ln=lines[i]; if(!ln) return;
+  const eski=lineCur(ln);
+  ln.root_id=k.modda.id; ln.account_id=k.modda.id; ln.ehson_pul_turi=kod;
+  if(lineCur(ln)!==eski) ln.amount=0;
+  ehsonAccView=null; ehsonAccKassa=null;
+  window.closeAccModal();
+  renderLines();
+};
+function ehsonRenderAcc(box){
+  const t=$('accModalTitle'), s=$('accSearch'), ln=lines[accModalIdx];
+  if(ehsonAccView==='kassa'){
+    if(t) t.textContent=ehsonDaraxt.ildiz.nom; if(s) s.style.display='none';
+    const curId=ln?(ln.root_id||ln.account_id):'', curA=accounts.find(x=>x.id===curId);
+    const cur=(curA&&isEhsonAcc(curA))?curId:'';
+    const kids=(ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false);
+    box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonAccBackToRoot()">'
+        +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'
+      +(kids.length?kids.map(k=>{
+          const on=!!(k.modda&&k.modda.id===cur);
+          return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="ehsonAccPickKassa(\''+k.id+'\')">'
+            +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+            +'<span class="mdl-l1">'+esc(k.nom)+'</span>'
+            +'<span class="mdl-l2">'+money(k.qoldiq)+" so'm"+(k.izoh?(' · '+esc(k.izoh)):'')+'</span></span></button>';
+        }).join('')
+        :'<div class="mdl-empty">Kichik jamg\'arma yo\'q</div>');
+    icons(); return;
+  }
+  if(ehsonAccView==='pul'){
+    const k=ehsonAccKassa; if(!k){ ehsonAccView='kassa'; return ehsonRenderAcc(box); }
+    if(t) t.textContent=k.nom; if(s) s.style.display='none';
+    const curId=ln?(ln.root_id||ln.account_id):'';
+    const cur=(curId===((k.modda||{}).id))?(ln&&ln.ehson_pul_turi):'';
+    const list=(k.pul_turlari||[]).filter(p=>p.is_active!==false);
+    box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonAccBackToKassa()">'
+        +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'
+      +(list.length?list.map(p=>'<button type="button" class="mdl-row'+(p.kod===cur?' on':'')+'" onclick="ehsonAccPickPul(\''+p.kod+'\')">'
+          +'<span class="mdl-tick">'+(p.kod===cur?'✓':'')+'</span><span class="mdl-main">'
+          +'<span class="mdl-l1">'+esc(p.nom)+'</span>'
+          +'<span class="mdl-l2">'+esc(ehsonPulQd(p))+'</span></span></button>').join('')
+        :'<div class="mdl-empty">Pul turi yo\'q</div>');
+    icons(); return;
+  }
+}
+// Adv rejimda: Dt tomonidagi ehson satr pul turi vs Kt kassa valyutasi mos kelmasa ogohlantirish.
+function ehsonAdvWarnMsgs(){
+  const out=[];
+  lines.forEach(l=>{
+    if(!l.ehson_pul_turi) return;
+    const a=accounts.find(x=>x.id===l.account_id); if(!a||!isEhsonAcc(a)||!ehsonDaraxt) return;
+    const k=ehsonChildOf(a.id); if(!k) return;
+    const pt=(k.pul_turlari||[]).find(p=>p.kod===l.ehson_pul_turi); if(!pt) return;
+    const want=pt.valyuta||'UZS';
+    const kt=lines.find(x=>x!==l && x.side!==l.side && x.amount>0 && isKassa(accounts.find(y=>y.id===x.account_id)||{}));
+    if(!kt) return;
+    const ka=accounts.find(y=>y.id===kt.account_id), have=(ka&&ka.currency)||'UZS';
+    if(want!==have) out.push(k.nom+' ('+want+') — tanlangan kassa '+have);
+  });
+  return out;
+}
+// 🔴 `provodka_yoz`/`xarajat_saqlash_taqsim` `entry.ehson_pul_turi` ni YOZMAYDI (insert ustun
+// ro'yxatida yo'q) — payloaddagi qiymat serverda e'tiborsiz qoldiriladi. Shuning uchun yozuv
+// MUVAFFAQIYATLI saqlangach alohida RPC bilan yoziladi — `entry_jadval_yoz` bilan AYNAN bir xil
+// naqsh (fonda, xato bloklamaydi, faqat ogohlantiradi). RPC yo'q bo'lsa (42883/PGRST202) ham
+// xuddi shu ogohlantirish — server hali taxminga tayanadi.
+async function ehsonPulTuriYoz(extRef,pulTuri){
+  if(!extRef||!pulTuri) return;
+  try{
+    const {data,error}=await sb.rpc('entry_ehson_pul_turi_yoz',{p_ext_ref:extRef,p_pul_turi:pulTuri});
+    const kod=data&&data.kod;
+    // 'allaqachon' = idempotent takror chaqiruv — xato emas.
+    if(error||!(data&&(data.ok||kod==='allaqachon'))) alert('Yozuv saqlandi, lekin pul turi yozilmadi (server taxmin qiladi).');
+  }catch(e){ alert('Yozuv saqlandi, lekin pul turi yozilmadi (server taxmin qiladi).'); }
+}
+// ============================================================================
+
 // ---- Modda tanlash: qidiruvli modal (#moddaModal) ----
 // <select id="modda"> HOLAT MANBAI bo'lib qoladi (yashirin) — kodning boshqa
 // joylaridagi $('modda').value o'qish/yozishlari umuman o'zgarmadi.
 // Guruhlash va tartib moddaOptions() bilan AYNAN bir xil.
 function moddaGroups(){
+  // Ehson bola moddalari — kaskad ISHLASA (ehsonDaraxt yuklangan) "Xarajatlar"dan chiqariladi.
+  const ehsonOn=!!(ehsonDaraxt&&ehsonDaraxt.ildiz);
   return [
-    ['Xarajatlar', accounts.filter(modaShow)],
+    ['Xarajatlar', accounts.filter(modaShow).filter(a=>!ehsonOn||!isEhsonAcc(a))],
     ['Daromadlar', accounts.filter(a=>a.type==='daromad')],
     ['Boshqa',     accounts.filter(a=>!isKassa(a)&&a.type!=='xarajat'&&a.type!=='daromad')]
   ];
@@ -2015,7 +2262,10 @@ function moddaMatch(a,words){
 }
 window.renderModdaList=()=>{
   const box=$('moddaList'); if(!box) return;
-  const q=($('moddaSearch')?$('moddaSearch').value:'')||'';
+  const t0=$('moddaModalTitle'); if(t0) t0.textContent='Modda tanlash';
+  const s0=$('moddaSearch'); if(s0) s0.style.display='';
+  if(ehsonModalView){ ehsonRenderModal(box); return; }
+  const q=(s0?s0.value:'')||'';
   const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const cur=$('modda').value||'';
   let html='', n=0;
@@ -2036,6 +2286,17 @@ window.renderModdaList=()=>{
       +'<span class="mdl-l1">'+esc(a.name)+'</span>'
       +'<span class="mdl-l2">'+esc(a.code+(a.subtitle?' \u00b7 '+a.subtitle:''))+'</span></span></button>').join('');
   });
+  // Ehson jamg'armasi — alohida kaskad guruhi (RPC yuklangan bo'lsagina). Qidiruv bo'sh
+  // bo'lsa doim ko'rinadi; qidiruv bilan faqat ildiz/child nomi mos kelsa ko'rinadi.
+  if(ehsonCascadeVisible(words)){
+    const ea=accounts.find(x=>x.id===cur), on=!!(ea&&isEhsonAcc(ea));
+    n++;
+    html+='<div class="mdl-grp">'+esc(ehsonDaraxt.ildiz.nom)+'</div>'
+      +'<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="ehsonOpenKassa()">'
+      +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+      +'<span class="mdl-l1">'+esc(ehsonDaraxt.ildiz.nom)+'</span>'
+      +'<span class="mdl-l2">'+(on?esc(ehsonChipLbl(cur,ehsonPulTuri)):'Kichik jamg\'arma va pul turini tanlash')+'</span></span></button>';
+  }
   if(!n && words.length) html+='<div class="mdl-empty">Topilmadi</div>';
   box.innerHTML=html; icons();
 };
@@ -2045,10 +2306,12 @@ window.renderModdaList=()=>{
 function syncModdaBtn(){
   const b=$('moddaBtn'), l=$('moddaBtnLbl'); if(!b||!l) return;
   const m=accounts.find(a=>a.id===$('modda').value);
-  l.textContent = m ? accLbl(m) : '— modda tanlang —';
+  const eh=(m&&ehsonDaraxt&&isEhsonAcc(m))?ehsonChipLbl(m.id,ehsonPulTuri):'';
+  l.textContent = eh || (m ? accLbl(m) : '— modda tanlang —');
   b.classList.toggle('empty', !m);
 }
 window.openModda=()=>{
+  ehsonModalView=null; ehsonModalKassa=null;
   const s=$('moddaSearch'); if(s) s.value='';
   window.renderModdaList();
   $('moddaModal').classList.add('open');
@@ -2059,6 +2322,7 @@ window.openModda=()=>{
 window.closeModda=()=>{ $('moddaModal').classList.remove('open'); };
 window.pickModda=id=>{
   $('modda').value=id||'';
+  ehsonPulTuri=null; ehsonPulTuriModdaId=null;   // to'g'ridan tanlangan modda — ehson kaskadidan emas
   window.closeModda();          // avval yopamiz — 9413 kommunal modali ustidan ochilsin
   window.onModda();             // mavjud mantiq: kommunal / davr / chek / izoh — hammasi o'sha yerda
   syncModdaBtn();
@@ -2094,6 +2358,9 @@ function simpleDir(){
   return {modda,kassa,income};
 }
 window.updateSimple=()=>{
+  // Ehson pul turi faqat TANLANGAN moddaga tegishli — modda boshqa yo'l bilan
+  // almashtirilsa (pickModda/reset/applyPrefill) bu yerda tozalanadi (yagona qorovul).
+  if(ehsonPulTuri && $('modda').value!==ehsonPulTuriModdaId){ ehsonPulTuri=null; ehsonPulTuriModdaId=null; }
   syncModdaBtn();                                    // modda tugmasi yorlig'i har doim yangi
   mxdRender();                                       // maxsus maydonlar (holat o'zgarmasa qayta chizmaydi)
   const amt=Number(($('summa').value||'').replace(/\D/g,''))||0;
@@ -2104,6 +2371,8 @@ window.updateSimple=()=>{
     h.innerHTML=income
       ? `Pul <b>kiradi</b> · Dt ${esc(kassa.name)} / Kt ${esc(modda.name)}`
       : `Pul <b>chiqadi</b> · Dt ${esc(modda.name)} / Kt ${esc(kassa.name)}`;
+    const ehW=ehsonCurWarn(modda,kassa);
+    if(ehW) h.innerHTML+='<br><span class="ehwarn">'+esc(ehW)+'</span>';
   } else h.style.display='none';
   updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
   updateIzohUI();                                    // V6: izoh majburiyligi — yorliq + ogohlantirish
@@ -2432,9 +2701,9 @@ async function yozAtomik(hdr,rows,yuk){
   //    server 23505 bermaydi -> PUL IKKI MARTA chiqadi. Javob KIMNIKI bo'lsa
   //    o'shaning kaliti tozalanadi.
   if(pendFp===fp){ pendTok=null; pendFp=null; }    // javob ANIQ keldi
-  if(r.error&&isDupErr(r.error)) return {ok:true,dup:true};   // atomik: takror = saqlangan
+  if(r.error&&isDupErr(r.error)) return {ok:true,dup:true,ext_ref:tok};   // atomik: takror = saqlangan
   if(r.error) return {ok:false,error:r.error};
-  return {ok:true,entry_id:(r.data&&r.data.entry_id)||null};
+  return {ok:true,entry_id:(r.data&&r.data.entry_id)||null,ext_ref:tok};
 }
 /* ZAXIRA — RPC yo'q bo'lgandagi ESKI yo'l. 🔴 Bu yerda kompensatsiya `delete`
    SAQLANADI (bu yo'l atomik emas) — o'zgartirilmadi. */
@@ -2450,7 +2719,7 @@ async function saveEski(hdr,rows,yuk){
   // Takror (23505) — sarlavha allaqachon yozilgan: bu urinish YANGI pul chiqarmadi.
   // Muvaffaqiyat deb yakunlaymiz (entry_id yo'q -> chek/maydon biriktirilmaydi).
   if(e1&&isDupErr(e1)){ if(pendFp===fp){ pendTok=null; pendFp=null; }   // faqat O'Z kaliti
-    alert('Bu yozuv allaqachon saqlangan (takroriy yuborish to\'sildi).'); return {ok:true,dup:true}; }
+    alert('Bu yozuv allaqachon saqlangan (takroriy yuborish to\'sildi).'); return {ok:true,dup:true,ext_ref:tok}; }
   if(e1){ alert(perrX(e1)); return {ok:false}; }
   const {error:e2}=await sb.from('entry_line').insert(rows.map(l=>Object.assign({entry_id:ent.id},l)));
   if(e2){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e2)); return {ok:false}; }
@@ -2458,7 +2727,7 @@ async function saveEski(hdr,rows,yuk){
     const {error:e3}=await sb.from('entry_yuk').insert(yuk.map(y=>Object.assign({entry_id:ent.id},y)));
     if(e3){ await sb.from('entry').delete().eq('id',ent.id); alert(perrX(e3)); return {ok:false}; }
   }
-  return {ok:true,entry_id:ent.id};
+  return {ok:true,entry_id:ent.id,ext_ref:tok};
 }
 /* Uchala saqlash yo'li uchun YAGONA kirish nuqtasi.
    hdr — entry maydonlari; rows — entry_line satrlari (entry_id YO'Q, server qo'yadi);
@@ -2468,7 +2737,7 @@ async function yozBir(hdr,rows,yuk){
   const r=await yozAtomik(hdr,rows,yuk);
   if(!r.ok&&r.eski) return await saveEski(hdr,rows,yuk);
   if(!r.ok){ alert(perrX(r.error)); return {ok:false}; }
-  return {ok:true,entry_id:r.entry_id||null,dup:!!r.dup};
+  return {ok:true,entry_id:r.entry_id||null,dup:!!r.dup,ext_ref:r.ext_ref||null};
 }
 /* Chek/hujjat — biriktirish uchun entry id kerak. Takror (dup) holatida id
    noma'lum: yozuv allaqachon bazada, faylni biriktirib bo'lmaydi. Jimgina
@@ -2594,6 +2863,10 @@ async function doSaveSimple(){
   if(davrRequired()){ const dv=davrVals(); entryPayload.davr_start=dv.s; entryPayload.davr_end=dv.e; }
   if(selYuk.size) entryPayload.yuk_ids=[...selYuk];
   if(isKomm()&&kommTuri) entryPayload.kommunal_turi=kommTuri;   // Stage 5: kommunal turi
+  // Ehson kaskadi: tanlangan pul turi — faqat qiymat bo'lsa (ustun yo'q bazada 42703 bo'lmasin).
+  // 🔴 snapshot OLDIN — reset/updateSimple() dan keyin ehsonPulTuri tozalanishi mumkin.
+  const ehPulSnap=(ehsonPulTuri && isEhsonAcc(modda))?ehsonPulTuri:null;
+  if(ehPulSnap) entryPayload.ehson_pul_turi=ehPulSnap;
   const rows=[{account_id:dtId,debit:p.uzs,credit:0},{account_id:ktId,debit:0,credit:p.uzs}];
   // Ko'p-valyuta: fc_amount = VALYUTA miqdori (so'm summasi emas).
   if(p.fc!=null){ rows.forEach(r=>{ if(r.account_id===kassa.id) r.fc_amount=p.fc; }); }
@@ -2605,6 +2878,7 @@ async function doSaveSimple(){
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   if(chekBlob) chekYukla(res, kassa.id);
   aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
+  if(ehPulSnap) ehsonPulTuriYoz(res.ext_ref, ehPulSnap);   // fonda, entry_jadval_yoz naqshi
   // 🔴 TARTIB: entry → entry_line → entry_maydon_yoz (qorovul yozuv SATRLARIGA qaraydi).
   //    Xato bo'lsa yozuv O'CHIRILMAYDI — chek yuklash naqshi (pul harakati to'g'ri).
   mxdYoz(res.entry_id||null, mxdV, mxdN);
@@ -2699,6 +2973,11 @@ window.confirmTaqsim=async()=>{
   if(pair && pair.rate) p_data.kassa_kurs=pair.rate;
   if(davrRequired()){ const dv=davrVals(); p_data.davr_start=dv.s; p_data.davr_end=dv.e; }
   if(isKomm()&&kommTuri) p_data.kommunal_turi=kommTuri;
+  // Ehson kaskadi — server buni e'tiborsiz qoldirishi mumkin (RPC hali qabul qilmasa ham xato bermaydi).
+  // 🔴 snapshot OLDIN — reset/updateSimple() dan keyin ehsonPulTuri tozalanishi mumkin.
+  const ehPulSnap=(()=>{ const modAcc=accounts.find(a=>a.id===taqsimCtx.moddaId);
+    return (ehsonPulTuri && modAcc && isEhsonAcc(modAcc))?ehsonPulTuri:null; })();
+  if(ehPulSnap) p_data.ehson_pul_turi=ehPulSnap;
   // 🔴 TAKROR HIMOYASI: bu yo'l ext_ref YUBORMASDI -> entry.ext_ref null bo'lib yozilardi
   //    va takror hech narsa bilan to'silmasdi (hodim-dev.html dagi ayni RPC token yuboradi).
   //    Naqsh yozAtomik() bilan bir xil: mazmun o'zgarmasa (timeout'dan keyin qayta urinish)
@@ -2728,6 +3007,7 @@ window.confirmTaqsim=async()=>{
     if(chekBlob){ const ids=(data&&data.entry_ids)||[]; if(ids.length) uploadChekNow(kassa.id, ids[0]); }
     mxdYoz((data&&data.entry_ids)||[], mxdV, mxdN);   // har filial yozuviga BIR XIL maxsus maydon qiymati
     aiBind((data&&data.entry_ids)||[], aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
+    if(ehPulSnap) ehsonPulTuriYoz(ttok, ehPulSnap);   // fonda, entry_jadval_yoz naqshi
   }
   // 🔴 Tugma yorlig'i TIKLANADI: `renderTaqsimSum()` faqat `disabled` ni tiklaydi,
   //    matn esa "Saqlanmoqda…" bo'lib qolardi va modal keyingi ochilishida shunday
@@ -2827,6 +3107,11 @@ async function doSaveAdv(){
     if(lineCur(l)!=='UZS') r.fc_amount=Number(l.amount)||0;
     return r; });
   const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  // Ehson kaskadi: Dt tomonidagi ehson bola moddasi bo'lsa — o'shaning pul turi.
+  // 🔴 snapshot OLDIN — `lines=[]` reset dan keyin bu qiymatga kirib bo'lmaydi.
+  const dtE=lines.find(l=>l.side==='debit'&&l.ehson_pul_turi&&isEhsonAcc(accounts.find(a=>a.id===l.account_id)||{}));
+  const ehPulSnap=dtE?dtE.ehson_pul_turi:null;
+  if(ehPulSnap) payload.ehson_pul_turi=ehPulSnap;
   // Atomik: sarlavha + N satr + yuk taqsimoti bitta tranzaksiyada.
   // Xato (42501 perm guard, limit guard, Dt<>Kt) — o'z matni bilan yozBir ichida ko'rsatiladi.
   const res=await yozBir(payload,rows,eyRows);
@@ -2839,6 +3124,7 @@ async function doSaveAdv(){
     else alert('Yozuv saqlandi. Fayl biriktirilmadi — yozuvda Kt (chiqim) tomonida kassa satri yo\'q.');
   }
   aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
+  if(ehPulSnap) ehsonPulTuriYoz(res.ext_ref, ehPulSnap);   // fonda, entry_jadval_yoz naqshi
   // Yozuvdan keyin qoldiqlar o'zgardi — kesh tozalanadi, addLine() qayta yuklatadi
   advBal={};
   lines=[]; $('izoh').value=''; selYuk.clear(); alloc={}; window.removeChek(); addLine(); addLine();
@@ -2865,6 +3151,8 @@ async function init(){
   renderChips(); fetchSubBal(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   loadLimits();                      // Stage 4: standart limitlar (fon)
   mxdLoad();                         // maxsus maydon ta'riflari (fon, fail-closed/fail-open)
+  // Ehson kaskadi — fon (RPC yo'q/xato bo'lsa jimgina eski ko'rinishda qoladi).
+  loadEhsonDaraxt().then(()=>{ window.renderModdaList(); if(curMode==='adv') renderLines(); });
   window.setMode('simple');
   applyPrefill();                    // V8: qarzdor-dev.html'dan kelgan yuk/summa
   // Kengaytirilgan rejim (mavjud)

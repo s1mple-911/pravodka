@@ -972,6 +972,30 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   o'zgarmagan (server `tugash`ni o'zi hisoblaydi). Shablon: `tilxat_shablon.matn` null bo'lishi mumkin —
   yangi shablon nom + fayl (pdf/jpg/png) bilan yaratiladi (`shablon/<id>.<ext>`), chop etish faqat matn bo'lsa.
 
+### Ehson jamg'armasi → child kassalar + pul turlari — ZAKOT (2026-09-07, `ARX_PROVODKA_EHSON_ZAKOT.md`, `PROVODKA_EHSON_ZAKOT.sql`, faqat dev, RUN kutilmoqda)
+
+🔴 Asilbek: «bu faqat zakot uchun». Ildiz «Ehson jamg'armasi» = KONTEYNER (`ehson_kassa.is_container`, yangi kirim/berish
+YO'Q, eski yozuvlar tarixda) → child `ehson_kassa` (parent_id: **Ehson soliq · Ehson asosiy · Zakot**, dinamik — admin
+`ehson_kassa_saqla`) → `ehson_pul_turi` (naqd/dollar/karta/click, dinamik — `ehson_pul_turi_saqla`). Har child O'Z 94xx moddasi
+(`_ehson_xarajat_modda`, nom «Ehson jamg'armasi · Zakot»); `_ehson_kirim_sync` naqshi o'zgarmagan — kompaniya balansiga ta'sir
+YO'Q (Dt xarajat / Kt kassa). Pul turi: `entry.ehson_pul_turi` → `ehson_kirim.pul_turi/valyuta/fc_summa`; tanlanmasa Kt kassadan
+taxmin (USD→dollar, click/payme→click, aks holda naqd — faqat kassada faol kod bo'lsa).
+- 🔴 **`provodka_yoz`/`xarajat_saqlash_taqsim` `entry.ehson_pul_turi` ni YOZMAYDI** (imzo/tana tegilmagan) — Professional saqlashdan
+  KEYIN `entry_ehson_pul_turi_yoz(p_ext_ref, p_pul_turi)` (egalik, 30 daq, bir marta, `_ehson_kirim_sync` qayta) —
+  `entry_jadval_yoz` naqshi. `doSavePending` (9110) ehson bo'lolmaydi — chaqirilmaydi.
+- RPC: `ehson_kassa_daraxt()` (admin/ehson sahifasi/ehson_kirim bayrog'i) — Professional kaskadi va Ehson admin uchun BITTA manba;
+  `ehson_ber` (+`pul_turi`, dollar → `fc_summa` USD, kurs `conv_baza_kurs('USD')` pg_proc bilan, `pul_turi_kerak`/`kurs_yoq`/
+  `kassa_konteyner`, qoldiq `v_ehson_kassa_pul` kesimida); `ehson_dash().kassalar[+parent_id,is_container,tartib,pul_turlari]`;
+  `ehson_kirim_royxat`/`ehson_berish_royxat` (+kassa_id/pul_turi filtri, qatorda pul_turi/valyuta/fc_summa/kassa_nom).
+- **Professional** (`professional-dev.html`): modda modalida «Ehson jamg'armasi» guruhi → child → pul turi (qoldiq bilan), chip
+  «Ehson jamg'armasi › Zakot › Naqd»; adv rejimda Dt satr uchun ham; `ehsonDaraxt` swr 5 daq, RPC yo'q → eski ro'yxat; qidiruv
+  «Zakot» kaskadni ochadi; valyuta nomuvofiqligi sariq ogohlantirish (bloklamaydi).
+- **Ehson** (`ehson-dev.html`, `ehHasZakot` bayrog'i, SQL RUN bo'lmasa AYNAN eski UI): Kirim kartasi ildiz + childlar + pul turi
+  qoldiqlari; Berish — kassa select har doim + pul turi select, dollar → summa USD (`fc_summa`), valyuta almashsa summa tozalanadi;
+  Tarix — kassa/pul turi filtri + «Jamg'arma» ustuni (Excel `EHT_HEAD_TARIX`, Oilalar importi `EHO_HEAD_TARIX` tegilmagan);
+  admin «Jamg'arma kassalari» paneli (Kirim tabi). Bu oy tabida kassa filtri YO'Q (`ehson_oy` o'zgartirilmagan).
+- Hodim-dev TEGILMAGAN (ehson moddalari bayroqsiz yashirin). Sukut qarorlar: dollar USD'da; nisob/2.5% hisoboti keyingi bosqich.
+
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
 `tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +
