@@ -359,9 +359,16 @@ declare
   v_row     ehson_kirim;
   v_id      uuid;
   v_faol    boolean;
+  v_cb      uuid;
 begin
   if p_entry is null then return; end if;
   select * into v_e from entry where id = p_entry;
+  -- 🔴 2026-09-07 (Asilbek testi): entry.created_by TEXT (ism yoki uuid matni), ehson_kirim.created_by UUID —
+  --    to'g'ridan nusxalash "column created_by is of type uuid but expression is of type text" bilan yiqilardi,
+  --    trigger esa xatoni raise warning bilan yutib yuborardi → jurnal orqali kirim HECH QACHON tushmagan
+  --    (asl PROVODKA_EHSON.sql da ham shu xato). entry_jadval_yoz naqshi: regex bilan xavfsiz cast, aks holda null.
+  v_cb := case when (to_jsonb(v_e) ->> 'created_by') ~ '^[0-9a-fA-F-]{36}$'
+               then (to_jsonb(v_e) ->> 'created_by')::uuid end;
   v_faol := found and coalesce(v_e.is_deleted, false) = false and coalesce(v_e.status, 'posted') = 'posted';
 
   for k in select id, xarajat_account_id from ehson_kassa where xarajat_account_id is not null loop
@@ -413,14 +420,14 @@ begin
       else
         insert into ehson_kirim (kassa_id, summa, sana, manba, izoh, created_by, entry_id, pul_kassa_id,
                                   ext_ref, pul_turi, valyuta, fc_summa)
-        values (k.id, v_summa, v_e.entry_date, 'Jurnal', v_e.description, v_e.created_by, p_entry, v_pul,
+        values (k.id, v_summa, v_e.entry_date, 'Jurnal', v_e.description, v_cb, p_entry, v_pul,
                 'entry:' || p_entry::text || ':' || k.id::text, v_turi, v_valyuta, v_fc_out)
         returning id into v_id;
         perform _ehson_tarix_yoz('kirim', v_id, 'jurnaldan_keldi',
           jsonb_build_object('entry_id', p_entry, 'summa', v_summa, 'pul_kassa_id', v_pul, 'pul_turi', v_turi));
       end if;
     elsif found and not v_row.is_deleted then
-      update ehson_kirim set is_deleted = true, deleted_at = now(), deleted_by = v_e.created_by
+      update ehson_kirim set is_deleted = true, deleted_at = now(), deleted_by = v_cb
        where id = v_row.id;
       perform _ehson_tarix_yoz('kirim', v_row.id, 'jurnalda_ochirildi',
         jsonb_build_object('entry_id', p_entry));
@@ -435,12 +442,22 @@ comment on function _ehson_kirim_sync(uuid) is
   'Jurnal yozuvi (Dt ehson moddasi / Kt kassa) -> ehson_kirim avtomat, + pul_turi/valyuta/fc_summa (2026-09-07 zakot). Hech qachon entry ni to''smaydi.';
 
 -- Mavjud ehson_kirim qatorlarini yangi ustunlar bilan bir martalik sinxronlash.
+-- Backfill: (a) mavjud ehson_kirim yozuvlari; (b) 🔴 ehson moddasiga yozilgan, lekin created_by xatosi tufayli
+-- ehson_kirim ga TUSHMAGAN entry'lar (2026-09-07 gacha hammasi shunday edi) — qayta sinxron.
 do $ez_sync_backfill$
-declare e record;
+declare e record; n int := 0;
 begin
-  for e in select distinct entry_id from ehson_kirim where entry_id is not null loop
+  for e in
+    select distinct l.entry_id
+      from entry_line l
+      join ehson_kassa k on k.xarajat_account_id = l.account_id
+     union
+    select distinct entry_id from ehson_kirim where entry_id is not null
+  loop
     perform _ehson_kirim_sync(e.entry_id);
+    n := n + 1;
   end loop;
+  raise notice 'ehson kirim backfill: % ta entry qayta sinxronlandi', n;
 end
 $ez_sync_backfill$;
 
