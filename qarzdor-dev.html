@@ -454,6 +454,19 @@
 
   /* Jadval — desktop ≥1301px (tor ekranda karta ko'rinishiga o'giriladi, tannarx-dev.html naqshi) */
   .artbl-wrap{overflow-x:auto}
+  /* Sticky filtr + sarlavha: thead sticky faqat scroll konteyneri OYNA bo'lsa ishlaydi —
+     shuning uchun ≥1301px da .artbl-wrap overflow:visible (jadval baribir sig'adi, .main max-width:none). */
+  .aq-sticky{position:sticky;top:0;z-index:6;background:var(--surface);padding-top:6px;
+    box-shadow:0 8px 8px -8px rgba(16,24,40,.12)}
+  @media(min-width:1301px){
+    .artbl-wrap{overflow:visible}
+    .artbl thead th{position:sticky;top:var(--aq-stick-h,96px);z-index:5;background:var(--surface);
+      box-shadow:inset 0 -1px 0 var(--line)}
+  }
+  .artbl .aq-kun{font-weight:700}
+  .artbl .aq-kun.k1{color:var(--amber)}
+  .artbl .aq-kun.k2{color:color-mix(in srgb, var(--amber) 40%, var(--red))}
+  .artbl .aq-kun.k3{color:var(--red);font-weight:800}
   .artbl{width:100%;border-collapse:collapse;font-size:13.5px}
   .artbl th,.artbl td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
   .artbl td.num,.artbl th.num{text-align:right;font-variant-numeric:tabular-nums}
@@ -761,7 +774,10 @@
         <div class="aq-legend" id="aqLegend"></div>
       </div>
 
-      <div class="filt">
+      <!-- Sticky: skroll qilinganda filtrlar + sanoq + jadval sarlavhasi tepada qoladi (Asilbek 2026-09-07).
+           Dash kartalari (5 ta + bar) ataylab sticky EMAS — ekranning yarmini yeb qo'yardi. -->
+      <div class="aq-sticky" id="aqSticky">
+      <div class="filt" style="margin-bottom:10px">
         <input class="qz-search" id="aqQ" placeholder="Ism yoki telefon bo'yicha qidirish" oninput="aqSearchDebounce()" autocomplete="off">
         <select class="fsel" id="aqFilial" onchange="aqApplyFilters()" aria-label="Filial"><option value="">Barcha filiallar</option></select>
         <div class="fchips" id="aqHolatChips">
@@ -781,7 +797,8 @@
         <button type="button" class="rfr" id="aqXlsBtn" onclick="aqExportExcel()"><i data-lucide="download"></i><span id="aqXlsTxt">Excel</span></button>
       </div>
 
-      <div class="qz-note" id="aqCount" style="margin:0 0 12px"></div>
+      <div class="qz-note" id="aqCount" style="margin:0 0 6px"></div>
+      </div>
       <div id="aqListBox"><div class="empty">Yuklanmoqda…</div></div>
       <div style="text-align:center;margin-top:14px">
         <button type="button" class="qz-btn" id="aqMoreBtn" style="display:none" onclick="aqMore()">Yana 100 ta</button>
@@ -2675,6 +2692,19 @@ function aqBucketMini(r){
   const segs=AQ_BUCKETS.map(([k,l],i)=>{ const v=Number(r[k])||0; return v>0?`<span class="${cls[i]}" style="flex:${v}" title="${l}: ${money(v)} so'm"></span>`:''; }).join('');
   return `<div class="aq-mini">${segs}</div>`;
 }
+// Eng eski kechikish (kun) — dashboard keshi (cache_debtors.most_outdated_deadline = MOD kun);
+// faqat muddati o'tgan mijozlarda bor. 1–10 sariq · 11–30 to'q sariq · 31+ qizil.
+function aqKunHtml(r){
+  const k=Number(r.most_outdated_kun);
+  if(!(k>0)) return '<span style="color:var(--muted)">—</span>';
+  const cls=k>=31?'k3':(k>=11?'k2':'k1');
+  return '<span class="aq-kun '+cls+'">'+k+' kun</span>';
+}
+function aqStickH(){
+  const s=$('aqSticky'), p=$('tab-aros');
+  if(s&&p) p.style.setProperty('--aq-stick-h', (s.offsetHeight||0)+'px');
+}
+window.addEventListener('resize',()=>{ try{ aqStickH(); }catch(e){} });
 function aqRow(r){
   const rolT=AQ_ROL[r.rol]||r.rol||'—';
   const blocked=r.wallet_status==='blocked';
@@ -2686,6 +2716,7 @@ function aqRow(r){
     <td data-l="Jami qarz" class="num">${money(r.total_debt)}</td>
     <td data-l="Muddati o'tmagan" class="num">${money(r.clean_debt)}</td>
     <td data-l="Muddati o'tgan" class="num"><span class="aq-amt ${aqKechCls(r.kechikish_daraja)}">${money(r.total_outdated)}</span>${aqBucketMini(r)}</td>
+    <td data-l="Eng eski kechikish" class="num">${aqKunHtml(r)}</td>
     <td data-l="Hamyon" class="num">${money(r.wallet_balance)}${blocked?'<span class="aq-chip-blok">Blok</span>':''}</td>
     <td data-l="Balans" class="num"><b class="${bal>0?'aq-bal pos':''}">${money(r.balance)}</b></td>
   </tr>`;
@@ -2695,10 +2726,11 @@ function aqRenderList(){
   if(!arosRows.length){ box.innerHTML='<div class="empty">Mijoz topilmadi</div>'; aqUpdateCount(); return; }
   box.innerHTML=`<div class="artbl-wrap"><table class="artbl"><thead><tr>
     <th>Mijoz</th><th>Filial</th><th class="num">Jami qarz</th><th class="num">Muddati o'tmagan</th>
-    <th class="num">Muddati o'tgan</th><th class="num">Hamyon</th><th class="num">Balans</th>
+    <th class="num">Muddati o'tgan</th><th class="num">Kechikish</th><th class="num">Hamyon</th><th class="num">Balans</th>
   </tr></thead><tbody>${arosRows.map(aqRow).join('')}</tbody></table></div>`;
   icons();
   aqUpdateCount();
+  aqStickH();
 }
 function aqUpdateCount(){
   const el=$('aqCount'); if(el) el.textContent=`${arosRows.length} ta ko'rsatilmoqda · jami ${arosJami} ta`
@@ -2769,16 +2801,17 @@ window.aqExportExcel=async()=>{
       if(rows.length<lim||all.length>=maxRows) break;
       offset+=lim;
     }
-    const head=['Mijoz','Telefon','Rol','Filial','Jami qarz',"Muddati o'tmagan","Muddati o'tgan",'1-10','11-20','21-30','31-45','45+','Hamyon','Keshbek','Balans','Hamyon holati'];
+    const head=['Mijoz','Telefon','Rol','Filial','Jami qarz',"Muddati o'tmagan","Muddati o'tgan",'Eng eski kechikish (kun)','1-10','11-20','21-30','31-45','45+','Hamyon','Keshbek','Balans','Hamyon holati'];
     const aoa=[head,...all.map(r=>[
       `${r.ism||''} ${r.familya||''}`.trim(), r.telefon||'', AQ_ROL[r.rol]||r.rol||'', r.warehouse_nom||'',
       Math.round(r.total_debt||0), Math.round(r.clean_debt||0), Math.round(r.total_outdated||0),
+      (Number(r.most_outdated_kun)>0?Number(r.most_outdated_kun):''),
       Math.round(r.debt_1_10||0), Math.round(r.debt_11_20||0), Math.round(r.debt_21_30||0), Math.round(r.debt_31_45||0), Math.round(r.debt_45_plus||0),
       Math.round(r.wallet_balance||0), Math.round(r.cashback_balance||0), Math.round(r.balance||0),
       r.wallet_status==='blocked'?'Blok':'Ochiq'
     ])];
     const ws=X.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:20},{wch:15},{wch:10},{wch:18},{wch:12},{wch:14},{wch:14},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:12},{wch:10},{wch:12},{wch:10}];
+    ws['!cols']=[{wch:20},{wch:15},{wch:10},{wch:18},{wch:12},{wch:14},{wch:14},{wch:12},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:12},{wch:10},{wch:12},{wch:10}];
     const wb=X.utils.book_new();
     X.utils.book_append_sheet(wb,ws,'Aros mijozlar');
     X.writeFile(wb,'aros_mijozlar_'+isoDay(nowUz())+'.xlsx');
