@@ -985,8 +985,11 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
   `faol=false` FAQAT rows ≥ 100 VA rows = Aros `count` — bitta sahifa 404 bersa sweep yo'q), `aros_qarzdor_royxat(p jsonb)`
   ({rows[+kechikish_daraja], jami, jami_summa, filiallar, synced_at}; `holat`/`sort` whitelist, limit ≤500),
   `aros_qarzdor_dash()`, `qarz_umumiy_dash()` (Provodka `qarz_dash` + Aros). Ruxsat `qarz_page_ok()`, RLS faqat select.
-- **n8n** `Aros Provodka - Aros Qarzdor Sync` (`i91Kfmp7Orm55leW`, `N8N_AROS_QARZDOR_SYNC.js`, har 30 daq; Get Debtors
+- **n8n** `Aros Provodka - Aros Qarzdor Sync` (`KwYNPuJss2tAwi7w`, `N8N_AROS_QARZDOR_SYNC.js`, har 30 daq; Get Debtors
   batch 3/1500ms). Kreditlar (Aros Basic Auth, Supabase API service_role) + Publish — Asilbek.
+- 🔴 **Takroriy so'rov yo'q** (Asilbek): `debt_limit`/`debt_allowed_days`/`most_outdated_deadline` dashboard keshidan —
+  `Kesh Limit PG` node n8n PG `cache_debtors` (`Aros Market - Debtors Cache` `0mY2RmaOYGtX1Jho` to'ldiradi) ni o'qiydi,
+  Aros `users/{id}` chaqirilmaydi. Buyurtmalar drill-down (3-bosqich) — mavjud `aros-client-items` webhook. ARX 4a.
 - **UI** `qarzdor-dev.html`: umumiy strip (`#qzUmumiy`, faqat «Bizdan qarzdor»), sub-tab «Aros mijozlar» (`#tab-aros`,
   `aq*`/`.artbl`: dash + kechikish stacked bar, qidiruv/filial/holat/saralash, jadval ≥1301px (`body.aq-wide .main
   {max-width:none}` — raqam kesilmasin) / karta ≤1300px, `#arosKartModal`, Excel ≤5000). RPC yo'q → banner.

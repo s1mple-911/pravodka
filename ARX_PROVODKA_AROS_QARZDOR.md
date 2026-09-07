@@ -110,7 +110,7 @@ report_date, eskirgan (synced_at < now()−2 soat)}`. Jadval bo'sh → `{summary
 `{provodka:{jami_qolgan, jami_kechikkan} (qarz_dash() dan), aros:{total_debt, total_outdated, soni_qarzdor,
 synced_at}, jami:{qarz, muddati_otgan}}`. `qarz_dash` yo'q bazada — provodka qismi null.
 
-## 4. n8n — `Aros Provodka - Aros Qarzdor Sync` (`i91Kfmp7Orm55leW`, `N8N_AROS_QARZDOR_SYNC.js`, ALOHIDA workflow — yaratildi 2026-09-07, kredit+Publish Asilbek)
+## 4. n8n — `Aros Provodka - Aros Qarzdor Sync` (`KwYNPuJss2tAwi7w`, `N8N_AROS_QARZDOR_SYNC.js`, ALOHIDA workflow — yaratildi 2026-09-07, kredit+Publish Asilbek)
 Schedule 30 daq + Manual → **Sana** (Code: `report_date` = bugun Toshkent) → **Sahifalar** (Code: 3 item `page=1..3`) →
 **Get Debtors** (HTTP GET `…/v3/report/debtors-list/?report_date=&page=&page_size=1000`, Aros Basic Auth,
 timeout 60 s, 🔴 **batching `batchSize: 3, batchInterval: 1500`** — «Items per Batch = 1» n8n'da ABADIY osiladi
@@ -119,6 +119,21 @@ timeout 60 s, 🔴 **batching `batchSize: 3, batchInterval: 1500`** — «Items 
 **sync_aros_qarzdor** (HTTP POST `rest/v1/rpc/sync_aros_qarzdor`, Supabase API service_role).
 Kreditlar (Aros Basic Auth, Supabase API) — Asilbek. SDK: `const`, template string, `newCredential`, jsCode'da
 arrow YO'Q, `function` sintaksisi.
+
+## 4a. Dashboard keshidan foydalanish — TAKRORIY SO'ROV YO'Q (Asilbek 2026-09-07)
+`arosmarket-dashboard` repo n8n'da allaqachon qarzdor ma'lumotini yig'adi: `Aros Market - Debtors Cache`
+(`0mY2RmaOYGtX1Jho`, har soat 02–18, har filial × 3 sana, `wallet/v2/debtors-by-warehouse` → n8n PG `cache_debtors`
+(`warehouse_id, sana, data{debtors[{id, first_name, last_name, username, wallet_balance, debt_limit, debt_allowed_days,
+total_debts, total_outdated_debts, most_outdated_deadline}]}`), FAQAT muddati o'tganlar), `Aros Market - Debtors V2 API`
+(`zQXwQmoheSiUj6qm`: `aros-client-items?user_id=&wid=` — unpaid buyurtmalar + tovarlar + live_total_debt; `aros-client-names-all`
+— maxsus nomlar), `Debtors Refresh` (`imvewwoC5pUD2wiT`), `Tilxat API` (`lmWl5s4HNNOS5PnS`), deadline/tilxat/collect jadvallari.
+- **Nima qayta ishlatiladi**: `debt_limit`/`debt_allowed_days`/`most_outdated_deadline` — `Kesh Limit PG` (Postgres account 3)
+  `cache_debtors` dan (Aros `users/{id}` API CHAQIRILMAYDI); mijoz kartasida «Qarz limiti · foydalanish %». Faqat muddati
+  o'tgan mijozlarda bor (kesh shunday filtrlangan); yo'q bo'lsa eski qiymat qoladi (`coalesce`).
+- **Nima alohida olinadi**: `debtors-list` (aging 5 bucket, clean_debt, cashback, rol, summary) dashboard keshida YO'Q —
+  3 so'rov / 30 daq (dashboard 69 so'rov / soat). Bu takror emas, boshqa endpoint.
+- **3-bosqich uchun**: buyurtmalar drill-down yangi proxy EMAS — mavjud `aros-client-items` webhook (JWT'siz, ochiq;
+  Provodka'dan chaqirishda ruxsatni klient `qarz_page_ok` bilan tekshiradi, dashboard bilan bir xil darajada).
 
 ## 5. UI — `qarzdor-dev.html` «Bizdan qarzdor» (faqat dev)
 1. **Umumiy strip** (segment ostida, sub-tablardan oldin, `qarz_umumiy_dash`): Jami qarz (Provodka + Aros) ·

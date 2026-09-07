@@ -59,7 +59,11 @@
 
 do $qd_pre$
 begin
-  if to_regprocedure('public.qarz_page_ok()') is null then
+  -- pg_proc orqali (to_regprocedure Supabase editorida 2026-09-07 da null berdi,
+  -- funksiya bazada BOR edi — RPC true qaytargan).
+  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'public' and p.proname = 'qarz_page_ok'
+                    and p.pronargs = 0) then
     raise exception 'qarz_page_ok() yoq — avval PROVODKA_QARZ.sql ni bajaring';
   end if;
 end
@@ -92,11 +96,20 @@ create table if not exists aros_qarzdor (
   debt_31_45         numeric(18,2) not null default 0,
   debt_45_plus       numeric(18,2) not null default 0,
   total_outdated     numeric(18,2) not null default 0,
+  -- Dashboard keshidan (n8n PG cache_debtors — Aros ga QAYTA sorov YOQ, 2026-09-07 Asilbek):
+  debt_limit         numeric(18,2),
+  debt_allowed_days  int,
+  most_outdated_deadline date,
   report_date        date,
   faol               boolean     not null default true,
   synced_at          timestamptz,
   created_at         timestamptz not null default now()
 );
+
+-- Additive: jadval avvalroq yaratilgan bazada ham ustunlar paydo bolsin.
+alter table aros_qarzdor add column if not exists debt_limit             numeric(18,2);
+alter table aros_qarzdor add column if not exists debt_allowed_days      int;
+alter table aros_qarzdor add column if not exists most_outdated_deadline date;
 
 comment on table aros_qarzdor is
   'Aros mijoz qarzlari REGISTRI (v3/report/debtors-list, n8n "Aros Provodka - '
@@ -204,6 +217,9 @@ declare
   v_d4              numeric;
   v_d5              numeric;
   v_outdated        numeric;
+  v_limit           numeric;
+  v_dad             int;
+  v_mod             date;
 
   v_ids_korilgan    int[] := '{}';
   n_yozildi         int := 0;
@@ -277,19 +293,24 @@ begin
       v_d4             := nullif(v_el ->> 'debt_31_45', '')::numeric;
       v_d5             := nullif(v_el ->> 'debt_45_plus', '')::numeric;
       v_outdated       := nullif(v_el ->> 'total_outdated_debts', '')::numeric;
+      -- n8n "Birlashtir" dashboard keshidan (cache_debtors) qoshadi; yoq bolsa null -> eski qiymat qoladi
+      v_limit          := nullif(v_el ->> 'debt_limit', '')::numeric;
+      v_dad            := nullif(v_el ->> 'debt_allowed_days', '')::int;
+      v_mod            := nullif(left(v_el ->> 'most_outdated_deadline', 10), '')::date;
 
       insert into aros_qarzdor (
         user_id, ism, familya, telefon, rol, warehouse_id, warehouse_nom,
         wallet_status, wallet_balance, cashback_balance,
         total_debt, balance, clean_debt,
         debt_1_10, debt_11_20, debt_21_30, debt_31_45, debt_45_plus, total_outdated,
+        debt_limit, debt_allowed_days, most_outdated_deadline,
         report_date, faol, synced_at)
       values (
         v_uid, coalesce(v_ism, ''), coalesce(v_familya, ''), v_telefon, v_rol, v_wh_id, v_wh_nom,
         v_wallet_status, coalesce(v_wallet_balance, 0), coalesce(v_cashback, 0),
         coalesce(v_total_debt, 0), coalesce(v_balance, 0), coalesce(v_clean_debt, 0),
         coalesce(v_d1, 0), coalesce(v_d2, 0), coalesce(v_d3, 0), coalesce(v_d4, 0), coalesce(v_d5, 0),
-        coalesce(v_outdated, 0), v_report_date, true, now())
+        coalesce(v_outdated, 0), v_limit, v_dad, v_mod, v_report_date, true, now())
       on conflict (user_id) do update
          set ism              = excluded.ism,
              familya          = excluded.familya,
@@ -309,6 +330,9 @@ begin
              debt_31_45       = excluded.debt_31_45,
              debt_45_plus     = excluded.debt_45_plus,
              total_outdated   = excluded.total_outdated,
+             debt_limit       = coalesce(excluded.debt_limit, aros_qarzdor.debt_limit),
+             debt_allowed_days = coalesce(excluded.debt_allowed_days, aros_qarzdor.debt_allowed_days),
+             most_outdated_deadline = coalesce(excluded.most_outdated_deadline, aros_qarzdor.most_outdated_deadline),
              report_date      = excluded.report_date,
              faol             = true,
              synced_at        = now()
@@ -453,6 +477,8 @@ begin
            'total_debt', b.total_debt, 'balance', b.balance, 'clean_debt', b.clean_debt,
            'debt_1_10', b.debt_1_10, 'debt_11_20', b.debt_11_20, 'debt_21_30', b.debt_21_30,
            'debt_31_45', b.debt_31_45, 'debt_45_plus', b.debt_45_plus, 'total_outdated', b.total_outdated,
+           'debt_limit', b.debt_limit, 'debt_allowed_days', b.debt_allowed_days,
+           'most_outdated_deadline', b.most_outdated_deadline,
            'kechikish_daraja',
              case when b.debt_45_plus > 0 then '45_plus'
                   when b.debt_31_45  > 0 then '31_45'
@@ -614,7 +640,8 @@ begin
   end if;
 
   v_provodka := null;
-  if to_regprocedure('public.qarz_dash()') is not null then
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.proname = 'qarz_dash' and p.pronargs = 0) then
     begin
       execute 'select qarz_dash()' into v_provodka;
     exception when others then
@@ -669,17 +696,11 @@ begin
     raise exception 'YAKUNIY TEKSHIRUV: aros_qarzdor_sync jadvali yaralmadi';
   end if;
 
-  if to_regprocedure('public.sync_aros_qarzdor(jsonb)') is null then
-    raise exception 'YAKUNIY TEKSHIRUV: sync_aros_qarzdor(jsonb) yoq';
-  end if;
-  if to_regprocedure('public.aros_qarzdor_royxat(jsonb)') is null then
-    raise exception 'YAKUNIY TEKSHIRUV: aros_qarzdor_royxat(jsonb) yoq';
-  end if;
-  if to_regprocedure('public.aros_qarzdor_dash()') is null then
-    raise exception 'YAKUNIY TEKSHIRUV: aros_qarzdor_dash() yoq';
-  end if;
-  if to_regprocedure('public.qarz_umumiy_dash()') is null then
-    raise exception 'YAKUNIY TEKSHIRUV: qarz_umumiy_dash() yoq';
+  -- pg_proc orqali (to_regprocedure Supabase editorida ishonchsiz — 0-BOLIM izohi)
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and p.proname in ('sync_aros_qarzdor', 'aros_qarzdor_royxat', 'aros_qarzdor_dash', 'qarz_umumiy_dash')) < 4 then
+    raise exception 'YAKUNIY TEKSHIRUV: 4 ta RPC dan birortasi yaralmadi (sync_aros_qarzdor, aros_qarzdor_royxat, aros_qarzdor_dash, qarz_umumiy_dash)';
   end if;
 
   if not exists (select 1 from pg_policies

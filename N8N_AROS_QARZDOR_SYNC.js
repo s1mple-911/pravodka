@@ -1,7 +1,7 @@
 // ============================================================================
 // «Aros Provodka - Aros Qarzdor Sync» — n8n Workflow SDK kodi (2026-09-07)
-// n8n'da YARATILGAN (2026-09-07): workflow id i91Kfmp7Orm55leW — https://n8n.arosmarket.com/workflow/i91Kfmp7Orm55leW
-// validate_workflow OK (7 node). Asilbek kreditlarni (Aros Basic Auth, Supabase API
+// n8n'da YARATILGAN (2026-09-07): workflow id KwYNPuJss2tAwi7w — https://n8n.arosmarket.com/workflow/KwYNPuJss2tAwi7w
+// validate_workflow OK (9 node; v1 i91Kfmp7Orm55leW arxivlandi — kesh limit nodelari qoshildi). Asilbek kreditlarni (Aros Basic Auth, Supabase API
 // service_role) qo'lda ulaydi, SQL RUN qilgach Publish qiladi.
 // Bu fayl — repo nusxasi (qayta yaratish/tahrirlash uchun manba).
 // ----------------------------------------------------------------------------
@@ -17,7 +17,16 @@
 // Tuzilma:
 //   Har 30 daqiqa ─────────┐
 //   Qolda ishga tushirish  ┴─> Sana -> Sahifalar -> Get Debtors (batch 3/1500ms)
-//                              -> Yig' -> sync_aros_qarzdor (HTTP POST)
+//                              -> Yig' -> Kesh Limit PG -> Birlashtir -> sync_aros_qarzdor
+//
+// 🔴 TAKRORIY SOROV YOQ (Asilbek 2026-09-07): arosmarket-dashboard allaqachon
+// «Aros Market - Debtors Cache» (0mY2RmaOYGtX1Jho) bilan soatlik n8n PG
+// cache_debtors jadvalini toldiradi (debtors-by-warehouse: debt_limit,
+// debt_allowed_days, most_outdated_deadline). Biz Aros users API ni
+// CHAQIRMAYMIZ — «Kesh Limit PG» shu jadvaldan oqiydi (Postgres account 3),
+// «Birlashtir» rows ga qoshadi. Kesh yoq/xato -> ogoh, sync davom etadi.
+// debtors-list (aging bucketlar, summary) dashboard keshida YOQ — shuning
+// uchun u alohida olinadi (3 sorov / 30 daq, dashboard 69 sorov / soat).
 //
 // Asilbek qolda qiladi (yaratilgan workflow'da):
 //   - «Get Debtors» -> Aros Basic Auth krediti (genericCredentialType/
@@ -118,6 +127,43 @@ return [{ json: {
   davomiylik_ms: davomiylikMs
 } }];`;
 
+const KESH_LIMIT_SQL = `select (d->>'id')::bigint as user_id,
+       max(nullif(d->>'debt_limit', '')::numeric) as debt_limit,
+       max(nullif(d->>'debt_allowed_days', '')::int) as debt_allowed_days,
+       max(nullif(left(d->>'most_outdated_deadline', 10), '')) as most_outdated_deadline
+  from cache_debtors c, jsonb_array_elements(c.data->'debtors') d
+ where c.updated_at > now() - interval '3 days'
+   and (d->>'id') ~ '^[0-9]+$'
+ group by 1`;
+
+const BIRLASHTIR_JSCODE = `var base = $("Yig'").first().json || {};
+var items = $input.all();
+var map = {};
+for (var i = 0; i < items.length; i++) {
+  var j = items[i].json || {};
+  if (j.error || j.user_id === null || j.user_id === undefined) {
+    continue;
+  }
+  map[String(j.user_id)] = j;
+}
+var rows = Array.isArray(base.rows) ? base.rows : [];
+var n = 0;
+for (var k = 0; k < rows.length; k++) {
+  var m = map[String(rows[k].user_id)];
+  if (m) {
+    rows[k].debt_limit = m.debt_limit;
+    rows[k].debt_allowed_days = m.debt_allowed_days;
+    rows[k].most_outdated_deadline = m.most_outdated_deadline;
+    n = n + 1;
+  }
+}
+base.rows = rows;
+base.limit_n = n;
+if (Object.keys(map).length === 0) {
+  base.ogoh = (Array.isArray(base.ogoh) ? base.ogoh : []).concat(["cache_debtors (dashboard keshi) dan limit kelmadi"]);
+}
+return [{ json: base }];`;
+
 const wf = workflow('aros-provodka-aros-qarzdor-sync', 'Aros Provodka - Aros Qarzdor Sync');
 
 const schedule = node({
@@ -188,6 +234,29 @@ const yigish = node({
   }
 });
 
+const keshLimit = node({
+  type: 'n8n-nodes-base.postgres',
+  version: 2.6,
+  config: {
+    name: 'Kesh Limit PG',
+    parameters: { operation: 'executeQuery', query: KESH_LIMIT_SQL, options: { largeNumbersOutput: 'text' } },
+    credentials: { postgres: newCredential('Postgres account 3') },
+    onError: 'continueRegularOutput',
+    alwaysOutputData: true,
+    position: [1300, 100]
+  }
+});
+
+const birlashtir = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Birlashtir',
+    parameters: { jsCode: BIRLASHTIR_JSCODE },
+    position: [1560, 100]
+  }
+});
+
 const httpSync = node({
   type: 'n8n-nodes-base.httpRequest',
   version: 4.2,
@@ -204,7 +273,7 @@ const httpSync = node({
       options: { timeout: 30000 }
     },
     credentials: { supabaseApi: newCredential('Supabase API') },
-    position: [1300, 100]
+    position: [1820, 100]
   }
 });
 
@@ -213,6 +282,8 @@ wf.add(manual).to(sana);
 wf.add(sana).to(sahifalar);
 wf.add(sahifalar).to(getDebtors);
 wf.add(getDebtors).to(yigish);
-wf.add(yigish).to(httpSync);
+wf.add(yigish).to(keshLimit);
+wf.add(keshLimit).to(birlashtir);
+wf.add(birlashtir).to(httpSync);
 
 export default wf;

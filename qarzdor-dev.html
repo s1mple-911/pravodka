@@ -2711,6 +2711,13 @@ window.aqOpenKart=userId=>{
   const rolT=AQ_ROL[r.rol]||r.rol||'—';
   const blocked=r.wallet_status==='blocked';
   const bucketRows=AQ_BUCKETS.map(([k,l])=>`<tr><td>${l}</td><td class="num">${money(r[k])}</td></tr>`).join('');
+  // Qarz limiti — dashboard keshidan (cache_debtors), faqat muddati otgan mijozlarda bor
+  const lim=Number(r.debt_limit)||0, limPct=lim>0?Math.round((Number(r.total_debt)||0)/lim*100):0;
+  const limitHtml=lim>0?`<div class="qz-ksum3">
+      <div><div class="qz-kl">Qarz limiti</div><div class="qz-kv">${money(lim)} so'm</div></div>
+      <div><div class="qz-kl">Limitdan foydalanish</div><div class="qz-kv${limPct>=100?' warn':''}">${limPct}%</div></div>
+      <div><div class="qz-kl">Ruxsat kuni</div><div class="qz-kv">${r.debt_allowed_days!=null?esc(String(r.debt_allowed_days))+' kun':'—'}</div></div>
+    </div>`:'';
   $('arosKartTitle').textContent=`${r.ism||''} ${r.familya||''}`.trim()||'Mijoz';
   $('arosKartBody').innerHTML=`
     <div class="qz-ksum3" style="grid-template-columns:1fr 1fr">
@@ -2730,6 +2737,7 @@ window.aqOpenKart=userId=>{
       <div><div class="qz-kl">Keshbek</div><div class="qz-kv">${money(r.cashback_balance)} so'm</div></div>
       <div><div class="qz-kl">Balans</div><div class="qz-kv">${money(r.balance)} so'm</div></div>
     </div>
+    ${limitHtml}
     <div class="qz-note">Aros ma'lumoti: ${esc(aqSyncMatn(arosSyncAt))}${arosReportDate?(' · hisobot sanasi '+esc(qzFmtDate(String(arosReportDate).slice(0,10)))):''}</div>
   `;
   $('arosKartModal').classList.add('open');
