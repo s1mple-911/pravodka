@@ -396,15 +396,24 @@ const CARDS=[
   {k:'sozlama',      href:'sozlama.html',      t:'Sozlamalar',          i:'settings',         d:'Hisob rejasi boshqaruvi'},
   {k:'rollar',       href:'sozlama.html#rollar', t:'Rollar',            i:'shield',           d:'Rollar va foydalanuvchi ruxsatlari'},
   {k:'standart',     href:'standart.html',     t:'Standart xarajatlar', i:'gauge',            d:"Takrorlanuvchi xarajat me'yorlari"},
-  {k:'yuklar',       href:'yuklar.html',       t:'Yuklar',              i:'package',          d:'Yuk partiyalari'},
-  {k:'tannarx',      href:'tannarx.html',      t:'Tannarx',             i:'receipt-text',     d:'Tovar tannarxi hisobi'},
+  {k:'yuklar',       href:'yuklar.html',       t:'Yuklar',              i:'package',          d:"Yuk partiyalari, tannarx va Aros bojxona limiti"},
   {k:'ai',           href:'ai.html',           t:'AI yordamchi',        i:'sparkles',         d:'Moliyaviy savol-javob'}
 ];
 /* `provodka` sahifasi ATAYLAB yo'q: u navigatsiyadan yashirilgan (CLAUDE.md),
    faqat to'g'ridan URL bilan ochiladi.
    `rollar` — bu SAHIFA emas, faqat KARTA (sozlama.html ichidagi bo'lim, "UCH joy"
    qoidasiga kirmaydi: perm_pages()/PAGES da yo'q). renderCards() uni permPageOk()
-   BILAN EMAS, to'g'ridan permIsAdmin() bilan filtrlaydi. */
+   BILAN EMAS, to'g'ridan permIsAdmin() bilan filtrlaydi.
+   🔴 `tannarx` kartasi 2026-09-07 dan YO'Q — Tannarx yuklar.html ga birlashtirildi
+   (tannarx.html endi faqat redirect). Ruxsat kaliti `tannarx` perms.js PAGES
+   da QOLADI (server guard `yuk_tannarx_ruxsat()` uchun kerak) — faqat KARTA olib
+   tashlangan. `permPageOk('yuklar')` (= `pageOk()`, perms.js) endi `tannarx`
+   ruxsatini ham HISOBGA OLADI, shuning uchun faqat `tannarx` ruxsati bor
+   (`yuklar`siz) user ham «Yuklar» kartasini to'g'ridan ko'radi — busiz karta ham,
+   nav ham yopiq bo'lib qolardi. `firstAllowed()` bunday userni baribir avval
+   `tannarx.html` ga yo'naltiradi (PAGES tartibida `yuklar` undan oldin, lekin
+   allowed_pages'da yo'q), u yerdan redirect yuklar.html ga olib boradi va
+   gate() endi pageOk('yuklar') orqali muvaffaqiyatli o'tadi. */
 
 function cardHtml(c){
   return '<a class="pcard" href="'+c.href+'">'

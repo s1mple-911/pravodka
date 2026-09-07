@@ -163,6 +163,12 @@
      mobil'da o'ralishi kerak — .krow .nm/.st dagi nowrap shu yerda bekor qilinadi. */
   .yl-row{align-items:flex-start;flex-wrap:wrap}
   .kgh .t.yl-st{font-size:12.5px;font-weight:500;color:var(--muted);text-align:right}
+  /* Yig'iladigan sarlavha: tugma ko'rinishi olib tashlanadi, chevron ochilganda 90° buriladi */
+  button.kgh.yl-head{width:100%;background:transparent;border:none;font-family:inherit;cursor:pointer;text-align:left;padding-left:0;padding-right:0;color:inherit}
+  button.kgh.yl-head:hover .n{color:var(--primary)}
+  .yl-head .n{display:inline-flex;align-items:center;gap:6px}
+  .yl-chev{width:15px;height:15px;color:var(--muted);transition:transform .15s}
+  .yl-grp.open .yl-chev{transform:rotate(90deg)}
   .yl-row .nm,.yl-row .st{white-space:normal;overflow:visible;text-overflow:clip}
   .yl-row .yl-time{margin-top:2px}
   .yl-time.yl-ogoh{color:var(--amber)}
@@ -262,7 +268,6 @@
       <a class="nav-item" href="qarzdor.html"><i data-lucide="hand-coins"></i><span>Qarz</span></a>
       <a class="nav-item" href="filial.html"><i data-lucide="store"></i><span>Filiallar</span></a>
       <a class="nav-item" href="yuklar.html"><i data-lucide="package"></i><span>Yuklar</span></a>
-      <a class="nav-item" href="tannarx.html"><i data-lucide="receipt-text"></i><span>Tannarx</span></a>
       <a class="nav-item" href="valyuta.html"><i data-lucide="banknote"></i><span>Valyuta</span></a>
       <a class="nav-item" href="sorovlar.html"><i data-lucide="hand-coins"></i><span>So'rovlar</span></a>
       <a class="nav-item" href="konvert.html"><i data-lucide="arrow-right-left"></i><span>Konvert</span></a>
@@ -336,7 +341,6 @@
       <a href="sozlama.html"><i data-lucide="settings"></i>Sozlamalar</a>
       <a href="standart.html"><i data-lucide="gauge"></i>Standart xarajatlar</a>
       <a href="yuklar.html"><i data-lucide="package"></i>Yuklar</a>
-      <a href="tannarx.html"><i data-lucide="receipt-text"></i>Tannarx</a>
       <a href="ai.html"><i data-lucide="sparkles"></i>AI yordamchi</a>
       <a href="ehson.html"><i data-lucide="heart-handshake"></i>Ehson</a>
       <button class="close" onclick="closeMore()">Yopish</button>
@@ -821,10 +825,21 @@ function renderYolda(){
       +`<i data-lucide="chevron-down"></i>Yaqinda qabul qilingan (${qabul.length})</button>`
       +`<div class="klist yl-qlist" id="yoldaQabul" style="${qOpen?'':'display:none'}">${qabul.map(ylQabulRow).join('')}</div></div>`
     : '';
-  el.innerHTML=`<div class="kgrp yl-grp"><div class="kgh"><span class="n">🚚 Yo'ldagi pullar · ${rows.length} ta</span><span class="t">${money(jami)}</span></div>`
-    +`<div class="klist">${rows.map(ylRow).join('')}</div>${qBlock}</div>`;
+  // Yig'iladigan bo'lim (Asilbek 2026-09-06): sukut YIG'IQ — sarlavhada soni + umumiy summa
+  // ko'rinib turadi, bosilsa ro'yxat ochiladi (localStorage 'yl-open').
+  const open=localStorage.getItem('yl-open')==='1';
+  el.innerHTML=`<div class="kgrp yl-grp${open?' open':''}"><button type="button" class="kgh yl-head" onclick="toggleYlOpen()" aria-expanded="${open?'true':'false'}">`
+    +`<span class="n"><i data-lucide="chevron-right" class="yl-chev"></i>🚚 Yo'ldagi pullar · ${rows.length} ta</span><span class="t">${money(jami)}</span></button>`
+    +`<div class="yl-body" id="yoldaBody" style="${open?'':'display:none'}"><div class="klist">${rows.map(ylRow).join('')}</div>${qBlock}</div></div>`;
   icons();
 }
+window.toggleYlOpen=()=>{
+  const body=$('yoldaBody'); if(!body) return;
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  try{ localStorage.setItem('yl-open',open?'1':'0'); }catch(e){}
+  const g=document.querySelector('.yl-grp'); if(g){ g.classList.toggle('open',open); const h=g.querySelector('.yl-head'); if(h) h.setAttribute('aria-expanded',open?'true':'false'); }
+};
 window.toggleYlQabul=()=>{
   const box=$('yoldaQabul'); if(!box) return;
   const open=box.style.display==='none';
