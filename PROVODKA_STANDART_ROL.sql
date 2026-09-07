@@ -2,19 +2,36 @@
 -- PROVODKA_STANDART_ROL.sql
 -- Asilbek talabi (2026-09-07): "Standart xarajatlar" sahifasida filial
 -- tanlanganda FAQAT shu filial hodimlariga (rol orqali) ochilgan xarajat
--- moddalari ko'rinsin (buxgalter aralashtiryapti — "har qanday modda"
--- ko'rinishi chalkashtiradi). Rolda limit qo'yilgan bo'lsa ko'rinadi;
--- filial limiti (standart_xarajat) qo'yilgan bo'lsa rol (oylik) limitini
+-- moddalari ko'rinsin. Rolda limit qo'yilgan bo'lsa ko'rinadi; filial
+-- limiti (standart_xarajat) qo'yilgan bo'lsa rol (oylik) limitini
 -- OVERRIDE qiladi — filial limiti amal qiladi, rol limiti tekshirilmaydi.
+--
+-- 🔴 2-TUZATISH (2026-09-07, Asilbek SQL'ni RUN qilgandan keyin topildi):
+-- birinchi versiya `staff_branch_map.provodka_filial = accounts.name` deb
+-- taqqoslardi — HAMMA filialda mos kelmadi, chunki `provodka_filial`
+-- Aros STAFF bo'lim nomi ("Andijon"), `accounts.name` esa filial KASSA
+-- nomi ("Andijan Xolis kassa") — ikkalasi boshqa-boshqa manba, hech qachon
+-- aynan teng bo'lmaydi. Yechim: ADMIN qo'lda bog'laydigan yangi ustun
+-- (`staff_branch_map.filial_id`, to'g'ridan `accounts.id`ga) + o'xshashlik
+-- bo'yicha TAKLIF ro'yxati (`standart_branch_takliflar`) — admin bir marta
+-- tasdiqlaydi, keyin `standart_filial_moddalar` shu ustundan o'qiydi.
+-- Eski `provodka_filial` (matn) ZAXIRA sifatida qoladi (OR bilan).
 -- ---------------------------------------------------------------------
 -- ## RUN TARTIBI (Asilbek) — bo'limlarni tartib bilan
 --   0-BO'LIM — old shart tekshiruvi (faqat select, pg_proc/pg_class orqali —
 --              to_regprocedure ISHLATILMAYDI, bu faylda ataylab)
---   1-BO'LIM — standart_filial_moddalar(uuid) — filial hodimlari + ularning
---              rollaridagi moddalar (yig'ma)
---   2-BO'LIM — rbac_limit_entry_line() qayta e'lon (imzo/trigger bir xil,
+--   1-BO'LIM — staff_branch_map.filial_id ustuni (additive)
+--   2-BO'LIM — nom solishtirish yordamchilari: standart_norm/standart_translit/
+--              standart_ball (ICHKI — authenticated'ga GRANT qilinmaydi,
+--              faqat boshqa SECURITY DEFINER funksiya ichidan chaqiriladi)
+--   3-BO'LIM — standart_filial_moddalar(uuid) qayta e'lon — v_bids endi
+--              filial_id (yangi, ustuvor) VA provodka_filial (eski zaxira)
+--              orqali; javobga branchlar[]/bog_yoq qo'shildi
+--   4-BO'LIM — standart_branch_takliflar(uuid) — bog'lash uchun taklif ro'yxati
+--   5-BO'LIM — standart_branch_bogla(uuid, int[]) — ADMIN, filial_id yozadi
+--   6-BO'LIM — rbac_limit_entry_line() qayta e'lon (imzo/trigger bir xil,
 --              eski tana TO'LIQ saqlangan) + filial limiti override shoxi
---   3-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/katalog)
+--   7-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/katalog)
 --
 -- ## OLD SHART (bazada bo'lishi kerak)
 --   PROVODKA_OVQAT.sql        -> aros_staff, staff_branch_map
@@ -120,10 +137,133 @@ $standart_rol_pre$;
 
 
 -- #####################################################################
--- ##  1-BO'LIM — standart_filial_moddalar(uuid)                      ##
+-- ##  1-BO'LIM — staff_branch_map.filial_id ustuni (additive)        ##
+-- #####################################################################
+
+alter table staff_branch_map
+  add column if not exists filial_id uuid references accounts(id);
+
+comment on column staff_branch_map.filial_id is
+  'Provodka filial kassasi (accounts.id, kassa_turi=filial, 52xx) <-> Aros staff bo''limi '
+  '(branch_id). Admin standart_branch_bogla() orqali belgilaydi (standart_branch_takliflar() '
+  'taklif beradi, o''xshashlik ballga qarab). Eski provodka_filial (matn) ZAXIRA sifatida qoladi.';
+
+
+-- #####################################################################
+-- ##  2-BO'LIM — nom solishtirish yordamchilari (ICHKI)              ##
+-- ---------------------------------------------------------------------
+-- Ikkala tomon (Aros staff bo'lim nomi va Provodka filial nomi) mustaqil
+-- yozilgan — "Andijon" vs "Andijan Xolis kassa". standart_norm pastki
+-- registr + "kassa" so'zi + apostrofsimon belgilar + probel/tinish
+-- belgilarini olib tashlaydi (faqat harf-raqam qoladi). standart_translit
+-- ma'lum rus/o'zbek/ingliz yozilish farqlarini (andijan/andijon va sh.k.)
+-- bitta shaklga keltiradi. standart_ball ikkala nomni solishtirib 0/2/3
+-- ball beradi (containment yoki translit-dan keyingi moslik — 3;
+-- birinchi 4 harf teng — 2; mos kelmasa — 0).
+-- authenticated'ga GRANT qilinmaydi (rbac_limit_modda naqshi) — faqat
+-- standart_branch_takliflar() (SECURITY DEFINER) ichidan chaqiriladi.
+-- #####################################################################
+
+create or replace function standart_norm(p_text text)
+returns text
+language sql
+immutable
+as $fn$
+  select regexp_replace(replace(lower(coalesce(p_text, '')), 'kassa', ''), '[^a-z0-9]', '', 'g');
+$fn$;
+
+revoke all on function standart_norm(text) from public, anon, authenticated;
+
+comment on function standart_norm(text) is
+  'ICHKI: filial/bo''lim nomini solishtirish uchun — pastki registr, "kassa" so''zi va '
+  'harf-raqamdan boshqa hamma belgi (probel, apostrof, tinish belgilari) olib tashlanadi.';
+
+create or replace function standart_translit(p_norm text)
+returns text
+language sql
+immutable
+as $fn$
+  select replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+    coalesce(p_norm, ''),
+    'andijan',  'andijon'),
+    'samarkand','samarqand'),
+    'karshi',   'qarshi'),
+    'fergana',  'fargona'),
+    'bukhara',  'buxoro'),
+    'chilanzar','chilonzor'),
+    'showroom', 'shourum'),
+    'urikzor',  'orikzor'),
+    'tashkent', 'toshkent'),
+    'center',   'senter'),
+    'mobile',   'mobil');
+$fn$;
+
+revoke all on function standart_translit(text) from public, anon, authenticated;
+
+comment on function standart_translit(text) is
+  'ICHKI: standart_norm() natijasiga qo''llanadi — bir nechta rus/o''zbek/ingliz yozilish '
+  'juftini (andijan/andijon, samarkand/samarqand, ...) bitta kanonik shaklga keltiradi.';
+
+create or replace function standart_ball(p_a text, p_b text)
+returns int
+language plpgsql
+immutable
+as $fn$
+declare
+  v_a  text := standart_norm(p_a);
+  v_b  text := standart_norm(p_b);
+  v_ta text;
+  v_tb text;
+begin
+  if v_a = '' or v_b = '' then
+    return 0;
+  end if;
+  if v_a = v_b then
+    return 3;
+  end if;
+  if length(v_a) >= 4 and length(v_b) >= 4
+     and (position(v_a in v_b) > 0 or position(v_b in v_a) > 0) then
+    return 3;
+  end if;
+
+  v_ta := standart_translit(v_a);
+  v_tb := standart_translit(v_b);
+  if v_ta = v_tb then
+    return 3;
+  end if;
+  if length(v_ta) >= 4 and length(v_tb) >= 4
+     and (position(v_ta in v_tb) > 0 or position(v_tb in v_ta) > 0) then
+    return 3;
+  end if;
+
+  -- 🔴 2026-09-07 (2-tuzatish, tester simulyatsiyasi): birinchi-4-harf qoidasi
+  -- XOM norm ustida ("Izza Zapchast" ↔ "Izza Showroom kassa" — ikkalasi ham
+  -- "izza" bilan boshlanadi) yolg'on ijobiy berardi va avtomat belgilanardi.
+  -- Endi TRANSLIT qilingan qiymatlar (v_ta/v_tb) ustida — natija baribir 2
+  -- (ball=3 dagidek AVTOMAT belgilanmaydi, standart_branch_takliflar da
+  -- taklif=(ball>=3) — UI buni faqat "ehtimoliy" kulrang chip bilan ko'rsatadi).
+  if length(v_ta) >= 4 and length(v_tb) >= 4 and left(v_ta, 4) = left(v_tb, 4) then
+    return 2;
+  end if;
+
+  return 0;
+end
+$fn$;
+
+revoke all on function standart_ball(text, text) from public, anon, authenticated;
+
+comment on function standart_ball(text, text) is
+  'ICHKI: ikki nomni (standart_norm/standart_translit orqali) solishtirib 0/2/3 ball beradi. '
+  '3 = teng/bir-birining ichida (≥4 harf) yoki translit-dan keyin mos (AVTOMAT taklif); '
+  '2 = translit qilingandan keyin birinchi 4 harf teng (faqat "ehtimoliy" — avtomat belgilanmaydi).';
+
+
+-- #####################################################################
+-- ##  3-BO'LIM — standart_filial_moddalar(uuid)                      ##
 -- ---------------------------------------------------------------------
 -- Filialning FAOL hodimlari (aros_staff.branch_id YOKI branches[] massivi
--- staff_branch_map.provodka_filial orqali shu filialga mos bo'lsa) + har
+-- staff_branch_map orqali shu filialga mos bo'lsa — ENDI filial_id (yangi,
+-- ustuvor) VA provodka_filial (eski zaxira, matn) ikkalasidan ham) + har
 -- hodimning EFFEKTIV rollari + rollardagi (rbac_role_modda) xarajat
 -- moddalari yig'ma. Rol manbai — rbac_staff_ovqat(int) (PROVODKA_RBAC_LINK.sql
 -- 124-161) bilan AYNAN bir xil qoida: aros_staff.user_id bog'langan bo'lsa
@@ -176,11 +316,13 @@ begin
     raise exception 'Filial topilmadi: %', p_filial using errcode = '22023';
   end if;
 
-  -- Aros branch_id'lar — staff_branch_map.provodka_filial ↔ filial NOMI
-  -- (hodim-dev.html ovqatMeningBranchIds() bilan AYNAN bir xil naqsh).
+  -- Aros branch_id'lar — YANGI: staff_branch_map.filial_id = shu filial (admin
+  -- tomonidan standart_branch_bogla() bilan bog'langan). ESKI zaxira (OR):
+  -- provodka_filial (matn) ↔ filial NOMI aynan teng bo'lsa ham qamraladi —
+  -- ba'zi filiallar hali qo'lda bog'lanmagan bo'lishi mumkin.
   select coalesce(array_agg(m.branch_id), '{}'::int[]) into v_bids
     from staff_branch_map m
-   where m.provodka_filial = v_filial_nom;
+   where m.filial_id = v_filial_id or m.provodka_filial = v_filial_nom;
 
   return (
     with staff_in as (
@@ -256,9 +398,33 @@ begin
              bool_or(z.limit_uzs is null) as cheksiz_bor
         from modda_z z
        group by z.modda_id
+    ),
+    -- Filialga bog'langan Aros bo'limlar (filial_id VA provodka_filial ikkalasidan
+    -- ham — v_bids bilan bir xil manba), UI'da "Bo'limlar: X (N hodim)" uchun.
+    branch_in as (
+      select m.branch_id, m.branch_nomi
+        from staff_branch_map m
+       where m.filial_id = v_filial_id or m.provodka_filial = v_filial_nom
     )
     select jsonb_build_object(
       'filial', jsonb_build_object('id', v_filial_id, 'name', v_filial_nom),
+      'bog_yoq', (array_length(v_bids, 1) is null),
+      'branchlar', coalesce((
+        select jsonb_agg(jsonb_build_object(
+                 'branch_id',   bi.branch_id,
+                 'branch_nomi', bi.branch_nomi,
+                 'hodim_soni',  (
+                   select count(*) from aros_staff s2
+                    where s2.is_active
+                      and (s2.branch_id = bi.branch_id
+                           or exists (
+                             select 1 from jsonb_array_elements(coalesce(s2.branches, '[]'::jsonb)) b2
+                              where (b2 ->> 'id') ~ '^\d+$' and (b2 ->> 'id')::int = bi.branch_id
+                           ))
+                 )
+               ) order by bi.branch_nomi)
+          from branch_in bi
+      ), '[]'::jsonb),
       'hodimlar', coalesce((
         select jsonb_agg(jsonb_build_object(
                  'staff_id',  hr.staff_id,
@@ -293,15 +459,170 @@ revoke all on function standart_filial_moddalar(uuid) from public, anon;
 grant execute on function standart_filial_moddalar(uuid) to authenticated;
 
 comment on function standart_filial_moddalar(uuid) is
-  'Standart xarajatlar UI: shu filial (accounts.id, kassa_turi=filial) hodimlari (staff_branch_map '
-  'orqali) + ularning EFFEKTIV rollaridagi xarajat moddalari (yig''ma, rol limit min/max/cheksiz_bor). '
-  'Rol manbai rbac_staff_ovqat(int) bilan bir xil (bog''langan user rollari, admin bo''lsa hamma modda) — '
-  'PROVODKA_RBAC_LINK.sql. Har modda uchun filial_limit_uzs (standart_xarajat, bor bo''lsa override). '
-  'Admin yoki ''standart'' sahifa ruxsati kerak.';
+  'Standart xarajatlar UI: shu filial (accounts.id, kassa_turi=filial) hodimlari '
+  '(staff_branch_map.filial_id — yangi, ustuvor — VA provodka_filial — eski zaxira, matn) + '
+  'ularning EFFEKTIV rollaridagi xarajat moddalari (yig''ma, rol limit min/max/cheksiz_bor) + '
+  'bog''langan bo''limlar (branchlar) + bog_yoq bayrog''i. Rol manbai rbac_staff_ovqat(int) bilan '
+  'bir xil (bog''langan user rollari, admin bo''lsa hamma modda) — PROVODKA_RBAC_LINK.sql. Har '
+  'modda uchun filial_limit_uzs (standart_xarajat, bor bo''lsa override). Admin yoki ''standart'' '
+  'sahifa ruxsati kerak.';
 
 
 -- #####################################################################
--- ##  2-BO'LIM — rbac_limit_entry_line(): FILIAL LIMITI OVERRIDE     ##
+-- ##  4-BO'LIM — standart_branch_takliflar(uuid)                     ##
+-- ---------------------------------------------------------------------
+-- Admin uchun "Bo'limlarni bog'lash" modali: staff_branch_map dagi HAMMA
+-- Aros bo'lim, har biri uchun standart_ball(branch_nomi, filial nomi) —
+-- taklif=(ball>=3) tepada, keyin nom bo'yicha (ball=2 — "ehtimoliy", UI avtomat
+-- belgilamaydi, faqat kulrang chip bilan ko'rsatadi). hozir qaysi filialga
+-- bog'langani (filial_id/filial_nom) ham qaytadi — boshqa filialga
+-- bog'langan bo'limni tanlasa UI ogohlantiradi (u filialdan ajraladi).
+-- #####################################################################
+
+create or replace function standart_branch_takliflar(p_filial uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_page_ok    boolean := false;
+  v_filial_id  uuid;
+  v_filial_nom text;
+begin
+  if auth.uid() is null then
+    raise exception 'Avtorizatsiya kerak' using errcode = '42501';
+  end if;
+
+  if is_admin() then
+    v_page_ok := true;
+  elsif exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'perm_has_page'
+  ) then
+    v_page_ok := perm_has_page('standart');
+  end if;
+  if not v_page_ok then
+    raise exception 'Standart xarajatlar sahifasiga ruxsat yoq' using errcode = '42501';
+  end if;
+
+  if p_filial is null then
+    raise exception 'Filial tanlanmadi' using errcode = '22000';
+  end if;
+
+  select id, name into v_filial_id, v_filial_nom
+    from accounts
+   where id = p_filial
+     and kassa_turi = 'filial'
+     and parent_id is null
+     and coalesce(is_active, true);
+  if v_filial_id is null then
+    raise exception 'Filial topilmadi: %', p_filial using errcode = '22023';
+  end if;
+
+  return (
+    with base as (
+      select m.branch_id, m.branch_nomi, m.filial_id,
+             standart_ball(m.branch_nomi, v_filial_nom) as ball
+        from staff_branch_map m
+    )
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'branch_id',   b.branch_id,
+             'branch_nomi', b.branch_nomi,
+             'hodim_soni',  (
+               select count(*) from aros_staff s
+                where s.is_active
+                  and (s.branch_id = b.branch_id
+                       or exists (
+                         select 1 from jsonb_array_elements(coalesce(s.branches, '[]'::jsonb)) bb
+                          where (bb ->> 'id') ~ '^\d+$' and (bb ->> 'id')::int = b.branch_id
+                       ))
+             ),
+             'filial_id',  b.filial_id,
+             'filial_nom', fa.name,
+             'taklif',     b.ball >= 3,
+             'ball',       b.ball
+           ) order by b.ball desc, b.branch_nomi asc), '[]'::jsonb)
+      from base b
+      left join accounts fa on fa.id = b.filial_id
+  );
+end
+$fn$;
+
+revoke all on function standart_branch_takliflar(uuid) from public, anon;
+grant execute on function standart_branch_takliflar(uuid) to authenticated;
+
+comment on function standart_branch_takliflar(uuid) is
+  'Admin uchun: staff_branch_map dagi hamma Aros bo''limi + standart_ball() taklif/ball + '
+  'hodim_soni + hozirgi bog''lanishi (filial_id/filial_nom). "Bo''limlarni bog''lash" modali uchun.';
+
+
+-- #####################################################################
+-- ##  5-BO'LIM — standart_branch_bogla(uuid, int[]) — ADMIN ONLY     ##
+-- ---------------------------------------------------------------------
+-- p_branch_ids ro'yxatidagi bo'limlarni p_filial ga bog'laydi (filial_id
+-- yozadi); avval shu filialga bog'langan-u yangi ro'yxatda YO'Q bo'limlar
+-- ajratiladi (filial_id = null — provodka_filial zaxira sifatida qoladi,
+-- boshqa filialga o'tkazilmaydi, faqat shu bog'lanish bekor qilinadi).
+-- #####################################################################
+
+create or replace function standart_branch_bogla(p_filial uuid, p_branch_ids int[])
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $fn$
+declare
+  v_filial_id uuid;
+  v_ids       int[];
+  v_n         int;
+begin
+  if not is_admin() then
+    raise exception 'Faqat admin bo''limlarni bog''laydi' using errcode = '42501';
+  end if;
+  if p_filial is null then
+    raise exception 'Filial tanlanmadi' using errcode = '22000';
+  end if;
+
+  select id into v_filial_id
+    from accounts
+   where id = p_filial
+     and kassa_turi = 'filial'
+     and parent_id is null
+     and coalesce(is_active, true);
+  if v_filial_id is null then
+    raise exception 'Filial topilmadi: %', p_filial using errcode = '22023';
+  end if;
+
+  select coalesce(array_agg(distinct x), '{}') into v_ids
+    from unnest(coalesce(p_branch_ids, '{}'::int[])) x;
+
+  update staff_branch_map
+     set filial_id = v_filial_id, updated_at = now(), updated_by = auth.uid()::text
+   where branch_id = any(v_ids)
+     and filial_id is distinct from v_filial_id;
+
+  update staff_branch_map
+     set filial_id = null, updated_at = now(), updated_by = auth.uid()::text
+   where filial_id = v_filial_id
+     and not (branch_id = any(v_ids));
+
+  select count(*) into v_n from staff_branch_map where filial_id = v_filial_id;
+  return jsonb_build_object('ok', true, 'soni', v_n);
+end
+$fn$;
+
+revoke all on function standart_branch_bogla(uuid, int[]) from public, anon;
+grant execute on function standart_branch_bogla(uuid, int[]) to authenticated;
+
+comment on function standart_branch_bogla(uuid, int[]) is
+  'ADMIN: staff_branch_map.filial_id ni yozadi — p_branch_ids ro''yxatidagi bo''limlar p_filial ga '
+  'bog''lanadi, avval bog''langan-u ro''yxatda yo''q bo''limlar ajratiladi (filial_id=null).';
+
+
+-- #####################################################################
+-- ##  6-BO'LIM — rbac_limit_entry_line(): FILIAL LIMITI OVERRIDE     ##
 -- ---------------------------------------------------------------------
 -- PROVODKA_RBAC_LIMIT.sql dagi ENG OXIRGI tananing VERBATIM nusxasi +
 -- BITTA qo'shimcha shox: entry.filial_ids ichidagi biror filial uchun
@@ -431,7 +752,7 @@ notify pgrst, 'reload schema';
 
 
 -- #####################################################################
--- ##  3-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/katalog)            ##
+-- ##  7-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/katalog)            ##
 -- #####################################################################
 
 do $standart_rol_check$
@@ -439,17 +760,49 @@ declare
   v_src text;
 begin
   if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'staff_branch_map' and column_name = 'filial_id'
+  ) then
+    raise exception 'staff_branch_map.filial_id ustuni yaratilmadi';
+  end if;
+
+  if not exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.proname = 'standart_filial_moddalar'
   ) then
     raise exception 'standart_filial_moddalar(uuid) yaratilmadi';
   end if;
-
   if not has_function_privilege('authenticated', 'public.standart_filial_moddalar(uuid)', 'execute') then
     raise exception 'standart_filial_moddalar(uuid) authenticated uchun yopiq';
   end if;
   if has_function_privilege('anon', 'public.standart_filial_moddalar(uuid)', 'execute') then
     raise exception 'standart_filial_moddalar(uuid) anon uchun ochiq qolgan';
+  end if;
+
+  if not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'standart_branch_takliflar'
+  ) then
+    raise exception 'standart_branch_takliflar(uuid) yaratilmadi';
+  end if;
+  if not has_function_privilege('authenticated', 'public.standart_branch_takliflar(uuid)', 'execute') then
+    raise exception 'standart_branch_takliflar(uuid) authenticated uchun yopiq';
+  end if;
+  if has_function_privilege('anon', 'public.standart_branch_takliflar(uuid)', 'execute') then
+    raise exception 'standart_branch_takliflar(uuid) anon uchun ochiq qolgan';
+  end if;
+
+  if not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'standart_branch_bogla'
+  ) then
+    raise exception 'standart_branch_bogla(uuid,int[]) yaratilmadi';
+  end if;
+  if not has_function_privilege('authenticated', 'public.standart_branch_bogla(uuid, int[])', 'execute') then
+    raise exception 'standart_branch_bogla(uuid,int[]) authenticated uchun yopiq';
+  end if;
+  if has_function_privilege('anon', 'public.standart_branch_bogla(uuid, int[])', 'execute') then
+    raise exception 'standart_branch_bogla(uuid,int[]) anon uchun ochiq qolgan';
   end if;
 
   select prosrc into v_src from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -462,6 +815,6 @@ begin
     raise exception 'trg_rbac_limit_entry_line trigger yoq';
   end if;
 
-  raise notice 'STANDART_ROL tayyor: standart_filial_moddalar(uuid) + rbac_limit_entry_line override.';
+  raise notice 'STANDART_ROL tayyor: filial_id ustuni + standart_filial_moddalar + standart_branch_takliflar/bogla + rbac_limit_entry_line override.';
 end
 $standart_rol_check$;

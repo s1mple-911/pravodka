@@ -984,6 +984,11 @@ ko'rinsin, filial limiti uni override qilsin.
 - **OVERRIDE** — `rbac_limit_entry_line()` qayta e'lon (tana saqlangan): `entry.filial_ids` dagi filial uchun `standart_xarajat` da
   (filial, modda) limiti bo'lsa ROL limiti tekshirilmaydi (filial limiti `trg_limit_guard_entry_line` bilan baribir tekshiriladi).
   `filial_ids` bo'sh → eski yo'l.
+- 🔴 **Filial ↔ Aros bo'limi bog'lash** (2026-09-07 kech): `staff_branch_map.provodka_filial` = Aros STAFF bo'lim nomi («Andijon»), filial
+  kassasi esa «Andijan Xolis kassa» — nom bo'yicha join HECH QACHON mos kelmaydi. Yangi `staff_branch_map.filial_id uuid` (additive),
+  `standart_branch_takliflar(p_filial)` (norm + translit 11 juftlik + `standart_ball`: 3 = teng/ichida, 2 = 4 harf; `taklif` FAQAT ball≥3
+  — ball 2 «Izza Zapchast»→Izza Showroom kabi yolg'on moslik berardi), `standart_branch_bogla(p_filial, int[])` (admin). Standart
+  sahifasida `bog_yoq` → «Bo'limlarni bog'lash» modali (`#bogModal`, takliflar oldindan belgilangan, ball 2 «ehtimoliy» belgilanmaydi).
 - **UI** `standart-dev.html`: «Hodimlarga ochiq moddalar» bo'limi (N hodim, rol limiti, override chip / «Limit qo'yish»),
   hodimlar `<details>`, limit modali select faqat ochiq moddalar (+ «Barcha moddalarni ko'rsatish»), ochiq bo'lmagan modda limitida
   sariq ogohlantirish; kesh `prov-swr:std-fm:<fid>` 5 daq (`swrClear` logout'da); RPC yo'q → eski ko'rinish.

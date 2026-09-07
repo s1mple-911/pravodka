@@ -259,6 +259,21 @@
   </div>
 </div>
 
+<!-- Bo'limlarni bog'lash modali (Aros staff bo'limi <-> Provodka filiali) -->
+<div class="modal" id="bogModal" onclick="if(event.target===this)closeBog()">
+  <div class="mbox" style="max-width:460px">
+    <h3>Bo'limlarni bog'lash</h3>
+    <div class="msub" id="bogSub"></div>
+    <input id="bogQ" placeholder="Qidirish…" oninput="renderBogList()" style="text-align:left;margin-bottom:12px">
+    <div id="bogList" style="max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:2px;margin-bottom:14px"></div>
+    <div class="mmsg" id="bogMsg"></div>
+    <div class="mrow">
+      <button type="button" onclick="closeBog()">Bekor</button>
+      <button type="button" class="primary" id="bogSaveBtn" onclick="saveBog()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
@@ -372,10 +387,30 @@ function rolLimTxt(m){
   if(m.rol_limit_min==null) return '—';
   return m.rol_limit_min===m.rol_limit_max ? money(m.rol_limit_min)+" so'm/oy" : money(m.rol_limit_min)+'–'+money(m.rol_limit_max)+" so'm/oy";
 }
+// Bog'langan Aros bo'limlar satri — sarlavha ostida ("Bo'limlar: Andijon (5 hodim)") + admin
+// uchun "o'zgartirish" havolasi (bogModal). bog_yoq bo'lsa filModHtml o'zi alohida karta chizadi.
+function bogLineHtml(){
+  const bl=(filMod&&Array.isArray(filMod.branchlar))?filMod.branchlar:[];
+  if(!bl.length) return '';
+  const txt=bl.map(b=>esc(b.branch_nomi||('#'+b.branch_id))+' ('+(b.hodim_soni||0)+' hodim)').join(', ');
+  const link=isAdminUser()?` · <a href="javascript:void(0)" onclick="openBogModal()" style="color:var(--primary);font-weight:600;text-decoration:none">o'zgartirish</a>`:'';
+  return `<div class="fc-sub" style="margin-bottom:10px">Bo'limlar: ${txt}${link}</div>`;
+}
 function filModHtml(){
   if(!filMod) return '';
+  // Hech qanday Aros bo'limi bog'lanmagan — hodim ro'yxati aniqlanmayapti.
+  if(filMod.bog_yoq){
+    return `<div class="lcard"><div class="lc-modda" style="margin-bottom:8px">Hodimlarga ochiq moddalar</div>`
+      +`<div class="fc-sub" style="margin-bottom:${isAdminUser()?'12px':'0'}">Bu filialga Aros bo'limi bog'lanmagan — hodimlar ro'yxati aniqlanmayapti.</div>`
+      +(isAdminUser()?`<button type="button" class="addbtn" onclick="openBogModal()"><i data-lucide="link"></i>Bo'limlarni bog'lash</button>`:'')
+      +`</div>`;
+  }
   const mlist=filMod.moddalar||[], hlist=filMod.hodimlar||[];
-  if(!mlist.length && !hlist.length) return '';
+  if(!mlist.length && !hlist.length){
+    return `<div class="lcard"><div class="lc-modda" style="margin-bottom:8px">Hodimlarga ochiq moddalar</div>${bogLineHtml()}`
+      +`<div class="fc-sub">Bu bo'lim hodimlariga hech qaysi modda rol orqali ochilmagan — `
+      +`<a href="sozlama-dev.html#rollar" style="color:var(--primary);font-weight:600;text-decoration:none">Rollar</a> sahifasidan biriktiring.</div></div>`;
+  }
   const rows=mlist.map(m=>{
     const names=esc((m.hodimlar||[]).join(', '));
     const hasOverride=m.filial_limit_uzs!=null;
@@ -387,11 +422,67 @@ function filModHtml(){
       +`<span style="display:flex;align-items:center;gap:6px;flex:none">${right}</span></div>`;
   }).join('');
   const hRows=hlist.map(h=>`<div class="fc-sub">${esc(h.toliq_nom)}${h.lavozim?' — '+esc(h.lavozim):''} <span style="color:var(--muted)">(${esc((h.rollar||[]).join(', ')||'rolsiz')})</span></div>`).join('');
-  return `<div class="lcard"><div class="lc-modda" style="margin-bottom:10px">Hodimlarga ochiq moddalar</div>`
+  return `<div class="lcard"><div class="lc-modda" style="margin-bottom:10px">Hodimlarga ochiq moddalar</div>${bogLineHtml()}`
     +(rows||'<div class="fc-sub">Bu filial hodimlariga ochiq modda topilmadi (rollarida modda belgilanmagan).</div>')
     +(hlist.length?`<details style="margin-top:12px"><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">${hlist.length} hodim</summary><div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${hRows}</div></details>`:'')
     +`</div>`;
 }
+
+// ---- Bo'limlarni bog'lash modali (standart_branch_takliflar/standart_branch_bogla) ----
+let bogData=null, bogSel=new Set();
+function bogRowHtml(b){
+  const checked=bogSel.has(b.branch_id);
+  // taklif (ball>=3) — ko'k chip, AVTOMAT belgilanadi (openBogModal). ball=2 — faqat
+  // "ehtimoliy" kulrang chip, hech qachon avtomat belgilanmaydi (2026-09-07 tuzatish:
+  // xom prefiks moslikdan kelib chiqadigan yolg'on ijobiy avtomat tanlanib qolmasin).
+  const ballChip=b.taklif?`<span class="oychip">taklif</span>`
+    :(b.ball===2?`<span class="oychip" style="background:var(--surface-2);color:var(--muted)">ehtimoliy</span>`:'');
+  const otherFilial=(b.filial_id && b.filial_id!==curFilial)
+    ?`<span style="color:var(--amber);font-size:12px">→ ${esc(b.filial_nom||'boshqa filial')}</span>`:'';
+  return `<label style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:10px;cursor:pointer">`
+    +`<input type="checkbox" ${checked?'checked':''} onchange="bogToggle(${b.branch_id},this.checked)" style="width:18px;height:18px;flex:none;margin:0">`
+    +`<span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">`
+    +`<span style="font-weight:600">${esc(b.branch_nomi||('#'+b.branch_id))}</span>`
+    +`<span style="color:var(--muted);font-size:12.5px">${b.hodim_soni||0} hodim</span>${otherFilial}${ballChip}`
+    +`</span></label>`;
+}
+function renderBogList(){
+  const box=$('bogList');
+  if(bogData===null){ box.innerHTML='<div class="fc-sub">Yuklanmoqda…</div>'; return; }
+  const q=($('bogQ').value||'').trim().toLowerCase();
+  const list=q?bogData.filter(b=>String(b.branch_nomi||'').toLowerCase().indexOf(q)>=0):bogData;
+  box.innerHTML=list.length?list.map(bogRowHtml).join(''):'<div class="fc-sub">Topilmadi.</div>';
+}
+window.bogToggle=(bid,checked)=>{ if(checked) bogSel.add(bid); else bogSel.delete(bid); };
+window.openBogModal=async()=>{
+  if(!isAdminUser() || !curFilial) return;
+  bogSel=new Set((filMod&&Array.isArray(filMod.branchlar))?filMod.branchlar.map(b=>b.branch_id):[]);
+  $('bogSub').textContent='Filial: '+filName(curFilial)+(filSub(curFilial)?' · '+filSub(curFilial):'');
+  $('bogQ').value='';
+  $('bogMsg').textContent='';
+  bogData=null;
+  renderBogList();
+  $('bogModal').classList.add('open');
+  const {data,error}=await sb.rpc('standart_branch_takliflar',{p_filial:curFilial});
+  if(error||!Array.isArray(data)){
+    $('bogMsg').textContent=(window.permErr?window.permErr(error):(error&&error.message))||"Yuklab bo'lmadi";
+    $('bogMsg').className='mmsg no'; bogData=[]; renderBogList(); return;
+  }
+  bogData=data;
+  // Taklif (server: ball>=3) — hali hech qayerga bog'lanmagan yoki shu filialga bog'langan bo'limlarni
+  // oldindan belgilaydi; boshqa filialga bog'langanlarni ATAYLAB tegmaydi (admin o'zi qaror qiladi).
+  data.forEach(b=>{ if(b.taklif && (!b.filial_id || b.filial_id===curFilial)) bogSel.add(b.branch_id); });
+  renderBogList();
+};
+window.closeBog=()=>{ $('bogModal').classList.remove('open'); };
+window.saveBog=async()=>{
+  const btn=$('bogSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  const {error}=await sb.rpc('standart_branch_bogla',{p_filial:curFilial,p_branch_ids:Array.from(bogSel)});
+  if(error){ $('bogMsg').textContent=(window.permErr?window.permErr(error):error.message); $('bogMsg').className='mmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
+  btn.disabled=false; btn.textContent='Saqlash';
+  closeBog();
+  loadFilMod(curFilial,true);
+};
 const oyDate=()=>{ const v=$('oy').value; return v?(v+'-01'):null; };  // 'YYYY-MM' → 'YYYY-MM-01'
 // --- V8: oy navigatsiyasi ---------------------------------------------
 // standart_holat(p_oy) date_trunc('month') bilan ishlaydi va limit_guard trigger
