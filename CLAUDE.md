@@ -972,6 +972,29 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   o'zgarmagan (server `tugash`ni o'zi hisoblaydi). Shablon: `tilxat_shablon.matn` null bo'lishi mumkin —
   yangi shablon nom + fayl (pdf/jpg/png) bilan yaratiladi (`shablon/<id>.<ext>`), chop etish faqat matn bo'lsa.
 
+### Aros qarzdorlar — mijoz qarzlari registri (2026-09-07, `ARX_PROVODKA_AROS_QARZDOR.md`, `PROVODKA_AROS_QARZDOR.sql`, faqat dev, RUN kutilmoqda)
+
+«Bizdan qarzdor» segmentida qo'lda berilgan qarz (`qarz` tizimi) bilan birga Aros mijozlarining tovar qarzi ham
+ko'rinadi. Manba — Aros `v3/report/debtors-list` (2459 mijoz, `page_size=1000` × 3 sahifa, `warehouse_id` filtri
+serverda ISHLAMAYDI, `search`/`ordering` ishlaydi; formulalar: `total_debt = clean_debt + total_outdated`,
+`balance = wallet + cashback − total_debt`). Buyurtmalar (`wallet/v2/orders/{id}`, unpaid yig'indisi = total_debt) va
+`debt_limit` (`wallet/v2/users/{id}`) — sinxronga OG'IR, 3-bosqichda karta ochilganda. **Pul harakati YO'Q, `entry`ga
+tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa obyekt), birlashma faqat ko'rinishda.
+- **SQL**: `aros_qarzdor` (user_id PK, ism/familya/telefon/rol/filial, hamyon, total_debt/clean_debt/5 bucket/total_outdated,
+  `faol`), `aros_qarzdor_sync` (id=1, `summary` xom), `sync_aros_qarzdor(jsonb)` service_role ONLY (upsert; sweep
+  `faol=false` FAQAT rows ≥ 100 VA rows = Aros `count` — bitta sahifa 404 bersa sweep yo'q), `aros_qarzdor_royxat(p jsonb)`
+  ({rows[+kechikish_daraja], jami, jami_summa, filiallar, synced_at}; `holat`/`sort` whitelist, limit ≤500),
+  `aros_qarzdor_dash()`, `qarz_umumiy_dash()` (Provodka `qarz_dash` + Aros). Ruxsat `qarz_page_ok()`, RLS faqat select.
+- **n8n** `Aros Provodka - Aros Qarzdor Sync` (`i91Kfmp7Orm55leW`, `N8N_AROS_QARZDOR_SYNC.js`, har 30 daq; Get Debtors
+  batch 3/1500ms). Kreditlar (Aros Basic Auth, Supabase API service_role) + Publish — Asilbek.
+- **UI** `qarzdor-dev.html`: umumiy strip (`#qzUmumiy`, faqat «Bizdan qarzdor»), sub-tab «Aros mijozlar» (`#tab-aros`,
+  `aq*`/`.artbl`: dash + kechikish stacked bar, qidiruv/filial/holat/saralash, jadval ≥1301px (`body.aq-wide .main
+  {max-width:none}` — raqam kesilmasin) / karta ≤1300px, `#arosKartModal`, Excel ≤5000). RPC yo'q → banner.
+- 🔴 **n8n HTTP Request «Items per Batch = 1» ABADIY osiladi** (2026-09-07, Yuk Bojxona Sync 15 soatlik executionlar
+  sababi). Batching kerak bo'lsa `batchSize ≥ 2`. Yuk Bojxona Sync 5/2500ms ga o'tkazildi.
+- 🔴 `Yuk Detail API` (`yZkGLRDs1ujk8EFo`) ga `?path=` qo'shildi — Aros admin API'ga OCHIQ proxy, **NOFAOL qolsin**,
+  faqat MCP manual execute bilan o'qish uchun.
+
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
 
 Aros'da filial jo'natgan (`sent`) pul markaziy kassa «qabul qildi» bosguncha hech qayerda ko'rinmasdi.
