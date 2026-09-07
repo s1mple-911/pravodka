@@ -248,6 +248,7 @@
     <div class="msub" id="limSub"></div>
     <label>Xarajat modda</label>
     <select id="limModda"></select>
+    <button type="button" id="limShowAllBtn" onclick="limShowAllModdas()" style="display:none;background:none;border:none;color:var(--primary);font-size:12.5px;font-weight:600;cursor:pointer;padding:0 0 15px;margin-top:-11px">Barcha moddalarni ko'rsatish</button>
     <label>Oylik limit (so'm)</label>
     <input id="limAmt" inputmode="numeric" placeholder="0" oninput="onLimAmt(this)">
     <div class="mmsg" id="limMsg"></div>
@@ -303,7 +304,14 @@ window.toggleTheme=()=>{ const d=document.documentElement.getAttribute('data-the
 if(localStorage.getItem('prov-theme')==='dark') document.documentElement.setAttribute('data-theme','dark');
 window.doLogin=async()=>{ const email=$('email').value.trim(),password=$('password').value; $('authErr').textContent='';
   const {error}=await sb.auth.signInWithPassword({email,password}); if(error){$('authErr').textContent='Kirish xato: '+error.message;return;} window.permClear(); enterApp(); };
-window.logout=async()=>{ window.permClear(); await sb.auth.signOut(); location.reload(); };
+// sessionStorage'dagi `prov-swr:` keshi (shu jumladan std-fm:<filial>) — logoutda tozalanadi,
+// aks holda yangi foydalanuvchi eskisining "hodimlarga ochiq moddalar" ma'lumotini ko'rishi mumkin
+// (hodim-dev.html/index-dev.html dagi swrClear() bilan bir xil naqsh).
+function swrClear(){ try{
+  Object.keys(sessionStorage).filter(k=>k.indexOf('prov-swr:')===0)
+    .forEach(k=>sessionStorage.removeItem(k));
+}catch(e){} }
+window.logout=async()=>{ window.permClear(); swrClear(); await sb.auth.signOut(); location.reload(); };
 window.openMore=()=>{ $('moreModal').classList.add('open'); };
 window.closeMore=()=>{ $('moreModal').classList.remove('open'); };
 $('password').addEventListener('keydown',e=>{ if(e.key==='Enter') window.doLogin(); });
@@ -330,6 +338,60 @@ async function boot(){
 // ===== Standart xarajatlar =====
 let filials=[], moddas=[], holat=[], curFilial=null, isAdmin=false;
 const isAdminUser=()=>!!(window.PERMS && window.PERMS.is_admin) || isAdmin;
+
+// --- Filialga ochiq moddalar (hodim rollari orqali) — standart_filial_moddalar RPC.
+// RPC yo'q/xato bo'lsa filMod=null qoladi — bo'lim yashirin, modal eski (cheklanmagan)
+// ro'yxatga qaytadi (fail-open UI uchun, pul harakati baribir server guard bilan to'silgan).
+let filMod=null, limPresetModda=null, limShowAll=false;
+const FM_TTL=5*60*1000;
+function fmCacheGet(fid){
+  try{ const raw=sessionStorage.getItem('prov-swr:std-fm:'+fid); if(!raw) return null;
+    const o=JSON.parse(raw); if(!o||typeof o.t!=='number'||Date.now()-o.t>FM_TTL) return null; return o.v; }catch(e){ return null; }
+}
+function fmCacheSet(fid,v){ try{ sessionStorage.setItem('prov-swr:std-fm:'+fid, JSON.stringify({t:Date.now(),v})); }catch(e){} }
+async function loadFilMod(fid,force){
+  if(!force){
+    const cached=fmCacheGet(fid);
+    if(cached){ if(curFilial===fid){ filMod=cached; render(); } }
+  }
+  const {data,error}=await sb.rpc('standart_filial_moddalar',{p_filial:fid});
+  if(error||!data){
+    if(force || !fmCacheGet(fid)){ if(curFilial===fid){ filMod=null; render(); } }
+    return;
+  }
+  fmCacheSet(fid,data);
+  if(curFilial===fid){ filMod=data; render(); }
+}
+function ochiqModdaIds(){
+  if(!filMod || !Array.isArray(filMod.moddalar)) return null;   // null = RPC yo'q/xato — filtr YO'Q
+  return new Set(filMod.moddalar.map(m=>m.modda_id));
+}
+function rolLimTxt(m){
+  if(!m) return '—';
+  if(m.cheksiz_bor) return m.rol_limit_min!=null ? 'aralash (ba\'zi cheksiz)' : 'cheksiz';
+  if(m.rol_limit_min==null) return '—';
+  return m.rol_limit_min===m.rol_limit_max ? money(m.rol_limit_min)+" so'm/oy" : money(m.rol_limit_min)+'–'+money(m.rol_limit_max)+" so'm/oy";
+}
+function filModHtml(){
+  if(!filMod) return '';
+  const mlist=filMod.moddalar||[], hlist=filMod.hodimlar||[];
+  if(!mlist.length && !hlist.length) return '';
+  const rows=mlist.map(m=>{
+    const names=esc((m.hodimlar||[]).join(', '));
+    const hasOverride=m.filial_limit_uzs!=null;
+    const right=hasOverride
+      ? `<b class="lr-val">${money(m.filial_limit_uzs)}</b><span class="oychip">override</span>`
+      : (isAdminUser()?`<button type="button" class="lc-act edit" title="Limit qo'yish" onclick="openLim(null,'${m.modda_id}')"><i data-lucide="plus"></i></button>`:'<span class="fc-sub">—</span>');
+    return `<div class="lr-line" style="justify-content:space-between;align-items:center;flex-wrap:nowrap">`
+      +`<span title="${names}" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(m.code)}</b> ${esc(m.name)} · <span class="fc-cnt">${m.hodim_soni} hodim</span> · ${esc(rolLimTxt(m))}</span>`
+      +`<span style="display:flex;align-items:center;gap:6px;flex:none">${right}</span></div>`;
+  }).join('');
+  const hRows=hlist.map(h=>`<div class="fc-sub">${esc(h.toliq_nom)}${h.lavozim?' — '+esc(h.lavozim):''} <span style="color:var(--muted)">(${esc((h.rollar||[]).join(', ')||'rolsiz')})</span></div>`).join('');
+  return `<div class="lcard"><div class="lc-modda" style="margin-bottom:10px">Hodimlarga ochiq moddalar</div>`
+    +(rows||'<div class="fc-sub">Bu filial hodimlariga ochiq modda topilmadi (rollarida modda belgilanmagan).</div>')
+    +(hlist.length?`<details style="margin-top:12px"><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">${hlist.length} hodim</summary><div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${hRows}</div></details>`:'')
+    +`</div>`;
+}
 const oyDate=()=>{ const v=$('oy').value; return v?(v+'-01'):null; };  // 'YYYY-MM' → 'YYYY-MM-01'
 // --- V8: oy navigatsiyasi ---------------------------------------------
 // standart_holat(p_oy) date_trunc('month') bilan ishlaydi va limit_guard trigger
@@ -390,8 +452,8 @@ function renderList(){
   box.innerHTML=`<div class="fgrid">${cards}</div>`;
   icons();
 }
-window.openFilial=id=>{ curFilial=id; render(); window.scrollTo(0,0); };
-window.backToList=()=>{ curFilial=null; render(); };
+window.openFilial=id=>{ curFilial=id; filMod=null; render(); loadFilMod(id); window.scrollTo(0,0); };
+window.backToList=()=>{ curFilial=null; filMod=null; render(); };
 
 function pct(r){ const l=Number(r.limit_uzs)||0; if(l<=0) return 0; return Math.round((Number(r.sarflandi)||0)/l*100); }
 function fillCls(p){ return p>=100?'over':(p>=80?'warn':'ok'); }
@@ -405,21 +467,24 @@ function renderDetail(){
   if(!rows.length){
     listHtml=`<div class="empty">Bu filialga limit qo'yilmagan.${admin?addBtn:''}</div>`;
   } else {
+    const ochiq=ochiqModdaIds();
     listHtml=rows.map(r=>{
       const p=pct(r), cls=fillCls(p), qoldi=Number(r.qoldi)||0, over=qoldi<0;
       const acts=admin?`<div class="lc-acts">`
         +`<button class="lc-act edit" title="Tahrirlash" onclick="openLim('${r.id}')"><i data-lucide="pencil"></i></button>`
         +`<button class="lc-act del" title="O'chirish" onclick="delLim('${r.id}','${esc(r.modda_name)}')"><i data-lucide="trash-2"></i></button></div>`:'';
+      const notOpen=ochiq && !ochiq.has(r.modda_id);
+      const warn=notOpen?`<div class="lr-line" style="color:var(--amber)"><i data-lucide="triangle-alert" style="width:14px;height:14px;flex:none"></i>Hech bir hodimga ochiq emas</div>`:'';
       return `<div class="lcard"><div class="lc-top"><div class="lc-modda"><span class="code">${esc(r.modda_code)}</span>${esc(r.modda_name)}</div>${acts}</div>`
         +`<div class="lr-line"><span>Limit: <b>${money(r.limit_uzs)}</b></span>`
         +`<span>Sarflandi: <b class="lr-val">${money(r.sarflandi)}</b> (${p}%)</span>`
         +`<span class="${over?'over':''}">Qoldi: <b class="lr-val">${money(qoldi)}</b></span></div>`
-        +`<div class="track"><div class="fill ${cls}" style="width:${Math.min(100,p)}%"></div></div></div>`;
+        +`<div class="track"><div class="fill ${cls}" style="width:${Math.min(100,p)}%"></div></div>${warn}</div>`;
     }).join('');
   }
   box.innerHTML=`<button class="back" onclick="backToList()"><i data-lucide="arrow-left"></i>Barcha filiallar</button>`
     +`<div class="det-head"><div><div class="dh-name">${esc(filName(fid))}<span class="oychip">${esc(oyUz($('oy').value))}</span></div>${filSub(fid)?`<div class="dh-sub">${esc(filSub(fid))}</div>`:''}</div>${rows.length?addBtn:''}</div>`
-    +ro+listHtml;
+    +filModHtml()+ro+listHtml;
   icons();
 }
 
@@ -427,19 +492,41 @@ function renderDetail(){
 let limEditId=null;
 function moddasWithoutLimit(fid, exceptModdaId){
   const used=new Set(byFilial(fid).map(r=>r.modda_id));
-  return moddas.filter(m=>!used.has(m.id) || m.id===exceptModdaId);
+  let list=moddas.filter(m=>!used.has(m.id) || m.id===exceptModdaId);
+  const ochiq=ochiqModdaIds();
+  if(ochiq && !limShowAll) list=list.filter(m=>ochiq.has(m.id) || m.id===exceptModdaId);
+  return list;
 }
-window.openLim=(id)=>{
+// Select ichini qayta chizadi — openLim va "Barcha moddalarni ko'rsatish" ikkalasidan chaqiriladi.
+function renderLimOptions(){
+  const editing=!!limEditId;
+  const r=editing?holat.find(x=>x.id===limEditId):null;
+  const exceptId=r?r.modda_id:null;
+  const selId=r?r.modda_id:limPresetModda;
+  const opts=moddasWithoutLimit(curFilial, exceptId);
+  $('limModda').innerHTML=opts.map(m=>`<option value="${m.id}"${selId===m.id?' selected':''}>${esc(m.code)} · ${esc(m.name)}</option>`).join('')
+    || '<option value="">— mos modda yo\'q —</option>';
+  const canShowAll=!!(ochiqModdaIds() && !limShowAll && isAdminUser() && !editing);
+  $('limShowAllBtn').style.display=canShowAll?'inline-flex':'none';
+}
+window.limShowAllModdas=()=>{ limShowAll=true; renderLimOptions(); updateLimBtn(); };
+window.openLim=(id,presetModda)=>{
   if(!isAdminUser()){ alert('Faqat admin limit qo\'ya oladi'); return; }
   limEditId=id||null;
+  limPresetModda=presetModda||null;
+  limShowAll=false;
   const editing=!!id;
   const r=editing?holat.find(x=>x.id===id):null;
   $('limTitle').textContent=editing?'Limitni tahrirlash':'Limit qo\'shish';
-  $('limSub').textContent=filName(curFilial)+(filSub(curFilial)?' · '+filSub(curFilial):'');
+  let sub=filName(curFilial)+(filSub(curFilial)?' · '+filSub(curFilial):'');
+  const hintModda=r?r.modda_id:presetModda;
+  if(hintModda && filMod && Array.isArray(filMod.moddalar)){
+    const m=filMod.moddalar.find(x=>x.modda_id===hintModda);
+    if(m) sub+=' · Rol limiti: '+rolLimTxt(m);
+  }
+  $('limSub').textContent=sub;
   // modda select
-  const opts=moddasWithoutLimit(curFilial, r?r.modda_id:null);
-  $('limModda').innerHTML=opts.map(m=>`<option value="${m.id}"${r&&r.modda_id===m.id?' selected':''}>${esc(m.code)} · ${esc(m.name)}</option>`).join('')
-    || '<option value="">— barcha moddalarga limit bor —</option>';
+  renderLimOptions();
   $('limModda').disabled=editing;   // tahrirlashda modda o'zgarmaydi (kalit)
   $('limAmt').value=r?money(r.limit_uzs):'';
   $('limMsg').textContent='';
@@ -459,6 +546,7 @@ window.saveLim=async()=>{
   if(error){ $('limMsg').textContent=(window.permErr?window.permErr(error):error.message); $('limMsg').className='mmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   closeLim(); btn.textContent='Saqlash';
   await loadHolat();
+  if(curFilial) loadFilMod(curFilial,true);   // filial_limit_uzs (override belgisi) yangilansin
 };
 window.delLim=async(id,name)=>{
   if(!isAdminUser()){ alert('Faqat admin o\'chira oladi'); return; }
@@ -466,6 +554,7 @@ window.delLim=async(id,name)=>{
   const {error}=await sb.rpc('standart_limit_delete',{p_id:id});
   if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
   await loadHolat();
+  if(curFilial) loadFilMod(curFilial,true);
 };
 $('limModda').addEventListener('change',updateLimBtn);
 

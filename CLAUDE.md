@@ -972,6 +972,22 @@ sahifa emas, `qarzdor` ruxsat kaliti. Qarorlar: foizsiz, faqat UZS, **kechirish 
   o'zgarmagan (server `tugash`ni o'zi hisoblaydi). Shablon: `tilxat_shablon.matn` null bo'lishi mumkin —
   yangi shablon nom + fayl (pdf/jpg/png) bilan yaratiladi (`shablon/<id>.<ext>`), chop etish faqat matn bo'lsa.
 
+### Standart xarajatlar — filial hodimlariga ochiq moddalar + rol limiti OVERRIDE (2026-09-07, `PROVODKA_STANDART_ROL.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: filial tanlanganda FAQAT shu filial hodimlariga (rol orqali) ochiq moddalar ko'rinsin, qolgani yashirin; rol limiti
+ko'rinsin, filial limiti uni override qilsin.
+- **RPC** `standart_filial_moddalar(p_filial uuid)` → `{filial, hodimlar[{staff_id,toliq_nom,lavozim,rollar[]}], moddalar[{modda_id,
+  code,name,hodim_soni,hodimlar[],rol_limit_min,rol_limit_max,cheksiz_bor,filial_limit_uzs}]}`. Filial ↔ hodim: `accounts.name`
+  (filial, `kassa_turi='filial' and parent_id is null`) = `staff_branch_map.provodka_filial` → `branch_id` ∈ `aros_staff.branch_id`
+  YOKI `branches[]`. Rol manbai `rbac_staff_ovqat` naqshi: `aros_staff.user_id` bog'langan → `rbac_user_role` (admin → hamma faol
+  xarajat modda, cheksiz), aks holda `rbac_staff_role`. Ruxsat: admin YOKI `perm_has_page('standart')` (pg_proc), fail-closed.
+- **OVERRIDE** — `rbac_limit_entry_line()` qayta e'lon (tana saqlangan): `entry.filial_ids` dagi filial uchun `standart_xarajat` da
+  (filial, modda) limiti bo'lsa ROL limiti tekshirilmaydi (filial limiti `trg_limit_guard_entry_line` bilan baribir tekshiriladi).
+  `filial_ids` bo'sh → eski yo'l.
+- **UI** `standart-dev.html`: «Hodimlarga ochiq moddalar» bo'limi (N hodim, rol limiti, override chip / «Limit qo'yish»),
+  hodimlar `<details>`, limit modali select faqat ochiq moddalar (+ «Barcha moddalarni ko'rsatish»), ochiq bo'lmagan modda limitida
+  sariq ogohlantirish; kesh `prov-swr:std-fm:<fid>` 5 daq (`swrClear` logout'da); RPC yo'q → eski ko'rinish.
+
 ### Ehson jamg'armasi → child kassalar + pul turlari — ZAKOT (2026-09-07, `ARX_PROVODKA_EHSON_ZAKOT.md`, `PROVODKA_EHSON_ZAKOT.sql`, faqat dev, RUN kutilmoqda)
 
 🔴 Asilbek: «bu faqat zakot uchun». Ildiz «Ehson jamg'armasi» = KONTEYNER (`ehson_kassa.is_container`, yangi kirim/berish
