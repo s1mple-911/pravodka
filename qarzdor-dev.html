@@ -2534,7 +2534,11 @@ function aqEskimi(ts){ const raw=Date.parse(ts); return isNaN(raw)?true:(Date.no
 
 // ---- 5.1: umumiy strip (Provodka + Aros, faqat qzTop('bizdan')da ko'rinadi) ----
 let quLoaded=false, quHasData=false;
-function quEnsureLoaded(){ if(quLoaded) return; quLoaded=true; loadQzUmumiy(); }
+// Har ochilishda: kesh bo'lsa DARROV chiziladi (loadQzUmumiy ichida), fonda yangi so'rov ketadi —
+// lekin 60 s ichida qayta ochilsa so'rov yuborilmaydi (Asilbek 2026-09-07: «tab ochganda request ketmayapti»
+// — avval faqat BIR marta yuklanardi, F5 gacha eskirgan qolardi).
+let quLastAt=0;
+function quEnsureLoaded(){ if(quLoaded && Date.now()-quLastAt<60000) return; quLoaded=true; quLastAt=Date.now(); loadQzUmumiy(); }
 function quApplyVis(){ const el=$('qzUmumiy'); if(el) el.style.display=(qzTopCur==='bizdan'&&quHasData)?'grid':'none'; }
 async function loadQzUmumiy(force){
   const ck='qarz:umumiy';
@@ -2568,7 +2572,8 @@ const AQ_SORT_DIR={total_debt:'desc',total_outdated:'desc',debt_45_plus:'desc',b
 let arosLoaded=false, arosRows=[], arosJami=0, arosJamiSumma={}, arosFiliallar=[], arosSyncAt=null, arosReportDate=null;
 let arosSearchTimer=null;
 let arosF={q:'',warehouse_id:'',holat:'qarzdor',sort:'total_debt',dir:'desc',limit:100,offset:0};
-function qzEnsureArosLoaded(){ if(arosLoaded) return; arosLoaded=true; loadArosDash(); loadArosRoyxat(); }
+let arosLastAt=0;
+function qzEnsureArosLoaded(){ if(arosLoaded && Date.now()-arosLastAt<60000) return; arosLoaded=true; arosLastAt=Date.now(); loadArosDash(); loadArosRoyxat(); }
 
 // ---- Dash (aros_qarzdor_dash) — summary:null bo'lsa (hali sinxron bo'lmagan yoki RPC
 // yo'q) banner ko'rsatiladi, dash+bar yashiriladi — sahifa buzilmaydi. ----
