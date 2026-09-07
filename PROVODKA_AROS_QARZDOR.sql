@@ -100,6 +100,9 @@ create table if not exists aros_qarzdor (
   debt_limit         numeric(18,2),
   debt_allowed_days  int,
   most_outdated_deadline date,
+  -- cache_debtors da most_outdated_deadline SANA EMAS, KUN (eng eski kechikish, MOD) - 2026-09-07
+  --    birinchi sinxronda 411 muddati otgan mijoz "invalid input syntax for type date" bilan tashlandi.
+  most_outdated_kun  int,
   report_date        date,
   faol               boolean     not null default true,
   synced_at          timestamptz,
@@ -110,6 +113,7 @@ create table if not exists aros_qarzdor (
 alter table aros_qarzdor add column if not exists debt_limit             numeric(18,2);
 alter table aros_qarzdor add column if not exists debt_allowed_days      int;
 alter table aros_qarzdor add column if not exists most_outdated_deadline date;
+alter table aros_qarzdor add column if not exists most_outdated_kun      int;
 
 comment on table aros_qarzdor is
   'Aros mijoz qarzlari REGISTRI (v3/report/debtors-list, n8n "Aros Provodka - '
@@ -220,6 +224,8 @@ declare
   v_limit           numeric;
   v_dad             int;
   v_mod             date;
+  v_mod_txt         text;
+  v_kun             int;
 
   v_ids_korilgan    int[] := '{}';
   n_yozildi         int := 0;
@@ -296,21 +302,31 @@ begin
       -- n8n "Birlashtir" dashboard keshidan (cache_debtors) qoshadi; yoq bolsa null -> eski qiymat qoladi
       v_limit          := nullif(v_el ->> 'debt_limit', '')::numeric;
       v_dad            := nullif(v_el ->> 'debt_allowed_days', '')::int;
-      v_mod            := nullif(left(v_el ->> 'most_outdated_deadline', 10), '')::date;
+      -- most_outdated_deadline: dashboard keshida KUN soni ("7", "155"), ehtimol sana ham kelishi mumkin
+      v_mod_txt := nullif(btrim(coalesce(v_el ->> 'most_outdated_deadline', '')), '');
+      v_mod := null; v_kun := null;
+      if v_mod_txt ~ '^[0-9]+$' then
+        v_kun := v_mod_txt::int;
+      elsif v_mod_txt ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' then
+        v_mod := left(v_mod_txt, 10)::date;
+      end if;
+      if v_kun is null then
+        v_kun := nullif(v_el ->> 'most_outdated_kun', '')::int;
+      end if;
 
       insert into aros_qarzdor (
         user_id, ism, familya, telefon, rol, warehouse_id, warehouse_nom,
         wallet_status, wallet_balance, cashback_balance,
         total_debt, balance, clean_debt,
         debt_1_10, debt_11_20, debt_21_30, debt_31_45, debt_45_plus, total_outdated,
-        debt_limit, debt_allowed_days, most_outdated_deadline,
+        debt_limit, debt_allowed_days, most_outdated_deadline, most_outdated_kun,
         report_date, faol, synced_at)
       values (
         v_uid, coalesce(v_ism, ''), coalesce(v_familya, ''), v_telefon, v_rol, v_wh_id, v_wh_nom,
         v_wallet_status, coalesce(v_wallet_balance, 0), coalesce(v_cashback, 0),
         coalesce(v_total_debt, 0), coalesce(v_balance, 0), coalesce(v_clean_debt, 0),
         coalesce(v_d1, 0), coalesce(v_d2, 0), coalesce(v_d3, 0), coalesce(v_d4, 0), coalesce(v_d5, 0),
-        coalesce(v_outdated, 0), v_limit, v_dad, v_mod, v_report_date, true, now())
+        coalesce(v_outdated, 0), v_limit, v_dad, v_mod, v_kun, v_report_date, true, now())
       on conflict (user_id) do update
          set ism              = excluded.ism,
              familya          = excluded.familya,
@@ -333,6 +349,7 @@ begin
              debt_limit       = coalesce(excluded.debt_limit, aros_qarzdor.debt_limit),
              debt_allowed_days = coalesce(excluded.debt_allowed_days, aros_qarzdor.debt_allowed_days),
              most_outdated_deadline = coalesce(excluded.most_outdated_deadline, aros_qarzdor.most_outdated_deadline),
+             most_outdated_kun = coalesce(excluded.most_outdated_kun, aros_qarzdor.most_outdated_kun),
              report_date      = excluded.report_date,
              faol             = true,
              synced_at        = now()
@@ -478,7 +495,7 @@ begin
            'debt_1_10', b.debt_1_10, 'debt_11_20', b.debt_11_20, 'debt_21_30', b.debt_21_30,
            'debt_31_45', b.debt_31_45, 'debt_45_plus', b.debt_45_plus, 'total_outdated', b.total_outdated,
            'debt_limit', b.debt_limit, 'debt_allowed_days', b.debt_allowed_days,
-           'most_outdated_deadline', b.most_outdated_deadline,
+           'most_outdated_deadline', b.most_outdated_deadline, 'most_outdated_kun', b.most_outdated_kun,
            'kechikish_daraja',
              case when b.debt_45_plus > 0 then '45_plus'
                   when b.debt_31_45  > 0 then '31_45'
