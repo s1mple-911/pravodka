@@ -1064,9 +1064,11 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
 «Butun biznesda qancha pul bor?» — har kuni 08:00 Toshkent bir marta hisoblanadi, tarixda qoladi, grafik. Sahifa
 `aylanma-dev.html`, kalit **`aylanma`** (20-kalit: `perm_pages()` = `perms-dev.js` PAGES = `index-dev.html` CARDS =
 `promote.sh` PAGES; admin-dev `PVS_PAGES` — Asilbek). **Pul harakati YO'Q** — registr (`aylanma_snapshot` + `aylanma_qator`).
-Formula: A pul (`markaziy`+`filial` kassalar, hodim xarajat kassalari YO'Q; 🔴 **BOLALAR yig'indisi** — Balans Sync har soat
-naqd/click/payme/USD bolalarini Aros'ga tenglashtiradi, parentning o'z qoldig'i eski yozuvlardan MANFIY qolib ketgan (5213 −75 mln),
-Asilbek: «kassa manfiy bo'lolmaydi» → parent farqi `ref=<code>:farq`, `hisobga=false`; bolasi yo'q kassa — karta jami) + B yo'ldagi pul (`aros_transfer_yolda`
+Formula: A pul (🔴 **TO'G'RIDAN AROS'DAN** — n8n `Get Cachiers` + `Get Cachier Detail` (`billing/cachiers/{id}/` balances, Balans
+Sync manbasi, kuniga 1 marta ≈30 so'rov) → `payload.kassalar[]` → cash+click+payme + dollar×kurs; Provodka daftari (`v_kassa_card`
+jami) faqat taqqoslash qatori `ref=<code>:daftar`, `hisobga=false`. Sabab (2026-09-08, Asilbek Aros admin bilan solishtirdi): daftar
+filial kassalari MANFIY (5213 −75 mln, eski sinxron dog'i), Aros'da 0 — «kassa manfiy bo'lolmaydi». `kassalar` kelmasa zaxira:
+Aros'ga tenglashtirilgan bolalar yig'indisi + toliq=false. Hodim xarajat kassalari YO'Q) + B yo'ldagi pul (`aros_transfer_yolda`
 sent) + T1 tovar omborlarda + T5 brak (Metabase, TANNARX) + Y3a yo'ldagi yuklar (posted+on_way) + K3b/K4 ko'chirish
 (on_way/created) + B6 ochiq buyurtmalar (created/send, SOTUV narxi) + Q2a bizdan qarzdor (`qarz` faol + `aros_qarzdor_sync`
 summary) − Q2b biz qarzdormiz (Qarz sahifasi formulasi: posted yuk narx×kurs − `yuk_tolangan_summa`, 365 kun). D (4010/6010
