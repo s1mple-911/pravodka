@@ -948,7 +948,20 @@ begin
     + coalesce(v_t5_uzs, 0) + coalesce(v_y3a_uzs, 0) + coalesce(v_k3b_uzs, 0)
     + coalesce(v_k4_uzs, 0) + coalesce(v_b6_uzs, 0) + coalesce(v_q2a_uzs, 0)
     - coalesce(v_q2b_uzs, 0);
-  v_jami_usd := coalesce(v_a_usd, 0) + coalesce(v_b_usd, 0);
+  -- USD: jami va usd'si bo'sh bo'limlar so'mdan kurs bilan (2026-09-08 tuzatish —
+  -- avval jami_usd faqat A+B yig'indisi edi: 11,98 mlrd so'mga $199 ming chiqardi).
+  if coalesce(v_kurs_usd, 0) > 0 then
+    v_jami_usd := round(v_jami_uzs / v_kurs_usd, 2);
+    for v_ref, v_el in select key, value from jsonb_each(v_bolimlar) loop
+      if v_el is not null and jsonb_typeof(v_el) = 'object'
+         and (v_el ->> 'usd') is null and (v_el ->> 'uzs') is not null then
+        v_bolimlar := jsonb_set(v_bolimlar, array[v_ref, 'usd'],
+                        to_jsonb(round((v_el ->> 'uzs')::numeric / v_kurs_usd, 2)));
+      end if;
+    end loop;
+  else
+    v_jami_usd := null;
+  end if;
 
   -- ---- yozish: 'cron' — o'sha kunning eski cron qatori bo'lsa o'chirilib
   -- qayta yoziladi (cascade qatorlarni ham olib tashlaydi). 'qolda' — har
@@ -1017,12 +1030,18 @@ begin
     select * into v_snap from aylanma_snapshot where id = p_id;
   else
     v_sana := coalesce(p_sana, (now() at time zone 'Asia/Tashkent')::date);
+    -- Tartib: o'sha kun cron → o'sha kunning ENG OXIRGI qo'lda snapshoti →
+    -- oldingi kunlarning eng oxirgisi (cron ustun, bo'lmasa qo'lda).
+    -- (2026-09-08: faqat cron izlanardi — qo'lda ishga tushirilgan birinchi
+    -- snapshot sahifada «ma'lumot yo'q» bo'lib ko'rinardi.)
     select * into v_snap from aylanma_snapshot
-     where sana = v_sana and rejim = 'cron';
+     where sana = v_sana
+     order by (rejim = 'cron') desc, hisoblangan_at desc
+     limit 1;
     if not found then
       select * into v_snap from aylanma_snapshot
-       where sana <= v_sana and rejim = 'cron'
-       order by sana desc
+       where sana < v_sana
+       order by sana desc, (rejim = 'cron') desc, hisoblangan_at desc
        limit 1;
     end if;
   end if;
