@@ -1059,6 +1059,38 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
 - 🔴 `Yuk Detail API` (`yZkGLRDs1ujk8EFo`) ga `?path=` qo'shildi — Aros admin API'ga OCHIQ proxy, **NOFAOL qolsin**,
   faqat MCP manual execute bilan o'qish uchun.
 
+### Sof aylanma kapital — kunlik 08:00 snapshot (2026-09-08, `ARX_PROVODKA_AYLANMA.md`, `PROVODKA_AYLANMA.sql`, faqat dev, RUN kutilmoqda)
+
+«Butun biznesda qancha pul bor?» — har kuni 08:00 Toshkent bir marta hisoblanadi, tarixda qoladi, grafik. Sahifa
+`aylanma-dev.html`, kalit **`aylanma`** (20-kalit: `perm_pages()` = `perms-dev.js` PAGES = `index-dev.html` CARDS =
+`promote.sh` PAGES; admin-dev `PVS_PAGES` — Asilbek). **Pul harakati YO'Q** — registr (`aylanma_snapshot` + `aylanma_qator`).
+Formula: A pul (v_kassa_card, FAQAT `markaziy`+`filial`, hodim xarajat kassalari YO'Q) + B yo'ldagi pul (`aros_transfer_yolda`
+sent) + T1 tovar omborlarda + T5 brak (Metabase, TANNARX) + Y3a yo'ldagi yuklar (posted+on_way) + K3b/K4 ko'chirish
+(on_way/created) + B6 ochiq buyurtmalar (created/send, SOTUV narxi) + Q2a bizdan qarzdor (`qarz` faol + `aros_qarzdor_sync`
+summary) − Q2b biz qarzdormiz (Qarz sahifasi formulasi: posted yuk narx×kurs − `yuk_tolangan_summa`, 365 kun). D (4010/6010
+daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
+- **n8n `Aros Provodka - Aylanma Snapshot` (`o3BZP8uYatGkRu8b`, `N8N_AYLANMA_SNAPSHOT.js`)**, cron `0 3 * * *` UTC. Manbalar
+  (0-bosqich sinov 2026-09-08): `products/warehouses/?module=warehouse` (68 ombor, `is_broken`/`broken_warehouse`);
+  **Metabase public card `4f729857…` «materialreport total»** — hamma id bitta so'rovda (12 s), «Oxirgi summa» = qty ×
+  `average_price` (kirim narxi USD) = tannarx, «Ombor» nomi bo'yicha juftlanadi; `v2/transfers?status=on_way|created` global;
+  `orders/?status=created|send` (server filtri ishlaydi, 90 kun); `v3/product-incomes` 365 kun 4 sahifa (batch 2/1500ms).
+  Aros ≈9 so'rov/kun. Kreditlar (Aros Basic Auth ×7 node, Supabase API service_role) — Asilbek.
+- 🔴 Transfer `document_price` = `transfer_items[].price × qty` — TANNARX EMAS (52565: 35 000 vs buyurtma 25 000). v1 `price_uzs`,
+  `tannarx_uzs` null; `METABASE_AYLANMA_TRANSFER.sql` — Asilbek Metabase'da karta ochsa n8n to'ldiradi, RPC `coalesce`.
+  🔴 229/282 transfer buyurtma uchun tizim yasagan (`comment` «… N ID raqamli buyurtma …») → `order_id`; ochiq buyurtma bilan
+  mos kelsa transfer `hisobga=false` (B6 sotuv narxida bir marta).
+- **SQL**: `sync_aylanma_snapshot(p_data)` service_role ONLY — har bo'lim alohida exception; `manba.*='xato'` yoki kurs null →
+  bo'lim null + `toliq=false` + `xatolar[]` (jimgina 0 YO'Q); Q2b kurs yo'q qator `meta.kurs_yoq` bilan saqlanadi. `rejim='cron'`
+  kuniga bitta (upsert, `unique (sana) where rejim='cron'`), `'qolda'` har doim yangi qator. O'qish: `aylanma_kun(p_sana,p_id)`,
+  `aylanma_trend(p_from,p_to)` (faqat cron, ≤400 kun), `aylanma_royxat(p_sana)`, `aylanma_qatorlar(p_id,p_bolim)`; ruxsat
+  `aylanma_page_ok()` (admin OR `perm_has_page('aylanma')`), `{ok:false,kod:'ruxsat'}`. 🔴 Funksiya mavjudligi
+  `_aylanma_fn_bor(nom, 'text[]')` = `oidvectortypes(proargtypes)` — `pg_get_function_identity_arguments` EMAS (u parametr
+  nomini ham qaytaradi → har doim false bo'lardi, tester topdi). Kassa doirasi bu sahifada QO'LLANMAYDI — butun kompaniya raqami.
+- **UI**: hero (jami so'm/$ + kechaga farq chip + rejim/vaqt), banner `!toliq || xatolar.length`, sana ‹ › + royxat select,
+  zinapoya 10 bo'lim (Q2b minus; null → «manba yo'q»; drill-down `aylanma_qatorlar` + Excel lazy), trend inline SVG 30/90/365.
+  swr `kun:<sana|id>`, `trend:<kun>`. RPC yo'q → «SQL hali RUN qilinmagan», sahifa buzilmaydi. Nav: 17 dev faylda Ehson'dan keyin
+  (`trending-up`), `hodim-dev`/`tannarx-dev` tegilmagan.
+
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
 
 Aros'da filial jo'natgan (`sent`) pul markaziy kassa «qabul qildi» bosguncha hech qayerda ko'rinmasdi.
