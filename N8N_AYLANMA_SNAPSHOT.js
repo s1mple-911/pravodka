@@ -90,6 +90,20 @@ for (var p = 1; p <= 4; p++) {
 }
 return out;`;
 
+// Aros kassalar: ro'yxatdagi har cachier uchun detail (balances[]) — Balans Sync bilan bir xil.
+// 🔴 2026-09-08 (Asilbek): Provodka daftaridagi filial kassalari MANFIY (eski sinxron dog'i),
+// Aros'da esa 0/musbat. SAK pulni TO'G'RIDAN Aros'dan oladi, daftar faqat taqqoslash uchun.
+const KASSA_IDS_JSCODE = `var out = [];
+try {
+  var r = $('Get Cachiers').first().json || {};
+  var list = Array.isArray(r.results) ? r.results : [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] && list[i].id != null) out.push({ json: { cachier_id: list[i].id } });
+  }
+} catch (e) {}
+if (!out.length) out.push({ json: { cachier_id: 0, _skip: true } });
+return out;`;
+
 const BUILD_JSCODE = `function safeFirst(name, dflt) {
   try { var j = $(name).first().json; return (j === undefined || j === null) ? dflt : j; } catch (e) { return dflt; }
 }
@@ -241,13 +255,51 @@ manba.incomes = piOk ? 'ok' : 'xato';
 if (!piOk) ogoh.push('product-incomes: birorta sahifa kelmadi');
 if (piOk && piCount != null && yuklar.length < piCount) ogoh.push('product-incomes: ' + piCount + ' > ' + yuklar.length + ' (sahifa yetmadi)');
 
+// ---- 6. Aros kassalar (jonli balans) ----
+var kasR = results('Get Cachiers');
+var kasById = {};
+for (var kk = 0; kk < kasR.rows.length; kk++) {
+  var kc = kasR.rows[kk]; if (!kc || kc.id == null) continue;
+  kasById[String(kc.id)] = kc;
+}
+var detItems = [];
+try { detItems = $('Get Cachier Detail').all(); } catch (e) { detItems = []; }
+var kassalar = [];
+var detOk = 0;
+for (var di = 0; di < detItems.length; di++) {
+  var dj = detItems[di].json || {};
+  if (!dj || dj.id == null || !Array.isArray(dj.balances)) continue;
+  detOk++;
+  var meta = kasById[String(dj.id)] || {};
+  var row = { cachier_id: parseInt(dj.id), title: dj.title_uz || dj.title || meta.title_uz || meta.title || ('Kassa ' + dj.id),
+              warehouse_id: (dj.warehouse && dj.warehouse.id != null) ? parseInt(dj.warehouse.id)
+                            : ((meta.warehouse && meta.warehouse.id != null) ? parseInt(meta.warehouse.id) : null),
+              cash: 0, click: 0, payme: 0, dollar_usd: 0 };
+  for (var bi = 0; bi < dj.balances.length; bi++) {
+    var b = dj.balances[bi]; if (!b) continue;
+    var lbl = String(b.label || '');
+    var val = num(b.balance);
+    if (lbl === 'cash_balance') row.cash = val;
+    else if (lbl === 'click_balance') row.click = val;
+    else if (lbl === 'payme_balance') row.payme = val;
+    else if (lbl === 'dollar_balance') row.dollar_usd = val;
+  }
+  kassalar.push(row);
+}
+var kasOk = kasR.ok && kasR.rows.length > 0 && detOk === kasR.rows.length;
+manba.kassalar = kasOk ? 'ok' : 'xato';
+if (!kasR.ok) ogoh.push('cachiers: ' + kasR.err);
+else if (detOk < kasR.rows.length) ogoh.push('cachiers detail: ' + detOk + '/' + kasR.rows.length + ' keldi (qolgani xato)');
+
 var payload = {
   sana: sana.sana, rejim: sana.rejim,
   manba: manba,
   omborlar: omborlar, yuklar: yuklar, transferlar: transferlar, buyurtmalar: buyurtmalar,
+  kassalar: kassalar,
   ogoh: ogoh,
   stat: { omborlar: omborlar.length, metabase_qator: omborlar.filter(function (o) { return o.usd !== null; }).length,
           transferlar: transferlar.length, buyurtmalar: buyurtmalar.length, yuklar: yuklar.length,
+          kassalar: kassalar.length,
           ms: Date.now() - (sana.t0 || Date.now()) }
 };
 return [{ json: payload }];`;
@@ -393,10 +445,58 @@ const getOrdSend = node({
   }
 });
 
+const getCachiers = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.2,
+  config: {
+    name: 'Get Cachiers',
+    parameters: {
+      method: 'GET',
+      url: 'https://api.aros.uz/api/admin/billing/cachiers/?page=1&page_size=1000',
+      authentication: 'genericCredentialType',
+      genericAuthType: 'httpBasicAuth',
+      options: { timeout: 60000, response: { response: { neverError: true } } }
+    },
+    credentials: { httpBasicAuth: newCredential('Aros Basic Auth') },
+    onError: 'continueRegularOutput',
+    alwaysOutputData: true,
+    position: [2340, 100]
+  }
+});
+
+const kassaIds = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: { name: 'Kassa IDs', parameters: { jsCode: KASSA_IDS_JSCODE }, position: [2600, 100] }
+});
+
+const getCachierDetail = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.2,
+  config: {
+    name: 'Get Cachier Detail',
+    parameters: {
+      method: 'GET',
+      url: '={{ "https://api.aros.uz/api/admin/billing/cachiers/" + $json.cachier_id + "/" }}',
+      authentication: 'genericCredentialType',
+      genericAuthType: 'httpBasicAuth',
+      options: {
+        batching: { batch: { batchSize: 5, batchInterval: 400 } },
+        timeout: 60000,
+        response: { response: { neverError: true } }
+      }
+    },
+    credentials: { httpBasicAuth: newCredential('Aros Basic Auth') },
+    onError: 'continueRegularOutput',
+    alwaysOutputData: true,
+    position: [2860, 100]
+  }
+});
+
 const piSahifalar = node({
   type: 'n8n-nodes-base.code',
   version: 2,
-  config: { name: 'PI Sahifalar', parameters: { jsCode: PI_SAHIFALAR_JSCODE }, position: [2340, 100] }
+  config: { name: 'PI Sahifalar', parameters: { jsCode: PI_SAHIFALAR_JSCODE }, position: [3120, 100] }
 });
 
 const getIncomes = node({
@@ -418,14 +518,14 @@ const getIncomes = node({
     credentials: { httpBasicAuth: newCredential('Aros Basic Auth') },
     onError: 'continueRegularOutput',
     alwaysOutputData: true,
-    position: [2600, 100]
+    position: [3380, 100]
   }
 });
 
 const build = node({
   type: 'n8n-nodes-base.code',
   version: 2,
-  config: { name: 'Build Payload', parameters: { jsCode: BUILD_JSCODE }, position: [2860, 100] }
+  config: { name: 'Build Payload', parameters: { jsCode: BUILD_JSCODE }, position: [3640, 100] }
 });
 
 const httpSync = node({
@@ -444,7 +544,7 @@ const httpSync = node({
       options: { timeout: 60000 }
     },
     credentials: { supabaseApi: newCredential('Supabase API') },
-    position: [3120, 100]
+    position: [3900, 100]
   }
 });
 
@@ -457,7 +557,10 @@ wf.add(getMetabase).to(getTrOnWay);
 wf.add(getTrOnWay).to(getTrCreated);
 wf.add(getTrCreated).to(getOrdCreated);
 wf.add(getOrdCreated).to(getOrdSend);
-wf.add(getOrdSend).to(piSahifalar);
+wf.add(getOrdSend).to(getCachiers);
+wf.add(getCachiers).to(kassaIds);
+wf.add(kassaIds).to(getCachierDetail);
+wf.add(getCachierDetail).to(piSahifalar);
 wf.add(piSahifalar).to(getIncomes);
 wf.add(getIncomes).to(build);
 wf.add(build).to(httpSync);

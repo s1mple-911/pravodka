@@ -470,6 +470,73 @@ begin
     -- qolib ketgan (5213 −75 mln). Shuning uchun A = BOLALAR yig'indisi (= Aros,
     -- ≤1 soat), parent farqi (karta jami − bolalar) alohida qator, hisobga=false.
     -- Bolasi yo'q kassa (Aros'ga bog'lanmagan) — eskicha karta jami.
+    --
+    -- 🔴🔴 2026-09-08 kech (Asilbek, Aros admin ekrani bilan solishtirib): daftar
+    -- BOLALARI ham Aros'ga mos kelmaydi (Qarshi Asosiy ombor kassasi Aros'da 0,
+    -- daftarda −75 mln). SAK endi pulni TO'G'RIDAN AROS'DAN oladi — n8n payload
+    -- `kassalar[]` (billing/cachiers/{id}/ balances, Balans Sync bilan bir xil manba).
+    -- Daftar (v_kassa_card jami) faqat taqqoslash qatori, hisobga=false.
+    -- `kassalar` kelmasa (eski n8n / xato) — pastdagi bolalar yo'li + toliq=false.
+    if coalesce(v_manba ->> 'kassalar', '') = 'ok'
+       and jsonb_typeof(p_data -> 'kassalar') = 'array'
+       and jsonb_array_length(p_data -> 'kassalar') > 0 then
+      for v_el in select value from jsonb_array_elements(p_data -> 'kassalar') loop
+        v_bola_uzs := coalesce(nullif(v_el ->> 'cash', '')::numeric, 0)
+                    + coalesce(nullif(v_el ->> 'click', '')::numeric, 0)
+                    + coalesce(nullif(v_el ->> 'payme', '')::numeric, 0);
+        v_bola_usd := coalesce(nullif(v_el ->> 'dollar_usd', '')::numeric, 0);
+        v_num := v_bola_uzs + case when coalesce(v_kurs_usd, 0) > 0 then v_bola_usd * v_kurs_usd else 0 end;
+        if v_bola_usd <> 0 and coalesce(v_kurs_usd, 0) <= 0 then
+          v_xatolar := array_append(v_xatolar, 'A: ' || coalesce(v_el ->> 'title', v_el ->> 'cachier_id') || ' dollar kurs yoq');
+        end if;
+        -- Provodka hisobiga bog'lash (kod/nom uchun) — accounts.filial_ref = Aros cachier id
+        v_ref := null; v_nom := null;
+        begin
+          select a.code, a.name into v_ref, v_nom
+            from accounts a
+           where a.parent_id is null
+             and btrim(a.filial_ref::text) = btrim(v_el ->> 'cachier_id')
+           order by coalesce(a.is_active, true) desc, a.code
+           limit 1;
+        exception when others then v_ref := null; v_nom := null;
+        end;
+        v_ref := coalesce(v_ref, 'aros:' || (v_el ->> 'cachier_id'));
+        v_nom := coalesce(v_nom, v_el ->> 'title', 'Kassa ' || (v_el ->> 'cachier_id'));
+        v_a_uzs  := v_a_uzs + v_num;
+        v_a_usd  := v_a_usd + v_bola_usd;
+        v_a_soni := v_a_soni + 1;
+        v_a_rows := v_a_rows || jsonb_build_object(
+          'bolim', 'A', 'ref', v_ref, 'nom', v_nom, 'uzs', v_num, 'usd', v_bola_usd,
+          'soni', null, 'hisobga', true,
+          'meta', jsonb_build_object('manba', 'aros', 'cachier_id', v_el ->> 'cachier_id',
+                                     'warehouse_id', v_el ->> 'warehouse_id',
+                                     'cash', v_el ->> 'cash', 'click', v_el ->> 'click',
+                                     'payme', v_el ->> 'payme', 'dollar_usd', v_el ->> 'dollar_usd',
+                                     'manfiy', v_num < 0));
+        if v_num < 0 then
+          v_xatolar := array_append(v_xatolar, 'A: ' || v_nom || ' Aros balansi manfiy (' || round(v_num) || ')');
+        end if;
+      end loop;
+      -- Daftar taqqoslash qatorlari (hisobga=false): v_kassa_card jami
+      begin
+        for v_ref, v_nom, v_num in
+          select k.code, k.name, coalesce(k.jami, 0)::numeric
+            from v_kassa_card k
+           where k.kassa_turi in ('markaziy', 'filial')
+             and coalesce((to_jsonb(k) ->> 'is_active')::boolean, true)
+        loop
+          v_a_rows := v_a_rows || jsonb_build_object(
+            'bolim', 'A', 'ref', v_ref || ':daftar', 'nom', v_nom || ' — Provodka daftari', 'uzs', v_num, 'usd', null,
+            'soni', null, 'hisobga', false, 'meta', jsonb_build_object('daftar', true));
+        end loop;
+      exception when others then
+        v_xatolar := array_append(v_xatolar, 'A daftar: ' || left(sqlerrm, 120));
+      end;
+    else
+    if coalesce(v_manba ->> 'kassalar', '') = 'xato' then
+      v_xatolar := array_append(v_xatolar, 'A: Aros kassalar kelmadi — daftar bolalari ishlatildi');
+      v_toliq := false;
+    end if;
     for v_ref, v_nom, v_num, v_num2, v_bola_uzs, v_bola_usd, v_bola_n in
       select k.code, k.name, coalesce(k.jami, 0)::numeric, coalesce(k.usd, 0)::numeric,
              coalesce(b.uzs, 0)::numeric, coalesce(b.usd, 0)::numeric, coalesce(b.n, 0)::int
@@ -510,6 +577,7 @@ begin
           'soni', null, 'hisobga', false, 'meta', jsonb_build_object('daftar_farqi', true));
       end if;
     end loop;
+    end if;  -- Aros kassalar / daftar bolalari
 
     v_bolimlar := v_bolimlar || jsonb_build_object('A',
       jsonb_build_object('uzs', v_a_uzs, 'usd', v_a_usd, 'soni', v_a_soni));
