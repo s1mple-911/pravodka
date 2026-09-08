@@ -571,7 +571,12 @@ function metaChipsHtml(meta){
   if(meta.yoq) parts.push("ma'lumot yo'q");
   if(meta.to_brak) parts.push('brak omborga');
   if(meta.order_qoshildi) parts.push('B6 ichida hisobga olindi');
-  if(meta.aros) parts.push('Aros jonli balans — taqqoslash uchun'+(meta.cash!=null?(' (naqd '+money(meta.cash)+' · click '+money(meta.click)+' · payme '+money(meta.payme)+')'):''));
+  if(meta.manba==='aros'){
+    parts.push('Aros jonli'+(meta.cash!=null?(': naqd '+money(meta.cash)+' · click '+money(meta.click)+' · payme '+money(meta.payme)):''));
+    if(meta.daftar_jami!=null) parts.push('daftar '+money(meta.daftar_jami)+(Math.abs(Number(meta.farq)||0)>=1?(' (farq '+(Number(meta.farq)>0?'+':'−')+money(Math.abs(Number(meta.farq)))+')'):''));
+  }
+  if(meta.manba==='daftar') parts.push('Provodka daftari');
+  if(meta.manfiy) parts.push('⚠ manfiy');
   if(meta.tr_yolda_uzs!=null) parts.push("yo'lda: "+money(meta.tr_yolda_uzs));
   if(meta.status) parts.push(esc(String(meta.status)));
   return parts.length ? ' <span class="c">'+parts.join(' · ')+'</span>' : '';

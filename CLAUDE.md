@@ -1064,11 +1064,12 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
 «Butun biznesda qancha pul bor?» — har kuni 08:00 Toshkent bir marta hisoblanadi, tarixda qoladi, grafik. Sahifa
 `aylanma-dev.html`, kalit **`aylanma`** (20-kalit: `perm_pages()` = `perms-dev.js` PAGES = `index-dev.html` CARDS =
 `promote.sh` PAGES; admin-dev `PVS_PAGES` — Asilbek). **Pul harakati YO'Q** — registr (`aylanma_snapshot` + `aylanma_qator`).
-Formula: A pul (🔴 **PROVODKA DAFTARI** — `v_kassa_card.jami`, kassa-dev kartalari bilan AYNAN bir xil; Asilbek 2026-09-08:
-«markaziy kassalardan Aros'da yo'q chiqimlar bor — daftar olinsin». Aros jonli balans (n8n `Get Cachiers`+`Get Cachier Detail`,
-`payload.kassalar[]`) faqat TAQQOSLASH qatori `ref=<code>:aros`, `hisobga=false`. ⚠️ Ochiq muammo: snapshot'da filial kassalari
-MANFIY (5213 −75 mln) chiqdi, kassa-dev va Aros admin'da esa yo'q — RPC (security definer, postgres) RLS'ni chetlab o'qiydi,
-brauzer admin policy orqali; `DIAG_AYLANMA_KASSA.sql` 4–6 bo'limlar shu farqni ko'rsatadi. Hodim xarajat kassalari YO'Q) + B yo'ldagi pul (`aros_transfer_yolda`
+Formula: A pul (🔴 GIBRID, DIAG bilan tasdiqlangan 2026-09-08: **markaziy** 5011/5012 (`filial_ref` null, Balans Sync tegmaydi) =
+**PROVODKA DAFTARI** `v_kassa_card.jami` — Aros'da yo'q chiqimlar shu yerda (Asilbek); **filial** (`filial_ref` bor) = **AROS JONLI**
+balans (n8n `Get Cachiers`+`Get Cachier Detail` → `payload.kassalar[]`, cash+click+payme+dollar×kurs) — daftar baribir Aros'ning
+soatlik nusxasi (parent 0), lekin jo'natish/qabul oralig'ida (Transfer Sync Kt filial → keyingi Balans Sync +X) daftar 1 soatgacha
+VAQTINCHA MANFIY (5213 −75 mln snapshot'da, DIAG'da +57 750) — Aros jonli shu transientni yo'q qiladi; Aros qatori kelmasa daftar
+(`meta.manba='daftar'`). Drill-down chip: Aros naqd/click/payme + daftar + farq. Hodim xarajat kassalari YO'Q) + B yo'ldagi pul (`aros_transfer_yolda`
 sent) + T1 tovar omborlarda + T5 brak (Metabase, TANNARX) + Y3a yo'ldagi yuklar (posted+on_way) + K3b/K4 ko'chirish
 (on_way/created) + B6 ochiq buyurtmalar (created/send, SOTUV narxi) + Q2a bizdan qarzdor (`qarz` faol + `aros_qarzdor_sync`
 summary) − Q2b biz qarzdormiz (Qarz sahifasi formulasi: posted yuk narx×kurs − `yuk_tolangan_summa`, 365 kun). D (4010/6010
