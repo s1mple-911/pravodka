@@ -69,3 +69,29 @@ select column_name from information_schema.columns
  where table_schema = 'public' and table_name = 'v_kassa_card' order by ordinal_position;
 select kassa_turi, count(*) as qator, sum(jami) as jami
   from v_kassa_card group by kassa_turi order by 1;
+
+-- 4. 🔴 RLS FARQI: RPC (security definer, egasi postgres) RLS'ni CHETLAB hamma yozuvni ko'radi,
+--    brauzerdagi admin esa policy orqali. Shu ikki qarash farq qilsa — snapshot minus, kassa-dev musbat.
+--    Quyidagi blokni ALOHIDA (begin…rollback bilan birga) RUN qiling — u admin sifatida o'qiydi.
+begin;
+select set_config('request.jwt.claims',
+       json_build_object('sub', (select id::text from profiles where role = 'admin' limit 1),
+                         'role', 'authenticated')::text, true);
+set local role authenticated;
+select code, name, kassa_turi, jami as admin_korgan_jami, usd
+  from v_kassa_card
+ where kassa_turi in ('markaziy', 'filial')
+ order by jami;
+rollback;
+
+-- 5. Postgres (RLS'siz) ko'rgan — 4 bilan solishtiring; farq bo'lsa qaysi kassalarda?
+select code, name, kassa_turi, jami as postgres_korgan_jami, usd
+  from v_kassa_card
+ where kassa_turi in ('markaziy', 'filial')
+ order by jami;
+
+-- 6. entry / entry_line RLS policy'lari (qaysi yozuvlar adminga ko'rinmaydi?)
+select tablename, policyname, cmd, roles, qual
+  from pg_policies
+ where schemaname = 'public' and tablename in ('entry', 'entry_line')
+ order by tablename, policyname;
