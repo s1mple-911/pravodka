@@ -467,6 +467,7 @@ begin
       select k.code, k.name, coalesce(k.jami, 0)::numeric, coalesce(k.usd, 0)::numeric
         from v_kassa_card k
        where k.kassa_turi in ('markaziy', 'filial')
+         and coalesce((to_jsonb(k) ->> 'is_active')::boolean, true)   -- nofaol kassa yo'q (kassa-dev filtri); ustun bo'lmasa true
     loop
       v_a_uzs  := v_a_uzs + v_num;
       v_a_usd  := v_a_usd + v_num2;

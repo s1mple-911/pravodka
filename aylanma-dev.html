@@ -596,9 +596,18 @@ window.aylDrill=async(bolim)=>{
   renderDrill();
 };
 window.aylDrillClose=()=>{ ddBolim=null; ddRows=[]; $('ddPanel').style.display='none'; markOpenRow(null); };
+let ddShowAll=false; // hisobga olinmagan qatorlar sukutda YASHIRIN (Asilbek 2026-09-08)
+window.aylDrillToggle=()=>{ ddShowAll=!ddShowAll; renderDrill(); };
 function renderDrill(){
   if(!ddRows.length){ $('ddBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Qator yo'q")+'</td></tr>'; return; }
-  $('ddBody').innerHTML=ddRows.map(r=>{
+  const yashirin=ddRows.filter(r=>r.hisobga===false).length;
+  const rows=ddShowAll?ddRows:ddRows.filter(r=>r.hisobga!==false);
+  const toggle=yashirin
+    ? '<tr><td colspan="5" class="c" style="text-align:center;padding:8px"><a href="#" onclick="aylDrillToggle();return false;">'
+      +(ddShowAll?'Hisobga olinmaganlarni yashirish':yashirin+" ta qator hisobga olinmagan (ko'rsatish)")+'</a></td></tr>'
+    : '';
+  if(!rows.length){ $('ddBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Qator yo'q")+'</td></tr>'+toggle; return; }
+  $('ddBody').innerHTML=toggle+rows.map(r=>{
     const nom=r.nom||r.ref||'—';
     return '<tr>'
       + '<td class="f">'+esc(nom)+(r.ref?('<div class="c">'+esc(r.ref)+'</div>'):'')+'</td>'
