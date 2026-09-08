@@ -838,16 +838,30 @@ begin
         from aros_qarzdor_sync s where s.id = 1;
     end if;
 
-    v_q2a_uzs := coalesce(v_num, 0) + coalesce(v_num2, 0);
+    -- 🔴 2026-09-08 (Asilbek): Aros mijozlar HAMYONIDAGI pul — bizga allaqachon
+    -- berilgan pul (mijoz hamyonida turibdi). Umumiy qarzdan umumiy hamyon balansi
+    -- AYIRILADI: Aros sof qarz = Σ total_debt − Σ wallet_balance (faol mijozlar).
+    -- cashback hamyon emas (bonus) — ayirilmaydi.
+    v_bola_uzs := 0;
+    if to_regclass('public.aros_qarzdor') is not null then
+      select coalesce(sum(a.wallet_balance), 0) into v_bola_uzs
+        from aros_qarzdor a
+       where coalesce((to_jsonb(a) ->> 'faol')::boolean, true);
+    end if;
+
+    v_q2a_uzs := coalesce(v_num, 0) + coalesce(v_num2, 0) - coalesce(v_bola_uzs, 0);
 
     v_q2a_rows := v_q2a_rows
       || jsonb_build_object('bolim', 'Q2a', 'ref', 'provodka', 'nom', 'Provodka qarz (bizdan qarzdor)',
            'uzs', v_num, 'usd', null, 'soni', null, 'hisobga', true, 'meta', '{}'::jsonb)
-      || jsonb_build_object('bolim', 'Q2a', 'ref', 'aros', 'nom', 'Aros mijozlar qarzi',
-           'uzs', v_num2, 'usd', null, 'soni', null, 'hisobga', true, 'meta', '{}'::jsonb);
+      || jsonb_build_object('bolim', 'Q2a', 'ref', 'aros', 'nom', 'Aros mijozlar qarzi (umumiy)',
+           'uzs', v_num2, 'usd', null, 'soni', null, 'hisobga', true, 'meta', '{}'::jsonb)
+      || jsonb_build_object('bolim', 'Q2a', 'ref', 'aros_hamyon', 'nom', 'Aros mijozlar hamyoni (bizga berilgan pul) — ayiriladi',
+           'uzs', -coalesce(v_bola_uzs, 0), 'usd', null, 'soni', null, 'hisobga', true,
+           'meta', jsonb_build_object('hamyon', true));
 
     v_bolimlar := v_bolimlar || jsonb_build_object('Q2a',
-      jsonb_build_object('uzs', v_q2a_uzs, 'usd', null, 'soni', 2));
+      jsonb_build_object('uzs', v_q2a_uzs, 'usd', null, 'soni', 3));
     v_qatorlar := v_qatorlar || v_q2a_rows;
   exception when others then
     v_q2a_uzs := null;

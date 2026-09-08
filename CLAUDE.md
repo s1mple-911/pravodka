@@ -1089,7 +1089,8 @@ VAQTINCHA MANFIY (5213 −75 mln snapshot'da, DIAG'da +57 750) — Aros jonli sh
 (`meta.manba='daftar'`). Drill-down chip: Aros naqd/click/payme + daftar + farq. Hodim xarajat kassalari YO'Q) + B yo'ldagi pul (`aros_transfer_yolda`
 sent) + T1 tovar omborlarda + T5 brak (Metabase, TANNARX) + Y3a yo'ldagi yuklar (posted+on_way) + K3b/K4 ko'chirish
 (on_way/created) + B6 ochiq buyurtmalar (created/send, SOTUV narxi) + Q2a bizdan qarzdor (`qarz` faol + `aros_qarzdor_sync`
-summary) − Q2b biz qarzdormiz (Qarz sahifasi formulasi: posted yuk narx×kurs − `yuk_tolangan_summa`, 365 kun). D (4010/6010
+summary `total_debt` **− Σ `aros_qarzdor.wallet_balance`** (faol) — Asilbek 2026-09-08: mijoz hamyonidagi pul bizga berilgan pul, umumiy
+qarzdan ayiriladi; cashback ayirilmaydi; drill-down 3 qator: provodka / aros umumiy / aros_hamyon manfiy) − Q2b biz qarzdormiz (Qarz sahifasi formulasi: posted yuk narx×kurs − `yuk_tolangan_summa`, 365 kun). D (4010/6010
 daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
 - **n8n `Aros Provodka - Aylanma Snapshot` (`o3BZP8uYatGkRu8b`, `N8N_AYLANMA_SNAPSHOT.js`)**, cron `0 3 * * *` UTC. Manbalar
   (0-bosqich sinov 2026-09-08): `products/warehouses/?module=warehouse` (68 ombor, `is_broken`/`broken_warehouse`);
