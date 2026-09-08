@@ -160,7 +160,7 @@ as $fn$
            limit 1
         ) kl on true
         left join accounts ka on ka.id = kl.account_id
-        left join profiles pr on pr.id = e.created_by
+        left join profiles pr on pr.id::text = e.created_by::text   -- entry.created_by TEXT (uuid emas) — 42883 tuzatish
         left join yuk_tannarx_sabab s on s.id = e.yuk_sabab_id
        where e.yuk_kutilmoqda = true and e.is_deleted = false and e.status = 'posted'
     ) r;
