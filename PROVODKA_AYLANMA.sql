@@ -365,6 +365,7 @@ declare
 
   -- har bo'lim uchun alohida jamlovchilar
   v_a_uzs   numeric; v_a_usd   numeric; v_a_soni   int; v_a_rows   jsonb;
+  v_bola_uzs numeric; v_bola_usd numeric; v_bola_n int; v_farq numeric;   -- A: Aros'ga tenglashtirilgan bolalar
   v_b_uzs   numeric; v_b_usd   numeric; v_b_soni   int; v_b_rows   jsonb;
   v_t1_uzs  numeric;                    v_t1_soni  int; v_t1_rows  jsonb;
   v_t5_uzs  numeric;                    v_t5_soni  int; v_t5_rows  jsonb;
@@ -463,18 +464,51 @@ begin
   begin
     v_a_rows := '[]'::jsonb; v_a_uzs := 0; v_a_usd := 0; v_a_soni := 0;
 
-    for v_ref, v_nom, v_num, v_num2 in
-      select k.code, k.name, coalesce(k.jami, 0)::numeric, coalesce(k.usd, 0)::numeric
+    -- 🔴 2026-09-08 (Asilbek): kassa hech qachon MANFIY bo'lolmaydi — Aros balansi
+    -- haqiqat. Balans Sync har soat naqd/click/payme/USD BOLALARINI Aros'ga
+    -- tenglashtiradi; parent hisobning O'Z qoldig'i esa eski yozuvlardan manfiy
+    -- qolib ketgan (5213 −75 mln). Shuning uchun A = BOLALAR yig'indisi (= Aros,
+    -- ≤1 soat), parent farqi (karta jami − bolalar) alohida qator, hisobga=false.
+    -- Bolasi yo'q kassa (Aros'ga bog'lanmagan) — eskicha karta jami.
+    for v_ref, v_nom, v_num, v_num2, v_bola_uzs, v_bola_usd, v_bola_n in
+      select k.code, k.name, coalesce(k.jami, 0)::numeric, coalesce(k.usd, 0)::numeric,
+             coalesce(b.uzs, 0)::numeric, coalesce(b.usd, 0)::numeric, coalesce(b.n, 0)::int
         from v_kassa_card k
+        left join lateral (
+          select sum(hb.uzs) as uzs,
+                 sum(case when c.currency = 'USD' then hb.fc else 0 end) as usd,
+                 count(*) as n
+            from accounts c
+            join v_hisob_bal hb on hb.account_id = c.id
+           where c.parent_id = k.id
+             and coalesce(c.is_active, true)
+        ) b on true
        where k.kassa_turi in ('markaziy', 'filial')
          and coalesce((to_jsonb(k) ->> 'is_active')::boolean, true)   -- nofaol kassa yo'q (kassa-dev filtri); ustun bo'lmasa true
     loop
+      if v_bola_n > 0 then
+        v_farq := v_num - v_bola_uzs;          -- parent o'z qoldig'i (daftar farqi)
+        v_num  := v_bola_uzs;
+        v_num2 := v_bola_usd;
+      else
+        v_farq := 0;
+      end if;
       v_a_uzs  := v_a_uzs + v_num;
       v_a_usd  := v_a_usd + v_num2;
       v_a_soni := v_a_soni + 1;
       v_a_rows := v_a_rows || jsonb_build_object(
         'bolim', 'A', 'ref', v_ref, 'nom', v_nom, 'uzs', v_num, 'usd', v_num2,
-        'soni', null, 'hisobga', true, 'meta', '{}'::jsonb);
+        'soni', null, 'hisobga', true,
+        'meta', jsonb_build_object('manba', case when v_bola_n > 0 then 'aros_bolalar' else 'karta' end,
+                                   'manfiy', v_num < 0));
+      if v_num < 0 then
+        v_xatolar := array_append(v_xatolar, 'A: ' || v_nom || ' manfiy (' || round(v_num) || ')');
+      end if;
+      if abs(coalesce(v_farq, 0)) >= 1 then
+        v_a_rows := v_a_rows || jsonb_build_object(
+          'bolim', 'A', 'ref', v_ref || ':farq', 'nom', v_nom || ' — daftar farqi', 'uzs', v_farq, 'usd', null,
+          'soni', null, 'hisobga', false, 'meta', jsonb_build_object('daftar_farqi', true));
+      end if;
     end loop;
 
     v_bolimlar := v_bolimlar || jsonb_build_object('A',
