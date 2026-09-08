@@ -1059,6 +1059,23 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
 - 🔴 `Yuk Detail API` (`yZkGLRDs1ujk8EFo`) ga `?path=` qo'shildi — Aros admin API'ga OCHIQ proxy, **NOFAOL qolsin**,
   faqat MCP manual execute bilan o'qish uchun.
 
+### Bog'lanmagan (yo'ldagi) to'lovlar v2 — xizmat turi + ko'p tanlab bog'lash (2026-09-08, `BRIEF_YUK_BOGLANMAGAN_V2.md`, `PROVODKA_YUK_BOGLANMAGAN_V2.sql`, faqat dev, RUN kutilmoqda)
+
+- `entry.yuk_sabab_id` (additive, FK `yuk_tannarx_sabab`) — bog'lanmagan 9110-1 to'lovning xizmat turi (Yo'l puli/Bojxona…), null = tovar narxi.
+  `professional-dev` «Hujjat hali yo'q» ekranida «Xizmat turi» select; saqlashdan KEYIN `entry_yuk_sabab_yoz(p_ext_ref, p_sabab_id)`
+  (`entry_jadval_yoz` naqshi: egalik, 30 daq, bir marta, `yuk_kutilmoqda=true`) — `provodka_yoz` TEGILMAGAN; RPC yo'q → to'lov saqlanadi, sabab jim.
+- `yuk_kutayotgan_v2()` → `{ok, rows[+sabab_id/sabab_nom/sabab_ikonka/status/ext_ref/description], jami_summa, soni}` (eski `yuk_kutayotgan()`
+  tegilmagan; `yuklar-dev` v2 yo'q bo'lsa eskisiga tushadi, ko'p tanlash yashirin).
+- **`yuk_boglash_koplik(p_entries uuid[], p_yuk_id int, p_qoldiq_uzs numeric default null)`** — bir nechta bog'lanmagan to'lovni BITTA yukka,
+  har biri TO'LIQ summasi bilan, bitta tranzaksiya (savepoint, `{ok:false,kod}` → hech narsa yozilmaydi). Har entry uchun `yuk_boglash` (V7)
+  yozuvlari aynan (entry_yuk upsert, 9110-1→9110, `yuk_ids`, `entry_history`). 🔴 **Sababli to'lov → qo'shimcha `yuk_tannarx` qatori**
+  (`yuk_tannarx_qosh` ichki, `kalit='entry:<id>'` idempotent, bojxona limiti ham) — xizmat tannarxni oshiradi, to'lov uni yopadi; shuning uchun
+  `yuk_tannarx_ruxsat()` sababli entry bo'lsa shart (`kod:'tannarx_ruxsat'`). Tovar (sababsiz) Σ > `p_qoldiq_uzs` → `kod:'qoldiq'`
+  (klient `lQoldiq`, jami tannarx bilan); xizmat qismi cheklanmaydi. Advisory lock; eski bitta `yuk_boglash` lock'siz (avvalgidek).
+- `yuklar-dev` Bog'lanmagan tab: ☐ + «Hammasi», sabab/tovar chip, status «Kutilmoqda»+sana, `#pendSelbar` (N · Σ · tovar/xizmat) →
+  `#linkModal` ko'p rejimi (`linkMulti`, summa maydoni o'rniga taqsimot, `validateLinkMulti`, `linkKodMsg`). Bitta «Yukka bog'lash» eskicha.
+  `hodim-dev` tegilmagan (u yerda yuk modali yo'q). Jurnal ⏳ modali eskicha (bitta, tannarxsiz qoldiq — ma'lum nomuvofiqlik).
+
 ### Sof aylanma kapital — kunlik 08:00 snapshot (2026-09-08, `ARX_PROVODKA_AYLANMA.md`, `PROVODKA_AYLANMA.sql`, faqat dev, RUN kutilmoqda)
 
 «Butun biznesda qancha pul bor?» — har kuni 08:00 Toshkent bir marta hisoblanadi, tarixda qoladi, grafik. Sahifa
