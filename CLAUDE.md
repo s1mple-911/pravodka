@@ -1155,12 +1155,17 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   `aylanma_kun` ning joriy-kun shoxida 2026-09-08 da tuzatilgan edi, `oldingi`/`trend` e'tibordan chetda qolgan.
   Klientda: hero chipi endi taqqoslanayotgan **sanani va rejimni** yozadi («kecha» deb taxmin qilmaydi),
   trend bo'sh holati sababni tushuntiradi.
-- ⚠️ **Q2a (bizdan qarzdor) shubhali** — `PROVODKA_AYLANMA_FIX.sql` 4-BO'LIMI TASHXIS (faqat select).
-  Formula ikki xil MANBANI aralashtiradi: qarz `aros_qarzdor_sync.summary->>'total_debt'` (Aros o'z yig'indisi),
-  hamyon esa `sum(aros_qarzdor.wallet_balance)` (bizdagi jadval). `summary` ichida mos qiymat bor —
-  `total_wallet_balance`. Jadval to'liq sinxronlanmagan yoki `faol` bayrog'i eskirgan bo'lsa ayirma xato chiqadi.
-  Ikkinchi savol: qarzi 0 mijozlar hamyoni ham ayirilyapti. DIAG 4.2 to'rt variantni yonma-yon beradi —
-  Asilbek qaysi biri to'g'ri ekanini aytgach `sync_aylanma_snapshot` Q2a bloki tuzatiladi (imzo o'zgarmaydi).
+- 🔴 **Q2a TUZATILDI 2026-09-09 (`PROVODKA_AYLANMA_Q2A_FIX.sql`, RUN kutilmoqda)** — Asilbek: «qarzni noto'g'ri
+  ko'rsatyapti, faqat hamyon balansni ko'rsatyaptimi deyman». **Aynan shunday edi.** Eski kod Aros qarzini FAQAT
+  `summary->>'total_debt'` dan olardi va `coalesce(...,0)` bilan o'rardi; `summary` null / kalit yo'q /
+  `aros_qarzdor_sync` da id=1 qatori yo'q bo'lsa qarz **jimgina 0** bo'lardi, hamyon esa `aros_qarzdor`
+  JADVALIDAN olingani uchun **baribir ayirilardi** → `Q2a = provodka + 0 − hamyon`, ya'ni ekranda «minus hamyon».
+  Bu PROVODKA_AYLANMA.sql ning O'Z qoidasini buzardi: *«manba yo'q → bo'lim null + `toliq=false` + `xatolar[]`;
+  jimgina 0 YO'Q»*. Endi qarz va hamyon **AYNI manbadan**: `summary` bo'lsa `total_debt`+`total_wallet_balance`,
+  bo'lmasa jadvaldan `sum(total_debt)`+`sum(wallet_balance)` (faol), ikkalasi ham yo'q bo'lsa **xato** (0 emas).
+  Manba `meta.manba` ('summary'|'jadval') da qoladi. 🔴 Funksiya tanasi verbatim ko'chirilgan — **faqat Q2a bloki**
+  o'zgargan (diff 9 hunk, hammasi Q2a oralig'ida). RUN'dan keyin ekrandagi raqam o'zgarishi uchun «Hisoblash»
+  bosilishi (yoki cron ishlashi) SHART — eski snapshotlar qayta hisoblanmaydi.
 - **UI**: hero (jami so'm/$ + kechaga farq chip + rejim/vaqt), banner `!toliq || xatolar.length`, sana ‹ › + royxat select,
   zinapoya 10 bo'lim (Q2b minus; null → «manba yo'q»; drill-down `aylanma_qatorlar` + Excel lazy), trend inline SVG 30/90/365.
   swr `kun:<sana|id>`, `trend:<kun>`. RPC yo'q → «SQL hali RUN qilinmagan», sahifa buzilmaydi. Nav: 17 dev faylda Ehson'dan keyin
