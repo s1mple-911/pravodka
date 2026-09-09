@@ -1027,6 +1027,21 @@ ko'rinsin, filial limiti uni override qilsin.
   `standart_branch_takliflar(p_filial)` (norm + translit 11 juftlik + `standart_ball`: 3 = teng/ichida, 2 = 4 harf; `taklif` FAQAT ball≥3
   — ball 2 «Izza Zapchast»→Izza Showroom kabi yolg'on moslik berardi), `standart_branch_bogla(p_filial, int[])` (admin). Standart
   sahifasida `bog_yoq` → «Bo'limlarni bog'lash» modali (`#bogModal`, takliflar oldindan belgilangan, ball 2 «ehtimoliy» belgilanmaydi).
+- 🔴 **RUXSAT TUZATILDI + AVTOMATIK BOG'LASH (2026-09-09, `PROVODKA_STANDART_RUXSAT.sql`, RUN kutilmoqda)** —
+  Asilbek: «faqat admin limit qo'yadi yoki faqat admin filialni bog'laydi bo'lib qolgan ekan». Sahifaning
+  **o'qish** tomoni allaqachon `admin OR perm_has_page('standart')` edi, **yozish** tomonida esa qat'iy
+  `is_admin()` qolib ketgan edi (`standart_limit_set` · `standart_limit_delete` · `standart_branch_bogla`) —
+  ya'ni ruxsati bor odam hammasini KO'RARDI, lekin hech narsani o'zgartira olmasdi. Endi uchalasi ham
+  **`standart_page_ok()`** (yagona qoida, `perm_has_page` yo'q bazada fail-closed). Klientda `isAdminUser()`
+  gate'lari **`canStdEdit()`** ga o'tdi (sahifa `permGate()` dan o'tgan bo'lsa ruxsat bor) — bitta joyda.
+- **`standart_branch_avto_bogla()` (YANGI)** — hamma filial uchun taklifni (`standart_ball >= 3`, takliflar
+  RPC bilan AYNI mezon) bir zarbda qo'llaydi. 🔴 FAQAT `filial_id is null` bo'limlar — **qo'lda qilingan
+  bog'lanish hech qachon ustidan yozilmaydi**. Bir bo'lim ikki filialga TENG ball bersa bog'lanmaydi,
+  `chalkash[]` da qaytadi (taxmin qilish noto'g'ri bog'lanishdan yomonroq). Taklifi yo'q bo'lim bog'lanmagan
+  qoladi; bog'langanini ham `#bogModal` dan tahrirlash mumkin (Asilbek: «noto'g'ri bo'lsa edit uchun ochiq
+  qolsin»). Temp jadval YO'Q — sof CTE; `yoz` ma'lumot o'zgartiruvchi CTE bir marta bajarilib, natijasiga
+  ikki marta murojaat qilinadi. UI: `#bogModal` footerida va `bog_yoq` ekranida «Avtomatik bog'lash»
+  (`avtoBogla`), natija bannerda (`.banner.ok`/`.banner.warn` — banner avval faqat qizil edi).
 - **UI** `standart-dev.html`: «Hodimlarga ochiq moddalar» bo'limi (N hodim, rol limiti, override chip / «Limit qo'yish»),
   hodimlar `<details>`, limit modali select faqat ochiq moddalar (+ «Barcha moddalarni ko'rsatish»), ochiq bo'lmagan modda limitida
   sariq ogohlantirish; kesh `prov-swr:std-fm:<fid>` 5 daq (`swrClear` logout'da); RPC yo'q → eski ko'rinish.
