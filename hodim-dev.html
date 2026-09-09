@@ -689,6 +689,15 @@
   .srv-fld:last-of-type{margin-bottom:var(--s4)}
   .srv-hint{font-size:12.5px;color:var(--muted);line-height:1.45;margin:var(--s2) 0 0 2px}
 
+  /* Tab 2 — modda talablari (chek/filial/davr/kommunal). Asosiy formadagi
+     bilan bir xil QOIDA, lekin modalga sig'adigan soddaroq boshqaruvlar:
+     kalendar o'rniga <input type=date>, qidiruvli dropdown o'rniga chiplar. */
+  .rxdavr{display:flex;align-items:center;gap:var(--s2);margin-top:var(--s3)}
+  .rxdavr .txt{flex:1 1 0;min-width:0}
+  .rxdash{color:var(--muted);font-weight:600}
+  .rxblok{margin-top:var(--s3)}
+  #rxChekFld .chekprev img{max-height:120px}
+
   /* Kimdan ro'yxati — .picklist ustiga faqat balandlik cheklovi */
   .srv-whos{max-height:212px;margin-top:0;border:1px solid var(--line);
     border-radius:var(--r-md);padding:var(--s1)}
@@ -1232,6 +1241,7 @@
         <!-- Jadval (Excel shablon) — izohdan alohida, entry.jadval ga yoziladi -->
         <input type="file" accept=".xlsx,.xls" id="jdFile" class="vh" onchange="onJdFile(this)">
         <div id="jdCard" class="jdcard" style="display:none"></div>
+        <div id="jdReq" class="chekreq" style="display:none">Bu xarajat uchun Excel jadvali shart</div>
       </div>
 
     </div>
@@ -1411,6 +1421,9 @@
       <input class="txt srv-wsearch" id="rxModdaSearch" placeholder="Nom yoki kod bo'yicha qidirish"
              autocomplete="off" oninput="rxModdaRender()" aria-label="Xarajat turini qidirish" style="display:none">
       <div class="picklist srv-whos" id="rxModdaList" role="radiogroup" aria-labelledby="rxModdaLbl"></div>
+      <!-- `ruxsat_talab().bloklangan` — ovqat/spidometr moddasi: so'rov shakli bu
+           talabni ifodalay olmaydi, shuning uchun ruxsat so'rash umuman yopiladi. -->
+      <div id="rxBlok" class="chekreq rxblok" style="display:none"></div>
     </div>
 
     <!-- 1b) QAYSI HISOBDAN — kassa yoki uning pul-turi bolasi (Naqd/Click/Payme).
@@ -1449,11 +1462,51 @@
       <div class="srv-hint" id="rxIzohHint">Tasdiqlovchi faqat shu matnni ko'radi.</div>
     </div>
 
+    <!-- ===== MODDA TALABLARI (ruxsat_talab) — 2026-09-09 =====
+         Asosiy forma nimani so'rasa, ruxsat so'rovi ham AYNAN shuni so'raydi.
+         Har blok faqat tanlangan modda talab qilganda ko'rinadi (rxTalabUI).
+         Qiymatlar `ruxsat_yarat_v2` ga boradi va tasdiqda `entry` ga ko'chadi. -->
+    <div class="srv-fld" id="rxKommFld" style="display:none">
+      <div class="lbl" id="rxKommLbl">Qaysi kommunal? <span class="req">majburiy</span></div>
+      <div class="turseg" id="rxKommSeg" role="radiogroup" aria-labelledby="rxKommLbl"></div>
+    </div>
+
+    <div class="srv-fld" id="rxFilFld" style="display:none">
+      <div class="lbl" id="rxFilLbl">Filial <span class="req">majburiy</span></div>
+      <div class="turseg" id="rxFilSeg" role="group" aria-labelledby="rxFilLbl"></div>
+      <div id="rxFilReq" class="chekreq" style="display:none"></div>
+    </div>
+
+    <div class="srv-fld" id="rxDavrFld" style="display:none">
+      <div class="lbl" id="rxDavrLbl">Davr <span class="req">majburiy</span></div>
+      <div class="rxdavr">
+        <input class="txt" type="date" id="rxDavrS" onchange="rxUI()" aria-label="Davr boshi">
+        <span class="rxdash">—</span>
+        <input class="txt" type="date" id="rxDavrE" onchange="rxUI()" aria-label="Davr oxiri">
+      </div>
+      <div id="rxDavrReq" class="chekreq" style="display:none">Sana oralig'ini (boshi–oxiri) tanlang</div>
+    </div>
+
+    <div class="srv-fld" id="rxChekFld" style="display:none">
+      <div class="lbl" id="rxChekLbl">Chek surati <span class="req">majburiy</span></div>
+      <label class="chekbtn">
+        <input type="file" accept="image/*" id="rxChekFile" class="vh" onchange="onRxChekFile(this)">
+        <i data-lucide="camera"></i><span>Chek suratini olish</span>
+      </label>
+      <div id="rxChekPrev" class="chekprev" style="display:none"></div>
+      <div id="rxChekReq" class="chekreq" style="display:none">Bu xarajat uchun chek shart</div>
+    </div>
+
+    <!-- Maxsus maydonlar uchun JOY. Blok NUSXALANMAYDI: mavjud `#mxdSect`
+         elementining O'ZI shu yerga ko'chiriladi (rxMxdEnter/rxMxdExit) —
+         shuning uchun mxd dvigatelining bironta qatori takrorlanmaydi. -->
+    <div class="srv-fld" id="rxMxdSlot"></div>
+
     <!-- Jadval (Excel shablon) — faqat tanlangan modda excel===true bo'lsa (rxJdUI).
          2026-09-03: faqat rxJdShablonYuklab() bergan shakl qabul qilinadi. -->
     <div class="srv-fld" id="rxJdWrap" style="display:none">
       <div class="izohhd">
-        <div class="lbl">Jadval <span class="opt">(ixtiyoriy)</span></div>
+        <div class="lbl" id="rxJdLbl">Jadval <span class="opt">(ixtiyoriy)</span></div>
         <div class="jdxbtns">
           <button type="button" class="jdxbtn" id="rxJdTplBtn" onclick="rxJdShablonYuklab()"><i data-lucide="download"></i><span>Shablonni yuklab olish</span></button>
           <button type="button" class="jdxbtn" id="rxJdXBtn" onclick="rxJdPickFile()"><i data-lucide="file-spreadsheet"></i><span>Shablonni yuklash</span></button>
@@ -1461,6 +1514,7 @@
       </div>
       <input type="file" accept=".xlsx,.xls" id="rxJdFile" class="vh" onchange="onRxJdFile(this)">
       <div id="rxJdCard" class="jdcard" style="display:none"></div>
+      <div id="rxJdReq" class="chekreq" style="display:none">Bu xarajat uchun Excel jadvali shart</div>
     </div>
 
     <div class="tmsg" id="rxMsg" role="status" aria-live="polite"></div>
@@ -2303,6 +2357,12 @@ function isOvqat(){ const m=moddaObj(); return !!(m && m.ovqat_modda); }
 // Excel/jadval — moddaga bog'liq bayroq (excel_jadval). Ustun yo'q bo'lsa (SQL run
 // qilinmagan) undefined → false, "Excel yuklash" tugmasi yashirin qoladi.
 function jadvalOk(){ const m=moddaObj(); return !!(m && m.excel_jadval); }
+// 🔴 2026-09-09 (Asilbek): Excel/jadval endi MAJBURIY. Hodimlar oziq-ovqat ro'yxatini
+// biriktirmasdan yuborishardi — `excel_jadval` yoqilgan moddada jadval SHART.
+// Uchala saqlash yo'li ham shu yordamchini ishlatadi (saveHodim / srvSave / rxSave);
+// ruxsat so'rashda esa `rxJdOk()` (rxModdaObj().excel) — o'z holati bilan bir xil qoida.
+function jdRequired(){ return jadvalOk() && !jadval; }
+const JD_REQ_MSG="Bu xarajat uchun Excel jadvali shart — shablonni yuklab olib, to'ldirib yuklang";
 function davrVals(){ return {s:davrS, e:davrE}; }
 function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
 // Filial majburiy bo'lsa kamida bittasi tanlansin. AMMO foydalanuvchiga umuman filial
@@ -2834,7 +2894,7 @@ function jdRenderInto(cardEl,obj,removeFn,warnId){
   cardEl.innerHTML=html; cardEl.style.display='block';
   icons();
 }
-function jdRender(){ jdRenderInto($('jdCard'),jadval,'jdRemove','jdWarn'); jdWarnUpdate(); }
+function jdRender(){ jdRenderInto($('jdCard'),jadval,'jdRemove','jdWarn'); jdWarnUpdate(); jdReqUI(); }
 // Asosiy formaning jadval holati — jdApplyTo() shu orqali `jadval`/#summa ga yozadi.
 const JD_STATE_MAIN={
   set:v=>{ jadval=v; },
@@ -2849,7 +2909,12 @@ function updateJdUI(){
   const wrap=$('jdXBtns');
   if(wrap) wrap.style.display=ok?'':'none';
   if(!ok && jadval){ jadval=null; jdRender(); toast("Bu turda jadval yo'q"); }
+  jdReqUI();
 }
+// Majburiylik satri — `jdRender()` (jadval qo'yildi/olindi) va `updateJdUI()` (modda
+// almashdi) ikkalasidan chaqiriladi. Alohida funksiya: `updateJdUI()` ichida `jdRender()`
+// bor, teskarisi rekursiyaga olib kelardi.
+function jdReqUI(){ const rq=$('jdReq'); if(rq) rq.style.display=jdRequired()?'block':'none'; }
 window.jdPickFile=()=>{ const f=$('jdFile'); if(f) f.click(); };
 /* SheetJS LAZY — <script> tegi HEAD'da YO'Q, faqat "Excel yuklash" birinchi bosilganda
    qo'shiladi (ai-dev.html dagi achLoadXlsx() bilan bir xil naqsh). */
@@ -3216,6 +3281,7 @@ function updateSave(){
   const needIzoh = izohRequired() && !$('izoh').value.trim();  // V6: izoh majburiy
   const needDavr = !davrOk();                                   // V6: davr majburiy va to'liq (davrReq updateDavrUI'da)
   const needKomm = isKomm() && !kommTuri;                        // Stage 5: kommunal turi majburiy
+  const needJd = jdRequired();                                   // 2026-09-09: excel_jadval yoqilgan moddada jadval majburiy
   // V9: needChek/needIzoh dan farqi — filialOk() o'zi filialRequired() ni tekshiradi
   // (majburiy bo'lmasa true), shuning uchun birinchi shart ortiqcha, lekin naqsh bir xil qolsin.
   const needFilial = filialRequired() && !filialOk();            // filial yo'q (ruxsat) userni bloklamaydi
@@ -3254,7 +3320,7 @@ function updateSave(){
     const items=ovqatRoyxat();
     ovqatOk = ovqatLoaded && items.length>0 && ovqatRoyxatSumma()===amt;
   }
-  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needSpid&&!needKm&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!overLimit&&!limOshdi&&mxdOk()&&ovqatOk);
+  $('saveBtn').disabled=!(selKassa&&selModda&&amt>0&&okAmt&&!over&&!needKurs&&!needChek&&!needSpid&&!needKm&&!needIzoh&&!needDavr&&!needKomm&&!needFilial&&!needJd&&!overLimit&&!limOshdi&&mxdOk()&&ovqatOk);
   // Qoldiqdan oshgan holatda "Saqlash" O'RNIGA "Pul so'rash" (blok YUMSHATILMAGAN).
   // `over` shu yerda hisoblangan — srvSync() uni QAYTA hisoblamaydi.
   // 🔴 Ovqat moddasida "Pul so'rash" umuman ko'rinmaydi (v1: faqat oddiy yo'l).
@@ -3596,6 +3662,7 @@ window.saveHodim=async()=>{
   // 🔴 Jadval jami summadan KO'P — saqlash BLOKLANADI (ikkinchi qatlam; birinchisi
   // jdWarnUpdate() bilan jonli ko'rsatiladi). Bitta joy — oddiy/taqsim/ovqat uchastkasi.
   { const jc=jdCheck(jadval, amt); if(jc && jc.over){ toast(jc.text,true); return; } }
+  if(jdRequired()){ toast(JD_REQ_MSG,true); return; }   // 2026-09-09: excel_jadval yoqilgan moddada jadval SHART
   { const rt=rasmTalab();
     if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart':'Bu xarajat uchun chek shart',true); return; }  // 3-band + AI
     if(rt.spid){ toast('Mashina tablosi surati shart',true); return; }   // AI rasm majburiy
@@ -4862,11 +4929,196 @@ function rxJdUI(){
   if(wrap) wrap.style.display=ok?'block':'none';
   if(!ok && rxJadval){ rxJadval=null; rxJdRender(); toast("Bu turda jadval yo'q"); }
   rxJdWarnUpdate();
+  // 2026-09-09: jadval MAJBURIY — yorliq va qizil satr asosiy formadagi bilan bir xil.
+  const lbl=$('rxJdLbl');
+  if(lbl) lbl.innerHTML='Jadval <span class="req">majburiy</span>';
+  const rq=$('rxJdReq');
+  if(rq) rq.style.display=(ok && !rxJadval)?'block':'none';
   const hint=$('rxIzohHint');
   if(hint) hint.textContent = rxJadval
     ? "Tasdiqlovchi faqat shu matnni va jadvalni ko'radi."
     : "Tasdiqlovchi faqat shu matnni ko'radi.";
 }
+
+/* ======== Tab 2 — MODDA TALABLARI (2026-09-09, Asilbek) ================
+   MUAMMO: yopiq moddaga "Ruxsat so'rash" moddaning bayroqlarini umuman
+   bilmasdi — chek/filial/davr/kommunal so'ralmasdi, Excel ixtiyoriy edi.
+   `ruxsat_tasdiq` provodkani o'zi yozgani uchun bu yo'l asosiy formadagi
+   HAMMA talabni chetlab o'tardi.
+   YECHIM: talablar serverdan keladi (`ruxsat_yopiq_moddalar().talab` —
+   PROVODKA_RUXSAT_TALAB.sql), shu yerda so'raladi va `ruxsat_yarat_v2` ga
+   boradi; tasdiqda `entry` ga ko'chadi. Server ham AYNAN shu qoidalarni
+   majburlaydi — UI ni chetlab o'tib bo'lmaydi.
+
+   🔴 BOSHQARUVLAR SODDAROQ (ataylab): modalga sig'sin deb kalendar o'rniga
+      <input type=date>, qidiruvli dropdown o'rniga chiplar. QOIDA esa
+      asosiy forma bilan bir xil — nima majburiy bo'lsa, o'sha majburiy.
+   🔴 Holat asosiy formadan MUSTAQIL (`rxFilials` ≠ `selFilials`): modal
+      yopilganda asosiy formaning tanlovi buzilmasin.                       */
+let rxChekBlob=null;              // ruxsat so'roviga biriktirilgan chek (siqilgan JPEG)
+let rxFilials=new Set();          // tanlangan filiallar
+let rxKomm=null;                  // kommunal turi
+let rxEuid=null, rxEuidFor=null;  // chek yo'li uchun OLDINDAN yaratilgan entry id
+
+/* `ruxsat_yopiq_moddalar()` javobidagi `talab` obyekti.
+   🔴 SQL hali RUN qilinmagan bo'lsa `talab` YO'Q (undefined). O'shanda yangi
+      maydonlar so'ralmaydi va saqlash eski `ruxsat_yarat` bilan ketadi —
+      ATAYLAB fail-open: aks holda SQL RUN bo'lguncha ruxsat so'rash butunlay
+      ishlamay qolardi. Excel qoidasi eski `excel` kaliti bilan baribir ishlaydi. */
+function rxTalab(){ const m=rxModdaObj(); const t=m&&m.talab; return (t&&typeof t==='object')?t:null; }
+const rxT=k=>{ const t=rxTalab(); return !!(t&&t[k]===true); };
+function rxBlokSabab(){ const t=rxTalab();
+  return (t&&t.bloklangan===true)?String(t.blok_sabab||"Bu turga ruxsat so'rab bo'lmaydi"):''; }
+function rxDavrVals(){ const a=$('rxDavrS'), b=$('rxDavrE');
+  return {s:String((a&&a.value)||''), e:String((b&&b.value)||'')}; }
+function rxDavrOk(){ const d=rxDavrVals(); return !!(d.s&&d.e&&d.s<=d.e); }   // ISO sana leksik solishtiriladi
+
+// Kommunal — asosiy formadagi KOMMUNAL ro'yxatining O'ZI (ikkinchi ro'yxat tuzilmaydi).
+function rxKommRender(){
+  const seg=$('rxKommSeg'); if(!seg) return;
+  seg.innerHTML=KOMMUNAL.map(x=>'<button type="button" class="turbtn'+(rxKomm===x.k?' on':'')
+    +'" role="radio" aria-checked="'+(rxKomm===x.k?'true':'false')
+    +'" onclick="rxPickKomm(\''+x.k+'\')">'+esc(x.label)+'</button>').join('');
+}
+window.rxPickKomm=k=>{ rxKomm=String(k||'')||null; rxKommRender(); rxUI(); };
+
+// Filial — `filials` (ruxsat bo'yicha allaqachon filtrlangan) chiplari.
+function rxFilRender(){
+  const seg=$('rxFilSeg'); if(!seg) return;
+  seg.innerHTML=filials.map(f=>{ const nm=filNom(f.name), on=rxFilials.has(f.id);
+    return '<button type="button" class="turbtn'+(on?' on':'')+'" aria-pressed="'+(on?'true':'false')
+      +'" onclick="rxToggleFilial(\''+f.id+'\')">'+esc(nm)+'</button>'; }).join('');
+}
+window.rxToggleFilial=id=>{
+  const v=String(id||'');
+  if(rxFilials.has(v)) rxFilials.delete(v); else rxFilials.add(v);
+  rxFilRender(); rxUI();
+};
+
+// Chek — asosiy formadagi `compressImage()` yadrosi qayta ishlatiladi.
+// 🔴 AI tahlili (startChekAi) BU YERDA CHAQIRILMAYDI: `entry_ai_bogla` mavjud
+//    yozuvni talab qiladi, ruxsat so'rovida esa yozuv hali yo'q. Chek rasmi
+//    baribir majburiy — talab chetlab o'tilmaydi, faqat AI xulosasi bo'lmaydi.
+function rxChekClear(){ rxChekBlob=null; const p=$('rxChekPrev'); if(p){ p.style.display='none'; p.innerHTML=''; } }
+window.rxRemoveChek=()=>{ rxChekClear(); rxUI(); };
+window.onRxChekFile=async el=>{
+  const f=el.files&&el.files[0]; if(el) el.value=''; if(!f) return;
+  try{
+    rxChekBlob=await compressImage(f);
+    const url=URL.createObjectURL(rxChekBlob);
+    const p=$('rxChekPrev');
+    if(p){ p.innerHTML='<img src="'+url+'" alt="chek"><button type="button" class="chekrm" onclick="rxRemoveChek()"><i data-lucide="x"></i>O\'chirish</button>';
+           p.style.display='flex'; }
+    icons(); rxUI();
+  }catch(e){ toast('Rasm yuklanmadi: '+e.message,true); }
+};
+
+/* Talab bloklarini chizadi. `rxUI()` dan chaqiriladi — shuning uchun bu yerda
+   `rxUI()` QAYTA chaqirilmaydi (rekursiya bo'lardi). */
+function rxTalabUI(){
+  const blok=rxBlokSabab();
+  const eb=$('rxBlok');
+  if(eb){ eb.textContent=blok; eb.style.display=blok?'block':'none'; }
+
+  const kOn=!blok&&rxT('kommunal');
+  const kf=$('rxKommFld'); if(kf) kf.style.display=kOn?'block':'none';
+  if(!kOn) rxKomm=null; else rxKommRender();
+
+  const fOn=!blok&&rxT('filial');
+  const ff=$('rxFilFld'); if(ff) ff.style.display=fOn?'block':'none';
+  if(!fOn) rxFilials.clear(); else rxFilRender();
+  const fr=$('rxFilReq');
+  if(fr){
+    // Asosiy formadagi `updateFilialUI()` bilan AYNAN bir xil matnlar/qoida.
+    let t='';
+    if(fOn && !filialsLoaded) t=filialsErr?"Filiallar yuklanmadi — qayta urinib ko'ring":'Filiallar yuklanmoqda…';
+    else if(fOn && filials.length===0) t='Bu xarajat uchun filial shart, lekin sizga filial biriktirilmagan — administratorga murojaat qiling';
+    else if(fOn && rxFilials.size===0) t='Bu xarajat uchun filial tanlanishi shart';
+    fr.textContent=t; fr.style.display=t?'block':'none';
+  }
+
+  const dOn=!blok&&rxT('davr');
+  const df=$('rxDavrFld'); if(df) df.style.display=dOn?'block':'none';
+  if(!dOn){ const a=$('rxDavrS'), b=$('rxDavrE'); if(a) a.value=''; if(b) b.value=''; }
+  const dr=$('rxDavrReq'); if(dr) dr.style.display=(dOn&&!rxDavrOk())?'block':'none';
+
+  const cOn=!blok&&rxT('chek');
+  const cf=$('rxChekFld'); if(cf) cf.style.display=cOn?'block':'none';
+  if(!cOn && rxChekBlob) rxChekClear();
+  const cl=$('rxChekLbl');
+  if(cl) cl.innerHTML=rxT('ai') ? 'Chek rasmi shart <span class="req">majburiy</span>'
+                                : 'Chek surati <span class="req">majburiy</span>';
+  const cr=$('rxChekReq'); if(cr) cr.style.display=(cOn&&!rxChekBlob)?'block':'none';
+
+  // Maxsus maydonlar — blok modalga faqat Tab 2 OCHIQ bo'lganda ko'chadi
+  // (`rxUI()` modal yopiq holatda ham chaqiriladi: init, rxModdaLoad …).
+  if(!blok && rxT('maydon') && rxPane2Ochiq()) rxMxdEnter(); else rxMxdExit();
+  icons();
+}
+
+/* Bitta joyda: nima yetishmayapti. '' = hammasi joyida.
+   🔴 Server (`ruxsat_yarat_v2`) AYNAN shu tekshiruvlarni takrorlaydi — bu faqat
+      birinchi qatlam, yagona to'siq EMAS. */
+function rxTalabYoq(){
+  const blok=rxBlokSabab(); if(blok) return blok;
+  if(rxT('chek') && !rxChekBlob) return 'Bu xarajat uchun chek surati shart';
+  // Filial: foydalanuvchiga umuman filial biriktirilmagan bo'lsa bloklamaymiz
+  // (asosiy formadagi `filialOk()` bilan bir xil chegirma).
+  if(rxT('filial') && rxFilials.size===0 && !(filialsLoaded && filials.length===0))
+    return 'Bu xarajat uchun filial tanlanishi shart';
+  if(rxT('davr') && !rxDavrOk()) return "Davr sanasini (boshi va oxiri) tanlang";
+  if(rxT('kommunal') && !rxKomm) return 'Kommunal turini tanlang';
+  if(!rxMxdOk()) return '«'+mxdFirstMissing()+'» to\'ldirilishi shart';
+  return '';
+}
+function rxTalabReset(){
+  rxChekClear(); rxFilials.clear(); rxKomm=null;
+  rxEuid=null; rxEuidFor=null;
+  const a=$('rxDavrS'), b=$('rxDavrE'); if(a) a.value=''; if(b) b.value='';
+}
+
+/* ---- Maxsus maydonlar Tab 2 da (3-bosqich) --------------------------------
+   Mxd dvigateli (mxdRender/mxdFetch/mxdOk/mxdValues …) UCHALA FAYLDA AYNAN BIR
+   XIL bo'lishi shart, shuning uchun u NUSXALANMAYDI. Uning yagona tikuv joyi —
+   `mxdModdaId()` / `mxdAfterChange()` adapterlari (blok oxirida). Shu ikkitasi
+   kontekstga qarab javob beradi, `#mxdSect` elementining O'ZI esa modalga
+   ko'chiriladi va yopilganda joyiga qaytariladi.
+   🔴 `mxdVals` bitta — kontekst almashganda asosiy formaning qiymatlari
+      saqlanadi/tiklanadi, aks holda hodim modalni ochib yopganda formadagi
+      to'ldirgan maydonlari jimgina yo'qolardi.
+   🔴 `#mxdModal` (variant tanlash) z-index 240 — so'rov modalidan (200) yuqori,
+      shuning uchun modal ustida ham normal ochiladi.                          */
+let rxMxdAktiv=false;
+let mxdHome=null, mxdHomeNext=null;    // `#mxdSect` ning asl joyi
+let mxdValsMain=null, mxdCurMain='';   // kontekst almashganda saqlangan asosiy forma holati
+function rxPane2Ochiq(){
+  const m=$('srvModal'), p=$('srvPane2');
+  return !!(m && m.classList.contains('open') && p && !p.hidden);
+}
+function rxMxdEnter(){
+  if(rxMxdAktiv) return;
+  const sect=$('mxdSect'), slot=$('rxMxdSlot');
+  if(!sect||!slot) return;
+  mxdHome=sect.parentNode; mxdHomeNext=sect.nextSibling;
+  mxdValsMain=mxdVals; mxdCurMain=mxdCur;
+  slot.appendChild(sect);
+  rxMxdAktiv=true;
+  // `mxdRender` id o'zgarganini ko'radi va `mxdVals` ni o'zi tozalaydi.
+  mxdRender(true);
+}
+function rxMxdExit(){
+  if(!rxMxdAktiv) return;
+  const sect=$('mxdSect');
+  if(sect&&mxdHome) mxdHome.insertBefore(sect, mxdHomeNext||null);
+  rxMxdAktiv=false;
+  // Asosiy formaning holatini AYNAN tiklaymiz — `mxdCur` ham qaytadi,
+  // shuning uchun `mxdRender` uni "modda almashdi" deb tozalamaydi.
+  mxdVals=mxdValsMain||{}; mxdCur=mxdCurMain||'';
+  mxdValsMain=null; mxdCurMain='';
+  mxdRender(true); updateSave();
+}
+// Ruxsat tabidagi maxsus maydonlar to'liqmi (fail-closed `mxdOk()` naqshi).
+function rxMxdOk(){ return rxMxdAktiv ? mxdOk() : true; }
 
 window.rxUI=()=>{
   const izoh=String(($('rxIzoh')&&$('rxIzoh').value)||'').trim();
@@ -4879,12 +5131,18 @@ window.rxUI=()=>{
     if(v>0 && bal!=null && v>bal) msg='Bu hisobda pul yetmaydi — boshqa hisobni tanlang yoki «Pul so\'rash» tabidan pul so\'rang';
   }
   if(m&&!rxSaving){ m.textContent=msg; m.className=msg?'tmsg no':'tmsg'; }
-  if(b) b.disabled=rxSaving||!(rxModda&&kassa&&rxWho&&v>0&&!msg&&izoh.length>=SRV_MIN_IZOH);
-  rxJdUI();
+  // 🔴 Bloklar OLDIN chiziladi: `rxTalabYoq()`/`rxJdOk()` moddaga bog'liq,
+  //    tugma holati esa shu natijalarga qaraydi.
+  rxTalabUI(); rxJdUI();
+  const jdYoq=rxJdOk()&&!rxJadval;   // 2026-09-09: excel_jadval yoqilgan moddada jadval majburiy
+  const yoq=rxTalabYoq() || (jdYoq?JD_REQ_MSG:'');
+  if(m&&!rxSaving&&!msg&&yoq){ m.textContent=yoq; m.className='tmsg no'; }
+  if(b) b.disabled=rxSaving||!!yoq||!(rxModda&&kassa&&rxWho&&v>0&&!msg&&izoh.length>=SRV_MIN_IZOH);
 };
 function rxReset(){
   rxModda=null; rxWho=null; rxHisob=null; rxSaving=false;
   rxJadval=null;
+  rxTalabReset();   // 🔴 chek/filial/davr/kommunal — keyingi so'rovga yopishib qolmasin
   const a=$('rxAmt'), i=$('rxIzoh'), sc=$('rxWhoSearch'), ms=$('rxModdaSearch'), m=$('rxMsg'), b=$('rxSend');
   if(a) a.value='';
   if(i) i.value='';
@@ -4910,6 +5168,9 @@ window.srvTab=(n,lock)=>{
   t1.title=srvTab1Locked?'Balansingiz yetarli — «Bekor» bosib «Saqlash» bilan yozing':'';
   const on2=(n===2);
   p1.hidden=on2; p2.hidden=!on2;
+  // 🔴 Tab 1 ga qaytilsa maxsus maydonlar bloki asosiy formaga QAYTADI
+  //    (aks holda u modal ichida qolib, formada ko'rinmay qolardi).
+  if(!on2 && typeof rxMxdExit==='function') rxMxdExit();
   t1.classList.toggle('on',!on2); t2.classList.toggle('on',on2);
   t1.setAttribute('aria-selected',on2?'false':'true');
   t2.setAttribute('aria-selected',on2?'true':'false');
@@ -5022,6 +5283,7 @@ window.srvClose=()=>{
   //    yo'liga qaytsin. Aks holda keyingi "Pul so'rash" bosilganda so'rov
   //    eski xarajatga ulanib ketardi (yoki top-up bo'lib qolardi).
   if(srvQol||srvTop){ srvQol=null; srvTop=false; srvIntro(''); }
+  rxMxdExit();  // 🔴 rxReset() dan OLDIN: blok asosiy formaga qaytsin, keyin holat tozalansin
   rxReset();   // 🆕 Tab 2 formasi ham tozalanadi — Tab 1 mantiqiga tegmaydi
   try{ const b=$('srvBtn'); if(b&&b.style.display!=='none') b.focus(); }catch(e){}
 };
@@ -5130,6 +5392,7 @@ window.srvSave=async()=>{
   if(izoh.length<SRV_MIN_IZOH){ no('Nega kerakligini yozing (kamida 3 belgi)'); return; }
   // 🔴 Jadval jami xarajat summasidan KO'P — bloklaydi (pul so'rash yo'li, 3-saqlash nuqtasi).
   { const jc=jdCheck(jadval, amt); if(jc && jc.over){ no(jc.text); return; } }
+  if(jdRequired()){ no(JD_REQ_MSG); return; }           // 2026-09-09: jadval majburiy
   // 🔴 Xarajatning MAVJUD qoidalari o'zgarmaydi (chek/izoh/davr/filial/kommunal).
   { const rt=rasmTalab();
     if(rt.chek){ toast(aiChekOk()?'Chek rasmi shart':'Bu xarajat uchun chek shart',true); return; }
@@ -5386,6 +5649,9 @@ window.rxSave=async()=>{
   if(izoh.length<SRV_MIN_IZOH){ no('Izohni yozing (kamida 3 belgi)'); return; }
   // 🔴 Jadval jami summadan KO'P — bloklaydi (ruxsat so'rash yo'li, 4-saqlash nuqtasi).
   { const jc=jdCheck(rxJadval, sAmt); if(jc && jc.over){ no(jc.text); return; } }
+  if(rxJdOk() && !rxJadval){ no(JD_REQ_MSG); return; }  // 2026-09-09: jadval majburiy (asosiy forma bilan bir xil)
+  // 🔴 Modda talablari (chek/filial/davr/kommunal) — server ham AYNAN shuni tekshiradi.
+  { const ty=rxTalabYoq(); if(ty){ no(ty); return; } }
   const bal=rxKassaBal();
   if(bal!=null&&sAmt>bal){ no('Bu hisobda pul yetmaydi — boshqa hisobni tanlang yoki «Pul so\'rash» tabidan pul so\'rang'); return; }
   rxSaving=true; rxBandAt=Date.now();
@@ -5397,13 +5663,49 @@ window.rxSave=async()=>{
   // yoki qo'shimchasiz) bir xil mazmunda ham to'qnashmasligi uchun.
   const token=tokenBoshla({ruxsat:1, modda:modda.id, kassa:kassa, sorov:rxWho+'|'+sAmt+'|'+izoh})+':ruxsat';
   retryFn=()=>window.rxSave();
-  const rr=await qTimeout(sb.rpc('ruxsat_yarat',{p_kassa:kassa, p_modda:modda.id, p_summa:sAmt,
-    p_izoh:izoh, p_kimdan:rxWho, p_ext_ref:token}));
+  // 🔴 Server yangi SQL bilanmi? `talab` obyekti bo'lsa — ha (PROVODKA_RUXSAT_TALAB.sql).
+  //    Yo'q bo'lsa eski `ruxsat_yarat` bilan ketamiz (yangi maydonlar baribir yashirin).
+  const v2=!!rxTalab();
+  const jdSnap=rxJadval;   // rxReset() pastda tozalaydi — oldindan saqlab olamiz
+  const dv=rxDavrVals();
+  // 🔴 Maxsus maydon qiymatlari HOZIR olinadi: `srvClose()` blokni asosiy formaga
+  //    qaytaradi va `mxdVals` almashadi — keyin o'qib bo'lmaydi.
+  const mxdSnap=(rxMxdAktiv&&typeof mxdValues==='function')?mxdValues():null;
+  // Chek yo'li uchun entry id: TOKENGA bog'lab bir marta yaratiladi — "Qayta urinish"
+  // ayni faylni qayta yozadi (upsert), storage'da yetim nusxa qolmaydi.
+  if(rxEuidFor!==token){ rxEuid=genUuid(); rxEuidFor=token; }
+  const euid=rxEuid;
+  // 🔴 Chek RPC dan OLDIN yuklanadi: yuklanmasa so'rov UMUMAN yaratilmaydi —
+  //    aks holda "chek shart" moddasida cheksiz so'rov osilib qolardi.
+  //    Yo'l odatdagi naqsh: xarajat-cheklari/{kassa_id}/{entry_id}.jpg — `ruxsat_tasdiq`
+  //    yozuvni AYNAN shu id bilan yaratadi, shuning uchun fayl ko'chirilmaydi.
+  if(v2 && rxChekBlob){
+    try{
+      const {error:eu}=await sb.storage.from('xarajat-cheklari')
+        .upload(kassa+'/'+euid+'.jpg', rxChekBlob, {contentType:'image/jpeg',upsert:true});
+      if(eu) throw eu;
+    }catch(e){
+      tokenTugat(); rxBtnTikla();
+      no('Chek yuklanmadi — internetni tekshirib qayta urining');
+      return;
+    }
+  }
+  const rr = v2
+    ? await qTimeout(sb.rpc('ruxsat_yarat_v2',{p_data:{
+        kassa:kassa, modda:modda.id, summa:sAmt, izoh:izoh, kimdan:rxWho, ext_ref:token,
+        entry_uid:euid, chek_bor:!!rxChekBlob,
+        filial_ids:[...rxFilials],
+        davr_start:dv.s||null, davr_end:dv.e||null,
+        kommunal_turi:rxKomm||null,
+        jadval:jdSnap||null,
+        maydonlar:mxdSnap}}))
+    : await qTimeout(sb.rpc('ruxsat_yarat',{p_kassa:kassa, p_modda:modda.id, p_summa:sAmt,
+        p_izoh:izoh, p_kimdan:rxWho, p_ext_ref:token}));
   const data=rr.data, error=rr.error;
   if(error&&isDup(error)){ rxYopish('So\'rov allaqachon yuborilgan'); return; }
   if(noaniq(rr)){ rxNoaniq('timeout'); return; }
   if(error){
-    if(srvRpcYoq(error,'ruxsat_yarat')){    // fail-closed: xususiyat o'chadi
+    if(srvRpcYoq(error,'ruxsat_yarat')||srvRpcYoq(error,'ruxsat_yarat_v2')){    // fail-closed: xususiyat o'chadi
       tokenTugat(); rxOff=true; rxSync(); srvClose(); rxBtnTikla();
       toast('Ruxsat so\'rash hali ulanmagan',true); return;
     }
@@ -5420,14 +5722,14 @@ window.rxSave=async()=>{
   // 🔴 FAIL-CLOSED: server AYNAN ruxsat sorovi yaratganini tasdiqlasin.
   if(!data||data.ok!==true||String(data.turi||'')!=='ruxsat'){ rxNoaniq('nomalum'); return; }
   tokenTugat(); bannerYop();
-  const jdSnap=rxJadval;   // rxReset() pastda tozalaydi — oldindan saqlab olamiz
+  rxEuid=null; rxEuidFor=null;
   srvClose(); rxReset(); rxBtnTikla();
   toast('Ruxsat so\'rovi yuborildi');
   srvPendLoad();
-  // 🔴 ruxsat_sorov `ruxsat_yarat` ichida yaratiladi (imzosi o'zgarmaydi) — jadval
-  // MUVAFFAQIYATDAN KEYIN alohida yoziladi (entry_jadval_yoz bilan bir xil naqsh).
-  // So'rovning o'zi buzilmaydi — xato bo'lsa faqat ogohlantiramiz.
-  if(jdSnap){
+  // 🔴 v2 da jadval `ruxsat_yarat_v2` ICHIDA, ayni tranzaksiyada yoziladi —
+  // qo'shimcha RPC kerak emas. Eski yo'lda (v1) esa avvalgidek MUVAFFAQIYATDAN
+  // KEYIN alohida yoziladi (entry_jadval_yoz bilan bir xil naqsh).
+  if(!v2 && jdSnap){
     try{
       const {error:ej}=await sb.rpc('ruxsat_jadval_yoz',{p_ext_ref:token,p_jadval:jdSnap});
       if(ej) toast('So\'rov yuborildi, lekin jadval biriktirilmadi',true);
@@ -6002,8 +6304,13 @@ async function mxdYoz(entryIds,vals,need){
 /* =========================== /MAXSUS MAYDONLAR ============================= */
 
 /* --- Sahifaga bog'liq UCH ilmoq (faqat shu uchtasi fayldan-faylga farq qiladi) --- */
-const mxdModdaId=()=>selModda||'';
-const mxdAfterChange=()=>{ updateSave(); updateAiUI(); };
+/* 🔴 YAGONA TIKUV JOYI (bu uch qator har faylda boshqacha bo'lishi mumkin —
+      mxd dvigatelining o'zi esa uchala faylda AYNAN bir xil).
+      2026-09-09: hodim.html da ikkinchi kontekst paydo bo'ldi — "Ruxsat so'rash"
+      tabi (`rxMxdAktiv`). Blok o'sha paytda modal ichida turadi va modda
+      sifatida `rxModda` ni oladi. */
+const mxdModdaId=()=>(rxMxdAktiv?(rxModda||''):(selModda||''));
+const mxdAfterChange=()=>{ if(rxMxdAktiv){ rxUI(); return; } updateSave(); updateAiUI(); };
 const mxdWarn=msg=>toast(msg,true);
 
 /* ============ AVTO-YANGILANISH — iOS "Bosh ekranga qo'shish" muammosi (2026-08-27) ============

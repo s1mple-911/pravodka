@@ -364,7 +364,11 @@
      o'zgaruvchi yo'q — mavjud tokenlar. z-index mavjud .modal/.mmodal (200)
      dan yuqori — ustma-ust ochilsa ham jadval tepada ko'rinadi.
      ================================================================ */
-  .jd-chiprow{margin-top:9px}
+  .jd-chiprow{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+  /* Ruxsat so'rovidagi talab metasi (filial / davr / kommunal) */
+  .rx-tmrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .rx-tm{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--muted)}
+  .rx-tm svg{width:12px;height:12px;flex:none}
   .jd-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface-2);
     color:var(--ink);border-radius:8px;padding:2px 8px;font-size:11.5px;font-weight:700;line-height:1.6;
     font-family:inherit;cursor:pointer;transition:color .13s,border-color .13s}
@@ -750,13 +754,48 @@ function ko(r){
 // Jadval chipi (entry.jadval / ruxsat_sorov.jadval) — `r.jadval_n` kalit yo'q bo'lsa
 // (SQL RUN qilinmagan) hech narsa chizilmaydi, kartaga TA'SIR YO'Q.
 // `r.turi` ruxsat qatorida 'ruxsat', pul so'rashda kelmaydi (undefined -> esc('')).
-function jdChipHtml(r){
+function jdChipBtn(r){
   if(!r || r.jadval_n==null) return '';
   const id=esc(r.id), turi=esc(r.turi), eid=esc(r.entry_id||'');
-  return '<div class="jd-chiprow"><button type="button" class="jd-chip" '
+  return '<button type="button" class="jd-chip" '
     +'onclick="openJadval(\''+id+'\',\''+turi+'\',\''+eid+'\')">'
     +'<i data-lucide="table-2"></i>Jadval · '+r.jadval_n+' qator'
-    +(r.jadval_jami!=null?' · '+money(r.jadval_jami):'')+'</button></div>';
+    +(r.jadval_jami!=null?' · '+money(r.jadval_jami):'')+'</button>';
+}
+// Pul so'rovi kartasi — avvalgidek faqat jadval chipi (ko'rinish o'zgarmagan).
+function jdChipHtml(r){
+  const b=jdChipBtn(r);
+  return b?'<div class="jd-chiprow">'+b+'</div>':'';
+}
+/* 🆕 Ruxsat so'rovidagi CHEK (PROVODKA_RUXSAT_TALAB.sql) — fayl yo'li
+   `xarajat-cheklari/{kassa_id}/{chek_uid}.jpg`. Tasdiqlovchi chekni KO'RMASDAN
+   ruxsat bermasin: yopiq moddaning cheki aynan shu yerda tekshiriladi.
+   🔴 `chek_uid` kaliti yo'q bo'lsa (SQL RUN qilinmagan / eski so'rov) chip
+      umuman chizilmaydi — kartaga ta'sir yo'q. */
+function rxChekChipHtml(r){
+  if(!r || r.chek_bor!==true || !r.chek_uid || !r.kassa_id) return '';
+  return '<button type="button" class="jd-chip" onclick="rxOpenChek(\''+esc(r.kassa_id)+'\',\''+esc(r.chek_uid)+'\')">'
+    +'<i data-lucide="receipt"></i>Chek</button>';
+}
+window.rxOpenChek=async(kassaId,uid)=>{
+  try{
+    const {data,error}=await sb.storage.from('xarajat-cheklari')
+      .createSignedUrl(String(kassaId)+'/'+String(uid)+'.jpg',300);
+    if(error||!data) throw error||new Error('yoq');
+    window.open(data.signedUrl,'_blank');
+  }catch(e){ qarorXabar('Chek topilmadi yoki ochilmadi'); }   // bu faylda toast() YO'Q — mavjud banner qatlami
+};
+// Kommunal kalitini o'qiladigan nomga o'girish (hodim-dev dagi KOMMUNAL bilan bir xil).
+const RX_KOMM={gaz:'Gaz',svet:'Svet',suv:'Suv',musor:'Musor'};
+/* Tanlangan filial / davr / kommunal — tasdiqlovchi nimani tasdiqlayotganini bilsin. */
+function rxTalabMetaHtml(r){
+  const p=[];
+  if(r.filial_nom) p.push('<span class="rx-tm"><i data-lucide="store"></i>'+esc(r.filial_nom)+'</span>');
+  if(r.davr_start&&r.davr_end)
+    p.push('<span class="rx-tm"><i data-lucide="calendar-range"></i>'+esc(r.davr_start)+' — '+esc(r.davr_end)+'</span>');
+  if(r.kommunal_turi)
+    p.push('<span class="rx-tm"><i data-lucide="plug-zap"></i>'+esc(RX_KOMM[r.kommunal_turi]||r.kommunal_turi)+'</span>');
+  return p.length?'<div class="rx-tmrow">'+p.join('')+'</div>':'';
 }
 function rxCardHtml(r){
   // Ruxsatda "To'liq berildi" ma'nosiz (pul berilmaydi) — hodim-dev matni bilan bir xil
@@ -805,7 +844,10 @@ function rxCardHtml(r){
       +'<div class="srv-sum num">'+money(r.summa)+'<span class="srv-cur2">so\'m</span></div>'
     +'</div>'
     +'<div class="srv-izoh"><b>'+modda+'</b>'+(r.izoh?' · '+esc(r.izoh):'')+'</div>'
-    +jdChipHtml(r)
+    +rxTalabMetaHtml(r)
+    // Chek va jadval chiplari BITTA qatorda (ikkalasi ham bo'lmasa qator chizilmaydi).
+    +(function(){ const row=rxChekChipHtml(r)+jdChipBtn(r);
+        return row?'<div class="jd-chiprow">'+row+'</div>':''; })()
     +'<div class="srv-meta">'
       +'<span class="srv-st '+st.k+'"><i data-lucide="'+st.i+'"></i>'+st.t+'</span>'
       +'<span class="srv-dt">'+dt+'</span>'

@@ -930,6 +930,44 @@ Chegara: ≤500 qator, ≤16 ustun, klient ≤100 KB (server constraint 120 KB).
 - **`sorovlar-dev.html`**: kartada chip «Jadval · N qator · jami» → `#jdModal` (jurnal-dev nusxasi, z-index 210);
   ruxsat → `ruxsat_sorov.jadval` (RLS: hodim/kimdan/admin), pul so'rash → `entry.jadval` (`entry_id`).
 
+### Ruxsat so'rovida MODDA TALABLARI (2026-09-09, `BRIEF_PROVODKA_RUXSAT_TALAB.md`, `PROVODKA_RUXSAT_TALAB.sql` — RUN kutilmoqda) — faqat dev
+
+Yopiq moddaga «Ruxsat so'rash» (Tab 2) moddaning bayroqlarini UMUMAN bilmasdi: chek/filial/davr/
+kommunal/maxsus maydon so'ralmasdi, Excel esa ixtiyoriy edi. `ruxsat_tasdiq` provodkani **serverda
+o'zi** yozgani uchun bu yo'l moddaning HAMMA talabini chetlab o'tardi (Tab 1 «Pul so'rash» esa asosiy
+formani ishlatgani uchun hammasidan o'tadi — farq shundan). 🔴 **Excel/jadval endi MAJBURIY**
+(`jdRequired()`, `JD_REQ_MSG`; `saveHodim`/`srvSave`/`rxSave` uchalasida) — avval «(ixtiyoriy)» edi
+va hodimlar oziq-ovqat ro'yxatisiz yuborishardi.
+
+- **`ruxsat_talab(p_modda)`** — YAGONA manba: `chek` (=`chek_majburiy|ai_tekshir|spidometr_ai`), `ai`,
+  `izoh`, `davr`, `filial`, `kommunal` (kod 9413), `excel`, `maydon`/`maydon_req`, `bloklangan`/`blok_sabab`.
+  `ruxsat_yopiq_moddalar()` (har elementga `talab`) ham, `ruxsat_yarat_v2` ham shundan o'qiydi.
+- **`ruxsat_yarat_v2(p_data jsonb)`** — YANGI. 🔴 Eski `ruxsat_yarat(uuid,uuid,numeric,text,uuid,text)`
+  **TEGILMAYDI** (prod `hodim.html` uni chaqiradi); v2 uni **ichidan** chaqiradi → kassa/summa/kimdan/
+  «pul yetadimi» qoidalari bir joyda qoladi, bitta tranzaksiya = metadata **atomar**. Talablarni
+  SERVER majburlaydi (UI dan mustaqil). `ovqat_modda`/`spidometr_ai` — **RAD** (so'rov shakli ularni
+  ifodalay olmaydi; yarim qo'llab-quvvatlashdan ko'ra ochiq rad).
+- 🔴 **Chek ko'chirilmaydi.** Storage insert policy `perm_check_accounts([kassa_id])` talab qiladi —
+  tasdiqlovchi hodimning kassa papkasiga yoza olmaydi, demak «tasdiqdan keyin ko'chirish» ISHLAMAYDI.
+  Buning o'rniga klient entry id'sini OLDINDAN yaratadi (`ruxsat_sorov.entry_uid`), chekni odatdagi
+  yo'lga (`xarajat-cheklari/{kassa_id}/{entry_uid}.jpg`) yuklaydi, `ruxsat_tasdiq` esa `entry` ni
+  **aynan shu id bilan** yaratadi. Chek RPC dan OLDIN yuklanadi; `entry_uid` tokenga bog'langan.
+- ⚠️ `ruxsat_sorov.filial_ids` endi bo'sh emas → `sorov_post_tosiq` **limit shoxi** ruxsat yozuviga ham
+  ishlaydi (eski izohda «taalluqli emas» deyilgan edi — ataylab o'zgardi).
+- **Maxsus maydonlar bloki NUSXALANMAYDI:** `#mxdSect` **elementining O'ZI** modalga ko'chiriladi
+  (`rxMxdEnter`/`rxMxdExit`, `#rxMxdSlot`), yopilganda joyiga qaytariladi. Mxd dvigateli uchala faylda
+  aynan bir xil qoladi; yagona tikuv joyi — blok oxiridagi ikki adapter, ular endi kontekstga qaraydi:
+  `mxdModdaId=()=>(rxMxdAktiv?rxModda:selModda)`, `mxdAfterChange` → `rxUI()` yoki `updateSave()`.
+  `mxdVals` bitta — kontekst almashganda asosiy forma holati saqlanadi/tiklanadi (`mxdValsMain`).
+  `rxMxdExit()` `srvClose()` da `rxReset()` dan **OLDIN** va `srvTab(1)` da; `rxPane2Ochiq()` qorovuli
+  bor, chunki `rxUI()` modal yopiq holatda ham chaqiriladi (init/`rxModdaLoad`).
+- **AI chek ruxsat yo'lida YO'Q** — `entry_ai_bogla` mavjud yozuvni talab qiladi. Chek rasmi baribir majburiy.
+- **Fail-open ataylab:** `talab` kaliti kelmasa (SQL hali RUN qilinmagan) eski `ruxsat_yarat` bilan
+  ketiladi — aks holda RUN bo'lguncha ruxsat so'rash butunlay ishlamay qolardi.
+- **`sorovlar-dev.html`**: ruxsat kartasida «Chek» chipi (`rxOpenChek` → signed URL) + jadval chipi bitta
+  qatorda; `rxTalabMetaHtml` filial/davr/kommunal. Filial NOMI serverda yig'iladi (`ruxsat_qator.filial_nom`) —
+  bu sahifa filiallar ro'yxatini yuklamaydi. 🔴 Bu faylda `toast()` **yo'q** — `qarorXabar()`/`banner()` ishlatiladi.
+
 ### Qarz (kredit) boshqaruvi (2026-09-02, `ARX_PROVODKA_QARZ.md`, `PROVODKA_QARZ.sql`) — faqat dev
 
 Kompaniya o'z pulidan qarz beradi. Joylashuv: **`qarzdor-dev.html` tablari** (Qarz berish · Kutilayotgan ·
