@@ -1166,6 +1166,24 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   Manba `meta.manba` ('summary'|'jadval') da qoladi. 🔴 Funksiya tanasi verbatim ko'chirilgan — **faqat Q2a bloki**
   o'zgargan (diff 9 hunk, hammasi Q2a oralig'ida). RUN'dan keyin ekrandagi raqam o'zgarishi uchun «Hisoblash»
   bosilishi (yoki cron ishlashi) SHART — eski snapshotlar qayta hisoblanmaydi.
+- 🔴 **KUNIGA BITTA SNAPSHOT (2026-09-09, `PROVODKA_AYLANMA_BIR_KUN.sql`, RUN kutilmoqda)** — Asilbek: «n8n
+  ishga tushirdim, 2 snapshot bo'p qoldi, faqat 1 ta kerak — eng oxirgi». Sabab: `sync_aylanma_snapshot`
+  faqat `rejim='cron'` qatorini o'chirib qayta yozardi, `'qolda'` esa HAR DOIM yangi qator qo'shardi.
+  Endi rejimdan qat'i nazar `delete from aylanma_snapshot where sana = v_sana` (cascade `aylanma_qator` ni
+  ham oladi) + bir martalik tozalash (har kun uchun eng oxirgisi qoladi). ⚠️ Qo'lda hisob o'sha kunning
+  cron qatorini ham almashtiradi — ONGLI (oxirgi hisob eng to'g'risi). 🔴 **Bu fayl `PROVODKA_AYLANMA_Q2A_FIX.sql`
+  ni O'Z ICHIGA OLADI** (funksiya tanasi Q2a tuzatishi bilan) — ikkalasidan bittasini RUN qilsa yetadi.
+- **O'zgarish tahlili (2026-09-09)** — «−9% deyapti, bu pul qaysi bo'limga ketdi?». Hero chipi endi TUGMA
+  (`aylOzgToggle`) → `#ozgCard`: har bo'lim uchun oldingi/hozir/farq/farq %/**hissa** (SAK o'zgarishidagi
+  ulushi, bar bilan), |hissa| bo'yicha saralangan. 🔴 Qo'shimcha so'rov YO'Q — `aylanma_kun` javobida
+  `snapshot.bolimlar` ham, `oldingi.bolimlar` ham bor. 🔴 Ishora: SAK dan Q2b AYIRILADI, shuning uchun
+  uning o'sishi SAK ni kamaytiradi — `ozgHissa()` Q2b uchun ishorani teskari oladi (jadvaldagi «Farq» esa
+  bo'limning o'z xom harakati). Zinapoyada ham farq yoniga **foiz** qo'shildi va jami qatorda farq to'ldirildi.
+- **Sig'masliklar tuzatildi (2026-09-09):** `.wf-lbl` `flex:0 0 190px`+`nowrap` edi — «Ochiq buyurtmalar
+  (sotuv narxida)» kesilardi, endi ikkinchi qatorga o'tadi; `.wf-delta` 96px da summa+foiz sig'masdi —
+  endi ustma-ust (`<b>`/`<i>`); mobilda `.wf-delta` **`display:none`** edi (bo'lim o'zgarishi telefonda
+  umuman ko'rinmasdi) — endi o'z qatorida; `.hero .v` qat'iy 46px edi — `clamp(26px,7.2vw,46px)`;
+  `#ozgCard` jadvali 6 ustunli, `min-width:660px` bilan siljiydi.
 - **UI**: hero (jami so'm/$ + kechaga farq chip + rejim/vaqt), banner `!toliq || xatolar.length`, sana ‹ › + royxat select,
   zinapoya 10 bo'lim (Q2b minus; null → «manba yo'q»; drill-down `aylanma_qatorlar` + Excel lazy), trend inline SVG 30/90/365.
   swr `kun:<sana|id>`, `trend:<kun>`. RPC yo'q → «SQL hali RUN qilinmagan», sahifa buzilmaydi. Nav: 17 dev faylda Ehson'dan keyin

@@ -57,7 +57,8 @@
   .hero{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin-bottom:18px;box-shadow:var(--shadow)}
   .hero .k{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
   .hero .k svg{width:15px;height:15px}
-  .hero .v{font-size:46px;font-weight:800;letter-spacing:-.03em;margin:10px 0 4px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .hero .v{font-size:clamp(26px,7.2vw,46px);font-weight:800;letter-spacing:-.03em;margin:10px 0 4px;
+    font-variant-numeric:tabular-nums;color:var(--ink);overflow-wrap:anywhere}
   .hero .c{font-size:13px;color:var(--muted)}
   .hero .sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px;color:var(--muted);margin-top:10px}
   .hero-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
@@ -72,7 +73,7 @@
     .hero{padding:22px 18px;text-align:center}
     .hero .k{justify-content:center}
     .hero .sub{justify-content:center}
-    .hero .v{font-size:36px}
+    /* clamp() o'zi kichraytiradi — bu yerda qat'iy o'lcham QO'YILMAYDI. */
   }
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:6px 18px 12px;box-shadow:var(--shadow);margin-bottom:18px}
   .card h2{font-size:15.5px;font-weight:700;margin:12px 0 4px}
@@ -137,14 +138,31 @@
   .wfrow.tot:hover,.wfrow.tot:active{background:transparent}
   .wfrow.tot .wf-lbl{font-size:15.5px;letter-spacing:-.01em}
   .wfrow.tot .wf-val{font-size:19px}
-  .wf-lbl{flex:0 0 190px;font-size:13.5px;color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* 🔴 2026-09-09: `flex:0 0 190px` + `nowrap` edi — uzun yorliqlar
+     («Ochiq buyurtmalar (sotuv narxida)») uch nuqta bilan KESILARDI.
+     Endi kerak bo'lsa ikkinchi qatorga o'tadi, kesilmaydi. */
+  .wf-lbl{flex:0 1 200px;min-width:120px;font-size:13.5px;color:var(--ink);font-weight:600;
+    white-space:normal;line-height:1.3;overflow-wrap:anywhere}
   .wf-bar-wrap{flex:1 1 auto;min-width:30px;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
   .wf-bar{display:block;height:100%;border-radius:3px;background:var(--primary);transition:width .4s ease}
   .wf-bar.neg{background:var(--red)}
   .wf-val{flex:0 0 auto;min-width:120px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
   .wf-val.neg{color:var(--red)}
-  .wf-delta{flex:0 0 auto;min-width:96px;text-align:right;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  /* Summa va foiz BIR QATORDA sig'masdi (96px) — endi ustma-ust, tor va o'qiladi. */
+  .wf-delta{flex:0 0 auto;min-width:104px;text-align:right;font-size:11.5px;color:var(--muted);
+    font-variant-numeric:tabular-nums;line-height:1.3}
+  .wf-delta b{display:block;font-weight:700}
+  .wf-delta i{display:block;font-style:normal;font-size:10.5px;opacity:.75}
   .wf-delta.pos{color:var(--green)}.wf-delta.neg{color:var(--red)}
+  /* «O'zgarish tahlili» — hero chipiga bosilganda ochiladi (aylOzgToggle).
+     Ma'lumot QO'SHIMCHA so'rovsiz: snapshot.bolimlar + oldingi.bolimlar
+     ikkalasi ham `aylanma_kun` javobida allaqachon bor. */
+  .hero-chip.tap{cursor:pointer;border:1px solid transparent}
+  .hero-chip.tap:hover{border-color:currentColor}
+  .ozg-hissa{display:inline-block;min-width:44px;height:7px;border-radius:4px;background:var(--surface-2);vertical-align:middle;overflow:hidden}
+  .ozg-hissa i{display:block;height:100%;background:var(--muted)}
+  .ozg-hissa i.pos{background:var(--green)}.ozg-hissa i.neg{background:var(--red)}
+  td.pos{color:var(--green)}td.neg{color:var(--red)}
   .wf-na{flex:1 1 auto;color:var(--muted);font-style:italic;font-size:13px;text-align:right}
   .wf-chev{flex:0 0 auto;width:15px;height:15px;color:var(--muted);transition:transform .15s}
   .wfrow.open .wf-chev{transform:rotate(90deg);color:var(--primary)}
@@ -153,8 +171,12 @@
     .wf-lbl{flex:1 1 auto;order:1;font-size:13px;white-space:normal}
     .wf-chev{order:2}
     .wf-val{order:3;min-width:0;margin-left:auto}
-    .wf-delta{display:none}
-    .wf-bar-wrap{order:4;flex-basis:100%;height:5px}
+    /* 🔴 Avval `display:none` edi — telefonda bo'lim o'zgarishi umuman
+       ko'rinmasdi. Endi o'z qatorida, o'ngda, gorizontal ko'rinishda. */
+    .wf-delta{order:4;flex:1 1 100%;min-width:0;text-align:right;font-size:11px}
+    .wf-delta b,.wf-delta i{display:inline}
+    .wf-delta i{margin-left:5px}
+    .wf-bar-wrap{order:5;flex-basis:100%;height:5px}
     .wf-na{order:3;flex:0 0 auto}
     .wfrow.tot .wf-lbl{font-size:14.5px}
   }
@@ -167,6 +189,7 @@
   .dd-x svg{width:17px;height:17px}
   .scroll{overflow-x:auto}
   .scroll table{min-width:520px}
+  #ozgCard .scroll table{min-width:660px}   /* 6 ustun — siqilmasin, gorizontal siljisin */
   .dd .scroll{max-height:360px;overflow-y:auto;border-radius:10px}
   .dd .scroll thead th{position:sticky;top:0;background:var(--surface);z-index:1;box-shadow:0 1px 0 var(--line)}
   .badge.mut{background:var(--surface-2);color:var(--muted)}
@@ -259,6 +282,17 @@
         <span class="c">Bu kunda bir nechta hisob bor:</span>
         <select id="roySel" onchange="aylPickRoy()"></select>
       </div>
+    </div>
+
+    <!-- O'zgarish tahlili — hero chipiga bosilganda ochiladi. Savol:
+         «−9% deyapti, bu pul qaysi bo'limga ketdi?» -->
+    <div class="card" id="ozgCard" style="display:none">
+      <h2>O'zgarish tahlili <span class="c" id="ozgSana" style="font-weight:500"></span></h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Bo'lim</th><th>Oldingi</th><th>Hozir</th><th>Farq</th><th>Farq %</th><th>Hissa</th></tr></thead>
+        <tbody id="ozgBody"></tbody>
+      </table></div>
+      <div class="note" id="ozgNote"></div>
     </div>
 
     <div class="card">
@@ -506,9 +540,12 @@ function renderHero(){
     //    U har doim ham "kecha" emas: snapshot bo'lmagan kunlar tushib qoladi.
     const oSana=curOldingi.sana?fmtDateShort(curOldingi.sana):'';
     const oRej=(curOldingi.rejim==='qolda')?" · qo'lda":'';
+    // Chip BOSILADI -> «O'zgarish tahlili» kartasi (qaysi bo'limga ketdi).
     $('heroDelta').innerHTML='<span>'+esc(oSana||'oldingi kun')+esc(oRej)+' ga nisbatan</span>'
-      +'<span class="hero-chip '+cls+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'+arrow+'</svg>'
-      +sign+money(Math.abs(diff))+(pct!==null?(' ('+sign+Math.abs(pct).toFixed(1)+'%)'):'')+'</span>';
+      +'<button type="button" class="hero-chip tap '+cls+'" onclick="aylOzgToggle()" title="Qaysi bo\'lim o\'zgarganini ko\'rish">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'+arrow+'</svg>'
+      +sign+money(Math.abs(diff))+(pct!==null?(' ('+sign+Math.abs(pct).toFixed(1)+'%)'):'')+'</button>'
+      +'<span class="c" style="font-size:12px">— bosing</span>';
   } else {
     // Bundan oldin BIRORTA ham snapshot yo'q — birinchi kun uchun normal holat.
     $('heroDelta').innerHTML='<span>oldingi kun bilan taqqoslash uchun ma\'lumot yo\'q</span>';
@@ -525,6 +562,87 @@ function renderHero(){
   } else {
     showInfo('');
   }
+}
+
+/* ======== O'ZGARISH TAHLILI (2026-09-09, Asilbek) =====================
+   Savol: «−9% deyapti — bu pul qaysi bo'limga ketdi?»
+   Javob uchun QO'SHIMCHA SO'ROV KERAK EMAS: `aylanma_kun` javobida
+   `snapshot.bolimlar` ham, `oldingi.bolimlar` ham bor — ikkalasini
+   ayirsak bo'lim kesimidagi harakat chiqadi.
+
+   🔴 ISHORA QOIDASI: SAK = A+B+T1+T5+Y3a+K3b+K4+B6+Q2a − Q2b.
+      Ya'ni Q2b (biz qarzdormiz) O'SSA — SAK KAMAYADI. Shuning uchun
+      "hissa" (SAK ga ta'siri) Q2b uchun teskari ishora bilan olinadi.
+      Jadvaldagi «Farq» esa bo'limning O'Z harakati (xom ayirma). */
+let ozgOchiq=false;
+window.aylOzgToggle=()=>{ ozgOchiq=!ozgOchiq; renderOzg();
+  if(ozgOchiq){ const c=$('ozgCard'); if(c) try{ c.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} } };
+
+// Bo'limning SAK ga qo'shgan hissasi (ishora bilan). Q2b — ayiriladigan bo'lim.
+const ozgHissa=(k,farq)=>(k==='Q2b' ? -farq : farq);
+
+function renderOzg(){
+  const card=$('ozgCard'); if(!card) return;
+  const b=(curSnap&&curSnap.bolimlar)||null;
+  const ob=(curOldingi&&curOldingi.bolimlar)||null;
+  if(!ozgOchiq || !b || !ob){ card.style.display='none'; return; }
+  card.style.display='';
+
+  const sn=$('ozgSana');
+  if(sn) sn.textContent='· '+(curOldingi.sana?fmtDateShort(curOldingi.sana):'oldingi kun')
+    +' → '+(curSnap.sana?fmtDateShort(curSnap.sana):'hozir');
+
+  const jamiDiff=(curSnap.jami_uzs!=null&&curOldingi.jami_uzs!=null)
+    ? Number(curSnap.jami_uzs)-Number(curOldingi.jami_uzs) : null;
+  // Hissa ulushi jami o'zgarishning KATTALIGIGA nisbatan (ishorasidan qat'i nazar),
+  // aks holda jami manfiy bo'lganda foizlar teskari o'qilardi.
+  const bazaAbs=(jamiDiff!=null&&jamiDiff!==0)?Math.abs(jamiDiff):0;
+
+  const rows=BOLIM_ORDER.map(k=>{
+    const v=b[k], ov=ob[k];
+    const hozir=(v&&v.uzs!=null)?Number(v.uzs):null;
+    const oldin=(ov&&ov.uzs!=null)?Number(ov.uzs):null;
+    if(hozir==null||oldin==null) return {k,hozir,oldin,farq:null,hissa:null};
+    const farq=hozir-oldin;
+    return {k,hozir,oldin,farq,hissa:ozgHissa(k,farq)};
+  });
+  // Eng katta harakat tepada — «qayerga ketdi» degan savolga birinchi javob.
+  rows.sort((x,y)=>Math.abs(y.hissa||0)-Math.abs(x.hissa||0));
+
+  const cell=(n,neg)=>'<td class="n'+(neg?' neg':'')+'">'+(n==null?'—':money(Math.abs(n)))+'</td>';
+  let html='';
+  rows.forEach(r=>{
+    const isNeg=(r.k==='Q2b');
+    if(r.farq==null){
+      html+='<tr><td>'+esc(BOLIM_LABEL[r.k])+(isNeg?' (−)':'')+'</td>'
+        +'<td colspan="5" class="empty">manba yo\'q</td></tr>';
+      return;
+    }
+    const pct=(r.oldin!==0)?(r.farq/Math.abs(r.oldin)*100):null;
+    const cls=r.hissa>0?'pos':(r.hissa<0?'neg':'');
+    const sign=r.farq>0?'+':(r.farq<0?'−':'');
+    const ulush=bazaAbs>0?Math.abs(r.hissa)/bazaAbs*100:0;
+    html+='<tr>'
+      +'<td>'+esc(BOLIM_LABEL[r.k])+(isNeg?' (−)':'')+'</td>'
+      +cell(r.oldin,isNeg)+cell(r.hozir,isNeg)
+      +'<td class="n '+cls+'">'+(r.farq===0?'·':(sign+money(Math.abs(r.farq))))+'</td>'
+      +'<td class="n '+cls+'">'+(pct==null?'—':(sign+Math.abs(pct).toFixed(1)+'%'))+'</td>'
+      +'<td class="n"><span class="ozg-hissa"><i class="'+cls+'" style="width:'+Math.min(100,ulush).toFixed(0)+'%"></i></span> '
+      +(bazaAbs>0?Math.round(ulush)+'%':'—')+'</td>'
+      +'</tr>';
+  });
+  html+='<tr><td><b>= Sof aylanma kapital</b></td>'
+    +'<td class="n">'+(curOldingi.jami_uzs!=null?money(curOldingi.jami_uzs):'—')+'</td>'
+    +'<td class="n">'+(curSnap.jami_uzs!=null?money(curSnap.jami_uzs):'—')+'</td>'
+    +'<td class="n '+(jamiDiff>0?'pos':(jamiDiff<0?'neg':''))+'"><b>'
+      +(jamiDiff==null?'—':((jamiDiff>0?'+':(jamiDiff<0?'−':''))+money(Math.abs(jamiDiff))))+'</b></td>'
+    +'<td class="n" colspan="2"></td></tr>';
+  $('ozgBody').innerHTML=html;
+
+  const n=$('ozgNote');
+  if(n) n.textContent="«Farq» — bo'limning o'z harakati. «Hissa» — shu harakatning SAK o'zgarishidagi ulushi: "
+    +"Q2b (biz qarzdormiz) formuladan ayirilgani uchun uning o'sishi SAK ni kamaytiradi, shuning uchun "
+    +"ishorasi teskari olinadi. Bo'limga bosib tafsilotini ochish uchun pastdagi «Bo'limlar bo'yicha» ro'yxatidan foydalaning.";
 }
 
 function renderWaterfall(){
@@ -548,8 +666,11 @@ function renderWaterfall(){
     const ov=ob[k];
     if(ov && ov.uzs!=null){
       const d=uzs-Number(ov.uzs);
+      const op=Number(ov.uzs);
+      const dp=(op!==0)?(d/Math.abs(op)*100):null;   // bo'limning O'Z foizi
       deltaHtml = d===0 ? '<span class="wf-delta">·</span>'
-        : '<span class="wf-delta '+((d>0)!==isNeg?'pos':'neg')+'">'+(d>0?'+':'−')+money(Math.abs(d))+'</span>'; // Q2b (qarzimiz) o'sishi — qizil
+        : '<span class="wf-delta '+((d>0)!==isNeg?'pos':'neg')+'"><b>'+(d>0?'+':'−')+money(Math.abs(d))+'</b>'
+          +(dp!==null?('<i>'+(d>0?'+':'−')+Math.abs(dp).toFixed(1)+'%</i>'):'')+'</span>'; // Q2b (qarzimiz) o'sishi — qizil
     } else deltaHtml='<span class="wf-delta"></span>';
     html+='<div class="wfrow" data-bolim="'+k+'" onclick="window.aylDrill(\''+k+'\')">'
       + '<span class="wf-lbl">'+esc(BOLIM_LABEL[k])+(isNeg?' (−)':'')+'</span>'
@@ -559,11 +680,21 @@ function renderWaterfall(){
       + deltaHtml
       + '</div>';
   });
+  let totDelta='<span class="wf-delta"></span>';
+  if(curOldingi && curOldingi.jami_uzs!=null && curSnap.jami_uzs!=null){
+    const td=Number(curSnap.jami_uzs)-Number(curOldingi.jami_uzs);
+    const tb=Math.abs(Number(curOldingi.jami_uzs));
+    const tp=tb>0?(td/tb*100):null;
+    totDelta = td===0 ? '<span class="wf-delta">·</span>'
+      : '<span class="wf-delta '+(td>0?'pos':'neg')+'"><b>'+(td>0?'+':'−')+money(Math.abs(td))+'</b>'
+        +(tp!==null?('<i>'+(td>0?'+':'−')+Math.abs(tp).toFixed(1)+'%</i>'):'')+'</span>';
+  }
   html+='<div class="wfrow tot"><span class="wf-lbl">= Sof aylanma kapital</span><span class="wf-bar-wrap"></span>'
-    + '<span class="wf-val">'+money(curSnap.jami_uzs)+'</span><span class="wf-delta"></span></div>';
+    + '<span class="wf-val">'+money(curSnap.jami_uzs)+'</span>'+totDelta+'</div>';
   $('wfBody').innerHTML=html;
   icons();
   markOpenRow(ddBolim);
+  renderOzg();   // ochiq bo'lsa yangi snapshot bilan qayta hisoblansin
 }
 function markOpenRow(bolim){
   document.querySelectorAll('#wfBody .wfrow[data-bolim]').forEach(r=>r.classList.toggle('open', !!bolim && r.dataset.bolim===bolim));
