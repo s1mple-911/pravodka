@@ -72,6 +72,10 @@
   .oychip{display:inline-block;background:var(--primary-soft);color:var(--primary);border-radius:999px;
     padding:3px 10px;font-size:12px;font-weight:700;margin-left:8px;vertical-align:middle}
   .banner{background:var(--red-soft);color:var(--red);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+  /* Banner faqat qizil edi — avtomatik bog'lash natijasi (muvaffaqiyat/ogoh)
+     qizil chiqib xatoga o'xshardi. */
+  .banner.ok{background:var(--primary-soft);color:var(--primary)}
+  .banner.warn{background:var(--amber-soft);color:var(--amber)}
   /* Filial ro'yxati (kartalar) */
   .fgrid{display:grid;grid-template-columns:1fr;gap:12px}
   @media(min-width:640px){.fgrid{grid-template-columns:1fr 1fr}}
@@ -270,6 +274,12 @@
     <input id="bogQ" placeholder="Qidirish…" oninput="renderBogList()" style="text-align:left;margin-bottom:12px">
     <div id="bogList" style="max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:2px;margin-bottom:14px"></div>
     <div class="mmsg" id="bogMsg"></div>
+    <!-- Hamma filialga taklifni bir zarbda qo'llash — modal FAQAT joriy
+         filial bilan ishlaydi, bu esa butun ro'yxat bo'yicha. -->
+    <button type="button" class="addbtn" style="width:100%;justify-content:center;margin-bottom:10px"
+            onclick="avtoBogla(this)" title="Nomi mos hamma bo'limni hamma filialga bog'laydi">
+      <i data-lucide="wand-sparkles"></i>Hamma filialga avtomatik bog'lash
+    </button>
     <div class="mrow">
       <button type="button" onclick="closeBog()">Bekor</button>
       <button type="button" class="primary" id="bogSaveBtn" onclick="saveBog()">Saqlash</button>
@@ -356,6 +366,16 @@ async function boot(){
 // ===== Standart xarajatlar =====
 let filials=[], moddas=[], holat=[], curFilial=null, isAdmin=false;
 const isAdminUser=()=>!!(window.PERMS && window.PERMS.is_admin) || isAdmin;
+/* 🔴 2026-09-09 (Asilbek): «faqat admin limit qo'yadi / faqat admin filialni
+   bog'laydi» — bu CHEKLOV OLIB TASHLANDI. Sahifaning O'QISH tomonida ruxsat
+   allaqachon kengroq edi (standart_filial_moddalar / standart_branch_takliflar
+   -> admin YOKI perm_has_page('standart')), YOZISH tomonida esa qat'iy
+   is_admin() qolib ketgan edi: sahifaga ruxsati bor odam hammasini KO'RARDI,
+   lekin birortasini o'zgartira olmasdi.
+   Server ham AYNI qoidaga o'tdi — standart_page_ok() (PROVODKA_STANDART_RUXSAT.sql).
+   Bu yerda sahifaning o'zi permGate() dan o'tgan bo'lsa ruxsat bor demakdir,
+   shuning uchun true. Yagona joy: qoida qattiqlashsa faqat shu funksiya o'zgaradi. */
+const canStdEdit=()=>true;
 
 // --- Filialga ochiq moddalar (hodim rollari orqali) — standart_filial_moddalar RPC.
 // RPC yo'q/xato bo'lsa filMod=null qoladi — bo'lim yashirin, modal eski (cheklanmagan)
@@ -396,7 +416,7 @@ function bogLineHtml(){
   const bl=(filMod&&Array.isArray(filMod.branchlar))?filMod.branchlar:[];
   if(!bl.length) return '';
   const txt=bl.map(b=>esc(b.branch_nomi||('#'+b.branch_id))+' ('+(b.hodim_soni||0)+' hodim)').join(', ');
-  const link=isAdminUser()?` · <a href="javascript:void(0)" onclick="openBogModal()" style="color:var(--primary);font-weight:600;text-decoration:none">o'zgartirish</a>`:'';
+  const link=canStdEdit()?` · <a href="javascript:void(0)" onclick="openBogModal()" style="color:var(--primary);font-weight:600;text-decoration:none">o'zgartirish</a>`:'';
   return `<div class="fc-sub" style="margin-bottom:10px">Bo'limlar: ${txt}${link}</div>`;
 }
 function filModHtml(){
@@ -404,8 +424,9 @@ function filModHtml(){
   // Hech qanday Aros bo'limi bog'lanmagan — hodim ro'yxati aniqlanmayapti.
   if(filMod.bog_yoq){
     return `<div class="lcard"><div class="lc-modda" style="margin-bottom:8px">Hodimlarga ochiq moddalar</div>`
-      +`<div class="fc-sub" style="margin-bottom:${isAdminUser()?'12px':'0'}">Bu filialga Aros bo'limi bog'lanmagan — hodimlar ro'yxati aniqlanmayapti.</div>`
-      +(isAdminUser()?`<button type="button" class="addbtn" onclick="openBogModal()"><i data-lucide="link"></i>Bo'limlarni bog'lash</button>`:'')
+      +`<div class="fc-sub" style="margin-bottom:${canStdEdit()?'12px':'0'}">Bu filialga Aros bo'limi bog'lanmagan — hodimlar ro'yxati aniqlanmayapti.</div>`
+      +(canStdEdit()?`<button type="button" class="addbtn" onclick="openBogModal()"><i data-lucide="link"></i>Bo'limlarni bog'lash</button>`
+        +` <button type="button" class="addbtn" onclick="avtoBogla(this)" title="Nomi mos hamma bo'limni bir zarbda bog'laydi"><i data-lucide="wand-sparkles"></i>Avtomatik bog'lash</button>`:'')
       +`</div>`;
   }
   const mlist=filMod.moddalar||[], hlist=filMod.hodimlar||[];
@@ -419,7 +440,7 @@ function filModHtml(){
     const hasOverride=m.filial_limit_uzs!=null;
     const right=hasOverride
       ? `<b class="lr-val">${money(m.filial_limit_uzs)}</b><span class="oychip">override</span>`
-      : (isAdminUser()?`<button type="button" class="lc-act edit" title="Limit qo'yish" onclick="openLim(null,'${m.modda_id}')"><i data-lucide="plus"></i></button>`:'<span class="fc-sub">—</span>');
+      : (canStdEdit()?`<button type="button" class="lc-act edit" title="Limit qo'yish" onclick="openLim(null,'${m.modda_id}')"><i data-lucide="plus"></i></button>`:'<span class="fc-sub">—</span>');
     return `<div class="lr-line" style="justify-content:space-between;align-items:center;flex-wrap:nowrap">`
       +`<span title="${names}" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(m.code)}</b> ${esc(m.name)} · <span class="fc-cnt">${m.hodim_soni} hodim</span> · ${esc(rolLimTxt(m))}</span>`
       +`<span style="display:flex;align-items:center;gap:6px;flex:none">${right}</span></div>`;
@@ -458,7 +479,7 @@ function renderBogList(){
 }
 window.bogToggle=(bid,checked)=>{ if(checked) bogSel.add(bid); else bogSel.delete(bid); };
 window.openBogModal=async()=>{
-  if(!isAdminUser() || !curFilial) return;
+  if(!canStdEdit() || !curFilial) return;
   bogSel=new Set((filMod&&Array.isArray(filMod.branchlar))?filMod.branchlar.map(b=>b.branch_id):[]);
   $('bogSub').textContent='Filial: '+filName(curFilial)+(filSub(curFilial)?' · '+filSub(curFilial):'');
   $('bogQ').value='';
@@ -478,6 +499,36 @@ window.openBogModal=async()=>{
   renderBogList();
 };
 window.closeBog=()=>{ $('bogModal').classList.remove('open'); };
+/* Nomi mos (standart_ball >= 3) HAMMA bo'limni tegishli filialga bir zarbda
+   bog'laydi — `standart_branch_avto_bogla()`.
+   🔴 Server FAQAT bog'lanmagan (filial_id is null) bo'limlarga tegadi: qo'lda
+      qilingan bog'lanish hech qachon ustidan yozilmaydi. Ball TENG bo'lgan ikki
+      xil filial chiqsa — bog'lanmaydi, `chalkash[]` da qaytadi (odam hal qiladi).
+   🔴 Bog'langanini ham, bog'lanmaganini ham keyin shu modaldan TAHRIRLASH
+      mumkin (Asilbek: «noto'g'ri bo'lsa edit uchun ochiq qolsin»). */
+window.avtoBogla=async btn=>{
+  if(!canStdEdit()) return;
+  const old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.textContent='Bog\'lanmoqda…'; }
+  const {data,error}=await sb.rpc('standart_branch_avto_bogla');
+  if(btn){ btn.disabled=false; btn.innerHTML=old; icons(); }
+  if(error){
+    const m=window.permErr?window.permErr(error):error.message;
+    if($('bogModal').classList.contains('open')){ $('bogMsg').textContent=m; $('bogMsg').className='mmsg no'; }
+    else { $('banner').style.display='block'; $('banner').textContent='Avtomatik bog\'lash: '+m; }
+    return;
+  }
+  const n=(data&&data.soni)||0;
+  const ch=(data&&Array.isArray(data.chalkash))?data.chalkash:[];
+  let msg=n?(n+' ta bo\'lim bog\'landi'):'Yangi bog\'lanadigan bo\'lim topilmadi';
+  if(ch.length) msg+=' · '+ch.length+' tasi ikki xil filialga teng mos keldi — qo\'lda tanlang: '
+    +ch.slice(0,5).map(c=>String(c.branch_nomi||'')).join(', ')+(ch.length>5?'…':'');
+  $('banner').style.display='block';
+  $('banner').textContent=msg;
+  $('banner').className='banner '+(ch.length?'warn':'ok');
+  if($('bogModal').classList.contains('open')) closeBog();
+  if(curFilial) loadFilMod(curFilial,true);
+};
 window.saveBog=async()=>{
   const btn=$('bogSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
   const {error}=await sb.rpc('standart_branch_bogla',{p_filial:curFilial,p_branch_ids:Array.from(bogSel)});
@@ -554,9 +605,11 @@ function fillCls(p){ return p>=100?'over':(p>=80?'warn':'ok'); }
 
 function renderDetail(){
   const box=$('content'), fid=curFilial, rows=byFilial(fid);
-  const admin=isAdminUser();
+  // 🔴 2026-09-09: avval `isAdminUser()` edi — sahifa ruxsati bor odam ham
+  //    «ko'rish rejimida» qolib ketardi (server ham rad etardi).
+  const admin=canStdEdit();
   const addBtn=admin?`<button class="addbtn" onclick="openLim()"><i data-lucide="plus"></i>Limit qo'shish</button>`:'';
-  const ro=admin?'':'<div class="roinfo"><i data-lucide="info"></i>Limitlarni faqat admin qo\'ya oladi. Siz ko\'rish rejimidasiz.</div>';
+  const ro=admin?'':'<div class="roinfo"><i data-lucide="info"></i>Standart xarajatlar sahifasiga ruxsatingiz yo\'q — ko\'rish rejimi.</div>';
   let listHtml;
   if(!rows.length){
     listHtml=`<div class="empty">Bu filialga limit qo'yilmagan.${admin?addBtn:''}</div>`;
@@ -600,12 +653,12 @@ function renderLimOptions(){
   const opts=moddasWithoutLimit(curFilial, exceptId);
   $('limModda').innerHTML=opts.map(m=>`<option value="${m.id}"${selId===m.id?' selected':''}>${esc(m.code)} · ${esc(m.name)}</option>`).join('')
     || '<option value="">— mos modda yo\'q —</option>';
-  const canShowAll=!!(ochiqModdaIds() && !limShowAll && isAdminUser() && !editing);
+  const canShowAll=!!(ochiqModdaIds() && !limShowAll && canStdEdit() && !editing);
   $('limShowAllBtn').style.display=canShowAll?'inline-flex':'none';
 }
 window.limShowAllModdas=()=>{ limShowAll=true; renderLimOptions(); updateLimBtn(); };
 window.openLim=(id,presetModda)=>{
-  if(!isAdminUser()){ alert('Faqat admin limit qo\'ya oladi'); return; }
+  if(!canStdEdit()){ alert('Standart xarajatlar sahifasiga ruxsatingiz yo\'q'); return; }
   limEditId=id||null;
   limPresetModda=presetModda||null;
   limShowAll=false;
@@ -643,7 +696,7 @@ window.saveLim=async()=>{
   if(curFilial) loadFilMod(curFilial,true);   // filial_limit_uzs (override belgisi) yangilansin
 };
 window.delLim=async(id,name)=>{
-  if(!isAdminUser()){ alert('Faqat admin o\'chira oladi'); return; }
+  if(!canStdEdit()){ alert('Standart xarajatlar sahifasiga ruxsatingiz yo\'q'); return; }
   if(!confirm('"'+name+'" limiti o\'chirilsinmi?')) return;
   const {error}=await sb.rpc('standart_limit_delete',{p_id:id});
   if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
