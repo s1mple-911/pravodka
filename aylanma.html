@@ -501,11 +501,17 @@ function renderHero(){
     const cls=diff>0?'pos':(diff<0?'neg':'');
     const sign=diff>0?'+':(diff<0?'−':'');
     const arrow=diff>0?'<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>':(diff<0?'<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>':'<path d="M5 12h14"/>');
-    $('heroDelta').innerHTML='<span>kechagiga nisbatan</span>'
+    // 🔴 2026-09-09: taqqoslanayotgan kun ANIQ yozildi. `oldingi` — oldingi
+    //    kunning snapshoti (cron ustun, bo'lmasa qo'lda — PROVODKA_AYLANMA_FIX.sql).
+    //    U har doim ham "kecha" emas: snapshot bo'lmagan kunlar tushib qoladi.
+    const oSana=curOldingi.sana?fmtDateShort(curOldingi.sana):'';
+    const oRej=(curOldingi.rejim==='qolda')?" · qo'lda":'';
+    $('heroDelta').innerHTML='<span>'+esc(oSana||'oldingi kun')+esc(oRej)+' ga nisbatan</span>'
       +'<span class="hero-chip '+cls+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'+arrow+'</svg>'
       +sign+money(Math.abs(diff))+(pct!==null?(' ('+sign+Math.abs(pct).toFixed(1)+'%)'):'')+'</span>';
   } else {
-    $('heroDelta').innerHTML='<span>kechagiga nisbatan — ma\'lumot yo\'q</span>';
+    // Bundan oldin BIRORTA ham snapshot yo'q — birinchi kun uchun normal holat.
+    $('heroDelta').innerHTML='<span>oldingi kun bilan taqqoslash uchun ma\'lumot yo\'q</span>';
   }
   const when=fmtWhen(curSnap.hisoblangan_at);
   $('heroWhen').textContent=(curSnap.rejim==='cron'?'Avtomatik':"Qo'lda")+(when?(' · '+when):'')+(curSnap.sana?(' · '+curSnap.sana):'');
@@ -748,7 +754,11 @@ function bindTrendTip(){
 }
 function aylLineSvg(rows){
   const pts=rows.map(r=>({l:r.sana, v:Number(r.jami_uzs)||0}));
-  if(pts.length<2) return estateHtml(ICON_INBOX,'Chizish uchun kamida 2 kun kerak');
+  // Chiziq uchun kamida 2 nuqta kerak. Nuqta = kun (kuniga bitta snapshot:
+  // cron ustun, bo'lmasa o'sha kunning eng oxirgisi — PROVODKA_AYLANMA_FIX.sql).
+  if(pts.length<2) return estateHtml(ICON_INBOX,'Chiziq uchun kamida 2 kun kerak',
+    pts.length===1 ? 'Hozircha 1 kunlik ma\'lumot bor. Ertaga avtomatik snapshot tushgach chiziq chiziladi.'
+                   : 'Bu oraliqda snapshot yo\'q. Yuqoridagi «Hisoblash» bilan qo\'lda ham olish mumkin.');
   const W=680,H=240,PL=64,PR=14,PT=14,PB=32;
   const pw=W-PL-PR, ph=H-PT-PB;
   let mn=0,mx=0;
