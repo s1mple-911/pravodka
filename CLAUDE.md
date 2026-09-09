@@ -1147,6 +1147,20 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   `aylanma_page_ok()` (admin OR `perm_has_page('aylanma')`), `{ok:false,kod:'ruxsat'}`. 🔴 Funksiya mavjudligi
   `_aylanma_fn_bor(nom, 'text[]')` = `oidvectortypes(proargtypes)` — `pg_get_function_identity_arguments` EMAS (u parametr
   nomini ham qaytaradi → har doim false bo'lardi, tester topdi). Kassa doirasi bu sahifada QO'LLANMAYDI — butun kompaniya raqami.
+- 🔴 **TUZATISH 2026-09-09 (`PROVODKA_AYLANMA_FIX.sql`, RUN kutilmoqda):** `aylanma_kun` dagi `oldingi` va
+  `aylanma_trend` FAQAT `rejim='cron'` qatorlarni olardi. Cron (n8n `o3BZP8uYatGkRu8b`) hali ishlamagan bo'lsa
+  hamma snapshot `'qolda'` — natijada «kechagiga nisbatan — ma'lumot yo'q» **va grafik umuman chizilmasdi**
+  (klient `pts.length<2`). Endi ikkalasi ham kun uchun BITTA qator oladi: **cron ustun, bo'lmasa o'sha kunning
+  eng oxirgi `qolda` qatori** (`distinct on (sana)`) — cron yoqilgach ko'rinish o'zgarmaydi. Bu AYNI xato
+  `aylanma_kun` ning joriy-kun shoxida 2026-09-08 da tuzatilgan edi, `oldingi`/`trend` e'tibordan chetda qolgan.
+  Klientda: hero chipi endi taqqoslanayotgan **sanani va rejimni** yozadi («kecha» deb taxmin qilmaydi),
+  trend bo'sh holati sababni tushuntiradi.
+- ⚠️ **Q2a (bizdan qarzdor) shubhali** — `PROVODKA_AYLANMA_FIX.sql` 4-BO'LIMI TASHXIS (faqat select).
+  Formula ikki xil MANBANI aralashtiradi: qarz `aros_qarzdor_sync.summary->>'total_debt'` (Aros o'z yig'indisi),
+  hamyon esa `sum(aros_qarzdor.wallet_balance)` (bizdagi jadval). `summary` ichida mos qiymat bor —
+  `total_wallet_balance`. Jadval to'liq sinxronlanmagan yoki `faol` bayrog'i eskirgan bo'lsa ayirma xato chiqadi.
+  Ikkinchi savol: qarzi 0 mijozlar hamyoni ham ayirilyapti. DIAG 4.2 to'rt variantni yonma-yon beradi —
+  Asilbek qaysi biri to'g'ri ekanini aytgach `sync_aylanma_snapshot` Q2a bloki tuzatiladi (imzo o'zgarmaydi).
 - **UI**: hero (jami so'm/$ + kechaga farq chip + rejim/vaqt), banner `!toliq || xatolar.length`, sana ‹ › + royxat select,
   zinapoya 10 bo'lim (Q2b minus; null → «manba yo'q»; drill-down `aylanma_qatorlar` + Excel lazy), trend inline SVG 30/90/365.
   swr `kun:<sana|id>`, `trend:<kun>`. RPC yo'q → «SQL hali RUN qilinmagan», sahifa buzilmaydi. Nav: 17 dev faylda Ehson'dan keyin
