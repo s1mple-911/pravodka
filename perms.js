@@ -20,12 +20,12 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (19 ta: 18 sahifa + 1 bayroq).
+  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (20 ta: 19 sahifa + 1 bayroq).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx', 'ai', 'sorovlar', 'ehson'];
+               'tannarx', 'ai', 'sorovlar', 'ehson', 'aylanma'];
   /* BAYROQLAR (2026-09-06): allowed_pages ichida saqlanadigan, lekin SAHIFA BO'LMAGAN
      kalitlar. PAGES ga QO'SHILMAYDI — aks holda firstAllowed()/gate() ularni sahifa deb
      `ehson_kirim-dev.html` ga yo'naltirardi (404). Nav/karta/promote'da yo'q.
