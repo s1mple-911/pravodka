@@ -1228,6 +1228,46 @@ sanagan `items[].document.seller_*`, `c_*` = qabulda tasdiqlangan `items[].confi
 - Keyingi bosqich (hali qilinmagan): tranzit HISOBI (sent → Dt transit / Kt filial; received → Dt markaziy /
   Kt transit) — `PROVODKA_TRANSFER.sql` sarlavhasida rejalashtirilgan, delta sync bilan o'zaro ta'siri bor.
 
+### 🔴 AROS `items[]` SHAKLI O'ZGARDI — transfer sinxroni 5 kun jim turdi (2026-09-09)
+
+**Hodisa.** Toshkent kassa hodimi «qo'limda pul ko'p, Provodkada kam» dedi. Tekshiruvda: 09-08 va 09-09 dagi
+**19 ta transfer** (12 qabul qilingan + 7 yo'lda) summasi **0** bo'lib kelgan, hech biri yozilmagan.
+Sabab — Aros adminka yangilanishi to'lov turlarini ko'chirgan:
+```
+ESKI:  items[].confirmed_cash | confirmed_click | confirmed_payme | confirmed_dollar
+YANGI: items[].document.amounts[] = {label_code, currency, amount, confirmed_amount}
+       label_code: cash_balance | click_balance | dollar_balance | terminal
+       + items[].confirmed_total (tayyor jami)
+```
+`document.currency_rate` **o'zgarmagan** — shuning uchun sinxronda faqat kurs to'g'ri kelib turgan
+(aynan shu ipdan ildiz topildi). 🔴 `payme` YO'Q, o'rniga **`terminal`**.
+
+**Nega 5 kun sezilmadi.** `Transfer Sync v2` («Payload yasash») hamma-tur-0 bo'lgan transferni
+`tashlandi[]` ga qo'yib **jimgina davom etardi**; `tashlandi` hech qayerga yozilmasdi. n8n har 5 daqiqada
+«muvaffaqiyatli» ko'rinardi, `aros_transfer_dropped` da ham iz yo'q edi. **Saboq: pul yo'lida jimgina 0 —
+taqiq. Manba tanilmasa XATO berilsin.**
+
+- **n8n `Transfer Sync v2` (`iqtB5Jk2NHW2r82J`) YANGILANDI** (MCP orqali — kreditlar uzildi, Asilbek ulaydi):
+  SQL **ikkala shaklni** ham o'qiydi (14 kunlik oynada ikkalasi bor); `terminal` alohida tur;
+  **dollar kursi OG'IRLIKLI o'rtacha** (bitta transferda bir necha item, har birida o'z `currency_rate` i —
+  1445 da 11850 va 11900; eski `max()` dollarni noto'g'ri baholardi); `nomalum_summa` ustuni.
+  JS endi **xato beradi**: noma'lum `label_code` (summa>0) yoki oynadagi hamma transfer 0 bo'lsa.
+  Yozuv: `N8N_TRANSFER_YANGI_SHAKL.md`.
+- **`PROVODKA_TERMINAL_TUR.sql` (RUN kutilmoqda)** — `terminal_tur_toldir()` transferda qatnashadigan
+  kassalarga «Terminal» tur bola-hisobini ochadi (idempotent; `PROVODKA_TURLAR_AVTO.sql` allaqachon
+  `terminal` ni qo'llab-quvvatlaydi — yangi ustun/cheklov kerak emas); `aros_tur_hisob` ga
+  `terminal|karta|plastik`; 🔴 **`sync_transfer_balans` turlarni QATTIQ ro'yxatdan o'qirdi**
+  (`array['cash','click','payme','dollar_usd']`) — n8n `terminal` yuborsa ham jimgina yo'qolardi, endi bor.
+- **Tiklash skripti KERAK EMAS:** `Transfer Sync v2` 14 kunlik oyna bilan ishlaydi va `ext_ref` bo'yicha
+  takrorlanmaydi → SQL+kredit tayyor bo'lgach 19 ta transferni **o'zi yozadi**. Cutoff POL (2026-08-12)
+  ularni to'smaydi. Avgustdagi eski backlog Asilbek tomonidan qo'lda tuzatilgan — tegilmaydi.
+- **`Yolda Sync` (`xRARQu9MiZmQ1sAO`) ham eski maydonlarni o'qiydi** — pul yozmaydi (registr), lekin
+  `kassa` sahifasidagi «Yo'ldagi pullar» 0 ko'rsatadi. Keyingi qadam.
+- ⚠️ `Auto Sync` (`7MSHrXnz9cGAFBTh`) **o'chirilgan** — eski v1 + filial balans; balans endi
+  `Balans Sync` (`5TB7ekGcBlU5qVZ0`, faol) bilan ketadi. To'g'ri holat, tegilmasin.
+- ⚠️ `Transfer Sync v2` jadvali `{field:'minutes'}` — `minutesInterval` YO'Q, ya'ni amalda **5 daqiqada**
+  ishlaydi (nomi «Har 30 daqiqa»). Yangilashda ATAYLAB o'zgartirilmadi.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:

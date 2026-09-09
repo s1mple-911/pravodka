@@ -70,7 +70,7 @@ tur as (
            when 'cash_balance'   then 'cash'
            when 'click_balance'  then 'click'
            when 'payme_balance'  then 'payme'
-           when 'terminal'       then 'payme'      -- Provodkada 'terminal' hisobi yo'q
+           when 'terminal'       then 'terminal'   -- Provodkada «Terminal» tur-hisobi ochildi
            when 'dollar_balance' then 'dollar_usd'
            else 'NOMALUM'
          end as tur,
@@ -95,6 +95,7 @@ select b.id, b.sender_title, b.receiver_title, b.status,
        coalesce(sum(u.summa) filter (where u.tur = 'cash'), 0)       as cash,
        coalesce(sum(u.summa) filter (where u.tur = 'click'), 0)      as click,
        coalesce(sum(u.summa) filter (where u.tur = 'payme'), 0)      as payme,
+       coalesce(sum(u.summa) filter (where u.tur = 'terminal'), 0)   as terminal,
        coalesce(sum(u.summa) filter (where u.tur = 'dollar_usd'), 0) as dollar_usd,
        round(sum(u.summa * u.kurs) filter (where u.tur = 'dollar_usd')
              / nullif(sum(u.summa) filter (where u.tur = 'dollar_usd'), 0), 2) as dollar_rate,
@@ -123,15 +124,16 @@ for (var k = 0; k < rows.length; k++) {
   var t = rows[k] || {};
   if (t.id == null || !t.received_at) continue;
   if (num(t.nomalum_summa) > 0) { nomalum.push(String(t.id)); }
-  var cash = num(t.cash), click = num(t.click), payme = num(t.payme), dollar = num(t.dollar_usd);
-  if (cash <= 0 && click <= 0 && payme <= 0 && dollar <= 0) { nol.push(String(t.id)); continue; }
+  var cash = num(t.cash), click = num(t.click), payme = num(t.payme),
+      terminal = num(t.terminal), dollar = num(t.dollar_usd);
+  if (cash <= 0 && click <= 0 && payme <= 0 && terminal <= 0 && dollar <= 0) { nol.push(String(t.id)); continue; }
   var row = {
     id: t.id,
     sender_title: t.sender_title || '',
     receiver_title: t.receiver_title || '',
     status: 'received',
     received_at: String(t.received_at) + '+05:00',
-    cash: cash, click: click, payme: payme, dollar_usd: dollar
+    cash: cash, click: click, payme: payme, terminal: terminal, dollar_usd: dollar
   };
   if (dollar > 0) { row.dollar_rate = num(t.dollar_rate) || null; }
   transferlar.push(row);
@@ -185,3 +187,20 @@ ular poldan keyin.
 
 Faqat 14 kundan eski transferlar uchun alohida tiklash kerak bo'lardi — hozircha unday
 holat yo'q (buzilish 09-04 dan keyin boshlangan).
+
+
+---
+
+# 🔴 QO'SHIMCHA — Provodka tomoni SHART, n8n dan OLDIN
+
+n8n `terminal` yuborsa ham, Provodka uni **jimgina e'tiborsiz qoldirardi**:
+`sync_transfer_balans` turlarni qattiq ro'yxatdan o'qirdi —
+`array['cash','click','payme','dollar_usd']`. Ya'ni pul yana yo'qolardi.
+
+Shuning uchun **`PROVODKA_TERMINAL_TUR.sql` AVVAL RUN qilinadi**:
+1. Transferda qatnashadigan har kassaga «Terminal» tur bola-hisobi
+   (`terminal_tur_toldir()`, idempotent);
+2. `aros_tur_hisob` `terminal` ni taniydi;
+3. `sync_transfer_balans` `terminal` turini ham yozadi.
+
+**TARTIB: SQL → n8n node'lari → qo'lda ishga tushirish.**
