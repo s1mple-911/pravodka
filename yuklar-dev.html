@@ -166,8 +166,8 @@
     /* panel oxirgi qatorni to'smasin */
     body:has(.selbar.on){padding-bottom:214px}
   }
-  /* ===== yuklar jadvali (13 ustun: tanlash·ID·sana(+nashr vaqti)·ombor·yetkazuvchi·
-     Aros narxi·qo'shilgan tannarx·jami tannarx·Aros bojxona·holat·to'langan·qoldiq·qatorlar) ===== */
+  /* ===== yuklar jadvali (14 ustun: tanlash·ID·sana(+nashr vaqti)·ombor·yetkazuvchi·
+     Aros narxi·qo'shilgan tannarx·jami tannarx·Aros bojxona·holat·to'langan·qoldiq·muddat·qatorlar) ===== */
   .yscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent}
   .yscroll::-webkit-scrollbar{height:8px}
   .yscroll::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:4px}
@@ -185,13 +185,13 @@
   .ytbl .prov{max-width:220px;overflow:hidden;text-overflow:ellipsis}
   /* Holat ustuni — ikki pill (status + yetkazish) ustma-ust, bitta katakda */
   .holat-pills{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
-  /* 1301–1500px: 13 ustun (Aros bojxona + Holat + To'langan + Qoldiq bilan) kartaga to'liq
+  /* 1301–1500px: 14 ustun (Aros bojxona + Holat + To'langan + Qoldiq + Muddat bilan) kartaga to'liq
      sig'sin — raqam KESILMASIN (Asilbek 2026-09-07). Skroll/kesish emas: padding+shrift
      kichrayadi, sarlavha ikki qatorga sinadi, karta butun enni oladi (.main max-width:none). */
   @media(min-width:1301px) and (max-width:1500px){.main{padding-left:var(--s4);padding-right:var(--s4)}.ytbl td{padding:10px 6px;font-size:12px}
     .ytbl th{padding:0 6px 10px;font-size:10px;white-space:normal;line-height:1.25}
     .ytbl td.c-jami{font-size:14px}.ytbl .prov{max-width:110px}.bojx-top{font-size:11px}.bojx{min-width:88px}
-    .holat-pills .pill{font-size:11px}}
+    .holat-pills .pill{font-size:11px}.mdl,.mdl-empty{min-width:76px}.mdl-d{font-size:11px}.mdl-sub{font-size:10px}}
   /* RAQAM IERARXIYASI (uch xil son bir qatorda):
      Aros narxi — manba (neytral) · Qo'shilgan — bizning ustama (yashil, +) · Jami — ASOSIY (eng katta/qora) */
   .ytbl td.c-aros{color:var(--ink-2);font-weight:600}
@@ -254,6 +254,16 @@
   .bojx-bar span.warn{background:var(--amber)}
   .bojx-bar span.over{background:var(--red-ink)}
   .tmsg.warn{color:var(--amber);background:var(--amber-soft)}
+  /* ===== Muddat (to'lov muddati) ustuni — sana + profil rozetkasi, katak bosiladigan tugma ===== */
+  .mdl,.mdl-empty{min-width:92px;cursor:pointer;border:none;background:transparent;padding:0;margin:0;
+    font:inherit;color:inherit;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+  .mdl-empty{color:var(--muted);font-weight:500}
+  @media(hover:hover){.mdl:hover .mdl-d,.mdl-empty:hover{text-decoration:underline}}
+  .mdl-d{font-size:12.5px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .mdl-d.warn{color:var(--amber)}
+  .mdl-d.over{color:var(--red-ink)}
+  .mdl-sub{font-size:11px;font-weight:600;color:var(--muted)}
+  .mdl-sub.over{color:var(--red-ink)}
   /* ===== skeleton (birinchi yuklash) ===== */
   .skel{height:12px;border-radius:6px;background:var(--surface-2);position:relative;overflow:hidden}
   .skel::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
@@ -321,7 +331,7 @@
     .fchip{flex:1;justify-content:center;padding:0 var(--s3)}
     .filtbar select.datepick{margin-left:0;width:100%}
   }
-  /* ===== ≤1300px: 13 ustunli jadval sig'maydi → karta ko'rinishi (gorizontal scroll yo'q).
+  /* ===== ≤1300px: 14 ustunli jadval sig'maydi → karta ko'rinishi (gorizontal scroll yo'q).
      1301+ da jadval o'z holicha qoladi. ===== */
   @media(max-width:1300px){
     .ytbl{min-width:0}
@@ -352,6 +362,7 @@
     .ytbl td.c-jami::before{font-weight:600;color:var(--ink-2)}
     .ytbl .prov{max-width:none}
     .ytbl td>.cval{text-align:right}
+    .ytbl td .mdl,.ytbl td .mdl-empty{align-items:flex-end;text-align:right}
     /* ochilgan qatorlar — karta bilan yopishib turadi, alohida ko'chib ketmasin */
     .ytbl tr:has(+ .drow){margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
     .ytbl tr.drow{grid-template-columns:1fr;border-top:none;border-top-left-radius:0;border-top-right-radius:0;
@@ -632,6 +643,9 @@
           <button type="button" class="fchip" data-fp="qisman" onclick="setFiltPay('qisman')">Qisman <span id="cPart"></span></button>
           <button type="button" class="fchip" data-fp="tolangan" onclick="setFiltPay('tolangan')">To'langan <span id="cPaid"></span></button>
         </div>
+        <div class="chips">
+          <button type="button" class="fchip" id="dlChip" onclick="toggleFiltDl()">Muddat qo'yilmagan <span id="cDlUnset"></span></button>
+        </div>
         <select class="datepick" id="omborFilt" onchange="renderYuklar()"><option value="">Barcha omborlar</option></select>
       </div>
 
@@ -777,6 +791,42 @@
   </div>
 </div>
 
+<!-- Yuk muddati (to'lov muddati) modali — "5 kunlik" sahifasi shu yerdan o'qiydi (yuk_deadline) -->
+<div class="tmodal" id="dlModal" onclick="if(event.target===this)closeDl()" role="dialog" aria-modal="true" aria-label="To'lov muddati">
+  <div class="tbox" style="max-width:420px">
+    <div class="mhead">
+      <div class="mh"><h3>To'lov muddati</h3><div class="tsub" id="dlSub"></div></div>
+      <button type="button" class="mclose" onclick="closeDl()" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="tscroll">
+      <div class="fld">
+        <label for="dlSana">Sana</label>
+        <input id="dlSana" type="date" oninput="dlValidate()">
+      </div>
+      <div class="fld">
+        <label for="dlProfil">Profil</label>
+        <select id="dlProfil" onchange="dlValidate()">
+          <option value="">Tanlang…</option>
+          <option value="aksessuar">Aksessuar</option>
+          <option value="zapchast">Zapchast</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label for="dlIzoh">Izoh (ixtiyoriy)</label>
+        <input id="dlIzoh" placeholder="Masalan: kelishilgan to'lov sanasi">
+      </div>
+    </div>
+    <div class="tmsg" id="dlMsg" role="status" aria-live="polite"></div>
+    <div class="tacts" id="dlDelRow" style="display:none">
+      <button type="button" class="danger" onclick="dlDelete()"><i data-lucide="trash-2"></i>Muddatni o'chirish</button>
+    </div>
+    <div class="tacts">
+      <button type="button" onclick="closeDl()">Bekor</button>
+      <button type="button" class="primary" id="dlSaveBtn" onclick="dlSave()" disabled>Saqlash</button>
+    </div>
+  </div>
+</div>
+
 <!-- Tasdiq modali — native confirm() o'rniga (u sahifani bloklaydi va dizayn tilidan chiqadi) -->
 <div class="tmodal" id="cfmModal" onclick="if(event.target===this)cfmNo()" role="alertdialog" aria-modal="true" aria-labelledby="cfmTitle" aria-describedby="cfmSub">
   <div class="tbox">
@@ -868,8 +918,8 @@ const isoDay=d=>d.toISOString().slice(0,10);
 const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
 const ST_LBL={posted:'Nashr qilingan',created:'Yaratilgan'};
 const DS_LBL={accepted:'Qabul qilingan',on_way:"Yo'lda"};
-let yuklar=[], rateMap={}, tanMap={}, bojxonaMap={}, paidMap={}, sabablar=[];
-let sel=new Set(), openDet=new Set(), filtTan='all', filtPay='all', tanAllowed=false;
+let yuklar=[], rateMap={}, tanMap={}, bojxonaMap={}, paidMap={}, dlMap={}, sabablar=[];
+let sel=new Set(), openDet=new Set(), filtTan='all', filtPay='all', filtDl=false, tanAllowed=false;
 // RPC hali bazada bo'lmasligi mumkin — sahifa shundan sinmasin, faqat ustun "—" bo'ladi.
 let tanRpcErr='', sababRpcErr='';
 
@@ -906,12 +956,25 @@ function bojQoldi(b){ if(!b||b.limit_uzs==null) return null; const lim=Number(b.
 function tolangan(y){ const s=paidMap[String(y.id)]; return s?Number(s.tolangan_uzs)||0:0; }
 function pct(y){ const n=jamiTannarx(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
 function qoldiq(y){ const n=jamiTannarx(y); if(n==null) return null; return Math.max(0,n-tolangan(y)); }
+// yuk_deadline: { "1204": {yuk_id,deadline,profil,narx,valyuta,izoh,...} } — "5 kunlik" shu yerdan o'qiydi (faqat o'qiydi).
+function dlOf(y){ const d=dlMap&&dlMap[String(y.id)]; return (d&&typeof d==='object'&&d.deadline)?d:null; }
+/* Bugundan nechta kun qolgani (manfiy — kechikkan). Toifalar UZ +5h muhrlangan
+   sana satrlari orqali solishtiriladi (isoDay/dF bilan bir xil naqsh) — brauzerning
+   mahalliy vaqt zonasi ta'sir qilmasin. */
+function dlDaysLeft(deadlineStr){
+  if(!deadlineStr) return null;
+  const t=Date.parse(isoDay(nowUz())+'T00:00:00Z'), d=Date.parse(String(deadlineStr).slice(0,10)+'T00:00:00Z');
+  if(!isFinite(t)||!isFinite(d)) return null;
+  return Math.round((d-t)/86400000);
+}
 
 function showBanner(txt,ok){ const b=$('banner'); if(!txt){ b.style.display='none'; return; }
   b.textContent=txt; b.className='banner'+(ok?' ok':''); b.style.display='block'; }
 
 window.setFiltTan=k=>{ filtTan=k; document.querySelectorAll('.fchip[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===k)); renderYuklar(); };
 window.setFiltPay=k=>{ filtPay=k; document.querySelectorAll('.fchip[data-fp]').forEach(b=>b.classList.toggle('on',b.dataset.fp===k)); renderYuklar(); };
+// "Muddat qo'yilmagan" — qarzi bor, lekin deadline yo'q yuklar (asosiy ish oqimi).
+window.toggleFiltDl=()=>{ filtDl=!filtDl; $('dlChip').classList.toggle('on',filtDl); renderYuklar(); };
 
 function renderError(msg){
   $('yukBody').innerHTML='<div class="errbox"><i data-lucide="cloud-off"></i>'
@@ -928,7 +991,7 @@ window.loadYuklar=async(mode)=>{
   const key='yuk:'+from+':'+to;
   if(mode!=='fresh'){
     const c=swrGet(key);
-    if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; paidMap=c.paidMap||{}; fillOmbor(); renderYuklar(); }
+    if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; paidMap=c.paidMap||{}; dlMap=c.dlMap||{}; fillOmbor(); renderYuklar(); }
     else $('yukBody').innerHTML=LOADSKEL;
   }
   let arr;
@@ -942,14 +1005,14 @@ window.loadYuklar=async(mode)=>{
   yuklar=arr;
   const ids=yuklar.map(y=>Number(y.id)).filter(x=>Number.isFinite(x));
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
-  rateMap={}; tanMap={}; bojxonaMap={}; paidMap={};
+  rateMap={}; tanMap={}; bojxonaMap={}; paidMap={}; dlMap={};
   if(curs.length){ const {data:kr,error}=await sb.rpc('yuk_kurslar',{p_curs:curs});
     if(!error) rateMap=kr||{}; }
   // ⚠️ Tannarx XATO bergan bo'lsa keshga YOZMAYMIZ: bo'sh tanMap keshlansa keyingi ochilishda
   // "Qo'shilgan" ustuni bannersiz "—" bo'lib chiqardi. Xato bo'lsa kesh eskiligicha qoladi.
-  // Bojxona (yuk_bojxona_jami) va to'lov (yuk_tolangan_summa) parallel — ular jim (konsol warn).
-  const [tanOk]=ids.length?await Promise.all([loadTannarx(ids),loadBojxona(ids),loadPaid(ids)]):[true];
-  if(tanOk) swrSet(key,{yuklar,rateMap,tanMap,bojxonaMap,paidMap});
+  // Bojxona (yuk_bojxona_jami), to'lov (yuk_tolangan_summa) va muddat (yuk_deadline) parallel — jim (konsol warn).
+  const [tanOk]=ids.length?await Promise.all([loadTannarx(ids),loadBojxona(ids),loadPaid(ids),loadDeadline(ids)]):[true];
+  if(tanOk) swrSet(key,{yuklar,rateMap,tanMap,bojxonaMap,paidMap,dlMap});
   fillOmbor(); renderYuklar();
 };
 
@@ -988,6 +1051,19 @@ async function loadPaid(ids){
   }catch(e){ console.warn('yuk_tolangan_summa istisno:',e); paidMap={}; }
 }
 
+/* To'lov muddati (yuk_deadline) — "5 kunlik" sahifasi shu jadvaldan faqat o'qiydi,
+   qo'yish/o'zgartirish shu yerda (yuklar-dev.html). Jadval hali yaratilmagan bo'lishi
+   mumkin (SQL RUN kutilmoqda) — bojxona/to'lov kabi jim (konsol warn), ustun
+   "muddat qo'yilmagan" bo'lib qolaveradi, sahifa sinmaydi. */
+async function loadDeadline(ids){
+  try{
+    const {data,error}=await sb.from('yuk_deadline').select('*').in('yuk_id',ids);
+    if(error){ console.warn('yuk_deadline:',error.message||error); dlMap={}; return; }
+    dlMap={};
+    (data||[]).forEach(r=>{ dlMap[String(r.yuk_id)]=r; });
+  }catch(e){ console.warn('yuk_deadline istisno:',e); dlMap={}; }
+}
+
 function fillOmbor(){
   const s=$('omborFilt'), cur=s.value;
   const oms=[...new Set(yuklar.map(y=>y.ombor).filter(Boolean))].sort();
@@ -1002,6 +1078,7 @@ function visibleRows(){
   if(filtPay==='tolanmagan') rows=rows.filter(y=>pct(y)===0);
   else if(filtPay==='qisman') rows=rows.filter(y=>{const p=pct(y);return p>0&&p<100;});
   else if(filtPay==='tolangan') rows=rows.filter(y=>pct(y)>=100);
+  if(filtDl) rows=rows.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !dlOf(y); });
   if(omb) rows=rows.filter(y=>y.ombor===omb);
   return rows;
 }
@@ -1053,6 +1130,24 @@ function paidCellHtml(y){
   return '<span class="pill gray">To\'lanmagan</span>';
 }
 
+/* To'lov muddati — sana + profil rozetkasi, butun katak bosiladigan tugma (openDl()).
+   Qizil/sariq ranglash FAQAT qarzi qolgan yukka tegishli — to'liq to'langan yukning
+   muddati o'tib ketgan bo'lsa ham ogohlantirish shart emas. */
+function muddatCellHtml(y){
+  const d=dlOf(y);
+  if(!d) return '<button type="button" class="mdl-empty" onclick="openDl('+y.id+')" title="Muddat qo\'yilmagan">— qo\'yilmagan</button>';
+  const left=dlDaysLeft(d.deadline), q=qoldiq(y), hasDebt=(q!=null&&q>0);
+  let cls='', sub='';
+  if(left!=null&&left<0&&hasDebt){ cls='over'; sub=(-left)+' kun kechikdi'; }
+  else if(left!=null&&left>=0&&left<=7&&hasDebt){ cls='warn'; sub=left===0?'Bugun':(left+' kun qoldi'); }
+  const profTxt=d.profil==='aksessuar'?'Aks':(d.profil==='zapchast'?'Zap':'');
+  const profPill=profTxt?'<span class="pill '+(d.profil==='aksessuar'?'b':'gray')+'">'+profTxt+'</span>':'';
+  return '<button type="button" class="mdl" onclick="openDl('+y.id+')">'
+    +'<span class="mdl-d'+(cls?' '+cls:'')+'">'+dF(d.deadline)+'</span>'
+    +(sub?'<span class="mdl-sub'+(cls==='over'?' over':'')+'">'+esc(sub)+'</span>':'')
+    +profPill+'</button>';
+}
+
 function renderYuklar(){
   const all=yuklar.slice();
   $('cAll').textContent=all.length;
@@ -1061,6 +1156,7 @@ function renderYuklar(){
   $('cUnpaid').textContent=all.filter(y=>pct(y)===0).length;
   $('cPart').textContent=all.filter(y=>{const p=pct(y);return p>0&&p<100;}).length;
   $('cPaid').textContent=all.filter(y=>pct(y)>=100).length;
+  $('cDlUnset').textContent=all.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !dlOf(y); }).length;
   const rows=visibleRows();
   if(!rows.length){ $('yukBody').innerHTML='<div class="empty none">Bu shartlarga mos yuk yo\'q.'
     +'<span>Sana oralig\'ini kengaytiring yoki filtrni o\'zgartiring.</span></div>';
@@ -1101,6 +1197,7 @@ function renderYuklar(){
       +'<td data-l="Holat"><div class="holat-pills"><span class="pill '+stcls+'">'+esc(stlbl)+'</span><span class="pill '+dscls+'">'+esc(dslbl)+'</span></div></td>'
       +'<td data-l="To\'langan">'+paidCellHtml(y)+'</td>'
       +'<td class="num" data-l="Qoldiq">'+qolTxt+'</td>'
+      +'<td data-l="Muddat">'+muddatCellHtml(y)+'</td>'
       +'<td data-l="Qatorlar">'+qsTxt+'</td>'
       +'</tr>';
     if(openDet.has(id)&&qCount){
@@ -1119,7 +1216,7 @@ function renderYuklar(){
           +'<div class="dm"><div class="dt1">To\'lov</div><div class="dt2">'+dF(e.entry_date)+'</div></div>'
           +'<div class="damt">'+money(e.summa_uzs)+'</div></div>').join('');
       }
-      tr+='<tr class="drow"><td colspan="13"><div class="dlist">'+det+'</div></td></tr>';
+      tr+='<tr class="drow"><td colspan="14"><div class="dlist">'+det+'</div></td></tr>';
     }
     return tr;
   }).join('');
@@ -1127,7 +1224,7 @@ function renderYuklar(){
     +'<th><input type="checkbox" class="ck" id="ckAll"'+(allOn?' checked':'')+' onchange="toggleAll(this)" aria-label="Hammasini tanlash"></th>'
     +'<th>ID</th><th>Sana</th><th>Ombor</th><th>Yetkazib beruvchi</th><th class="num">Aros narxi</th>'
     +'<th class="num">Qo\'shilgan tannarx</th><th class="num hi">Jami tannarx</th><th>Aros bojxona</th><th>Holat</th>'
-    +'<th>To\'langan</th><th class="num">Qoldiq</th><th>Qatorlar</th>'
+    +'<th>To\'langan</th><th class="num">Qoldiq</th><th>Muddat</th><th>Qatorlar</th>'
     +'</tr></thead><tbody>'+body+'</tbody></table></div>'
     +yakuniyHtml(rows);
   renderSelbar();
@@ -1158,7 +1255,7 @@ function renderSelbar(){
 // ===== Modal yordamchilari: fokus, Escape, Tab tuzog'i =====
 /* Tartib MUHIM — ustidan pastga. Birinchi ochig'i "eng ustidagi" hisoblanadi
    (cfmModal z-index 230 > tmodal 210 > mmodal 200). */
-const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','moreModal'];
+const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','dlModal','moreModal'];
 const FOCUS_SEL='button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
 // Sichqonchali qurilma: matn maydoniga fokus faqat shu yerda beriladi —
 // telefonda klaviatura o'zi ochilib, varaqni yarmini yeb qo'ymasin.
@@ -1181,6 +1278,7 @@ document.addEventListener('keydown',e=>{
     else if(m.id==='sababModal') window.closeSabab();
     else if(m.id==='tanModal') window.closeTan();
     else if(m.id==='linkModal') window.closeLink();
+    else if(m.id==='dlModal') window.closeDl();
     else window.closeMore();
     return;
   }
@@ -1729,6 +1827,68 @@ async function confirmLinkMulti(){
     window.loadYuklar('fresh');
   }catch(e){ $('linkMsg').textContent='Xato: '+(e.message||e); $('linkMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Bog\'lash'; }
 }
+
+// ===== To'lov muddati (yuk_deadline) modali =====
+// Ruxsat alohida tekshirilmaydi: RLS `perm_has_page('yuklar')` bilan ham ochiq —
+// bu sahifani ko'ra olgan har kim (permGate() dan o'tgan) muddat ham qo'ya oladi.
+let dlCur=null;
+window.openDl=id=>{
+  const y=yuklar.find(x=>Number(x.id)===Number(id)); if(!y) return;
+  dlCur=y;
+  const d=dlOf(y);
+  $('dlSub').textContent='Yuk #'+y.id+' · '+(y.ombor||'—');
+  $('dlSana').value=d&&d.deadline?String(d.deadline).slice(0,10):'';
+  $('dlProfil').value=(d&&d.profil)||'';
+  $('dlIzoh').value=(d&&d.izoh)||'';
+  $('dlMsg').textContent=''; $('dlMsg').className='tmsg';
+  $('dlDelRow').style.display=d?'flex':'none';
+  $('dlSaveBtn').textContent='Saqlash';
+  $('dlModal').classList.add('open');
+  window.dlValidate();
+  icons();
+  mFocus('dlSana',false);   // sana — telefonda klaviatura o'rniga native pikcher ochiladi
+};
+window.closeDl=()=>{ $('dlModal').classList.remove('open'); dlCur=null; };
+window.dlValidate=()=>{
+  const sana=$('dlSana').value, profil=$('dlProfil').value;
+  const msg=$('dlMsg'), btn=$('dlSaveBtn');
+  let m='',ok=false;
+  if(!sana) m='Sanani tanlang';
+  else if(!profil) m='Profilni tanlang';
+  else ok=true;
+  msg.textContent=m; msg.className='tmsg'+(m?' no':'');
+  btn.disabled=!ok;
+  return ok;
+};
+window.dlSave=async()=>{
+  if(!dlCur) return;
+  if(!window.dlValidate()) return;
+  const btn=$('dlSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  // narx/valyuta — o'sha yukning JADVALDA turgan qiymatidan (surat), qarz keyin
+  // tannarx qo'shilsa ham "5 kunlik" jonli hisoblasin (BRIEF_5KUNLIK.md qaror №1).
+  const payload={
+    yuk_id:Number(dlCur.id),
+    deadline:$('dlSana').value,
+    profil:$('dlProfil').value,
+    narx:(dlCur.narx==null)?null:Number(dlCur.narx),
+    valyuta:dlCur.valyuta||null,
+    izoh:($('dlIzoh').value||'').trim()||null
+  };
+  const {error}=await sb.from('yuk_deadline').upsert(payload,{onConflict:'yuk_id'});
+  if(error){ $('dlMsg').textContent=(window.permErr?window.permErr(error):error.message); $('dlMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
+  closeDl();
+  showBanner('Muddat saqlandi',true);
+  await window.loadYuklar('fresh');   // kesh ham yangilanadi (swrSet loadYuklar ichida)
+};
+window.dlDelete=async()=>{
+  if(!dlCur) return;
+  if(!await askConfirm('Muddatni o\'chirish','Yuk #'+dlCur.id+' uchun to\'lov muddati olib tashlansinmi?','O\'chirish')) return;
+  const {error}=await sb.from('yuk_deadline').delete().eq('yuk_id',Number(dlCur.id));
+  if(error){ $('dlMsg').textContent=(window.permErr?window.permErr(error):error.message); $('dlMsg').className='tmsg no'; return; }
+  closeDl();
+  showBanner('Muddat o\'chirildi',true);
+  await window.loadYuklar('fresh');
+};
 
 function init(){
   computeTanAllowed();

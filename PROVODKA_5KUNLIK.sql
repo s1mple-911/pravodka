@@ -483,3 +483,280 @@ begin
   raise notice 'PROVODKA_5KUNLIK.sql: beshkunlik_kurs/beshkunlik_kurslar tayyor (3-bosqich qoshimchasi)';
 end
 $bk_kurs_final$;
+
+
+-- #####################################################################
+-- ##  9-BO'LIM — yuk_deadline: profil / narx / valyuta (6-BOSQICH)    ##
+-- #####################################################################
+--  Qarz JONLI hisoblanadi (10-BO'LIM), shuning uchun yuk hujjatining
+--  o'zi (narx/valyuta) va u qaysi profilga tegishli ekani shu yerda
+--  SAQLANISHI kerak — Aros'dan profil BILINMAYDI (hamma yuk "Asosiy
+--  ombor"ga tushadi). `narx`/`valyuta` — deadline qo'yilayotgan
+--  paytdagi yuk hujjat narxining SURATI, keyin o'zgarmaydi.
+--  Ustunlar ustiga yozuvchi UI hali YO'Q (keyingi bosqich) — bu bo'lim
+--  faqat sxemani tayyorlaydi, additive.
+
+do $bk_deadline_pre$
+begin
+  if to_regclass('public.yuk_deadline') is null then
+    raise exception 'yuk_deadline jadvali yoq — avval shu faylning 4-BOLIMini bajaring';
+  end if;
+end
+$bk_deadline_pre$;
+
+alter table yuk_deadline add column if not exists profil text;
+alter table yuk_deadline add column if not exists narx numeric;
+alter table yuk_deadline add column if not exists valyuta text;
+
+do $bk_deadline_chk$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'yuk_deadline_profil_chk') then
+    alter table yuk_deadline
+      add constraint yuk_deadline_profil_chk
+      check (profil is null or profil in ('aksessuar','zapchast'));
+  end if;
+end
+$bk_deadline_chk$;
+
+comment on column yuk_deadline.profil is
+  'aksessuar | zapchast. Aros''dan bilinmaydi (hamma yuk "Asosiy ombor"ga tushadi) — deadline '
+  'qo''yilganda qo''lda tanlanadi. Qo''yilmagan bo''lsa null — 5 kunlik qarz hisobiga kirmaydi.';
+comment on column yuk_deadline.narx is
+  'Yuk hujjat narxining SURATI (deadline qo''yilgan paytdagi qiymat), keyin o''zgarmaydi.';
+comment on column yuk_deadline.valyuta is
+  'yuk_deadline.narx valyutasi (masalan USD, CNY, UZS). beshkunlik_qarz UZSga shu bilan o''giradi.';
+
+
+-- #####################################################################
+-- ##  10-BO'LIM — beshkunlik_qarz(p_from, p_to) — «5 kunlik» Qarz bloki (6-BOSQICH) ##
+-- #####################################################################
+--  IMZO: beshkunlik_qarz(p_from date, p_to date) returns jsonb
+--  Javob: [{sana, profil, qarzmiz_uzs, berdik_uzs}, ...] — HAMMASI SO'MDA
+--  (dollarga o'girish klientda, beshkunlik_kurslar bilan sanali kurs).
+--
+--  qarzmiz_uzs — deadline shu kunga tushgan yuklar (profil qo'yilgan),
+--  profil bo'yicha guruhlangan, har yukning QOLDIQ qarzi:
+--    narx_uzs = narx * conv_baza_kurs(valyuta)   (valyuta UZS bo'lsa kurs 1)
+--    qoldiq   = greatest(0, narx_uzs + tannarx_jami + bojxona_uzs - tolangan_uzs)
+--  🔴 JONLI — muhrlanmaydi. Tannarx/to'lov keyin qo'shilsa qarz ham
+--  o'zgaradi (Asilbek bilan kelishilgan qaror, BRIEF_5KUNLIK.md).
+--
+--  berdik_uzs — shu kuni HAQIQATDA to'langan summa: entry_yuk + entry
+--  (faqat posted, o'chirilmagan), entry SANASI bo'yicha guruhlangan.
+--  Profil — o'sha yukning yuk_deadline.profil'idan; deadline/profil
+--  qo'yilmagan yuk to'lovi hech qaysi profilga tushmaydi (kutilgan holat).
+--
+--  Ruxsat: `perm_has_page('beshkunlik')` funksiya ICHIDA — yo'q bo'lsa
+--  bo'sh massiv. `security definer` — chaqiruvchi o'zi entry/entry_yuk'ni
+--  o'qiy olmasa ham (ular RLS bilan `authenticated using(true)`,
+--  hozircha muammo yo'q, lekin guard baribir birinchi qatorda).
+
+do $bk_qarz_pre$
+begin
+  if to_regprocedure('public.yuk_tannarx_jami(integer[])') is null then
+    raise exception 'yuk_tannarx_jami(integer[]) yoq — avval PROVODKA_YUK_TANNARX.sql ni bajaring';
+  end if;
+  if to_regprocedure('public.yuk_bojxona_jami(integer[])') is null then
+    raise exception 'yuk_bojxona_jami(integer[]) yoq — avval PROVODKA_YUK_BOJXONA.sql ni bajaring';
+  end if;
+  if to_regprocedure('public.yuk_tolangan_summa(integer[])') is null then
+    raise exception 'yuk_tolangan_summa(integer[]) yoq — avval PROVODKA_YUK_QISMAN.sql ni bajaring';
+  end if;
+  if to_regclass('public.entry_yuk') is null then
+    raise exception 'entry_yuk jadvali yoq — avval PROVODKA_YUK_QISMAN.sql ni bajaring';
+  end if;
+end
+$bk_qarz_pre$;
+
+create or replace function beshkunlik_qarz(p_from date, p_to date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $bk_qarz$
+declare
+  v_ids integer[];
+  v_tannarx jsonb;
+  v_bojxona jsonb;
+  v_tolangan_map jsonb := '{}'::jsonb;
+begin
+  if not coalesce(perm_has_page('beshkunlik'), false) then
+    return '[]'::jsonb;
+  end if;
+  if p_from is null or p_to is null then
+    return '[]'::jsonb;
+  end if;
+
+  select coalesce(array_agg(yd.yuk_id), '{}'::integer[])
+    into v_ids
+    from yuk_deadline yd
+   where yd.deadline between p_from and p_to
+     and yd.profil is not null;
+
+  v_tannarx := coalesce(yuk_tannarx_jami(v_ids), '{}'::jsonb);
+  v_bojxona := coalesce(yuk_bojxona_jami(v_ids), '{}'::jsonb);
+
+  select coalesce(jsonb_object_agg(t ->> 'yuk_id', t ->> 'tolangan_uzs'), '{}'::jsonb)
+    into v_tolangan_map
+    from jsonb_array_elements(coalesce(yuk_tolangan_summa(v_ids), '[]'::jsonb)) as t;
+
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'sana', x.sana, 'profil', x.profil,
+             'qarzmiz_uzs', x.qarzmiz_uzs, 'berdik_uzs', x.berdik_uzs)
+             order by x.sana, x.profil)
+      from (
+        select coalesce(q.sana, b.sana) as sana,
+               coalesce(q.profil, b.profil) as profil,
+               coalesce(q.qarzmiz_uzs, 0) as qarzmiz_uzs,
+               coalesce(b.berdik_uzs, 0) as berdik_uzs
+          from (
+            select yd.deadline as sana, yd.profil,
+                   sum(greatest(0,
+                     coalesce(yd.narx, 0)
+                       * coalesce(case when upper(coalesce(yd.valyuta, 'UZS')) = 'UZS' then 1::numeric
+                                       else conv_baza_kurs(yd.valyuta) end, 0)
+                     + coalesce((v_tannarx -> yd.yuk_id::text ->> 'jami_uzs')::numeric, 0)
+                     + coalesce((v_bojxona -> yd.yuk_id::text ->> 'bojxona_uzs')::numeric, 0)
+                     - coalesce((v_tolangan_map ->> yd.yuk_id::text)::numeric, 0)
+                   )) as qarzmiz_uzs
+              from yuk_deadline yd
+             where yd.deadline between p_from and p_to
+               and yd.profil is not null
+             group by yd.deadline, yd.profil
+          ) q
+          full outer join (
+            select e.entry_date as sana, yd2.profil,
+                   sum(ey.summa_uzs) as berdik_uzs
+              from entry_yuk ey
+              join entry e on e.id = ey.entry_id
+              join yuk_deadline yd2 on yd2.yuk_id = ey.yuk_id
+             where e.status = 'posted' and e.is_deleted = false
+               and e.entry_date between p_from and p_to
+               and yd2.profil is not null
+             group by e.entry_date, yd2.profil
+          ) b on b.sana = q.sana and b.profil = q.profil
+      ) x
+  ), '[]'::jsonb);
+end
+$bk_qarz$;
+
+revoke all on function beshkunlik_qarz(date, date) from public, anon;
+grant execute on function beshkunlik_qarz(date, date) to authenticated;
+
+comment on function beshkunlik_qarz(date, date) is
+  '5 kunlik Qarz bloki, SOMDA: [{sana, profil, qarzmiz_uzs, berdik_uzs}]. Qarzmiz — deadline shu '
+  'kunga tushgan yuklar (JONLI: narx+tannarx+bojxona-tolangan, muhrlanmaydi). Berdik — shu kuni '
+  'entry_yuk orqali haqiqatda tolangan (posted, ochirilmagan). Profil qoyilmagan yuk hech qaysi '
+  'kunga/profilga tushmaydi. Ruxsat: perm_has_page(''beshkunlik'') ichida, yoq bolsa bosh massiv.';
+
+
+-- #####################################################################
+-- ##  11-BO'LIM — beshkunlik_qarz_detal(p_sana, p_profil) — hover (6-BOSQICH) ##
+-- #####################################################################
+--  IMZO: beshkunlik_qarz_detal(p_sana date, p_profil text) returns jsonb
+--  Bitta kun/profil uchun deadline'i shu kunga tushgan yuklarning
+--  qatorlari — 5kunlik-dev.html Qarzmiz katagi hover'ida ko'rsatiladi.
+--  Javob: [{yuk_id, narx, valyuta, izoh, qoldiq_uzs}, ...]
+--  🔴 `yetkazuvchi` YO'Q — Provodka bazasida yuk yetkazib beruvchisi
+--  hech qayerda saqlanmaydi (yuklar sahifasi uni Aros webhook'idan
+--  jonli oladi, yuk_deadline'da bu ustun yo'q). Hover shu bilan
+--  cheklangan: yuk id + izoh (agar deadline qo'yilganda yozilgan bo'lsa) + qoldiq.
+
+create or replace function beshkunlik_qarz_detal(p_sana date, p_profil text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $bk_qarz_detal$
+declare
+  v_ids integer[];
+  v_tannarx jsonb;
+  v_bojxona jsonb;
+  v_tolangan_map jsonb := '{}'::jsonb;
+begin
+  if not coalesce(perm_has_page('beshkunlik'), false) then
+    return '[]'::jsonb;
+  end if;
+  if p_sana is null or p_profil is null then
+    return '[]'::jsonb;
+  end if;
+
+  select coalesce(array_agg(yd.yuk_id), '{}'::integer[])
+    into v_ids
+    from yuk_deadline yd
+   where yd.deadline = p_sana and yd.profil = p_profil;
+
+  if array_length(v_ids, 1) is null then
+    return '[]'::jsonb;
+  end if;
+
+  v_tannarx := coalesce(yuk_tannarx_jami(v_ids), '{}'::jsonb);
+  v_bojxona := coalesce(yuk_bojxona_jami(v_ids), '{}'::jsonb);
+
+  select coalesce(jsonb_object_agg(t ->> 'yuk_id', t ->> 'tolangan_uzs'), '{}'::jsonb)
+    into v_tolangan_map
+    from jsonb_array_elements(coalesce(yuk_tolangan_summa(v_ids), '[]'::jsonb)) as t;
+
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'yuk_id', yd.yuk_id, 'narx', yd.narx, 'valyuta', yd.valyuta, 'izoh', yd.izoh,
+             'qoldiq_uzs', greatest(0,
+               coalesce(yd.narx, 0)
+                 * coalesce(case when upper(coalesce(yd.valyuta, 'UZS')) = 'UZS' then 1::numeric
+                                 else conv_baza_kurs(yd.valyuta) end, 0)
+               + coalesce((v_tannarx -> yd.yuk_id::text ->> 'jami_uzs')::numeric, 0)
+               + coalesce((v_bojxona -> yd.yuk_id::text ->> 'bojxona_uzs')::numeric, 0)
+               - coalesce((v_tolangan_map ->> yd.yuk_id::text)::numeric, 0)))
+             order by yd.yuk_id)
+      from yuk_deadline yd
+     where yd.yuk_id = any(v_ids)
+  ), '[]'::jsonb);
+end
+$bk_qarz_detal$;
+
+revoke all on function beshkunlik_qarz_detal(date, text) from public, anon;
+grant execute on function beshkunlik_qarz_detal(date, text) to authenticated;
+
+comment on function beshkunlik_qarz_detal(date, text) is
+  '5 kunlik Qarzmiz katagi hover: bitta kun/profil uchun yuk qatorlari '
+  '[{yuk_id, narx, valyuta, izoh, qoldiq_uzs}]. yetkazuvchi YOQ (bazada saqlanmaydi). '
+  'Ruxsat: perm_has_page(''beshkunlik'') ichida, yoq bolsa bosh massiv.';
+
+
+-- #####################################################################
+-- ##  12-BO'LIM — YAKUNIY TEKSHIRUV (6-BOSQICH, faqat select/raise)   ##
+-- #####################################################################
+
+do $bk_qarz_final$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema='public' and table_name='yuk_deadline' and column_name='profil'
+  ) then
+    raise exception 'YAKUNIY TEKSHIRUV: yuk_deadline.profil ustuni yaralmadi';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema='public' and table_name='yuk_deadline' and column_name='narx'
+  ) then
+    raise exception 'YAKUNIY TEKSHIRUV: yuk_deadline.narx ustuni yaralmadi';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema='public' and table_name='yuk_deadline' and column_name='valyuta'
+  ) then
+    raise exception 'YAKUNIY TEKSHIRUV: yuk_deadline.valyuta ustuni yaralmadi';
+  end if;
+  if to_regprocedure('public.beshkunlik_qarz(date,date)') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_qarz(date,date) yaralmadi';
+  end if;
+  if to_regprocedure('public.beshkunlik_qarz_detal(date,text)') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_qarz_detal(date,text) yaralmadi';
+  end if;
+
+  raise notice 'PROVODKA_5KUNLIK.sql: Qarz bloki tayyor (6-bosqich qoshimchasi)';
+end
+$bk_qarz_final$;

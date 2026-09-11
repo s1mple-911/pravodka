@@ -79,9 +79,19 @@
   td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:right}
   td:first-child{text-align:left}tr:last-child td{border-bottom:none}
   .empty{color:var(--muted);text-align:center;padding:34px;font-size:14px}
-  .scroll{overflow-x:auto}
+  /* 6-BOSQICH: .scroll o'z BALANDLIGIGA ega (max-height+overflow-y:auto) — shundagina thead
+     `position:sticky;top:0` ICHKI scroll konteynerga nisbatan ishlaydi (aylanma-dev.html'dagi
+     `.dd .scroll` naqshi bilan bir xil). Balandliksiz .scroll'da overflow-x:auto o'zi ham
+     overflow-y'ni "auto" qilib qo'yadi (CSS spec), lekin ichida haqiqiy vertikal scroll bo'lmagani
+     uchun sticky hech qachon "ushlanmaydi" — sahifa scroll qilinsa headerlar tashqariga chiqib ketardi. */
+  .scroll{overflow:auto;max-height:calc(100vh - 300px);min-height:220px}
   .scroll table{min-width:2500px}
   .scroll td,.scroll th{white-space:nowrap}
+  /* Tepadagi ikkinchi (ko'zga tashlanadigan) gorizontal scrollbar — asosiy .scroll bilan
+     ikki tomonlama sinxron (bkBindScrollSync()). Faqat scrollbarning o'zi ko'rinishi kerak,
+     shuning uchun balandlik minimal, ichidagi div esa jadval eni bilan bir xil qilib qo'yiladi. */
+  .scroll-top{overflow-x:auto;overflow-y:hidden;height:16px;margin-bottom:2px}
+  .scroll-top-bar{height:1px}
   /* ---- 27-ustunli jadval: sticky Sana ustuni + sticky thead + ikki blok (Aksessuar/Zapchast) ---- */
   .scroll thead th{position:sticky;top:0;z-index:3;background:var(--surface-2)}
   td.sana-col,th.sana-col{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left}
@@ -98,11 +108,15 @@
   td.num{min-width:88px;font-variant-numeric:tabular-nums}
   td.num.muted{color:var(--muted)}
   td.num.neg{color:var(--red)}
+  td.num.pos{color:var(--green)}
   /* Aksessuar / Zapchast bloklari orasidagi chegara — Zapchast blokining birinchi ustuni */
   .blk-start{border-left:2px solid var(--muted)}
   /* ---- 3-bosqich: Savdo/Fakt katagi (jonli/muhrlangan) + so'm-kurs almashtirgich + filial popover ---- */
   .fk-cell{cursor:pointer;color:var(--ink);font-weight:600}
   .fk-cell:hover{background:var(--surface-2)}
+  /* ---- 6-bosqich: Qarzmiz katagi — hover/tap'da yuk ro'yxati popoveri ---- */
+  .qarz-cell{cursor:pointer}
+  .qarz-cell:hover{background:var(--surface-2)}
   .fk-usd{white-space:nowrap}
   .fk-sub{font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
   .fk-lock{margin-left:4px;font-size:10px;cursor:help}
@@ -248,7 +262,8 @@
       </div>
       <div class="bk-open" id="bkOpen"></div>
 
-      <div class="scroll"><table>
+      <div class="scroll-top" id="scrollTop" aria-hidden="true"><div class="scroll-top-bar" id="scrollTopBar"></div></div>
+      <div class="scroll" id="scrollMain"><table>
         <thead id="thead5k"></thead>
         <tbody id="tbody"><tr><td colspan="27" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
@@ -406,9 +421,9 @@ const oyNowStr=()=>isoDay(nowUz()).slice(0,7);
 function oyUz(v){ if(!v) return ''; const [y,m]=v.split('-'); return UZ_MON[+m-1]+' '+y; }
 function syncOyUI(){ const v=$('oy').value, cur=oyNowStr(); $('oyNow').style.display=(v&&v!==cur)?'inline-flex':'none'; }
 window.bkOyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').map(Number);
-  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); };
-window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); };
-window.bkOyChange=()=>{ syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); };
+  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); loadQarz().then(renderTable); };
+window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); loadQarz().then(renderTable); };
+window.bkOyChange=()=>{ syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); loadQarz().then(renderTable); };
 
 /* ---- 27-ustunli jadval karkasi ----
    Har profil (Aksessuar/Zapchast) uchun 13 ustun, 4 guruhga bo'lingan: Savdo, Yig'ilma,
@@ -443,6 +458,27 @@ function buildHeader(){
 }
 const fmtDayShort=iso=>{ const [,m,d]=iso.split('-').map(Number); return `${d} ${OY_QISQA[m-1]}`; };
 
+/* ---- 6-BOSQICH: tepadagi ikkinchi gorizontal scrollbar — asosiy .scroll bilan ikki
+   tomonlama sinxron. `bkSyncScrollTopWidth()` jadval eni o'zgarganda (renderTable) qayta
+   chaqiriladi, `bkBindScrollSync()` esa faqat BIR MARTA (init()) — listener ko'payib ketmasin. ---- */
+let SCROLL_SYNCING=false;
+function bkSyncScrollTopWidth(){
+  const bar=$('scrollTopBar'), main=$('scrollMain');
+  if(!bar||!main) return;
+  const table=main.querySelector('table');
+  bar.style.width=(table?table.scrollWidth:0)+'px';
+}
+function bkBindScrollSync(){
+  const top=$('scrollTop'), main=$('scrollMain');
+  if(!top||!main) return;
+  top.addEventListener('scroll',()=>{ if(SCROLL_SYNCING) return; SCROLL_SYNCING=true; main.scrollLeft=top.scrollLeft; SCROLL_SYNCING=false; });
+  main.addEventListener('scroll',()=>{ if(SCROLL_SYNCING) return; SCROLL_SYNCING=true; top.scrollLeft=main.scrollLeft; SCROLL_SYNCING=false; });
+  window.addEventListener('resize',bkSyncScrollTopWidth);
+  // .scroll endi o'zi ICHIDA vertikal ham aylanadi (sticky thead uchun) — shu paytda ochiq
+  // popover (fk/qarz) eski joyida osilib qolmasin (u position:fixed, katakka bog'lanmagan).
+  main.addEventListener('scroll',()=>{ if(window.bkPopHide) window.bkPopHide(); popOpenKey=null; },{passive:true});
+}
+
 /* ---- Savdo/Fakt katagi — jonli yoki muhrlangan, dollar (+ ixtiyoriy so'm/kurs)
    4-BOSQICH: shartli rang qo'shildi — kunlik Uzgaradi bilan solishtirilib
    yashil/qizil fon chiziladi (Uzgaradi bo'sh/0 bo'lsa rang yo'q). ---- */
@@ -472,6 +508,27 @@ function faktTd(profil, iso, blk, uzgardiVal){
 }
 function numTd(val,blk){
   return `<td class="num${val<0?' neg':''}${blk?' blk-start':''}">${money(val)}</td>`;
+}
+/* ---- Qarz bloki (6-BOSQICH) — Qarzmiz (manfiy, qizil) hover/tap'da o'sha kun/profil
+   yuklarining ro'yxatini ko'rsatadi (beshkunlik_qarz_detal, so'mda). Berdik musbat/yashil.
+   Raznitsa 0 bo'lsa xira (to'liq to'langan), aks holda ajralib turadi. ---- */
+function qarzTd(profil,iso,val,blk){
+  const r=Math.round(val);   // rang ko'rsatilgan songa mos bo'lsin (kasr chayqalishi 0'ni "0 emas" qilmasin)
+  const cls='num qarz-cell'+(r<0?' neg':'')+(r===0?' muted':'')+(blk?' blk-start':'');
+  const handlers=HOVER_OK
+    ? `onmouseenter="window.bkQarzPopShow(event,'${profil}','${iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkQarzPopToggle(event,'${profil}','${iso}')"`;
+  return `<td class="${cls}" ${handlers}>${money(val)}</td>`;
+}
+function berdikTd(val,blk){
+  const r=Math.round(val);
+  const cls='num'+(r>0?' pos':'')+(r===0?' muted':'')+(blk?' blk-start':'');
+  return `<td class="${cls}">${money(val)}</td>`;
+}
+function raznitsaTd(val,blk){
+  const r=Math.round(val);
+  const cls='num'+(r===0?' muted':(r<0?' neg':' pos'))+(blk?' blk-start':'');
+  return `<td class="${cls}">${money(val)}</td>`;
 }
 /* ---- Reja/Uzgaradi — tahrirlanadigan katak (4-bosqich). Faqat shu ikki ustun
    yoziladi; Excel funksiyalari (tanlash, sudrab to'ldirish, nusxa/joylashtirish)
@@ -507,8 +564,9 @@ function buildRowCells(row){
         }else if(g.name==="Yig'ilma"){
           s+=numTd(k===0?pd.yigReja:(k===1?pd.yigUzga:pd.yigFakt), blk);
         }else if(g.name==='Qarz'){
-          // Qarzmiz/Berdik/Raznitsa hali ulanmagan (6-bosqich) — ataylab '—'
-          s+=`<td class="num muted${blk?' blk-start':''}">—</td>`;
+          if(k===0) s+=qarzTd(profil,row.iso,pd.qarzmiz,blk);
+          else if(k===1) s+=berdikTd(pd.berdik,blk);
+          else s+=raznitsaTd(pd.raznitsa,blk);
         }else{ // Qoldi pul
           const val=k===0?pd.qoldiReja:(k===1?pd.qoldiUzga:(k===2?pd.qoldiFakt:pd.qoldiRaz));
           s+=numTd(val,blk);
@@ -522,7 +580,8 @@ function buildRowCells(row){
 const daysInMonth=(y,m0)=>new Date(Date.UTC(y,m0+1,0)).getUTCDate();
 
 /* ---- Kunlik hisob-kitob (C-bo'lim): Yig'ilma/Qoldi pul, brief formulasi bo'yicha.
-   Qarzmiz/Berdik hali ulanmagan — 0 deb hisoblanadi (Qoldi.Reja=Yig.Reja, Qoldi.Fakt=Yig.Fakt).
+   Qarzmiz/Berdik QARZ_MAP dan (6-bosqich, loadQarz() to'ldiradi) — ma'lumot hali kelmagan
+   bo'lsa 0 deb hisoblanadi (Qoldi.Reja=Yig.Reja, Qoldi.Fakt=Yig.Fakt, avvalgidek).
    Yig'ilma OY BOSHIDA nolga tushmaydi: OPEN_BAL (loadReja() to'ldiradi) — tanlangan oydan oldingi
    BARCHA kunlarning yig'indisi (reja/uzgardi jadvaldan to'liq, fakt esa faqat muhrlangan kunlardan —
    pastdagi izohga qara) — shu boshlang'ich qoldiqdan kunma-kun qo'shib boriladi. */
@@ -544,8 +603,11 @@ function buildMonthData(y,m,dim){
       const fakt=(fd&&fd.usd!=null)?Number(fd.usd):null;
       run[p].reja+=(reja||0); run[p].uzgardi+=(uzgardi||0); run[p].fakt+=(fakt||0);
       const yigReja=run[p].reja, yigUzga=run[p].uzgardi, yigFakt=run[p].fakt;
-      const qoldiReja=yigReja, qoldiUzga=yigUzga, qoldiFakt=yigFakt;   // + Qarzmiz(0) / − Berdik(0)
-      row.profil[p]={reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt};
+      const qd=QARZ_MAP[p][iso]||{};
+      const qarzmiz=qd.qarzmiz||0, berdik=qd.berdik||0, raznitsa=qarzmiz+berdik;
+      const qoldiReja=yigReja+qarzmiz, qoldiUzga=yigUzga+qarzmiz, qoldiFakt=yigFakt-berdik;
+      row.profil[p]={reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qarzmiz,berdik,raznitsa,
+                      qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt};
     });
     rows.push(row);
   }
@@ -582,6 +644,7 @@ function renderTable(){
     rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row)}</tr>`);
   });
   $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+2*COLS_PER_PROFIL}" class="empty">Filtrga mos kun topilmadi</td></tr>`;
+  bkSyncScrollTopWidth();
 }
 
 /* =====================================================================
@@ -879,6 +942,88 @@ async function loadReja(){
   }catch(e){ console.warn("boshlang'ich fakt oqilmadi:",e.message); }
 }
 
+/* =====================================================================
+   6-BOSQICH — Qarz bloki: beshkunlik_qarz(from,to) SO'MDA, dollarga
+   klientda sanali kurs bilan (beshkunlik_kurslar — Fakt bilan bir xil
+   funksiya) o'giriladi. Qarzmiz MANFIY saqlanadi (formulalarda to'g'ridan
+   qo'shiladi), Berdik musbat. ===================================== */
+let QARZ_MAP={aksessuar:{},zapchast:{}};   // profil -> sana -> {qarzmiz,berdik} (USD)
+let QARZ_DETAIL_CACHE={};                  // 'profil|sana' -> Promise<qatorlar> (beshkunlik_qarz_detal, so'mda)
+
+async function loadQarz(){
+  const v=$('oy').value||oyNowStr();
+  const [y,m]=v.split('-').map(Number);
+  const dim=daysInMonth(y,m-1);
+  const first=`${y}-${pad2(m)}-01`, last=`${y}-${pad2(m)}-${pad2(dim)}`;
+
+  QARZ_MAP={aksessuar:{},zapchast:{}};
+  QARZ_DETAIL_CACHE={};   // oy almashsa eski hover keshi qoldirilmaydi
+
+  let rows=[];
+  try{
+    const {data,error}=await sb.rpc('beshkunlik_qarz',{p_from:first,p_to:last});
+    if(error) throw error;
+    rows=data||[];
+  }catch(e){ console.warn('beshkunlik_qarz oqilmadi:',e.message); return; }
+  if(!rows.length) return;
+
+  let kursMap={};
+  try{
+    const {data,error}=await sb.rpc('beshkunlik_kurslar',{p_sanalar:[...new Set(rows.map(r=>r.sana))]});
+    if(error) throw error;
+    kursMap=data||{};
+  }catch(e){ console.warn('beshkunlik_kurslar (qarz) xato:',e.message); }
+
+  rows.forEach(r=>{
+    const p=r.profil;
+    if(!QARZ_MAP[p]) return;
+    const kurs=(kursMap&&kursMap[r.sana]!=null)?Number(kursMap[r.sana]):null;
+    const qUzs=Number(r.qarzmiz_uzs)||0, bUzs=Number(r.berdik_uzs)||0;
+    // kurs topilmasa (juda kamdan-kam) 0 deb olinadi — dollar ustunlari NaN bo'lib qolmasin.
+    QARZ_MAP[p][r.sana]={ qarzmiz:(kurs>0)?-(qUzs/kurs):0, berdik:(kurs>0)?(bUzs/kurs):0 };
+  });
+}
+
+/* ---- Qarzmiz katagi hover/tap — o'sha kun/profil deadline'i kelgan yuklar (so'mda) ---- */
+function fetchQarzDetal(profil,iso){
+  const key=profil+'|'+iso;
+  if(QARZ_DETAIL_CACHE[key]) return QARZ_DETAIL_CACHE[key];
+  const p=sb.rpc('beshkunlik_qarz_detal',{p_sana:iso,p_profil:profil})
+    .then(({data,error})=>{ if(error) throw error; return data||[]; })
+    .catch(e=>{ console.warn('beshkunlik_qarz_detal xato:',e.message); return []; });
+  QARZ_DETAIL_CACHE[key]=p;
+  return p;
+}
+function renderQarzPop(profil,iso,rect){
+  const pop=$('bkPop'), key='qarz|'+profil+'|'+iso;
+  pop.dataset.popKey=key;
+  pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])} · Qarzmiz</h4>`
+    +`<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yuklanmoqda…</span></div>`;
+  pop.classList.add('open');
+  positionPop(rect);
+  fetchQarzDetal(profil,iso).then(rows=>{
+    // shu orada popover yopilgan yoki boshqa katakka o'tgan bo'lishi mumkin (async race) — o'sha holda
+    // eski javob bilan boshqa (yoki yopiq) popoverni ustidan yozmaymiz.
+    if(pop.dataset.popKey!==key || !pop.classList.contains('open')) return;
+    const body=rows.length
+      ? rows.map(r=>`<div class="bkp-row"><span class="bkp-name">Yuk #${esc(r.yuk_id)}${r.izoh?(' · '+esc(r.izoh)):''}</span>`
+          +`<span>${money(Number(r.qoldiq_uzs)||0)} so'm</span></div>`).join('')
+      : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yuk topilmadi</span></div>`;
+    const total=rows.reduce((s,r)=>s+(Number(r.qoldiq_uzs)||0),0);
+    pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])} · Qarzmiz</h4>${body}`
+      +`<div class="bkp-total"><span>Jami</span><span>${money(total)} so'm</span></div>`;
+    positionPop(rect);
+  });
+}
+window.bkQarzPopShow=(ev,profil,iso)=>{ renderQarzPop(profil,iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkQarzPopToggle=(ev,profil,iso)=>{
+  ev.stopPropagation();
+  const key='qarz|'+profil+'|'+iso;
+  if(popOpenKey===key){ $('bkPop').classList.remove('open'); popOpenKey=null; return; }
+  renderQarzPop(profil,iso,ev.currentTarget.getBoundingClientRect());
+  popOpenKey=key;
+};
+
 /* ---- Ommaviy reja kiritish modali — Oylik/Yillik, tanlangan summa kunlarga teng bo'linadi ---- */
 function distributeMonth(y,m0,total){
   const dim=daysInMonth(y,m0);
@@ -1099,6 +1244,7 @@ function renderPop(profil,iso,rect){
     : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Filial tafsiloti yo'q</span></div>`;
   const total=`<div class="bkp-total"><span>Jami</span><span>${money(d.uzs)} so'm<span class="bkp-usd">≈ $${d.usd==null?'—':money(d.usd)}</span></span></div>`;
   const pop=$('bkPop');
+  pop.dataset.popKey='fk|'+profil+'|'+iso;   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
   pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])}</h4>${body}${total}`;
   pop.classList.add('open');
   positionPop(rect);
@@ -1114,7 +1260,7 @@ window.bkPopToggle=(ev,profil,iso)=>{
 };
 document.addEventListener('click',e=>{
   if(!popOpenKey) return;
-  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')) return;
+  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.qarz-cell')) return;
   $('bkPop').classList.remove('open'); popOpenKey=null;
 });
 
@@ -1127,7 +1273,8 @@ async function init(){
   $('addBtn').style.display=canEdit?'inline-flex':'none';
   renderTable();
   icons();
-  await Promise.all([loadRole(), loadFakt(), loadReja().then(renderTable)]);
+  bkBindScrollSync();
+  await Promise.all([loadRole(), loadFakt(), loadReja().then(renderTable), loadQarz().then(renderTable)]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
