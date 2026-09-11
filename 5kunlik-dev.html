@@ -25,8 +25,8 @@
 <script src="ai-widget-dev.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--tr:#4f74ff;--tr-soft:#16233b;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--green-rgb:18,183,106;--red:#f04438;--red-soft:#feecea;--red-rgb:240,68,56;--tr:#2f5bea;--tr-soft:#eaf0ff;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--green-rgb:45,208,138;--red:#ff5c50;--red-soft:#33150f;--red-rgb:255,92,80;--tr:#4f74ff;--tr-soft:#16233b;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
   .num,td.n{font-variant-numeric:tabular-nums}
@@ -140,6 +140,41 @@
   .msheet a.active svg{color:var(--primary)}
   .msheet .close{width:100%;height:46px;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s}
   .msheet .close:hover{background:var(--line)}
+  /* ---- 4/5-BOSQICH: filtr chiplar, boshlang'ich qoldiq, tahrirlanadigan katak, sudrab to'ldirish ---- */
+  .chipbar{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,color .13s,border-color .13s}
+  .chip:hover{border-color:var(--primary)}
+  .chip.on{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+  .bk-open{font-size:12.5px;color:var(--muted);margin:2px 0 10px;line-height:1.6}
+  .can-edit .ed-cell{cursor:cell}
+  .ed-cell{position:relative}
+  .ed-cell.sel{outline:2px solid var(--primary);outline-offset:-2px;background:var(--primary-soft)}
+  .ed-cell.inrange{background:var(--primary-soft)}
+  .ed-cell.fillprev{outline:2px dashed var(--primary);outline-offset:-2px}
+  .ed-cell.editing{padding:5px 6px}
+  .ed-in{width:100%;border:1px solid var(--primary);border-radius:6px;padding:4px 6px;font-size:14px;font-family:inherit;text-align:right;background:var(--surface);color:var(--ink);outline:none;font-variant-numeric:tabular-nums}
+  .fill-handle{position:absolute;right:0;bottom:0;width:7px;height:7px;background:var(--primary);border:1px solid var(--surface);cursor:crosshair;z-index:2}
+  /* ---- Reja qo'yish / tasdiq modal — kassa-dev.html dagi .modal/.sheet naqshi bilan bir xil ---- */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .modal.open{display:flex}
+  @media(min-width:600px){.modal{align-items:center;padding:20px}}
+  .sheet{background:var(--surface);width:100%;max-width:440px;border-radius:20px 20px 0 0;padding:20px;max-height:92vh;overflow:auto}
+  @media(min-width:600px){.sheet{border-radius:20px}}
+  .sheet h3{margin:0 0 16px;font-size:19px;font-weight:800}
+  label{font-size:13px;color:var(--muted);display:block;margin:0 0 7px 2px;font-weight:500}
+  .txt{width:100%;height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:0 13px;font-size:15px;font-family:inherit;outline:none;margin-bottom:15px;cursor:text;transition:border-color .13s,box-shadow .13s}
+  .txt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .cvseg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-bottom:16px}
+  .cvseg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
+  .cvseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .cv-msg{border-radius:11px;padding:12px 14px;font-size:13.5px;margin-bottom:14px;display:none;line-height:1.5}
+  .cv-msg.err{background:var(--red-soft);color:var(--red);display:block}
+  .cv-msg.ok{background:var(--green-soft);color:var(--green);display:block}
+  .modrow{display:flex;gap:8px;margin-top:8px}
+  .modrow button{flex:1;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-weight:600;font-family:inherit;font-size:15px;cursor:pointer;transition:background .13s}
+  .modrow button:hover{background:var(--line)}
+  .modrow button.primary{background:var(--primary);color:#fff;border:none}
+  .modrow button.primary:hover{background:var(--primary-hover)}
 </style>
 </head>
 <body>
@@ -202,9 +237,16 @@
     <div id="info" class="banner info"></div>
 
     <div class="card">
-      <div class="fbar" style="justify-content:flex-end">
-        <button class="btn" id="addBtn" style="display:none" onclick="window.bkAddRow()"><i data-lucide="plus"></i>Qo'shish</button>
+      <div class="fbar">
+        <div class="chipbar" id="chipbar">
+          <button class="chip on" data-f="all" onclick="window.bk5kFilter('all')">Hammasi</button>
+          <button class="chip" data-f="ish" onclick="window.bk5kFilter('ish')">Faqat ish kunlari</button>
+          <button class="chip" data-f="farqli" onclick="window.bk5kFilter('farqli')">Farqi bor kunlar</button>
+          <button class="chip" data-f="rejasiz" onclick="window.bk5kFilter('rejasiz')">Reja yo'q kunlar</button>
+        </div>
+        <button class="btn" id="addBtn" style="display:none" onclick="window.bkOpenPlanModal()"><i data-lucide="calendar-plus"></i>Reja qo'yish</button>
       </div>
+      <div class="bk-open" id="bkOpen"></div>
 
       <div class="scroll"><table>
         <thead id="thead5k"></thead>
@@ -246,6 +288,40 @@
 
   <!-- Fakt katagi ustiga hover/tap qilinganda filial kesimi (3-bosqich) -->
   <div id="bkPop" class="bkpop" onclick="event.stopPropagation()"></div>
+
+  <!-- Ommaviy reja kiritish (4-bosqich) — oylik/yillik summa tanlangan kunlarga teng bo'linadi -->
+  <div class="modal" id="planModal" onclick="if(event.target===this)window.bkClosePlan()"><div class="sheet">
+    <h3>Reja qo'yish</h3>
+    <div id="plMsg" class="cv-msg"></div>
+    <label>Profil</label>
+    <div class="cvseg" id="plProfSeg">
+      <button type="button" class="on" data-p="aksessuar" onclick="window.bkPlanProfTog('aksessuar',this)">Aksessuar</button>
+      <button type="button" class="on" data-p="zapchast" onclick="window.bkPlanProfTog('zapchast',this)">Zapchast</button>
+    </div>
+    <label>Rejim</label>
+    <div class="cvseg" id="plModeSeg">
+      <button type="button" class="on" onclick="window.bkPlanMode('oylik',this)">Oylik</button>
+      <button type="button" onclick="window.bkPlanMode('yillik',this)">Yillik</button>
+    </div>
+    <div id="plOylikBox">
+      <label>Oy</label><input class="txt" id="plOy" type="month">
+    </div>
+    <div id="plYillikBox" style="display:none">
+      <label>Yil</label><input class="txt" id="plYil" type="number" inputmode="numeric" min="2020" max="2100" placeholder="2026">
+    </div>
+    <label>Summa ($) — hamma kuniga teng bo'linadi (yakshanba ham)</label>
+    <input class="txt" id="plSum" inputmode="decimal" placeholder="0">
+    <div class="modrow"><button type="button" onclick="window.bkClosePlan()">Bekor</button><button type="button" class="primary" id="plSaveBtn" onclick="window.bkPlanSave()">Saqlash</button></div>
+  </div></div>
+
+  <!-- Tasdiq modali — mavjud reja ustiga yozishdan oldin -->
+  <div class="modal" id="cfmModal" onclick="if(event.target===this)window.bkCfmNo()" role="alertdialog" aria-modal="true" aria-labelledby="cfmTitle" aria-describedby="cfmSub">
+    <div class="sheet">
+      <h3 id="cfmTitle">Tasdiqlang</h3>
+      <div id="cfmSub" style="font-size:14px;color:var(--muted);line-height:1.5"></div>
+      <div class="modrow"><button type="button" onclick="window.bkCfmNo()">Bekor</button><button type="button" class="primary" id="cfmYesBtn" onclick="window.bkCfmYes()">Davom etish</button></div>
+    </div>
+  </div>
 
 </div>
 
@@ -330,9 +406,9 @@ const oyNowStr=()=>isoDay(nowUz()).slice(0,7);
 function oyUz(v){ if(!v) return ''; const [y,m]=v.split('-'); return UZ_MON[+m-1]+' '+y; }
 function syncOyUI(){ const v=$('oy').value, cur=oyNowStr(); $('oyNow').style.display=(v&&v!==cur)?'inline-flex':'none'; }
 window.bkOyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').map(Number);
-  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); renderTable(); loadFakt(); };
-window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); renderTable(); loadFakt(); };
-window.bkOyChange=()=>{ syncOyUI(); renderTable(); loadFakt(); };
+  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); };
+window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); };
+window.bkOyChange=()=>{ syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); };
 
 /* ---- 27-ustunli jadval karkasi ----
    Har profil (Aksessuar/Zapchast) uchun 13 ustun, 4 guruhga bo'lingan: Savdo, Yig'ilma,
@@ -348,6 +424,7 @@ const GROUPS=[
 const COLS_PER_PROFIL=GROUPS.reduce((s,g)=>s+g.cols.length,0);   // 13
 const PROFILI=['aksessuar','zapchast'];
 const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
+const pad2=n=>String(n).padStart(2,'0');
 
 function buildHeader(){
   const grpRow=zap=>GROUPS.map((g,gi)=>`<th colspan="${g.cols.length}" class="grp-name${zap&&gi===0?' blk-start':''}">${esc(g.name)}</th>`).join('');
@@ -366,8 +443,10 @@ function buildHeader(){
 }
 const fmtDayShort=iso=>{ const [,m,d]=iso.split('-').map(Number); return `${d} ${OY_QISQA[m-1]}`; };
 
-/* ---- Savdo/Fakt katagi — jonli yoki muhrlangan, dollar (+ ixtiyoriy so'm/kurs) ---- */
-function faktTd(profil, iso, blk){
+/* ---- Savdo/Fakt katagi — jonli yoki muhrlangan, dollar (+ ixtiyoriy so'm/kurs)
+   4-BOSQICH: shartli rang qo'shildi — kunlik Uzgaradi bilan solishtirilib
+   yashil/qizil fon chiziladi (Uzgaradi bo'sh/0 bo'lsa rang yo'q). ---- */
+function faktTd(profil, iso, blk, uzgardiVal){
   const d=FAKT_DAY[profil]&&FAKT_DAY[profil][iso];
   if(!d) return `<td class="num muted${blk?' blk-start':''}">—</td>`;
   const usdTxt=d.usd==null?'—':money(d.usd);
@@ -378,17 +457,62 @@ function faktTd(profil, iso, blk){
   const handlers=HOVER_OK
     ? `onmouseenter="window.bkPopShow(event,'${profil}','${iso}')" onmouseleave="window.bkPopHide()"`
     : `onclick="window.bkPopToggle(event,'${profil}','${iso}')"`;
-  return `<td class="num fk-cell${blk?' blk-start':''}" ${handlers}>${inner}</td>`;
+  let style='', title='';
+  if(uzgardiVal!=null && uzgardiVal>0 && d.usd!=null){
+    const pct=Math.round(d.usd/uzgardiVal*100);
+    title=` title="reja ${pct}% bajarildi"`;
+    if(d.usd>=uzgardiVal){ style=' style="background:rgba(var(--green-rgb),.16)"'; }
+    else{
+      const shortfall=(uzgardiVal-d.usd)/uzgardiVal;
+      const alpha=Math.min(.55, .14+shortfall*.55).toFixed(2);
+      style=` style="background:rgba(var(--red-rgb),${alpha})"`;
+    }
+  }
+  return `<td class="num fk-cell${blk?' blk-start':''}"${style}${title} ${handlers}>${inner}</td>`;
 }
-function buildRowCells(iso){
+function numTd(val,blk){
+  return `<td class="num${val<0?' neg':''}${blk?' blk-start':''}">${money(val)}</td>`;
+}
+/* ---- Reja/Uzgaradi — tahrirlanadigan katak (4-bosqich). Faqat shu ikki ustun
+   yoziladi; Excel funksiyalari (tanlash, sudrab to'ldirish, nusxa/joylashtirish)
+   ham shu ikki ustunga tegishli — qolgan 25 ustun hisoblanadi/o'qiladi. ---- */
+function ediTd(profil, iso, val, col, blk){
+  const isEditing=EDITING && EDITING.p===profil && EDITING.c===col && EDITING.i===iso;
+  const isSel=SELECTED && SELECTED.p===profil && SELECTED.c===col && SELECTED.i===iso;
+  const inRange=!isSel && inSelRange(profil,col,iso);
+  const attrs=`data-p="${profil}" data-c="${col}" data-i="${iso}"`;
+  if(isEditing){
+    return `<td class="num ed-cell editing${blk?' blk-start':''}" ${attrs}>`
+      +`<input type="text" inputmode="decimal" autocomplete="off" class="ed-in" ${attrs} value="${val==null?'':val}" `
+      +`oninput="window.bkCellInput(this)" onkeydown="window.bkInputKey(event,this)" onblur="window.bkInputBlur(this)"></td>`;
+  }
+  const cls='num ed-cell'+(blk?' blk-start':'')+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'');
+  const handle=(canEdit && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${profil}','${col}','${iso}')"></span>` : '';
+  const tab=canEdit?'0':'-1';
+  return `<td class="${cls}" ${attrs} tabindex="${tab}" onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${handle}</td>`;
+}
+function buildRowCells(row){
   let s='';
   for(let p=0;p<2;p++){
     const profil=PROFILI[p];
+    const pd=row.profil[profil];
     let ci=0;
     for(const g of GROUPS){
       for(let k=0;k<g.cols.length;k++){
         const blk=(p===1&&ci===0);
-        s+= (g.name==='Savdo'&&k===2) ? faktTd(profil,iso,blk) : `<td class="num muted${blk?' blk-start':''}">—</td>`;
+        if(g.name==='Savdo'){
+          if(k===0) s+=ediTd(profil,row.iso,pd.reja,'reja',blk);
+          else if(k===1) s+=ediTd(profil,row.iso,pd.uzgardi,'uzgardi',blk);
+          else s+=faktTd(profil,row.iso,blk,pd.uzgardi);
+        }else if(g.name==="Yig'ilma"){
+          s+=numTd(k===0?pd.yigReja:(k===1?pd.yigUzga:pd.yigFakt), blk);
+        }else if(g.name==='Qarz'){
+          // Qarzmiz/Berdik/Raznitsa hali ulanmagan (6-bosqich) — ataylab '—'
+          s+=`<td class="num muted${blk?' blk-start':''}">—</td>`;
+        }else{ // Qoldi pul
+          const val=k===0?pd.qoldiReja:(k===1?pd.qoldiUzga:(k===2?pd.qoldiFakt:pd.qoldiRaz));
+          s+=numTd(val,blk);
+        }
         ci++;
       }
     }
@@ -396,24 +520,69 @@ function buildRowCells(iso){
   return s;
 }
 const daysInMonth=(y,m0)=>new Date(Date.UTC(y,m0+1,0)).getUTCDate();
+
+/* ---- Kunlik hisob-kitob (C-bo'lim): Yig'ilma/Qoldi pul, brief formulasi bo'yicha.
+   Qarzmiz/Berdik hali ulanmagan — 0 deb hisoblanadi (Qoldi.Reja=Yig.Reja, Qoldi.Fakt=Yig.Fakt).
+   Yig'ilma OY BOSHIDA nolga tushmaydi: OPEN_BAL (loadReja() to'ldiradi) — tanlangan oydan oldingi
+   BARCHA kunlarning yig'indisi (reja/uzgardi jadvaldan to'liq, fakt esa faqat muhrlangan kunlardan —
+   pastdagi izohga qara) — shu boshlang'ich qoldiqdan kunma-kun qo'shib boriladi. */
+function buildMonthData(y,m,dim){
+  const run={
+    aksessuar:{reja:OPEN_BAL.aksessuar.reja, uzgardi:OPEN_BAL.aksessuar.uzgardi, fakt:OPEN_BAL.aksessuar.fakt},
+    zapchast:{reja:OPEN_BAL.zapchast.reja, uzgardi:OPEN_BAL.zapchast.uzgardi, fakt:OPEN_BAL.zapchast.fakt},
+  };
+  const rows=[];
+  for(let d=1; d<=dim; d++){
+    const iso=`${y}-${pad2(m)}-${pad2(d)}`;
+    const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
+    const row={iso,dow,profil:{}};
+    PROFILI.forEach(p=>{
+      const rj=REJA_MAP[p][iso];
+      const reja=(rj&&rj.reja!=null)?Number(rj.reja):null;
+      const uzgardi=(rj&&rj.uzgardi!=null)?Number(rj.uzgardi):null;
+      const fd=FAKT_DAY[p][iso];
+      const fakt=(fd&&fd.usd!=null)?Number(fd.usd):null;
+      run[p].reja+=(reja||0); run[p].uzgardi+=(uzgardi||0); run[p].fakt+=(fakt||0);
+      const yigReja=run[p].reja, yigUzga=run[p].uzgardi, yigFakt=run[p].fakt;
+      const qoldiReja=yigReja, qoldiUzga=yigUzga, qoldiFakt=yigFakt;   // + Qarzmiz(0) / − Berdik(0)
+      row.profil[p]={reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt};
+    });
+    rows.push(row);
+  }
+  return rows;
+}
+function rowMatchesFilter(row){
+  if(CUR_FILTER==='ish') return row.dow!==6;
+  if(CUR_FILTER==='farqli') return PROFILI.some(p=>{ const x=row.profil[p]; return x.uzgardi!=null && x.fakt!=null && x.uzgardi!==x.fakt; });
+  if(CUR_FILTER==='rejasiz') return PROFILI.some(p=>row.profil[p].reja==null);
+  return true;
+}
+function renderOpenBal(){
+  const line=p=>`${PROFIL_LABEL[p]}: reja $${money(OPEN_BAL[p].reja)} · uzga $${money(OPEN_BAL[p].uzgardi)} · fakt $${money(OPEN_BAL[p].fakt)}`;
+  $('bkOpen').textContent="Boshlang'ich qoldiq (oy boshigacha yig'ilgan) — "+PROFILI.map(line).join('   ·   ');
+}
+window.bk5kFilter=f=>{
+  CUR_FILTER=f;
+  document.querySelectorAll('#chipbar .chip').forEach(b=>b.classList.toggle('on', b.dataset.f===f));
+  renderTable();
+};
 function renderTable(){
   const v=$('oy').value||oyNowStr();
   const [y,m]=v.split('-').map(Number);   // m — 1 dan boshlanadi (input value)
   const dim=daysInMonth(y,m-1);
   const todayIso=isoDay(nowUz());
+  MONTH_DATA=buildMonthData(y,m,dim);
+  renderOpenBal();
   const rows=[];
-  for(let d=1; d<=dim; d++){
-    const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
-    const cls=[dow===6?'sunday':'', iso===todayIso?'today':''].filter(Boolean).join(' ');
-    const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[dow]}`;
-    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(iso)}</tr>`);
-  }
-  $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+2*COLS_PER_PROFIL}" class="empty">Bu oyda kun yo'q</td></tr>`;
+  MONTH_DATA.forEach(row=>{
+    if(!rowMatchesFilter(row)) return;
+    const cls=[row.dow===6?'sunday':'', row.iso===todayIso?'today':''].filter(Boolean).join(' ');
+    const d=Number(row.iso.slice(8,10));
+    const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[row.dow]}`;
+    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row)}</tr>`);
+  });
+  $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+2*COLS_PER_PROFIL}" class="empty">Filtrga mos kun topilmadi</td></tr>`;
 }
-
-/* ---- "Qo'shish" tugmasi — faqat beshkunlik_edit bayrogi bor userga ko'rinadi ---- */
-window.bkAddRow=()=>{ showInfo("Qo'shish imkoniyati keyingi bosqichda qo'shiladi."); };
 
 /* =====================================================================
    3-BOSQICH — Savdo/Fakt: n8n webhook + sanali kurs + muhrlash
@@ -428,6 +597,382 @@ let popOpenKey=null;                      // click-rejimida ochiq popover kaliti
 
 window.bkToggleUzs=()=>{ SHOW_UZS=!SHOW_UZS; try{ localStorage.setItem('prov-5k-uzs',SHOW_UZS?'1':'0'); }catch(e){} buildHeader(); renderTable(); };
 window.bk5kRetry=()=>{ loadFakt(); };
+
+/* =====================================================================
+   4/5-BOSQICH — Reja/Uzgardi tahriri + Excel funksiyalari + filtrlar
+   ===================================================================== */
+let REJA_MAP={aksessuar:{},zapchast:{}};              // profil -> sana -> {reja,uzgardi}
+let OPEN_BAL={aksessuar:{reja:0,uzgardi:0,fakt:0}, zapchast:{reja:0,uzgardi:0,fakt:0}};   // oy boshigacha qoldiq
+let MONTH_DATA=[];                                    // renderTable() har chaqirilganda yangilanadi (buildMonthData())
+let CUR_FILTER='all';                                 // 'all' | 'ish' | 'farqli' | 'rejasiz'
+let SELECTED=null, EDITING=null, RANGE_ANCHOR=null;   // {p,c,i} — p=profil, c='reja'|'uzgardi', i=sana(iso)
+let FILL=null;                                        // sudrab to'ldirish holati {p,c,startIso,curIso,val}
+const SAVE_TIMERS={};                                 // debounce (~600ms) — kalit: 'p|c|i'
+let CFM_RESOLVE=null;                                 // ochiq tasdiq modalining Promise resolve'i
+let PLAN_PROFS=['aksessuar','zapchast'], PLAN_MODE='oylik';
+const EDIT_ORDER=[['aksessuar','reja'],['aksessuar','uzgardi'],['zapchast','reja'],['zapchast','uzgardi']];
+const dayList=()=>MONTH_DATA.map(r=>r.iso);
+const cellKey=(p,c,i)=>p+'|'+c+'|'+i;
+
+function inSelRange(p,c,iso){
+  if(!SELECTED || SELECTED.p!==p || SELECTED.c!==c) return false;
+  if(!RANGE_ANCHOR) return iso===SELECTED.i;
+  const days=dayList();
+  const a=days.indexOf(RANGE_ANCHOR), b=days.indexOf(SELECTED.i), x=days.indexOf(iso);
+  if(a<0||b<0||x<0) return iso===SELECTED.i;
+  return x>=Math.min(a,b) && x<=Math.max(a,b);
+}
+function focusSelected(){
+  if(!SELECTED) return;
+  const el=document.querySelector(`td[data-p="${SELECTED.p}"][data-c="${SELECTED.c}"][data-i="${SELECTED.i}"]`);
+  if(el){ el.focus({preventScroll:true}); el.scrollIntoView({block:'nearest',inline:'nearest'}); }
+}
+/* Tahrirdagi katakni saqlab (agar bo'lsa) tanlovni tozalaydi — oy/filtr almashganda,
+   eski sananing endi jadvalda yo'qligi (indexOf=-1) xatoga olib kelmasin uchun. */
+function bkResetSel(){ commitEditIfAny(); SELECTED=null; EDITING=null; RANGE_ANCHOR=null; FILL=null; }
+
+/* Har insert/update ikkala ustunni ham yuboradi (reja VA uzgardi) — beshkunlik_reja
+   PK (profil,sana) bitta qatorda ikkalasini saqlaydi, faqat bittasini yuborish
+   ikkinchisini eski qiymatga qaytarib qo'ymaydi (chunki ikkalasi ham REJA_MAP dan olinadi). */
+async function saveCell(p,c,i,rawVal){
+  const n=(rawVal===''||rawVal==null)?0:Number(rawVal);
+  const val=isFinite(n)?Math.round(n*100)/100:0;
+  if(!REJA_MAP[p][i]) REJA_MAP[p][i]={reja:0,uzgardi:0};
+  REJA_MAP[p][i][c]=val;
+  try{
+    const {error}=await sb.from('beshkunlik_reja')
+      .upsert([{profil:p, sana:i, reja:REJA_MAP[p][i].reja, uzgardi:REJA_MAP[p][i].uzgardi}],{onConflict:'profil,sana'});
+    if(error) throw error;
+  }catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); }
+}
+function commitEditIfAny(){
+  if(!EDITING) return;
+  const {p,c,i}=EDITING;
+  const input=document.querySelector(`input[data-p="${p}"][data-c="${c}"][data-i="${i}"]`);
+  clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]);
+  if(input) saveCell(p,c,i,input.value);
+  EDITING=null;
+}
+function startEdit(p,c,iso,initialChar,selectAll){
+  commitEditIfAny();
+  EDITING={p,c,i:iso}; SELECTED={p,c,i:iso}; RANGE_ANCHOR=iso;
+  renderTable();
+  const input=document.querySelector(`input[data-p="${p}"][data-c="${c}"][data-i="${iso}"]`);
+  if(input){
+    if(initialChar!=null) input.value=initialChar;
+    input.focus();
+    if(selectAll) input.select(); else{ const L=input.value.length; input.setSelectionRange(L,L); }
+  }
+}
+function cancelEdit(p,c,i){
+  clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]);
+  EDITING=null; SELECTED={p,c,i}; RANGE_ANCHOR=i;
+  renderTable(); focusSelected();
+}
+function moveSelectionAfterCommit(p,c,i,dir){
+  const days=dayList(); const rowIdx=days.indexOf(i);
+  if(dir==='down'){
+    const newRowIdx=Math.min(days.length-1,Math.max(0,rowIdx+1));
+    SELECTED={p,c,i:days[newRowIdx]};
+  }else{
+    let idx=EDIT_ORDER.findIndex(o=>o[0]===p&&o[1]===c)+1, newRowIdx=rowIdx;
+    if(idx>=EDIT_ORDER.length){ idx=0; newRowIdx=Math.min(days.length-1,rowIdx+1); }
+    const [np,nc]=EDIT_ORDER[idx];
+    SELECTED={p:np,c:nc,i:days[newRowIdx]};
+  }
+  RANGE_ANCHOR=SELECTED.i;
+  renderTable(); focusSelected();
+}
+function moveSelection(p,c,iso,key,shift){
+  const days=dayList(); const rowIdx=days.indexOf(iso);
+  if(rowIdx<0) return;
+  let newP=p, newC=c, newRowIdx=rowIdx;
+  if(key==='ArrowDown') newRowIdx=Math.min(days.length-1,rowIdx+1);
+  else if(key==='ArrowUp') newRowIdx=Math.max(0,rowIdx-1);
+  else if(key==='ArrowLeft'||key==='ArrowRight'){
+    let idx=EDIT_ORDER.findIndex(o=>o[0]===p&&o[1]===c);
+    idx+= key==='ArrowRight'?1:-1;
+    idx=Math.max(0,Math.min(EDIT_ORDER.length-1,idx));
+    [newP,newC]=EDIT_ORDER[idx];
+  }
+  const newIso=days[newRowIdx];
+  const extend=shift && (key==='ArrowDown'||key==='ArrowUp') && p===newP && c===newC;
+  SELECTED={p:newP,c:newC,i:newIso};
+  if(!extend) RANGE_ANCHOR=newIso;
+  renderTable(); focusSelected();
+}
+async function copySelection(){
+  if(!SELECTED) return;
+  const {p,c}=SELECTED;
+  const days=dayList();
+  const a=days.indexOf(RANGE_ANCHOR!=null?RANGE_ANCHOR:SELECTED.i), b=days.indexOf(SELECTED.i);
+  const lo=Math.min(a,b), hi=Math.max(a,b);
+  const vals=[];
+  for(let k=lo;k<=hi;k++){ const v=(REJA_MAP[p][days[k]]||{})[c]; vals.push(v==null?'':String(v)); }
+  const text=vals.join('\n');
+  try{ await navigator.clipboard.writeText(text); showInfo('Nusxalandi ('+vals.length+' qator)'); }
+  catch(e){
+    try{ const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      showInfo('Nusxalandi ('+vals.length+' qator)'); }
+    catch(e2){ showErr('Nusxalash amalga oshmadi'); }
+  }
+}
+function fillDown(p,c,iso){
+  const days=dayList(); const idx=days.indexOf(iso);
+  if(idx<=0) return;
+  const aboveVal=(REJA_MAP[p][days[idx-1]]||{})[c];
+  if(aboveVal==null) return;
+  saveCell(p,c,iso,String(aboveVal));
+  renderTable();
+}
+window.bkCellClick=(ev,td)=>{
+  if(!canEdit) return;
+  commitEditIfAny();
+  SELECTED={p:td.dataset.p,c:td.dataset.c,i:td.dataset.i}; RANGE_ANCHOR=td.dataset.i;
+  renderTable(); focusSelected();
+};
+window.bkCellDbl=td=>{ if(!canEdit) return; startEdit(td.dataset.p,td.dataset.c,td.dataset.i,null,true); };
+window.bkCellKey=(ev,td)=>{
+  if(!canEdit) return;
+  const p=td.dataset.p, c=td.dataset.c, iso=td.dataset.i, key=ev.key;
+  if(key==='Enter'||key==='F2'){ ev.preventDefault(); startEdit(p,c,iso,null,true); return; }
+  if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){ ev.preventDefault(); moveSelection(p,c,iso,key,ev.shiftKey); return; }
+  if(key==='Tab' && !ev.shiftKey){ ev.preventDefault(); moveSelectionAfterCommit(p,c,iso,'right'); return; }
+  if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='d'){ ev.preventDefault(); fillDown(p,c,iso); return; }
+  if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='c'){ ev.preventDefault(); copySelection(); return; }
+  if(/^[0-9.\-]$/.test(key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey){ ev.preventDefault(); startEdit(p,c,iso,key,false); }
+};
+window.bkCellInput=input=>{
+  const {p,c,i}=input.dataset, key=cellKey(p,c,i);
+  clearTimeout(SAVE_TIMERS[key]);
+  SAVE_TIMERS[key]=setTimeout(()=>{ saveCell(p,c,i,input.value); }, 600);
+};
+window.bkInputKey=(ev,input)=>{
+  const {p,c,i}=input.dataset;
+  if(ev.key==='Enter'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]); saveCell(p,c,i,input.value); EDITING=null; moveSelectionAfterCommit(p,c,i,'down'); }
+  else if(ev.key==='Tab'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]); saveCell(p,c,i,input.value); EDITING=null; moveSelectionAfterCommit(p,c,i,'right'); }
+  else if(ev.key==='Escape'){ ev.preventDefault(); cancelEdit(p,c,i); }
+};
+window.bkInputBlur=input=>{
+  const {p,c,i}=input.dataset;
+  if(!EDITING || EDITING.p!==p || EDITING.c!==c || EDITING.i!==i) return;   // Enter/Tab/Esc allaqachon yopgan
+  clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]);
+  saveCell(p,c,i,input.value);
+  EDITING=null;
+  renderTable();
+};
+/* ---- Pastga sudrab to'ldirish (fill handle) ---- */
+window.bkFillStart=(ev,p,c,iso)=>{
+  ev.preventDefault(); ev.stopPropagation();
+  if(!canEdit) return;
+  const val=(REJA_MAP[p][iso]||{})[c];
+  if(val==null) return;
+  FILL={p,c,startIso:iso,curIso:iso,val};
+  document.addEventListener('mousemove',onFillMove);
+  document.addEventListener('mouseup',onFillEnd);
+};
+function paintFillPreview(){
+  document.querySelectorAll('td.ed-cell.fillprev').forEach(td=>td.classList.remove('fillprev'));
+  if(!FILL) return;
+  const days=dayList();
+  const a=days.indexOf(FILL.startIso), b=days.indexOf(FILL.curIso);
+  for(let k=a;k<=b;k++){
+    const td=document.querySelector(`td.ed-cell[data-p="${FILL.p}"][data-c="${FILL.c}"][data-i="${days[k]}"]`);
+    if(td) td.classList.add('fillprev');
+  }
+}
+function onFillMove(ev){
+  if(!FILL) return;
+  const el=document.elementFromPoint(ev.clientX,ev.clientY);
+  const td=el && el.closest && el.closest('td.ed-cell');
+  if(!td || td.dataset.p!==FILL.p || td.dataset.c!==FILL.c) return;
+  const days=dayList();
+  const startIdx=days.indexOf(FILL.startIso), tIdx=days.indexOf(td.dataset.i);
+  if(tIdx<startIdx || td.dataset.i===FILL.curIso) return;
+  FILL.curIso=td.dataset.i;
+  paintFillPreview();
+}
+function onFillEnd(){
+  document.removeEventListener('mousemove',onFillMove);
+  document.removeEventListener('mouseup',onFillEnd);
+  if(!FILL) return;
+  const {p,c,startIso,curIso,val}=FILL;
+  const days=dayList();
+  const a=days.indexOf(startIso), b=days.indexOf(curIso);
+  FILL=null;
+  document.querySelectorAll('td.ed-cell.fillprev').forEach(td=>td.classList.remove('fillprev'));
+  if(b<=a) return;
+  const rows=[];
+  for(let k=a+1;k<=b;k++){
+    const iso=days[k];
+    if(!REJA_MAP[p][iso]) REJA_MAP[p][iso]={reja:0,uzgardi:0};
+    REJA_MAP[p][iso][c]=val;
+    rows.push({profil:p, sana:iso, reja:REJA_MAP[p][iso].reja, uzgardi:REJA_MAP[p][iso].uzgardi});
+  }
+  SELECTED={p,c,i:curIso}; RANGE_ANCHOR=startIso;
+  renderTable();
+  (async()=>{
+    try{ for(let k=0;k<rows.length;k+=200){ const {error}=await sb.from('beshkunlik_reja').upsert(rows.slice(k,k+200),{onConflict:'profil,sana'}); if(error) throw error; }
+      showInfo("To'ldirildi ("+rows.length+' kun)'); }
+    catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); }
+  })();
+}
+/* ---- Excel'dan nusxa olib joylashtirish (paste) — SELECTED katakdan boshlab pastga,
+   qator oxiri bilan ajratilgan sonlar. Ko'p ustunli nusxa bo'lsa faqat 1-ustun olinadi. ---- */
+document.addEventListener('paste', e=>{
+  if(!canEdit || !SELECTED || EDITING) return;
+  const text=(e.clipboardData||window.clipboardData)&&(e.clipboardData||window.clipboardData).getData('text');
+  if(!text) return;
+  e.preventDefault();
+  const lines=text.split(/\r\n|\n|\r/).filter((l,idx,arr)=>!(idx===arr.length-1 && l===''));
+  if(!lines.length) return;
+  const {p,c,i}=SELECTED;
+  const days=dayList(); const startIdx=days.indexOf(i);
+  if(startIdx<0) return;
+  const rows=[];
+  lines.forEach((line,k)=>{
+    const rowIdx=startIdx+k; if(rowIdx>=days.length) return;
+    const first=line.split('\t')[0].trim().replace(',', '.');
+    const n=Number(first);
+    if(!isFinite(n)) return;
+    const iso=days[rowIdx];
+    if(!REJA_MAP[p][iso]) REJA_MAP[p][iso]={reja:0,uzgardi:0};
+    REJA_MAP[p][iso][c]=Math.round(n*100)/100;
+    rows.push({profil:p, sana:iso, reja:REJA_MAP[p][iso].reja, uzgardi:REJA_MAP[p][iso].uzgardi});
+  });
+  if(!rows.length) return;
+  renderTable();
+  (async()=>{
+    try{ for(let k=0;k<rows.length;k+=200){ const {error}=await sb.from('beshkunlik_reja').upsert(rows.slice(k,k+200),{onConflict:'profil,sana'}); if(error) throw error; }
+      showInfo('Joylashtirildi ('+rows.length+' qator)'); }
+    catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); }
+  })();
+});
+
+/* ---- beshkunlik_reja: tanlangan oy uchun Reja/Uzgardi + boshlang'ich qoldiq ---- */
+async function loadReja(){
+  const v=$('oy').value||oyNowStr();
+  const [y,m]=v.split('-').map(Number);
+  const dim=daysInMonth(y,m-1);
+  const first=`${y}-${pad2(m)}-01`, last=`${y}-${pad2(m)}-${pad2(dim)}`;
+
+  REJA_MAP={aksessuar:{},zapchast:{}};
+  try{
+    const {data,error}=await sb.from('beshkunlik_reja').select('profil,sana,reja,uzgardi').gte('sana',first).lte('sana',last);
+    if(error) throw error;
+    (data||[]).forEach(r=>{ if(REJA_MAP[r.profil]) REJA_MAP[r.profil][r.sana]={reja:Number(r.reja)||0, uzgardi:Number(r.uzgardi)||0}; });
+  }catch(e){ console.warn('beshkunlik_reja oqilmadi:',e.message); }
+
+  OPEN_BAL={aksessuar:{reja:0,uzgardi:0,fakt:0}, zapchast:{reja:0,uzgardi:0,fakt:0}};
+  try{
+    const {data,error}=await sb.from('beshkunlik_reja').select('profil,reja,uzgardi').lt('sana',first);
+    if(error) throw error;
+    (data||[]).forEach(r=>{ const o=OPEN_BAL[r.profil]; if(!o) return; o.reja+=Number(r.reja)||0; o.uzgardi+=Number(r.uzgardi)||0; });
+  }catch(e){ console.warn("boshlang'ich reja oqilmadi:",e.message); }
+  // Fakt boshlang'ich qoldig'i faqat MUHRLANGAN kunlardan yig'iladi — sahifa hali yangi,
+  // hech kim ochmagan o'tmish kun muhrlanmagan bo'lishi mumkin (hisobotda tushuntirilgan).
+  try{
+    const {data,error}=await sb.from('beshkunlik_kun').select('profil,savdo_usd').lt('sana',first).not('frozen_at','is',null);
+    if(error) throw error;
+    (data||[]).forEach(r=>{ const o=OPEN_BAL[r.profil]; if(!o) return; o.fakt+=Number(r.savdo_usd)||0; });
+  }catch(e){ console.warn("boshlang'ich fakt oqilmadi:",e.message); }
+}
+
+/* ---- Ommaviy reja kiritish modali — Oylik/Yillik, tanlangan summa kunlarga teng bo'linadi ---- */
+function distributeMonth(y,m0,total){
+  const dim=daysInMonth(y,m0);
+  const base=Math.round((total/dim)*100)/100;
+  const vals=new Array(dim).fill(base);
+  vals[dim-1]=Math.round((total-base*(dim-1))*100)/100;   // qoldiq oxirgi kunga (yig'indi aniq total bo'lsin)
+  return vals;
+}
+function distributeYear(y,total){
+  const base=Math.round((total/12)*100)/100;
+  const perMonth=new Array(12).fill(base);
+  perMonth[11]=Math.round((total-base*11)*100)/100;
+  const out=[];
+  for(let mo=0; mo<12; mo++){
+    const vals=distributeMonth(y,mo,perMonth[mo]);
+    for(let d=1; d<=vals.length; d++) out.push({iso:`${y}-${pad2(mo+1)}-${pad2(d)}`, val:vals[d-1]});
+  }
+  return out;
+}
+function bkConfirm(title,sub){
+  return new Promise(resolve=>{
+    CFM_RESOLVE=resolve;
+    $('cfmTitle').textContent=title; $('cfmSub').textContent=sub;
+    $('cfmModal').classList.add('open');
+  });
+}
+window.bkCfmYes=()=>{ $('cfmModal').classList.remove('open'); const r=CFM_RESOLVE; CFM_RESOLVE=null; if(r) r(true); };
+window.bkCfmNo=()=>{ $('cfmModal').classList.remove('open'); const r=CFM_RESOLVE; CFM_RESOLVE=null; if(r) r(false); };
+window.bkOpenPlanModal=()=>{
+  if(!canEdit) return;
+  PLAN_PROFS=['aksessuar','zapchast']; PLAN_MODE='oylik';
+  document.querySelectorAll('#plProfSeg button').forEach(b=>b.classList.add('on'));
+  document.querySelectorAll('#plModeSeg button').forEach((b,idx)=>b.classList.toggle('on',idx===0));
+  $('plOylikBox').style.display='block'; $('plYillikBox').style.display='none';
+  $('plOy').value=$('oy').value||oyNowStr();
+  $('plYil').value=oyNowStr().slice(0,4);
+  $('plSum').value='';
+  $('plMsg').className='cv-msg'; $('plMsg').textContent='';
+  $('planModal').classList.add('open');
+};
+window.bkClosePlan=()=>{ $('planModal').classList.remove('open'); };
+window.bkPlanProfTog=(p,btn)=>{
+  btn.classList.toggle('on');
+  PLAN_PROFS=Array.from(document.querySelectorAll('#plProfSeg button.on')).map(b=>b.dataset.p);
+};
+window.bkPlanMode=(mode,btn)=>{
+  PLAN_MODE=mode;
+  document.querySelectorAll('#plModeSeg button').forEach(b=>b.classList.toggle('on',b===btn));
+  $('plOylikBox').style.display=mode==='oylik'?'block':'none';
+  $('plYillikBox').style.display=mode==='yillik'?'block':'none';
+};
+window.bkPlanSave=async()=>{
+  if(!canEdit) return;
+  const setMsg=(t,cls)=>{ const el=$('plMsg'); el.className='cv-msg'+(cls?(' '+cls):''); el.textContent=t||''; };
+  if(!PLAN_PROFS.length){ setMsg('Kamida bitta profil tanlang','err'); return; }
+  const sum=Number(String($('plSum').value||'').replace(',','.').replace(/[^0-9.\-]/g,''))||0;
+  if(sum<=0){ setMsg('Summani kiriting','err'); return; }
+  let dayVals;
+  if(PLAN_MODE==='oylik'){
+    const v=$('plOy').value; if(!v){ setMsg('Oyni tanlang','err'); return; }
+    const [y,m]=v.split('-').map(Number);
+    dayVals=distributeMonth(y,m-1,sum).map((val,idx)=>({iso:`${y}-${pad2(m)}-${pad2(idx+1)}`, val}));
+  }else{
+    const y=Number($('plYil').value); if(!y){ setMsg('Yilni kiriting','err'); return; }
+    dayVals=distributeYear(y,sum);
+  }
+  let existing=[];
+  try{
+    const {data,error}=await sb.from('beshkunlik_reja').select('profil,sana,reja,uzgardi')
+      .in('sana',dayVals.map(x=>x.iso)).in('profil',PLAN_PROFS);
+    if(error) throw error;
+    existing=data||[];
+  }catch(e){ setMsg('Xato: '+(e.message||String(e)),'err'); return; }
+  const hasExisting=existing.some(r=>(Number(r.reja)||0)!==0 || (Number(r.uzgardi)||0)!==0);
+  if(hasExisting){
+    const ok=await bkConfirm('Mavjud reja topildi',
+      PLAN_PROFS.map(p=>PROFIL_LABEL[p]).join(', ')+" uchun tanlangan davrda reja allaqachon bor — yangi qiymat ustidan yoziladi. Davom etasizmi?");
+    if(!ok) return;
+  }
+  const rows=[];
+  PLAN_PROFS.forEach(p=>{ dayVals.forEach(({iso,val})=>{ rows.push({profil:p, sana:iso, reja:val, uzgardi:val}); }); });
+  const btn=$('plSaveBtn'), old=btn.innerHTML; btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  try{
+    for(let k=0;k<rows.length;k+=200){
+      const {error}=await sb.from('beshkunlik_reja').upsert(rows.slice(k,k+200),{onConflict:'profil,sana'});
+      if(error) throw error;
+    }
+    window.bkClosePlan();
+    showInfo('Reja saqlandi ✓ ('+rows.length+' qator)');
+    await loadReja();
+    renderTable();
+  }catch(e){ setMsg('Xato: '+(e.message||String(e)),'err'); }
+  finally{ btn.disabled=false; btn.innerHTML=old; }
+};
 
 function applyWebJson(j){
   WEB_MAP={}; WEB_DETAL={};
@@ -506,8 +1051,7 @@ async function loadFakt(){
   const token=++FAKT_TOKEN;
   const [y,m]=v.split('-').map(Number);
   const dim=daysInMonth(y,m-1);
-  const p2=n=>String(n).padStart(2,'0');
-  const first=`${y}-${p2(m)}-01`, last=`${y}-${p2(m)}-${p2(dim)}`;
+  const first=`${y}-${pad2(m)}-01`, last=`${y}-${pad2(m)}-${pad2(dim)}`;
   const key='5kunlik:'+v;
 
   let webJson=swrGet(key);
@@ -579,10 +1123,11 @@ async function init(){
   $('oy').value=oyNowStr();
   syncOyUI();
   canEdit=!!(window.permFlagOk && window.permFlagOk('beshkunlik_edit'));
+  document.body.classList.toggle('can-edit',canEdit);
   $('addBtn').style.display=canEdit?'inline-flex':'none';
   renderTable();
   icons();
-  await Promise.all([loadRole(), loadFakt()]);
+  await Promise.all([loadRole(), loadFakt(), loadReja().then(renderTable)]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
