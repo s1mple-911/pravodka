@@ -100,6 +100,23 @@
   td.num.neg{color:var(--red)}
   /* Aksessuar / Zapchast bloklari orasidagi chegara — Zapchast blokining birinchi ustuni */
   .blk-start{border-left:2px solid var(--muted)}
+  /* ---- 3-bosqich: Savdo/Fakt katagi (jonli/muhrlangan) + so'm-kurs almashtirgich + filial popover ---- */
+  .fk-cell{cursor:pointer;color:var(--ink);font-weight:600}
+  .fk-cell:hover{background:var(--surface-2)}
+  .fk-usd{white-space:nowrap}
+  .fk-sub{font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
+  .fk-lock{margin-left:4px;font-size:10px;cursor:help}
+  .uzsbtn{margin-left:4px;height:auto;text-transform:none;letter-spacing:0;font-size:9px;font-weight:600;padding:1px 5px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;vertical-align:middle}
+  .uzsbtn.on{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+  .bkpop{position:fixed;z-index:250;display:none;min-width:220px;max-width:320px;max-height:320px;overflow-y:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-hover);padding:12px 14px;font-size:13px;white-space:normal}
+  .bkpop.open{display:block}
+  .bkpop h4{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .bkp-row{display:flex;justify-content:space-between;gap:14px;padding:5px 0;border-bottom:1px solid var(--line)}
+  .bkp-row:last-of-type{border-bottom:none}
+  .bkp-name{color:var(--ink)}
+  .bkp-ret{display:block;text-align:right;color:var(--red);font-size:11px}
+  .bkp-total{display:flex;justify-content:space-between;gap:14px;margin-top:8px;padding-top:8px;border-top:2px solid var(--line);font-weight:700}
+  .bkp-usd{margin-left:6px;color:var(--muted);font-weight:500;font-size:12px}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
   .authbox h1{font-size:23px;text-align:center;margin:0 0 4px;font-weight:800}.authbox p{text-align:center;color:var(--muted);margin:0 0 24px;font-size:14px}
@@ -227,6 +244,9 @@
   </div>
   <!-- /more-sheet -->
 
+  <!-- Fakt katagi ustiga hover/tap qilinganda filial kesimi (3-bosqich) -->
+  <div id="bkPop" class="bkpop" onclick="event.stopPropagation()"></div>
+
 </div>
 
 <script type="module">
@@ -245,6 +265,8 @@ const icons=()=>{ if(window.lucide) lucide.createIcons(); };
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let isAdmin=false, myName='', canEdit=false;
+const money=n=>{ const v=Math.round(Number(n)||0); return (v<0?'−':'')+Math.abs(v).toLocaleString('en-US').replaceAll(',',' '); };
+const rate2=n=>{ const v=Number(n); if(!isFinite(v)) return '—'; return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' '); };
 
 function syncThemeIcon(){ const dark=document.documentElement.getAttribute('data-theme')==='dark';
   document.querySelectorAll('button[onclick="toggleTheme()"] [data-lucide]').forEach(el=>el.setAttribute('data-lucide',dark?'sun':'moon')); icons(); }
@@ -283,7 +305,9 @@ async function boot(){
   }
 }
 
-function showErr(m){ if(!m){ $('err').style.display='none'; return; } $('err').style.display='block'; $('err').textContent=m; }
+function showErr(m,retry){ if(!m){ $('err').style.display='none'; $('err').innerHTML=''; return; }
+  $('err').style.display='block';
+  $('err').innerHTML=esc(m)+(retry?' <button class="btn ghost" style="height:28px;padding:0 10px;margin-left:8px;vertical-align:middle" onclick="window.bk5kRetry()">Qaytadan urinish</button>':''); }
 function showInfo(m){ $('info').style.display=m?'block':'none'; $('info').textContent=m||''; }
 
 async function loadRole(){
@@ -306,13 +330,15 @@ const oyNowStr=()=>isoDay(nowUz()).slice(0,7);
 function oyUz(v){ if(!v) return ''; const [y,m]=v.split('-'); return UZ_MON[+m-1]+' '+y; }
 function syncOyUI(){ const v=$('oy').value, cur=oyNowStr(); $('oyNow').style.display=(v&&v!==cur)?'inline-flex':'none'; }
 window.bkOyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').map(Number);
-  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); renderTable(); };
-window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); renderTable(); };
-window.bkOyChange=()=>{ syncOyUI(); renderTable(); };
+  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); renderTable(); loadFakt(); };
+window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); renderTable(); loadFakt(); };
+window.bkOyChange=()=>{ syncOyUI(); renderTable(); loadFakt(); };
 
-/* ---- 27-ustunli jadval karkasi (1-BOSQICH — ma'lumot ulash, RPC keyingi bosqichda) ----
+/* ---- 27-ustunli jadval karkasi ----
    Har profil (Aksessuar/Zapchast) uchun 13 ustun, 4 guruhga bo'lingan: Savdo, Yig'ilma,
-   Qarz, Qoldi pul. thead 3 qatorli: profil nomi -> guruh nomi -> ustun nomi. */
+   Qarz, Qoldi pul. thead 3 qatorli: profil nomi -> guruh nomi -> ustun nomi.
+   3-BOSQICH: faqat Savdo.Fakt katagi haqiqiy ma'lumot bilan to'ladi (faktTd()),
+   qolgan 26 ustun hali '—' (keyingi bosqichlar). */
 const GROUPS=[
   {name:'Savdo',      cols:['Reja','Uzgaradi','Fakt']},
   {name:"Yig'ilma",   cols:['Reja','Uzga','Fakt']},
@@ -320,11 +346,17 @@ const GROUPS=[
   {name:"Qoldi pul",  cols:['Reja','Uzga','Fakt','Raznitsa']},
 ];
 const COLS_PER_PROFIL=GROUPS.reduce((s,g)=>s+g.cols.length,0);   // 13
-let ROW_CELLS_HTML='';   // bitta qator uchun 26 ta katak (13 aksessuar + 13 zapchast) — hozircha hammasi bo'sh
+const PROFILI=['aksessuar','zapchast'];
+const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
 
 function buildHeader(){
   const grpRow=zap=>GROUPS.map((g,gi)=>`<th colspan="${g.cols.length}" class="grp-name${zap&&gi===0?' blk-start':''}">${esc(g.name)}</th>`).join('');
-  const subRow=zap=>GROUPS.map((g,gi)=>g.cols.map((c,ci)=>`<th class="grp-sub${zap&&gi===0&&ci===0?' blk-start':''}">${esc(c)}</th>`).join('')).join('');
+  const subRow=zap=>GROUPS.map((g,gi)=>g.cols.map((c,ci)=>{
+    const blk=zap&&gi===0&&ci===0;
+    const isFaktCol=(gi===0&&ci===2);   // Savdo.Fakt — so'm/kurs almashtirgichi shu yerda
+    const btn=isFaktCol?` <button class="uzsbtn${SHOW_UZS?' on':''}" onclick="window.bkToggleUzs()" title="So'm va kursni ko'rsatish/yashirish">so'm</button>`:'';
+    return `<th class="grp-sub${blk?' blk-start':''}">${esc(c)}${btn}</th>`;
+  }).join('')).join('');
   $('thead5k').innerHTML=
     `<tr><th class="sana-col" rowspan="3">Sana</th>`+
     `<th colspan="${COLS_PER_PROFIL}" class="prof-aks">Aksessuar</th>`+
@@ -332,13 +364,31 @@ function buildHeader(){
     `<tr>${grpRow(false)}${grpRow(true)}</tr>`+
     `<tr>${subRow(false)}${subRow(true)}</tr>`;
 }
-function buildRowCells(){
+const fmtDayShort=iso=>{ const [,m,d]=iso.split('-').map(Number); return `${d} ${OY_QISQA[m-1]}`; };
+
+/* ---- Savdo/Fakt katagi — jonli yoki muhrlangan, dollar (+ ixtiyoriy so'm/kurs) ---- */
+function faktTd(profil, iso, blk){
+  const d=FAKT_DAY[profil]&&FAKT_DAY[profil][iso];
+  if(!d) return `<td class="num muted${blk?' blk-start':''}">—</td>`;
+  const usdTxt=d.usd==null?'—':money(d.usd);
+  const lock=d.frozen?`<span class="fk-lock" title="Muhrlangan — kurs ${fmtDayShort(iso)} kuni qotib qolgan">🔒</span>`:'';
+  const inner=SHOW_UZS
+    ? `<div class="fk-usd">${usdTxt}${lock}</div><div class="fk-sub">${money(d.uzs)}</div><div class="fk-sub">${d.kurs!=null?('× '+rate2(d.kurs)):'—'}</div>`
+    : `<span class="fk-usd">${usdTxt}</span>${lock}`;
+  const handlers=HOVER_OK
+    ? `onmouseenter="window.bkPopShow(event,'${profil}','${iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkPopToggle(event,'${profil}','${iso}')"`;
+  return `<td class="num fk-cell${blk?' blk-start':''}" ${handlers}>${inner}</td>`;
+}
+function buildRowCells(iso){
   let s='';
   for(let p=0;p<2;p++){
+    const profil=PROFILI[p];
     let ci=0;
     for(const g of GROUPS){
       for(let k=0;k<g.cols.length;k++){
-        s+=`<td class="num muted${p===1&&ci===0?' blk-start':''}">—</td>`;
+        const blk=(p===1&&ci===0);
+        s+= (g.name==='Savdo'&&k===2) ? faktTd(profil,iso,blk) : `<td class="num muted${blk?' blk-start':''}">—</td>`;
         ci++;
       }
     }
@@ -357,7 +407,7 @@ function renderTable(){
     const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
     const cls=[dow===6?'sunday':'', iso===todayIso?'today':''].filter(Boolean).join(' ');
     const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[dow]}`;
-    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${ROW_CELLS_HTML}</tr>`);
+    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(iso)}</tr>`);
   }
   $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+2*COLS_PER_PROFIL}" class="empty">Bu oyda kun yo'q</td></tr>`;
 }
@@ -365,17 +415,174 @@ function renderTable(){
 /* ---- "Qo'shish" tugmasi — faqat beshkunlik_edit bayrogi bor userga ko'rinadi ---- */
 window.bkAddRow=()=>{ showInfo("Qo'shish imkoniyati keyingi bosqichda qo'shiladi."); };
 
+/* =====================================================================
+   3-BOSQICH — Savdo/Fakt: n8n webhook + sanali kurs + muhrlash
+   ===================================================================== */
+const WEBHOOK_5K='https://n8n.arosmarket.com/webhook/aros-provodka-5kunlik-savdo';
+let SHOW_UZS=localStorage.getItem('prov-5k-uzs')==='1';
+const HOVER_OK=matchMedia('(hover:hover)').matches;
+let WEB_MAP={}, WEB_DETAL={};             // sana -> {aksessuar,zapchast}(_uzs) / sana -> {aksessuar:[...],zapchast:[...]}
+let FAKT_DAY={aksessuar:{},zapchast:{}};  // profil -> sana -> {uzs,usd,kurs,frozen}
+let FAKT_TOKEN=0;                         // oy tez almashtirilganda eski javob e'tiborsiz qoldiriladi
+let popOpenKey=null;                      // click-rejimida ochiq popover kaliti ('profil|sana')
+
+window.bkToggleUzs=()=>{ SHOW_UZS=!SHOW_UZS; try{ localStorage.setItem('prov-5k-uzs',SHOW_UZS?'1':'0'); }catch(e){} buildHeader(); renderTable(); };
+window.bk5kRetry=()=>{ loadFakt(); };
+
+function applyWebJson(j){
+  WEB_MAP={}; WEB_DETAL={};
+  (j.kunlar||[]).forEach(k=>{ if(!k||!k.sana) return;
+    WEB_MAP[k.sana]={aksessuar:Number(k.aksessuar_uzs)||0, zapchast:Number(k.zapchast_uzs)||0}; });
+  const d=j.detal||{};
+  Object.keys(d).forEach(sana=>{ const e=d[sana]||{};
+    WEB_DETAL[sana]={aksessuar:e.Aksessuar||e.aksessuar||[], zapchast:e.Zapchast||e.zapchast||[]}; });
+}
+
+/* Har kun/profil uchun yakuniy son: muhrlangan bo'lsa saqlangan qatordan, aks holda
+   webhook summasi + beshkunlik_kurs(sana) bilan JONLI hisoblanadi. beshkunlik_edit bor
+   foydalanuvchi o'tgan (bugundan oldingi) muhrlanmagan kunni shu yerda MUHRLAYDI (upsert). */
+async function computeAndFreeze(first,last,token){
+  const todayIso=isoDay(nowUz());
+  let kunRows=[];
+  try{
+    const {data,error}=await sb.from('beshkunlik_kun')
+      .select('profil,sana,savdo_uzs,savdo_usd,kurs_uzs,frozen_at')
+      .gte('sana',first).lte('sana',last);
+    if(error) throw error;
+    kunRows=data||[];
+  }catch(e){ console.warn('beshkunlik_kun oqilmadi:',e.message); }
+  if(token!==FAKT_TOKEN) return;
+
+  const FROZEN={aksessuar:{},zapchast:{}};
+  kunRows.forEach(r=>{ if(r.frozen_at && FROZEN[r.profil]) FROZEN[r.profil][r.sana]=r; });
+
+  const neededDates=new Set();
+  Object.keys(WEB_MAP).forEach(sana=>{ PROFILI.forEach(p=>{ if(!FROZEN[p][sana]) neededDates.add(sana); }); });
+
+  let kursMap={};
+  if(neededDates.size){
+    try{
+      const {data,error}=await sb.rpc('beshkunlik_kurslar',{p_sanalar:[...neededDates]});
+      if(error) throw error;
+      kursMap=data||{};
+    }catch(e){ console.warn('beshkunlik_kurslar xato:',e.message); }
+  }
+  if(token!==FAKT_TOKEN) return;
+
+  FAKT_DAY={aksessuar:{},zapchast:{}};
+  const toFreeze=[];
+  Object.keys(WEB_MAP).forEach(sana=>{
+    PROFILI.forEach(p=>{
+      const frozenRow=FROZEN[p][sana];
+      if(frozenRow){
+        FAKT_DAY[p][sana]={ uzs:Number(frozenRow.savdo_uzs)||0,
+          usd:frozenRow.savdo_usd!=null?Number(frozenRow.savdo_usd):null,
+          kurs:frozenRow.kurs_uzs!=null?Number(frozenRow.kurs_uzs):null, frozen:true };
+        return;
+      }
+      const uzs=Number(WEB_MAP[sana][p])||0;
+      const kurs=(kursMap&&kursMap[sana]!=null)?Number(kursMap[sana]):null;
+      const usd=(kurs&&kurs>0)?Math.round(uzs/kurs):null;
+      FAKT_DAY[p][sana]={uzs,usd,kurs,frozen:false};
+      // Faqat o'tgan (bugundan oldingi) kun, kurs topilgan va tahrir ruxsati bor bo'lsa muhrlanadi.
+      if(canEdit && sana<todayIso && kurs!=null){
+        toFreeze.push({profil:p,sana,savdo_uzs:uzs,savdo_usd:usd==null?0:usd,kurs_uzs:kurs,frozen_at:new Date().toISOString()});
+      }
+    });
+  });
+
+  if(toFreeze.length){
+    try{
+      const {error}=await sb.from('beshkunlik_kun').upsert(toFreeze,{onConflict:'profil,sana'});
+      if(error) throw error;
+      toFreeze.forEach(r=>{ FAKT_DAY[r.profil][r.sana].frozen=true; });
+    }catch(e){ console.warn('beshkunlik_kun muhrlash xato:',e.message); }
+  }
+}
+
+/* Asosiy o'qish: kesh (5kunlik:<yyyy-mm>) darrov ko'rsatiladi, fonda webhookdan yangilanadi. */
+async function loadFakt(){
+  const v=$('oy').value||oyNowStr();
+  const token=++FAKT_TOKEN;
+  const [y,m]=v.split('-').map(Number);
+  const dim=daysInMonth(y,m-1);
+  const p2=n=>String(n).padStart(2,'0');
+  const first=`${y}-${p2(m)}-01`, last=`${y}-${p2(m)}-${p2(dim)}`;
+  const key='5kunlik:'+v;
+
+  let webJson=swrGet(key);
+  if(webJson){ applyWebJson(webJson); renderTable(); }
+
+  let fresh=null;
+  try{
+    const res=await fetch(WEBHOOK_5K+'?date_from='+encodeURIComponent(first)+'&date_to='+encodeURIComponent(last),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j || j.ok===false || !Array.isArray(j.kunlar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
+    fresh=j;
+  }catch(e){
+    if(token!==FAKT_TOKEN) return;
+    if(!webJson){ showErr("Savdo ma'lumoti ulanmadi: "+(e.message||String(e)),true); return; }
+    // eski kesh bilan davom etamiz — xato ko'rsatilmaydi (SWR: mavjud keshni saqlaydi)
+  }
+  if(token!==FAKT_TOKEN) return;
+  if(fresh){ webJson=fresh; swrSet(key,webJson); applyWebJson(webJson); }
+  showErr('');
+
+  await computeAndFreeze(first,last,token);
+  if(token!==FAKT_TOKEN) return;
+  renderTable();
+}
+
+/* ---- Fakt katagi ustiga hover/tap — o'sha kun/profil filial kesimi ---- */
+function positionPop(rect){
+  const pop=$('bkPop'), margin=8;
+  const pw=pop.offsetWidth, ph=pop.offsetHeight;
+  let left=rect.left, top=rect.bottom+margin;
+  if(left+pw>innerWidth-margin) left=innerWidth-pw-margin;
+  if(left<margin) left=margin;
+  if(top+ph>innerHeight-margin){ top=rect.top-ph-margin; if(top<margin) top=margin; }
+  pop.style.left=left+'px'; pop.style.top=top+'px';
+}
+function renderPop(profil,iso,rect){
+  const d=FAKT_DAY[profil]&&FAKT_DAY[profil][iso];
+  if(!d) return;
+  const rows=(WEB_DETAL[iso]&&WEB_DETAL[iso][profil])||[];
+  const body=rows.length
+    ? rows.map(r=>{ const ret=Number(r.qaytarilgan)||0;
+        return `<div class="bkp-row"><span class="bkp-name">${esc(r.filial||r.warehouse_id||'—')}</span>`
+          +`<span>${money(Number(r.uzs)||0)}${ret>0?`<span class="bkp-ret">−${money(ret)} qaytarilgan</span>`:''}</span></div>`; }).join('')
+    : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Filial tafsiloti yo'q</span></div>`;
+  const total=`<div class="bkp-total"><span>Jami</span><span>${money(d.uzs)} so'm<span class="bkp-usd">≈ $${d.usd==null?'—':money(d.usd)}</span></span></div>`;
+  const pop=$('bkPop');
+  pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])}</h4>${body}${total}`;
+  pop.classList.add('open');
+  positionPop(rect);
+}
+window.bkPopShow=(ev,profil,iso)=>{ renderPop(profil,iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkPopHide=()=>{ $('bkPop').classList.remove('open'); };
+window.bkPopToggle=(ev,profil,iso)=>{
+  ev.stopPropagation();
+  const key=profil+'|'+iso;
+  if(popOpenKey===key){ $('bkPop').classList.remove('open'); popOpenKey=null; return; }
+  renderPop(profil,iso,ev.currentTarget.getBoundingClientRect());
+  popOpenKey=key;
+};
+document.addEventListener('click',e=>{
+  if(!popOpenKey) return;
+  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')) return;
+  $('bkPop').classList.remove('open'); popOpenKey=null;
+});
+
 async function init(){
   buildHeader();
-  ROW_CELLS_HTML=buildRowCells();
   $('oy').value=oyNowStr();
   syncOyUI();
   canEdit=!!(window.permFlagOk && window.permFlagOk('beshkunlik_edit'));
   $('addBtn').style.display=canEdit?'inline-flex':'none';
   renderTable();
-  showInfo("Sahifa skeleti tayyor — ma'lumot ulash (RPC, reja/fakt hisob-kitobi) keyingi bosqichda qo'shiladi.");
   icons();
-  await loadRole();
+  await Promise.all([loadRole(), loadFakt()]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.

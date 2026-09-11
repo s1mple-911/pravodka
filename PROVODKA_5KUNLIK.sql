@@ -368,3 +368,118 @@ begin
   raise notice 'PROVODKA_5KUNLIK.sql: hammasi joyida (1-bosqich skelet)';
 end
 $bk_final$;
+
+
+-- #####################################################################
+-- ##  7-BO'LIM — beshkunlik_kurs / beshkunlik_kurslar (3-BOSQICH)     ##
+-- #####################################################################
+--  Sanali USD->UZS kurs — «5 kunlik» sahifasi kunlik savdoni (Aros'dan
+--  so'mda keladi) dollarga aylantirish va MUHRLASH uchun ishlatadi.
+--  Muhrlangan kundan keyin joriy kurs o'zgarsa ham o'sha kun tegilmaydi —
+--  bu funksiya faqat HALI muhrlanmagan kun hisoblanganda chaqiriladi
+--  (5kunlik-dev.html, beshkunlik_kun jadvaliga yozishdan oldin).
+--
+--  Mantiq: (1) currency_rate'dan USD->UZS, rate_at <= p_sana bo'yicha eng
+--  so'nggisi; (2) topilmasa conv_baza_kurs('USD') (joriy kursga) fallback;
+--  (3) u ham bo'lmasa null. Eski funksiyalarga tegilmagan — ikkalasi ham
+--  YANGI, additive.
+
+do $bk_kurs_pre$
+begin
+  if to_regclass('public.currency_rate') is null then
+    raise exception 'currency_rate jadvali yoq — avval valyuta migratsiyasini bajaring';
+  end if;
+  if to_regprocedure('public.conv_baza_kurs(text)') is null then
+    raise exception 'conv_baza_kurs(text) yoq — avval PROVODKA_VALYUTA_ALIAS.sql (yoki PROVODKA_VALYUTA.sql) ni bajaring';
+  end if;
+end
+$bk_kurs_pre$;
+
+create or replace function beshkunlik_kurs(p_sana date)
+returns numeric
+language plpgsql
+stable
+security definer
+set search_path = public
+as $bk_kurs$
+declare v numeric;
+begin
+  if p_sana is null then
+    return null;
+  end if;
+
+  select rate into v from currency_rate
+   where upper(from_code) = 'USD' and upper(to_code) = 'UZS' and rate_at <= p_sana
+   order by rate_at desc, created_at desc limit 1;
+  if v is not null then
+    return v;
+  end if;
+
+  return conv_baza_kurs('USD');
+end
+$bk_kurs$;
+
+revoke all on function beshkunlik_kurs(date) from public, anon;
+grant execute on function beshkunlik_kurs(date) to authenticated;
+
+comment on function beshkunlik_kurs(date) is
+  '5 kunlik: sanali USD->UZS kurs. Avval currency_rate dan (from_code=USD, to_code=UZS, '
+  'rate_at <= p_sana) eng songgisi, topilmasa conv_baza_kurs(''USD'') (joriy kurs) fallback, '
+  'u ham bulmasa null. Faqat hali muhrlanmagan kun hisoblanganda chaqiriladi.';
+
+
+-- ---------------------------------------------------------------------
+-- beshkunlik_kurslar(p_sanalar) — bir nechta sana uchun bitta so'rovda
+-- ---------------------------------------------------------------------
+-- yuk_kurslar(text[]) bilan bir xil naqsh: har element uchun ichki
+-- beshkunlik_kurs() chaqiriladi, xato bo'lsa o'sha sana uchun null.
+
+create or replace function beshkunlik_kurslar(p_sanalar date[])
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $bk_kurslar$
+declare d date; r numeric; out jsonb := '{}'::jsonb;
+begin
+  if p_sanalar is null then
+    return out;
+  end if;
+  foreach d in array p_sanalar loop
+    if d is null then continue; end if;
+    begin
+      r := beshkunlik_kurs(d);
+    exception when others then
+      r := null;
+    end;
+    out := out || jsonb_build_object(to_char(d, 'YYYY-MM-DD'), r);
+  end loop;
+  return out;
+end
+$bk_kurslar$;
+
+revoke all on function beshkunlik_kurslar(date[]) from public, anon;
+grant execute on function beshkunlik_kurslar(date[]) to authenticated;
+
+comment on function beshkunlik_kurslar(date[]) is
+  '5 kunlik: beshkunlik_kurs(date) ni bir nechta sana uchun bitta sorovda qaytaradi. '
+  'Javob: {"YYYY-MM-DD": kurs, ...} — topilmagan sana uchun qiymat null.';
+
+
+-- #####################################################################
+-- ##  8-BO'LIM — YAKUNIY TEKSHIRUV (3-BOSQICH, faqat select/raise)    ##
+-- #####################################################################
+
+do $bk_kurs_final$
+begin
+  if to_regprocedure('public.beshkunlik_kurs(date)') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_kurs(date) yaralmadi';
+  end if;
+  if to_regprocedure('public.beshkunlik_kurslar(date[])') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_kurslar(date[]) yaralmadi';
+  end if;
+
+  raise notice 'PROVODKA_5KUNLIK.sql: beshkunlik_kurs/beshkunlik_kurslar tayyor (3-bosqich qoshimchasi)';
+end
+$bk_kurs_final$;
