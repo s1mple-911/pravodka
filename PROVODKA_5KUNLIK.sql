@@ -1,0 +1,370 @@
+-- =====================================================================
+--  PROVODKA_5KUNLIK.sql — «5 kunlik» sahifasi — 1-BOSQICH (SKELET)
+-- ---------------------------------------------------------------------
+--  Project: Provodka (kxzerccdpcltmzrxutlo).  TaskFix EMAS.
+--
+--  #####  MAQSAD (1-BOSQICH)  ##############################################
+--
+--  Yangi sahifa `5kunlik-dev.html` — Aksessuar/Zapchast profillari uchun
+--  5 kunlik savdo reja/fakt kuzatuvi + Aros yukiga to'lov muddati. Bu fayl
+--  FAQAT ruxsat kaliti + bo'sh jadvallarni ochadi (RLS bilan) — HALI HECH
+--  QANDAY RPC/HISOB-KITOB YO'Q, klient hozircha bu jadvallarga yozmaydi.
+--  Ma'lumot ulash (RPC, reja/fakt hisob-kitobi) KEYINGI bosqichda.
+--
+--  #####  FAYL TARKIBI  ###################################################
+--     0-BO'LIM — old shart tekshiruvi (faqat select/raise)
+--     1-BO'LIM — `perm_pages()` qayta e'lon — 22-kalit: `beshkunlik`
+--                (sahifa) + `beshkunlik_edit` (tahrir bayrog'i)
+--     2-BO'LIM — `beshkunlik_reja` jadvali (+ RLS)
+--     3-BO'LIM — `beshkunlik_kun` jadvali (+ RLS)
+--     4-BO'LIM — `yuk_deadline` jadvali (+ RLS)
+--     5-BO'LIM — PostgREST sxema keshini yangilash
+--     6-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/raise)
+--
+--  #####  🔴 KLIENT TOMONI — BUSIZ ISHLAMAYDI (boshqa agent bajaradi)  ####
+--    (a) `perms-dev.js` PAGES ga 'beshkunlik', FLAGS ga 'beshkunlik_edit'
+--        (ehson_kirim naqshi — bayroq PAGES ga QO'SHILMAYDI);
+--    (b) `index-dev.html` CARDS ga beshkunlik kartasi (beshkunlik_edit — YO'Q);
+--    (c) 15+ dev faylda nav (sidebar + "Ko'proq" sheet + prefetch);
+--    (d) `promote.sh` PAGES ga '5kunlik' (fayl nomi, ruxsat kaliti EMAS);
+--    (e) admin-dev `PVS_PAGES` ga {key:'beshkunlik',...} + {key:'beshkunlik_edit',...}
+--        (boshqa repo — TaskFix, shu repoda YO'Q).
+--    Birortasi qoldirilsa `admin_set_provodka_perms` kalitni "noma'lum" deb
+--    JIMGINA tashlab yuboradi.
+--
+--  #####  ADDITIVE KAFOLATI  ###############################################
+--   * Hech narsa drop qilinmaydi, hech qanday mavjud jadval/ustun/funksiya
+--     imzosi o'zgartirilmaydi. Hammasi YANGI, `beshkunlik_`/`yuk_deadline`
+--     prefiksi bilan (+ ichki `_beshkunlik_touch()`).
+--   * `perm_pages()` imzo/til/immutable saqlanadi — eski 20 kalit tegilmaydi,
+--     yangi ikkitasi OXIRIGA qo'shiladi.
+--   * Idempotent: `create table if not exists`, `create or replace function`,
+--     `drop policy if exists` + `create policy`, CHECK constraint
+--     `if not exists (select ... from pg_constraint ...)`, `drop trigger
+--     if exists` + `create trigger`.
+--   * Anonim `do` bloki YO'Q — har `do` bloki nomlangan teg bilan. Funksiya
+--     tanasi ham nomlangan teg bilan. Izohlarda ketma-ket dollar belgi
+--     YOZILMAGAN (soxta blok xavfi — CLAUDE.md).
+--
+--  #####  RUXSAT  ###########################################################
+--  O'qish — `perm_has_page('beshkunlik')` (fail-open faqat SQL RUN
+--  qilinmagan yoki service_role holatida — `perm_has_page()` ning o'zidagi
+--  qoida, CLAUDE.md'da yozilgan). Yozish (insert/update) — HAR IKKI jadval
+--  VA `yuk_deadline` uchun ham `perm_has_page('beshkunlik_edit')`.
+--  Ustun `updated_by`/`updated_at` klient qo'liga ISHONILMAYDI — trigger
+--  `_beshkunlik_touch()` har insert/update'da o'zi `auth.uid()`/`now()`
+--  bilan qayta yozadi.
+--
+--  #####  TALAB (0-BO'LIM tekshiradi)  #####################################
+--     profiles, user_perms         — asosiy migratsiya
+--     perm_pages(), perm_has_page(text) — PROVODKA_PERMS.sql / PROVODKA_PAGES_EMPTY.sql
+--
+--  🔴 SQL'ni ASILBEK o'zi RUN qiladi. Agent bajarmaydi.
+-- =====================================================================
+
+
+-- #####################################################################
+-- ##  0-BO'LIM — OLD SHART TEKSHIRUVI                                 ##
+-- #####################################################################
+
+do $bk_pre$
+begin
+  if to_regclass('public.profiles') is null then
+    raise exception 'profiles jadvali yoq — avval asosiy migratsiyani bajaring';
+  end if;
+  if to_regclass('public.user_perms') is null then
+    raise exception 'user_perms jadvali yoq — avval PROVODKA_PERMS.sql ni bajaring';
+  end if;
+  if to_regprocedure('public.perm_pages()') is null then
+    raise exception 'perm_pages() yoq — avval PROVODKA_PERMS.sql ni bajaring';
+  end if;
+  if to_regprocedure('public.perm_has_page(text)') is null then
+    raise exception 'perm_has_page(text) yoq — avval PROVODKA_PAGES_EMPTY.sql ni bajaring';
+  end if;
+end
+$bk_pre$;
+
+
+-- #####################################################################
+-- ##  1-BO'LIM — perm_pages() qayta e'lon — 22-kalit                  ##
+-- #####################################################################
+-- 🔴 Imzo/til/immutable saqlanadi. Eski 20 kalit tegilmaydi, `beshkunlik`
+-- (sahifa) va `beshkunlik_edit` (tahrir bayrog'i — 'ehson_kirim' bilan bir
+-- xil naqsh: allowed_pages ichida saqlanadi, lekin karta/nav/promote'da
+-- ISHTIROK ETMAYDI) OXIRIGA qo'shiladi.
+
+create or replace function perm_pages()
+returns text[]
+language sql
+immutable
+as $perm_pages$
+  select array['kassa','jurnal','professional','hisobot','balans','cashflow',
+               'qarzdor','filial','valyuta','konvert','sozlama','provodka',
+               'yuklar','standart','tannarx','ai','sorovlar','ehson','ehson_kirim',
+               'aylanma','beshkunlik','beshkunlik_edit']::text[];
+$perm_pages$;
+
+revoke all on function perm_pages() from public, anon;
+grant execute on function perm_pages() to authenticated, service_role;
+
+comment on function perm_pages() is
+  'Provodka ruxsat kalitlari (22 ta: 20 eski + beshkunlik sahifasi + beshkunlik_edit bayrogi). '
+  'perms-dev.js PAGES+FLAGS va admin-dev PVS_PAGES bilan bir xil bo''lishi shart. '
+  'hodim.html bu ro''yxatga KIRMAYDI — hech qachon cheklanmaydi.';
+
+
+-- #####################################################################
+-- ##  ICHKI YORDAMCHI — _beshkunlik_touch() (audit trigger)           ##
+-- #####################################################################
+-- `updated_by`/`updated_at` klientdan ISHONCH bilan qabul qilinmaydi —
+-- har insert/update'da server o'zi qo'yadi. `auth.uid()` null bo'lsa
+-- (service_role) ustun eskisidek qoladi — n8n/SQL editor bloklanmaydi.
+
+create or replace function _beshkunlik_touch()
+returns trigger
+language plpgsql
+as $bk_touch$
+begin
+  new.updated_at := now();
+  if auth.uid() is not null then
+    new.updated_by := auth.uid();
+  end if;
+  return new;
+end
+$bk_touch$;
+
+comment on function _beshkunlik_touch() is
+  'ICHKI: beshkunlik_reja / beshkunlik_kun / yuk_deadline uchun umumiy audit trigger. '
+  'updated_at/updated_by klientdan emas, serverdan yoziladi.';
+
+
+-- #####################################################################
+-- ##  2-BO'LIM — beshkunlik_reja                                      ##
+-- #####################################################################
+-- Har kun uchun bitta profil (aksessuar|zapchast) rejasi. `reja` = asl
+-- reja (o'zgarmas rejalashtirilgan summa), `uzgardi` = keyin tuzatilgan
+-- reja. Ikkalasi ham DOLLARDA (kurs bilan bog'liq emas — reja/uzgardi
+-- valyuta konversiyasi keyingi bosqichda kerak bo'lsa alohida ko'rib
+-- chiqiladi, hozircha xom son).
+
+create table if not exists beshkunlik_reja (
+  profil      text        not null,
+  sana        date        not null,
+  reja        numeric     not null default 0,
+  uzgardi     numeric     not null default 0,
+  updated_by  uuid,
+  updated_at  timestamptz not null default now(),
+  primary key (profil, sana)
+);
+
+do $bk_reja_chk$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'beshkunlik_reja_profil_chk') then
+    alter table beshkunlik_reja
+      add constraint beshkunlik_reja_profil_chk
+      check (profil in ('aksessuar','zapchast'));
+  end if;
+end
+$bk_reja_chk$;
+
+comment on table beshkunlik_reja is
+  '5 kunlik sahifasi: kun/profil bo''yicha savdo rejasi (dollarda). '
+  '`reja` = asl reja, `uzgardi` = keyin tuzatilgan reja. 1-bosqichda klient hali yozmaydi.';
+comment on column beshkunlik_reja.profil is 'aksessuar | zapchast.';
+comment on column beshkunlik_reja.reja is 'Asl (birinchi kiritilgan) reja, dollarda.';
+comment on column beshkunlik_reja.uzgardi is 'Tuzatilgan reja, dollarda. Boshida reja bilan bir xil bo''lishi mumkin.';
+
+alter table beshkunlik_reja enable row level security;
+revoke all on table beshkunlik_reja from public, anon;
+grant select, insert, update on table beshkunlik_reja to authenticated;
+
+drop policy if exists beshkunlik_reja_sel on beshkunlik_reja;
+create policy beshkunlik_reja_sel on beshkunlik_reja
+  for select to authenticated
+  using (perm_has_page('beshkunlik'));
+
+drop policy if exists beshkunlik_reja_ins on beshkunlik_reja;
+create policy beshkunlik_reja_ins on beshkunlik_reja
+  for insert to authenticated
+  with check (perm_has_page('beshkunlik_edit'));
+
+drop policy if exists beshkunlik_reja_upd on beshkunlik_reja;
+create policy beshkunlik_reja_upd on beshkunlik_reja
+  for update to authenticated
+  using (perm_has_page('beshkunlik_edit'))
+  with check (perm_has_page('beshkunlik_edit'));
+
+drop trigger if exists trg_beshkunlik_reja_touch on beshkunlik_reja;
+create trigger trg_beshkunlik_reja_touch
+  before insert or update on beshkunlik_reja
+  for each row execute function _beshkunlik_touch();
+
+
+-- #####################################################################
+-- ##  3-BO'LIM — beshkunlik_kun                                       ##
+-- #####################################################################
+-- Kunlik savdo SURATI (snapshot). `kurs_uzs` — o'sha kun muhrlangan
+-- USD→UZS kursi: kurs keyin o'zgarsa ham bu qator o'ZGARMAYDI (tarixiy
+-- muhr, `frozen_at` — qachon muhrlangani).
+
+create table if not exists beshkunlik_kun (
+  profil      text        not null,
+  sana        date        not null,
+  savdo_uzs   numeric     not null default 0,
+  savdo_usd   numeric     not null default 0,
+  kurs_uzs    numeric,
+  frozen_at   timestamptz,
+  primary key (profil, sana)
+);
+
+do $bk_kun_chk$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'beshkunlik_kun_profil_chk') then
+    alter table beshkunlik_kun
+      add constraint beshkunlik_kun_profil_chk
+      check (profil in ('aksessuar','zapchast'));
+  end if;
+end
+$bk_kun_chk$;
+
+comment on table beshkunlik_kun is
+  '5 kunlik sahifasi: kun/profil bo''yicha savdo SURATI (fakt). `kurs_uzs` muhrlangan '
+  'kurs — keyin o''zgarsa ham bu qator tegilmaydi. 1-bosqichda klient hali yozmaydi.';
+comment on column beshkunlik_kun.kurs_uzs is
+  'O''sha kun muhrlangan USD->UZS kursi. Joriy kurs o''zgarganda BU QIYMAT o''zgarmaydi.';
+comment on column beshkunlik_kun.frozen_at is
+  'Qachon muhrlangani (kun surati yopilgan payt). Hali muhrlanmagan (jonli) qator uchun null.';
+
+alter table beshkunlik_kun enable row level security;
+revoke all on table beshkunlik_kun from public, anon;
+grant select, insert, update on table beshkunlik_kun to authenticated;
+
+drop policy if exists beshkunlik_kun_sel on beshkunlik_kun;
+create policy beshkunlik_kun_sel on beshkunlik_kun
+  for select to authenticated
+  using (perm_has_page('beshkunlik'));
+
+drop policy if exists beshkunlik_kun_ins on beshkunlik_kun;
+create policy beshkunlik_kun_ins on beshkunlik_kun
+  for insert to authenticated
+  with check (perm_has_page('beshkunlik_edit'));
+
+drop policy if exists beshkunlik_kun_upd on beshkunlik_kun;
+create policy beshkunlik_kun_upd on beshkunlik_kun
+  for update to authenticated
+  using (perm_has_page('beshkunlik_edit'))
+  with check (perm_has_page('beshkunlik_edit'));
+
+drop trigger if exists trg_beshkunlik_kun_touch on beshkunlik_kun;
+create trigger trg_beshkunlik_kun_touch
+  before insert or update on beshkunlik_kun
+  for each row execute function _beshkunlik_touch();
+
+
+-- #####################################################################
+-- ##  4-BO'LIM — yuk_deadline                                         ##
+-- #####################################################################
+-- Aros yukiga to'lov muddati. `yuk_id` — Aros yuk id (product-income) —
+-- Provodkada yuk jadvali YO'Q (yuk_tannarx/entry_yuk ham xuddi shunday
+-- xom `yuk_id integer` bilan ishlaydi — FK yo'q).
+
+create table if not exists yuk_deadline (
+  yuk_id      integer     primary key,
+  deadline    date,
+  izoh        text,
+  updated_by  uuid,
+  updated_at  timestamptz not null default now()
+);
+
+comment on table yuk_deadline is
+  'Aros yukiga (product-income) to''lov muddati. yuk_id — Aros yuk id, FK YO''Q '
+  '(Provodkada yuk jadvali mavjud emas, yuk_tannarx/entry_yuk naqshi bilan bir xil). '
+  'Deadline YUKLAR sahifasida qo''yiladi, 5 kunlik uni faqat o''qiydi — shuning uchun '
+  'ruxsat: yuklar YOKI beshkunlik. 1-bosqichda klient hali yozmaydi.';
+
+alter table yuk_deadline enable row level security;
+revoke all on table yuk_deadline from public, anon;
+grant select, insert, update on table yuk_deadline to authenticated;
+
+drop policy if exists yuk_deadline_sel on yuk_deadline;
+create policy yuk_deadline_sel on yuk_deadline
+  for select to authenticated
+  using (perm_has_page('beshkunlik') or perm_has_page('yuklar'));
+
+drop policy if exists yuk_deadline_ins on yuk_deadline;
+create policy yuk_deadline_ins on yuk_deadline
+  for insert to authenticated
+  with check (perm_has_page('beshkunlik_edit') or perm_has_page('yuklar'));
+
+drop policy if exists yuk_deadline_upd on yuk_deadline;
+create policy yuk_deadline_upd on yuk_deadline
+  for update to authenticated
+  using (perm_has_page('beshkunlik_edit') or perm_has_page('yuklar'))
+  with check (perm_has_page('beshkunlik_edit') or perm_has_page('yuklar'));
+
+drop trigger if exists trg_yuk_deadline_touch on yuk_deadline;
+create trigger trg_yuk_deadline_touch
+  before insert or update on yuk_deadline
+  for each row execute function _beshkunlik_touch();
+
+
+-- #####################################################################
+-- ##  5-BO'LIM — PostgREST sxema keshini yangilash                    ##
+-- #####################################################################
+
+notify pgrst, 'reload schema';
+
+
+-- #####################################################################
+-- ##  6-BO'LIM — YAKUNIY TEKSHIRUV (faqat select/raise)                ##
+-- #####################################################################
+
+do $bk_final$
+declare
+  v_ok boolean;
+begin
+  if array_length(perm_pages(), 1) <> 22 then
+    raise exception 'YAKUNIY TEKSHIRUV: perm_pages() 22 ta bulishi kerak, hozir: %', array_length(perm_pages(), 1);
+  end if;
+  if not ('beshkunlik' = any(perm_pages())) then
+    raise exception 'YAKUNIY TEKSHIRUV: perm_pages() da beshkunlik kaliti yoq';
+  end if;
+  if not ('beshkunlik_edit' = any(perm_pages())) then
+    raise exception 'YAKUNIY TEKSHIRUV: perm_pages() da beshkunlik_edit bayrogi yoq';
+  end if;
+
+  if to_regclass('public.beshkunlik_reja') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_reja jadvali yaralmadi';
+  end if;
+  if to_regclass('public.beshkunlik_kun') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_kun jadvali yaralmadi';
+  end if;
+  if to_regclass('public.yuk_deadline') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: yuk_deadline jadvali yaralmadi';
+  end if;
+
+  if not exists (select 1 from pg_policies
+                  where schemaname='public' and tablename='beshkunlik_reja' and policyname='beshkunlik_reja_sel') then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_reja_sel policy yoq';
+  end if;
+  if not exists (select 1 from pg_policies
+                  where schemaname='public' and tablename='beshkunlik_kun' and policyname='beshkunlik_kun_sel') then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_kun_sel policy yoq';
+  end if;
+  if not exists (select 1 from pg_policies
+                  where schemaname='public' and tablename='yuk_deadline' and policyname='yuk_deadline_sel') then
+    raise exception 'YAKUNIY TEKSHIRUV: yuk_deadline_sel policy yoq';
+  end if;
+
+  select has_table_privilege('authenticated', 'public.beshkunlik_reja', 'select') into v_ok;
+  if not coalesce(v_ok, false) then
+    raise exception 'YAKUNIY TEKSHIRUV: authenticated uchun beshkunlik_reja SELECT yoq';
+  end if;
+  select has_table_privilege('anon', 'public.beshkunlik_reja', 'select') into v_ok;
+  if coalesce(v_ok, false) then
+    raise exception 'YAKUNIY TEKSHIRUV: anon beshkunlik_reja ni o''qiy olmasligi kerak edi';
+  end if;
+
+  raise notice 'PROVODKA_5KUNLIK.sql: hammasi joyida (1-bosqich skelet)';
+end
+$bk_final$;
