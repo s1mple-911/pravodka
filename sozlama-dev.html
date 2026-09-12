@@ -662,6 +662,25 @@
       </div>
     </div>
     <div id="banner" class="banner"></div>
+    <!-- «Hodim → Telegram» — 2026-09-13: sahifaning ENG TEPASIGA ko'chirildi (pastda, uzun kassalar
+         ro'yxatidan keyin Asilbek topa olmadi) va endi HECH QACHON yashirinmaydi — xato bo'lsa sababini yozadi. -->
+    <div class="card" id="htgCard">
+      <div class="sec">Hodim → Telegram</div>
+      <div class="hint">Hodim xarajat kassasida harakat bo'lganda Telegram xabari hodimning
+        o'ziga borishi uchun kassa Aros foydalanuvchisiga bog'langan bo'lishi kerak.
+        Bog'lanmagan kassaga xabar <b>faqat adminlarga</b> boradi.</div>
+      <div id="htgTop" class="hint" style="margin:0 0 12px">Yuklanmoqda…</div>
+      <div class="addrow" style="margin-bottom:12px">
+        <input id="htgQ" placeholder="Kassa qidirish…" oninput="htgRender()">
+        <button id="htgAvtoBtn" onclick="htgAvtoBogla(this)"><i data-lucide="wand-sparkles"></i>Avtomatik bog'lash</button>
+      </div>
+      <div class="seg" style="margin-bottom:12px">
+        <button id="htgFHammasi" class="on" onclick="htgFilter('hammasi')">Hammasi</button>
+        <button id="htgFBoglanmagan" onclick="htgFilter('boglanmagan')">Bog'lanmagan</button>
+      </div>
+      <div id="htgList" style="max-height:420px;overflow:auto"></div>
+      <div id="htgRes" class="res"></div>
+    </div>
 
     <div class="card">
       <div class="sec">Yangi qo'shish</div>
@@ -877,23 +896,6 @@
          rpcMissing() bilan jimgina yashirinadi. 🔴 isAdmin bilan CHEKLANMAYDI (boshqa
          kartalardan farqi) — ko'rinish admin YOKI sozlama sahifasi ruxsati (server
          hodim_tg_page_ok() bilan bir xil qoida), sahifaning o'zi allaqachon shunga gate. -->
-    <div class="card" id="htgCard" style="display:none">
-      <div class="sec">Hodim → Telegram</div>
-      <div class="hint">Hodim xarajat kassasida harakat bo'lganda Telegram xabari hodimning
-        o'ziga borishi uchun kassa Aros foydalanuvchisiga bog'langan bo'lishi kerak.
-        Bog'lanmagan kassaga xabar <b>faqat adminlarga</b> boradi.</div>
-      <div id="htgTop" class="hint" style="margin:0 0 12px"></div>
-      <div class="addrow" style="margin-bottom:12px">
-        <input id="htgQ" placeholder="Kassa qidirish…" oninput="htgRender()">
-        <button id="htgAvtoBtn" onclick="htgAvtoBogla(this)"><i data-lucide="wand-sparkles"></i>Avtomatik bog'lash</button>
-      </div>
-      <div class="seg" style="margin-bottom:12px">
-        <button id="htgFHammasi" class="on" onclick="htgFilter('hammasi')">Hammasi</button>
-        <button id="htgFBoglanmagan" onclick="htgFilter('boglanmagan')">Bog'lanmagan</button>
-      </div>
-      <div id="htgList"></div>
-      <div id="htgRes" class="res"></div>
-    </div>
 
     <!-- Hodim -> Telegram bog'lash modali — qidiriladigan foydalanuvchi ro'yxati (~130 ta,
          oddiy select emas). Yopilganda ".htg-modal" o'z ID'si bilan yopiladi — "Ko'proq"
@@ -2037,17 +2039,28 @@ window.linkFilial=async()=>{
 // shunga gate. RPC yo'q bo'lsa (SQL RUN qilinmagan) rpcMissing() bilan karta yashirinadi.
 let htgData=null, htgFilterMode='hammasi', htgModalKassa=null, htgTaklifByKassa={};
 async function htgLoad(){
-  const {data,error}=await sb.rpc('hodim_tg_royxat');
-  if(error){
-    if(rpcMissing(error)){ $('htgCard').style.display='none'; return; }
-    $('htgCard').style.display='block';
+  // 🔴 2026-09-13: karta HECH QACHON jimgina yashirinmaydi (avval rpcMissing / ruxsat
+  // holatida display:none bo'lardi — Asilbek kartani umuman ko'rmadi va sababi
+  // noma'lum qoldi). Endi har holatda sabab kartaning o'zida yoziladi.
+  const fail=(msg)=>{
     $('htgTop').textContent=''; $('htgList').innerHTML='';
-    $('htgRes').className='res err';
-    $('htgRes').textContent="Yuklanmadi: "+(window.permErr?window.permErr(error):error.message);
-    return;
+    $('htgRes').className='res err'; $('htgRes').textContent=msg;
+    const jb=$('htgJump'); if(jb){ jb.style.display='inline-flex'; }
+  };
+  let data=null, error=null;
+  try{ ({data,error}=await sb.rpc('hodim_tg_royxat')); }catch(e){ error={message:String(e&&e.message||e)}; }
+  if(error){
+    console.warn('hodim_tg_royxat xato:',error);
+    const code=String(error.code||'');
+    if(code==='PGRST202'||code==='42883') return fail("SQL hali RUN qilinmagan — PROVODKA_HODIM_TELEGRAM.sql ni Supabase'da RUN qiling.");
+    return fail("Yuklanmadi: "+(window.permErr?window.permErr(error):error.message)+(code?' ('+code+')':''));
   }
-  if(data && data.ok===false){ $('htgCard').style.display='none'; return; }   // {ok:false,kod:'ruxsat'}
-  $('htgCard').style.display='block';
+  if(data && data.ok===false){
+    console.warn('hodim_tg_royxat javobi:',data);
+    return fail(data.kod==='ruxsat'
+      ? "Bu bo'limga ruxsat yo'q — admin yoki «Sozlamalar» sahifasi ruxsati kerak."
+      : "Yuklanmadi: "+(data.error||data.kod||"noma'lum xato"));
+  }
   $('htgRes').className='res'; $('htgRes').textContent='';
   htgData=data||{kassalar:[],users:[],taklif:[]};
   htgTaklifByKassa={};
