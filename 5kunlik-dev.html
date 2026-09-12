@@ -1070,6 +1070,27 @@ function evalSafeExpr(expr){
   if(i!==expr.length) throw new Error('trailing');
   return result;
 }
+/* Son matnini normallashtiradi (tester topgan bug: "12,000" -> 12 bo'lib saqlanardi).
+   Qoidalar: bo'shliqlar (oddiy, nbsp, ingichka) olib tashlanadi; '.' VA ',' ikkalasi
+   bo'lsa — oxirgisi kasr ajratkich, boshqasi minglik; faqat ',' bo'lsa — "1,234" /
+   "12,000,000" shaklida (3 xonali guruhlar) minglik, aks holda kasr ("12,5");
+   faqat '.' bo'lsa — bir nechta 3 xonali guruh ("1.234.567") minglik, aks holda kasr.
+   Natija — '.' kasrli toza satr yoki null (son emas). */
+function normNum(raw){
+  let s=String(raw??'').replace(/[\s   ]+/g,'');
+  if(s==='') return null;
+  const hasDot=s.includes('.'), hasCom=s.includes(',');
+  if(hasDot && hasCom){
+    const dec=s.lastIndexOf('.')>s.lastIndexOf(',')?'.':',';
+    s=s.split(dec==='.'?',':'.').join('');
+    if(dec===',') s=s.replace(',','.');
+  }else if(hasCom){
+    s=/^-?\d{1,3}(,\d{3})+$/.test(s)?s.split(',').join(''):s.replace(',','.');
+  }else if(hasDot && /^-?\d{1,3}(\.\d{3}){2,}$/.test(s)){
+    s=s.split('.').join('');
+  }
+  return /^-?\d+(\.\d+)?$/.test(s)?s:null;
+}
 function parseCellValue(raw){
   const s=String(raw??'').trim();
   if(s==='') return {ok:true, val:null};
@@ -1083,8 +1104,8 @@ function parseCellValue(raw){
     if(!isFinite(val)) return {ok:false, err:"Noto'g'ri ifoda"};
     return {ok:true, val:Math.round(val*100)/100};
   }
-  const norm=s.replace(/\s+/g,'').replace(',', '.');
-  if(!/^-?\d+(\.\d+)?$/.test(norm)) return {ok:false, err:"Noto'g'ri son"};
+  const norm=normNum(s);
+  if(norm==null) return {ok:false, err:"Noto'g'ri son"};
   const n=Number(norm);
   if(!isFinite(n)) return {ok:false, err:"Noto'g'ri son"};
   return {ok:true, val:Math.round(n*100)/100};
@@ -1133,7 +1154,12 @@ function pushUndoBatch(c,isos){
 async function doUndo(){
   if(!canEdit || !UNDO_STACK.length) return;
   const entry=UNDO_STACK.pop();
+  // O'tgan kun Uzgaradi'si hech bir yo'l bilan yozilmaydi — Ctrl+Z ham (tab tun
+  // bo'yi ochiq qolsa, kechagi "bugun" endi o'tgan kun bo'lib qoladi; tester topdi).
+  const todayIso=isoDay(nowUz());
+  let otkazildi=0;
   for(const ch of entry.changes){
+    if(entry.c==='uzgardi' && ch.iso<todayIso){ otkazildi++; continue; }
     if(!REJA_MAP[ch.iso]) REJA_MAP[ch.iso]={reja:0,uzgardi:0,uzgardi_qolda:false};
     REJA_MAP[ch.iso][entry.c]=ch.prevVal||0;
     if(entry.c==='uzgardi') REJA_MAP[ch.iso].uzgardi_qolda=!!ch.prevQolda;
@@ -1141,7 +1167,7 @@ async function doUndo(){
     catch(e){ console.warn('undo saqlash xato:',e.message); }
   }
   buildRun(RUN_START,RUN_H); renderTable();
-  showToast('Qaytarildi ('+entry.changes.length+' kun)');
+  showToast('Qaytarildi ('+(entry.changes.length-otkazildi)+' kun)'+(otkazildi?(' · '+otkazildi+" ta o'tgan kun o'zgarmadi"):''));
 }
 document.addEventListener('keydown',e=>{
   if(!canEdit || EDITING) return;
@@ -1208,6 +1234,9 @@ function cancelEdit(c,i){
 let CELL_SHEET=null;   // {c,iso}
 window.bkCellSheetOpen=(c,iso)=>{
   if(!canEdit) return;
+  // Himoya shu yerda — sheet qaysi yo'l bilan ochilmasin (dblclick, startEdit), o'tgan
+  // kun Uzgaradi'si uchun "saqlandi"dek ko'rinib, aslida yozilmaydigan oyna ochilmasin.
+  if(c==='uzgardi' && iso<isoDay(nowUz())){ showToast("O'tgan kun — Fakt'ga teng, tahrirlanmaydi"); return; }
   CELL_SHEET={c,iso};
   const col=c==='reja'?'Reja':'Uzgaradi';
   const rj=REJA_MAP[iso]||{};
@@ -1487,7 +1516,8 @@ document.addEventListener('paste', e=>{
     const rowIdx=startIdx+k; if(rowIdx>=days.length) return;
     const iso=days[rowIdx];
     if(c==='uzgardi' && iso<todayIso) return;   // otgan kun — paste'da o'tkazib yuboriladi
-    const first=line.split('\t')[0].trim().replace(/\s+/g,'').replace(',', '.');
+    const first=normNum(line.split('\t')[0]);
+    if(first==null) return;   // bo'sh yoki son emas — o'tkazib yuboriladi (0 yozilmaydi)
     const n=Number(first);
     if(!isFinite(n)) return;
     targetIsos.push(iso); vals[iso]=Math.round(n*100)/100;
