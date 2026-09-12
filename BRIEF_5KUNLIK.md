@@ -233,6 +233,13 @@ backfill ham qiladi (60 kun). Faollashtirish: SQL RUN → «Muhrla» node'ga Sup
 | Reja `NEW.` varag'idan (tashqi fayl, hozir `#REF!`) | `beshkunlik_reja` jadvali | manba ichkarida |
 | Omborlar rejadan chiqarilgan | chiqarilmaydi | qaror №2 |
 
+**Tarixiy Fakt Excel bilan mos KELMAYDI — bu kutilgan (2026-09-13, Asilbek).** 12.08–06.09
+solishtiruvi: Excel jami ≈ $1.153M, Aros keshi (Aks+Zap, sof) ≈ $0.89M (77%); Aksessuar
+atigi 23%. Sabab: aksessuar filiallari shu paytgacha **1C da** ishlagan, Aros'ga endi
+bosqichma-bosqich o'tyapti — ularning 1C savdosi Aros keshida yo'q. O'tish tugagach Fakt
+to'liq bo'ladi; ungacha Aksessuar Fakt'i haqiqiydan kam ko'rinadi. Zapchast ~92% mos.
+(Zapchast qaytarilgan tovar shu oyda ≈ 10.5% — Fakt sof, qaytarilgan ayirilgan.)
+
 ## Bosqichlar
 
 | № | Bosqich | Holat |
