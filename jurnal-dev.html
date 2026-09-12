@@ -2224,10 +2224,12 @@ let aiMap={};     // entry.id → {shubhali, shubhali_sabab, ai_holat, rasm_tahl
 let rtMap={};     // rasm_tahlil.id → row
 let kmMap={};     // entry.id → mashina_km row
 // --- Yo'ldagi pullar (2026-09-06, PROVODKA_YOLDA.sql — RUN kutilmoqda) ---
-// Aros sinxroni transfer yozuvlarini `ext_ref='aros_tr:<transfer_id>:<cash|click|payme|dollar_usd>'`
+// Aros sinxroni transfer yozuvlarini `ext_ref='aros_tr:<transfer_id>:<cash|click|payme|terminal|dollar_usd>'`
 // bilan yozadi (n8n Auto Sync). transfer_id → yolda_farq() javobi (sotuvchi/kassa taqsimoti).
 // RPC hali yo'q bo'lsa (42883/PGRST202) yoldaMap bo'sh qoladi — izohCell hech narsa chizmaydi.
-const YOLDA_RE=/^aros_tr:(.+):(cash|click|payme|dollar_usd)$/;
+// terminal — 2026-09-12 (PROVODKA_YOLDA_TERMINAL.sql): Transfer Sync v2 terminal turi uchun
+// shu ext_ref suffiksini yozadi, yoldaSatr() `key` ni to'g'ridan-to'g'ri `tur` dan oladi.
+const YOLDA_RE=/^aros_tr:(.+):(cash|click|payme|terminal|dollar_usd)$/;
 let yoldaMap={};  // transfer_id → yolda_farq() qatori
 // AI ustunlari so'rovi — izoh_mos ustunlari hali RUN qilinmagan bo'lsa (42703)
 // eski ro'yxat bilan QAYTA so'raladi: AI xulosasi ustuni SQL'siz ham avvalgidek ishlaydi.
@@ -2713,7 +2715,7 @@ async function loadIjrSel(){
 // Ko'p satrli yozuvning .jlines ro'yxati endi Dt ustunida (render() ichida).
 
 // Yo'ldagi pullar (transfer) satri — sotuvchi sanagan vs kassa qabul qilgan taqsimot + farq.
-// `tur` — YOLDA_RE dagi ext_ref suffiksi (cash|click|payme|dollar_usd), `yr` — yolda_farq() qatori.
+// `tur` — YOLDA_RE dagi ext_ref suffiksi (cash|click|payme|terminal|dollar_usd), `yr` — yolda_farq() qatori.
 function yoldaSatr(tur,yr){
   const isUsd=tur==='dollar_usd', key=isUsd?'usd':tur;
   const sVal=Number(yr['s_'+key])||0, cVal=Number(yr['c_'+key])||0;

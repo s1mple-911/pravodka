@@ -749,7 +749,8 @@ const kturIndex=rows=>{ const m={};
 let yolda=null;
 // account_id -> yo'lda summa (kiruvchi/chiquvchi) — kcard() shundan o'qiydi.
 let ylIdx={inn:{},out:{}};
-const YL_IKO={cash:'💵',click:'💳',payme:'📱'};
+// terminal ikonkasi TURI_IKO dan qayta ishlatiladi — ikkalasi bir xil oila (2026-09-12).
+const YL_IKO={cash:'💵',click:'💳',payme:'📱',terminal:TURI_IKO.terminal};
 // created_at bilan bir xil naqsh (jurnal-dev.html uzParts) — brauzer zonasiga tayanmaslik uchun
 // UTC dan +5 soat siljitib o'qiymiz.
 function ylUzParts(x){
@@ -777,7 +778,7 @@ function ylTime(iso){
 function ylRow(r){
   const parts=[];
   const push=(ic,v)=>{ const n=Number(v)||0; if(n) parts.push(ic+' '+money(n)); };
-  push(YL_IKO.cash,r.cash); push(YL_IKO.click,r.click); push(YL_IKO.payme,r.payme);
+  push(YL_IKO.cash,r.cash); push(YL_IKO.click,r.click); push(YL_IKO.payme,r.payme); push(YL_IKO.terminal,r.terminal);
   if(Number(r.usd)) parts.push('$ '+fc(r.usd));
   const t=ylTime(r.sent_at);
   return `<div class="krow yl-row"><div class="l"><div class="nm">${esc(r.sender_nom||'Boshqa kassa')} → ${esc(r.receiver_nom||'Boshqa kassa')}</div>`
@@ -786,7 +787,8 @@ function ylRow(r){
     +`</div><div class="v">${money(r.jami_uzs)}</div></div>`;
 }
 // Sotuvchi/kassa jami — usd qism dollar_rate bilan so'mga o'girilgan (server shu tartibda hisoblagan).
-const ylSum=(r,pfx)=>(Number(r[pfx+'_cash'])||0)+(Number(r[pfx+'_click'])||0)+(Number(r[pfx+'_payme'])||0)+(Number(r[pfx+'_usd'])||0)*(Number(r.dollar_rate)||0);
+// s_terminal/c_terminal kaliti kelmasa (SQL RUN qilinmagan) — 0 deb olinadi, xato bermaydi.
+const ylSum=(r,pfx)=>(Number(r[pfx+'_cash'])||0)+(Number(r[pfx+'_click'])||0)+(Number(r[pfx+'_payme'])||0)+(Number(r[pfx+'_terminal'])||0)+(Number(r[pfx+'_usd'])||0)*(Number(r.dollar_rate)||0);
 function ylQabulRow(r){
   const farq=Number(r.farq_uzs)||0;
   const farqHtml = farq===0 ? '<span class="yl-mos">mos</span>'

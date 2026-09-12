@@ -1225,6 +1225,12 @@ sanagan `items[].document.seller_*`, `c_*` = qabulda tasdiqlangan `items[].confi
   4-element, swr `yolda`; RPC yo'q → jim. `jurnal-dev.html` — `M_COLS`+`ext_ref`, `YOLDA_RE`
   `^aros_tr:(id):(cash|click|payme|dollar_usd)$` → `loadYolda()` → `izohCell` ostida `.j-yolda` kichik satr
   «Sotuvchi sanadi X · Kassa qabul qildi Y · Farq ±Z» (+ jo'natildi/qabul vaqti).
+- 🔴 **Terminal turi qo'shildi** (2026-09-12, `PROVODKA_YOLDA_TERMINAL.sql`, RUN kutilmoqda) — pastdagi
+  "AROS `items[]` SHAKLI O'ZGARDI" bandi bilan bir xil sabab: registrga `s_terminal`/`c_terminal`
+  ustuni (`aros_transfer_yolda`), `sync_transfer_yolda`/`yolda_royxat`/`yolda_farq` imzosi saqlanib
+  tanasi kengaytirildi, `YOLDA_RE` ga `terminal` qo'shildi (Transfer Sync v2 shu ext_ref suffiksini
+  yozadi). `N8N_YOLDA_SYNC.js` ning `YOLDA_SQL`si endi `it`/`tur`/`agg` CTE naqshi bilan Aros'ning
+  ikkala items[] shaklini ham o'qiydi (pastdagi bandga qara) va jimgina 0 YO'Q qoidasiga o'tdi.
 - Keyingi bosqich (hali qilinmagan): tranzit HISOBI (sent → Dt transit / Kt filial; received → Dt markaziy /
   Kt transit) — `PROVODKA_TRANSFER.sql` sarlavhasida rejalashtirilgan, delta sync bilan o'zaro ta'siri bor.
 
@@ -1261,8 +1267,12 @@ taqiq. Manba tanilmasa XATO berilsin.**
 - **Tiklash skripti KERAK EMAS:** `Transfer Sync v2` 14 kunlik oyna bilan ishlaydi va `ext_ref` bo'yicha
   takrorlanmaydi → SQL+kredit tayyor bo'lgach 19 ta transferni **o'zi yozadi**. Cutoff POL (2026-08-12)
   ularni to'smaydi. Avgustdagi eski backlog Asilbek tomonidan qo'lda tuzatilgan — tegilmaydi.
-- **`Yolda Sync` (`xRARQu9MiZmQ1sAO`) ham eski maydonlarni o'qiydi** — pul yozmaydi (registr), lekin
-  `kassa` sahifasidagi «Yo'ldagi pullar» 0 ko'rsatadi. Keyingi qadam.
+- **`Yolda Sync` (`xRARQu9MiZmQ1sAO`) tuzatildi** (2026-09-12, `PROVODKA_YOLDA_TERMINAL.sql` +
+  `N8N_YOLDA_SYNC.js`, RUN/n8n update kutilmoqda) — `YOLDA_SQL` endi `it`/`tur`/`agg` CTE naqshi
+  bilan ikkala shaklni ham o'qiydi va `terminal` turini qo'shadi (registrga `s_terminal`/`c_terminal`
+  ustuni); Payload yasash node'i ham jimgina 0 YO'Q qoidasiga o'tdi (noma'lum `label_code` yoki
+  oynadagi hamma `sent` transfer 0 bo'lsa xato). `kassa-dev.html` (`renderYolda`, `.yl-*`) va
+  `jurnal-dev.html` (`YOLDA_RE`) terminal turini ko'rsatadi/qabul qiladi.
 - ⚠️ `Auto Sync` (`7MSHrXnz9cGAFBTh`) **o'chirilgan** — eski v1 + filial balans; balans endi
   `Balans Sync` (`5TB7ekGcBlU5qVZ0`, faol) bilan ketadi. To'g'ri holat, tegilmasin.
 - ⚠️ `Transfer Sync v2` jadvali `{field:'minutes'}` — `minutesInterval` YO'Q, ya'ni amalda **5 daqiqada**
