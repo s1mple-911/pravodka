@@ -20,19 +20,21 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (20 ta: 19 sahifa + 1 bayroq).
+  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (22 ta: 20 sahifa + 2 bayroq).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx', 'ai', 'sorovlar', 'ehson', 'aylanma'];
+               'tannarx', 'ai', 'sorovlar', 'ehson', 'aylanma', 'beshkunlik'];
   /* BAYROQLAR (2026-09-06): allowed_pages ichida saqlanadigan, lekin SAHIFA BO'LMAGAN
      kalitlar. PAGES ga QO'SHILMAYDI — aks holda firstAllowed()/gate() ularni sahifa deb
      `ehson_kirim-dev.html` ga yo'naltirardi (404). Nav/karta/promote'da yo'q.
        ehson_kirim — Professional/hodim'da «Ehson jamg'armasi» (94xx, accounts.ehson_kassa_id)
                      moddasiga yozish = jamg'armaga kirim. Server juftligi: ehson_kirim_ok() +
-                     trg_ehson_kirim_guard (PROVODKA_EHSON.sql 12.11). 'ehson' sahifasi kirim BERMAYDI. */
-  var FLAGS = ['ehson_kirim'];
+                     trg_ehson_kirim_guard (PROVODKA_EHSON.sql 12.11). 'ehson' sahifasi kirim BERMAYDI.
+       beshkunlik_edit (PROVODKA_5KUNLIK.sql, 1-bosqich) — «5 kunlik» sahifasida tahrir
+                     (reja/fakt yozish) ruxsati. 'beshkunlik' sahifasi faqat KO'RISH beradi. */
+  var FLAGS = ['ehson_kirim', 'beshkunlik_edit'];
   var HOME  = 'jurnal';           // Provodka'ning bosh bo'limi (login'dan keyingi ish sahifasi)
   // Login/dashboard hub sahifasi. PAGES ichida ATAYLAB yo'q — u ruxsat bilan
   // cheklanmaydi (o'zi ruxsatli bo'limlar ro'yxatini chizadi).
