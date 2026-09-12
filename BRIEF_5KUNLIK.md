@@ -246,3 +246,35 @@ backfill ham qiladi (60 kun). Faollashtirish: SQL RUN → «Muhrla» node'ga Sup
 | 7 | **Bitta platforma** (27→15 ustun) + Yig'ilma rekursiya tuzatish + Prognoz + boshlang'ich qoldiq + hover-scroll bug fix | ✅ (SQL RUN kutilmoqda, n8n muhrlash workflow keyingi qadam) |
 | 8 | Regression test | ✅ (statik tahlil — node --check, formula qo'l bilan tekshiruv) |
 | 9 | Samarali Uzgaradi (avtomatik) + Fakt rangi/filtri Reja bilan + Berdik hamma yuk to'lovi | ✅ (SQL RUN kutilmoqda) |
+| 10 | UI/UX: ustunlarni boshqarish + Excel filtr/saralash + tahrir UX + jami qatori | ✅ (pastdagi bo'limga qara) |
+
+## 10-bosqich — UI/UX (2026-09-13, faqat `5kunlik-dev.html`, hisob mantiqiga tegilmagan)
+
+Asilbek/Ravshan izohi: "Reja, Uzgaradi, Fakt 2 martadan bo'lib qolgan" — sabab Yig'ilma va
+Qoldi pul guruhlari bir xil nomli ustunlar edi. Bu bosqich faqat **ko'rinish** qatlami —
+`buildRun`/`computePrognoz`/`effectiveUzgaradi`/`avgFakt`/`computeAndFreeze` tegilmagan.
+
+- **Ustunlarni boshqarish**: sarlavhada «Ustunlar» tugmasi → popover (guruh bo'yicha
+  checkbox'lar, «Sukut» / «Hammasini ko'rsatish»). **Yig'ilma guruhi sukut bo'yicha
+  yashirin** (hisobda qolaveradi). Tanlov `localStorage` (`prov-5k-cols`). Qoldi pul
+  sub-sarlavhalari aniqlashtirildi: **Reja bo'yicha · Prognoz bo'yicha · Haqiqiy · Farq**
+  (avval Reja/Uzga/Fakt/Raznitsa — Savdo guruhi bilan bir xil ko'rinardi); har sub-sarlavhada
+  formula izohi bilan `title`.
+- **Har ustunda Excel uslubidagi filtr** (`list-filter` belgisi): saralash (bitta ustun,
+  qaytadan bosilsa bekor), shart (`=,≠,>,≥,<,≤,oraliqda,bo'sh,bo'sh emas,manfiy,musbat`),
+  Sana ustunida sana oralig'i + hafta kunlari. Holat `sessionStorage` (`prov-5k-filters`,
+  oy almashsa ham qoladi). Faol filtrlar jadval ustida chip bo'lib chiqadi + «Hammasini
+  tozalash»; mavjud tezkor chiplar bilan AND. **Faqat ko'rinishni o'zgartiradi** — navigatsiya/
+  sudrab to'ldirish/paste/Ctrl+D endi `dayList()` orqali KO'RINADIGAN tartibga (`VISIBLE_ROWS`)
+  tayanadi, yashirin qatorga yozilmaydi. «N / M kun ko'rsatilmoqda» hisoblagichi.
+- **Tahrir UX**: xavfsiz ifoda parseri (`evalSafeExpr` — eval/Function YO'Q) — `=1200/30`,
+  `500*1.1`, `12 500`, `12,5` tushuniladi; noto'g'ri kiritish qizil kontur + xabar, saqlanmaydi.
+  Excel klaviaturasi kengaytirildi: Delete/Backspace (tanlangan diapazonni tozalaydi),
+  Shift+klik/Shift+↑↓ (diapazon), Ctrl+Enter (diapazonga bitta qiymat), Ctrl+Z (sessiya
+  ichida ≥20 qadam, qaytarish serverga ham yoziladi). Qo'lda yozilgan Uzgaradi katagida
+  hover'da «× avtomatikaga qaytarish». Har katakda saqlash indikatori (✓ 1s / xato konturi).
+  Mobil (≤899px): katak bosilganda pastdan sheet (raqamli klaviatura, Saqlash/Bekor/
+  Avtomatikaga qaytarish) — inline input o'rniga.
+- **Jami qatori** (sticky bottom, faqat ko'rinadigan kunlar bo'yicha): Savdo/Qarz — yig'indi,
+  Qoldi pul/Prognoz/Yig'ilma — oxirgi ko'rinadigan kun qiymati. Bo'sh holat: «Filtrga mos
+  kun yo'q» + «Filtrlarni tozalash».

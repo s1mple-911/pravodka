@@ -192,6 +192,36 @@
   .modrow button:hover{background:var(--line)}
   .modrow button.primary{background:var(--primary);color:#fff;border:none}
   .modrow button.primary:hover{background:var(--primary-hover)}
+  /* ---- 8-BOSQICH (2026-09-13): Ustunlar/filtr popoverlari, filtr chiplari, jami qatori,
+     saqlash indikatori, xato konturi, "avtomatikaga qaytarish" tugmasi, toast, mobil sheet ---- */
+  #colPop,#filtPop{padding-bottom:14px}
+  #colPop h4,#filtPop h4{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  #filtPop label{margin-top:0}
+  .th-filt{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:none;background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;vertical-align:middle;padding:0}
+  .th-filt svg{width:13px;height:13px;pointer-events:none}
+  .th-filt:hover{background:var(--surface-2);color:var(--ink)}
+  .th-filt.on{color:var(--primary)}
+  th.sana-col .th-filt{margin-left:4px}
+  .fchip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 12px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:12.5px;font-weight:600;white-space:nowrap}
+  .fchip button{width:20px;height:20px;border:none;background:transparent;color:var(--primary);border-radius:50%;cursor:pointer;font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+  .fchip button:hover{background:rgba(var(--green-rgb),.18)}
+  #bkCount{color:var(--muted);font-size:12.5px;font-weight:500}
+  tfoot#tfoot5k .totals-row td{position:sticky;bottom:0;background:var(--surface-2);font-weight:700;border-top:2px solid var(--line);border-bottom:none;z-index:3}
+  tfoot#tfoot5k .totals-row td.sana-col{z-index:4;left:0}
+  .can-edit .ed-cell:not(.ro):not(.editing):hover{background:var(--surface-2)}
+  .ed-cell.ro{cursor:default}
+  .save-ok{margin-left:4px;color:var(--green);font-weight:700;font-size:12px;animation:bkFade 900ms ease-out forwards}
+  @keyframes bkFade{0%{opacity:1}70%{opacity:1}100%{opacity:0}}
+  td.ed-cell.save-err{outline:2px solid var(--red);outline-offset:-2px}
+  .ed-in.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(var(--red-rgb),.15)}
+  .ed-err{position:absolute;top:100%;left:0;min-width:120px;background:var(--red);color:#fff;font-size:11.5px;font-weight:600;padding:4px 8px;border-radius:7px;margin-top:3px;z-index:6;white-space:nowrap;box-shadow:var(--shadow-hover)}
+  .uz-reset{display:none;position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;border:none;background:var(--surface-2);color:var(--muted);font-size:10px;line-height:1;cursor:pointer;align-items:center;justify-content:center;padding:0}
+  .ed-cell:hover .uz-reset{display:flex}
+  .uz-reset:hover{background:var(--red-soft);color:var(--red)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);background:var(--ink);color:var(--surface);font-size:13.5px;font-weight:500;padding:10px 16px;border-radius:11px;box-shadow:var(--shadow-hover);z-index:260;opacity:0;pointer-events:none;transition:opacity .18s ease-out,transform .18s ease-out;max-width:90vw;text-align:center}
+  [data-theme="dark"] .toast{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(prefers-reduced-motion:reduce){.toast{transition:none}.save-ok{animation:none}}
 </style>
 </head>
 <body>
@@ -261,19 +291,23 @@
           <button class="chip" data-f="farqli" onclick="window.bk5kFilter('farqli')">Farqi bor kunlar</button>
           <button class="chip" data-f="rejasiz" onclick="window.bk5kFilter('rejasiz')">Reja yo'q kunlar</button>
         </div>
+        <button class="btn ghost" id="colBtn" onclick="window.bkColOpen(event)"><i data-lucide="sliders-horizontal"></i>Ustunlar</button>
         <button class="btn" id="addBtn" style="display:none" onclick="window.bkOpenPlanModal()"><i data-lucide="calendar-plus"></i>Reja qo'yish</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="bk-open" id="bkOpen" style="margin:2px 0"></div>
         <button class="btn ghost" id="sozBtn" style="display:none;height:28px;padding:0 12px;font-size:12px" onclick="window.bkOpenSoz()"><i data-lucide="settings-2"></i>Boshlang'ich qoldiq</button>
+        <span class="bk-open" id="bkCount" style="margin-left:auto"></span>
       </div>
       <div class="bk-open" id="bkWarn" style="display:none;color:var(--amber)"></div>
       <div class="bk-open" id="bkPrognoz" style="display:none"></div>
+      <div class="chipbar" id="activeFilters" style="display:none;margin:6px 0 2px"></div>
 
       <div class="scroll-top" id="scrollTop" aria-hidden="true"><div class="scroll-top-bar" id="scrollTopBar"></div></div>
       <div class="scroll" id="scrollMain"><table>
         <thead id="thead5k"></thead>
         <tbody id="tbody"><tr><td colspan="16" class="empty">Yuklanmoqda...</td></tr></tbody>
+        <tfoot id="tfoot5k"></tfoot>
       </table></div>
     </div>
   </main>
@@ -313,6 +347,31 @@
        hover'da scroll ishlashi uchun (BUG tuzatish, 2026-09-12): katak bilan popover orasidagi
        bo'shliqda sichqoncha yurganda yopilib qolmasin, popover'ning o'zi kechikishni bekor qiladi. -->
   <div id="bkPop" class="bkpop" onclick="event.stopPropagation()" onmouseenter="window.bkPopKeepOpen()" onmouseleave="window.bkPopHide()"></div>
+
+  <!-- 8-BOSQICH: Ustunlar menyusi va har-ustun filtr/saralash popoverlari — .bkpop
+       stilini qayta ishlatadi (yangi dizayn tili emas), lekin doim ochiq turadi
+       (hover bilan yopilmaydi) — click-away bilan yopiladi (yuqoridagi document click). -->
+  <div id="colPop" class="bkpop" style="min-width:240px" onclick="event.stopPropagation()"></div>
+  <div id="filtPop" class="bkpop" style="min-width:220px" onclick="event.stopPropagation()"></div>
+
+  <!-- Toast — bloklangan tahrir urinishi / filtr xabari uchun kichik transient xabar (banner emas). -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- Mobil (≤899px) katak tahrir sheet'i — inline input noqulay, pastdan sheet ochiladi. -->
+  <div class="modal" id="cellModal" onclick="if(event.target===this)window.bkCellSheetClose()"><div class="sheet">
+    <h3 id="csTitle">Tahrirlash</h3>
+    <div id="csSub" style="font-size:13px;color:var(--muted);margin:-8px 0 14px"></div>
+    <label id="csLbl">Qiymat</label>
+    <input class="txt" id="csVal" inputmode="decimal" placeholder="0" onkeydown="if(event.key==='Enter'){event.preventDefault();window.bkCellSheetSave();}else if(event.key==='Escape'){window.bkCellSheetClose();}">
+    <div id="csErr" style="color:var(--red);font-size:13px;margin:-8px 0 12px;display:none"></div>
+    <div class="modrow">
+      <button type="button" onclick="window.bkCellSheetClose()">Bekor</button>
+      <button type="button" class="primary" onclick="window.bkCellSheetSave()">Saqlash</button>
+    </div>
+    <div class="modrow" id="csResetRow" style="display:none">
+      <button type="button" onclick="window.bkCellSheetReset()">Avtomatikaga qaytarish</button>
+    </div>
+  </div></div>
 
   <!-- Ommaviy reja kiritish — oylik/yillik summa tanlangan kunlarga teng bo'linadi.
        Profil tanlovi olib tashlandi (2026-09-12, bitta platforma qarori) — UMUMIY'ga yoziladi. -->
@@ -450,25 +509,115 @@ const pad2=n=>String(n).padStart(2,'0');
 const UMUMIY='umumiy';
 const PROFILI=['aksessuar','zapchast'];             // faqat Fakt hover/muhrlash uchun
 const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
+/* 8-BOSQICH (2026-09-13, UI/UX): har ustun endi {id,label,title} — id ustunlarni
+   ko'rsatish/yashirish (COLVIS) va filtr/saralashda ishlatiladi, title — sarlavhada
+   formula izohi (hover). Guruh darajasidagi `hiddenDefault` — Yig'ilma sukut yashirin
+   (Asilbek: "Reja/Uzga/Fakt ikki marta bo'lib qolgan" — takroriy ko'rinishning sababi). */
 const GROUPS=[
-  {name:'Savdo',      cols:['Reja','Uzgaradi','Fakt']},
-  {name:"Yig'ilma",   cols:['Reja','Uzga','Fakt']},
-  {name:'Qarz',       cols:['Qarzmiz','Berdik','Raznitsa']},
-  {name:"Qoldi pul",  cols:['Reja','Uzga','Fakt','Raznitsa']},
-  {name:'Prognoz',    cols:['Kutilgan pul',"Qarz olsa bo'ladi"]},
+  {name:'Savdo', cols:[
+    {id:'sv_reja', label:'Reja', title:"Kunlik reja — oylik reja / oy kunlari (hamma kunga teng, yakshanba ham)"},
+    {id:'sv_uzga', label:'Uzgaradi', title:"Prognoz: o'tgan kun — Fakt'ga teng, bugun/kelajak — so'nggi 10 kunlik savdo o'rtachasi (qo'lda ustidan yozib bo'ladi)"},
+    {id:'sv_fakt', label:'Fakt', title:"Aros'dan — kunlik haqiqiy savdo (Aksessuar+Zapchast yig'indisi)"},
+  ]},
+  {name:"Yig'ilma", hiddenDefault:true, cols:[
+    {id:'yg_reja', label:'Reja', title:"Yig'ilgan reja — kechagi Qoldi (reja bo'yicha) + bugungi Reja, uzluksiz"},
+    {id:'yg_uzga', label:'Uzga', title:"Yig'ilgan prognoz — kechagi Qoldi (prognoz bo'yicha) + bugungi Uzgaradi, uzluksiz"},
+    {id:'yg_fakt', label:'Fakt', title:"Yig'ilgan fakt — kechagi Qoldi (haqiqiy) + bugungi Fakt, uzluksiz"},
+  ]},
+  {name:'Qarz', cols:[
+    {id:'qz_qarzmiz', label:'Qarzmiz', title:"Shu kunga muddati kelgan, hali to'lanmagan qarz (manfiy)"},
+    {id:'qz_berdik', label:'Berdik', title:"Shu kuni haqiqatda to'langan — hamma yuk to'lovi"},
+    {id:'qz_raz', label:'Raznitsa', title:"Qarzmiz + Berdik — to'liq to'lansa 0"},
+  ]},
+  {name:"Qoldi pul", cols:[
+    {id:'qp_reja', label:"Reja bo'yicha", title:"Yig'.Reja + Qarzmiz — kunlik rejaga asoslangan qoldiq"},
+    {id:'qp_uzga', label:'Prognoz bo\'yicha', title:"Yig'.Uzga + Qarzmiz — Uzgaradi (prognoz) asosidagi qoldiq"},
+    {id:'qp_fakt', label:'Haqiqiy', title:"Yig'.Fakt − Berdik — haqiqiy pul qoldig'i"},
+    {id:'qp_raz', label:'Farq', title:"Prognoz bo'yicha − Haqiqiy — amalda qarz farqini ko'rsatadi"},
+  ]},
+  {name:'Prognoz', cols:[
+    {id:'pr_kutilgan', label:'Kutilgan pul', title:"Bugungi haqiqiy qoldiq + hali to'lanmagan qarz; kelajakda +Uzgaradi+Qarzmiz"},
+    {id:'pr_qarzolsa', label:"Qarz olsa bo'ladi", title:"60 kun ichida eng past nuqtagacha pul yetishi kerak bo'lgan miqdor"},
+  ]},
 ];
-const COLS_TOTAL=GROUPS.reduce((s,g)=>s+g.cols.length,0);   // 15
+const FLAT_COLS=[];
+GROUPS.forEach((g,gi)=>{ g.cols.forEach((c,ci)=>FLAT_COLS.push(Object.assign({},c,{gi,ci,gname:g.name}))); });
+const COL_BY_ID={}; FLAT_COLS.forEach(c=>{ COL_BY_ID[c.id]=c; });
+const COLS_TOTAL_ALL=FLAT_COLS.length;   // 15 — hamma ustun (ko'rinish holatidan qat'i nazar)
+
+/* ---- Ustunlarni boshqarish (localStorage, try/catch) ---- */
+let COLVIS={};
+function colDefaultOn(col){ return !GROUPS[col.gi].hiddenDefault; }
+function loadColVis(){
+  let saved=null;
+  try{ const raw=localStorage.getItem('prov-5k-cols'); if(raw) saved=JSON.parse(raw); }catch(e){}
+  COLVIS={};
+  FLAT_COLS.forEach(col=>{
+    COLVIS[col.id]=(saved && Object.prototype.hasOwnProperty.call(saved,col.id)) ? !!saved[col.id] : colDefaultOn(col);
+  });
+}
+function saveColVis(){ try{ localStorage.setItem('prov-5k-cols',JSON.stringify(COLVIS)); }catch(e){} }
+function visibleColCount(){ return FLAT_COLS.filter(c=>COLVIS[c.id]).length; }
+window.bkColToggle=id=>{ COLVIS[id]=!COLVIS[id]; saveColVis(); buildHeader(); renderTable(); renderColPop(); };
+window.bkColShowAll=()=>{ FLAT_COLS.forEach(c=>{ COLVIS[c.id]=true; }); saveColVis(); buildHeader(); renderTable(); renderColPop(); };
+window.bkColDefault=()=>{ FLAT_COLS.forEach(c=>{ COLVIS[c.id]=colDefaultOn(c); }); saveColVis(); buildHeader(); renderTable(); renderColPop(); };
+function renderColPop(){
+  const pop=$('colPop'); if(!pop || !pop.classList.contains('open')) return;
+  let html='<h4>Ustunlar</h4>';
+  GROUPS.forEach(g=>{
+    html+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:10px 0 4px">${esc(g.name)}</div>`;
+    g.cols.forEach(c=>{
+      const on=!!COLVIS[c.id];
+      html+=`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-weight:400;font-size:13.5px;color:var(--ink);cursor:pointer;margin:0">`
+        +`<input type="checkbox" ${on?'checked':''} onchange="window.bkColToggle('${c.id}')" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer">${esc(c.label)}</label>`;
+    });
+  });
+  html+=`<div class="modrow" style="margin-top:12px"><button type="button" onclick="window.bkColDefault()">Sukut</button>`
+    +`<button type="button" class="primary" onclick="window.bkColShowAll()">Hammasini ko'rsatish</button></div>`;
+  pop.innerHTML=html;
+}
+window.bkColOpen=ev=>{
+  ev.stopPropagation();
+  const pop=$('colPop'), btn=ev.currentTarget;
+  if(pop.classList.contains('open')){ pop.classList.remove('open'); return; }
+  closeAllDropPops();
+  renderColPop();
+  pop.classList.add('open');
+  positionDropPop(pop,btn.getBoundingClientRect());
+};
+function positionDropPop(pop,rect){
+  const margin=8; pop.style.left='0px'; pop.style.top='0px';
+  const pw=pop.offsetWidth, ph=pop.offsetHeight;
+  let left=rect.left, top=rect.bottom+6;
+  if(left+pw>innerWidth-margin) left=innerWidth-pw-margin;
+  if(left<margin) left=margin;
+  if(top+ph>innerHeight-margin) top=Math.max(margin, rect.top-ph-6);
+  pop.style.left=left+'px'; pop.style.top=top+'px';
+}
+function closeAllDropPops(){
+  ['colPop','filtPop'].forEach(id=>{ const el=$(id); if(el) el.classList.remove('open'); });
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('#colPop')||e.target.closest('.col-btn')) return;
+  if(e.target.closest('#filtPop')||e.target.closest('.th-filt')) return;
+  closeAllDropPops();
+});
 
 function buildHeader(){
-  const grpRow=GROUPS.map(g=>`<th colspan="${g.cols.length}" class="grp-name">${esc(g.name)}</th>`).join('');
-  const subRow=GROUPS.map((g,gi)=>g.cols.map((c,ci)=>{
-    const isFaktCol=(gi===0&&ci===2);   // Savdo.Fakt — so'm/kurs almashtirgichi shu yerda
+  const grpRow=GROUPS.map(g=>{
+    const vis=g.cols.filter(c=>COLVIS[c.id]);
+    if(!vis.length) return '';
+    return `<th colspan="${vis.length}" class="grp-name">${esc(g.name)}</th>`;
+  }).join('');
+  const subRow=FLAT_COLS.filter(c=>COLVIS[c.id]).map(col=>{
+    const isFaktCol=col.id==='sv_fakt';
     const btn=isFaktCol?` <button class="uzsbtn${SHOW_UZS?' on':''}" onclick="window.bkToggleUzs()" title="So'm va kursni ko'rsatish/yashirish">so'm</button>`:'';
-    return `<th class="grp-sub">${esc(c)}${btn}</th>`;
-  }).join('')).join('');
+    return `<th class="grp-sub"${col.title?` title="${esc(col.title)}"`:''}>${esc(col.label)}${btn} ${filterIconHtml(col.id)}</th>`;
+  }).join('');
   $('thead5k').innerHTML=
-    `<tr><th class="sana-col" rowspan="2">Sana</th>${grpRow}</tr>`+
+    `<tr><th class="sana-col" rowspan="2">Sana ${filterIconHtml('_sana')}</th>${grpRow}</tr>`+
     `<tr>${subRow}</tr>`;
+  icons();
 }
 const fmtDayShort=iso=>{ const [,m,d]=iso.split('-').map(Number); return `${d} ${OY_QISQA[m-1]}`; };
 
@@ -642,46 +791,75 @@ function ediTd(iso, val, col, meta, todayIso){
   }
   let extraCls='', title='', dot='';
   if(col==='uzgardi' && meta){
-    if(meta.manual){ title=' title="Qo\'lda yozilgan"'; dot='<span class="uz-dot" aria-hidden="true">●</span>'; }
-    else{
+    if(meta.manual){
+      title=' title="Qo\'lda yozilgan — × avtomatikaga qaytaradi"';
+      dot=`<span class="uz-dot" aria-hidden="true">●</span>`
+        +(canEdit?`<button type="button" class="uz-reset" title="Avtomatikaga qaytarish" onclick="window.bkResetAuto(event,'${iso}')">×</button>`:'');
+    }else{
       extraCls=' auto';
       if(meta.kind==='fakt') title=' title="Avto: kun o\'tdi — Fakt\'ga teng"';
       else if(meta.kind==='avg') title=` title="Avto: 10 kunlik o'rtacha $${money(val)} (${meta.count} kun)"`;
       else title=' title="Avto: Reja (tarix yo\'q)"';
     }
   }
+  // O'tgan kundagi Uzgaradi — faqat o'qiladi, sababi title'da (spec: tahrirga
+  // urinilganda ham toast chiqadi — startEdit() ichida).
+  if(col==='uzgardi' && !editable) title=' title="O\'tgan kun — Fakt\'ga teng, tahrirlanmaydi"';
   const cls='num ed-cell'+extraCls+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'')+(!editable?' ro':'');
   const handle=(canEdit && editable && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${col}','${iso}')"></span>` : '';
   // tanlash/klaviatura navigatsiyasi hamma katakda ishlaydi (Uzgaradi'ning o'tgan
   // kunidan ham chiqib ketish kerak) — haqiqiy edit'ga kirish startEdit() ichida bloklanadi.
   const tab=canEdit?'0':'-1';
-  return `<td class="${cls}" ${attrs} tabindex="${tab}"${title} onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${dot}${handle}</td>`;
+  const cursorHint=canEdit&&!editable?' style="cursor:not-allowed"':'';
+  return `<td class="${cls}" ${attrs} tabindex="${tab}"${title}${cursorHint} onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${dot}${handle}</td>`;
 }
 function buildRowCells(row, todayIso){
   let s='';
-  for(const g of GROUPS){
-    for(let k=0;k<g.cols.length;k++){
-      if(g.name==='Savdo'){
-        if(k===0) s+=ediTd(row.iso,row.reja,'reja',null,todayIso);
-        else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi',
-          {manual:row.uzgardiKind==='manual', kind:row.uzgardiKind, count:row.uzgardiCount, raw:row.uzgardiRaw},
-          todayIso);
-        else s+=faktTd(row.iso,row.reja);
-      }else if(g.name==="Yig'ilma"){
-        s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
-      }else if(g.name==='Qarz'){
-        if(k===0) s+=qarzTd(row.iso,row.qarzmiz);
-        else if(k===1) s+=berdikTd(row.berdik);
-        else s+=raznitsaTd(row.raznitsa);
-      }else if(g.name==='Qoldi pul'){
-        const val=k===0?row.qoldiReja:(k===1?row.qoldiUzga:(k===2?row.qoldiFakt:row.qoldiRaz));
-        s+=numTd(val);
-      }else{ // Prognoz
-        s+=(k===0)?kutilganTd(row.kutilgan):qarzOlsaTd(row);
-      }
+  FLAT_COLS.forEach(col=>{
+    if(!COLVIS[col.id]) return;
+    const g=col.gname, k=col.ci;
+    if(g==='Savdo'){
+      if(k===0) s+=ediTd(row.iso,row.reja,'reja',null,todayIso);
+      else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi',
+        {manual:row.uzgardiKind==='manual', kind:row.uzgardiKind, count:row.uzgardiCount, raw:row.uzgardiRaw},
+        todayIso);
+      else s+=faktTd(row.iso,row.reja);
+    }else if(g==="Yig'ilma"){
+      s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
+    }else if(g==='Qarz'){
+      if(k===0) s+=qarzTd(row.iso,row.qarzmiz);
+      else if(k===1) s+=berdikTd(row.berdik);
+      else s+=raznitsaTd(row.raznitsa);
+    }else if(g==='Qoldi pul'){
+      const val=k===0?row.qoldiReja:(k===1?row.qoldiUzga:(k===2?row.qoldiFakt:row.qoldiRaz));
+      s+=numTd(val);
+    }else{ // Prognoz
+      s+=(k===0)?kutilganTd(row.kutilgan):qarzOlsaTd(row);
     }
-  }
+  });
   return s;
+}
+/* ---- Ustun qiymati (filtr/saralash/jami qatori uchun) — hisob mantiqiga tegmaydi,
+   faqat RUN_MAP/allaqachon hisoblangan qatordan o'qiydi. ---- */
+function colValue(row,colId){
+  switch(colId){
+    case 'sv_reja': return row.reja;
+    case 'sv_uzga': return row.uzgardi;
+    case 'sv_fakt': { const d=combineFakt(row.iso); return (d&&d.usd!=null)?d.usd:null; }
+    case 'yg_reja': return row.yigReja;
+    case 'yg_uzga': return row.yigUzga;
+    case 'yg_fakt': return row.yigFakt;
+    case 'qz_qarzmiz': return row.qarzmiz;
+    case 'qz_berdik': return row.berdik;
+    case 'qz_raz': return row.raznitsa;
+    case 'qp_reja': return row.qoldiReja;
+    case 'qp_uzga': return row.qoldiUzga;
+    case 'qp_fakt': return row.qoldiFakt;
+    case 'qp_raz': return row.qoldiRaz;
+    case 'pr_kutilgan': return row.kutilgan;
+    case 'pr_qarzolsa': return row.qarzOlsa;
+    default: return null;
+  }
 }
 const daysInMonth=(y,m0)=>new Date(Date.UTC(y,m0+1,0)).getUTCDate();
 function isoAddDays(iso,n){ const [y,m,d]=iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); }
@@ -810,6 +988,7 @@ let REJA_MAP={};                                      // sana -> {reja,uzgardi,u
 let UZGARDI_QOLDA_OK=true;                            // false = ustun bazada yo'q (42703) — kalit yuborilmaydi
 let A_TODAY=null;                                     // A(bugun) — loadA10() bilan hisoblanadi (samarali Uzgaradi)
 let MONTH_DATA=[];                                    // renderTable() har chaqirilganda RUN_MAP'dan kesib olinadi
+let VISIBLE_ROWS=[];                                  // MONTH_DATA'dan filtr+saralashdan keyin qolgan qatorlar — KO'RINADIGAN tartib
 let CUR_FILTER='all';                                 // 'all' | 'ish' | 'farqli' | 'rejasiz'
 let SELECTED=null, EDITING=null, RANGE_ANCHOR=null;   // {c,i} — c='reja'|'uzgardi', i=sana(iso)
 let FILL=null;                                        // sudrab to'ldirish holati {c,startIso,curIso,val}
@@ -817,7 +996,10 @@ const SAVE_TIMERS={};                                 // debounce (~600ms) — k
 let CFM_RESOLVE=null;                                 // ochiq tasdiq modalining Promise resolve'i
 let PLAN_MODE='oylik';
 const EDIT_ORDER=['reja','uzgardi'];
-const dayList=()=>MONTH_DATA.map(r=>r.iso);
+/* 8-BOSQICH: dayList() endi KO'RINADIGAN (filtr+saralashdan keyingi) tartibni qaytaradi —
+   navigatsiya/sudrash/paste/Ctrl+D/Delete/Undo hammasi shu bilan ishlaydi, yashirin
+   (filtrlangan) qatorga yozilmaydi. Hisob mantiqi (buildRun/RUN_MAP) bunga bog'liq emas. */
+const dayList=()=>VISIBLE_ROWS.map(r=>r.iso);
 const cellKey=(c,i)=>c+'|'+i;
 
 function inSelRange(c,iso){
@@ -852,11 +1034,125 @@ function rejaPayload(iso){
    Uzgaradi (2026-09-12, Asilbek qarori A): faqat D>=bugun yozilishi mumkin (o'tgan kun
    faqat o'qiladi — UI ham bloklaydi, bu qo'shimcha himoya). Bo'sh qiymat bilan saqlash
    (rawVal='') uzgardi_qolda'ni false'ga qaytaradi — katak avtomatikaga o'tadi. */
+/* ---- Xavfsiz katak parseri (8-BOSQICH): "12 500" / "12,5" (son) YOKI "=1200/30",
+   "500*1.1", "1500+200" (ifoda) — eval/Function ISHLATILMAYDI, qo'lda yozilgan
+   rekursiv-tushish parser. Noto'g'ri kiritish {ok:false,err} qaytaradi — saqlanmaydi. */
+function evalSafeExpr(expr){
+  let i=0;
+  const peek=()=>expr[i];
+  const skipWs=()=>{ while(expr[i]===' ') i++; };
+  function parseNumber(){
+    skipWs();
+    const start=i;
+    while(/[0-9.]/.test(expr[i]||'')) i++;
+    if(i===start || expr.slice(start,i)==='.') throw new Error('num');
+    return Number(expr.slice(start,i));
+  }
+  function parseFactor(){
+    skipWs();
+    if(expr[i]==='('){ i++; const v=parseExpr(); skipWs(); if(expr[i]!==')') throw new Error(')'); i++; return v; }
+    if(expr[i]==='-'){ i++; return -parseFactor(); }
+    if(expr[i]==='+'){ i++; return parseFactor(); }
+    return parseNumber();
+  }
+  function parseTerm(){
+    let v=parseFactor(); skipWs();
+    while(expr[i]==='*'||expr[i]==='/'){ const op=expr[i]; i++; const rhs=parseFactor(); v = op==='*'?v*rhs:v/rhs; skipWs(); }
+    return v;
+  }
+  function parseExpr(){
+    let v=parseTerm(); skipWs();
+    while(expr[i]==='+'||expr[i]==='-'){ const op=expr[i]; i++; const rhs=parseTerm(); v = op==='+'?v+rhs:v-rhs; skipWs(); }
+    return v;
+  }
+  const result=parseExpr();
+  skipWs();
+  if(i!==expr.length) throw new Error('trailing');
+  return result;
+}
+function parseCellValue(raw){
+  const s=String(raw??'').trim();
+  if(s==='') return {ok:true, val:null};
+  const isFormula = s.startsWith('=') || /[*/()]/.test(s) || (s.match(/[+\-]/g)||[]).length>1
+    || (s.indexOf('-')>0) || (s.indexOf('+')>0);
+  if(isFormula){
+    const expr=(s.startsWith('=')?s.slice(1):s).trim();
+    if(!expr || !/^[0-9+\-*/().\s]+$/.test(expr)) return {ok:false, err:"Noto'g'ri ifoda"};
+    let val;
+    try{ val=evalSafeExpr(expr); }catch(e){ return {ok:false, err:"Noto'g'ri ifoda"}; }
+    if(!isFinite(val)) return {ok:false, err:"Noto'g'ri ifoda"};
+    return {ok:true, val:Math.round(val*100)/100};
+  }
+  const norm=s.replace(/\s+/g,'').replace(',', '.');
+  if(!/^-?\d+(\.\d+)?$/.test(norm)) return {ok:false, err:"Noto'g'ri son"};
+  const n=Number(norm);
+  if(!isFinite(n)) return {ok:false, err:"Noto'g'ri son"};
+  return {ok:true, val:Math.round(n*100)/100};
+}
+/* ---- Toast (bloklangan tahrir / kichik xabarlar) — banner emas, transient. ---- */
+let TOAST_TIMER=null;
+function showToast(msg){
+  const el=$('toast'); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(TOAST_TIMER);
+  TOAST_TIMER=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function showCellError(input,msg){
+  if(!input) return;
+  input.classList.add('invalid');
+  let m=input.parentElement.querySelector('.ed-err');
+  if(!m){ m=document.createElement('div'); m.className='ed-err'; input.parentElement.appendChild(m); }
+  m.textContent=msg||"Noto'g'ri qiymat";
+}
+function clearCellError(input){
+  if(!input) return;
+  input.classList.remove('invalid');
+  const m=input.parentElement && input.parentElement.querySelector('.ed-err');
+  if(m) m.remove();
+}
+function flashSaveOk(c,i){
+  const td=document.querySelector(`td[data-c="${c}"][data-i="${i}"]`);
+  if(!td || td.classList.contains('editing')) return;
+  const b=document.createElement('span'); b.className='save-ok'; b.textContent='✓';
+  td.appendChild(b); setTimeout(()=>{ b.remove(); },900);
+}
+function flashSaveErr(c,i){
+  const td=document.querySelector(`td[data-c="${c}"][data-i="${i}"]`);
+  if(!td) return;
+  td.classList.add('save-err'); setTimeout(()=>td.classList.remove('save-err'),2500);
+}
+/* ---- Undo (Ctrl+Z, sessiya ichida ≥20 qadam) — REJA_MAP oldingi holatini saqlaydi,
+   qaytarish ham saveCell orqali serverga yoziladi. Fill/paste/Ctrl+Enter/Delete —
+   BITTA undo qadami (batch), qo'lda bitta katak — alohida qadam. ---- */
+let UNDO_STACK=[]; const UNDO_MAX=20;
+function trimUndo(){ while(UNDO_STACK.length>UNDO_MAX) UNDO_STACK.shift(); }
+function pushUndoBatch(c,isos){
+  const changes=isos.map(iso=>({iso, prevVal:(REJA_MAP[iso]||{})[c]??null, prevQolda: c==='uzgardi'?!!(REJA_MAP[iso]||{}).uzgardi_qolda:null}));
+  UNDO_STACK.push({c,changes}); trimUndo();
+}
+async function doUndo(){
+  if(!canEdit || !UNDO_STACK.length) return;
+  const entry=UNDO_STACK.pop();
+  for(const ch of entry.changes){
+    if(!REJA_MAP[ch.iso]) REJA_MAP[ch.iso]={reja:0,uzgardi:0,uzgardi_qolda:false};
+    REJA_MAP[ch.iso][entry.c]=ch.prevVal||0;
+    if(entry.c==='uzgardi') REJA_MAP[ch.iso].uzgardi_qolda=!!ch.prevQolda;
+    try{ await sb.from('beshkunlik_reja').upsert([rejaPayload(ch.iso)],{onConflict:'profil,sana'}); }
+    catch(e){ console.warn('undo saqlash xato:',e.message); }
+  }
+  buildRun(RUN_START,RUN_H); renderTable();
+  showToast('Qaytarildi ('+entry.changes.length+' kun)');
+}
+document.addEventListener('keydown',e=>{
+  if(!canEdit || EDITING) return;
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z' && !e.shiftKey){ e.preventDefault(); doUndo(); }
+});
 async function saveCell(c,i,rawVal){
-  if(c==='uzgardi' && i<isoDay(nowUz())) return;
-  const empty=(rawVal===''||rawVal==null);
-  const n=empty?0:Number(rawVal);
-  const val=isFinite(n)?Math.round(n*100)/100:0;
+  if(c==='uzgardi' && i<isoDay(nowUz())) return {ok:true,val:null};
+  const parsed=parseCellValue(rawVal);
+  if(!parsed.ok) return parsed;
+  const empty=(parsed.val==null);
+  const val=empty?0:parsed.val;
   if(!REJA_MAP[i]) REJA_MAP[i]={reja:0,uzgardi:0,uzgardi_qolda:false};
   REJA_MAP[i][c]=val;
   if(c==='uzgardi') REJA_MAP[i].uzgardi_qolda=!empty;
@@ -864,18 +1160,33 @@ async function saveCell(c,i,rawVal){
   try{
     const {error}=await sb.from('beshkunlik_reja').upsert([rejaPayload(i)],{onConflict:'profil,sana'});
     if(error) throw error;
-  }catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); }
+    flashSaveOk(c,i);
+  }catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); flashSaveErr(c,i); }
+  return {ok:true, val:parsed.val};
+}
+/* Interaktiv (Enter/Tab/blur) commit — undo qadamini AVVAL qiymat haqiqatan
+   o'zgargandagina yozadi (bo'sh Enter/Tab har safar stekni to'ldirmasin). */
+async function commitEdit(c,i,rawVal){
+  const before=REJA_MAP[i]?Object.assign({},REJA_MAP[i]):{reja:0,uzgardi:0,uzgardi_qolda:false};
+  const r=await saveCell(c,i,rawVal);
+  if(r.ok){
+    const after=REJA_MAP[i]||{};
+    const changed=(before[c]||0)!==(after[c]||0) || (c==='uzgardi' && !!before.uzgardi_qolda!==!!after.uzgardi_qolda);
+    if(changed) pushUndoBatch(c,[i]);
+  }
+  return r;
 }
 function commitEditIfAny(){
   if(!EDITING) return;
   const {c,i}=EDITING;
   const input=document.querySelector(`input[data-c="${c}"][data-i="${i}"]`);
   clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
-  if(input) saveCell(c,i,input.value);
+  if(input) commitEdit(c,i,input.value);
   EDITING=null;
 }
 function startEdit(c,iso,initialChar,selectAll){
-  if(c==='uzgardi' && iso<isoDay(nowUz())) return;   // otgan kun Uzgaradi — faqat o'qiladi
+  if(c==='uzgardi' && iso<isoDay(nowUz())){ showToast("O'tgan kun — Fakt'ga teng, tahrirlanmaydi"); return; }
+  if(IS_MOBILE()){ window.bkCellSheetOpen(c,iso); return; }
   commitEditIfAny();
   EDITING={c,i:iso}; SELECTED={c,i:iso}; RANGE_ANCHOR=iso;
   renderTable();
@@ -891,6 +1202,44 @@ function cancelEdit(c,i){
   EDITING=null; SELECTED={c,i}; RANGE_ANCHOR=i;
   renderTable(); focusSelected();
 }
+/* ---- Mobil (≤899px) katak tahrir sheet'i — inline input noqulay, pastdan sheet
+   ochiladi (sana, ustun, raqamli klaviatura inputmode=decimal, Saqlash/Bekor/Avtomatikaga
+   qaytarish). startEdit()/bkCellClick/bkCellDbl mobil'da bularni to'g'ridan chaqiradi. ---- */
+let CELL_SHEET=null;   // {c,iso}
+window.bkCellSheetOpen=(c,iso)=>{
+  if(!canEdit) return;
+  CELL_SHEET={c,iso};
+  const col=c==='reja'?'Reja':'Uzgaradi';
+  const rj=REJA_MAP[iso]||{};
+  const cur = c==='uzgardi' ? (RUN_MAP[iso]?RUN_MAP[iso].uzgardi:null) : (rj.reja??null);
+  $('csTitle').textContent=col+' — '+fmtDayShort(iso);
+  $('csSub').textContent = c==='uzgardi'
+    ? (rj.uzgardi_qolda ? "Qo'lda yozilgan" : "Avtomatik hisoblangan — saqlasangiz qo'lda yozilganga aylanadi")
+    : "Kunlik reja ($)";
+  $('csLbl').textContent='Qiymat ($)';
+  $('csVal').value = cur==null?'':cur;
+  $('csErr').style.display='none'; $('csErr').textContent='';
+  $('csResetRow').style.display=(c==='uzgardi' && rj.uzgardi_qolda)?'block':'none';
+  $('cellModal').classList.add('open');
+  setTimeout(()=>{ $('csVal').focus(); $('csVal').select(); },50);
+};
+window.bkCellSheetClose=()=>{ $('cellModal').classList.remove('open'); CELL_SHEET=null; };
+window.bkCellSheetSave=async()=>{
+  if(!CELL_SHEET) return;
+  const {c,iso}=CELL_SHEET;
+  const r=await commitEdit(c,iso,$('csVal').value);
+  if(!r.ok){ $('csErr').textContent=r.err; $('csErr').style.display='block'; return; }
+  window.bkCellSheetClose();
+  renderTable();
+};
+window.bkCellSheetReset=async()=>{
+  if(!CELL_SHEET) return;
+  const {iso}=CELL_SHEET;
+  pushUndoBatch('uzgardi',[iso]);
+  await saveCell('uzgardi',iso,'');
+  window.bkCellSheetClose();
+  renderTable();
+};
 function moveSelectionAfterCommit(c,i,dir){
   const days=dayList(); const rowIdx=days.indexOf(i);
   if(dir==='down'){
@@ -952,44 +1301,108 @@ function fillDown(c,iso){
   const aboveIso=days[idx-1];
   const aboveVal = c==='uzgardi' ? (RUN_MAP[aboveIso]?RUN_MAP[aboveIso].uzgardi:null) : (REJA_MAP[aboveIso]||{})[c];
   if(aboveVal==null) return;
+  pushUndoBatch(c,[iso]);
   saveCell(c,iso,String(aboveVal));
   renderTable();
 }
+/* Tanlangan diapazonni tozalash (Delete/Backspace) — Uzgaradi avtomatikaga qaytadi
+   (bo'sh qiymat), Reja 0'ga. O'tgan kun Uzgaradi — o'tkazib yuboriladi. */
+function clearRange(c,anchorIso){
+  if(!canEdit) return;
+  const days=dayList();
+  const a=days.indexOf(RANGE_ANCHOR!=null?RANGE_ANCHOR:anchorIso), b=days.indexOf(anchorIso);
+  if(a<0||b<0) return;
+  const lo=Math.min(a,b), hi=Math.max(a,b);
+  const todayIso=isoDay(nowUz());
+  const targets=[];
+  for(let k=lo;k<=hi;k++){ const iso=days[k]; if(c==='uzgardi'&&iso<todayIso) continue; targets.push(iso); }
+  if(!targets.length) return;
+  pushUndoBatch(c,targets);
+  (async()=>{ for(const iso of targets) await saveCell(c,iso,''); renderTable(); showToast('Tozalandi ('+targets.length+' kun)'); })();
+}
+/* Ctrl+Enter — tanlangan diapazonning HAMMASIGA bir qiymat (Excel naqshi). */
+async function commitRangeValue(c,anchorIso,rawVal,input){
+  const parsed=parseCellValue(rawVal);
+  if(!parsed.ok){ showCellError(input,parsed.err); return; }
+  if(input) clearCellError(input);
+  const days=dayList();
+  const a=days.indexOf(RANGE_ANCHOR!=null?RANGE_ANCHOR:anchorIso), b=days.indexOf(anchorIso);
+  const lo=Math.min(a,b), hi=Math.max(a,b);
+  const todayIso=isoDay(nowUz());
+  const targets=[];
+  for(let k=lo;k<=hi;k++){ const iso=days[k]; if(c==='uzgardi'&&iso<todayIso) continue; targets.push(iso); }
+  if(!targets.length) return;
+  pushUndoBatch(c,targets);
+  EDITING=null;
+  for(const iso of targets) await saveCell(c,iso,rawVal);
+  renderTable();
+  showToast("Qiymat qo'llandi ("+targets.length+' kun)');
+}
+window.bkResetAuto=async(ev,iso)=>{
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  if(!canEdit) return;
+  pushUndoBatch('uzgardi',[iso]);
+  await saveCell('uzgardi',iso,'');
+  renderTable();
+};
+const IS_MOBILE=()=>innerWidth<900;
 window.bkCellClick=(ev,td)=>{
   if(!canEdit) return;
+  const c=td.dataset.c, i=td.dataset.i;
+  const editable = c!=='uzgardi' || i>=isoDay(nowUz());
+  if(IS_MOBILE() && editable){ commitEditIfAny(); window.bkCellSheetOpen(c,i); return; }
   commitEditIfAny();
-  SELECTED={c:td.dataset.c,i:td.dataset.i}; RANGE_ANCHOR=td.dataset.i;
+  if(ev && ev.shiftKey && SELECTED && SELECTED.c===c){ SELECTED={c,i}; }
+  else{ SELECTED={c,i}; RANGE_ANCHOR=i; }
   renderTable(); focusSelected();
 };
-window.bkCellDbl=td=>{ if(!canEdit) return; startEdit(td.dataset.c,td.dataset.i,null,true); };
+window.bkCellDbl=td=>{
+  if(!canEdit) return;
+  if(IS_MOBILE()){ window.bkCellSheetOpen(td.dataset.c,td.dataset.i); return; }
+  startEdit(td.dataset.c,td.dataset.i,null,true);
+};
 window.bkCellKey=(ev,td)=>{
   if(!canEdit) return;
   const c=td.dataset.c, iso=td.dataset.i, key=ev.key;
   if(key==='Enter'||key==='F2'){ ev.preventDefault(); startEdit(c,iso,null,true); return; }
   if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){ ev.preventDefault(); moveSelection(c,iso,key,ev.shiftKey); return; }
   if(key==='Tab' && !ev.shiftKey){ ev.preventDefault(); moveSelectionAfterCommit(c,iso,'right'); return; }
+  if((key==='Delete'||key==='Backspace') && !ev.ctrlKey && !ev.metaKey && !ev.altKey){ ev.preventDefault(); clearRange(c,iso); return; }
   if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='d'){ ev.preventDefault(); fillDown(c,iso); return; }
   if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='c'){ ev.preventDefault(); copySelection(); return; }
   if(/^[0-9.\-]$/.test(key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey){ ev.preventDefault(); startEdit(c,iso,key,false); }
 };
 window.bkCellInput=input=>{
   const {c,i}=input.dataset, key=cellKey(c,i);
+  clearCellError(input);
   clearTimeout(SAVE_TIMERS[key]);
-  SAVE_TIMERS[key]=setTimeout(()=>{ saveCell(c,i,input.value); }, 600);
+  SAVE_TIMERS[key]=setTimeout(()=>{ commitEdit(c,i,input.value).then(r=>{ if(!r.ok) showCellError(input,r.err); }); }, 600);
 };
 window.bkInputKey=(ev,input)=>{
   const {c,i}=input.dataset;
-  if(ev.key==='Enter'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(c,i)]); saveCell(c,i,input.value); EDITING=null; moveSelectionAfterCommit(c,i,'down'); }
-  else if(ev.key==='Tab'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(c,i)]); saveCell(c,i,input.value); EDITING=null; moveSelectionAfterCommit(c,i,'right'); }
-  else if(ev.key==='Escape'){ ev.preventDefault(); cancelEdit(c,i); }
+  if(ev.key==='Enter'){
+    ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
+    if(ev.ctrlKey||ev.metaKey){ commitRangeValue(c,i,input.value,input); return; }
+    commitEdit(c,i,input.value).then(r=>{
+      if(!r.ok){ showCellError(input,r.err); return; }
+      clearCellError(input); EDITING=null; moveSelectionAfterCommit(c,i,'down');
+    });
+  }else if(ev.key==='Tab'){
+    ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
+    commitEdit(c,i,input.value).then(r=>{
+      if(!r.ok){ showCellError(input,r.err); return; }
+      clearCellError(input); EDITING=null; moveSelectionAfterCommit(c,i,'right');
+    });
+  }else if(ev.key==='Escape'){ ev.preventDefault(); cancelEdit(c,i); }
 };
 window.bkInputBlur=input=>{
   const {c,i}=input.dataset;
   if(!EDITING || EDITING.c!==c || EDITING.i!==i) return;   // Enter/Tab/Esc allaqachon yopgan
   clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
-  saveCell(c,i,input.value);
-  EDITING=null;
-  renderTable();
+  commitEdit(c,i,input.value).then(r=>{
+    if(!r.ok) showToast(r.err||"Noto'g'ri qiymat, saqlanmadi");
+    EDITING=null; renderTable();
+  });
 };
 /* ---- Pastga sudrab to'ldirish (fill handle). 'uzgardi' uchun ko'rsatilgan (samarali)
    qiymatdan boshlanadi — xom REJA_MAP emas (auto katakning ko'rsatilgan raqami
@@ -1036,15 +1449,16 @@ function onFillEnd(){
   document.querySelectorAll('td.ed-cell.fillprev').forEach(td=>td.classList.remove('fillprev'));
   if(b<=a) return;
   const todayIso=isoDay(nowUz());
+  const targetIsos=[];
+  for(let k=a+1;k<=b;k++){ const iso=days[k]; if(c==='uzgardi'&&iso<todayIso) continue; targetIsos.push(iso); }
+  if(targetIsos.length) pushUndoBatch(c,targetIsos);
   const rows=[];
-  for(let k=a+1;k<=b;k++){
-    const iso=days[k];
-    if(c==='uzgardi' && iso<todayIso) continue;   // otgan kun — sudrashda o'tkazib yuboriladi
+  targetIsos.forEach(iso=>{
     if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0,uzgardi_qolda:false};
     REJA_MAP[iso][c]=val;
     if(c==='uzgardi') REJA_MAP[iso].uzgardi_qolda=true;
     rows.push(rejaPayload(iso));
-  }
+  });
   SELECTED={c,i:curIso}; RANGE_ANCHOR=startIso;
   buildRun(RUN_START,RUN_H);
   renderTable();
@@ -1068,20 +1482,25 @@ document.addEventListener('paste', e=>{
   const days=dayList(); const startIdx=days.indexOf(i);
   if(startIdx<0) return;
   const todayIso=isoDay(nowUz());
-  const rows=[];
+  const targetIsos=[], vals={};
   lines.forEach((line,k)=>{
     const rowIdx=startIdx+k; if(rowIdx>=days.length) return;
     const iso=days[rowIdx];
     if(c==='uzgardi' && iso<todayIso) return;   // otgan kun — paste'da o'tkazib yuboriladi
-    const first=line.split('\t')[0].trim().replace(',', '.');
+    const first=line.split('\t')[0].trim().replace(/\s+/g,'').replace(',', '.');
     const n=Number(first);
     if(!isFinite(n)) return;
+    targetIsos.push(iso); vals[iso]=Math.round(n*100)/100;
+  });
+  if(!targetIsos.length) return;
+  pushUndoBatch(c,targetIsos);
+  const rows=[];
+  targetIsos.forEach(iso=>{
     if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0,uzgardi_qolda:false};
-    REJA_MAP[iso][c]=Math.round(n*100)/100;
+    REJA_MAP[iso][c]=vals[iso];
     if(c==='uzgardi') REJA_MAP[iso].uzgardi_qolda=true;
     rows.push(rejaPayload(iso));
   });
-  if(!rows.length) return;
   buildRun(RUN_START,RUN_H);
   renderTable();
   (async()=>{
@@ -1440,6 +1859,202 @@ function rowMatchesFilter(row){
   if(CUR_FILTER==='rejasiz') return row.reja==null;
   return true;
 }
+
+/* =====================================================================
+   8-BOSQICH (2026-09-13) — Excel uslubidagi ustun filtri + saralash.
+   Faqat KO'RINISHga ta'sir qiladi — RUN_MAP/hisob mantiqiga tegilmagan;
+   qiymatlar colValue() orqali allaqachon hisoblangan qatordan o'qiladi.
+   Holat sessionStorage'da (oy almashsa ham qoladi), try/catch bilan. ===== */
+let COL_FILTERS={};           // colId -> {op, val, val2}
+let SANA_FILTER={from:null,to:null,dow:null};   // dow=null -> hammasi
+let SORT_COL=null, SORT_DIR=null;               // faqat BITTA ustun bo'yicha saralash
+const FILT_STATE_KEY='prov-5k-filters';
+function saveFilterState(){
+  try{ sessionStorage.setItem(FILT_STATE_KEY, JSON.stringify({COL_FILTERS,SANA_FILTER,SORT_COL,SORT_DIR})); }catch(e){}
+}
+function loadFilterState(){
+  try{
+    const raw=sessionStorage.getItem(FILT_STATE_KEY);
+    if(!raw) return;
+    const o=JSON.parse(raw);
+    COL_FILTERS=o.COL_FILTERS||{}; SANA_FILTER=o.SANA_FILTER||{from:null,to:null,dow:null};
+    SORT_COL=o.SORT_COL||null; SORT_DIR=o.SORT_DIR||null;
+  }catch(e){ COL_FILTERS={}; SANA_FILTER={from:null,to:null,dow:null}; SORT_COL=null; SORT_DIR=null; }
+}
+/* "12 500" / "12,5" / "12.5" -> son. Filtr qiymat maydoni uchun (katak parseriga o'xshash, formula yo'q). */
+function parseFiltNum(s){
+  const norm=String(s??'').trim().replace(/\s+/g,'').replace(',', '.');
+  if(norm==='') return null;
+  const n=Number(norm);
+  return isFinite(n)?n:null;
+}
+const OP_LABEL={eq:'=',ne:'≠',gt:'>',gte:'≥',lt:'<',lte:'≤',range:"oraliqda",empty:"bo'sh",notempty:"bo'sh emas",neg:'manfiy',pos:'musbat'};
+function matchColFilter(row,colId){
+  const f=COL_FILTERS[colId]; if(!f) return true;
+  const v=colValue(row,colId);
+  switch(f.op){
+    case 'empty': return v==null;
+    case 'notempty': return v!=null;
+    case 'neg': return v!=null && v<0;
+    case 'pos': return v!=null && v>0;
+    case 'eq': return v!=null && f.val!=null && Math.abs(v-f.val)<0.005;
+    case 'ne': return v==null || f.val==null || Math.abs(v-f.val)>=0.005;
+    case 'gt': return v!=null && f.val!=null && v>f.val;
+    case 'gte': return v!=null && f.val!=null && v>=f.val;
+    case 'lt': return v!=null && f.val!=null && v<f.val;
+    case 'lte': return v!=null && f.val!=null && v<=f.val;
+    case 'range': return v!=null && f.val!=null && f.val2!=null && v>=Math.min(f.val,f.val2) && v<=Math.max(f.val,f.val2);
+    default: return true;
+  }
+}
+function matchSanaFilter(row){
+  if(SANA_FILTER.from && row.iso<SANA_FILTER.from) return false;
+  if(SANA_FILTER.to && row.iso>SANA_FILTER.to) return false;
+  if(SANA_FILTER.dow && SANA_FILTER.dow.length && SANA_FILTER.dow.length<7 && !SANA_FILTER.dow.includes(row.dow)) return false;
+  return true;
+}
+function hasAnyColFilter(){ return Object.keys(COL_FILTERS).length>0 || (SANA_FILTER.from||SANA_FILTER.to||(SANA_FILTER.dow&&SANA_FILTER.dow.length&&SANA_FILTER.dow.length<7)); }
+function filterChipText(colId){
+  if(colId==='_sana'){
+    const parts=[];
+    if(SANA_FILTER.from||SANA_FILTER.to) parts.push(`${SANA_FILTER.from?fmtDayShort(SANA_FILTER.from):'…'}–${SANA_FILTER.to?fmtDayShort(SANA_FILTER.to):'…'}`);
+    if(SANA_FILTER.dow && SANA_FILTER.dow.length && SANA_FILTER.dow.length<7) parts.push(SANA_FILTER.dow.map(d=>HAFTA_QISQA[d]).join(','));
+    return 'Sana: '+parts.join(' · ');
+  }
+  const f=COL_FILTERS[colId]; if(!f) return '';
+  const col=COL_BY_ID[colId];
+  if(f.op==='range') return `${col.label} ${OP_LABEL.range} ${money(f.val)}–${money(f.val2)}`;
+  if(f.op==='empty'||f.op==='notempty'||f.op==='neg'||f.op==='pos') return `${col.label} ${OP_LABEL[f.op]}`;
+  return `${col.label} ${OP_LABEL[f.op]} ${money(f.val)}`;
+}
+function renderFilterChips(){
+  const wrap=$('activeFilters'); if(!wrap) return;
+  const chips=[];
+  if(SANA_FILTER.from||SANA_FILTER.to||(SANA_FILTER.dow&&SANA_FILTER.dow.length&&SANA_FILTER.dow.length<7)){
+    chips.push(`<span class="fchip">${esc(filterChipText('_sana'))}<button type="button" aria-label="Sana filtrini olib tashlash" onclick="window.bkFiltClear('_sana')">×</button></span>`);
+  }
+  Object.keys(COL_FILTERS).forEach(id=>{
+    chips.push(`<span class="fchip">${esc(filterChipText(id))}<button type="button" aria-label="Filtrni olib tashlash" onclick="window.bkFiltClear('${id}')">×</button></span>`);
+  });
+  if(SORT_COL){
+    const col=COL_BY_ID[SORT_COL];
+    chips.push(`<span class="fchip">Saralash: ${esc(col?col.label:SORT_COL)} ${SORT_DIR==='asc'?'↑':'↓'}<button type="button" aria-label="Saralashni olib tashlash" onclick="window.bkSortClear()">×</button></span>`);
+  }
+  if(!chips.length){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+  wrap.style.display='flex';
+  wrap.innerHTML=chips.join('')+`<button type="button" class="chip" style="height:28px;padding:0 10px;font-size:12px" onclick="window.bkFiltClearAll()">Hammasini tozalash</button>`;
+}
+window.bkFiltClear=id=>{
+  if(id==='_sana') SANA_FILTER={from:null,to:null,dow:null};
+  else delete COL_FILTERS[id];
+  saveFilterState(); renderTable(); buildHeader();
+};
+window.bkSortClear=()=>{ SORT_COL=null; SORT_DIR=null; saveFilterState(); renderTable(); buildHeader(); };
+window.bkFiltClearAll=()=>{
+  COL_FILTERS={}; SANA_FILTER={from:null,to:null,dow:null}; SORT_COL=null; SORT_DIR=null;
+  saveFilterState(); renderTable(); buildHeader();
+};
+function sortVisibleRows(rows){
+  if(!SORT_COL || !SORT_DIR) return rows;
+  const withVal=rows.map(r=>({r, v:(SORT_COL==='_sana')?r.iso:colValue(r,SORT_COL)}));
+  withVal.sort((a,b)=>{
+    const av=a.v, bv=b.v;
+    if(av==null && bv==null) return 0;
+    if(av==null) return 1;
+    if(bv==null) return -1;
+    if(av<bv) return SORT_DIR==='asc'?-1:1;
+    if(av>bv) return SORT_DIR==='asc'?1:-1;
+    return 0;
+  });
+  return withVal.map(x=>x.r);
+}
+/* ---- Filtr belgisi (sarlavhada) + popover (Excel uslubi) ---- */
+function filterIconHtml(colId){
+  const active = colId==='_sana' ? hasAnyColFilterSana() : !!COL_FILTERS[colId];
+  const sorted = SORT_COL===colId;
+  return `<button type="button" class="th-filt${active||sorted?' on':''}" title="Filtr/saralash" onclick="window.bkFiltOpen(event,'${colId}')"><i data-lucide="list-filter"></i></button>`;
+}
+function hasAnyColFilterSana(){ return !!(SANA_FILTER.from||SANA_FILTER.to||(SANA_FILTER.dow&&SANA_FILTER.dow.length&&SANA_FILTER.dow.length<7)); }
+const NUMERIC_OPS=[['eq','='],['ne','≠'],['gt','>'],['gte','≥'],['lt','<'],['lte','≤'],['range',"Oraliqda (dan–gacha)"],['empty',"Bo'sh"],['notempty',"Bo'sh emas"],['neg','Manfiy'],['pos','Musbat']];
+function renderFiltPop(colId){
+  const pop=$('filtPop'); if(!pop) return;
+  pop.dataset.col=colId;
+  if(colId==='_sana'){
+    const dow=SANA_FILTER.dow&&SANA_FILTER.dow.length?SANA_FILTER.dow:[0,1,2,3,4,5,6];
+    const dowBoxes=HAFTA_QISQA.map((d,idx)=>`<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:400;margin:2px 6px 2px 0;cursor:pointer">`
+      +`<input type="checkbox" id="fdw${idx}" ${dow.includes(idx)?'checked':''} style="width:14px;height:14px;accent-color:var(--primary);cursor:pointer">${d}</label>`).join('');
+    pop.innerHTML=`<h4>Sana filtri</h4>`
+      +`<label style="margin-top:2px">Dan</label><input class="txt" id="ffFrom" type="date" style="height:38px;margin-bottom:8px" value="${SANA_FILTER.from||''}">`
+      +`<label>Gacha</label><input class="txt" id="ffTo" type="date" style="height:38px;margin-bottom:8px" value="${SANA_FILTER.to||''}">`
+      +`<label>Hafta kunlari</label><div style="margin-bottom:8px">${dowBoxes}</div>`
+      +`<div class="modrow"><button type="button" onclick="window.bkFiltReset()">Tozalash</button><button type="button" class="primary" onclick="window.bkFiltApply()">Qo'llash</button></div>`;
+  }else{
+    const f=COL_FILTERS[colId]||{op:'gt',val:null,val2:null};
+    const opts=NUMERIC_OPS.map(([v,l])=>`<option value="${v}"${f.op===v?' selected':''}>${esc(l)}</option>`).join('');
+    const needVal=!['empty','notempty','neg','pos'].includes(f.op);
+    const needVal2=f.op==='range';
+    pop.innerHTML=`<h4>${esc(COL_BY_ID[colId].label)} — filtr</h4>`
+      +`<label>Saralash</label>`
+      +`<div class="modrow" style="margin-bottom:10px">`
+      +`<button type="button" class="${SORT_COL===colId&&SORT_DIR==='asc'?'primary':''}" onclick="window.bkSortToggle('${colId}','asc')">↑ O'sish</button>`
+      +`<button type="button" class="${SORT_COL===colId&&SORT_DIR==='desc'?'primary':''}" onclick="window.bkSortToggle('${colId}','desc')">↓ Kamayish</button></div>`
+      +`<label>Shart</label><select class="txt" id="ffOp" style="height:42px;margin-bottom:8px" onchange="window.bkFiltOpChange()">${opts}</select>`
+      +`<div id="ffValWrap" style="display:${needVal?'block':'none'}">`
+      +`<input class="txt" id="ffVal" inputmode="decimal" placeholder="Qiymat" style="height:42px;margin-bottom:8px" value="${f.val!=null?f.val:''}">`
+      +`<div id="ffVal2Wrap" style="display:${needVal2?'block':'none'}"><input class="txt" id="ffVal2" inputmode="decimal" placeholder="…gacha" style="height:42px;margin-bottom:8px" value="${f.val2!=null?f.val2:''}"></div>`
+      +`</div>`
+      +`<div class="modrow"><button type="button" onclick="window.bkFiltReset()">Tozalash</button><button type="button" class="primary" onclick="window.bkFiltApply()">Qo'llash</button></div>`;
+  }
+}
+window.bkFiltOpChange=()=>{
+  const op=$('ffOp').value;
+  $('ffValWrap').style.display=['empty','notempty','neg','pos'].includes(op)?'none':'block';
+  $('ffVal2Wrap').style.display=op==='range'?'block':'none';
+};
+window.bkSortToggle=(colId,dir)=>{
+  if(SORT_COL===colId && SORT_DIR===dir){ SORT_COL=null; SORT_DIR=null; }
+  else{ SORT_COL=colId; SORT_DIR=dir; }
+  renderFiltPop(colId);
+};
+window.bkFiltOpen=(ev,colId)=>{
+  ev.stopPropagation();
+  const pop=$('filtPop'), btn=ev.currentTarget;
+  if(pop.classList.contains('open') && pop.dataset.col===colId){ pop.classList.remove('open'); return; }
+  closeAllDropPops();
+  renderFiltPop(colId);
+  pop.classList.add('open');
+  positionDropPop(pop,btn.getBoundingClientRect());
+};
+window.bkFiltReset=()=>{
+  const colId=$('filtPop').dataset.col;
+  if(colId==='_sana') SANA_FILTER={from:null,to:null,dow:null};
+  else delete COL_FILTERS[colId];
+  saveFilterState();
+  $('filtPop').classList.remove('open');
+  buildHeader(); renderTable();
+};
+window.bkFiltApply=()=>{
+  const colId=$('filtPop').dataset.col;
+  if(colId==='_sana'){
+    const dow=[]; HAFTA_QISQA.forEach((d,idx)=>{ const el=$('fdw'+idx); if(el&&el.checked) dow.push(idx); });
+    SANA_FILTER={from:$('ffFrom').value||null, to:$('ffTo').value||null, dow:dow.length<7?dow:null};
+  }else{
+    const op=$('ffOp').value;
+    const val=$('ffVal')?parseFiltNum($('ffVal').value):null;
+    const val2=$('ffVal2')?parseFiltNum($('ffVal2').value):null;
+    if(!['empty','notempty','neg','pos'].includes(op) && val==null){ showToast("Qiymatni kiriting"); return; }
+    COL_FILTERS[colId]={op,val,val2};
+  }
+  saveFilterState();
+  $('filtPop').classList.remove('open');
+  buildHeader(); renderTable();
+};
+document.addEventListener('keydown',e=>{
+  const pop=$('filtPop');
+  if(!pop || !pop.classList.contains('open')) return;
+  if(e.key==='Escape'){ pop.classList.remove('open'); }
+  else if(e.key==='Enter' && (e.target.tagName==='INPUT'||e.target.tagName==='SELECT') && pop.contains(e.target)){ e.preventDefault(); window.bkFiltApply(); }
+});
 function monthDaySlice(y,m,dim){
   const rows=[];
   for(let d=1; d<=dim; d++){
@@ -1486,6 +2101,33 @@ window.bk5kFilter=f=>{
   document.querySelectorAll('#chipbar .chip').forEach(b=>b.classList.toggle('on', b.dataset.f===f));
   renderTable();
 };
+/* ---- Jami qatori (sticky bottom) — FAQAT ko'rinadigan (VISIBLE_ROWS) qatorlar bo'yicha.
+   Savdo/Qarz — yig'indi; Qoldi pul/Prognoz/Yig'ilma — oxirgi ko'rinadigan (kalendar bo'yicha
+   eng so'nggi) kun qiymati. Ko'rinish/jami — hisob mantiqiga TEGMAYDI. */
+const TOTAL_SUM_COLS=new Set(['sv_reja','sv_uzga','sv_fakt','qz_qarzmiz','qz_berdik','qz_raz']);
+function renderTotals(){
+  const tf=$('tfoot5k'); if(!tf) return;
+  if(!VISIBLE_ROWS.length){ tf.innerHTML=''; return; }
+  let lastRow=VISIBLE_ROWS[0];
+  VISIBLE_ROWS.forEach(r=>{ if(r.iso>lastRow.iso) lastRow=r; });
+  let cells=`<td class="sana-col" title="Ko'rinadigan ${VISIBLE_ROWS.length} kun bo'yicha">Jami</td>`;
+  FLAT_COLS.forEach(col=>{
+    if(!COLVIS[col.id]) return;
+    if(TOTAL_SUM_COLS.has(col.id)){
+      const sum=VISIBLE_ROWS.reduce((s,r)=>s+(colValue(r,col.id)||0),0);
+      cells+=`<td class="num" title="Ko'rinadigan kunlar yig'indisi">${money(sum)}</td>`;
+    }else{
+      const v=colValue(lastRow,col.id);
+      cells+=`<td class="num" title="Oxirgi ko'rinadigan kun (${fmtDayShort(lastRow.iso)}) qiymati">${v==null?'—':money(v)}</td>`;
+    }
+  });
+  tf.innerHTML=`<tr class="totals-row">${cells}</tr>`;
+}
+function renderCountLine(total){
+  const el=$('bkCount'); if(!el) return;
+  const filtered = hasAnyColFilter() || CUR_FILTER!=='all';
+  el.textContent = filtered ? `${VISIBLE_ROWS.length} / ${total} kun ko'rsatilmoqda` : `${total} kun`;
+}
 function renderTable(){
   const v=$('oy').value||oyNowStr();
   const [y,m]=v.split('-').map(Number);   // m — 1 dan boshlanadi (input value)
@@ -1496,17 +2138,31 @@ function renderTable(){
   renderOpenBal();
   renderWarn(dispFirst,todayIso);
   renderPrognozSummary(todayIso);
+  VISIBLE_ROWS=MONTH_DATA.filter(row=>rowMatchesFilter(row) && matchSanaFilter(row)
+    && Object.keys(COL_FILTERS).every(id=>matchColFilter(row,id)));
+  VISIBLE_ROWS=sortVisibleRows(VISIBLE_ROWS);
   const rows=[];
-  MONTH_DATA.forEach(row=>{
-    if(!rowMatchesFilter(row)) return;
+  VISIBLE_ROWS.forEach(row=>{
     const cls=[row.dow===6?'sunday':'', row.iso===todayIso?'today':''].filter(Boolean).join(' ');
     const d=Number(row.iso.slice(8,10));
     const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[row.dow]}`;
     rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row,todayIso)}</tr>`);
   });
-  $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+COLS_TOTAL}" class="empty">Filtrga mos kun topilmadi</td></tr>`;
+  const colspan=1+visibleColCount();
+  $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${colspan}" class="empty">Filtrga mos kun yo'q`
+    +(hasAnyColFilter()||CUR_FILTER!=='all'?` <button class="btn ghost" style="height:30px;padding:0 12px;margin-left:8px;vertical-align:middle" onclick="window.bkClearAllView()">Filtrlarni tozalash</button>`:'')
+    +`</td></tr>`;
+  renderTotals();
+  renderCountLine(MONTH_DATA.length);
+  renderFilterChips();
+  icons();
   bkSyncScrollTopWidth();
 }
+window.bkClearAllView=()=>{
+  CUR_FILTER='all';
+  document.querySelectorAll('#chipbar .chip').forEach(b=>b.classList.toggle('on', b.dataset.f==='all'));
+  window.bkFiltClearAll();
+};
 
 /* =====================================================================
    3-BOSQICH — Savdo/Fakt: n8n webhook + sanali kurs + muhrlash
@@ -1762,6 +2418,8 @@ async function loadAll(){
 }
 
 async function init(){
+  loadColVis();
+  loadFilterState();
   buildHeader();
   $('oy').value=oyNowStr();
   syncOyUI();
