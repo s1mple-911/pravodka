@@ -49,6 +49,10 @@
   .icon-btn{display:inline-flex;align-items:center;gap:9px;background:transparent;border:none;color:var(--muted);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .13s,color .13s}
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
   .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .htg-jump{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;margin-left:auto;margin-right:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .13s,background .13s}
+  .htg-jump svg{width:16px;height:16px}
+  .htg-jump:hover{border-color:var(--primary)}
+  .htg-jump.warn{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
   .sec{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
@@ -649,6 +653,9 @@
   <main class="main">
     <div class="page-head">
       <h1>Sozlamalar</h1>
+      <!-- «Hodim → Telegram» kartasi sahifaning eng pastida (uzun kassalar ro'yxatidan keyin) —
+           Asilbek topa olmadi. Tezkor o'tish tugmasi, bog'lanmagan kassalar soni bilan. -->
+      <button id="htgJump" class="htg-jump" style="display:none" onclick="window.htgJump()"><i data-lucide="send"></i><span id="htgJumpTxt">Hodim → Telegram</span></button>
       <div class="head-actions mobile-only">
         <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
         <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
@@ -2052,6 +2059,9 @@ function htgRenderTop(){
   const el=$('htgTop'); if(!el) return;
   const list=(htgData&&Array.isArray(htgData.kassalar))?htgData.kassalar:[];
   const m=list.filter(k=>k.holat!=='boglangan').length;
+  const jb=$('htgJump'), jt=$('htgJumpTxt');
+  if(jb&&jt){ jb.style.display='inline-flex'; jb.classList.toggle('warn',m>0);
+    jt.textContent=m>0?`Hodim → Telegram · ${m} ta bog'lanmagan`:'Hodim → Telegram'; }
   el.innerHTML=m>0
     ?`<b style="color:var(--amber)">${list.length} ta kassadan ${m} tasi bog'lanmagan</b> — bu hodimlarga Telegram xabari bormaydi.`
     :(list.length?`Hammasi bog'langan (${list.length} ta kassa).`:'Hodim xarajat kassasi topilmadi.');
@@ -2120,6 +2130,7 @@ function htgUserRowHtml(u,ball){
 // oninput="htgRender()" / "htgRenderUsers()" (HTML atributi) module ichidagi funksiyani
 // ko'rmaydi — window'ga chiqariladi (tester topdi: qidiruv ReferenceError berardi).
 window.htgRender=()=>htgRender();
+window.htgJump=()=>{ const c=$('htgCard'); if(c) c.scrollIntoView({behavior:'smooth',block:'start'}); };
 window.htgRenderUsers=()=>htgRenderUsers();
 function htgRenderUsers(){
   const box=$('htgUList'); if(!box||!htgModalKassa) return;
