@@ -826,6 +826,14 @@ on conflict (profil, sana) do nothing;
 --  Javob: [{sana, qarzmiz_uzs, berdik_uzs}, ...] — SO'MDA.
 --  IMZO: beshkunlik_qarz_detal_v2(p_sana date) returns jsonb
 --  Javob: [{yuk_id, narx, valyuta, izoh, qoldiq_uzs}, ...]
+--
+--  🔴 Berdik — HAMMA yuk to'lovi (Asilbek qarori C, 2026-09-12, create or replace,
+--  imzo o'zgarmagan): avval Berdik faqat `yuk_deadline.deadline is not null` bo'lgan
+--  (ya'ni muddati QO'YILGAN) yukka tushgan to'lovlarni sanardi. Endi `entry_yuk`
+--  ustidan HAR QANDAY to'lov (muddati qo'yilgan yoki qo'yilmagan) hisobga olinadi —
+--  pul baribir chiqib ketgan, muddat qo'yilmaganligi buni o'zgartirmaydi. Qarzmiz
+--  qismi (yuqoridagi `q` subquery) O'ZGARMAYDI — u hamon faqat deadline qo'yilgan
+--  yuklarni ko'radi.
 
 create or replace function beshkunlik_qarz_v2(p_from date, p_to date)
 returns jsonb
@@ -882,14 +890,14 @@ begin
              group by yd.deadline
           ) q
           full outer join (
+            -- Berdik (2026-09-12, C): yuk_deadline bilan JOIN QILINMAYDI — muddati
+            -- qo'yilmagan yuk to'lovi ham kiradi (pul baribir chiqib ketgan).
             select e.entry_date as sana,
                    sum(ey.summa_uzs) as berdik_uzs
               from entry_yuk ey
               join entry e on e.id = ey.entry_id
-              join yuk_deadline yd2 on yd2.yuk_id = ey.yuk_id
              where e.status = 'posted' and e.is_deleted = false
                and e.entry_date between p_from and p_to
-               and yd2.deadline is not null
              group by e.entry_date
           ) b on b.sana = q.sana
       ) x
@@ -903,7 +911,9 @@ grant execute on function beshkunlik_qarz_v2(date, date) to authenticated;
 comment on function beshkunlik_qarz_v2(date, date) is
   '5 kunlik Qarz bloki (7-bosqich, PROFILSIZ — bitta platforma), SOMDA: '
   '[{sana, qarzmiz_uzs, berdik_uzs}]. Mantiq beshkunlik_qarz(date,date) bilan bir xil, '
-  'faqat profil bo''yicha filtr/guruhlash YOQ. Ruxsat: perm_has_page(''beshkunlik'') ichida.';
+  'faqat profil bo''yicha filtr/guruhlash YOQ. Berdik (2026-09-12) — HAMMA entry_yuk '
+  'to''lovi, yuk_deadline bilan JOIN qilinmaydi (muddatsiz yuk to''lovi ham kiradi). '
+  'Ruxsat: perm_has_page(''beshkunlik'') ichida.';
 
 create or replace function beshkunlik_qarz_detal_v2(p_sana date)
 returns jsonb
@@ -1157,3 +1167,43 @@ begin
   raise notice 'PROVODKA_5KUNLIK.sql: bitta platforma (umumiy) + Qarz v2 + sozlama + muhrla tayyor (7-bosqich qoshimchasi)';
 end
 $bk_umumiy_final$;
+
+
+-- #####################################################################
+-- ##  19-BO'LIM — beshkunlik_reja.uzgardi_qolda (Asilbek qarori A, 2026-09-12) ##
+-- #####################################################################
+--  «Uzgaradi» endi AVTOMATIK hisoblanadi klientda (5kunlik-dev.html): o'tgan kun
+--  uchun o'sha kunning Fakt'i (yoki 10 kunlik o'rtacha, tarix yo'q bo'lsa Reja),
+--  bugun/kelajak uchun bugungi 10 kunlik o'rtacha — FAQAT foydalanuvchi qo'lda
+--  yozmagan bo'lsa. Shu sababli bazaga faqat "qo'lda yozilganmi" bayrog'i qo'shiladi;
+--  `uzgardi` ustunining o'zi eskisidek qoladi (qo'lda yozilganda mazmunli, aks holda
+--  klient uni e'tiborsiz qoldirib o'zi hisoblaydi — bazada hech narsa buzilmaydi).
+--  Mavjud qatorlar (masalan "Reja qo'yish" modali avval reja bilan teng yozgan
+--  `uzgardi`) qo'lda EMAS deb hisoblanadi — sukut `false`, ya'ni avtomatikaga
+--  o'tadi, alohida migratsiya SHART EMAS.
+
+alter table beshkunlik_reja add column if not exists uzgardi_qolda boolean not null default false;
+
+comment on column beshkunlik_reja.uzgardi_qolda is
+  'true = foydalanuvchi uzgardi ni qolda yozgan (D>=bugun uchun saqlanadi va ishlatiladi). '
+  'false (sukut) = uzgardi avtomatik hisoblanadi (klientda): otgan kun uchun Fakt yoki '
+  '10 kunlik ortacha, bugun/kelajak uchun bugungi 10 kunlik ortacha. '
+  'BRIEF_5KUNLIK.md, Asilbek qarori A (2026-09-12).';
+
+
+-- #####################################################################
+-- ##  20-BO'LIM — YAKUNIY TEKSHIRUV (2026-09-12, faqat select/raise)   ##
+-- #####################################################################
+
+do $bk_qolda_final$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'beshkunlik_reja' and column_name = 'uzgardi_qolda'
+  ) then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_reja.uzgardi_qolda ustuni yaralmadi';
+  end if;
+
+  raise notice 'PROVODKA_5KUNLIK.sql: uzgardi_qolda ustuni tayyor (samarali/avtomatik Uzgaradi, 2026-09-12)';
+end
+$bk_qolda_final$;

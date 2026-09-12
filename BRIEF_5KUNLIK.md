@@ -48,20 +48,73 @@ esa alohida — natijada kechagi qarz/to'lov ta'siri keyingi kunga tushmasdi
 | Ustun | Formula | Izoh |
 |-------|---------|------|
 | Reja | `oylik_reja / oy_kunlari` | oyning **hamma** kuniga teng bo'linadi (yakshanba ham) |
-| Uzgaradi | qo'lda | boshida Reja bilan bir xil, keyin kunma-kun tahrirlanadi |
+| Uzgaradi | **avtomatik** (qo'lda D≥bugun uchun ustidan yozish mumkin) | pastdagi "Samarali Uzgaradi" bo'limiga qara |
 | Fakt | Aros'dan | Aksessuar+Zapchast yig'indisi, avtomatik |
 | Yig'.Reja(t) | `Qoldi.Reja(t−1) + Reja(t)` | REKURSIYA — kunlik yig'indi EMAS |
-| Yig'.Uzga(t) | `Qoldi.Uzga(t−1) + Uzgaradi(t)` | REKURSIYA |
+| Yig'.Uzga(t) | `Qoldi.Uzga(t−1) + SamaraliUzgaradi(t)` | REKURSIYA |
 | Yig'.Fakt(t) | `Qoldi.Fakt(t−1) + Fakt(t)` | REKURSIYA |
 | Qarzmiz | deadline shu kunga tushgan qarzlar (manfiy) | |
-| Berdik | shu kuni haqiqatda to'langan (musbat) | |
+| Berdik | shu kuni haqiqatda to'langan (musbat) | 2026-09-12: HAMMA yuk to'lovi, deadline shart emas (pastga qara) |
 | Raznitsa | `Qarzmiz + Berdik` | to'liq to'lansa 0 |
 | Qoldi.Reja(t) | `Yig'.Reja(t) + Qarzmiz(t)` | |
 | Qoldi.Uzga(t) | `Yig'.Uzga(t) + Qarzmiz(t)` | |
 | Qoldi.Fakt(t) | `Yig'.Fakt(t) − Berdik(t)` | |
-| Qoldi.Raznitsa(t) | `Qoldi.Uzga(t) − Qoldi.Fakt(t)` | **Uzga** bilan solishtiriladi, Reja bilan emas |
+| Qoldi.Raznitsa(t) | `Qoldi.Uzga(t) − Qoldi.Fakt(t)` | Formula O'ZGARMAGAN, lekin Uzgaradi endi prognoz bo'lgani uchun bu amalda **qarz farqini** ko'rsatadi |
 
 🔴 Yig'ilma **uzluksiz** — hech qachon nolga tushmaydi. «5 kunlik» faqat nom.
+
+## Samarali Uzgaradi — avtomatik prognoz (Asilbek qarori A, 2026-09-12)
+
+«Uzgaradi» endi asosan AVTOMATIK: ertalab (kelajak/bugun) — oxirgi 10 kunlik
+savdo o'rtachasi, kun o'tgach — o'sha kunning Fakt'i. Bazaga faqat "qo'lda
+yozildimi" bayrog'i qo'shildi (`beshkunlik_reja.uzgardi_qolda`) — `uzgardi`
+ustunining o'zi eskisidek qoladi, faqat qo'lda yozilganda mazmunli.
+
+`A(x)` = `[x−10, x−1]` (10 KALENDAR kun, yakshanba ham) oralig'idagi Fakt ($)
+qiymatlarining o'rtachasi — faqat Fakt'i MA'LUM kunlar bo'yicha (0 savdo —
+ma'lum, kiradi; Fakt yo'q/noma'lum kun — o'rtachaga kirmaydi, maxrajga ham).
+Ma'lum kun 0 bo'lsa `A(x)` yo'q.
+
+Samarali Uzgaradi(D), `T` = bugun (Toshkent):
+
+| Holat | Formula |
+|-------|---------|
+| D < T, Fakt(D) ma'lum | `Fakt(D)` |
+| D < T, Fakt(D) noma'lum | `A(D)`, u ham yo'q bo'lsa `Reja(D)` |
+| D ≥ T, qo'lda yozilgan (`uzgardi_qolda=true`) | saqlangan `uzgardi` |
+| D ≥ T, qo'lda yozilmagan | `A(T)` (kelajakdagi HAMMA kun bir xil — bugungi 10 kunlik o'rtacha), u ham yo'q bo'lsa `Reja(D)` |
+
+«Ertalabki prognoz»(D) = `A(D)` — bazaga YOZILMAYDI, muhrlangan Fakt'dan har
+doim qayta hisoblanadi (deterministik). `A(T)` uchun oxirgi 10 kunning Fakt'i
+HAR DOIM olinadi — ko'rsatilgan oy boshqa bo'lsa ham: muhrlangan qatorlar +
+kerak bo'lsa alohida kichik webhook chaqiruvi (`ensureFaktWindow()`), mavjud
+token/race himoyasini buzmasdan.
+
+Tahrir: Uzgaradi katagi faqat `D ≥ T` bo'lsa tahrirlanadi (o'tgan kun — faqat
+o'qish; tanlash/sudrab to'ldirish/paste ularni o'tkazib yuboradi). Qo'lda
+yozish (Enter, sudrab to'ldirish, Ctrl+D, paste) → `uzgardi` + `uzgardi_qolda
+=true` yoziladi. Katakni bo'shatib saqlash → `uzgardi_qolda=false` (avtomatikaga
+qaytadi), `uzgardi=0`. «Reja qo'yish» modali endi FAQAT `reja`ni yozadi —
+`uzgardi`ga tegmaydi.
+
+Samarali Uzgaradi ishlatiladigan joylar: Yig'.Uzga, Qoldi.Uzga, Qoldi.Raznitsa,
+Prognoz (kelajak kunlari) — `buildRun()`/`computePrognoz()` shundan oladi.
+
+Ko'rinish: avtomatik qiymat — xira/kursiv + `title` (manba: Fakt/o'rtacha/reja);
+qo'lda yozilgan — oddiy + kichik nuqta belgisi, `title` «Qo'lda yozilgan».
+
+`uzgardi_qolda` ustuni bazada yo'q bo'lsa (SQL hali RUN qilinmagan, 42703) —
+sahifa yiqilmaydi: eski select'ga tushadi, hamma qator "qo'lda emas" (avtomatik)
+deb olinadi, yozishda kalit yuborilmaydi.
+
+## Fakt rangi va filtr — Reja bilan solishtiriladi (Asilbek qarori B, 2026-09-12)
+
+`Fakt` katagining rangi (yashil/qizil, foiz `title`) endi **Reja(D)**ga
+nisbatan (avval Uzgaradi'ga nisbatan edi — endi u prognoz, solishtirish uchun
+mos emas). Reja 0/bo'sh bo'lsa rang yo'q. «Farqi bor kunlar» filtri: Fakt ≠
+Reja. Fakt hover popover'ining yuqorisida qisqa xulosa qator: «Reja $R ·
+Ertalabki prognoz $A(D) (N kun o'rtachasi) · Fakt $F · farq ±%» (`A(D)` yo'q
+bo'lsa bu qator umuman chiqmaydi).
 
 **Amalga oshirish (5kunlik-dev.html, `buildRun()`):** rekursiya bitta uzluksiz
 kunli qator sifatida hisoblanadi — `START` (`beshkunlik_sozlama.boshlanish`,
@@ -102,7 +155,8 @@ bo'ladi: $Z» + kelajakda reja kiritilmagan kunlar soni haqida ogohlantirish.
 | **Profil** (Aksessuar/Zapchast) | `cache_filial.data->>'profil'` |
 | **Qarzmiz** | Aros yuklari (`aros-provodka-yuklar` webhook) + `yuk_deadline.deadline` |
 | **Berdik** | Provodkaning o'zi — `entry_yuk` (qaysi yukka qancha berildi) |
-| **Reja / Uzgardi** | `beshkunlik_reja` (qo'lda kiritiladi) |
+| **Reja** | `beshkunlik_reja` (qo'lda kiritiladi) |
+| **Uzgardi** | `beshkunlik_reja` — asosan avtomatik hisoblanadi, qo'lda faqat D≥bugun ustidan yozilganda (2026-09-12, "Samarali Uzgaradi" bo'limiga qara) |
 
 ## Valyuta
 
@@ -159,6 +213,17 @@ backfill ham qiladi (60 kun). Faollashtirish: SQL RUN → «Muhrla» node'ga Sup
    bo'linmaydi — Reja/Uzgardi/Qarz endi profilsiz (`umumiy`), Fakt esa
    ikkalasining yig'indisi (yuqoriga qara).
 
+## Kelishilgan qarorlar (2026-09-12, Asilbek)
+
+7. **Uzgaradi avtomatik.** Yuqoridagi "Samarali Uzgaradi" bo'limi — 10 kunlik
+   o'rtacha / Fakt / Reja zanjiri, faqat D≥bugun qo'lda ustidan yozib bo'ladi.
+   Bazada yagona yangi ustun: `beshkunlik_reja.uzgardi_qolda`.
+8. **Fakt rangi/filtri endi Reja bilan.** Yuqoridagi "Fakt rangi va filtr"
+   bo'limi — avval Uzgaradi bilan solishtirilardi.
+9. **Berdik — hamma yuk to'lovi.** `beshkunlik_qarz_v2`ning Berdik qismi endi
+   `yuk_deadline` bilan JOIN QILINMAYDI — muddati qo'yilmagan yuk to'lovi ham
+   kiradi (pul baribir chiqib ketgan). Qarzmiz qismi o'zgarmaydi.
+
 ## Excel bilan farqlar (ataylab)
 
 | Excel | Bizda | Nega |
@@ -180,3 +245,4 @@ backfill ham qiladi (60 kun). Faollashtirish: SQL RUN → «Muhrla» node'ga Sup
 | 6 | Qarz bloki + yuk deadline UI | ✅ |
 | 7 | **Bitta platforma** (27→15 ustun) + Yig'ilma rekursiya tuzatish + Prognoz + boshlang'ich qoldiq + hover-scroll bug fix | ✅ (SQL RUN kutilmoqda, n8n muhrlash workflow keyingi qadam) |
 | 8 | Regression test | ✅ (statik tahlil — node --check, formula qo'l bilan tekshiruv) |
+| 9 | Samarali Uzgaradi (avtomatik) + Fakt rangi/filtri Reja bilan + Berdik hamma yuk to'lovi | ✅ (SQL RUN kutilmoqda) |

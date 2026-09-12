@@ -127,6 +127,7 @@
   .bkp-name{color:var(--ink)}
   .bkp-ret{display:block;text-align:right;color:var(--red);font-size:11px}
   .bkp-total{display:flex;justify-content:space-between;gap:14px;margin-top:8px;padding-top:8px;border-top:2px solid var(--line);font-weight:700}
+  .bkp-summary{font-size:12px;color:var(--muted);margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid var(--line);line-height:1.5}
   .bkp-usd{margin-left:6px;color:var(--muted);font-weight:500;font-size:12px}
   .gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}
   .authbox{width:100%;max-width:360px}.authbox .logo{width:46px;height:54px;margin:0 auto 18px}
@@ -163,6 +164,11 @@
   .ed-cell.inrange{background:var(--primary-soft)}
   .ed-cell.fillprev{outline:2px dashed var(--primary);outline-offset:-2px}
   .ed-cell.editing{padding:5px 6px}
+  /* Samarali Uzgaradi (2026-09-12): avtomatik hisoblangan qiymat xira/kursiv, qo'lda
+     yozilgani oddiy + kichik nuqta. .ro — o'tgan kun (faqat o'qish, tahrirlanmaydi). */
+  .ed-cell.auto{color:var(--muted);font-style:italic}
+  .ed-cell.ro{cursor:default}
+  .uz-dot{margin-left:4px;font-size:8px;color:var(--primary);vertical-align:middle}
   .ed-in{width:100%;border:1px solid var(--primary);border-radius:6px;padding:4px 6px;font-size:14px;font-family:inherit;text-align:right;background:var(--surface);color:var(--ink);outline:none;font-variant-numeric:tabular-nums}
   .fill-handle{position:absolute;right:0;bottom:0;width:7px;height:7px;background:var(--primary);border:1px solid var(--surface);cursor:crosshair;z-index:2}
   /* ---- Reja qo'yish / tasdiq modal — kassa-dev.html dagi .modal/.sheet naqshi bilan bir xil ---- */
@@ -529,6 +535,9 @@ function isMissingTableErr(e){
   const code=e&&e.code, msg=(e&&e.message)||'';
   return code==='42P01' || code==='PGRST205' || /relation .* does not exist/i.test(msg);
 }
+function isMissingColErr(e){
+  return (e&&e.code)==='42703';
+}
 
 /* ---- Savdo/Fakt katagi — Aksessuar+Zapchast QO'SHILGAN holda (bitta platforma).
    Muhrlash hali profil bo'yicha (beshkunlik_kun) — combineFakt() ikkalasini yig'adi.
@@ -543,7 +552,9 @@ function combineFakt(iso){
   const frozen=!!(a&&a.frozen)&&!!(z&&z.frozen);
   return {uzs,usd,kurs,frozen};
 }
-function faktTd(iso, uzgardiVal){
+/* rejaVal (2026-09-12, Asilbek qarori B): rang endi Reja(D)ga nisbatan hisoblanadi
+   (Uzgaradi endi avtomatik prognoz bo'lgani uchun solishtirish uchun mos emas). */
+function faktTd(iso, rejaVal){
   const d=combineFakt(iso);
   if(!d) return `<td class="num muted">—</td>`;
   const usdTxt=d.usd==null?'—':money(d.usd);
@@ -555,12 +566,12 @@ function faktTd(iso, uzgardiVal){
     ? `onmouseenter="window.bkPopShow(event,'${iso}')" onmouseleave="window.bkPopHide()"`
     : `onclick="window.bkPopToggle(event,'${iso}')"`;
   let style='', title='';
-  if(uzgardiVal!=null && uzgardiVal>0 && d.usd!=null){
-    const pct=Math.round(d.usd/uzgardiVal*100);
+  if(rejaVal!=null && rejaVal>0 && d.usd!=null){
+    const pct=Math.round(d.usd/rejaVal*100);
     title=` title="reja ${pct}% bajarildi"`;
-    if(d.usd>=uzgardiVal){ style=' style="background:rgba(var(--green-rgb),.16)"'; }
+    if(d.usd>=rejaVal){ style=' style="background:rgba(var(--green-rgb),.16)"'; }
     else{
-      const shortfall=(uzgardiVal-d.usd)/uzgardiVal;
+      const shortfall=(rejaVal-d.usd)/rejaVal;
       const alpha=Math.min(.55, .14+shortfall*.55).toFixed(2);
       style=` style="background:rgba(var(--red-rgb),${alpha})"`;
     }
@@ -610,29 +621,52 @@ function qarzOlsaTd(row){
 /* ---- Reja/Uzgaradi — tahrirlanadigan katak. Faqat shu ikki ustun yoziladi (profil='umumiy');
    Excel funksiyalari (tanlash, sudrab to'ldirish, nusxa/joylashtirish) ham shu ikkitaga tegishli —
    qolgan ustunlar hisoblanadi/o'qiladi. ---- */
-function ediTd(iso, val, col){
+/* Samarali Uzgaradi (2026-09-12, Asilbek qarori A): 'uzgardi' ustuni endi ko'pincha
+   AVTOMATIK hisoblangan qiymatni ko'rsatadi (row.uzgardi — buildRun() dan). `meta` faqat
+   shu ustun uchun: {manual, kind, count, raw} — kind='fakt'|'avg'|'reja', raw=bazadagi
+   xom uzgardi (faqat qo'lda yozilganda mazmunli, tahrirni boshlaganda o'sha ko'rsatiladi).
+   `todayIso` — Uzgaradi faqat D>=bugun bo'lsa tahrirlanadi (o'tgan kun faqat o'qiladi). */
+function ediTd(iso, val, col, meta, todayIso){
   const isEditing=EDITING && EDITING.c===col && EDITING.i===iso;
   const isSel=SELECTED && SELECTED.c===col && SELECTED.i===iso;
   const inRange=!isSel && inSelRange(col,iso);
   const attrs=`data-c="${col}" data-i="${iso}"`;
+  const editable = col!=='uzgardi' || iso>=todayIso;
   if(isEditing){
+    const startVal = (col==='uzgardi')
+      ? ((meta && meta.manual && meta.raw!=null) ? meta.raw : '')
+      : (val==null?'':val);
     return `<td class="num ed-cell editing" ${attrs}>`
-      +`<input type="text" inputmode="decimal" autocomplete="off" class="ed-in" ${attrs} value="${val==null?'':val}" `
+      +`<input type="text" inputmode="decimal" autocomplete="off" class="ed-in" ${attrs} value="${startVal}" `
       +`oninput="window.bkCellInput(this)" onkeydown="window.bkInputKey(event,this)" onblur="window.bkInputBlur(this)"></td>`;
   }
-  const cls='num ed-cell'+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'');
-  const handle=(canEdit && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${col}','${iso}')"></span>` : '';
+  let extraCls='', title='', dot='';
+  if(col==='uzgardi' && meta){
+    if(meta.manual){ title=' title="Qo\'lda yozilgan"'; dot='<span class="uz-dot" aria-hidden="true">●</span>'; }
+    else{
+      extraCls=' auto';
+      if(meta.kind==='fakt') title=' title="Avto: kun o\'tdi — Fakt\'ga teng"';
+      else if(meta.kind==='avg') title=` title="Avto: 10 kunlik o'rtacha $${money(val)} (${meta.count} kun)"`;
+      else title=' title="Avto: Reja (tarix yo\'q)"';
+    }
+  }
+  const cls='num ed-cell'+extraCls+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'')+(!editable?' ro':'');
+  const handle=(canEdit && editable && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${col}','${iso}')"></span>` : '';
+  // tanlash/klaviatura navigatsiyasi hamma katakda ishlaydi (Uzgaradi'ning o'tgan
+  // kunidan ham chiqib ketish kerak) — haqiqiy edit'ga kirish startEdit() ichida bloklanadi.
   const tab=canEdit?'0':'-1';
-  return `<td class="${cls}" ${attrs} tabindex="${tab}" onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${handle}</td>`;
+  return `<td class="${cls}" ${attrs} tabindex="${tab}"${title} onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${dot}${handle}</td>`;
 }
-function buildRowCells(row){
+function buildRowCells(row, todayIso){
   let s='';
   for(const g of GROUPS){
     for(let k=0;k<g.cols.length;k++){
       if(g.name==='Savdo'){
-        if(k===0) s+=ediTd(row.iso,row.reja,'reja');
-        else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi');
-        else s+=faktTd(row.iso,row.uzgardi);
+        if(k===0) s+=ediTd(row.iso,row.reja,'reja',null,todayIso);
+        else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi',
+          {manual:row.uzgardiKind==='manual', kind:row.uzgardiKind, count:row.uzgardiCount, raw:row.uzgardiRaw},
+          todayIso);
+        else s+=faktTd(row.iso,row.reja);
       }else if(g.name==="Yig'ilma"){
         s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
       }else if(g.name==='Qarz'){
@@ -666,6 +700,39 @@ function isoRange(a,b){ const out=[]; let cur=a; while(cur<=b){ out.push(cur); c
 let RUN_MAP={};                 // iso -> hisoblangan qator (butun oyna)
 let RUN_START=null, RUN_H=null; // oyna chegaralari (iso)
 
+/* ---- Samarali Uzgaradi (BRIEF_5KUNLIK.md, Asilbek qarori A, 2026-09-12) ----
+   A(x) = [x-10,x-1] oralig'idagi (10 KALENDAR kun) Fakt($) qiymatlarining
+   o'rtachasi — faqat Fakt'i MA'LUM kunlar bo'yicha (0 savdo ham ma'lum, kiradi).
+   Ma'lum kun 0 bo'lsa A(x) yo'q (null). `combineFakt` FAKT_DAY'dan o'qiydi —
+   RUN oynasidan tashqaridagi kunlar uchun ham ishlaydi (ensureFaktWindow shu
+   uchun FAKT_DAY'ni to'ldiradi, pastda). */
+function avgFakt(x){
+  let sum=0, cnt=0;
+  for(let k=1;k<=10;k++){
+    const d=combineFakt(isoAddDays(x,-k));
+    if(d && d.usd!=null){ sum+=d.usd; cnt++; }
+  }
+  return cnt>0 ? {avg:sum/cnt, count:cnt} : null;
+}
+/* D<T (o'tgan kun): Fakt(D) ma'lum bo'lsa Fakt(D), aks holda A(D), u ham yo'q
+   bo'lsa Reja(D). D>=T: qo'lda yozilgan bo'lsa saqlangan uzgardi, aks holda
+   A(T) (kelajakdagi HAMMA kun bir xil — bugungi 10 kunlik o'rtacha), u ham
+   yo'q bo'lsa Reja(D). A_TODAY — loadA10() bilan bir marta hisoblanadi. */
+function effectiveUzgaradi(iso,todayIso){
+  const rj=REJA_MAP[iso]||{};
+  const rejaVal=rj.reja!=null?Number(rj.reja):null;
+  if(iso<todayIso){
+    const fd=combineFakt(iso);
+    if(fd && fd.usd!=null) return {val:fd.usd, kind:'fakt'};
+    const a=avgFakt(iso);
+    if(a) return {val:a.avg, kind:'avg', count:a.count};
+    return {val:rejaVal, kind:'reja'};
+  }
+  if(rj.uzgardi_qolda) return {val:rj.uzgardi!=null?Number(rj.uzgardi):0, kind:'manual'};
+  if(A_TODAY) return {val:A_TODAY.avg, kind:'avg', count:A_TODAY.count};
+  return {val:rejaVal, kind:'reja'};
+}
+
 function buildRun(startIso,hIso){
   RUN_MAP={};
   const todayIso=isoDay(nowUz());
@@ -673,7 +740,8 @@ function buildRun(startIso,hIso){
   isoRange(startIso,hIso).forEach(iso=>{
     const rj=REJA_MAP[iso]||{};
     const reja=rj.reja!=null?Number(rj.reja):null;
-    const uzgardi=rj.uzgardi!=null?Number(rj.uzgardi):null;
+    const eff=effectiveUzgaradi(iso,todayIso);
+    const uzgardi=eff.val;
     const fd=(iso<=todayIso)?combineFakt(iso):null;   // kelajakda Fakt yo'q — Prognoz Uzgaradi ishlatadi
     const fakt=(fd&&fd.usd!=null)?Number(fd.usd):null;
     const qd=QARZ_MAP[iso]||{};
@@ -681,7 +749,9 @@ function buildRun(startIso,hIso){
     const yigReja=prevReja+(reja||0), yigUzga=prevUzga+(uzgardi||0), yigFakt=prevFakt+(fakt||0);
     const qoldiReja=yigReja+qarzmiz, qoldiUzga=yigUzga+qarzmiz, qoldiFakt=yigFakt-berdik;
     RUN_MAP[iso]={iso,reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qarzmiz,berdik,raznitsa,
-                  qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt};
+                  qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt,
+                  uzgardiKind:eff.kind, uzgardiCount:eff.count||null,
+                  uzgardiRaw:(rj.uzgardi!=null?Number(rj.uzgardi):null)};
     prevReja=qoldiReja; prevUzga=qoldiUzga; prevFakt=qoldiFakt;
   });
   computePrognoz(todayIso);
@@ -716,10 +786,13 @@ function computePrognoz(todayIso){
     row.qarzOlsaMinIso=minIso;
   }
 }
+/* Samarali Uzgaradi endi deyarli hamisha avtomatik hisoblanadi (avg/Fakt/Reja) —
+   shu sababli "reja yo'q" ogohlantirishi endi RUN_MAP.uzgardi'ning o'zi null bo'lgan
+   kunlarni sanaydi (na qo'lda, na o'rtacha, na reja — chindan ma'lumot yo'q). */
 function countFutureNoReja(todayIso,hIso){
   let n=0;
   if(todayIso>=hIso) return 0;
-  isoRange(isoAddDays(todayIso,1),hIso).forEach(iso=>{ const rj=REJA_MAP[iso]; if(!rj || rj.uzgardi==null) n++; });
+  isoRange(isoAddDays(todayIso,1),hIso).forEach(iso=>{ const r=RUN_MAP[iso]; if(!r || r.uzgardi==null) n++; });
   return n;
 }
 function countUnfrozenPast(dispFirst,todayIso){
@@ -733,7 +806,9 @@ function countUnfrozenPast(dispFirst,todayIso){
    4/5-BOSQICH — Reja/Uzgardi tahriri + Excel funksiyalari + filtrlar
    (7-bosqichdan buyon PROFILSIZ — bitta 'umumiy' ustun jufti)
    ===================================================================== */
-let REJA_MAP={};                                      // sana -> {reja,uzgardi} (umumiy, fallback: aksessuar+zapchast)
+let REJA_MAP={};                                      // sana -> {reja,uzgardi,uzgardi_qolda} (umumiy, fallback: aksessuar+zapchast)
+let UZGARDI_QOLDA_OK=true;                            // false = ustun bazada yo'q (42703) — kalit yuborilmaydi
+let A_TODAY=null;                                     // A(bugun) — loadA10() bilan hisoblanadi (samarali Uzgaradi)
 let MONTH_DATA=[];                                    // renderTable() har chaqirilganda RUN_MAP'dan kesib olinadi
 let CUR_FILTER='all';                                 // 'all' | 'ish' | 'farqli' | 'rejasiz'
 let SELECTED=null, EDITING=null, RANGE_ANCHOR=null;   // {c,i} — c='reja'|'uzgardi', i=sana(iso)
@@ -762,21 +837,32 @@ function focusSelected(){
    eski sananing endi jadvalda yo'qligi (indexOf=-1) xatoga olib kelmasin uchun. */
 function bkResetSel(){ commitEditIfAny(); SELECTED=null; EDITING=null; RANGE_ANCHOR=null; FILL=null; }
 
-/* Har insert/update ikkala ustunni ham yuboradi (reja VA uzgardi) — beshkunlik_reja
-   PK (profil,sana) bitta qatorda ikkalasini saqlaydi, faqat bittasini yuborish
-   ikkinchisini eski qiymatga qaytarib qo'ymaydi (chunki ikkalasi ham REJA_MAP dan olinadi).
-   REJA_MAP yangilangach RUN_MAP'ni ham DARROV qayta quradi (buildRun sinxron va arzon) —
+/* Har insert/update reja+uzgardi(+uzgardi_qolda, agar ustun bazada bo'lsa) yuboradi —
+   beshkunlik_reja PK (profil,sana) bitta qatorda hammasini saqlaydi, faqat bittasini
+   yuborish qolganlarini eski qiymatga qaytarib qo'ymaydi (hammasi REJA_MAP dan olinadi). */
+function rejaPayload(iso){
+  const r=REJA_MAP[iso]||{reja:0,uzgardi:0,uzgardi_qolda:false};
+  const p={profil:UMUMIY, sana:iso, reja:r.reja, uzgardi:r.uzgardi};
+  if(UZGARDI_QOLDA_OK) p.uzgardi_qolda=!!r.uzgardi_qolda;
+  return p;
+}
+/* REJA_MAP yangilangach RUN_MAP'ni ham DARROV qayta quradi (buildRun sinxron va arzon) —
    caller (masalan bkInputKey) saveCell() dan keyin renderTable() chaqirganda yangi
-   son allaqachon tayyor bo'lishi kerak (async funksiya birinchi await'gacha sinxron ishlaydi). */
+   son allaqachon tayyor bo'lishi kerak (async funksiya birinchi await'gacha sinxron ishlaydi).
+   Uzgaradi (2026-09-12, Asilbek qarori A): faqat D>=bugun yozilishi mumkin (o'tgan kun
+   faqat o'qiladi — UI ham bloklaydi, bu qo'shimcha himoya). Bo'sh qiymat bilan saqlash
+   (rawVal='') uzgardi_qolda'ni false'ga qaytaradi — katak avtomatikaga o'tadi. */
 async function saveCell(c,i,rawVal){
-  const n=(rawVal===''||rawVal==null)?0:Number(rawVal);
+  if(c==='uzgardi' && i<isoDay(nowUz())) return;
+  const empty=(rawVal===''||rawVal==null);
+  const n=empty?0:Number(rawVal);
   const val=isFinite(n)?Math.round(n*100)/100:0;
-  if(!REJA_MAP[i]) REJA_MAP[i]={reja:0,uzgardi:0};
+  if(!REJA_MAP[i]) REJA_MAP[i]={reja:0,uzgardi:0,uzgardi_qolda:false};
   REJA_MAP[i][c]=val;
+  if(c==='uzgardi') REJA_MAP[i].uzgardi_qolda=!empty;
   buildRun(RUN_START,RUN_H);
   try{
-    const {error}=await sb.from('beshkunlik_reja')
-      .upsert([{profil:UMUMIY, sana:i, reja:REJA_MAP[i].reja, uzgardi:REJA_MAP[i].uzgardi}],{onConflict:'profil,sana'});
+    const {error}=await sb.from('beshkunlik_reja').upsert([rejaPayload(i)],{onConflict:'profil,sana'});
     if(error) throw error;
   }catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); }
 }
@@ -789,6 +875,7 @@ function commitEditIfAny(){
   EDITING=null;
 }
 function startEdit(c,iso,initialChar,selectAll){
+  if(c==='uzgardi' && iso<isoDay(nowUz())) return;   // otgan kun Uzgaradi — faqat o'qiladi
   commitEditIfAny();
   EDITING={c,i:iso}; SELECTED={c,i:iso}; RANGE_ANCHOR=iso;
   renderTable();
@@ -842,7 +929,13 @@ async function copySelection(){
   const a=days.indexOf(RANGE_ANCHOR!=null?RANGE_ANCHOR:SELECTED.i), b=days.indexOf(SELECTED.i);
   const lo=Math.min(a,b), hi=Math.max(a,b);
   const vals=[];
-  for(let k=lo;k<=hi;k++){ const v=(REJA_MAP[days[k]]||{})[c]; vals.push(v==null?'':String(v)); }
+  // 'uzgardi' — REJA_MAP xom saqlangan qiymatni emas, RUN_MAP samarali (ko'rsatilgan) qiymatni
+  // nusxalaydi (auto kunlarda xom qiymat 0/ahamiyatsiz bo'lishi mumkin, ekranda ko'rilgan mos kelsin).
+  for(let k=lo;k<=hi;k++){
+    const iso=days[k];
+    const v = c==='uzgardi' ? (RUN_MAP[iso]?RUN_MAP[iso].uzgardi:null) : (REJA_MAP[iso]||{})[c];
+    vals.push(v==null?'':String(v));
+  }
   const text=vals.join('\n');
   try{ await navigator.clipboard.writeText(text); showInfo('Nusxalandi ('+vals.length+' qator)'); }
   catch(e){
@@ -853,9 +946,11 @@ async function copySelection(){
   }
 }
 function fillDown(c,iso){
+  if(c==='uzgardi' && iso<isoDay(nowUz())) return;   // otgan kun — faqat o'qiladi
   const days=dayList(); const idx=days.indexOf(iso);
   if(idx<=0) return;
-  const aboveVal=(REJA_MAP[days[idx-1]]||{})[c];
+  const aboveIso=days[idx-1];
+  const aboveVal = c==='uzgardi' ? (RUN_MAP[aboveIso]?RUN_MAP[aboveIso].uzgardi:null) : (REJA_MAP[aboveIso]||{})[c];
   if(aboveVal==null) return;
   saveCell(c,iso,String(aboveVal));
   renderTable();
@@ -896,11 +991,14 @@ window.bkInputBlur=input=>{
   EDITING=null;
   renderTable();
 };
-/* ---- Pastga sudrab to'ldirish (fill handle) ---- */
+/* ---- Pastga sudrab to'ldirish (fill handle). 'uzgardi' uchun ko'rsatilgan (samarali)
+   qiymatdan boshlanadi — xom REJA_MAP emas (auto katakning ko'rsatilgan raqami
+   keyingi kunlarga "qo'lda" sifatida sudraladi, Excel'dagidek). ---- */
 window.bkFillStart=(ev,c,iso)=>{
   ev.preventDefault(); ev.stopPropagation();
   if(!canEdit) return;
-  const val=(REJA_MAP[iso]||{})[c];
+  if(c==='uzgardi' && iso<isoDay(nowUz())) return;
+  const val = c==='uzgardi' ? (RUN_MAP[iso]?RUN_MAP[iso].uzgardi:null) : (REJA_MAP[iso]||{})[c];
   if(val==null) return;
   FILL={c,startIso:iso,curIso:iso,val};
   document.addEventListener('mousemove',onFillMove);
@@ -937,16 +1035,20 @@ function onFillEnd(){
   FILL=null;
   document.querySelectorAll('td.ed-cell.fillprev').forEach(td=>td.classList.remove('fillprev'));
   if(b<=a) return;
+  const todayIso=isoDay(nowUz());
   const rows=[];
   for(let k=a+1;k<=b;k++){
     const iso=days[k];
-    if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0};
+    if(c==='uzgardi' && iso<todayIso) continue;   // otgan kun — sudrashda o'tkazib yuboriladi
+    if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0,uzgardi_qolda:false};
     REJA_MAP[iso][c]=val;
-    rows.push({profil:UMUMIY, sana:iso, reja:REJA_MAP[iso].reja, uzgardi:REJA_MAP[iso].uzgardi});
+    if(c==='uzgardi') REJA_MAP[iso].uzgardi_qolda=true;
+    rows.push(rejaPayload(iso));
   }
   SELECTED={c,i:curIso}; RANGE_ANCHOR=startIso;
   buildRun(RUN_START,RUN_H);
   renderTable();
+  if(!rows.length) return;
   (async()=>{
     try{ for(let k=0;k<rows.length;k+=200){ const {error}=await sb.from('beshkunlik_reja').upsert(rows.slice(k,k+200),{onConflict:'profil,sana'}); if(error) throw error; }
       showInfo("To'ldirildi ("+rows.length+' kun)'); }
@@ -965,16 +1067,19 @@ document.addEventListener('paste', e=>{
   const {c,i}=SELECTED;
   const days=dayList(); const startIdx=days.indexOf(i);
   if(startIdx<0) return;
+  const todayIso=isoDay(nowUz());
   const rows=[];
   lines.forEach((line,k)=>{
     const rowIdx=startIdx+k; if(rowIdx>=days.length) return;
+    const iso=days[rowIdx];
+    if(c==='uzgardi' && iso<todayIso) return;   // otgan kun — paste'da o'tkazib yuboriladi
     const first=line.split('\t')[0].trim().replace(',', '.');
     const n=Number(first);
     if(!isFinite(n)) return;
-    const iso=days[rowIdx];
-    if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0};
+    if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0,uzgardi_qolda:false};
     REJA_MAP[iso][c]=Math.round(n*100)/100;
-    rows.push({profil:UMUMIY, sana:iso, reja:REJA_MAP[iso].reja, uzgardi:REJA_MAP[iso].uzgardi});
+    if(c==='uzgardi') REJA_MAP[iso].uzgardi_qolda=true;
+    rows.push(rejaPayload(iso));
   });
   if(!rows.length) return;
   buildRun(RUN_START,RUN_H);
@@ -989,21 +1094,40 @@ document.addEventListener('paste', e=>{
 /* ---- beshkunlik_reja: BUTUN OYNA [RUN_START,RUN_H] uchun Reja/Uzgardi.
    'umumiy' qatori bo'lmagan kun uchun eski aksessuar+zapchast yig'indisi FALLBACK
    qilinadi — SQL bir martalik ko'chirish hali RUN qilinmagan bo'lsa ham jadval
-   bo'sh ko'rinmasin. Tahrir/saqlash baribir faqat 'umumiy'ga yoziladi. ---- */
+   bo'sh ko'rinmasin. Tahrir/saqlash baribir faqat 'umumiy'ga yoziladi.
+   `uzgardi_qolda` (2026-09-12, samarali Uzgaradi) — ustun hali bazada bo'lmasa
+   (42703, SQL RUN qilinmagan) UZGARDI_QOLDA_OK=false bo'lib qoladi: shu select
+   ustunsiz qaytariladi, hamma qator "qo'lda emas" (avtomatik) deb olinadi. ---- */
 async function loadReja(){
   REJA_MAP={};
   try{
-    const {data,error}=await sb.from('beshkunlik_reja')
-      .select('profil,sana,reja,uzgardi')
-      .in('profil',[UMUMIY,'aksessuar','zapchast'])
-      .gte('sana',RUN_START).lte('sana',RUN_H);
+    let data, error;
+    if(UZGARDI_QOLDA_OK){
+      ({data,error}=await sb.from('beshkunlik_reja')
+        .select('profil,sana,reja,uzgardi,uzgardi_qolda')
+        .in('profil',[UMUMIY,'aksessuar','zapchast'])
+        .gte('sana',RUN_START).lte('sana',RUN_H));
+      if(error && isMissingColErr(error)){
+        UZGARDI_QOLDA_OK=false;
+        ({data,error}=await sb.from('beshkunlik_reja')
+          .select('profil,sana,reja,uzgardi')
+          .in('profil',[UMUMIY,'aksessuar','zapchast'])
+          .gte('sana',RUN_START).lte('sana',RUN_H));
+      }
+    }else{
+      ({data,error}=await sb.from('beshkunlik_reja')
+        .select('profil,sana,reja,uzgardi')
+        .in('profil',[UMUMIY,'aksessuar','zapchast'])
+        .gte('sana',RUN_START).lte('sana',RUN_H));
+    }
     if(error) throw error;
     const legacy={};
     (data||[]).forEach(r=>{
       if(r.profil===UMUMIY){
-        REJA_MAP[r.sana]={reja:Number(r.reja)||0, uzgardi:Number(r.uzgardi)||0};
+        REJA_MAP[r.sana]={reja:Number(r.reja)||0, uzgardi:Number(r.uzgardi)||0,
+          uzgardi_qolda:UZGARDI_QOLDA_OK?!!r.uzgardi_qolda:false};
       }else{
-        if(!legacy[r.sana]) legacy[r.sana]={reja:0,uzgardi:0};
+        if(!legacy[r.sana]) legacy[r.sana]={reja:0,uzgardi:0,uzgardi_qolda:false};
         legacy[r.sana].reja+=Number(r.reja)||0;
         legacy[r.sana].uzgardi+=Number(r.uzgardi)||0;
       }
@@ -1205,17 +1329,20 @@ window.bkPlanSave=async()=>{
   }
   let existing=[];
   try{
-    const {data,error}=await sb.from('beshkunlik_reja').select('sana,reja,uzgardi')
+    const {data,error}=await sb.from('beshkunlik_reja').select('sana,reja')
       .eq('profil',UMUMIY).in('sana',dayVals.map(x=>x.iso));
     if(error) throw error;
     existing=data||[];
   }catch(e){ setMsg('Xato: '+(e.message||String(e)),'err'); return; }
-  const hasExisting=existing.some(r=>(Number(r.reja)||0)!==0 || (Number(r.uzgardi)||0)!==0);
+  const hasExisting=existing.some(r=>(Number(r.reja)||0)!==0);
   if(hasExisting){
     const ok=await bkConfirm('Mavjud reja topildi','Tanlangan davrda reja allaqachon bor — yangi qiymat ustidan yoziladi. Davom etasizmi?');
     if(!ok) return;
   }
-  const rows=dayVals.map(({iso,val})=>({profil:UMUMIY, sana:iso, reja:val, uzgardi:val}));
+  // 2026-09-12 (Asilbek qarori A): bu modal endi FAQAT reja'ni yozadi — uzgardi/uzgardi_qolda
+  // kalitlari yuborilmaydi, mavjud qatorning Uzgaradi holati (qo'lda/avtomatik) tegilmaydi;
+  // yangi qator bo'lsa uzgardi/uzgardi_qolda default qiymatlari (0/false) ishlaydi.
+  const rows=dayVals.map(({iso,val})=>({profil:UMUMIY, sana:iso, reja:val}));
   const btn=$('plSaveBtn'), old=btn.innerHTML; btn.disabled=true; btn.textContent='Saqlanmoqda…';
   try{
     for(let k=0;k<rows.length;k+=200){
@@ -1305,9 +1432,11 @@ async function computeWindow(){
   return {dispFirst,dispLast,todayIso};
 }
 
+/* 'farqli' (2026-09-12, Asilbek qarori B): endi Reja bilan solishtiradi (Uzgaradi
+   emas — u endi avtomatik prognoz, solishtirish uchun mos emas). */
 function rowMatchesFilter(row){
   if(CUR_FILTER==='ish') return row.dow!==6;
-  if(CUR_FILTER==='farqli') return row.uzgardi!=null && row.fakt!=null && row.uzgardi!==row.fakt;
+  if(CUR_FILTER==='farqli') return row.reja!=null && row.fakt!=null && row.reja!==row.fakt;
   if(CUR_FILTER==='rejasiz') return row.reja==null;
   return true;
 }
@@ -1318,7 +1447,8 @@ function monthDaySlice(y,m,dim){
     const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
     const base=RUN_MAP[iso]||{iso,reja:null,uzgardi:null,fakt:null,yigReja:0,yigUzga:0,yigFakt:0,
       qarzmiz:0,berdik:0,raznitsa:0,qoldiReja:0,qoldiUzga:0,qoldiFakt:0,qoldiRaz:0,
-      kutilgan:null,qarzOlsa:null,qarzOlsaMinIso:null,qarzOlsaMinVal:null};
+      kutilgan:null,qarzOlsa:null,qarzOlsaMinIso:null,qarzOlsaMinVal:null,
+      uzgardiKind:null,uzgardiCount:null,uzgardiRaw:null};
     rows.push(Object.assign({dow},base));
   }
   return rows;
@@ -1346,7 +1476,7 @@ function renderPrognozSummary(todayIso){
   const minTxt=rowT.qarzOlsaMinIso?` (${fmtDayShort(rowT.qarzOlsaMinIso)})`:'';
   const shortfall=rowT.qarzOlsaMinVal<0?` · $${money(Math.abs(rowT.qarzOlsaMinVal))} yetishmaydi`:'';
   const noRejaCount=countFutureNoReja(todayIso,RUN_H);
-  const warn=noRejaCount>0?` · ⚠ ${noRejaCount} kunda reja yo'q — prognoz kam ko'rsatadi`:'';
+  const warn=noRejaCount>0?` · ⚠ ${noRejaCount} kunda prognoz uchun ma'lumot yo'q (10 kunlik savdo tarixi ham, reja ham yo'q) — prognoz kam ko'rsatadi`:'';
   el.innerHTML=`Bugun kutilgan: <b>$${money(rowT.kutilgan)}</b> · 60 kun ichida eng past: `
     +`<b>$${money(rowT.qarzOlsaMinVal)}</b>${minTxt} · Bugun qarz olsa bo'ladi: <b>$${money(rowT.qarzOlsa)}</b>${shortfall}${warn}`;
   el.style.display='block';
@@ -1372,7 +1502,7 @@ function renderTable(){
     const cls=[row.dow===6?'sunday':'', row.iso===todayIso?'today':''].filter(Boolean).join(' ');
     const d=Number(row.iso.slice(8,10));
     const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[row.dow]}`;
-    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row)}</tr>`);
+    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row,todayIso)}</tr>`);
   });
   $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+COLS_TOTAL}" class="empty">Filtrga mos kun topilmadi</td></tr>`;
   bkSyncScrollTopWidth();
@@ -1504,11 +1634,86 @@ async function loadFakt(){
   renderTable();
 }
 
+/* ---- A(bugun) uchun oxirgi 10 kunning Fakt'i — HAR DOIM kerak, ko'rsatilgan oy
+   boshqa bo'lsa ham (BRIEF_5KUNLIK.md, Asilbek qarori A, 2026-09-12). FAKT_DAY odatda
+   faqat RUN oynasi ([RUN_START,RUN_H]) uchun to'ldiriladi (loadFrozenWindow/computeAndFreeze),
+   ko'rsatilgan oy kelajakda/o'tmishda bo'lsa bugungi 10 kunlik oyna oynadan tashqarida
+   qolib ketishi mumkin — shu funksiya o'sha bo'shliqni to'ldiradi. FAQAT O'QIYDI
+   (hech narsa muhrlamaydi/yozmaydi) — mavjud freeze/token himoyasiga tegmaydi. ---- */
+async function ensureFaktWindow(fromIso,toIso,token){
+  const need=new Set();
+  isoRange(fromIso,toIso).forEach(iso=>{ PROFILI.forEach(p=>{ if(!FAKT_DAY[p][iso]) need.add(iso); }); });
+  if(!need.size) return;
+  try{
+    const {data,error}=await sb.from('beshkunlik_kun')
+      .select('profil,sana,savdo_uzs,savdo_usd,kurs_uzs,frozen_at')
+      .in('sana',[...need]).not('frozen_at','is',null);
+    if(error) throw error;
+    if(token!==LOAD_TOKEN) return;
+    (data||[]).forEach(r=>{ if(FAKT_DAY[r.profil]) FAKT_DAY[r.profil][r.sana]={
+      uzs:Number(r.savdo_uzs)||0, usd:r.savdo_usd!=null?Number(r.savdo_usd):null,
+      kurs:r.kurs_uzs!=null?Number(r.kurs_uzs):null, frozen:true }; });
+  }catch(e){ console.warn('ensureFaktWindow (muhrlangan) xato:',e.message); }
+  if(token!==LOAD_TOKEN) return;
+
+  const stillNeed=isoRange(fromIso,toIso).filter(iso=>PROFILI.some(p=>!FAKT_DAY[p][iso]));
+  if(!stillNeed.length) return;
+  try{
+    const res=await fetch(WEBHOOK_5K+'?date_from='+encodeURIComponent(fromIso)+'&date_to='+encodeURIComponent(toIso),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j || j.ok===false || !Array.isArray(j.kunlar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
+    if(token!==LOAD_TOKEN) return;
+    const map={};
+    j.kunlar.forEach(k=>{ if(k&&k.sana) map[k.sana]={aksessuar:Number(k.aksessuar_uzs)||0, zapchast:Number(k.zapchast_uzs)||0}; });
+    const dates=stillNeed.filter(iso=>map[iso]);
+    if(!dates.length) return;
+    let kursMap={};
+    try{
+      const {data,error}=await sb.rpc('beshkunlik_kurslar',{p_sanalar:dates});
+      if(error) throw error;
+      kursMap=data||{};
+    }catch(e){ console.warn('beshkunlik_kurslar (A10) xato:',e.message); }
+    if(token!==LOAD_TOKEN) return;
+    dates.forEach(iso=>{
+      const kurs=(kursMap&&kursMap[iso]!=null)?Number(kursMap[iso]):null;
+      PROFILI.forEach(p=>{
+        if(FAKT_DAY[p][iso]) return;
+        const uzs=Number(map[iso][p])||0;
+        const usd=(kurs&&kurs>0)?Math.round(uzs/kurs):null;
+        FAKT_DAY[p][iso]={uzs,usd,kurs,frozen:false};
+      });
+    });
+  }catch(e){ console.warn('ensureFaktWindow (webhook) xato:',e.message); }
+}
+async function loadA10(token){
+  const todayIso=isoDay(nowUz());
+  await ensureFaktWindow(isoAddDays(todayIso,-10),isoAddDays(todayIso,-1),token);
+  if(token!==LOAD_TOKEN) return;
+  A_TODAY=avgFakt(todayIso);
+}
+
 /* ---- Fakt katagi ustiga hover/tap — o'sha kun uchun IKKI BO'LIM (Aksessuar/Zapchast),
-   har birining o'z filial kesimi bilan (webhook detal), pastda Jami. ---- */
+   har birining o'z filial kesimi bilan (webhook detal), pastda Jami.
+   2026-09-12 (Asilbek qarori B): eng tepaga Reja/Ertalabki prognoz(A(D))/Fakt/farq
+   xulosa qatori qo'shildi — A(D) yo'q bo'lsa (tarix yetarli emas) bu qator chiqmaydi. ---- */
 function renderPop(iso,rect){
   const d=combineFakt(iso);
   if(!d) return;
+  let summary='';
+  const a=avgFakt(iso);
+  if(a){
+    const rj=REJA_MAP[iso]||{};
+    const rejaVal=rj.reja!=null?Number(rj.reja):null;
+    const parts=[`Reja ${rejaVal!=null?('$'+money(rejaVal)):'—'}`,
+      `Ertalabki prognoz $${money(a.avg)} (${a.count} kun o'rtachasi)`,
+      `Fakt ${d.usd!=null?('$'+money(d.usd)):'—'}`];
+    if(rejaVal!=null && rejaVal>0 && d.usd!=null){
+      const pct=Math.round((d.usd-rejaVal)/rejaVal*100);
+      parts.push(`farq ${pct>=0?'+':''}${pct}%`);
+    }
+    summary=`<div class="bkp-summary">${esc(parts.join(' · '))}</div>`;
+  }
   const section=p=>{
     const dp=FAKT_DAY[p][iso];
     const rows=(WEB_DETAL[iso]&&WEB_DETAL[iso][p])||[];
@@ -1523,7 +1728,7 @@ function renderPop(iso,rect){
   const total=`<div class="bkp-total"><span>Jami</span><span>${money(d.uzs)} so'm<span class="bkp-usd">≈ $${d.usd==null?'—':money(d.usd)}</span></span></div>`;
   const pop=$('bkPop');
   pop.dataset.popKey='fk|'+iso;   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
-  pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)}</div>${section('aksessuar')}${section('zapchast')}${total}`;
+  pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)}</div>${summary}${section('aksessuar')}${section('zapchast')}${total}`;
   pop.classList.add('open');
   positionPop(rect);
 }
@@ -1549,6 +1754,11 @@ async function loadAll(){
   buildRun(RUN_START,RUN_H);
   renderTable();
   await loadFakt();
+  if(token!==LOAD_TOKEN) return;
+  await loadA10(token);   // A(bugun) — samarali Uzgaradi uchun, ko'rsatilgan oydan mustaqil
+  if(token!==LOAD_TOKEN) return;
+  buildRun(RUN_START,RUN_H);
+  renderTable();
 }
 
 async function init(){
