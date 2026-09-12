@@ -2052,7 +2052,10 @@ async function htgLoad(){
   if(error){
     console.warn('hodim_tg_royxat xato:',error);
     const code=String(error.code||'');
-    if(code==='PGRST202'||code==='42883') return fail("SQL hali RUN qilinmagan — PROVODKA_HODIM_TELEGRAM.sql ni Supabase'da RUN qiling.");
+    // Faqat FUNKSIYANING O'ZI yo'q bo'lsa "RUN qilinmagan". 42883 funksiya ichidagi
+    // tur xatosi ham bo'ladi ("operator does not exist: text = uuid") — u aniq xato.
+    if(code==='PGRST202' || (code==='42883' && /hodim_tg_royxat/i.test(String(error.message||''))))
+      return fail("SQL hali RUN qilinmagan — PROVODKA_HODIM_TELEGRAM.sql ni Supabase'da RUN qiling.");
     return fail("Yuklanmadi: "+(window.permErr?window.permErr(error):error.message)+(code?' ('+code+')':''));
   }
   if(data && data.ok===false){
@@ -2085,7 +2088,7 @@ function htgChipHtml(k){
     return `<span class="htg-chip ok" title="${esc(sub)}"><i data-lucide="check-circle-2"></i><span>${esc(sub)}</span></span>`;
   }
   if(k.holat==='topilmadi'){
-    return `<span class="htg-chip err" title="taskfix_user_id bor, lekin Telegram ro'yxatida topilmadi"><i data-lucide="alert-triangle"></i><span>Topilmadi</span></span>`;
+    return `<span class="htg-chip err" title="Bog'langan foydalanuvchi Telegram ro'yxatida topilmadi yoki nofaol"><i data-lucide="alert-triangle"></i><span>Topilmadi</span></span>`;
   }
   return `<span class="htg-chip warn"><i data-lucide="unlink"></i><span>Bog'lanmagan</span></span>`;
 }
