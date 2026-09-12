@@ -11,15 +11,15 @@ Provodkadagi muqobili yozilgan.
 Ta'minotchi bilan to'lov sanasi shunga qarab kelishiladi — sahifaning butun
 mavjudlik sababi shu.
 
-## Ko'rinish
+## 🔴 Yangi qaror (Asilbek, 2026-09-12): BITTA platforma
 
-Bitta jadval, ikkala profil yonma-yon (tab YO'Q):
+Aksessuar/Zapchast profillari **endi ikkiga bo'linmaydi** — hamma filial
+bitta platformada savdo qiladi. Sahifa endi **bitta blok** (avvalgi ikki
+tomonlama 27-ustunli jadval emas):
 
 ```
-Sana │ ──── AKSESSUAR (13 ustun) ──── │ ──── ZAPCHAST (13 ustun) ────
+Sana │ ──── Savdo · Yig'ilma · Qarz · Qoldi pul · Prognoz (15 ustun) ────
 ```
-
-Har profil uchun 4 guruh:
 
 | Guruh | Ustunlar |
 |-------|----------|
@@ -27,28 +27,72 @@ Har profil uchun 4 guruh:
 | Yig'ilma | Reja · Uzga · Fakt |
 | Qarz | Qarzmiz · Berdik · Raznitsa |
 | Qoldi pul | Reja · Uzga · Fakt · Raznitsa |
+| Prognoz | Kutilgan pul · Qarz olsa bo'ladi |
 
-## Hisob formulalari (Excel bilan aynan)
+Reja/Uzgardi profili endi `'umumiy'` (`beshkunlik_reja_profil_chk` kengaytirildi:
+`'aksessuar'|'zapchast'|'umumiy'`; eski ikki profilning yig'indisi bir martalik
+SQL bilan `'umumiy'`ga ko'chirilgan — eski qatorlar SAQLANADI). Qarz bloki ham
+profilsiz (`beshkunlik_qarz_v2`/`beshkunlik_qarz_detal_v2`). `beshkunlik_kun`
+(Fakt) hamon **profil bo'yicha muhrlanadi** (aksessuar/zapchast) — Fakt ustuni
+ikkalasining YIG'INDISI, hover ikkiga bo'lib ko'rsatadi (filial kesimi bilan).
 
-`kecha` = oldingi kunning o'sha ustuni.
+## Hisob formulalari (Excel bilan aynan, 2026-09-12 TUZATILDI)
+
+`kecha` = oldingi kunning o'sha ustuni. Yig'ilma **UZLUKSIZ REKURSIYA**:
+har kun kechagi **Qoldi**dan boshlanadi — kechagi Qarzmiz/Berdik shu bilan
+avtomatik keyingi kunga o'tadi. 🔴 Eski kod xato edi: Yig'ilmani kunlik
+qiymatlar yig'indisi (kumulyativ summa) qilib hisoblardi, Qoldi.Reja/Uzga/Fakt
+esa alohida — natijada kechagi qarz/to'lov ta'siri keyingi kunga tushmasdi
+(qarz 0 bo'lgan davrda sezilmagan, chunki farq yo'q edi). Tuzatilgan:
 
 | Ustun | Formula | Izoh |
 |-------|---------|------|
 | Reja | `oylik_reja / oy_kunlari` | oyning **hamma** kuniga teng bo'linadi (yakshanba ham) |
 | Uzgaradi | qo'lda | boshida Reja bilan bir xil, keyin kunma-kun tahrirlanadi |
-| Fakt | Aros'dan | Excelda qo'lda edi — bizda avtomatik |
-| Yig'.Reja | `Qoldi.Reja(kecha) + Reja` | |
-| Yig'.Uzga | `Qoldi.Uzga(kecha) + Uzgaradi` | |
-| Yig'.Fakt | `Qoldi.Fakt(kecha) + Fakt` | |
+| Fakt | Aros'dan | Aksessuar+Zapchast yig'indisi, avtomatik |
+| Yig'.Reja(t) | `Qoldi.Reja(t−1) + Reja(t)` | REKURSIYA — kunlik yig'indi EMAS |
+| Yig'.Uzga(t) | `Qoldi.Uzga(t−1) + Uzgaradi(t)` | REKURSIYA |
+| Yig'.Fakt(t) | `Qoldi.Fakt(t−1) + Fakt(t)` | REKURSIYA |
 | Qarzmiz | deadline shu kunga tushgan qarzlar (manfiy) | |
 | Berdik | shu kuni haqiqatda to'langan (musbat) | |
 | Raznitsa | `Qarzmiz + Berdik` | to'liq to'lansa 0 |
-| Qoldi.Reja | `Yig'.Reja + Qarzmiz` | |
-| Qoldi.Uzga | `Yig'.Uzga + Qarzmiz` | |
-| Qoldi.Fakt | `Yig'.Fakt − Berdik` | |
-| Qoldi.Raznitsa | `Qoldi.Uzga − Qoldi.Fakt` | **Uzga** bilan solishtiriladi, Reja bilan emas |
+| Qoldi.Reja(t) | `Yig'.Reja(t) + Qarzmiz(t)` | |
+| Qoldi.Uzga(t) | `Yig'.Uzga(t) + Qarzmiz(t)` | |
+| Qoldi.Fakt(t) | `Yig'.Fakt(t) − Berdik(t)` | |
+| Qoldi.Raznitsa(t) | `Qoldi.Uzga(t) − Qoldi.Fakt(t)` | **Uzga** bilan solishtiriladi, Reja bilan emas |
 
 🔴 Yig'ilma **uzluksiz** — hech qachon nolga tushmaydi. «5 kunlik» faqat nom.
+
+**Amalga oshirish (5kunlik-dev.html, `buildRun()`):** rekursiya bitta uzluksiz
+kunli qator sifatida hisoblanadi — `START` (`beshkunlik_sozlama.boshlanish`,
+bo'lmasa ma'lumotdagi eng erta sana, bo'lmasa ko'rsatilgan oy boshi) dan
+`H = max(ko'rsatilgan oy oxiri, bugun+60 kun)` gacha. Boshlang'ich qoldiq
+(`beshkunlik_sozlama.boshlangich_usd`) START kunidan oldingi "Qoldi" sifatida
+uchala ustunga (Reja/Uzga/Fakt) qo'shiladi. Ko'rsatilgan oy — shu qatorning bir
+bo'lagi; oy boshidagi ko'rsatiladigan qoldiq — oy boshidan oldingi kunning
+Qoldi'si. Ko'rsatilgan oydan tashqaridagi (STARTdan buyon) muhrlanmagan o'tgan
+kunlar Fakt=0 deb hisoblanadi (kichik ogohlantirish bilan) — kechasi
+`beshkunlik_muhrla` ularni to'ldiradi.
+
+## Prognoz (Kutilgan pul · Qarz olsa bo'ladi)
+
+Maqsad: «shu kunga biznesda qancha pul bo'ladi va qancha qarz olsa bo'ladi»
+savolining o'zi — Qoldi pul zanjiridan KELAJAKKA qaraydi. `T` = bugun (UZ).
+
+| Belgi | Formula | Izoh |
+|-------|---------|------|
+| `B` | `Qoldi.Fakt(T)` | bugungi haqiqiy qoldiq |
+| `O` | `Σ Qarzmiz(t)` t=START..T | hali to'lanmagan, muddati kelgan qarz (manfiy) |
+| `K(T)` | `B + O` | |
+| `K(D)`, D>T | `K(D−1) + Uzgaradi(D) + Qarzmiz(D)` | kelajakda Fakt/haqiqiy to'lov yo'q — Uzgaradi ULARNING O'RNIDA |
+| Kutilgan pul(D) | D<T → `—`; D≥T → `K(D)` | |
+| Qarz olsa bo'ladi(D) | D<T → `—`; D≥T → `max(0, min` `_{t=D..H} K(t))` | eng past nuqtagacha pul yetishi kerak; manfiy bo'lsa 0 + qizil + "$X yetishmaydi" |
+
+`H` — 60 kunlik gorizont (yuqoridagi `RUN_H`). Jadval ustida qisqa xulosa:
+«Bugun kutilgan: $X · 60 kun ichida eng past: $Y (sana) · Bugun qarz olsa
+bo'ladi: $Z» + kelajakda reja kiritilmagan kunlar soni haqida ogohlantirish.
+«Qarz olsa bo'ladi» katagi hover: qaysi kun cheklab turgani («Eng past nuqta:
+24 sen — $X»).
 
 ## Ma'lumot manbalari
 
@@ -79,6 +123,26 @@ Repodagi mavjud `FLAGS` naqshi (`ehson_kirim` kabi):
 
 Foydalanuvchilar: CEO va ROP lar.
 
+## Kechasi avtomatik muhrlash — vaqt tanlash sababi (2026-09-12)
+
+n8n `cache_calendar_daily` (Aros Market - Calendar Cache Builder) har kechasi
+**~01:00–01:11 (Toshkent)** oxirgi kunlarni QAYTA hisoblab chiqadi — ya'ni
+"kecha"gi kun faqat shundan keyin **to'liq**. Shu sababli:
+
+- `beshkunlik_muhrla(p_data)` (n8n, service_role, soat **02:00**da chaqiriladi)
+  `sana < bugun` shartini ishlatadi — bu paytda "kecha" allaqachon to'liq.
+- Sahifaning o'zi (`computeAndFreeze()`, ertalab ham ochilishi mumkin) esa
+  ehtiyotkorroq: faqat `sana <= bugun−2 kun` bo'lgan kunni muhrlaydi —
+  "kecha"ni tunggi RPC'ga qoldiradi, ertalabki chala raqam bilan qotib
+  qolmaydi.
+
+n8n workflow: **`Aros Provodka - 5 Kunlik Muhrlash`** (`ArNGlzjFDz3mOUd0`), cron
+`0 0 21 * * *` UTC = 02:00 Toshkent. Oxirgi 60 kun (kechagacha) — sahifa ishlatadigan
+AYNI webhook'dan (`aros-provodka-5kunlik-savdo`) oladi, raqamlar bir xil bo'lsin.
+Javob noto'g'ri/bo'sh bo'lsa XATO beradi (jimgina 0 yo'q). Birinchi ishga tushishi
+backfill ham qiladi (60 kun). Faollashtirish: SQL RUN → «Muhrla» node'ga Supabase API
+(service_role) krediti → Publish.
+
 ## Kelishilgan qarorlar (2026-09-11, Asilbek)
 
 1. **Yuk bo'lmagan qarz yo'q.** Hamma qarz — yuk. Yuklar sahifasida tannarx
@@ -91,6 +155,9 @@ Foydalanuvchilar: CEO va ROP lar.
 4. **Reja oyning hamma kuniga teng bo'linadi**, yakshanba ajratilmaydi.
 5. **Deadline yuklar sahifasida qo'yiladi**, 5 kunlik uni faqat o'qiydi.
    Excelda bu `Tuldiriladi!K` (`Qaytadi`) ustuni edi.
+6. **Bitta platforma (2026-09-12).** Aksessuar/Zapchast profillari ikkiga
+   bo'linmaydi — Reja/Uzgardi/Qarz endi profilsiz (`umumiy`), Fakt esa
+   ikkalasining yig'indisi (yuqoriga qara).
 
 ## Excel bilan farqlar (ataylab)
 
@@ -106,10 +173,10 @@ Foydalanuvchilar: CEO va ROP lar.
 | № | Bosqich | Holat |
 |---|---------|-------|
 | 1 | Skelet + ruxsat + SQL | ✅ `db2117f` |
-| 2 | Jadval: bitta sheet, 27 ustun, keng | 🔄 |
-| 3 | Kunlik savdo (Fakt) + hover'da filial kesimi | |
-| 4 | Reja / Uzgardi tahriri | |
-| 5 | Excel funksiyalari (sudrab to'ldirish, filtr, rang) | |
-| 6 | Qarz bloki + yuk deadline UI | |
-| 7 | Qoldi pul + prognoz | |
-| 8 | Regression test | |
+| 2 | Jadval: bitta sheet, 27 ustun, keng | ✅ |
+| 3 | Kunlik savdo (Fakt) + hover'da filial kesimi | ✅ |
+| 4 | Reja / Uzgardi tahriri | ✅ |
+| 5 | Excel funksiyalari (sudrab to'ldirish, filtr, rang) | ✅ |
+| 6 | Qarz bloki + yuk deadline UI | ✅ |
+| 7 | **Bitta platforma** (27→15 ustun) + Yig'ilma rekursiya tuzatish + Prognoz + boshlang'ich qoldiq + hover-scroll bug fix | ✅ (SQL RUN kutilmoqda, n8n muhrlash workflow keyingi qadam) |
+| 8 | Regression test | ✅ (statik tahlil — node --check, formula qo'l bilan tekshiruv) |

@@ -157,12 +157,15 @@ create table if not exists beshkunlik_reja (
   primary key (profil, sana)
 );
 
+-- 🔴 7-BOSQICH (2026-09-12): ro'yxat 'umumiy' bilan kengaytirilgan (fresh install
+-- uchun) — mavjud bazada bu blok "if not exists" tufayli qayta ishlamaydi, tor
+-- constraintni kengaytirish 13-BO'LIMDA (pastda, pg_get_constraintdef bilan).
 do $bk_reja_chk$
 begin
   if not exists (select 1 from pg_constraint where conname = 'beshkunlik_reja_profil_chk') then
     alter table beshkunlik_reja
       add constraint beshkunlik_reja_profil_chk
-      check (profil in ('aksessuar','zapchast'));
+      check (profil in ('aksessuar','zapchast','umumiy'));
   end if;
 end
 $bk_reja_chk$;
@@ -170,7 +173,8 @@ $bk_reja_chk$;
 comment on table beshkunlik_reja is
   '5 kunlik sahifasi: kun/profil bo''yicha savdo rejasi (dollarda). '
   '`reja` = asl reja, `uzgardi` = keyin tuzatilgan reja. 1-bosqichda klient hali yozmaydi.';
-comment on column beshkunlik_reja.profil is 'aksessuar | zapchast.';
+comment on column beshkunlik_reja.profil is
+  'umumiy (7-bosqichdan, bitta platforma) | aksessuar | zapchast (tarixiy, 7-bosqichgacha).';
 comment on column beshkunlik_reja.reja is 'Asl (birinchi kiritilgan) reja, dollarda.';
 comment on column beshkunlik_reja.uzgardi is 'Tuzatilgan reja, dollarda. Boshida reja bilan bir xil bo''lishi mumkin.';
 
@@ -760,3 +764,396 @@ begin
   raise notice 'PROVODKA_5KUNLIK.sql: Qarz bloki tayyor (6-bosqich qoshimchasi)';
 end
 $bk_qarz_final$;
+
+
+-- #####################################################################
+-- ##  13-BO'LIM — beshkunlik_reja: mavjud CHECK'ni 'umumiy'ga kengaytir (7-BOSQICH) ##
+-- #####################################################################
+--  Biznes qarori (Asilbek, 2026-09-12): Aksessuar/Zapchast profillari endi
+--  ikkiga bo'linmaydi — BITTA platforma. Reja/Uzgardi shu bosqichdan
+--  boshlab profil='umumiy' bilan yoziladi. Eski aksessuar/zapchast qatorlar
+--  O'CHIRILMAYDI (14-BO'LIM ularni 'umumiy'ga ko'chiradi, lekin eskisi
+--  qoladi — beshkunlik_kun hali profil bo'yicha muhrlanadi, hover uchun).
+--  2-BO'LIMDAGI do bloki "if not exists" tufayli mavjud bazada qayta
+--  ishlamaydi (constraint allaqachon bor) — shuning uchun bu bo'lim uni
+--  pg_get_constraintdef bilan tekshirib, kerak bo'lsagina drop+qayta qo'shadi.
+
+do $bk_reja_chk_widen$
+declare
+  v_def text;
+begin
+  select pg_get_constraintdef(oid) into v_def
+    from pg_constraint where conname = 'beshkunlik_reja_profil_chk';
+  if v_def is null then
+    alter table beshkunlik_reja
+      add constraint beshkunlik_reja_profil_chk
+      check (profil in ('aksessuar','zapchast','umumiy'));
+  elsif v_def not like '%umumiy%' then
+    alter table beshkunlik_reja drop constraint beshkunlik_reja_profil_chk;
+    alter table beshkunlik_reja
+      add constraint beshkunlik_reja_profil_chk
+      check (profil in ('aksessuar','zapchast','umumiy'));
+  end if;
+end
+$bk_reja_chk_widen$;
+
+
+-- #####################################################################
+-- ##  14-BO'LIM — bir martalik ko'chirish: aksessuar+zapchast -> umumiy (7-BOSQICH) ##
+-- #####################################################################
+--  Mavjud aksessuar+zapchast reja/uzgardi yig'indisi kun bo'yicha 'umumiy'
+--  qatoriga yoziladi. `on conflict do nothing` — qayta RUN qilinsa ikkinchi
+--  marta qo'shilmaydi (idempotent). Eski aksessuar/zapchast qatorlar
+--  SAQLANADI, hech narsa o'chirilmaydi.
+
+insert into beshkunlik_reja (profil, sana, reja, uzgardi)
+select 'umumiy', sana, sum(reja), sum(uzgardi)
+  from beshkunlik_reja
+ where profil in ('aksessuar','zapchast')
+ group by sana
+on conflict (profil, sana) do nothing;
+
+
+-- #####################################################################
+-- ##  15-BO'LIM — beshkunlik_qarz_v2 / beshkunlik_qarz_detal_v2 (7-BOSQICH) ##
+-- #####################################################################
+--  10/11-BO'LIMDAGI beshkunlik_qarz / beshkunlik_qarz_detal bilan BIR XIL
+--  mantiq, faqat PROFILSIZ — bitta platforma qarori bilan Qarz bloki endi
+--  profil bo'yicha bo'linmaydi (deadline qo'yilgan HAMMA yuk). Eski v1
+--  funksiyalarga TEGILMAGAN (eski klient/keshlar sinmasin).
+--
+--  IMZO: beshkunlik_qarz_v2(p_from date, p_to date) returns jsonb
+--  Javob: [{sana, qarzmiz_uzs, berdik_uzs}, ...] — SO'MDA.
+--  IMZO: beshkunlik_qarz_detal_v2(p_sana date) returns jsonb
+--  Javob: [{yuk_id, narx, valyuta, izoh, qoldiq_uzs}, ...]
+
+create or replace function beshkunlik_qarz_v2(p_from date, p_to date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $bk_qarz_v2$
+declare
+  v_ids integer[];
+  v_tannarx jsonb;
+  v_bojxona jsonb;
+  v_tolangan_map jsonb := '{}'::jsonb;
+begin
+  if not coalesce(perm_has_page('beshkunlik'), false) then
+    return '[]'::jsonb;
+  end if;
+  if p_from is null or p_to is null then
+    return '[]'::jsonb;
+  end if;
+
+  select coalesce(array_agg(yd.yuk_id), '{}'::integer[])
+    into v_ids
+    from yuk_deadline yd
+   where yd.deadline between p_from and p_to;
+
+  v_tannarx := coalesce(yuk_tannarx_jami(v_ids), '{}'::jsonb);
+  v_bojxona := coalesce(yuk_bojxona_jami(v_ids), '{}'::jsonb);
+
+  select coalesce(jsonb_object_agg(t ->> 'yuk_id', t ->> 'tolangan_uzs'), '{}'::jsonb)
+    into v_tolangan_map
+    from jsonb_array_elements(coalesce(yuk_tolangan_summa(v_ids), '[]'::jsonb)) as t;
+
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'sana', x.sana, 'qarzmiz_uzs', x.qarzmiz_uzs, 'berdik_uzs', x.berdik_uzs)
+             order by x.sana)
+      from (
+        select coalesce(q.sana, b.sana) as sana,
+               coalesce(q.qarzmiz_uzs, 0) as qarzmiz_uzs,
+               coalesce(b.berdik_uzs, 0) as berdik_uzs
+          from (
+            select yd.deadline as sana,
+                   sum(greatest(0,
+                     coalesce(yd.narx, 0)
+                       * coalesce(case when upper(coalesce(yd.valyuta, 'UZS')) = 'UZS' then 1::numeric
+                                       else conv_baza_kurs(yd.valyuta) end, 0)
+                     + coalesce((v_tannarx -> yd.yuk_id::text ->> 'jami_uzs')::numeric, 0)
+                     + coalesce((v_bojxona -> yd.yuk_id::text ->> 'bojxona_uzs')::numeric, 0)
+                     - coalesce((v_tolangan_map ->> yd.yuk_id::text)::numeric, 0)
+                   )) as qarzmiz_uzs
+              from yuk_deadline yd
+             where yd.deadline between p_from and p_to
+             group by yd.deadline
+          ) q
+          full outer join (
+            select e.entry_date as sana,
+                   sum(ey.summa_uzs) as berdik_uzs
+              from entry_yuk ey
+              join entry e on e.id = ey.entry_id
+              join yuk_deadline yd2 on yd2.yuk_id = ey.yuk_id
+             where e.status = 'posted' and e.is_deleted = false
+               and e.entry_date between p_from and p_to
+               and yd2.deadline is not null
+             group by e.entry_date
+          ) b on b.sana = q.sana
+      ) x
+  ), '[]'::jsonb);
+end
+$bk_qarz_v2$;
+
+revoke all on function beshkunlik_qarz_v2(date, date) from public, anon;
+grant execute on function beshkunlik_qarz_v2(date, date) to authenticated;
+
+comment on function beshkunlik_qarz_v2(date, date) is
+  '5 kunlik Qarz bloki (7-bosqich, PROFILSIZ — bitta platforma), SOMDA: '
+  '[{sana, qarzmiz_uzs, berdik_uzs}]. Mantiq beshkunlik_qarz(date,date) bilan bir xil, '
+  'faqat profil bo''yicha filtr/guruhlash YOQ. Ruxsat: perm_has_page(''beshkunlik'') ichida.';
+
+create or replace function beshkunlik_qarz_detal_v2(p_sana date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $bk_qarz_detal_v2$
+declare
+  v_ids integer[];
+  v_tannarx jsonb;
+  v_bojxona jsonb;
+  v_tolangan_map jsonb := '{}'::jsonb;
+begin
+  if not coalesce(perm_has_page('beshkunlik'), false) then
+    return '[]'::jsonb;
+  end if;
+  if p_sana is null then
+    return '[]'::jsonb;
+  end if;
+
+  select coalesce(array_agg(yd.yuk_id), '{}'::integer[])
+    into v_ids
+    from yuk_deadline yd
+   where yd.deadline = p_sana;
+
+  if array_length(v_ids, 1) is null then
+    return '[]'::jsonb;
+  end if;
+
+  v_tannarx := coalesce(yuk_tannarx_jami(v_ids), '{}'::jsonb);
+  v_bojxona := coalesce(yuk_bojxona_jami(v_ids), '{}'::jsonb);
+
+  select coalesce(jsonb_object_agg(t ->> 'yuk_id', t ->> 'tolangan_uzs'), '{}'::jsonb)
+    into v_tolangan_map
+    from jsonb_array_elements(coalesce(yuk_tolangan_summa(v_ids), '[]'::jsonb)) as t;
+
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'yuk_id', yd.yuk_id, 'narx', yd.narx, 'valyuta', yd.valyuta, 'izoh', yd.izoh,
+             'qoldiq_uzs', greatest(0,
+               coalesce(yd.narx, 0)
+                 * coalesce(case when upper(coalesce(yd.valyuta, 'UZS')) = 'UZS' then 1::numeric
+                                 else conv_baza_kurs(yd.valyuta) end, 0)
+               + coalesce((v_tannarx -> yd.yuk_id::text ->> 'jami_uzs')::numeric, 0)
+               + coalesce((v_bojxona -> yd.yuk_id::text ->> 'bojxona_uzs')::numeric, 0)
+               - coalesce((v_tolangan_map ->> yd.yuk_id::text)::numeric, 0)))
+             order by yd.yuk_id)
+      from yuk_deadline yd
+     where yd.yuk_id = any(v_ids)
+  ), '[]'::jsonb);
+end
+$bk_qarz_detal_v2$;
+
+revoke all on function beshkunlik_qarz_detal_v2(date) from public, anon;
+grant execute on function beshkunlik_qarz_detal_v2(date) to authenticated;
+
+comment on function beshkunlik_qarz_detal_v2(date) is
+  '5 kunlik Qarzmiz katagi hover (7-bosqich, PROFILSIZ): bitta kun uchun yuk qatorlari '
+  '[{yuk_id, narx, valyuta, izoh, qoldiq_uzs}]. Ruxsat: perm_has_page(''beshkunlik'') ichida.';
+
+
+-- #####################################################################
+-- ##  16-BO'LIM — beshkunlik_sozlama (7-BOSQICH — boshlang'ich qoldiq) ##
+-- #####################################################################
+--  Bitta qatorli sozlama: yig'ilma qachondan va qancha pul bilan
+--  boshlangani (Excelda 23-avgustda 108 228 dollar bilan boshlangan edi).
+--  Qator bo'lmasa sahifa sukut (boshlanish=null, boshlangich_usd=0) ishlatadi.
+
+create table if not exists beshkunlik_sozlama (
+  id              int         primary key default 1 check (id = 1),
+  boshlanish      date,
+  boshlangich_usd numeric     not null default 0,
+  updated_by      uuid,
+  updated_at      timestamptz not null default now()
+);
+
+comment on table beshkunlik_sozlama is
+  '5 kunlik: bitta qatorli sozlama — yig''ilma rekursiyasining boshlang''ich nuqtasi '
+  '(boshlanish sanasi + shu kundagi boshlang''ich pul, dollarda). Qator bo''lmasa sahifa '
+  'sukutni ishlatadi (boshlanish=eng erta ma''lumot sanasi, boshlangich_usd=0).';
+
+alter table beshkunlik_sozlama enable row level security;
+revoke all on table beshkunlik_sozlama from public, anon;
+grant select, insert, update on table beshkunlik_sozlama to authenticated;
+
+drop policy if exists beshkunlik_sozlama_sel on beshkunlik_sozlama;
+create policy beshkunlik_sozlama_sel on beshkunlik_sozlama
+  for select to authenticated
+  using (perm_has_page('beshkunlik'));
+
+drop policy if exists beshkunlik_sozlama_ins on beshkunlik_sozlama;
+create policy beshkunlik_sozlama_ins on beshkunlik_sozlama
+  for insert to authenticated
+  with check (perm_has_page('beshkunlik_edit'));
+
+drop policy if exists beshkunlik_sozlama_upd on beshkunlik_sozlama;
+create policy beshkunlik_sozlama_upd on beshkunlik_sozlama
+  for update to authenticated
+  using (perm_has_page('beshkunlik_edit'))
+  with check (perm_has_page('beshkunlik_edit'));
+
+drop trigger if exists trg_beshkunlik_sozlama_touch on beshkunlik_sozlama;
+create trigger trg_beshkunlik_sozlama_touch
+  before insert or update on beshkunlik_sozlama
+  for each row execute function _beshkunlik_touch();
+
+
+-- #####################################################################
+-- ##  17-BO'LIM — beshkunlik_muhrla(p_data jsonb) — kechasi avtomuhrlash (7-BOSQICH) ##
+-- #####################################################################
+--  n8n har kechasi chaqiradi (workflow alohida quriladi — bu fayl faqat
+--  RPC'ni tayyorlaydi). Har sana/profil uchun beshkunlik_kun ga faqat HALI
+--  MUHRLANMAGAN (qator yo'q yoki frozen_at null) bo'lsagina yoziladi —
+--  muhrlangan qatorga HECH QACHON tegilmaydi (`on conflict ... where
+--  frozen_at is null` — qo'shimcha himoya, race'ga qarshi ham).
+--
+--  IMZO: beshkunlik_muhrla(p_data jsonb) returns jsonb
+--  Kirish:  {"kunlar":[{"sana":"YYYY-MM-DD","aksessuar_uzs":N,"zapchast_uzs":N}, ...]}
+--  Chiqish: {"ok":true,"yozildi":N,"otkazildi":N,"kurs_yoq":["YYYY-MM-DD", ...]}
+--           yoki {"ok":false,"error":"..."} — bo'sh/noto'g'ri payload, hech narsa yozilmaydi.
+--  Faqat sana < BUGUN (Toshkent) qabul qilinadi (bugungi/kelajak kun — jonli,
+--  sahifaning o'zi hisoblaydi). Kurs topilmasa (beshkunlik_kurs null) o'sha
+--  sana o'tkazib yuboriladi va kurs_yoq ro'yxatiga qo'shiladi.
+--  🔴 VAQT (2026-09-12, tekshirilgan fakt): n8n `cache_calendar_daily` har kechasi
+--  ~01:00-01:11 (Toshkent) oxirgi kunlarni QAYTA hisoblaydi, ya'ni "kecha" faqat
+--  shundan keyin to'liq. Shu sababli n8n workflow bu funksiyani soat 02:00da
+--  chaqiradi (kecha allaqachon to'liq) — "sana < bugun" shu holatda TO'G'RI va
+--  o'zgartirilmagan. Sahifaning o'zi (5kunlik-dev.html, `computeAndFreeze()`)
+--  esa ertalab ham ochilishi mumkin bo'lgani uchun ehtiyotkorroq: faqat
+--  `sana <= bugun-2 kun` bo'lgan kunni muhrlaydi, "kecha"ni bu RPC'ga qoldiradi.
+--  🔴 service_role ONLY — faqat n8n chaqiradi, klient/anon/authenticated'dan yopiq.
+
+create or replace function beshkunlik_muhrla(p_data jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $bk_muhrla$
+declare
+  v_today      date := (now() at time zone 'Asia/Tashkent')::date;
+  v_kun        jsonb;
+  v_sana       date;
+  v_uzs        numeric;
+  v_kurs       numeric;
+  v_usd        numeric;
+  v_frozen     timestamptz;
+  v_yozildi    int := 0;
+  v_otkazildi  int := 0;
+  v_kurs_yoq   date[] := '{}';
+  v_p          text;
+begin
+  if p_data is null or not (p_data ? 'kunlar') or jsonb_typeof(p_data -> 'kunlar') <> 'array' then
+    return jsonb_build_object('ok', false, 'error', 'kunlar massivi kutilgan (jsonb array)');
+  end if;
+
+  for v_kun in select * from jsonb_array_elements(p_data -> 'kunlar')
+  loop
+    v_sana := null;
+    begin
+      v_sana := (v_kun ->> 'sana')::date;
+    exception when others then
+      v_sana := null;
+    end;
+    if v_sana is null or v_sana >= v_today then
+      continue;
+    end if;
+
+    v_kurs := beshkunlik_kurs(v_sana);
+    if v_kurs is null then
+      if not (v_sana = any(v_kurs_yoq)) then
+        v_kurs_yoq := v_kurs_yoq || v_sana;
+      end if;
+      continue;
+    end if;
+
+    foreach v_p in array array['aksessuar','zapchast']
+    loop
+      v_uzs := coalesce((v_kun ->> (v_p || '_uzs'))::numeric, 0);
+
+      select frozen_at into v_frozen from beshkunlik_kun where profil = v_p and sana = v_sana;
+      if v_frozen is not null then
+        v_otkazildi := v_otkazildi + 1;
+        continue;
+      end if;
+
+      v_usd := round(v_uzs / v_kurs);
+      insert into beshkunlik_kun (profil, sana, savdo_uzs, savdo_usd, kurs_uzs, frozen_at)
+        values (v_p, v_sana, v_uzs, v_usd, v_kurs, now())
+      on conflict (profil, sana) do update
+        set savdo_uzs = excluded.savdo_uzs,
+            savdo_usd = excluded.savdo_usd,
+            kurs_uzs  = excluded.kurs_uzs,
+            frozen_at = excluded.frozen_at
+        where beshkunlik_kun.frozen_at is null;
+      v_yozildi := v_yozildi + 1;
+    end loop;
+  end loop;
+
+  return jsonb_build_object(
+    'ok', true,
+    'yozildi', v_yozildi,
+    'otkazildi', v_otkazildi,
+    'kurs_yoq', coalesce((select jsonb_agg(to_char(d, 'YYYY-MM-DD') order by d) from unnest(v_kurs_yoq) d), '[]'::jsonb)
+  );
+end
+$bk_muhrla$;
+
+revoke all on function beshkunlik_muhrla(jsonb) from public, anon, authenticated;
+grant execute on function beshkunlik_muhrla(jsonb) to service_role;
+
+comment on function beshkunlik_muhrla(jsonb) is
+  '5 kunlik: kechasi avtomatik muhrlash (n8n, service_role ONLY). Kirish '
+  '{"kunlar":[{"sana","aksessuar_uzs","zapchast_uzs"}, ...]}, chiqish '
+  '{"ok","yozildi","otkazildi","kurs_yoq"}. Faqat sana<bugun(Toshkent) va HALI '
+  'muhrlanmagan (frozen_at is null) qatorga yozadi — muhrlangan qatorga hech qachon tegmaydi.';
+
+
+-- #####################################################################
+-- ##  18-BO'LIM — YAKUNIY TEKSHIRUV (7-BOSQICH, faqat select/raise)   ##
+-- #####################################################################
+
+do $bk_umumiy_final$
+declare
+  v_def text;
+begin
+  select pg_get_constraintdef(oid) into v_def
+    from pg_constraint where conname = 'beshkunlik_reja_profil_chk';
+  if v_def is null or v_def not like '%umumiy%' then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_reja_profil_chk umumiy ni qamramaydi';
+  end if;
+
+  if to_regclass('public.beshkunlik_sozlama') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_sozlama jadvali yaralmadi';
+  end if;
+  if to_regprocedure('public.beshkunlik_qarz_v2(date,date)') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_qarz_v2(date,date) yaralmadi';
+  end if;
+  if to_regprocedure('public.beshkunlik_qarz_detal_v2(date)') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_qarz_detal_v2(date) yaralmadi';
+  end if;
+  if to_regprocedure('public.beshkunlik_muhrla(jsonb)') is null then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_muhrla(jsonb) yaralmadi';
+  end if;
+
+  if not exists (select 1 from pg_policies
+                  where schemaname='public' and tablename='beshkunlik_sozlama' and policyname='beshkunlik_sozlama_sel') then
+    raise exception 'YAKUNIY TEKSHIRUV: beshkunlik_sozlama_sel policy yoq';
+  end if;
+
+  raise notice 'PROVODKA_5KUNLIK.sql: bitta platforma (umumiy) + Qarz v2 + sozlama + muhrla tayyor (7-bosqich qoshimchasi)';
+end
+$bk_umumiy_final$;

@@ -803,7 +803,10 @@
         <label for="dlSana">Sana</label>
         <input id="dlSana" type="date" oninput="dlValidate()">
       </div>
-      <div class="fld">
+      <!-- Profil tanlovi olib tashlandi (2026-09-12, bitta platforma qarori) — #dlProfil
+           yashirin qoldirilgan (dlOf() eski qatorlar bilan ishlashi uchun), lekin
+           ko'rsatilmaydi va majburiy emas. -->
+      <div class="fld" style="display:none">
         <label for="dlProfil">Profil</label>
         <select id="dlProfil" onchange="dlValidate()">
           <option value="">Tanlang…</option>
@@ -1140,12 +1143,11 @@ function muddatCellHtml(y){
   let cls='', sub='';
   if(left!=null&&left<0&&hasDebt){ cls='over'; sub=(-left)+' kun kechikdi'; }
   else if(left!=null&&left>=0&&left<=7&&hasDebt){ cls='warn'; sub=left===0?'Bugun':(left+' kun qoldi'); }
-  const profTxt=d.profil==='aksessuar'?'Aks':(d.profil==='zapchast'?'Zap':'');
-  const profPill=profTxt?'<span class="pill '+(d.profil==='aksessuar'?'b':'gray')+'">'+profTxt+'</span>':'';
+  // Aks/Zap rozetkasi olib tashlandi (2026-09-12, bitta platforma qarori).
   return '<button type="button" class="mdl" onclick="openDl('+y.id+')">'
     +'<span class="mdl-d'+(cls?' '+cls:'')+'">'+dF(d.deadline)+'</span>'
     +(sub?'<span class="mdl-sub'+(cls==='over'?' over':'')+'">'+esc(sub)+'</span>':'')
-    +profPill+'</button>';
+    +'</button>';
 }
 
 function renderYuklar(){
@@ -1850,11 +1852,10 @@ window.openDl=id=>{
 };
 window.closeDl=()=>{ $('dlModal').classList.remove('open'); dlCur=null; };
 window.dlValidate=()=>{
-  const sana=$('dlSana').value, profil=$('dlProfil').value;
+  const sana=$('dlSana').value;
   const msg=$('dlMsg'), btn=$('dlSaveBtn');
   let m='',ok=false;
   if(!sana) m='Sanani tanlang';
-  else if(!profil) m='Profilni tanlang';
   else ok=true;
   msg.textContent=m; msg.className='tmsg'+(m?' no':'');
   btn.disabled=!ok;
@@ -1866,10 +1867,11 @@ window.dlSave=async()=>{
   const btn=$('dlSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
   // narx/valyuta — o'sha yukning JADVALDA turgan qiymatidan (surat), qarz keyin
   // tannarx qo'shilsa ham "5 kunlik" jonli hisoblasin (BRIEF_5KUNLIK.md qaror №1).
+  // `profil` endi yuborilmaydi (2026-09-12, bitta platforma qarori) — upsert eski
+  // qiymatni saqlaydi (yangi qatorda null qoladi, "5 kunlik" endi profilsiz o'qiydi).
   const payload={
     yuk_id:Number(dlCur.id),
     deadline:$('dlSana').value,
-    profil:$('dlProfil').value,
     narx:(dlCur.narx==null)?null:Number(dlCur.narx),
     valyuta:dlCur.valyuta||null,
     izoh:($('dlIzoh').value||'').trim()||null

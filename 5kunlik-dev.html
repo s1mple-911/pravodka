@@ -85,14 +85,14 @@
      overflow-y'ni "auto" qilib qo'yadi (CSS spec), lekin ichida haqiqiy vertikal scroll bo'lmagani
      uchun sticky hech qachon "ushlanmaydi" — sahifa scroll qilinsa headerlar tashqariga chiqib ketardi. */
   .scroll{overflow:auto;max-height:calc(100vh - 300px);min-height:220px}
-  .scroll table{min-width:2500px}
+  .scroll table{min-width:1500px}
   .scroll td,.scroll th{white-space:nowrap}
   /* Tepadagi ikkinchi (ko'zga tashlanadigan) gorizontal scrollbar — asosiy .scroll bilan
      ikki tomonlama sinxron (bkBindScrollSync()). Faqat scrollbarning o'zi ko'rinishi kerak,
      shuning uchun balandlik minimal, ichidagi div esa jadval eni bilan bir xil qilib qo'yiladi. */
   .scroll-top{overflow-x:auto;overflow-y:hidden;height:16px;margin-bottom:2px}
   .scroll-top-bar{height:1px}
-  /* ---- 27-ustunli jadval: sticky Sana ustuni + sticky thead + ikki blok (Aksessuar/Zapchast) ---- */
+  /* ---- 7-bosqich: bitta blok (Aksessuar/Zapchast birlashtirildi) — sticky Sana ustuni + sticky thead ---- */
   .scroll thead th{position:sticky;top:0;z-index:3;background:var(--surface-2)}
   td.sana-col,th.sana-col{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left}
   thead th.sana-col{z-index:4;vertical-align:bottom}
@@ -100,21 +100,16 @@
   tr.today td{background:var(--primary-soft)}
   tr.sunday td.sana-col{background:var(--surface-2)}
   tr.today td.sana-col{background:var(--primary-soft);font-weight:600}
-  th.prof-aks,th.prof-zap{text-align:center;font-weight:800;font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;padding:10px 8px}
-  th.prof-aks{background:var(--primary-soft);color:var(--primary)}
-  th.prof-zap{background:var(--tr-soft);color:var(--tr)}
   th.grp-name{text-align:center;background:var(--surface-2);color:var(--muted);font-weight:700;text-transform:none;letter-spacing:0;padding:8px 8px}
   th.grp-sub{text-align:right;min-width:88px}
   td.num{min-width:88px;font-variant-numeric:tabular-nums}
   td.num.muted{color:var(--muted)}
   td.num.neg{color:var(--red)}
   td.num.pos{color:var(--green)}
-  /* Aksessuar / Zapchast bloklari orasidagi chegara — Zapchast blokining birinchi ustuni */
-  .blk-start{border-left:2px solid var(--muted)}
   /* ---- 3-bosqich: Savdo/Fakt katagi (jonli/muhrlangan) + so'm-kurs almashtirgich + filial popover ---- */
   .fk-cell{cursor:pointer;color:var(--ink);font-weight:600}
   .fk-cell:hover{background:var(--surface-2)}
-  /* ---- 6-bosqich: Qarzmiz katagi — hover/tap'da yuk ro'yxati popoveri ---- */
+  /* ---- 6-bosqich: Qarzmiz/Prognoz katagi — hover/tap'da popover ---- */
   .qarz-cell{cursor:pointer}
   .qarz-cell:hover{background:var(--surface-2)}
   .fk-usd{white-space:nowrap}
@@ -122,7 +117,9 @@
   .fk-lock{margin-left:4px;font-size:10px;cursor:help}
   .uzsbtn{margin-left:4px;height:auto;text-transform:none;letter-spacing:0;font-size:9px;font-weight:600;padding:1px 5px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;vertical-align:middle}
   .uzsbtn.on{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
-  .bkpop{position:fixed;z-index:250;display:none;min-width:220px;max-width:320px;max-height:320px;overflow-y:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-hover);padding:12px 14px;font-size:13px;white-space:normal}
+  /* 7-bosqich: max-height kattalashtirildi (ikki bo'lim — Aksessuar/Zapchast — endi bitta popover'da),
+     overscroll-behavior:contain — ichkarida scroll qilinganda orqadagi sahifa aylanmasin. */
+  .bkpop{position:fixed;z-index:250;display:none;min-width:220px;max-width:320px;max-height:min(60vh,480px);overflow-y:auto;overscroll-behavior:contain;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-hover);padding:12px 14px;font-size:13px;white-space:normal}
   .bkpop.open{display:block}
   .bkpop h4{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
   .bkp-row{display:flex;justify-content:space-between;gap:14px;padding:5px 0;border-bottom:1px solid var(--line)}
@@ -260,12 +257,17 @@
         </div>
         <button class="btn" id="addBtn" style="display:none" onclick="window.bkOpenPlanModal()"><i data-lucide="calendar-plus"></i>Reja qo'yish</button>
       </div>
-      <div class="bk-open" id="bkOpen"></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="bk-open" id="bkOpen" style="margin:2px 0"></div>
+        <button class="btn ghost" id="sozBtn" style="display:none;height:28px;padding:0 12px;font-size:12px" onclick="window.bkOpenSoz()"><i data-lucide="settings-2"></i>Boshlang'ich qoldiq</button>
+      </div>
+      <div class="bk-open" id="bkWarn" style="display:none;color:var(--amber)"></div>
+      <div class="bk-open" id="bkPrognoz" style="display:none"></div>
 
       <div class="scroll-top" id="scrollTop" aria-hidden="true"><div class="scroll-top-bar" id="scrollTopBar"></div></div>
       <div class="scroll" id="scrollMain"><table>
         <thead id="thead5k"></thead>
-        <tbody id="tbody"><tr><td colspan="27" class="empty">Yuklanmoqda...</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="16" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
     </div>
   </main>
@@ -301,18 +303,16 @@
   </div>
   <!-- /more-sheet -->
 
-  <!-- Fakt katagi ustiga hover/tap qilinganda filial kesimi (3-bosqich) -->
-  <div id="bkPop" class="bkpop" onclick="event.stopPropagation()"></div>
+  <!-- Fakt/Qarzmiz/Prognoz katagi ustiga hover/tap qilinganda popover. mouseenter/mouseleave —
+       hover'da scroll ishlashi uchun (BUG tuzatish, 2026-09-12): katak bilan popover orasidagi
+       bo'shliqda sichqoncha yurganda yopilib qolmasin, popover'ning o'zi kechikishni bekor qiladi. -->
+  <div id="bkPop" class="bkpop" onclick="event.stopPropagation()" onmouseenter="window.bkPopKeepOpen()" onmouseleave="window.bkPopHide()"></div>
 
-  <!-- Ommaviy reja kiritish (4-bosqich) — oylik/yillik summa tanlangan kunlarga teng bo'linadi -->
+  <!-- Ommaviy reja kiritish — oylik/yillik summa tanlangan kunlarga teng bo'linadi.
+       Profil tanlovi olib tashlandi (2026-09-12, bitta platforma qarori) — UMUMIY'ga yoziladi. -->
   <div class="modal" id="planModal" onclick="if(event.target===this)window.bkClosePlan()"><div class="sheet">
     <h3>Reja qo'yish</h3>
     <div id="plMsg" class="cv-msg"></div>
-    <label>Profil</label>
-    <div class="cvseg" id="plProfSeg">
-      <button type="button" class="on" data-p="aksessuar" onclick="window.bkPlanProfTog('aksessuar',this)">Aksessuar</button>
-      <button type="button" class="on" data-p="zapchast" onclick="window.bkPlanProfTog('zapchast',this)">Zapchast</button>
-    </div>
     <label>Rejim</label>
     <div class="cvseg" id="plModeSeg">
       <button type="button" class="on" onclick="window.bkPlanMode('oylik',this)">Oylik</button>
@@ -337,6 +337,16 @@
       <div class="modrow"><button type="button" onclick="window.bkCfmNo()">Bekor</button><button type="button" class="primary" id="cfmYesBtn" onclick="window.bkCfmYes()">Davom etish</button></div>
     </div>
   </div>
+
+  <!-- Boshlang'ich qoldiq (7-bosqich) — yig'ilma rekursiyasi qaysi sanadan/qancha pul bilan
+       boshlanadi (beshkunlik_sozlama). Faqat canEdit VA jadval mavjud bo'lsa (#sozBtn) ochiladi. -->
+  <div class="modal" id="sozModal" onclick="if(event.target===this)window.bkCloseSoz()"><div class="sheet">
+    <h3>Boshlang'ich qoldiq</h3>
+    <div id="sozMsg" class="cv-msg"></div>
+    <label>Sana</label><input class="txt" id="sozSana" type="date">
+    <label>Summa ($)</label><input class="txt" id="sozSum" inputmode="decimal" placeholder="0">
+    <div class="modrow"><button type="button" onclick="window.bkCloseSoz()">Bekor</button><button type="button" class="primary" id="sozSaveBtn" onclick="window.bkSaveSoz()">Saqlash</button></div>
+  </div></div>
 
 </div>
 
@@ -421,40 +431,38 @@ const oyNowStr=()=>isoDay(nowUz()).slice(0,7);
 function oyUz(v){ if(!v) return ''; const [y,m]=v.split('-'); return UZ_MON[+m-1]+' '+y; }
 function syncOyUI(){ const v=$('oy').value, cur=oyNowStr(); $('oyNow').style.display=(v&&v!==cur)?'inline-flex':'none'; }
 window.bkOyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').map(Number);
-  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); loadQarz().then(renderTable); };
-window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); loadQarz().then(renderTable); };
-window.bkOyChange=()=>{ syncOyUI(); bkResetSel(); renderTable(); loadFakt(); loadReja().then(renderTable); loadQarz().then(renderTable); };
+  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); bkResetSel(); loadAll(); };
+window.bkOyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); bkResetSel(); loadAll(); };
+window.bkOyChange=()=>{ syncOyUI(); bkResetSel(); loadAll(); };
 
-/* ---- 27-ustunli jadval karkasi ----
-   Har profil (Aksessuar/Zapchast) uchun 13 ustun, 4 guruhga bo'lingan: Savdo, Yig'ilma,
-   Qarz, Qoldi pul. thead 3 qatorli: profil nomi -> guruh nomi -> ustun nomi.
-   3-BOSQICH: faqat Savdo.Fakt katagi haqiqiy ma'lumot bilan to'ladi (faktTd()),
-   qolgan 26 ustun hali '—' (keyingi bosqichlar). */
+/* ---- 7-BOSQICH: bitta blok (Asilbek qarori, 2026-09-12) — Aksessuar/Zapchast
+   endi ikkiga bo'linmaydi, BITTA platforma. 13 ustun (Savdo/Yig'ilma/Qarz/Qoldi pul)
+   + Prognoz (2 ustun) = 15. thead 2 qatorli: guruh nomi -> ustun nomi (profil qatori
+   olib tashlandi). Reja/Uzgardi profili endi 'umumiy' (UMUMIY). Aksessuar/zapchast
+   ICHKI darajada faqat Fakt hover-detali va muhrlash (beshkunlik_kun) uchun qoladi. */
+const pad2=n=>String(n).padStart(2,'0');
+const UMUMIY='umumiy';
+const PROFILI=['aksessuar','zapchast'];             // faqat Fakt hover/muhrlash uchun
+const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
 const GROUPS=[
   {name:'Savdo',      cols:['Reja','Uzgaradi','Fakt']},
   {name:"Yig'ilma",   cols:['Reja','Uzga','Fakt']},
   {name:'Qarz',       cols:['Qarzmiz','Berdik','Raznitsa']},
   {name:"Qoldi pul",  cols:['Reja','Uzga','Fakt','Raznitsa']},
+  {name:'Prognoz',    cols:['Kutilgan pul',"Qarz olsa bo'ladi"]},
 ];
-const COLS_PER_PROFIL=GROUPS.reduce((s,g)=>s+g.cols.length,0);   // 13
-const PROFILI=['aksessuar','zapchast'];
-const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
-const pad2=n=>String(n).padStart(2,'0');
+const COLS_TOTAL=GROUPS.reduce((s,g)=>s+g.cols.length,0);   // 15
 
 function buildHeader(){
-  const grpRow=zap=>GROUPS.map((g,gi)=>`<th colspan="${g.cols.length}" class="grp-name${zap&&gi===0?' blk-start':''}">${esc(g.name)}</th>`).join('');
-  const subRow=zap=>GROUPS.map((g,gi)=>g.cols.map((c,ci)=>{
-    const blk=zap&&gi===0&&ci===0;
+  const grpRow=GROUPS.map(g=>`<th colspan="${g.cols.length}" class="grp-name">${esc(g.name)}</th>`).join('');
+  const subRow=GROUPS.map((g,gi)=>g.cols.map((c,ci)=>{
     const isFaktCol=(gi===0&&ci===2);   // Savdo.Fakt — so'm/kurs almashtirgichi shu yerda
     const btn=isFaktCol?` <button class="uzsbtn${SHOW_UZS?' on':''}" onclick="window.bkToggleUzs()" title="So'm va kursni ko'rsatish/yashirish">so'm</button>`:'';
-    return `<th class="grp-sub${blk?' blk-start':''}">${esc(c)}${btn}</th>`;
+    return `<th class="grp-sub">${esc(c)}${btn}</th>`;
   }).join('')).join('');
   $('thead5k').innerHTML=
-    `<tr><th class="sana-col" rowspan="3">Sana</th>`+
-    `<th colspan="${COLS_PER_PROFIL}" class="prof-aks">Aksessuar</th>`+
-    `<th colspan="${COLS_PER_PROFIL}" class="prof-zap blk-start">Zapchast</th></tr>`+
-    `<tr>${grpRow(false)}${grpRow(true)}</tr>`+
-    `<tr>${subRow(false)}${subRow(true)}</tr>`;
+    `<tr><th class="sana-col" rowspan="2">Sana</th>${grpRow}</tr>`+
+    `<tr>${subRow}</tr>`;
 }
 const fmtDayShort=iso=>{ const [,m,d]=iso.split('-').map(Number); return `${d} ${OY_QISQA[m-1]}`; };
 
@@ -475,24 +483,77 @@ function bkBindScrollSync(){
   main.addEventListener('scroll',()=>{ if(SCROLL_SYNCING) return; SCROLL_SYNCING=true; top.scrollLeft=main.scrollLeft; SCROLL_SYNCING=false; });
   window.addEventListener('resize',bkSyncScrollTopWidth);
   // .scroll endi o'zi ICHIDA vertikal ham aylanadi (sticky thead uchun) — shu paytda ochiq
-  // popover (fk/qarz) eski joyida osilib qolmasin (u position:fixed, katakka bog'lanmagan).
-  main.addEventListener('scroll',()=>{ if(window.bkPopHide) window.bkPopHide(); popOpenKey=null; },{passive:true});
+  // popover (fk/qarz/prognoz) eski joyida osilib qolmasin (u position:fixed, katakka bog'lanmagan).
+  // Bu DARROV yopadi (kechiktirmaydi) — .scroll o'zi harakatlanayotganda popover ma'nosiz.
+  main.addEventListener('scroll',()=>{ popHideNow(); },{passive:true});
 }
 
-/* ---- Savdo/Fakt katagi — jonli yoki muhrlangan, dollar (+ ixtiyoriy so'm/kurs)
-   4-BOSQICH: shartli rang qo'shildi — kunlik Uzgaradi bilan solishtirilib
-   yashil/qizil fon chiziladi (Uzgaradi bo'sh/0 bo'lsa rang yo'q). ---- */
-function faktTd(profil, iso, blk, uzgardiVal){
-  const d=FAKT_DAY[profil]&&FAKT_DAY[profil][iso];
-  if(!d) return `<td class="num muted${blk?' blk-start':''}">—</td>`;
+/* ---- Popover ochish/yopish — umumiy mexanizm (Fakt/Qarzmiz/Prognoz hammasi shu bilan).
+   BUG (Asilbek, 2026-09-12): katak bilan popover orasida bo'shliq bor — sichqoncha
+   o'tayotganda `mouseleave` darrov yopib qo'yardi, ichkarida scroll qilib bo'lmasdi.
+   Tuzatish: yopish ~200ms KECHIKTIRILADI (popCancelHide/popScheduleHide), popover'ning
+   o'ziga ham mouseenter (kechikishni bekor qiladi) / mouseleave (yopadi) qo'yilgan —
+   HTML'da (#bkPop). `.scroll`ning o'z scroll hodisasida esa DARROV yopiladi (yuqorida). ---- */
+let popOpenKey=null;                 // click(touch)-rejimida ochiq popover kaliti
+let POP_HIDE_TIMER=null;
+function popCancelHide(){ if(POP_HIDE_TIMER){ clearTimeout(POP_HIDE_TIMER); POP_HIDE_TIMER=null; } }
+function popHideNow(){ popCancelHide(); $('bkPop').classList.remove('open'); popOpenKey=null; }
+window.bkPopKeepOpen=()=>{ popCancelHide(); };
+window.bkPopHide=()=>{ popCancelHide(); POP_HIDE_TIMER=setTimeout(popHideNow,200); };
+/* Popover katakka 2px USTMA-UST yopishadi (bo'shliq YO'Q). Avval rect.bottom+8 edi —
+   o'sha 8px oraliqda KEYINGI kunning katagi turardi: sichqoncha pastga tushayotganda
+   uning mouseenter'i popover'ni keyingi kunga "sakratib" yuborardi va popover'ga yetib
+   bo'lmasdi. margin faqat ekran chetidan qochish uchun. */
+function positionPop(rect){
+  const pop=$('bkPop'), margin=8, overlap=2;
+  const pw=pop.offsetWidth, ph=pop.offsetHeight;
+  let left=rect.left, top=rect.bottom-overlap;
+  if(left+pw>innerWidth-margin) left=innerWidth-pw-margin;
+  if(left<margin) left=margin;
+  if(top+ph>innerHeight-margin){ top=rect.top-ph+overlap; if(top<margin) top=margin; }
+  pop.style.left=left+'px'; pop.style.top=top+'px';
+}
+document.addEventListener('click',e=>{
+  if(!popOpenKey) return;
+  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.qarz-cell')) return;
+  popHideNow();
+});
+
+/* Ikki mustaqil rpc oldida bir marta chaqirib "funksiya yo'q" (SQL hali RUN qilinmagan)
+   yoki "jadval yo'q" holatlarini ajratish uchun umumiy yordamchi. */
+function isMissingFnErr(e){
+  const code=e&&e.code, msg=(e&&e.message)||'';
+  return code==='PGRST202' || code==='42883' || /function .* does not exist/i.test(msg);
+}
+function isMissingTableErr(e){
+  const code=e&&e.code, msg=(e&&e.message)||'';
+  return code==='42P01' || code==='PGRST205' || /relation .* does not exist/i.test(msg);
+}
+
+/* ---- Savdo/Fakt katagi — Aksessuar+Zapchast QO'SHILGAN holda (bitta platforma).
+   Muhrlash hali profil bo'yicha (beshkunlik_kun) — combineFakt() ikkalasini yig'adi.
+   Lock belgisi faqat IKKALA profil ham muhrlangan bo'lsa chiqadi. ---- */
+function combineFakt(iso){
+  const a=FAKT_DAY.aksessuar[iso], z=FAKT_DAY.zapchast[iso];
+  if(!a && !z) return null;
+  const uzs=(a?a.uzs:0)+(z?z.uzs:0);
+  const hasUsd=(a&&a.usd!=null)||(z&&z.usd!=null);
+  const usd=hasUsd?((a&&a.usd!=null?a.usd:0)+(z&&z.usd!=null?z.usd:0)):null;
+  const kurs=(a&&a.kurs!=null)?a.kurs:((z&&z.kurs!=null)?z.kurs:null);
+  const frozen=!!(a&&a.frozen)&&!!(z&&z.frozen);
+  return {uzs,usd,kurs,frozen};
+}
+function faktTd(iso, uzgardiVal){
+  const d=combineFakt(iso);
+  if(!d) return `<td class="num muted">—</td>`;
   const usdTxt=d.usd==null?'—':money(d.usd);
   const lock=d.frozen?`<span class="fk-lock" title="Muhrlangan — kurs ${fmtDayShort(iso)} kuni qotib qolgan">🔒</span>`:'';
   const inner=SHOW_UZS
     ? `<div class="fk-usd">${usdTxt}${lock}</div><div class="fk-sub">${money(d.uzs)}</div><div class="fk-sub">${d.kurs!=null?('× '+rate2(d.kurs)):'—'}</div>`
     : `<span class="fk-usd">${usdTxt}</span>${lock}`;
   const handlers=HOVER_OK
-    ? `onmouseenter="window.bkPopShow(event,'${profil}','${iso}')" onmouseleave="window.bkPopHide()"`
-    : `onclick="window.bkPopToggle(event,'${profil}','${iso}')"`;
+    ? `onmouseenter="window.bkPopShow(event,'${iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkPopToggle(event,'${iso}')"`;
   let style='', title='';
   if(uzgardiVal!=null && uzgardiVal>0 && d.usd!=null){
     const pct=Math.round(d.usd/uzgardiVal*100);
@@ -504,181 +565,188 @@ function faktTd(profil, iso, blk, uzgardiVal){
       style=` style="background:rgba(var(--red-rgb),${alpha})"`;
     }
   }
-  return `<td class="num fk-cell${blk?' blk-start':''}"${style}${title} ${handlers}>${inner}</td>`;
+  return `<td class="num fk-cell"${style}${title} ${handlers}>${inner}</td>`;
 }
-function numTd(val,blk){
-  return `<td class="num${val<0?' neg':''}${blk?' blk-start':''}">${money(val)}</td>`;
+function numTd(val){
+  return `<td class="num${val<0?' neg':''}">${money(val)}</td>`;
 }
-/* ---- Qarz bloki (6-BOSQICH) — Qarzmiz (manfiy, qizil) hover/tap'da o'sha kun/profil
-   yuklarining ro'yxatini ko'rsatadi (beshkunlik_qarz_detal, so'mda). Berdik musbat/yashil.
+/* ---- Qarz bloki — Qarzmiz (manfiy, qizil) hover/tap'da o'sha kun uchun (bitta platforma,
+   profilsiz) deadline'i kelgan yuklar ro'yxatini ko'rsatadi. Berdik musbat/yashil.
    Raznitsa 0 bo'lsa xira (to'liq to'langan), aks holda ajralib turadi. ---- */
-function qarzTd(profil,iso,val,blk){
+function qarzTd(iso,val){
   const r=Math.round(val);   // rang ko'rsatilgan songa mos bo'lsin (kasr chayqalishi 0'ni "0 emas" qilmasin)
-  const cls='num qarz-cell'+(r<0?' neg':'')+(r===0?' muted':'')+(blk?' blk-start':'');
+  const cls='num qarz-cell'+(r<0?' neg':'')+(r===0?' muted':'');
   const handlers=HOVER_OK
-    ? `onmouseenter="window.bkQarzPopShow(event,'${profil}','${iso}')" onmouseleave="window.bkPopHide()"`
-    : `onclick="window.bkQarzPopToggle(event,'${profil}','${iso}')"`;
+    ? `onmouseenter="window.bkQarzPopShow(event,'${iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkQarzPopToggle(event,'${iso}')"`;
   return `<td class="${cls}" ${handlers}>${money(val)}</td>`;
 }
-function berdikTd(val,blk){
+function berdikTd(val){
   const r=Math.round(val);
-  const cls='num'+(r>0?' pos':'')+(r===0?' muted':'')+(blk?' blk-start':'');
+  const cls='num'+(r>0?' pos':'')+(r===0?' muted':'');
   return `<td class="${cls}">${money(val)}</td>`;
 }
-function raznitsaTd(val,blk){
+function raznitsaTd(val){
   const r=Math.round(val);
-  const cls='num'+(r===0?' muted':(r<0?' neg':' pos'))+(blk?' blk-start':'');
+  const cls='num'+(r===0?' muted':(r<0?' neg':' pos'));
   return `<td class="${cls}">${money(val)}</td>`;
 }
-/* ---- Reja/Uzgaradi — tahrirlanadigan katak (4-bosqich). Faqat shu ikki ustun
-   yoziladi; Excel funksiyalari (tanlash, sudrab to'ldirish, nusxa/joylashtirish)
-   ham shu ikki ustunga tegishli — qolgan 25 ustun hisoblanadi/o'qiladi. ---- */
-function ediTd(profil, iso, val, col, blk){
-  const isEditing=EDITING && EDITING.p===profil && EDITING.c===col && EDITING.i===iso;
-  const isSel=SELECTED && SELECTED.p===profil && SELECTED.c===col && SELECTED.i===iso;
-  const inRange=!isSel && inSelRange(profil,col,iso);
-  const attrs=`data-p="${profil}" data-c="${col}" data-i="${iso}"`;
+/* ---- Prognoz — Kutilgan pul / Qarz olsa bo'ladi (BRIEF_5KUNLIK.md, 4-bosqich).
+   O'tgan kunlarda (D<bugun) ikkalasi ham '—'. ---- */
+function kutilganTd(val){
+  if(val==null) return `<td class="num muted">—</td>`;
+  return `<td class="num${val<0?' neg':''}">${money(val)}</td>`;
+}
+function qarzOlsaTd(row){
+  if(row.qarzOlsa==null) return `<td class="num muted qarz-cell">—</td>`;
+  const shortfall=row.qarzOlsaMinVal<0;
+  const cls='num qarz-cell'+(shortfall?' neg':'');
+  const handlers=HOVER_OK
+    ? `onmouseenter="window.bkPrognozPopShow(event,'${row.iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkPrognozPopToggle(event,'${row.iso}')"`;
+  const sub=shortfall?`<div class="fk-sub" style="color:var(--red)">$${money(Math.abs(row.qarzOlsaMinVal))} yetishmaydi</div>`:'';
+  return `<td class="${cls}" ${handlers}>${money(row.qarzOlsa)}${sub}</td>`;
+}
+/* ---- Reja/Uzgaradi — tahrirlanadigan katak. Faqat shu ikki ustun yoziladi (profil='umumiy');
+   Excel funksiyalari (tanlash, sudrab to'ldirish, nusxa/joylashtirish) ham shu ikkitaga tegishli —
+   qolgan ustunlar hisoblanadi/o'qiladi. ---- */
+function ediTd(iso, val, col){
+  const isEditing=EDITING && EDITING.c===col && EDITING.i===iso;
+  const isSel=SELECTED && SELECTED.c===col && SELECTED.i===iso;
+  const inRange=!isSel && inSelRange(col,iso);
+  const attrs=`data-c="${col}" data-i="${iso}"`;
   if(isEditing){
-    return `<td class="num ed-cell editing${blk?' blk-start':''}" ${attrs}>`
+    return `<td class="num ed-cell editing" ${attrs}>`
       +`<input type="text" inputmode="decimal" autocomplete="off" class="ed-in" ${attrs} value="${val==null?'':val}" `
       +`oninput="window.bkCellInput(this)" onkeydown="window.bkInputKey(event,this)" onblur="window.bkInputBlur(this)"></td>`;
   }
-  const cls='num ed-cell'+(blk?' blk-start':'')+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'');
-  const handle=(canEdit && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${profil}','${col}','${iso}')"></span>` : '';
+  const cls='num ed-cell'+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'');
+  const handle=(canEdit && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${col}','${iso}')"></span>` : '';
   const tab=canEdit?'0':'-1';
   return `<td class="${cls}" ${attrs} tabindex="${tab}" onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${handle}</td>`;
 }
 function buildRowCells(row){
   let s='';
-  for(let p=0;p<2;p++){
-    const profil=PROFILI[p];
-    const pd=row.profil[profil];
-    let ci=0;
-    for(const g of GROUPS){
-      for(let k=0;k<g.cols.length;k++){
-        const blk=(p===1&&ci===0);
-        if(g.name==='Savdo'){
-          if(k===0) s+=ediTd(profil,row.iso,pd.reja,'reja',blk);
-          else if(k===1) s+=ediTd(profil,row.iso,pd.uzgardi,'uzgardi',blk);
-          else s+=faktTd(profil,row.iso,blk,pd.uzgardi);
-        }else if(g.name==="Yig'ilma"){
-          s+=numTd(k===0?pd.yigReja:(k===1?pd.yigUzga:pd.yigFakt), blk);
-        }else if(g.name==='Qarz'){
-          if(k===0) s+=qarzTd(profil,row.iso,pd.qarzmiz,blk);
-          else if(k===1) s+=berdikTd(pd.berdik,blk);
-          else s+=raznitsaTd(pd.raznitsa,blk);
-        }else{ // Qoldi pul
-          const val=k===0?pd.qoldiReja:(k===1?pd.qoldiUzga:(k===2?pd.qoldiFakt:pd.qoldiRaz));
-          s+=numTd(val,blk);
-        }
-        ci++;
+  for(const g of GROUPS){
+    for(let k=0;k<g.cols.length;k++){
+      if(g.name==='Savdo'){
+        if(k===0) s+=ediTd(row.iso,row.reja,'reja');
+        else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi');
+        else s+=faktTd(row.iso,row.uzgardi);
+      }else if(g.name==="Yig'ilma"){
+        s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
+      }else if(g.name==='Qarz'){
+        if(k===0) s+=qarzTd(row.iso,row.qarzmiz);
+        else if(k===1) s+=berdikTd(row.berdik);
+        else s+=raznitsaTd(row.raznitsa);
+      }else if(g.name==='Qoldi pul'){
+        const val=k===0?row.qoldiReja:(k===1?row.qoldiUzga:(k===2?row.qoldiFakt:row.qoldiRaz));
+        s+=numTd(val);
+      }else{ // Prognoz
+        s+=(k===0)?kutilganTd(row.kutilgan):qarzOlsaTd(row);
       }
     }
   }
   return s;
 }
 const daysInMonth=(y,m0)=>new Date(Date.UTC(y,m0+1,0)).getUTCDate();
-
-/* ---- Kunlik hisob-kitob (C-bo'lim): Yig'ilma/Qoldi pul, brief formulasi bo'yicha.
-   Qarzmiz/Berdik QARZ_MAP dan (6-bosqich, loadQarz() to'ldiradi) — ma'lumot hali kelmagan
-   bo'lsa 0 deb hisoblanadi (Qoldi.Reja=Yig.Reja, Qoldi.Fakt=Yig.Fakt, avvalgidek).
-   Yig'ilma OY BOSHIDA nolga tushmaydi: OPEN_BAL (loadReja() to'ldiradi) — tanlangan oydan oldingi
-   BARCHA kunlarning yig'indisi (reja/uzgardi jadvaldan to'liq, fakt esa faqat muhrlangan kunlardan —
-   pastdagi izohga qara) — shu boshlang'ich qoldiqdan kunma-kun qo'shib boriladi. */
-function buildMonthData(y,m,dim){
-  const run={
-    aksessuar:{reja:OPEN_BAL.aksessuar.reja, uzgardi:OPEN_BAL.aksessuar.uzgardi, fakt:OPEN_BAL.aksessuar.fakt},
-    zapchast:{reja:OPEN_BAL.zapchast.reja, uzgardi:OPEN_BAL.zapchast.uzgardi, fakt:OPEN_BAL.zapchast.fakt},
-  };
-  const rows=[];
-  for(let d=1; d<=dim; d++){
-    const iso=`${y}-${pad2(m)}-${pad2(d)}`;
-    const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
-    const row={iso,dow,profil:{}};
-    PROFILI.forEach(p=>{
-      const rj=REJA_MAP[p][iso];
-      const reja=(rj&&rj.reja!=null)?Number(rj.reja):null;
-      const uzgardi=(rj&&rj.uzgardi!=null)?Number(rj.uzgardi):null;
-      const fd=FAKT_DAY[p][iso];
-      const fakt=(fd&&fd.usd!=null)?Number(fd.usd):null;
-      run[p].reja+=(reja||0); run[p].uzgardi+=(uzgardi||0); run[p].fakt+=(fakt||0);
-      const yigReja=run[p].reja, yigUzga=run[p].uzgardi, yigFakt=run[p].fakt;
-      const qd=QARZ_MAP[p][iso]||{};
-      const qarzmiz=qd.qarzmiz||0, berdik=qd.berdik||0, raznitsa=qarzmiz+berdik;
-      const qoldiReja=yigReja+qarzmiz, qoldiUzga=yigUzga+qarzmiz, qoldiFakt=yigFakt-berdik;
-      row.profil[p]={reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qarzmiz,berdik,raznitsa,
-                      qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt};
-    });
-    rows.push(row);
-  }
-  return rows;
-}
-function rowMatchesFilter(row){
-  if(CUR_FILTER==='ish') return row.dow!==6;
-  if(CUR_FILTER==='farqli') return PROFILI.some(p=>{ const x=row.profil[p]; return x.uzgardi!=null && x.fakt!=null && x.uzgardi!==x.fakt; });
-  if(CUR_FILTER==='rejasiz') return PROFILI.some(p=>row.profil[p].reja==null);
-  return true;
-}
-function renderOpenBal(){
-  const line=p=>`${PROFIL_LABEL[p]}: reja $${money(OPEN_BAL[p].reja)} · uzga $${money(OPEN_BAL[p].uzgardi)} · fakt $${money(OPEN_BAL[p].fakt)}`;
-  $('bkOpen').textContent="Boshlang'ich qoldiq (oy boshigacha yig'ilgan) — "+PROFILI.map(line).join('   ·   ');
-}
-window.bk5kFilter=f=>{
-  CUR_FILTER=f;
-  document.querySelectorAll('#chipbar .chip').forEach(b=>b.classList.toggle('on', b.dataset.f===f));
-  renderTable();
-};
-function renderTable(){
-  const v=$('oy').value||oyNowStr();
-  const [y,m]=v.split('-').map(Number);   // m — 1 dan boshlanadi (input value)
-  const dim=daysInMonth(y,m-1);
-  const todayIso=isoDay(nowUz());
-  MONTH_DATA=buildMonthData(y,m,dim);
-  renderOpenBal();
-  const rows=[];
-  MONTH_DATA.forEach(row=>{
-    if(!rowMatchesFilter(row)) return;
-    const cls=[row.dow===6?'sunday':'', row.iso===todayIso?'today':''].filter(Boolean).join(' ');
-    const d=Number(row.iso.slice(8,10));
-    const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[row.dow]}`;
-    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row)}</tr>`);
-  });
-  $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+2*COLS_PER_PROFIL}" class="empty">Filtrga mos kun topilmadi</td></tr>`;
-  bkSyncScrollTopWidth();
-}
+function isoAddDays(iso,n){ const [y,m,d]=iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); }
+function isoRange(a,b){ const out=[]; let cur=a; while(cur<=b){ out.push(cur); cur=isoAddDays(cur,1); } return out; }
 
 /* =====================================================================
-   3-BOSQICH — Savdo/Fakt: n8n webhook + sanali kurs + muhrlash
-   ===================================================================== */
-const WEBHOOK_5K='https://n8n.arosmarket.com/webhook/aros-provodka-5kunlik-savdo';
-let SHOW_UZS=localStorage.getItem('prov-5k-uzs')==='1';
-const HOVER_OK=matchMedia('(hover:hover)').matches;
-let WEB_MAP={}, WEB_DETAL={};             // sana -> {aksessuar,zapchast}(_uzs) / sana -> {aksessuar:[...],zapchast:[...]}
-let FAKT_DAY={aksessuar:{},zapchast:{}};  // profil -> sana -> {uzs,usd,kurs,frozen}
-let FAKT_TOKEN=0;                         // oy tez almashtirilganda eski javob e'tiborsiz qoldiriladi
-let popOpenKey=null;                      // click-rejimida ochiq popover kaliti ('profil|sana')
+   3-BOSQICH FORMULA TUZATISHI (BRIEF_5KUNLIK.md, 2026-09-12): Yig'ilma
+   UZLUKSIZ rekursiya bo'lishi kerak — Yig'.X(t) = Qoldi.X(t-1) + X(t) —
+   kunlik yig'indi emas (eski buildMonthData xato qilardi: kechagi
+   Qarzmiz/Berdik keyingi kunga o'tmasdi). buildRun() BUTUN OYNA
+   ([RUN_START,RUN_H]) uchun BIR MARTA ishlaydi, ko'rsatilgan oy shu
+   uzluksiz qatorning bir bo'lagi (monthDaySlice()). RUN_START —
+   beshkunlik_sozlama.boshlanish (bo'lmasa — ma'lumotdagi eng erta sana,
+   u ham bo'lmasa ko'rsatilgan oy boshi). RUN_H — max(ko'rsatilgan oy
+   oxiri, bugun+60 kun) — Prognoz uchun kerak. ===================== */
+let RUN_MAP={};                 // iso -> hisoblangan qator (butun oyna)
+let RUN_START=null, RUN_H=null; // oyna chegaralari (iso)
 
-window.bkToggleUzs=()=>{ SHOW_UZS=!SHOW_UZS; try{ localStorage.setItem('prov-5k-uzs',SHOW_UZS?'1':'0'); }catch(e){} buildHeader(); renderTable(); };
-window.bk5kRetry=()=>{ loadFakt(); };
+function buildRun(startIso,hIso){
+  RUN_MAP={};
+  const todayIso=isoDay(nowUz());
+  let prevReja=SOZLAMA.boshlangich_usd||0, prevUzga=SOZLAMA.boshlangich_usd||0, prevFakt=SOZLAMA.boshlangich_usd||0;
+  isoRange(startIso,hIso).forEach(iso=>{
+    const rj=REJA_MAP[iso]||{};
+    const reja=rj.reja!=null?Number(rj.reja):null;
+    const uzgardi=rj.uzgardi!=null?Number(rj.uzgardi):null;
+    const fd=(iso<=todayIso)?combineFakt(iso):null;   // kelajakda Fakt yo'q — Prognoz Uzgaradi ishlatadi
+    const fakt=(fd&&fd.usd!=null)?Number(fd.usd):null;
+    const qd=QARZ_MAP[iso]||{};
+    const qarzmiz=qd.qarzmiz||0, berdik=qd.berdik||0, raznitsa=qarzmiz+berdik;
+    const yigReja=prevReja+(reja||0), yigUzga=prevUzga+(uzgardi||0), yigFakt=prevFakt+(fakt||0);
+    const qoldiReja=yigReja+qarzmiz, qoldiUzga=yigUzga+qarzmiz, qoldiFakt=yigFakt-berdik;
+    RUN_MAP[iso]={iso,reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qarzmiz,berdik,raznitsa,
+                  qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt};
+    prevReja=qoldiReja; prevUzga=qoldiUzga; prevFakt=qoldiFakt;
+  });
+  computePrognoz(todayIso);
+}
+
+/* ---- 7-BOSQICH — Prognoz: BRIEF_5KUNLIK.md 4-bo'lim.
+   B = Qoldi.Fakt(bugun). O = Σ Qarzmiz(t) t<=bugun (manfiy, hali to'lanmagan qarz).
+   K(bugun) = B+O. D>bugun uchun K(D) = K(D-1) + Uzgaradi(D) + Qarzmiz(D) (kelajakda
+   Fakt/haqiqiy to'lov yo'q — Uzgaradi ORNI bosadi). "Qarz olsa bo'ladi"(D) =
+   max(0, min_{t=D..H} K(t)) — eng past nuqtagacha pul yetishi kerak. ---- */
+function computePrognoz(todayIso){
+  const days=Object.keys(RUN_MAP).sort();
+  if(!days.length) return;
+  const T=days.includes(todayIso)?todayIso:days[days.length-1];
+  const rowT=RUN_MAP[T];
+  let O=0;
+  days.forEach(iso=>{ if(iso<=T) O+=(RUN_MAP[iso].qarzmiz||0); });
+  const K={}; K[T]=rowT.qoldiFakt+O;
+  days.forEach(iso=>{ if(iso>T){
+    const prevIso=isoAddDays(iso,-1);
+    const prevK=(K[prevIso]!=null)?K[prevIso]:K[T];
+    K[iso]=prevK+(RUN_MAP[iso].uzgardi||0)+(RUN_MAP[iso].qarzmiz||0);
+  }});
+  for(let idx=0; idx<days.length; idx++){
+    const iso=days[idx], row=RUN_MAP[iso];
+    if(iso<T){ row.kutilgan=null; row.qarzOlsa=null; row.qarzOlsaMinIso=null; row.qarzOlsaMinVal=null; continue; }
+    row.kutilgan=K[iso];
+    let minVal=Infinity, minIso=iso;
+    for(let j=idx;j<days.length;j++){ const kt=K[days[j]]; if(kt<minVal){ minVal=kt; minIso=days[j]; } }
+    row.qarzOlsa=Math.max(0,minVal);
+    row.qarzOlsaMinVal=minVal;
+    row.qarzOlsaMinIso=minIso;
+  }
+}
+function countFutureNoReja(todayIso,hIso){
+  let n=0;
+  if(todayIso>=hIso) return 0;
+  isoRange(isoAddDays(todayIso,1),hIso).forEach(iso=>{ const rj=REJA_MAP[iso]; if(!rj || rj.uzgardi==null) n++; });
+  return n;
+}
+function countUnfrozenPast(dispFirst,todayIso){
+  if(RUN_START>=dispFirst) return 0;
+  let n=0;
+  isoRange(RUN_START,isoAddDays(dispFirst,-1)).forEach(iso=>{ if(iso<todayIso && !combineFakt(iso)) n++; });
+  return n;
+}
 
 /* =====================================================================
    4/5-BOSQICH — Reja/Uzgardi tahriri + Excel funksiyalari + filtrlar
+   (7-bosqichdan buyon PROFILSIZ — bitta 'umumiy' ustun jufti)
    ===================================================================== */
-let REJA_MAP={aksessuar:{},zapchast:{}};              // profil -> sana -> {reja,uzgardi}
-let OPEN_BAL={aksessuar:{reja:0,uzgardi:0,fakt:0}, zapchast:{reja:0,uzgardi:0,fakt:0}};   // oy boshigacha qoldiq
-let MONTH_DATA=[];                                    // renderTable() har chaqirilganda yangilanadi (buildMonthData())
+let REJA_MAP={};                                      // sana -> {reja,uzgardi} (umumiy, fallback: aksessuar+zapchast)
+let MONTH_DATA=[];                                    // renderTable() har chaqirilganda RUN_MAP'dan kesib olinadi
 let CUR_FILTER='all';                                 // 'all' | 'ish' | 'farqli' | 'rejasiz'
-let SELECTED=null, EDITING=null, RANGE_ANCHOR=null;   // {p,c,i} — p=profil, c='reja'|'uzgardi', i=sana(iso)
-let FILL=null;                                        // sudrab to'ldirish holati {p,c,startIso,curIso,val}
-const SAVE_TIMERS={};                                 // debounce (~600ms) — kalit: 'p|c|i'
+let SELECTED=null, EDITING=null, RANGE_ANCHOR=null;   // {c,i} — c='reja'|'uzgardi', i=sana(iso)
+let FILL=null;                                        // sudrab to'ldirish holati {c,startIso,curIso,val}
+const SAVE_TIMERS={};                                 // debounce (~600ms) — kalit: 'c|i'
 let CFM_RESOLVE=null;                                 // ochiq tasdiq modalining Promise resolve'i
-let PLAN_PROFS=['aksessuar','zapchast'], PLAN_MODE='oylik';
-const EDIT_ORDER=[['aksessuar','reja'],['aksessuar','uzgardi'],['zapchast','reja'],['zapchast','uzgardi']];
+let PLAN_MODE='oylik';
+const EDIT_ORDER=['reja','uzgardi'];
 const dayList=()=>MONTH_DATA.map(r=>r.iso);
-const cellKey=(p,c,i)=>p+'|'+c+'|'+i;
+const cellKey=(c,i)=>c+'|'+i;
 
-function inSelRange(p,c,iso){
-  if(!SELECTED || SELECTED.p!==p || SELECTED.c!==c) return false;
+function inSelRange(c,iso){
+  if(!SELECTED || SELECTED.c!==c) return false;
   if(!RANGE_ANCHOR) return iso===SELECTED.i;
   const days=dayList();
   const a=days.indexOf(RANGE_ANCHOR), b=days.indexOf(SELECTED.i), x=days.indexOf(iso);
@@ -687,7 +755,7 @@ function inSelRange(p,c,iso){
 }
 function focusSelected(){
   if(!SELECTED) return;
-  const el=document.querySelector(`td[data-p="${SELECTED.p}"][data-c="${SELECTED.c}"][data-i="${SELECTED.i}"]`);
+  const el=document.querySelector(`td[data-c="${SELECTED.c}"][data-i="${SELECTED.i}"]`);
   if(el){ el.focus({preventScroll:true}); el.scrollIntoView({block:'nearest',inline:'nearest'}); }
 }
 /* Tahrirdagi katakni saqlab (agar bo'lsa) tanlovni tozalaydi — oy/filtr almashganda,
@@ -696,82 +764,85 @@ function bkResetSel(){ commitEditIfAny(); SELECTED=null; EDITING=null; RANGE_ANC
 
 /* Har insert/update ikkala ustunni ham yuboradi (reja VA uzgardi) — beshkunlik_reja
    PK (profil,sana) bitta qatorda ikkalasini saqlaydi, faqat bittasini yuborish
-   ikkinchisini eski qiymatga qaytarib qo'ymaydi (chunki ikkalasi ham REJA_MAP dan olinadi). */
-async function saveCell(p,c,i,rawVal){
+   ikkinchisini eski qiymatga qaytarib qo'ymaydi (chunki ikkalasi ham REJA_MAP dan olinadi).
+   REJA_MAP yangilangach RUN_MAP'ni ham DARROV qayta quradi (buildRun sinxron va arzon) —
+   caller (masalan bkInputKey) saveCell() dan keyin renderTable() chaqirganda yangi
+   son allaqachon tayyor bo'lishi kerak (async funksiya birinchi await'gacha sinxron ishlaydi). */
+async function saveCell(c,i,rawVal){
   const n=(rawVal===''||rawVal==null)?0:Number(rawVal);
   const val=isFinite(n)?Math.round(n*100)/100:0;
-  if(!REJA_MAP[p][i]) REJA_MAP[p][i]={reja:0,uzgardi:0};
-  REJA_MAP[p][i][c]=val;
+  if(!REJA_MAP[i]) REJA_MAP[i]={reja:0,uzgardi:0};
+  REJA_MAP[i][c]=val;
+  buildRun(RUN_START,RUN_H);
   try{
     const {error}=await sb.from('beshkunlik_reja')
-      .upsert([{profil:p, sana:i, reja:REJA_MAP[p][i].reja, uzgardi:REJA_MAP[p][i].uzgardi}],{onConflict:'profil,sana'});
+      .upsert([{profil:UMUMIY, sana:i, reja:REJA_MAP[i].reja, uzgardi:REJA_MAP[i].uzgardi}],{onConflict:'profil,sana'});
     if(error) throw error;
   }catch(e){ showErr('Saqlashda xato: '+(e.message||String(e))); }
 }
 function commitEditIfAny(){
   if(!EDITING) return;
-  const {p,c,i}=EDITING;
-  const input=document.querySelector(`input[data-p="${p}"][data-c="${c}"][data-i="${i}"]`);
-  clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]);
-  if(input) saveCell(p,c,i,input.value);
+  const {c,i}=EDITING;
+  const input=document.querySelector(`input[data-c="${c}"][data-i="${i}"]`);
+  clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
+  if(input) saveCell(c,i,input.value);
   EDITING=null;
 }
-function startEdit(p,c,iso,initialChar,selectAll){
+function startEdit(c,iso,initialChar,selectAll){
   commitEditIfAny();
-  EDITING={p,c,i:iso}; SELECTED={p,c,i:iso}; RANGE_ANCHOR=iso;
+  EDITING={c,i:iso}; SELECTED={c,i:iso}; RANGE_ANCHOR=iso;
   renderTable();
-  const input=document.querySelector(`input[data-p="${p}"][data-c="${c}"][data-i="${iso}"]`);
+  const input=document.querySelector(`input[data-c="${c}"][data-i="${iso}"]`);
   if(input){
     if(initialChar!=null) input.value=initialChar;
     input.focus();
     if(selectAll) input.select(); else{ const L=input.value.length; input.setSelectionRange(L,L); }
   }
 }
-function cancelEdit(p,c,i){
-  clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]);
-  EDITING=null; SELECTED={p,c,i}; RANGE_ANCHOR=i;
+function cancelEdit(c,i){
+  clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
+  EDITING=null; SELECTED={c,i}; RANGE_ANCHOR=i;
   renderTable(); focusSelected();
 }
-function moveSelectionAfterCommit(p,c,i,dir){
+function moveSelectionAfterCommit(c,i,dir){
   const days=dayList(); const rowIdx=days.indexOf(i);
   if(dir==='down'){
     const newRowIdx=Math.min(days.length-1,Math.max(0,rowIdx+1));
-    SELECTED={p,c,i:days[newRowIdx]};
+    SELECTED={c,i:days[newRowIdx]};
   }else{
-    let idx=EDIT_ORDER.findIndex(o=>o[0]===p&&o[1]===c)+1, newRowIdx=rowIdx;
+    let idx=EDIT_ORDER.indexOf(c)+1, newRowIdx=rowIdx;
     if(idx>=EDIT_ORDER.length){ idx=0; newRowIdx=Math.min(days.length-1,rowIdx+1); }
-    const [np,nc]=EDIT_ORDER[idx];
-    SELECTED={p:np,c:nc,i:days[newRowIdx]};
+    SELECTED={c:EDIT_ORDER[idx],i:days[newRowIdx]};
   }
   RANGE_ANCHOR=SELECTED.i;
   renderTable(); focusSelected();
 }
-function moveSelection(p,c,iso,key,shift){
+function moveSelection(c,iso,key,shift){
   const days=dayList(); const rowIdx=days.indexOf(iso);
   if(rowIdx<0) return;
-  let newP=p, newC=c, newRowIdx=rowIdx;
+  let newC=c, newRowIdx=rowIdx;
   if(key==='ArrowDown') newRowIdx=Math.min(days.length-1,rowIdx+1);
   else if(key==='ArrowUp') newRowIdx=Math.max(0,rowIdx-1);
   else if(key==='ArrowLeft'||key==='ArrowRight'){
-    let idx=EDIT_ORDER.findIndex(o=>o[0]===p&&o[1]===c);
+    let idx=EDIT_ORDER.indexOf(c);
     idx+= key==='ArrowRight'?1:-1;
     idx=Math.max(0,Math.min(EDIT_ORDER.length-1,idx));
-    [newP,newC]=EDIT_ORDER[idx];
+    newC=EDIT_ORDER[idx];
   }
   const newIso=days[newRowIdx];
-  const extend=shift && (key==='ArrowDown'||key==='ArrowUp') && p===newP && c===newC;
-  SELECTED={p:newP,c:newC,i:newIso};
+  const extend=shift && (key==='ArrowDown'||key==='ArrowUp') && c===newC;
+  SELECTED={c:newC,i:newIso};
   if(!extend) RANGE_ANCHOR=newIso;
   renderTable(); focusSelected();
 }
 async function copySelection(){
   if(!SELECTED) return;
-  const {p,c}=SELECTED;
+  const {c}=SELECTED;
   const days=dayList();
   const a=days.indexOf(RANGE_ANCHOR!=null?RANGE_ANCHOR:SELECTED.i), b=days.indexOf(SELECTED.i);
   const lo=Math.min(a,b), hi=Math.max(a,b);
   const vals=[];
-  for(let k=lo;k<=hi;k++){ const v=(REJA_MAP[p][days[k]]||{})[c]; vals.push(v==null?'':String(v)); }
+  for(let k=lo;k<=hi;k++){ const v=(REJA_MAP[days[k]]||{})[c]; vals.push(v==null?'':String(v)); }
   const text=vals.join('\n');
   try{ await navigator.clipboard.writeText(text); showInfo('Nusxalandi ('+vals.length+' qator)'); }
   catch(e){
@@ -781,57 +852,57 @@ async function copySelection(){
     catch(e2){ showErr('Nusxalash amalga oshmadi'); }
   }
 }
-function fillDown(p,c,iso){
+function fillDown(c,iso){
   const days=dayList(); const idx=days.indexOf(iso);
   if(idx<=0) return;
-  const aboveVal=(REJA_MAP[p][days[idx-1]]||{})[c];
+  const aboveVal=(REJA_MAP[days[idx-1]]||{})[c];
   if(aboveVal==null) return;
-  saveCell(p,c,iso,String(aboveVal));
+  saveCell(c,iso,String(aboveVal));
   renderTable();
 }
 window.bkCellClick=(ev,td)=>{
   if(!canEdit) return;
   commitEditIfAny();
-  SELECTED={p:td.dataset.p,c:td.dataset.c,i:td.dataset.i}; RANGE_ANCHOR=td.dataset.i;
+  SELECTED={c:td.dataset.c,i:td.dataset.i}; RANGE_ANCHOR=td.dataset.i;
   renderTable(); focusSelected();
 };
-window.bkCellDbl=td=>{ if(!canEdit) return; startEdit(td.dataset.p,td.dataset.c,td.dataset.i,null,true); };
+window.bkCellDbl=td=>{ if(!canEdit) return; startEdit(td.dataset.c,td.dataset.i,null,true); };
 window.bkCellKey=(ev,td)=>{
   if(!canEdit) return;
-  const p=td.dataset.p, c=td.dataset.c, iso=td.dataset.i, key=ev.key;
-  if(key==='Enter'||key==='F2'){ ev.preventDefault(); startEdit(p,c,iso,null,true); return; }
-  if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){ ev.preventDefault(); moveSelection(p,c,iso,key,ev.shiftKey); return; }
-  if(key==='Tab' && !ev.shiftKey){ ev.preventDefault(); moveSelectionAfterCommit(p,c,iso,'right'); return; }
-  if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='d'){ ev.preventDefault(); fillDown(p,c,iso); return; }
+  const c=td.dataset.c, iso=td.dataset.i, key=ev.key;
+  if(key==='Enter'||key==='F2'){ ev.preventDefault(); startEdit(c,iso,null,true); return; }
+  if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){ ev.preventDefault(); moveSelection(c,iso,key,ev.shiftKey); return; }
+  if(key==='Tab' && !ev.shiftKey){ ev.preventDefault(); moveSelectionAfterCommit(c,iso,'right'); return; }
+  if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='d'){ ev.preventDefault(); fillDown(c,iso); return; }
   if((ev.ctrlKey||ev.metaKey) && key.toLowerCase()==='c'){ ev.preventDefault(); copySelection(); return; }
-  if(/^[0-9.\-]$/.test(key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey){ ev.preventDefault(); startEdit(p,c,iso,key,false); }
+  if(/^[0-9.\-]$/.test(key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey){ ev.preventDefault(); startEdit(c,iso,key,false); }
 };
 window.bkCellInput=input=>{
-  const {p,c,i}=input.dataset, key=cellKey(p,c,i);
+  const {c,i}=input.dataset, key=cellKey(c,i);
   clearTimeout(SAVE_TIMERS[key]);
-  SAVE_TIMERS[key]=setTimeout(()=>{ saveCell(p,c,i,input.value); }, 600);
+  SAVE_TIMERS[key]=setTimeout(()=>{ saveCell(c,i,input.value); }, 600);
 };
 window.bkInputKey=(ev,input)=>{
-  const {p,c,i}=input.dataset;
-  if(ev.key==='Enter'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]); saveCell(p,c,i,input.value); EDITING=null; moveSelectionAfterCommit(p,c,i,'down'); }
-  else if(ev.key==='Tab'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]); saveCell(p,c,i,input.value); EDITING=null; moveSelectionAfterCommit(p,c,i,'right'); }
-  else if(ev.key==='Escape'){ ev.preventDefault(); cancelEdit(p,c,i); }
+  const {c,i}=input.dataset;
+  if(ev.key==='Enter'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(c,i)]); saveCell(c,i,input.value); EDITING=null; moveSelectionAfterCommit(c,i,'down'); }
+  else if(ev.key==='Tab'){ ev.preventDefault(); clearTimeout(SAVE_TIMERS[cellKey(c,i)]); saveCell(c,i,input.value); EDITING=null; moveSelectionAfterCommit(c,i,'right'); }
+  else if(ev.key==='Escape'){ ev.preventDefault(); cancelEdit(c,i); }
 };
 window.bkInputBlur=input=>{
-  const {p,c,i}=input.dataset;
-  if(!EDITING || EDITING.p!==p || EDITING.c!==c || EDITING.i!==i) return;   // Enter/Tab/Esc allaqachon yopgan
-  clearTimeout(SAVE_TIMERS[cellKey(p,c,i)]);
-  saveCell(p,c,i,input.value);
+  const {c,i}=input.dataset;
+  if(!EDITING || EDITING.c!==c || EDITING.i!==i) return;   // Enter/Tab/Esc allaqachon yopgan
+  clearTimeout(SAVE_TIMERS[cellKey(c,i)]);
+  saveCell(c,i,input.value);
   EDITING=null;
   renderTable();
 };
 /* ---- Pastga sudrab to'ldirish (fill handle) ---- */
-window.bkFillStart=(ev,p,c,iso)=>{
+window.bkFillStart=(ev,c,iso)=>{
   ev.preventDefault(); ev.stopPropagation();
   if(!canEdit) return;
-  const val=(REJA_MAP[p][iso]||{})[c];
+  const val=(REJA_MAP[iso]||{})[c];
   if(val==null) return;
-  FILL={p,c,startIso:iso,curIso:iso,val};
+  FILL={c,startIso:iso,curIso:iso,val};
   document.addEventListener('mousemove',onFillMove);
   document.addEventListener('mouseup',onFillEnd);
 };
@@ -841,7 +912,7 @@ function paintFillPreview(){
   const days=dayList();
   const a=days.indexOf(FILL.startIso), b=days.indexOf(FILL.curIso);
   for(let k=a;k<=b;k++){
-    const td=document.querySelector(`td.ed-cell[data-p="${FILL.p}"][data-c="${FILL.c}"][data-i="${days[k]}"]`);
+    const td=document.querySelector(`td.ed-cell[data-c="${FILL.c}"][data-i="${days[k]}"]`);
     if(td) td.classList.add('fillprev');
   }
 }
@@ -849,7 +920,7 @@ function onFillMove(ev){
   if(!FILL) return;
   const el=document.elementFromPoint(ev.clientX,ev.clientY);
   const td=el && el.closest && el.closest('td.ed-cell');
-  if(!td || td.dataset.p!==FILL.p || td.dataset.c!==FILL.c) return;
+  if(!td || td.dataset.c!==FILL.c) return;
   const days=dayList();
   const startIdx=days.indexOf(FILL.startIso), tIdx=days.indexOf(td.dataset.i);
   if(tIdx<startIdx || td.dataset.i===FILL.curIso) return;
@@ -860,7 +931,7 @@ function onFillEnd(){
   document.removeEventListener('mousemove',onFillMove);
   document.removeEventListener('mouseup',onFillEnd);
   if(!FILL) return;
-  const {p,c,startIso,curIso,val}=FILL;
+  const {c,startIso,curIso,val}=FILL;
   const days=dayList();
   const a=days.indexOf(startIso), b=days.indexOf(curIso);
   FILL=null;
@@ -869,11 +940,12 @@ function onFillEnd(){
   const rows=[];
   for(let k=a+1;k<=b;k++){
     const iso=days[k];
-    if(!REJA_MAP[p][iso]) REJA_MAP[p][iso]={reja:0,uzgardi:0};
-    REJA_MAP[p][iso][c]=val;
-    rows.push({profil:p, sana:iso, reja:REJA_MAP[p][iso].reja, uzgardi:REJA_MAP[p][iso].uzgardi});
+    if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0};
+    REJA_MAP[iso][c]=val;
+    rows.push({profil:UMUMIY, sana:iso, reja:REJA_MAP[iso].reja, uzgardi:REJA_MAP[iso].uzgardi});
   }
-  SELECTED={p,c,i:curIso}; RANGE_ANCHOR=startIso;
+  SELECTED={c,i:curIso}; RANGE_ANCHOR=startIso;
+  buildRun(RUN_START,RUN_H);
   renderTable();
   (async()=>{
     try{ for(let k=0;k<rows.length;k+=200){ const {error}=await sb.from('beshkunlik_reja').upsert(rows.slice(k,k+200),{onConflict:'profil,sana'}); if(error) throw error; }
@@ -890,7 +962,7 @@ document.addEventListener('paste', e=>{
   e.preventDefault();
   const lines=text.split(/\r\n|\n|\r/).filter((l,idx,arr)=>!(idx===arr.length-1 && l===''));
   if(!lines.length) return;
-  const {p,c,i}=SELECTED;
+  const {c,i}=SELECTED;
   const days=dayList(); const startIdx=days.indexOf(i);
   if(startIdx<0) return;
   const rows=[];
@@ -900,11 +972,12 @@ document.addEventListener('paste', e=>{
     const n=Number(first);
     if(!isFinite(n)) return;
     const iso=days[rowIdx];
-    if(!REJA_MAP[p][iso]) REJA_MAP[p][iso]={reja:0,uzgardi:0};
-    REJA_MAP[p][iso][c]=Math.round(n*100)/100;
-    rows.push({profil:p, sana:iso, reja:REJA_MAP[p][iso].reja, uzgardi:REJA_MAP[p][iso].uzgardi});
+    if(!REJA_MAP[iso]) REJA_MAP[iso]={reja:0,uzgardi:0};
+    REJA_MAP[iso][c]=Math.round(n*100)/100;
+    rows.push({profil:UMUMIY, sana:iso, reja:REJA_MAP[iso].reja, uzgardi:REJA_MAP[iso].uzgardi});
   });
   if(!rows.length) return;
+  buildRun(RUN_START,RUN_H);
   renderTable();
   (async()=>{
     try{ for(let k=0;k<rows.length;k+=200){ const {error}=await sb.from('beshkunlik_reja').upsert(rows.slice(k,k+200),{onConflict:'profil,sana'}); if(error) throw error; }
@@ -913,58 +986,69 @@ document.addEventListener('paste', e=>{
   })();
 });
 
-/* ---- beshkunlik_reja: tanlangan oy uchun Reja/Uzgardi + boshlang'ich qoldiq ---- */
+/* ---- beshkunlik_reja: BUTUN OYNA [RUN_START,RUN_H] uchun Reja/Uzgardi.
+   'umumiy' qatori bo'lmagan kun uchun eski aksessuar+zapchast yig'indisi FALLBACK
+   qilinadi — SQL bir martalik ko'chirish hali RUN qilinmagan bo'lsa ham jadval
+   bo'sh ko'rinmasin. Tahrir/saqlash baribir faqat 'umumiy'ga yoziladi. ---- */
 async function loadReja(){
-  const v=$('oy').value||oyNowStr();
-  const [y,m]=v.split('-').map(Number);
-  const dim=daysInMonth(y,m-1);
-  const first=`${y}-${pad2(m)}-01`, last=`${y}-${pad2(m)}-${pad2(dim)}`;
-
-  REJA_MAP={aksessuar:{},zapchast:{}};
+  REJA_MAP={};
   try{
-    const {data,error}=await sb.from('beshkunlik_reja').select('profil,sana,reja,uzgardi').gte('sana',first).lte('sana',last);
+    const {data,error}=await sb.from('beshkunlik_reja')
+      .select('profil,sana,reja,uzgardi')
+      .in('profil',[UMUMIY,'aksessuar','zapchast'])
+      .gte('sana',RUN_START).lte('sana',RUN_H);
     if(error) throw error;
-    (data||[]).forEach(r=>{ if(REJA_MAP[r.profil]) REJA_MAP[r.profil][r.sana]={reja:Number(r.reja)||0, uzgardi:Number(r.uzgardi)||0}; });
+    const legacy={};
+    (data||[]).forEach(r=>{
+      if(r.profil===UMUMIY){
+        REJA_MAP[r.sana]={reja:Number(r.reja)||0, uzgardi:Number(r.uzgardi)||0};
+      }else{
+        if(!legacy[r.sana]) legacy[r.sana]={reja:0,uzgardi:0};
+        legacy[r.sana].reja+=Number(r.reja)||0;
+        legacy[r.sana].uzgardi+=Number(r.uzgardi)||0;
+      }
+    });
+    Object.keys(legacy).forEach(sana=>{ if(!REJA_MAP[sana]) REJA_MAP[sana]=legacy[sana]; });
   }catch(e){ console.warn('beshkunlik_reja oqilmadi:',e.message); }
-
-  OPEN_BAL={aksessuar:{reja:0,uzgardi:0,fakt:0}, zapchast:{reja:0,uzgardi:0,fakt:0}};
-  try{
-    const {data,error}=await sb.from('beshkunlik_reja').select('profil,reja,uzgardi').lt('sana',first);
-    if(error) throw error;
-    (data||[]).forEach(r=>{ const o=OPEN_BAL[r.profil]; if(!o) return; o.reja+=Number(r.reja)||0; o.uzgardi+=Number(r.uzgardi)||0; });
-  }catch(e){ console.warn("boshlang'ich reja oqilmadi:",e.message); }
-  // Fakt boshlang'ich qoldig'i faqat MUHRLANGAN kunlardan yig'iladi — sahifa hali yangi,
-  // hech kim ochmagan o'tmish kun muhrlanmagan bo'lishi mumkin (hisobotda tushuntirilgan).
-  try{
-    const {data,error}=await sb.from('beshkunlik_kun').select('profil,savdo_usd').lt('sana',first).not('frozen_at','is',null);
-    if(error) throw error;
-    (data||[]).forEach(r=>{ const o=OPEN_BAL[r.profil]; if(!o) return; o.fakt+=Number(r.savdo_usd)||0; });
-  }catch(e){ console.warn("boshlang'ich fakt oqilmadi:",e.message); }
 }
 
 /* =====================================================================
-   6-BOSQICH — Qarz bloki: beshkunlik_qarz(from,to) SO'MDA, dollarga
-   klientda sanali kurs bilan (beshkunlik_kurslar — Fakt bilan bir xil
-   funksiya) o'giriladi. Qarzmiz MANFIY saqlanadi (formulalarda to'g'ridan
-   qo'shiladi), Berdik musbat. ===================================== */
-let QARZ_MAP={aksessuar:{},zapchast:{}};   // profil -> sana -> {qarzmiz,berdik} (USD)
-let QARZ_DETAIL_CACHE={};                  // 'profil|sana' -> Promise<qatorlar> (beshkunlik_qarz_detal, so'mda)
+   6/7-BOSQICH — Qarz bloki: bitta platforma — beshkunlik_qarz_v2(from,to),
+   PROFILSIZ, SO'MDA. SQL hali RUN qilinmagan bo'lsa (funksiya yo'q) v1'ga
+   tushib ikkala profilni kun bo'yicha yig'ib beradi (QARZ_V2_OK=false — bir
+   marta aniqlangach qayta urinilmaydi). Qarzmiz MANFIY saqlanadi
+   (formulalarda to'g'ridan qo'shiladi), Berdik musbat. ===================== */
+let QARZ_MAP={};                 // sana -> {qarzmiz,berdik} (USD)
+let QARZ_DETAIL_CACHE={};        // sana -> Promise<qatorlar> (so'mda)
+let QARZ_V2_OK=true;
 
-async function loadQarz(){
-  const v=$('oy').value||oyNowStr();
-  const [y,m]=v.split('-').map(Number);
-  const dim=daysInMonth(y,m-1);
-  const first=`${y}-${pad2(m)}-01`, last=`${y}-${pad2(m)}-${pad2(dim)}`;
-
-  QARZ_MAP={aksessuar:{},zapchast:{}};
-  QARZ_DETAIL_CACHE={};   // oy almashsa eski hover keshi qoldirilmaydi
-
-  let rows=[];
+async function loadQarzRows(first,last){
+  if(QARZ_V2_OK){
+    try{
+      const {data,error}=await sb.rpc('beshkunlik_qarz_v2',{p_from:first,p_to:last});
+      if(error) throw error;
+      return data||[];
+    }catch(e){
+      if(isMissingFnErr(e)){ QARZ_V2_OK=false; }
+      else{ console.warn('beshkunlik_qarz_v2 oqilmadi:',e.message); return []; }
+    }
+  }
   try{
     const {data,error}=await sb.rpc('beshkunlik_qarz',{p_from:first,p_to:last});
     if(error) throw error;
-    rows=data||[];
-  }catch(e){ console.warn('beshkunlik_qarz oqilmadi:',e.message); return; }
+    const merged={};
+    (data||[]).forEach(r=>{
+      if(!merged[r.sana]) merged[r.sana]={sana:r.sana, qarzmiz_uzs:0, berdik_uzs:0};
+      merged[r.sana].qarzmiz_uzs+=Number(r.qarzmiz_uzs)||0;
+      merged[r.sana].berdik_uzs+=Number(r.berdik_uzs)||0;
+    });
+    return Object.values(merged);
+  }catch(e){ console.warn('beshkunlik_qarz (v1 fallback) oqilmadi:',e.message); return []; }
+}
+async function loadQarz(){
+  QARZ_MAP={};
+  QARZ_DETAIL_CACHE={};   // oy/oyna almashsa eski hover keshi qoldirilmaydi
+  const rows=await loadQarzRows(RUN_START,RUN_H);
   if(!rows.length) return;
 
   let kursMap={};
@@ -975,33 +1059,46 @@ async function loadQarz(){
   }catch(e){ console.warn('beshkunlik_kurslar (qarz) xato:',e.message); }
 
   rows.forEach(r=>{
-    const p=r.profil;
-    if(!QARZ_MAP[p]) return;
     const kurs=(kursMap&&kursMap[r.sana]!=null)?Number(kursMap[r.sana]):null;
     const qUzs=Number(r.qarzmiz_uzs)||0, bUzs=Number(r.berdik_uzs)||0;
     // kurs topilmasa (juda kamdan-kam) 0 deb olinadi — dollar ustunlari NaN bo'lib qolmasin.
-    QARZ_MAP[p][r.sana]={ qarzmiz:(kurs>0)?-(qUzs/kurs):0, berdik:(kurs>0)?(bUzs/kurs):0 };
+    QARZ_MAP[r.sana]={ qarzmiz:(kurs>0)?-(qUzs/kurs):0, berdik:(kurs>0)?(bUzs/kurs):0 };
   });
 }
 
-/* ---- Qarzmiz katagi hover/tap — o'sha kun/profil deadline'i kelgan yuklar (so'mda) ---- */
-function fetchQarzDetal(profil,iso){
-  const key=profil+'|'+iso;
-  if(QARZ_DETAIL_CACHE[key]) return QARZ_DETAIL_CACHE[key];
-  const p=sb.rpc('beshkunlik_qarz_detal',{p_sana:iso,p_profil:profil})
-    .then(({data,error})=>{ if(error) throw error; return data||[]; })
-    .catch(e=>{ console.warn('beshkunlik_qarz_detal xato:',e.message); return []; });
-  QARZ_DETAIL_CACHE[key]=p;
+/* ---- Qarzmiz katagi hover/tap — o'sha kun (profilsiz) deadline'i kelgan yuklar (so'mda) ---- */
+async function fetchQarzDetalRaw(iso){
+  if(QARZ_V2_OK){
+    try{
+      const {data,error}=await sb.rpc('beshkunlik_qarz_detal_v2',{p_sana:iso});
+      if(error) throw error;
+      return data||[];
+    }catch(e){
+      if(isMissingFnErr(e)){ QARZ_V2_OK=false; }
+      else{ console.warn('beshkunlik_qarz_detal_v2 xato:',e.message); return []; }
+    }
+  }
+  try{
+    const results=await Promise.all(PROFILI.map(p=>sb.rpc('beshkunlik_qarz_detal',{p_sana:iso,p_profil:p})));
+    let out=[];
+    results.forEach(({data,error})=>{ if(!error && data) out=out.concat(data); });
+    return out;
+  }catch(e){ console.warn('beshkunlik_qarz_detal (v1 fallback) xato:',e.message); return []; }
+}
+function fetchQarzDetal(iso){
+  if(QARZ_DETAIL_CACHE[iso]) return QARZ_DETAIL_CACHE[iso];
+  const p=fetchQarzDetalRaw(iso);
+  QARZ_DETAIL_CACHE[iso]=p;
   return p;
 }
-function renderQarzPop(profil,iso,rect){
-  const pop=$('bkPop'), key='qarz|'+profil+'|'+iso;
+function renderQarzPop(iso,rect){
+  const pop=$('bkPop'), key='qarz|'+iso;
   pop.dataset.popKey=key;
-  pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])} · Qarzmiz</h4>`
+  pop.innerHTML=`<h4>${fmtDayShort(iso)} · Qarzmiz</h4>`
     +`<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yuklanmoqda…</span></div>`;
   pop.classList.add('open');
   positionPop(rect);
-  fetchQarzDetal(profil,iso).then(rows=>{
+  fetchQarzDetal(iso).then(rows=>{
     // shu orada popover yopilgan yoki boshqa katakka o'tgan bo'lishi mumkin (async race) — o'sha holda
     // eski javob bilan boshqa (yoki yopiq) popoverni ustidan yozmaymiz.
     if(pop.dataset.popKey!==key || !pop.classList.contains('open')) return;
@@ -1010,21 +1107,43 @@ function renderQarzPop(profil,iso,rect){
           +`<span>${money(Number(r.qoldiq_uzs)||0)} so'm</span></div>`).join('')
       : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yuk topilmadi</span></div>`;
     const total=rows.reduce((s,r)=>s+(Number(r.qoldiq_uzs)||0),0);
-    pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])} · Qarzmiz</h4>${body}`
+    pop.innerHTML=`<h4>${fmtDayShort(iso)} · Qarzmiz</h4>${body}`
       +`<div class="bkp-total"><span>Jami</span><span>${money(total)} so'm</span></div>`;
     positionPop(rect);
   });
 }
-window.bkQarzPopShow=(ev,profil,iso)=>{ renderQarzPop(profil,iso,ev.currentTarget.getBoundingClientRect()); };
-window.bkQarzPopToggle=(ev,profil,iso)=>{
+window.bkQarzPopShow=(ev,iso)=>{ popCancelHide(); renderQarzPop(iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkQarzPopToggle=(ev,iso)=>{
   ev.stopPropagation();
-  const key='qarz|'+profil+'|'+iso;
-  if(popOpenKey===key){ $('bkPop').classList.remove('open'); popOpenKey=null; return; }
-  renderQarzPop(profil,iso,ev.currentTarget.getBoundingClientRect());
+  const key='qarz|'+iso;
+  if(popOpenKey===key){ popHideNow(); return; }
+  renderQarzPop(iso,ev.currentTarget.getBoundingClientRect());
   popOpenKey=key;
 };
 
-/* ---- Ommaviy reja kiritish modali — Oylik/Yillik, tanlangan summa kunlarga teng bo'linadi ---- */
+/* ---- Prognoz "Qarz olsa bo'ladi" katagi hover — qaysi kun cheklayotgani ---- */
+function renderPrognozPop(iso,rect){
+  const row=RUN_MAP[iso];
+  if(!row || row.qarzOlsaMinIso==null) return;
+  const pop=$('bkPop'), shortfall=row.qarzOlsaMinVal<0;
+  pop.dataset.popKey='prg|'+iso;
+  pop.innerHTML=`<h4>${fmtDayShort(iso)} · Qarz olsa bo'ladi</h4>`
+    +`<div class="bkp-row"><span class="bkp-name">Eng past nuqta</span><span>${fmtDayShort(row.qarzOlsaMinIso)} — $${money(row.qarzOlsaMinVal)}</span></div>`
+    +(shortfall?`<div class="bkp-row"><span class="bkp-name" style="color:var(--red)">Yetishmaydi</span><span>$${money(Math.abs(row.qarzOlsaMinVal))}</span></div>`:'');
+  pop.classList.add('open');
+  positionPop(rect);
+}
+window.bkPrognozPopShow=(ev,iso)=>{ popCancelHide(); renderPrognozPop(iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkPrognozPopToggle=(ev,iso)=>{
+  ev.stopPropagation();
+  const key='prg|'+iso;
+  if(popOpenKey===key){ popHideNow(); return; }
+  renderPrognozPop(iso,ev.currentTarget.getBoundingClientRect());
+  popOpenKey=key;
+};
+
+/* ---- Ommaviy reja kiritish modali — Oylik/Yillik, tanlangan summa kunlarga teng bo'linadi.
+   Profil tanlovi olib tashlandi (bitta platforma) — hamma vaqt UMUMIY'ga yoziladi. ---- */
 function distributeMonth(y,m0,total){
   const dim=daysInMonth(y,m0);
   const base=Math.round((total/dim)*100)/100;
@@ -1054,8 +1173,7 @@ window.bkCfmYes=()=>{ $('cfmModal').classList.remove('open'); const r=CFM_RESOLV
 window.bkCfmNo=()=>{ $('cfmModal').classList.remove('open'); const r=CFM_RESOLVE; CFM_RESOLVE=null; if(r) r(false); };
 window.bkOpenPlanModal=()=>{
   if(!canEdit) return;
-  PLAN_PROFS=['aksessuar','zapchast']; PLAN_MODE='oylik';
-  document.querySelectorAll('#plProfSeg button').forEach(b=>b.classList.add('on'));
+  PLAN_MODE='oylik';
   document.querySelectorAll('#plModeSeg button').forEach((b,idx)=>b.classList.toggle('on',idx===0));
   $('plOylikBox').style.display='block'; $('plYillikBox').style.display='none';
   $('plOy').value=$('oy').value||oyNowStr();
@@ -1065,10 +1183,6 @@ window.bkOpenPlanModal=()=>{
   $('planModal').classList.add('open');
 };
 window.bkClosePlan=()=>{ $('planModal').classList.remove('open'); };
-window.bkPlanProfTog=(p,btn)=>{
-  btn.classList.toggle('on');
-  PLAN_PROFS=Array.from(document.querySelectorAll('#plProfSeg button.on')).map(b=>b.dataset.p);
-};
 window.bkPlanMode=(mode,btn)=>{
   PLAN_MODE=mode;
   document.querySelectorAll('#plModeSeg button').forEach(b=>b.classList.toggle('on',b===btn));
@@ -1078,7 +1192,6 @@ window.bkPlanMode=(mode,btn)=>{
 window.bkPlanSave=async()=>{
   if(!canEdit) return;
   const setMsg=(t,cls)=>{ const el=$('plMsg'); el.className='cv-msg'+(cls?(' '+cls):''); el.textContent=t||''; };
-  if(!PLAN_PROFS.length){ setMsg('Kamida bitta profil tanlang','err'); return; }
   const sum=Number(String($('plSum').value||'').replace(',','.').replace(/[^0-9.\-]/g,''))||0;
   if(sum<=0){ setMsg('Summani kiriting','err'); return; }
   let dayVals;
@@ -1092,19 +1205,17 @@ window.bkPlanSave=async()=>{
   }
   let existing=[];
   try{
-    const {data,error}=await sb.from('beshkunlik_reja').select('profil,sana,reja,uzgardi')
-      .in('sana',dayVals.map(x=>x.iso)).in('profil',PLAN_PROFS);
+    const {data,error}=await sb.from('beshkunlik_reja').select('sana,reja,uzgardi')
+      .eq('profil',UMUMIY).in('sana',dayVals.map(x=>x.iso));
     if(error) throw error;
     existing=data||[];
   }catch(e){ setMsg('Xato: '+(e.message||String(e)),'err'); return; }
   const hasExisting=existing.some(r=>(Number(r.reja)||0)!==0 || (Number(r.uzgardi)||0)!==0);
   if(hasExisting){
-    const ok=await bkConfirm('Mavjud reja topildi',
-      PLAN_PROFS.map(p=>PROFIL_LABEL[p]).join(', ')+" uchun tanlangan davrda reja allaqachon bor — yangi qiymat ustidan yoziladi. Davom etasizmi?");
+    const ok=await bkConfirm('Mavjud reja topildi','Tanlangan davrda reja allaqachon bor — yangi qiymat ustidan yoziladi. Davom etasizmi?');
     if(!ok) return;
   }
-  const rows=[];
-  PLAN_PROFS.forEach(p=>{ dayVals.forEach(({iso,val})=>{ rows.push({profil:p, sana:iso, reja:val, uzgardi:val}); }); });
+  const rows=dayVals.map(({iso,val})=>({profil:UMUMIY, sana:iso, reja:val, uzgardi:val}));
   const btn=$('plSaveBtn'), old=btn.innerHTML; btn.disabled=true; btn.textContent='Saqlanmoqda…';
   try{
     for(let k=0;k<rows.length;k+=200){
@@ -1114,10 +1225,171 @@ window.bkPlanSave=async()=>{
     window.bkClosePlan();
     showInfo('Reja saqlandi ✓ ('+rows.length+' qator)');
     await loadReja();
+    buildRun(RUN_START,RUN_H);
     renderTable();
   }catch(e){ setMsg('Xato: '+(e.message||String(e)),'err'); }
   finally{ btn.disabled=false; btn.innerHTML=old; }
 };
+
+/* =====================================================================
+   Boshlang'ich qoldiq (beshkunlik_sozlama) — RUN_START/RUN_H hisoblashdan
+   oldin kerak. Jadval bo'lmasa (SQL hali RUN qilinmagan) SOZLAMA_OK=false —
+   tugma yashirin, sukut (boshlanish=null, boshlangich_usd=0) ishlatiladi. ===== */
+let SOZLAMA={boshlanish:null, boshlangich_usd:0};
+let SOZLAMA_OK=true;
+
+async function loadSozlama(){
+  SOZLAMA={boshlanish:null, boshlangich_usd:0}; SOZLAMA_OK=true;
+  try{
+    const {data,error}=await sb.from('beshkunlik_sozlama').select('boshlanish,boshlangich_usd').eq('id',1).maybeSingle();
+    if(error) throw error;
+    if(data) SOZLAMA={boshlanish:data.boshlanish||null, boshlangich_usd:Number(data.boshlangich_usd)||0};
+  }catch(e){
+    if(isMissingTableErr(e)) SOZLAMA_OK=false;
+    console.warn('beshkunlik_sozlama oqilmadi:',e.message);
+  }
+}
+window.bkOpenSoz=()=>{
+  if(!canEdit || !SOZLAMA_OK) return;
+  $('sozSana').value=SOZLAMA.boshlanish||'';
+  $('sozSum').value=SOZLAMA.boshlangich_usd||'';
+  $('sozMsg').className='cv-msg'; $('sozMsg').textContent='';
+  $('sozModal').classList.add('open');
+};
+window.bkCloseSoz=()=>{ $('sozModal').classList.remove('open'); };
+window.bkSaveSoz=async()=>{
+  if(!canEdit) return;
+  const setMsg=(t,cls)=>{ const el=$('sozMsg'); el.className='cv-msg'+(cls?(' '+cls):''); el.textContent=t||''; };
+  const sana=$('sozSana').value;
+  const sum=Number(String($('sozSum').value||'').replace(',','.').replace(/[^0-9.\-]/g,''))||0;
+  if(!sana){ setMsg('Sanani tanlang','err'); return; }
+  const btn=$('sozSaveBtn'), old=btn.textContent; btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  try{
+    const {error}=await sb.from('beshkunlik_sozlama').upsert({id:1, boshlanish:sana, boshlangich_usd:sum},{onConflict:'id'});
+    if(error) throw error;
+    window.bkCloseSoz();
+    showInfo("Boshlang'ich qoldiq saqlandi ✓");
+    await loadSozlama();
+    await loadAll();
+  }catch(e){ setMsg('Xato: '+(e.message||String(e)),'err'); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+};
+
+/* ---- Oyna [RUN_START,RUN_H] hisoblash — displaydan oldingi barcha ma'lumot + 60
+   kunlik prognoz gorizonti. Sozlama.boshlanish bo'lmasa — jadvaldagi eng erta sana
+   (bo'lmasa ko'rsatilgan oy boshi). ---- */
+async function findEarliestData(){
+  let earliest=null;
+  try{
+    const {data,error}=await sb.from('beshkunlik_reja').select('sana').in('profil',[UMUMIY,'aksessuar','zapchast']).order('sana',{ascending:true}).limit(1);
+    if(!error && data && data.length) earliest=data[0].sana;
+  }catch(e){ /* jimgina o'tkazib yuboriladi — dispFirst fallback ishlaydi */ }
+  try{
+    const {data,error}=await sb.from('beshkunlik_kun').select('sana').order('sana',{ascending:true}).limit(1);
+    if(!error && data && data.length && (!earliest || data[0].sana<earliest)) earliest=data[0].sana;
+  }catch(e){ }
+  return earliest;
+}
+async function computeWindow(){
+  const v=$('oy').value||oyNowStr();
+  const [y,m]=v.split('-').map(Number);
+  const dim=daysInMonth(y,m-1);
+  const dispFirst=`${y}-${pad2(m)}-01`, dispLast=`${y}-${pad2(m)}-${pad2(dim)}`;
+  const todayIso=isoDay(nowUz());
+  const plus60=isoAddDays(todayIso,60);
+  const hIso=dispLast>plus60?dispLast:plus60;
+  let startIso=SOZLAMA.boshlanish;
+  if(!startIso) startIso=await findEarliestData();
+  if(!startIso || startIso>dispFirst) startIso=dispFirst;
+  RUN_START=startIso; RUN_H=hIso;
+  return {dispFirst,dispLast,todayIso};
+}
+
+function rowMatchesFilter(row){
+  if(CUR_FILTER==='ish') return row.dow!==6;
+  if(CUR_FILTER==='farqli') return row.uzgardi!=null && row.fakt!=null && row.uzgardi!==row.fakt;
+  if(CUR_FILTER==='rejasiz') return row.reja==null;
+  return true;
+}
+function monthDaySlice(y,m,dim){
+  const rows=[];
+  for(let d=1; d<=dim; d++){
+    const iso=`${y}-${pad2(m)}-${pad2(d)}`;
+    const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
+    const base=RUN_MAP[iso]||{iso,reja:null,uzgardi:null,fakt:null,yigReja:0,yigUzga:0,yigFakt:0,
+      qarzmiz:0,berdik:0,raznitsa:0,qoldiReja:0,qoldiUzga:0,qoldiFakt:0,qoldiRaz:0,
+      kutilgan:null,qarzOlsa:null,qarzOlsaMinIso:null,qarzOlsaMinVal:null};
+    rows.push(Object.assign({dow},base));
+  }
+  return rows;
+}
+function renderOpenBal(){
+  const v=$('oy').value||oyNowStr();
+  const [y,m]=v.split('-').map(Number);
+  const first=`${y}-${pad2(m)}-01`;
+  const prev=RUN_MAP[isoAddDays(first,-1)];
+  const base=SOZLAMA.boshlangich_usd||0;
+  const reja=prev?prev.qoldiReja:base, uzga=prev?prev.qoldiUzga:base, fakt=prev?prev.qoldiFakt:base;
+  $('bkOpen').textContent=`Boshlang'ich qoldiq (oy boshigacha yig'ilgan) — reja $${money(reja)} · uzga $${money(uzga)} · fakt $${money(fakt)}`;
+}
+function renderWarn(dispFirst,todayIso){
+  const el=$('bkWarn'); if(!el) return;
+  const n=countUnfrozenPast(dispFirst,todayIso);
+  if(n<=0){ el.style.display='none'; el.textContent=''; return; }
+  el.style.display='block';
+  el.textContent=`⚠ ${n} o'tgan kun hali muhrlanmagan (Fakt 0 deb hisoblangan) — kechasi avtomatik to'ldiriladi.`;
+}
+function renderPrognozSummary(todayIso){
+  const el=$('bkPrognoz'); if(!el) return;
+  const rowT=RUN_MAP[todayIso];
+  if(!rowT || rowT.kutilgan==null){ el.style.display='none'; el.textContent=''; return; }
+  const minTxt=rowT.qarzOlsaMinIso?` (${fmtDayShort(rowT.qarzOlsaMinIso)})`:'';
+  const shortfall=rowT.qarzOlsaMinVal<0?` · $${money(Math.abs(rowT.qarzOlsaMinVal))} yetishmaydi`:'';
+  const noRejaCount=countFutureNoReja(todayIso,RUN_H);
+  const warn=noRejaCount>0?` · ⚠ ${noRejaCount} kunda reja yo'q — prognoz kam ko'rsatadi`:'';
+  el.innerHTML=`Bugun kutilgan: <b>$${money(rowT.kutilgan)}</b> · 60 kun ichida eng past: `
+    +`<b>$${money(rowT.qarzOlsaMinVal)}</b>${minTxt} · Bugun qarz olsa bo'ladi: <b>$${money(rowT.qarzOlsa)}</b>${shortfall}${warn}`;
+  el.style.display='block';
+}
+window.bk5kFilter=f=>{
+  CUR_FILTER=f;
+  document.querySelectorAll('#chipbar .chip').forEach(b=>b.classList.toggle('on', b.dataset.f===f));
+  renderTable();
+};
+function renderTable(){
+  const v=$('oy').value||oyNowStr();
+  const [y,m]=v.split('-').map(Number);   // m — 1 dan boshlanadi (input value)
+  const dim=daysInMonth(y,m-1);
+  const todayIso=isoDay(nowUz());
+  const dispFirst=`${y}-${pad2(m)}-01`;
+  MONTH_DATA=monthDaySlice(y,m,dim);
+  renderOpenBal();
+  renderWarn(dispFirst,todayIso);
+  renderPrognozSummary(todayIso);
+  const rows=[];
+  MONTH_DATA.forEach(row=>{
+    if(!rowMatchesFilter(row)) return;
+    const cls=[row.dow===6?'sunday':'', row.iso===todayIso?'today':''].filter(Boolean).join(' ');
+    const d=Number(row.iso.slice(8,10));
+    const label=`${d} ${OY_QISQA[m-1]} · ${HAFTA_QISQA[row.dow]}`;
+    rows.push(`<tr${cls?` class="${cls}"`:''}><td class="sana-col">${esc(label)}</td>${buildRowCells(row)}</tr>`);
+  });
+  $('tbody').innerHTML=rows.join('')||`<tr><td colspan="${1+COLS_TOTAL}" class="empty">Filtrga mos kun topilmadi</td></tr>`;
+  bkSyncScrollTopWidth();
+}
+
+/* =====================================================================
+   3-BOSQICH — Savdo/Fakt: n8n webhook + sanali kurs + muhrlash
+   ===================================================================== */
+const WEBHOOK_5K='https://n8n.arosmarket.com/webhook/aros-provodka-5kunlik-savdo';
+let SHOW_UZS=localStorage.getItem('prov-5k-uzs')==='1';
+const HOVER_OK=matchMedia('(hover:hover)').matches;
+let WEB_MAP={}, WEB_DETAL={};             // sana -> {aksessuar,zapchast}(_uzs) / sana -> {aksessuar:[...],zapchast:[...]}
+let FAKT_DAY={aksessuar:{},zapchast:{}};  // profil -> sana -> {uzs,usd,kurs,frozen}
+let FAKT_TOKEN=0;                         // oy/oyna tez almashtirilganda eski javob e'tiborsiz qoldiriladi
+
+window.bkToggleUzs=()=>{ SHOW_UZS=!SHOW_UZS; try{ localStorage.setItem('prov-5k-uzs',SHOW_UZS?'1':'0'); }catch(e){} buildHeader(); renderTable(); };
+window.bk5kRetry=()=>{ loadFakt(); };
 
 function applyWebJson(j){
   WEB_MAP={}; WEB_DETAL={};
@@ -1128,26 +1400,34 @@ function applyWebJson(j){
     WEB_DETAL[sana]={aksessuar:e.Aksessuar||e.aksessuar||[], zapchast:e.Zapchast||e.zapchast||[]}; });
 }
 
-/* Har kun/profil uchun yakuniy son: muhrlangan bo'lsa saqlangan qatordan, aks holda
-   webhook summasi + beshkunlik_kurs(sana) bilan JONLI hisoblanadi. beshkunlik_edit bor
-   foydalanuvchi o'tgan (bugundan oldingi) muhrlanmagan kunni shu yerda MUHRLAYDI (upsert). */
-async function computeAndFreeze(first,last,token){
-  const todayIso=isoDay(nowUz());
-  let kunRows=[];
+/* Butun oyna [RUN_START,RUN_H] uchun MUHRLANGAN beshkunlik_kun qatorlari — tarixiy
+   Fakt (uzluksiz rekursiya uchun kerak). Ko'rsatilgan oydan tashqarida jonli hisoblash
+   YO'Q (n8n `beshkunlik_muhrla` kechasi backfill qiladi, BRIEF_5KUNLIK.md). */
+async function loadFrozenWindow(){
+  FAKT_DAY={aksessuar:{},zapchast:{}};
   try{
     const {data,error}=await sb.from('beshkunlik_kun')
       .select('profil,sana,savdo_uzs,savdo_usd,kurs_uzs,frozen_at')
-      .gte('sana',first).lte('sana',last);
+      .gte('sana',RUN_START).lte('sana',RUN_H).not('frozen_at','is',null);
     if(error) throw error;
-    kunRows=data||[];
-  }catch(e){ console.warn('beshkunlik_kun oqilmadi:',e.message); }
-  if(token!==FAKT_TOKEN) return;
+    (data||[]).forEach(r=>{ if(FAKT_DAY[r.profil]) FAKT_DAY[r.profil][r.sana]={
+      uzs:Number(r.savdo_uzs)||0, usd:r.savdo_usd!=null?Number(r.savdo_usd):null,
+      kurs:r.kurs_uzs!=null?Number(r.kurs_uzs):null, frozen:true }; });
+  }catch(e){ console.warn('beshkunlik_kun (oyna) oqilmadi:',e.message); }
+}
 
-  const FROZEN={aksessuar:{},zapchast:{}};
-  kunRows.forEach(r=>{ if(r.frozen_at && FROZEN[r.profil]) FROZEN[r.profil][r.sana]=r; });
-
+/* Har kun/profil uchun yakuniy son: muhrlangan bo'lsa saqlangan qatordan, aks holda
+   webhook summasi + beshkunlik_kurs(sana) bilan JONLI hisoblanadi.
+   🔴 MUHRLASH FAQAT sana<=bugun-2 kun bo'lsagina (Asilbek, 2026-09-12, tekshirilgan
+   fakt): n8n `cache_calendar_daily` har kechasi ~01:00-01:11 (Toshkent) oxirgi
+   kunlarni QAYTA hisoblaydi — "kecha" faqat shundan keyin to'liq. Ertalab (masalan
+   00:30) sahifa ochilsa kechagi kun chala raqam bilan MUHRLANIB QOLMASIN uchun
+   kamida bir kun zahira qoldirilgan; kechagi kunni tunda `beshkunlik_muhrla`
+   (soat 02:00, n8n) muhrlaydi. */
+async function computeAndFreeze(dispFirst,dispLast,todayIso,token){
+  const freezeCutoff=isoAddDays(todayIso,-2);
   const neededDates=new Set();
-  Object.keys(WEB_MAP).forEach(sana=>{ PROFILI.forEach(p=>{ if(!FROZEN[p][sana]) neededDates.add(sana); }); });
+  Object.keys(WEB_MAP).forEach(sana=>{ PROFILI.forEach(p=>{ if(!(FAKT_DAY[p][sana]&&FAKT_DAY[p][sana].frozen)) neededDates.add(sana); }); });
 
   let kursMap={};
   if(neededDates.size){
@@ -1159,23 +1439,16 @@ async function computeAndFreeze(first,last,token){
   }
   if(token!==FAKT_TOKEN) return;
 
-  FAKT_DAY={aksessuar:{},zapchast:{}};
   const toFreeze=[];
   Object.keys(WEB_MAP).forEach(sana=>{
     PROFILI.forEach(p=>{
-      const frozenRow=FROZEN[p][sana];
-      if(frozenRow){
-        FAKT_DAY[p][sana]={ uzs:Number(frozenRow.savdo_uzs)||0,
-          usd:frozenRow.savdo_usd!=null?Number(frozenRow.savdo_usd):null,
-          kurs:frozenRow.kurs_uzs!=null?Number(frozenRow.kurs_uzs):null, frozen:true };
-        return;
-      }
+      if(FAKT_DAY[p][sana] && FAKT_DAY[p][sana].frozen) return;   // allaqachon muhrlangan — tegilmaydi
       const uzs=Number(WEB_MAP[sana][p])||0;
       const kurs=(kursMap&&kursMap[sana]!=null)?Number(kursMap[sana]):null;
       const usd=(kurs&&kurs>0)?Math.round(uzs/kurs):null;
       FAKT_DAY[p][sana]={uzs,usd,kurs,frozen:false};
-      // Faqat o'tgan (bugundan oldingi) kun, kurs topilgan va tahrir ruxsati bor bo'lsa muhrlanadi.
-      if(canEdit && sana<todayIso && kurs!=null){
+      // Faqat sana<=bugun-2 (yuqoridagi izoh), kurs topilgan va tahrir ruxsati bor bo'lsa muhrlanadi.
+      if(canEdit && sana<=freezeCutoff && kurs!=null){
         toFreeze.push({profil:p,sana,savdo_uzs:uzs,savdo_usd:usd==null?0:usd,kurs_uzs:kurs,frozen_at:new Date().toISOString()});
       }
     });
@@ -1190,21 +1463,28 @@ async function computeAndFreeze(first,last,token){
   }
 }
 
-/* Asosiy o'qish: kesh (5kunlik:<yyyy-mm>) darrov ko'rsatiladi, fonda webhookdan yangilanadi. */
+/* Asosiy o'qish: kesh (5kunlik:<yyyy-mm>) darrov ko'rsatiladi, fonda webhookdan yangilanadi.
+   Har muvaffaqiyatli qadamda buildRun()+renderTable() qayta ishlaydi (arzon, sinxron) —
+   shu bilan uzluksiz rekursiya doim eng oxirgi ma'lumot bilan hisoblanadi. */
 async function loadFakt(){
   const v=$('oy').value||oyNowStr();
   const token=++FAKT_TOKEN;
   const [y,m]=v.split('-').map(Number);
   const dim=daysInMonth(y,m-1);
-  const first=`${y}-${pad2(m)}-01`, last=`${y}-${pad2(m)}-${pad2(dim)}`;
+  const dispFirst=`${y}-${pad2(m)}-01`, dispLast=`${y}-${pad2(m)}-${pad2(dim)}`;
+  const todayIso=isoDay(nowUz());
   const key='5kunlik:'+v;
 
+  await loadFrozenWindow();
+  if(token!==FAKT_TOKEN) return;
+  buildRun(RUN_START,RUN_H); renderTable();
+
   let webJson=swrGet(key);
-  if(webJson){ applyWebJson(webJson); renderTable(); }
+  if(webJson){ applyWebJson(webJson); buildRun(RUN_START,RUN_H); renderTable(); }
 
   let fresh=null;
   try{
-    const res=await fetch(WEBHOOK_5K+'?date_from='+encodeURIComponent(first)+'&date_to='+encodeURIComponent(last),{headers:{'Accept':'application/json'}});
+    const res=await fetch(WEBHOOK_5K+'?date_from='+encodeURIComponent(dispFirst)+'&date_to='+encodeURIComponent(dispLast),{headers:{'Accept':'application/json'}});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const j=await res.json();
     if(!j || j.ok===false || !Array.isArray(j.kunlar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
@@ -1218,51 +1498,58 @@ async function loadFakt(){
   if(fresh){ webJson=fresh; swrSet(key,webJson); applyWebJson(webJson); }
   showErr('');
 
-  await computeAndFreeze(first,last,token);
+  await computeAndFreeze(dispFirst,dispLast,todayIso,token);
   if(token!==FAKT_TOKEN) return;
+  buildRun(RUN_START,RUN_H);
   renderTable();
 }
 
-/* ---- Fakt katagi ustiga hover/tap — o'sha kun/profil filial kesimi ---- */
-function positionPop(rect){
-  const pop=$('bkPop'), margin=8;
-  const pw=pop.offsetWidth, ph=pop.offsetHeight;
-  let left=rect.left, top=rect.bottom+margin;
-  if(left+pw>innerWidth-margin) left=innerWidth-pw-margin;
-  if(left<margin) left=margin;
-  if(top+ph>innerHeight-margin){ top=rect.top-ph-margin; if(top<margin) top=margin; }
-  pop.style.left=left+'px'; pop.style.top=top+'px';
-}
-function renderPop(profil,iso,rect){
-  const d=FAKT_DAY[profil]&&FAKT_DAY[profil][iso];
+/* ---- Fakt katagi ustiga hover/tap — o'sha kun uchun IKKI BO'LIM (Aksessuar/Zapchast),
+   har birining o'z filial kesimi bilan (webhook detal), pastda Jami. ---- */
+function renderPop(iso,rect){
+  const d=combineFakt(iso);
   if(!d) return;
-  const rows=(WEB_DETAL[iso]&&WEB_DETAL[iso][profil])||[];
-  const body=rows.length
-    ? rows.map(r=>{ const ret=Number(r.qaytarilgan)||0;
-        return `<div class="bkp-row"><span class="bkp-name">${esc(r.filial||r.warehouse_id||'—')}</span>`
-          +`<span>${money(Number(r.uzs)||0)}${ret>0?`<span class="bkp-ret">−${money(ret)} qaytarilgan</span>`:''}</span></div>`; }).join('')
-    : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Filial tafsiloti yo'q</span></div>`;
+  const section=p=>{
+    const dp=FAKT_DAY[p][iso];
+    const rows=(WEB_DETAL[iso]&&WEB_DETAL[iso][p])||[];
+    const usd=dp&&dp.usd!=null?dp.usd:null, uzs=dp?dp.uzs:0;
+    const body=rows.length
+      ? rows.map(r=>{ const ret=Number(r.qaytarilgan)||0;
+          return `<div class="bkp-row"><span class="bkp-name">${esc(r.filial||r.warehouse_id||'—')}</span>`
+            +`<span>${money(Number(r.uzs)||0)}${ret>0?`<span class="bkp-ret">−${money(ret)} qaytarilgan</span>`:''}</span></div>`; }).join('')
+      : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Filial tafsiloti yo'q</span></div>`;
+    return `<h4>${esc(PROFIL_LABEL[p])} — ${usd==null?'—':('$'+money(usd))} · ${money(uzs)} so'm</h4>${body}`;
+  };
   const total=`<div class="bkp-total"><span>Jami</span><span>${money(d.uzs)} so'm<span class="bkp-usd">≈ $${d.usd==null?'—':money(d.usd)}</span></span></div>`;
   const pop=$('bkPop');
-  pop.dataset.popKey='fk|'+profil+'|'+iso;   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
-  pop.innerHTML=`<h4>${fmtDayShort(iso)} · ${esc(PROFIL_LABEL[profil])}</h4>${body}${total}`;
+  pop.dataset.popKey='fk|'+iso;   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
+  pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)}</div>${section('aksessuar')}${section('zapchast')}${total}`;
   pop.classList.add('open');
   positionPop(rect);
 }
-window.bkPopShow=(ev,profil,iso)=>{ renderPop(profil,iso,ev.currentTarget.getBoundingClientRect()); };
-window.bkPopHide=()=>{ $('bkPop').classList.remove('open'); };
-window.bkPopToggle=(ev,profil,iso)=>{
+window.bkPopShow=(ev,iso)=>{ popCancelHide(); renderPop(iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkPopToggle=(ev,iso)=>{
   ev.stopPropagation();
-  const key=profil+'|'+iso;
-  if(popOpenKey===key){ $('bkPop').classList.remove('open'); popOpenKey=null; return; }
-  renderPop(profil,iso,ev.currentTarget.getBoundingClientRect());
+  const key='fk|'+iso;
+  if(popOpenKey===key){ popHideNow(); return; }
+  renderPop(iso,ev.currentTarget.getBoundingClientRect());
   popOpenKey=key;
 };
-document.addEventListener('click',e=>{
-  if(!popOpenKey) return;
-  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.qarz-cell')) return;
-  $('bkPop').classList.remove('open'); popOpenKey=null;
-});
+
+/* ---- Yuklovchi zanjir: oyna (START/H) -> reja+qarz -> buildRun -> render -> jonli Fakt.
+   Har chaqiriqda LOAD_TOKEN oshadi — tez oy almashtirilganda eski (sekin) javob
+   keyingisini ustidan yozib qo'ymasin. ---- */
+let LOAD_TOKEN=0;
+async function loadAll(){
+  const token=++LOAD_TOKEN;
+  await computeWindow();
+  if(token!==LOAD_TOKEN) return;
+  await Promise.all([loadReja(), loadQarz()]);
+  if(token!==LOAD_TOKEN) return;
+  buildRun(RUN_START,RUN_H);
+  renderTable();
+  await loadFakt();
+}
 
 async function init(){
   buildHeader();
@@ -1271,10 +1558,13 @@ async function init(){
   canEdit=!!(window.permFlagOk && window.permFlagOk('beshkunlik_edit'));
   document.body.classList.toggle('can-edit',canEdit);
   $('addBtn').style.display=canEdit?'inline-flex':'none';
-  renderTable();
   icons();
   bkBindScrollSync();
-  await Promise.all([loadRole(), loadFakt(), loadReja().then(renderTable), loadQarz().then(renderTable)]);
+  await loadRole();
+  await loadSozlama();
+  $('sozBtn').style.display=(canEdit&&SOZLAMA_OK)?'inline-flex':'none';
+  icons();
+  await loadAll();
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
