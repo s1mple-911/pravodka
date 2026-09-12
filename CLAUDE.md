@@ -1310,6 +1310,33 @@ yana sekinlatish kerak). Yangi so'rov qo'shganda shu limitni unutma.
   `cachiers` (`title`, `warehouse_name`, `warehouse_id`, `is_kassa`, `responsible`).
   Vaqtlar naive, Toshkent vaqtida saqlanadi.
 
+### Hodim → Telegram bog'lash (2026-09-12, `PROVODKA_HODIM_TELEGRAM.sql`, faqat dev, RUN kutilmoqda)
+
+Hodim xarajat kassasida (5400 ostidagi 54xx, `kassa_turi='xarajat'`) harakat bo'lsa n8n «Aros
+Provodka - Hodim Notify» hodimning o'ziga xabar yuborishi uchun `accounts.taskfix_user_id`
+to'ldirilgan bo'lishi kerak (n8n `byKey[String(taskfix_user_id)]`, `users.id` matn shaklida).
+Buni to'ldiradigan UI yo'q edi — masalan `xarajat_kassa_yarat` (kassa-dev "Kassa qo'shish")
+ataylab bo'sh qoldiradi, bo'sh bo'lsa xabar faqat adminlarga ketadi.
+- **`aros_tg_user`** — Aros PG `users` registri (n8n «Aros Provodka - Telegram User Sync», har
+  soat, `N8N_TG_USER_SYNC.js` → `sync_aros_tg_user` service_role ONLY, rows≥50 bo'lsagina sweep).
+  🔴 Maxfiy ustunlar (`password_hash`/`telegram_id`/`reset_*`) KO'CHIRILMAYDI — bog'lash `users.id`
+  (matn) orqali, `telegram_id` kerak emas (n8n Hodim Notify o'zi topadi).
+- **`hodim_tg_page_ok()`** — yagona ruxsat qoidasi (admin YOKI `perm_has_page('sozlama')`,
+  `standart_page_ok()` naqshi). `hodim_tg_royxat()` / `hodim_tg_bogla()` / `hodim_tg_avto_bogla()`
+  hammasi shundan. `sozlama-dev.html` «Hodim → Telegram» kartasi bu bilan **isAdmin'dan
+  CHEKLANMAYDI** (boshqa admin-only kartalardan farqi) — sahifaning o'zi allaqachon shu qoidaga gate.
+- **Taklif ball** (`hodim_tg_ball`, ICHKI) — 3 = kassa nomi va `users.ism` to'liq teng
+  (norm+kirill↔lotin translit, `standart_norm`/`standart_translit` g'oyasi lekin ODAM ISMI uchun
+  moslashtirilgan — **containment YO'Q**, standart_ball'dagi "bir-birining ichida = 3" qoidasi
+  ism uchun xavfli), 2 = so'zlar to'plami teng (tartib farqi bilan). `aros_staff` ko'prigi
+  (kassa nomi ↔ `aros_staff.toliq_nom` TO'LIQ teng bo'lsagina) orqali `worker_id`/telefon mos
+  kelsa ball 2→3 ko'tariladi — hech qachon 0→ko'tarilmaydi ("unga tayanib qolma", CLAUDE.md
+  ma'lumot manbai eslatmasi).
+- **`hodim_tg_avto_bogla()`** — FAQAT ball=3 va yagona nomzod bo'lsa bog'laydi (bog'langan
+  kassaga ustidan yozmaydi), ikki nomzod teng bo'lsa `chalkash[]` ga tushadi (`standart_
+  branch_avto_bogla()` bilan bir xil naqsh — temp jadval yo'q, sof CTE).
+- `entry`/`entry_line` ga tegilmagan — faqat `accounts.taskfix_user_id` yoziladi.
+
 ## Ish uslubi
 
 - HTML tahrir qilganda **butun faylni qayta yozma** — kerakli joyini o'zgartir.

@@ -560,6 +560,49 @@
     .rb-cb-btn{max-width:none;width:100%}
     .rb-cb-pop{left:0;right:0;min-width:0;max-width:none}
   }
+
+  /* ================================================================
+     HODIM -> TELEGRAM (.htg-*) — accounts.taskfix_user_id bog'lash.
+     Mavjud .card/.sec/.hint/.item/.mid/.res/.mxd-save/.mxd-cancel/
+     .rb-taklif-badge qoidalari QAYTA TA'RIFLANMAGAN, yangi rang
+     o'zgaruvchisi yo'q — faqat mavjud tokenlar. Modal alohida (.mmodal
+     "Ko'proq" sheet uchun band — CLAUDE.md), shuning uchun o'z prefiksi.
+     ================================================================ */
+  .htg-chip{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:26px;padding:0 10px;
+    border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;max-width:220px;overflow:hidden}
+  .htg-chip svg{width:13px;height:13px;flex:0 0 auto}
+  .htg-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .htg-chip.ok{background:var(--primary-soft);color:var(--primary)}
+  .htg-chip.warn{background:var(--amber-soft);color:var(--amber)}
+  .htg-chip.err{background:var(--red-soft);color:var(--red)}
+  .htg-row .item-head{flex-wrap:nowrap}
+  @media(max-width:520px){
+    .htg-row .item-head{flex-wrap:wrap}
+    .htg-chip{max-width:100%;flex:1 1 100%;order:3}
+  }
+  .htg-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;
+    align-items:center;justify-content:center;padding:20px;z-index:210}
+  .htg-modal.open{display:flex}
+  .htg-box{background:var(--surface);border-radius:var(--radius);padding:20px;width:100%;
+    max-width:420px;max-height:86vh;overflow:auto;box-shadow:var(--shadow-hover);
+    display:flex;flex-direction:column;min-width:0}
+  .htg-box h3{margin:0 0 4px;font-size:17px;font-weight:800;letter-spacing:-.02em}
+  .htg-sub{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.5}
+  .htg-search{width:100%;height:42px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);border-radius:10px;padding:0 12px;font-size:14px;font-family:inherit;
+    outline:none;margin-bottom:10px;transition:border-color .13s,box-shadow .13s;flex:0 0 auto}
+  .htg-search:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .htg-ulist{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:2px;
+    margin-bottom:14px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .htg-urow{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:9px;cursor:pointer;
+    border:1px solid transparent;transition:background .13s,border-color .13s}
+  .htg-urow:hover{background:var(--surface-2)}
+  .htg-urow.sel{background:var(--primary-soft);border-color:var(--primary)}
+  .htg-umid{flex:1;min-width:0}
+  .htg-uname{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .htg-usub{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .htg-utel{flex:0 0 auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .htg-uempty{color:var(--muted);text-align:center;padding:14px;font-size:13.5px}
 </style>
 </head>
 <body>
@@ -820,6 +863,47 @@
         Bir martalik amal, lekin qayta bosish zarar qilmaydi.</div>
       <div class="addrow"><button id="linkBtn" onclick="linkFilial()"><i data-lucide="link"></i>Filiallarni bog'lash</button></div>
       <div id="linkRes" class="res"></div>
+    </div>
+
+    <!-- Hodim -> Telegram: hodim xarajat kassasi (54xx) qaysi Aros foydalanuvchisiga
+         bog'langan (accounts.taskfix_user_id). RPC yo'q bo'lsa (SQL RUN qilinmagan)
+         rpcMissing() bilan jimgina yashirinadi. 🔴 isAdmin bilan CHEKLANMAYDI (boshqa
+         kartalardan farqi) — ko'rinish admin YOKI sozlama sahifasi ruxsati (server
+         hodim_tg_page_ok() bilan bir xil qoida), sahifaning o'zi allaqachon shunga gate. -->
+    <div class="card" id="htgCard" style="display:none">
+      <div class="sec">Hodim → Telegram</div>
+      <div class="hint">Hodim xarajat kassasida harakat bo'lganda Telegram xabari hodimning
+        o'ziga borishi uchun kassa Aros foydalanuvchisiga bog'langan bo'lishi kerak.
+        Bog'lanmagan kassaga xabar <b>faqat adminlarga</b> boradi.</div>
+      <div id="htgTop" class="hint" style="margin:0 0 12px"></div>
+      <div class="addrow" style="margin-bottom:12px">
+        <input id="htgQ" placeholder="Kassa qidirish…" oninput="htgRender()">
+        <button id="htgAvtoBtn" onclick="htgAvtoBogla(this)"><i data-lucide="wand-sparkles"></i>Avtomatik bog'lash</button>
+      </div>
+      <div class="seg" style="margin-bottom:12px">
+        <button id="htgFHammasi" class="on" onclick="htgFilter('hammasi')">Hammasi</button>
+        <button id="htgFBoglanmagan" onclick="htgFilter('boglanmagan')">Bog'lanmagan</button>
+      </div>
+      <div id="htgList"></div>
+      <div id="htgRes" class="res"></div>
+    </div>
+
+    <!-- Hodim -> Telegram bog'lash modali — qidiriladigan foydalanuvchi ro'yxati (~130 ta,
+         oddiy select emas). Yopilganda ".htg-modal" o'z ID'si bilan yopiladi — "Ko'proq"
+         sheeti (#moreModal, .mmodal) bilan aralashmasin uchun alohida klass prefiksi. -->
+    <div class="htg-modal" id="htgModal" onclick="if(event.target===this) window.htgCloseModal()">
+      <div class="htg-box">
+        <h3 id="htgModalTitle">Kassani bog'lash</h3>
+        <div class="htg-sub" id="htgModalSub"></div>
+        <input class="htg-search" id="htgUQ" placeholder="Ism, lavozim, filial, telefon…" oninput="htgRenderUsers()">
+        <div class="htg-ulist" id="htgUList"></div>
+        <div class="res" id="htgModalRes"></div>
+        <div class="mxd-facts" style="margin-top:2px">
+          <button type="button" class="mxd-cancel" onclick="window.htgCloseModal()">Bekor</button>
+          <button type="button" class="mxd-cancel" id="htgUnlinkBtn" onclick="htgSaveBind(null)"
+                  style="display:none;color:var(--red)"><i data-lucide="unlink"></i>Uzish</button>
+        </div>
+      </div>
     </div>
 
     <!-- ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql). Admin-only,
@@ -1939,6 +2023,144 @@ window.linkFilial=async()=>{
   btn.disabled=false; btn.innerHTML=old; icons();
 };
 
+// ===== Hodim -> Telegram (PROVODKA_HODIM_TELEGRAM.sql):
+//       hodim_tg_royxat() / hodim_tg_bogla(uuid,text) / hodim_tg_avto_bogla() =====
+// 🔴 isAdmin bilan CHEKLANMAYDI (boshqa admin kartalardan farqi) — ko'rinish server
+// bilan bir xil qoida (admin YOKI perm_has_page('sozlama')), sahifaning o'zi allaqachon
+// shunga gate. RPC yo'q bo'lsa (SQL RUN qilinmagan) rpcMissing() bilan karta yashirinadi.
+let htgData=null, htgFilterMode='hammasi', htgModalKassa=null, htgTaklifByKassa={};
+async function htgLoad(){
+  const {data,error}=await sb.rpc('hodim_tg_royxat');
+  if(error){
+    if(rpcMissing(error)){ $('htgCard').style.display='none'; return; }
+    $('htgCard').style.display='block';
+    $('htgTop').textContent=''; $('htgList').innerHTML='';
+    $('htgRes').className='res err';
+    $('htgRes').textContent="Yuklanmadi: "+(window.permErr?window.permErr(error):error.message);
+    return;
+  }
+  if(data && data.ok===false){ $('htgCard').style.display='none'; return; }   // {ok:false,kod:'ruxsat'}
+  $('htgCard').style.display='block';
+  $('htgRes').className='res'; $('htgRes').textContent='';
+  htgData=data||{kassalar:[],users:[],taklif:[]};
+  htgTaklifByKassa={};
+  (htgData.taklif||[]).forEach(t=>{ (htgTaklifByKassa[t.kassa_id]=htgTaklifByKassa[t.kassa_id]||[]).push(t); });
+  htgRenderTop();
+  htgRender();
+}
+function htgRenderTop(){
+  const el=$('htgTop'); if(!el) return;
+  const list=(htgData&&Array.isArray(htgData.kassalar))?htgData.kassalar:[];
+  const m=list.filter(k=>k.holat!=='boglangan').length;
+  el.innerHTML=m>0
+    ?`<b style="color:var(--amber)">${list.length} ta kassadan ${m} tasi bog'lanmagan</b> — bu hodimlarga Telegram xabari bormaydi.`
+    :(list.length?`Hammasi bog'langan (${list.length} ta kassa).`:'Hodim xarajat kassasi topilmadi.');
+}
+function htgChipHtml(k){
+  if(k.holat==='boglangan'){
+    const sub=[k.bogl_ism,k.bogl_lavozim].filter(Boolean).join(' · ')||'Bog\'langan';
+    return `<span class="htg-chip ok" title="${esc(sub)}"><i data-lucide="check-circle-2"></i><span>${esc(sub)}</span></span>`;
+  }
+  if(k.holat==='topilmadi'){
+    return `<span class="htg-chip err" title="taskfix_user_id bor, lekin Telegram ro'yxatida topilmadi"><i data-lucide="alert-triangle"></i><span>Topilmadi</span></span>`;
+  }
+  return `<span class="htg-chip warn"><i data-lucide="unlink"></i><span>Bog'lanmagan</span></span>`;
+}
+function htgRowHtml(k){
+  return `<div class="item htg-row">
+    <div class="item-head">
+      <div class="mid"><div class="t">${esc(k.name)}</div><div class="c">${esc(k.code)}${k.subtitle?' · '+esc(k.subtitle):''}</div></div>
+      ${htgChipHtml(k)}
+      <button class="edit" onclick="htgOpenModal('${esc(k.id)}')" title="Bog'lash"><i data-lucide="link-2"></i></button>
+    </div>
+  </div>`;
+}
+function htgRender(){
+  const box=$('htgList'); if(!box) return;
+  const list=(htgData&&Array.isArray(htgData.kassalar))?htgData.kassalar:[];
+  const q=(($('htgQ')&&$('htgQ').value)||'').trim().toLowerCase();
+  let arr=htgFilterMode==='boglanmagan'?list.filter(k=>k.holat!=='boglangan'):list;
+  if(q) arr=arr.filter(k=>((k.name||'')+' '+(k.code||'')+' '+(k.subtitle||'')).toLowerCase().indexOf(q)>=0);
+  box.innerHTML=arr.length?arr.map(htgRowHtml).join(''):'<div class="empty">Kassa topilmadi.</div>';
+  icons();
+}
+window.htgFilter=mode=>{
+  htgFilterMode=mode;
+  $('htgFHammasi').className=mode==='hammasi'?'on':'';
+  $('htgFBoglanmagan').className=mode==='boglanmagan'?'on':'';
+  htgRender();
+};
+window.htgOpenModal=kassaId=>{
+  const k=((htgData&&htgData.kassalar)||[]).find(x=>x.id===kassaId); if(!k) return;
+  htgModalKassa=k;
+  $('htgModalTitle').textContent=k.name;
+  $('htgModalSub').textContent=[k.code,k.subtitle].filter(Boolean).join(' · ')
+    +(k.holat==='boglangan'?(' · Hozir: '+[k.bogl_ism,k.bogl_lavozim].filter(Boolean).join(' · ')):'');
+  $('htgUnlinkBtn').style.display=k.holat==='boglangan'?'inline-flex':'none';
+  $('htgUQ').value='';
+  $('htgModalRes').className='res'; $('htgModalRes').textContent='';
+  htgRenderUsers();
+  $('htgModal').classList.add('open');
+  setTimeout(()=>{ const el=$('htgUQ'); if(el) el.focus(); },0);
+  icons();
+};
+window.htgCloseModal=()=>{ $('htgModal').classList.remove('open'); htgModalKassa=null; };
+function htgUserRowHtml(u,ball){
+  const digits=String(u.telefon||'').replace(/\D/g,'');
+  const tel=digits?('•'+digits.slice(-4)):'';
+  const badge=ball?' <i class="rb-taklif-badge">taklif</i>':'';
+  return `<div class="htg-urow" onclick="htgSaveBind('${esc(u.user_id)}')">
+    <div class="htg-umid">
+      <div class="htg-uname">${esc(u.ism||('#'+u.user_id))}${badge}</div>
+      <div class="htg-usub">${esc([u.lavozim,u.warehouse_name].filter(Boolean).join(' · ')||'—')}</div>
+    </div>
+    <div class="htg-utel">${esc(tel)}</div>
+  </div>`;
+}
+function htgRenderUsers(){
+  const box=$('htgUList'); if(!box||!htgModalKassa) return;
+  const list=(htgData&&Array.isArray(htgData.users))?htgData.users:[];
+  const taklif=htgTaklifByKassa[htgModalKassa.id]||[];
+  const ballMap={}; taklif.forEach(t=>{ ballMap[t.user_id]=t.ball; });
+  const q=(($('htgUQ')&&$('htgUQ').value)||'').trim().toLowerCase();
+  let arr=q?list.filter(u=>((u.ism||'')+' '+(u.lavozim||'')+' '+(u.warehouse_name||'')+' '+(u.telefon||'')).toLowerCase().indexOf(q)>=0):list.slice();
+  arr.sort((a,b)=>(ballMap[b.user_id]||0)-(ballMap[a.user_id]||0));
+  box.innerHTML=arr.length?arr.map(u=>htgUserRowHtml(u,ballMap[u.user_id])).join(''):'<div class="htg-uempty">Foydalanuvchi topilmadi.</div>';
+  icons();
+}
+window.htgSaveBind=async userId=>{
+  if(!htgModalKassa) return;
+  $('htgModalRes').className='res'; $('htgModalRes').textContent='Saqlanmoqda…';
+  const {error}=await sb.rpc('hodim_tg_bogla',{p_kassa:htgModalKassa.id,p_user_id:userId||null});
+  if(error){
+    $('htgModalRes').className='res err';
+    $('htgModalRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  window.htgCloseModal();
+  toast('ok',userId?'Bog\'landi ✓':'Uzildi ✓');
+  await htgLoad();
+};
+window.htgAvtoBogla=async btn=>{
+  const old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.textContent='Bog\'lanmoqda…'; }
+  const {data,error}=await sb.rpc('hodim_tg_avto_bogla');
+  if(btn){ btn.disabled=false; btn.innerHTML=old; icons(); }
+  if(error){
+    $('htgRes').className='res err';
+    $('htgRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  const n=(data&&data.boglandi)||0;
+  const ch=(data&&Array.isArray(data.chalkash))?data.chalkash:[];
+  let msg=n?(n+" ta kassa bog'landi"):"Yangi bog'lanadigan kassa topilmadi";
+  if(ch.length) msg+=' · '+ch.length+" tasi ikki xil nomzodga teng mos keldi — qo'lda tanlang: "
+    +ch.slice(0,5).map(c=>esc(c.kassa_nom||'')).join(', ')+(ch.length>5?'…':'');
+  $('htgRes').className='res ok';
+  $('htgRes').textContent=msg;
+  await htgLoad();
+};
+
 // ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql):
 //       rbac_royxat() / rbac_users() / rbac_role_save() / rbac_role_delete() / rbac_user_set() =====
 // Sahifa kalitlari uchun o'zbekcha yorliq — perms-dev.js PAGES bilan bir xil ro'yxat + 'hodim'.
@@ -2510,7 +2732,7 @@ window.addEventListener('hashchange',sozApplyRollarFocus);
 // isAdmin tayyor bo'lishiga tayanadi. RPC yo'q bo'lsa (SQL RUN qilinmagan) —
 // mxdOff bo'ladi va konstruktor umuman chizilmaydi, sahifa avvalgidek ishlaydi.
 // rbLoad() ham xuddi shunday — RPC yo'q bo'lsa rbOff bo'ladi va bo'lim yashirin qoladi.
-async function init(){ await Promise.all([loadRole(), load()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
+async function init(){ await Promise.all([loadRole(), load(), htgLoad()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
