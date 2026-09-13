@@ -2056,6 +2056,8 @@ async function htgLoad(){
     // tur xatosi ham bo'ladi ("operator does not exist: text = uuid") — u aniq xato.
     if(code==='PGRST202' || (code==='42883' && /hodim_tg_royxat/i.test(String(error.message||''))))
       return fail("SQL hali RUN qilinmagan — PROVODKA_HODIM_TELEGRAM.sql ni Supabase'da RUN qiling.");
+    if(/Failed to fetch|NetworkError|Load failed/i.test(String(error.message||'')))
+      return fail("Server javob bermadi (tarmoq uzildi yoki so'rov juda uzoq davom etdi). Sahifani yangilab qayta urinib ko'ring.");
     return fail("Yuklanmadi: "+(window.permErr?window.permErr(error):error.message)+(code?' ('+code+')':''));
   }
   if(data && data.ok===false){

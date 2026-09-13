@@ -82,30 +82,54 @@ begin
         from aros_tg_user t
        where t.faol
     ),
-    staff_bridge as (
-      -- Kassa nomi <-> aros_staff.toliq_nom TO'LIQ teng (ball=3) bo'lsagina
-      -- ko'prik ishonchli hisoblanadi (fuzzy ko'prik xato bog'lanish xavfi
-      -- keltiradi — Telegram xabari begona odamga ketishi mumkin).
-      select k.id as kassa_id, s.staff_id, s.telefon as staff_tel
+    -- ⚡ 2026-09-13 TEZLIK: ism/telefon HAR QATOR uchun BIR MARTA normallashtiriladi
+    --    (k_nm / u_nm / s_nm), juftliklarda faqat tayyor satrlar solishtiriladi.
+    --    Avval hodim_tg_ball() har juftlikda (38 x 129) 12 martagacha translit
+    --    (36 ta replace sikli) chaqirardi — so'rov vaqt chegarasidan oshib,
+    --    brauzerda "Failed to fetch" chiqardi. Ball mantiqi AYNAN o'sha:
+    --    ikkalasidan biri bo'sh -> 0; norm teng -> 3; so'zlar to'plami teng -> 2
+    --    (+ aros_staff ko'prigi worker_id/telefon bilan tasdiqlasa -> 3).
+    k_nm as (
+      select k.id, hodim_tg_norm(k.name) as nm, hodim_tg_words(k.name) as wd
         from kassalar_link k
-        join aros_staff s on s.is_active and hodim_tg_norm(s.toliq_nom) = hodim_tg_norm(k.name)
        where k.holat <> 'boglangan'
     ),
+    u_nm as (
+      select u.user_id, u.worker_id, hodim_tg_tel_norm(u.telefon) as tel9,
+             hodim_tg_norm(u.ism) as nm, hodim_tg_words(u.ism) as wd
+        from users_faol u
+    ),
+    s_nm as (
+      select s.staff_id, hodim_tg_tel_norm(s.telefon) as tel9, hodim_tg_norm(s.toliq_nom) as nm
+        from aros_staff s
+       where s.is_active
+    ),
+    staff_bridge as (
+      -- Kassa nomi <-> aros_staff.toliq_nom TO'LIQ teng bo'lsagina ko'prik ishonchli
+      -- (fuzzy ko'prik — Telegram xabari begona odamga ketishi mumkin).
+      select k.id as kassa_id, s.staff_id, s.tel9 as staff_tel9
+        from k_nm k
+        join s_nm s on s.nm = k.nm and k.nm <> ''
+    ),
+    ball0 as (
+      select k.id as kassa_id, u.user_id, u.worker_id, u.tel9,
+             case when k.nm = '' or u.nm = '' then 0
+                  when k.nm = u.nm then 3
+                  when k.wd = u.wd then 2
+                  else 0 end as b
+        from k_nm k
+        cross join u_nm u
+    ),
     taklif_raw as (
-      select k.id as kassa_id, u.user_id,
-             case
-               when hodim_tg_ball(k.name, u.ism) = 3 then 3
-               when hodim_tg_ball(k.name, u.ism) = 2
-                    and exists (
-                      select 1 from staff_bridge b
-                       where b.kassa_id = k.id
-                         and (b.staff_id::text = u.worker_id or hodim_tg_tel_match(b.staff_tel, u.telefon))
-                    ) then 3
-               else hodim_tg_ball(k.name, u.ism)
-             end as ball
-        from kassalar_link k
-        cross join users_faol u
-       where k.holat <> 'boglangan'
+      select b0.kassa_id, b0.user_id,
+             case when b0.b = 2 and exists (
+                         select 1 from staff_bridge sb
+                          where sb.kassa_id = b0.kassa_id
+                            and (sb.staff_id::text = b0.worker_id
+                                 or (sb.staff_tel9 is not null and sb.staff_tel9 = b0.tel9)))
+                  then 3 else b0.b end as ball
+        from ball0 b0
+       where b0.b >= 2
     )
     select jsonb_build_object(
       'ok', true,
@@ -218,25 +242,45 @@ begin
   users_faol as (
     select t.user_id, t.ism, t.telefon, t.worker_id from aros_tg_user t where t.faol
   ),
-  staff_bridge as (
-    select u.kassa_id, s.staff_id, s.telefon as staff_tel
+  -- ⚡ 2026-09-13 TEZLIK: ism/telefon HAR QATOR uchun BIR MARTA normallashtiriladi
+  --    (k_nm / u_nm / s_nm), juftliklarda faqat tayyor satrlar solishtiriladi.
+  --    Avval hodim_tg_ball() har juftlikda (38 x 129) 12 martagacha translit
+  --    (36 ta replace sikli) chaqirardi — so'rov vaqt chegarasidan oshib,
+  --    brauzerda "Failed to fetch" chiqardi. Ball mantiqi AYNAN o'sha:
+  --    ikkalasidan biri bo'sh -> 0; norm teng -> 3; so'zlar to'plami teng -> 2
+  --    (+ aros_staff ko'prigi worker_id/telefon bilan tasdiqlasa -> 3).
+  k_nm as (
+    select u.kassa_id, u.name, hodim_tg_norm(u.name) as nm, hodim_tg_words(u.name) as wd
       from unbound_only u
-      join aros_staff s on s.is_active and hodim_tg_norm(s.toliq_nom) = hodim_tg_norm(u.name)
+  ),
+  u_nm as (
+    select uf.user_id, uf.ism, uf.worker_id, hodim_tg_tel_norm(uf.telefon) as tel9,
+           hodim_tg_norm(uf.ism) as nm, hodim_tg_words(uf.ism) as wd
+      from users_faol uf
+  ),
+  s_nm as (
+    select s.staff_id, hodim_tg_tel_norm(s.telefon) as tel9, hodim_tg_norm(s.toliq_nom) as nm
+      from aros_staff s
+     where s.is_active
+  ),
+  staff_bridge as (
+    select k.kassa_id, s.staff_id, s.tel9 as staff_tel9
+      from k_nm k
+      join s_nm s on s.nm = k.nm and k.nm <> ''
   ),
   kandidat as (
-    select u.kassa_id, u.name as kassa_nom, uf.user_id, uf.ism,
-           case
-             when hodim_tg_ball(u.name, uf.ism) = 3 then 3
-             when hodim_tg_ball(u.name, uf.ism) = 2
-                  and exists (
-                    select 1 from staff_bridge b
-                     where b.kassa_id = u.kassa_id
-                       and (b.staff_id::text = uf.worker_id or hodim_tg_tel_match(b.staff_tel, uf.telefon))
-                  ) then 3
-             else hodim_tg_ball(u.name, uf.ism)
-           end as ball
-      from unbound_only u
-      cross join users_faol uf
+    select k.kassa_id, k.name as kassa_nom, u.user_id, u.ism,
+           case when k.nm = '' or u.nm = '' then 0
+                when k.nm = u.nm then 3
+                when k.wd = u.wd and exists (
+                       select 1 from staff_bridge b
+                        where b.kassa_id = k.kassa_id
+                          and (b.staff_id::text = u.worker_id
+                               or (b.staff_tel9 is not null and b.staff_tel9 = u.tel9))) then 3
+                when k.wd = u.wd then 2
+                else 0 end as ball
+      from k_nm k
+      cross join u_nm u
   ),
   top3 as (
     select * from kandidat where ball = 3
