@@ -127,7 +127,10 @@ comment on column yuk_tolov_grafik.izoh is
   'umumiy kelishuv matni — yuk_deadline.izoh (alohida, p_kelishuv orqali yoziladi).';
 
 alter table yuk_tolov_grafik enable row level security;
-revoke all on table yuk_tolov_grafik from public, anon;
+-- 🔴 Supabase yangi jadvalga authenticated'ga ALL huquqni avtomatik beradi —
+--    shuning uchun authenticated'dan HAM olib tashlanadi, keyin faqat SELECT
+--    qaytariladi (yozish faqat yuk_grafik_saqla RPC orqali).
+revoke all on table yuk_tolov_grafik from public, anon, authenticated;
 grant select on table yuk_tolov_grafik to authenticated;
 
 drop policy if exists yuk_tolov_grafik_sel on yuk_tolov_grafik;
