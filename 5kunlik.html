@@ -301,6 +301,7 @@
       </div>
       <div class="bk-open" id="bkWarn" style="display:none;color:var(--amber)"></div>
       <div class="bk-open" id="bkPrognoz" style="display:none"></div>
+      <div class="bk-open" id="bkMuddatsiz" style="display:none;cursor:pointer" onclick="location.href='yuklar.html'" title="Yuklar sahifasiga o'tish"></div>
       <div class="chipbar" id="activeFilters" style="display:none;margin:6px 0 2px"></div>
 
       <div class="scroll-top" id="scrollTop" aria-hidden="true"><div class="scroll-top-bar" id="scrollTopBar"></div></div>
@@ -529,18 +530,18 @@ const GROUPS=[
     {id:'yg_fakt', label:'Fakt', title:"Yig'ilgan fakt — kechagi Qoldi (haqiqiy) + bugungi Fakt, uzluksiz"},
   ]},
   {name:'Qarz', cols:[
-    {id:'qz_qarzmiz', label:'Qarzmiz', title:"Shu kunga muddati kelgan, hali to'lanmagan qarz (manfiy)"},
-    {id:'qz_berdik', label:'Berdik', title:"Shu kuni haqiqatda to'langan — hamma yuk to'lovi"},
-    {id:'qz_raz', label:'Raznitsa', title:"Qarzmiz + Berdik — to'liq to'lansa 0"},
+    {id:'qz_qarzmiz', label:'Qarzmiz', title:"Shu kunga muddati kelgan to'lov grafigi summasi (manfiy, to'langan-to'lanmaganidan qat'i nazar)"},
+    {id:'qz_berdik', label:'Berdik', title:"Shu kunga tushgan grafik qatorlariga FIFO taqsimlangan to'lov (muddatidan oldin/kech qilingan bo'lishi mumkin)"},
+    {id:'qz_raz', label:'Raznitsa', title:"Qarzmiz + Berdik — to'lanmagan qoldiq, to'liq to'lansa 0"},
   ]},
   {name:"Qoldi pul", cols:[
     {id:'qp_reja', label:"Reja bo'yicha", title:"Yig'.Reja + Qarzmiz — kunlik rejaga asoslangan qoldiq"},
     {id:'qp_uzga', label:'Prognoz bo\'yicha', title:"Yig'.Uzga + Qarzmiz — Uzgaradi (prognoz) asosidagi qoldiq"},
-    {id:'qp_fakt', label:'Haqiqiy', title:"Yig'.Fakt − Berdik — haqiqiy pul qoldig'i"},
+    {id:'qp_fakt', label:'Haqiqiy', title:"Kassalardagi haqiqiy pul (hodim xarajat kassalarisiz, yo'ldagi pul bilan)"},
     {id:'qp_raz', label:'Farq', title:"Prognoz bo'yicha − Haqiqiy — amalda qarz farqini ko'rsatadi"},
   ]},
   {name:'Prognoz', cols:[
-    {id:'pr_kutilgan', label:'Kutilgan pul', title:"Bugungi haqiqiy qoldiq + hali to'lanmagan qarz; kelajakda +Uzgaradi+Qarzmiz"},
+    {id:'pr_kutilgan', label:'Kutilgan pul', title:"Bugungi haqiqiy kassa puli + hali to'lanmagan qarz; kelajakda +Uzgaradi+Raznitsa"},
     {id:'pr_qarzolsa', label:"Qarz olsa bo'ladi", title:"60 kun ichida eng past nuqtagacha pul yetishi kerak bo'lgan miqdor"},
   ]},
 ];
@@ -734,6 +735,11 @@ function faktTd(iso, rejaVal){
 function numTd(val){
   return `<td class="num${val<0?' neg':''}">${money(val)}</td>`;
 }
+/* Null-safe numTd — kelajak kunlarda "Haqiqiy"/"Farq" (beshkunlik_kassa_qoldiq
+   asosida) ma'lum emas (Asilbek qarori A, 2026-09-13) — '—' ko'rsatiladi. */
+function numTdN(val){
+  return val==null ? `<td class="num muted">—</td>` : numTd(val);
+}
 /* ---- Qarz bloki — Qarzmiz (manfiy, qizil) hover/tap'da o'sha kun uchun (bitta platforma,
    profilsiz) deadline'i kelgan yuklar ro'yxatini ko'rsatadi. Berdik musbat/yashil.
    Raznitsa 0 bo'lsa xira (to'liq to'langan), aks holda ajralib turadi. ---- */
@@ -745,10 +751,15 @@ function qarzTd(iso,val){
     : `onclick="window.bkQarzPopToggle(event,'${iso}')"`;
   return `<td class="${cls}" ${handlers}>${money(val)}</td>`;
 }
-function berdikTd(val){
+/* Berdik foni (Asilbek qarori D, 2026-09-13): o'z vaqtida — yashil, kech — qizil
+   (kech = shu kunga tushgan grafik qatorlaridan birortasi muddatidan keyin
+   to'langan). Berdik=0 bo'lsa fon yo'q (to'lov bo'lmagan). */
+function berdikTd(val,kech){
   const r=Math.round(val);
   const cls='num'+(r>0?' pos':'')+(r===0?' muted':'');
-  return `<td class="${cls}">${money(val)}</td>`;
+  const style=r>0?(kech?' style="background:rgba(var(--red-rgb),.16)"':' style="background:rgba(var(--green-rgb),.16)"'):'';
+  const title=r>0?(kech?` title="Kech to'langan (muddatidan keyin)"`:` title="O'z vaqtida to'langan"`):'';
+  return `<td class="${cls}"${style}${title}>${money(val)}</td>`;
 }
 function raznitsaTd(val){
   const r=Math.round(val);
@@ -832,11 +843,13 @@ function buildRowCells(row, todayIso){
       s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
     }else if(g==='Qarz'){
       if(k===0) s+=qarzTd(row.iso,row.qarzmiz);
-      else if(k===1) s+=berdikTd(row.berdik);
+      else if(k===1) s+=berdikTd(row.berdik,row.kechBor);
       else s+=raznitsaTd(row.raznitsa);
     }else if(g==='Qoldi pul'){
-      const val=k===0?row.qoldiReja:(k===1?row.qoldiUzga:(k===2?row.qoldiFakt:row.qoldiRaz));
-      s+=numTd(val);
+      if(k===0) s+=numTd(row.qoldiReja);
+      else if(k===1) s+=numTd(row.qoldiUzga);
+      else if(k===2) s+=numTdN(row.haqiqiy);
+      else s+=numTdN(row.qoldiRaz);
     }else{ // Prognoz
       s+=(k===0)?kutilganTd(row.kutilgan):qarzOlsaTd(row);
     }
@@ -858,7 +871,7 @@ function colValue(row,colId){
     case 'qz_raz': return row.raznitsa;
     case 'qp_reja': return row.qoldiReja;
     case 'qp_uzga': return row.qoldiUzga;
-    case 'qp_fakt': return row.qoldiFakt;
+    case 'qp_fakt': return row.haqiqiy;
     case 'qp_raz': return row.qoldiRaz;
     case 'pr_kutilgan': return row.kutilgan;
     case 'pr_qarzolsa': return row.qarzOlsa;
@@ -929,9 +942,16 @@ function buildRun(startIso,hIso){
     const qd=QARZ_MAP[iso]||{};
     const qarzmiz=qd.qarzmiz||0, berdik=qd.berdik||0, raznitsa=qarzmiz+berdik;
     const yigReja=prevReja+(reja||0), yigUzga=prevUzga+(uzgardi||0), yigFakt=prevFakt+(fakt||0);
+    // qoldiFakt — ICHKI (Yig'ilma.Fakt rekursiyasini davom ettirish uchun),
+    // ko'rinishda ISHLATILMAYDI. "Haqiqiy" (Asilbek qarori A, 2026-09-13) endi
+    // KASSA_MAP'dan — haqiqiy kassa qoldig'i (beshkunlik_kassa_qoldiq), o'tgan/
+    // bugungi kunlarda; kelajakda (iso>todayIso) noma'lum (null, '—' ko'rinadi).
     const qoldiReja=yigReja+qarzmiz, qoldiUzga=yigUzga+qarzmiz, qoldiFakt=yigFakt-berdik;
+    const haqiqiy=(iso<=todayIso && KASSA_MAP[iso]!=null)?KASSA_MAP[iso]:null;
     RUN_MAP[iso]={iso,reja,uzgardi,fakt,yigReja,yigUzga,yigFakt,qarzmiz,berdik,raznitsa,
-                  qoldiReja,qoldiUzga,qoldiFakt,qoldiRaz:qoldiUzga-qoldiFakt,
+                  kechBor:!!qd.kechBor,
+                  qoldiReja,qoldiUzga,qoldiFakt,haqiqiy,
+                  qoldiRaz:(haqiqiy!=null)?(qoldiUzga-haqiqiy):null,
                   uzgardiKind:eff.kind, uzgardiCount:eff.count||null,
                   uzgardiRaw:(rj.uzgardi!=null?Number(rj.uzgardi):null)};
     prevReja=qoldiReja; prevUzga=qoldiUzga; prevFakt=qoldiFakt;
@@ -939,23 +959,28 @@ function buildRun(startIso,hIso){
   computePrognoz(todayIso);
 }
 
-/* ---- 7-BOSQICH — Prognoz: BRIEF_5KUNLIK.md 4-bo'lim.
-   B = Qoldi.Fakt(bugun). O = Σ Qarzmiz(t) t<=bugun (manfiy, hali to'lanmagan qarz).
-   K(bugun) = B+O. D>bugun uchun K(D) = K(D-1) + Uzgaradi(D) + Qarzmiz(D) (kelajakda
-   Fakt/haqiqiy to'lov yo'q — Uzgaradi ORNI bosadi). "Qarz olsa bo'ladi"(D) =
-   max(0, min_{t=D..H} K(t)) — eng past nuqtagacha pul yetishi kerak. ---- */
+/* ---- 7/11-BOSQICH — Prognoz: BRIEF_5KUNLIK.md 4-bo'lim (Asilbek qarori B, 2026-09-13).
+   B = Haqiqiy(bugun) — kassalardagi haqiqiy pul (KASSA_MAP; topilmasa eski taxminiy
+   qoldiFakt'ga tushiladi). O = Σ Raznitsa(t) t<=bugun (manfiy = hali to'lanmagan,
+   muddati kelgan qarz). K(bugun) = B+O. D>bugun uchun K(D) = K(D-1) + Uzgaradi(D) +
+   Raznitsa(D) (kelajakda muddatdan oldin to'langan qism allaqachon kassadan chiqqan —
+   shuning uchun Qarzmiz emas, Raznitsa). "Qarz olsa bo'ladi"(D) = max(0, min_{t=D..H}
+   K(t)) — eng past nuqtagacha pul yetishi kerak. ---- */
 function computePrognoz(todayIso){
   const days=Object.keys(RUN_MAP).sort();
   if(!days.length) return;
   const T=days.includes(todayIso)?todayIso:days[days.length-1];
   const rowT=RUN_MAP[T];
   let O=0;
-  days.forEach(iso=>{ if(iso<=T) O+=(RUN_MAP[iso].qarzmiz||0); });
-  const K={}; K[T]=rowT.qoldiFakt+O;
+  days.forEach(iso=>{ if(iso<=T) O+=(RUN_MAP[iso].raznitsa||0); });
+  // B = Haqiqiy(T); KASSA_MAP hali yuklanmagan/RPC yo'q bo'lsa eski taxminiy
+  // qoldiFakt'ga tushiladi — Prognoz $0 bo'lib qolmasin (fail-open, mavjud naqsh).
+  const B=(rowT.haqiqiy!=null)?rowT.haqiqiy:rowT.qoldiFakt;
+  const K={}; K[T]=B+O;
   days.forEach(iso=>{ if(iso>T){
     const prevIso=isoAddDays(iso,-1);
     const prevK=(K[prevIso]!=null)?K[prevIso]:K[T];
-    K[iso]=prevK+(RUN_MAP[iso].uzgardi||0)+(RUN_MAP[iso].qarzmiz||0);
+    K[iso]=prevK+(RUN_MAP[iso].uzgardi||0)+(RUN_MAP[iso].raznitsa||0);
   }});
   for(let idx=0; idx<days.length; idx++){
     const iso=days[idx], row=RUN_MAP[iso];
@@ -1590,16 +1615,27 @@ async function loadReja(){
 }
 
 /* =====================================================================
-   6/7-BOSQICH — Qarz bloki: bitta platforma — beshkunlik_qarz_v2(from,to),
-   PROFILSIZ, SO'MDA. SQL hali RUN qilinmagan bo'lsa (funksiya yo'q) v1'ga
-   tushib ikkala profilni kun bo'yicha yig'ib beradi (QARZ_V2_OK=false — bir
-   marta aniqlangach qayta urinilmaydi). Qarzmiz MANFIY saqlanadi
-   (formulalarda to'g'ridan qo'shiladi), Berdik musbat. ===================== */
-let QARZ_MAP={};                 // sana -> {qarzmiz,berdik} (USD)
+   6/7/11-BOSQICH — Qarz bloki: bitta platforma — beshkunlik_qarz_v3(from,to)
+   (Asilbek qarori D, 2026-09-13: to'lov grafigi + FIFO taqsimot, profilsiz,
+   SO'MDA). SQL hali RUN qilinmagan bo'lsa (funksiya yo'q) v2'ga, undan keyin
+   v1'ga tushiladi (QARZ_V3_OK/QARZ_V2_OK — bir marta aniqlangach qayta
+   urinilmaydi). Qarzmiz MANFIY saqlanadi (formulalarda to'g'ridan
+   qo'shiladi), Berdik musbat. ===================== */
+let QARZ_MAP={};                 // sana -> {qarzmiz,berdik,kechBor} (USD)
 let QARZ_DETAIL_CACHE={};        // sana -> Promise<qatorlar> (so'mda)
-let QARZ_V2_OK=true;
+let QARZ_V3_OK=true, QARZ_V2_OK=true;
 
 async function loadQarzRows(first,last){
+  if(QARZ_V3_OK){
+    try{
+      const {data,error}=await sb.rpc('beshkunlik_qarz_v3',{p_from:first,p_to:last});
+      if(error) throw error;
+      return (data||[]).map(r=>({sana:r.sana, qarzmiz_uzs:r.qarzmiz_uzs, berdik_uzs:r.berdik_uzs, kech_bor:!!r.kech_bor}));
+    }catch(e){
+      if(isMissingFnErr(e)){ QARZ_V3_OK=false; }
+      else{ console.warn('beshkunlik_qarz_v3 oqilmadi:',e.message); return []; }
+    }
+  }
   if(QARZ_V2_OK){
     try{
       const {data,error}=await sb.rpc('beshkunlik_qarz_v2',{p_from:first,p_to:last});
@@ -1639,12 +1675,64 @@ async function loadQarz(){
     const kurs=(kursMap&&kursMap[r.sana]!=null)?Number(kursMap[r.sana]):null;
     const qUzs=Number(r.qarzmiz_uzs)||0, bUzs=Number(r.berdik_uzs)||0;
     // kurs topilmasa (juda kamdan-kam) 0 deb olinadi — dollar ustunlari NaN bo'lib qolmasin.
-    QARZ_MAP[r.sana]={ qarzmiz:(kurs>0)?-(qUzs/kurs):0, berdik:(kurs>0)?(bUzs/kurs):0 };
+    QARZ_MAP[r.sana]={ qarzmiz:(kurs>0)?-(qUzs/kurs):0, berdik:(kurs>0)?(bUzs/kurs):0, kechBor:!!r.kech_bor };
   });
 }
 
-/* ---- Qarzmiz katagi hover/tap — o'sha kun (profilsiz) deadline'i kelgan yuklar (so'mda) ---- */
+/* =====================================================================
+   11-BOSQICH — «Haqiqiy» (Qoldi pul) = kassalardagi haqiqiy pul (Asilbek
+   qarori A, 2026-09-13): beshkunlik_kassa_qoldiq(RUN_START..bugun) — kelajak
+   kunlar so'ralmaydi (baribir noma'lum, '—' ko'rsatiladi). USD = uzs/kurs(sana)
+   + usd (sanali kurs, beshkunlik_kurslar) — kurs topilmasa o'sha kun null
+   (Prognoz/buildRun fail-open bilan taxminiy qiymatga tushadi). RPC hali
+   RUN qilinmagan bo'lsa (funksiya yo'q) KASSA_MAP bo'sh qoladi — sahifa
+   sinmaydi, faqat Haqiqiy/Farq '—' bo'lib qoladi. ===================== */
+let KASSA_MAP={};                // sana -> usd (raqam) yoki undefined
+let KASSA_OK=true;
+async function loadKassaQoldiq(){
+  KASSA_MAP={};
+  if(!KASSA_OK) return;
+  const todayIso=isoDay(nowUz());
+  const to=(RUN_H<todayIso)?RUN_H:todayIso;
+  if(RUN_START>to) return;
+  let rows=[];
+  try{
+    const {data,error}=await sb.rpc('beshkunlik_kassa_qoldiq',{p_from:RUN_START,p_to:to});
+    if(error) throw error;
+    rows=data||[];
+  }catch(e){
+    if(isMissingFnErr(e)) KASSA_OK=false;
+    else console.warn('beshkunlik_kassa_qoldiq oqilmadi:',e.message);
+    return;
+  }
+  if(!rows.length) return;
+  let kursMap={};
+  try{
+    const {data,error}=await sb.rpc('beshkunlik_kurslar',{p_sanalar:rows.map(r=>r.sana)});
+    if(error) throw error;
+    kursMap=data||{};
+  }catch(e){ console.warn('beshkunlik_kurslar (kassa) xato:',e.message); }
+  rows.forEach(r=>{
+    const kurs=(kursMap&&kursMap[r.sana]!=null)?Number(kursMap[r.sana]):null;
+    if(!(kurs>0)) return;   // kurs topilmasa shu kun uchun Haqiqiy noma'lum (undefined -> null)
+    KASSA_MAP[r.sana]=(Number(r.uzs)||0)/kurs+(Number(r.usd)||0);
+  });
+}
+
+/* ---- Qarzmiz katagi hover/tap — o'sha kunga tushgan grafik qatorlari (so'mda).
+   E (Asilbek, 2026-09-13): 0 bo'lganda ham ishlaydi (handler qiymatdan qat'i
+   nazar qo'yiladi, qarzTd()ga qara) — grafik qatori bo'lsa hover ko'rsatadi. ---- */
 async function fetchQarzDetalRaw(iso){
+  if(QARZ_V3_OK){
+    try{
+      const {data,error}=await sb.rpc('beshkunlik_qarz_detal_v3',{p_sana:iso});
+      if(error) throw error;
+      return data||[];
+    }catch(e){
+      if(isMissingFnErr(e)){ QARZ_V3_OK=false; }
+      else{ console.warn('beshkunlik_qarz_detal_v3 xato:',e.message); return []; }
+    }
+  }
   if(QARZ_V2_OK){
     try{
       const {data,error}=await sb.rpc('beshkunlik_qarz_detal_v2',{p_sana:iso});
@@ -1668,6 +1756,24 @@ function fetchQarzDetal(iso){
   QARZ_DETAIL_CACHE[iso]=p;
   return p;
 }
+/* v3 qatorida 'holat' kaliti bor (grafik_id/summa_uzs/tolangan_uzs/kech/
+   tolov_sanalari/kelishuv) — eski v2/v1 qatorida yo'q (yuk_id/narx/valyuta/
+   izoh/qoldiq_uzs). Ikkalasi ham ko'rsatiladi, faqat v3 boyroq. */
+const HOLAT_RANG={tolangan:'var(--green)', kech:'var(--red)', tolanmagan:'var(--muted)', qisman:'var(--amber)'};
+function qarzPopRowHtml(r){
+  if(!('holat' in r)){
+    return `<div class="bkp-row"><span class="bkp-name">Yuk #${esc(r.yuk_id)}${r.izoh?(' · '+esc(r.izoh)):''}</span>`
+      +`<span>${money(Number(r.qoldiq_uzs)||0)} so'm</span></div>`;
+  }
+  const holatNom=r.kech?'kech':r.holat;   // to'liq to'langan, lekin kech bo'lsa qizil ko'rsatiladi
+  const rang=HOLAT_RANG[holatNom]||'var(--muted)';
+  const holatTxt={tolangan:"To'langan", kech:"To'langan (kech)", qisman:'Qisman', tolanmagan:"To'lanmagan"}[holatNom]||r.holat;
+  const sanalar=(r.tolov_sanalari||[]).length?(' · '+r.tolov_sanalari.map(fmtDayShort).join(', ')):'';
+  const kelishuv=r.kelishuv?`<div class="fk-sub">${esc(r.kelishuv)}</div>`:'';
+  return `<div class="bkp-row"><span class="bkp-name">Yuk #${esc(r.yuk_id)}${r.izoh?(' · '+esc(r.izoh)):''}${kelishuv}</span>`
+    +`<span>${money(Number(r.summa_uzs)||0)} so'm<span class="fk-sub" style="color:${rang}">${esc(holatTxt)}`
+    +`${r.tolangan_uzs>0?(' · '+money(Number(r.tolangan_uzs)||0)+" to'landi"):''}${esc(sanalar)}</span></span></div>`;
+}
 function renderQarzPop(iso,rect){
   const pop=$('bkPop'), key='qarz|'+iso;
   pop.dataset.popKey=key;
@@ -1680,12 +1786,12 @@ function renderQarzPop(iso,rect){
     // eski javob bilan boshqa (yoki yopiq) popoverni ustidan yozmaymiz.
     if(pop.dataset.popKey!==key || !pop.classList.contains('open')) return;
     const body=rows.length
-      ? rows.map(r=>`<div class="bkp-row"><span class="bkp-name">Yuk #${esc(r.yuk_id)}${r.izoh?(' · '+esc(r.izoh)):''}</span>`
-          +`<span>${money(Number(r.qoldiq_uzs)||0)} so'm</span></div>`).join('')
-      : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yuk topilmadi</span></div>`;
-    const total=rows.reduce((s,r)=>s+(Number(r.qoldiq_uzs)||0),0);
+      ? rows.map(qarzPopRowHtml).join('')
+      : `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Bu kunga grafik qatori yo'q</span></div>`;
+    const sumKey=rows.length && ('summa_uzs' in rows[0]) ? 'summa_uzs' : 'qoldiq_uzs';
+    const total=rows.reduce((s,r)=>s+(Number(r[sumKey])||0),0);
     pop.innerHTML=`<h4>${fmtDayShort(iso)} · Qarzmiz</h4>${body}`
-      +`<div class="bkp-total"><span>Jami</span><span>${money(total)} so'm</span></div>`;
+      +(rows.length?`<div class="bkp-total"><span>Jami</span><span>${money(total)} so'm</span></div>`:'');
     positionPop(rect);
   });
 }
@@ -2095,7 +2201,7 @@ function monthDaySlice(y,m,dim){
     const iso=`${y}-${pad2(m)}-${pad2(d)}`;
     const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;   // Mon=0..Yak=6
     const base=RUN_MAP[iso]||{iso,reja:null,uzgardi:null,fakt:null,yigReja:0,yigUzga:0,yigFakt:0,
-      qarzmiz:0,berdik:0,raznitsa:0,qoldiReja:0,qoldiUzga:0,qoldiFakt:0,qoldiRaz:0,
+      qarzmiz:0,berdik:0,raznitsa:0,kechBor:false,qoldiReja:0,qoldiUzga:0,qoldiFakt:0,haqiqiy:null,qoldiRaz:null,
       kutilgan:null,qarzOlsa:null,qarzOlsaMinIso:null,qarzOlsaMinVal:null,
       uzgardiKind:null,uzgardiCount:null,uzgardiRaw:null};
     rows.push(Object.assign({dow},base));
@@ -2439,7 +2545,7 @@ async function loadAll(){
   const token=++LOAD_TOKEN;
   await computeWindow();
   if(token!==LOAD_TOKEN) return;
-  await Promise.all([loadReja(), loadQarz()]);
+  await Promise.all([loadReja(), loadQarz(), loadKassaQoldiq()]);
   if(token!==LOAD_TOKEN) return;
   buildRun(RUN_START,RUN_H);
   renderTable();
@@ -2449,6 +2555,60 @@ async function loadAll(){
   if(token!==LOAD_TOKEN) return;
   buildRun(RUN_START,RUN_H);
   renderTable();
+}
+
+/* =====================================================================
+   «Muddat qo'yilmagan» xulosasi (Asilbek qarori E, 2026-09-13) — qarzi bor,
+   lekin to'lov muddati/grafigi qo'yilmagan Aros yuklari. Provodka'da yuk
+   jadvali yo'q — AYNAN yuklar.html dagi manba/mantiq takrorlangan
+   (aros-provodka-yuklar webhook, oxirgi 30 kun — o'sha sahifaning sukut
+   oynasi, yuk_tannarx_jami + yuk_tolangan_summa, yuk_deadline.deadline
+   yo'qligi = "muddat qo'yilmagan"). Mustaqil/fon rejimida — xato bo'lsa
+   jim (blok yashirin qoladi), asosiy jadvalga ta'sir qilmaydi. Bosilsa
+   yuklar.html ga olib boradi (E). ===================== */
+const N8N_YUKLAR='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+async function loadMuddatsizSummary(){
+  const el=$('bkMuddatsiz'); if(!el) return;
+  try{
+    const t=nowUz(), from=new Date(t.getTime()-30*86400000);
+    const res=await fetch(N8N_YUKLAR+'?date_from='+encodeURIComponent(isoDay(from))+'&date_to='+encodeURIComponent(isoDay(t)),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j || j.ok===false || !Array.isArray(j.yuklar)) throw new Error((j&&j.error)||"javob formati kutilmagan");
+    const yuklar=j.yuklar;
+    const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
+    if(!ids.length){ el.style.display='none'; return; }
+    const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
+    let rateMap={};
+    if(curs.length){ const {data,error}=await sb.rpc('yuk_kurslar',{p_curs:curs}); if(!error) rateMap=data||{}; }
+    const [{data:tanData,error:tanErr},{data:paidData,error:paidErr},{data:dlData,error:dlErr}]=await Promise.all([
+      sb.rpc('yuk_tannarx_jami',{p_ids:ids}),
+      sb.rpc('yuk_tolangan_summa',{p_ids:ids}),
+      sb.from('yuk_deadline').select('yuk_id,deadline').in('yuk_id',ids),
+    ]);
+    const tanMap=(!tanErr && tanData && typeof tanData==='object')?tanData:{};
+    const paidMap={}; if(!paidErr) (paidData||[]).forEach(s=>{ paidMap[String(s.yuk_id)]=Number(s.tolangan_uzs)||0; });
+    const dlSet=new Set(); if(!dlErr) (dlData||[]).forEach(r=>{ if(r.deadline) dlSet.add(String(r.yuk_id)); });
+
+    const curRate=cur=>(!cur||String(cur).toUpperCase()==='UZS')?1:(rateMap[cur]!=null?Number(rateMap[cur]):null);
+    let n=0, sumUzs=0;
+    yuklar.forEach(y=>{
+      const rate=curRate(y.valyuta);
+      if(rate==null) return;   // kurs topilmasa shu yuk hisoblanmaydi (yuklar-dev'dagi narxUzs() naqshi)
+      const narxUzs=Math.round(Number(y.narx||0)*rate);
+      const tan=tanMap[String(y.id)];
+      const jami=narxUzs+(tan?(Number(tan.jami_uzs)||0):0);
+      const qoldiq=Math.max(0, jami-(paidMap[String(y.id)]||0));
+      if(qoldiq>0 && !dlSet.has(String(y.id))){ n++; sumUzs+=qoldiq; }
+    });
+    if(n<=0){ el.style.display='none'; return; }
+
+    let kurs=null;
+    try{ const {data,error}=await sb.rpc('beshkunlik_kurs',{p_sana:isoDay(t)}); if(!error && data>0) kurs=Number(data); }catch(e){}
+    const summaTxt=(kurs>0)?('$'+money(sumUzs/kurs)):(money(sumUzs)+" so'm");
+    el.innerHTML=`⚠ Muddat qo'yilmagan: <b>${n} ta yuk</b> · <b>${esc(summaTxt)}</b> — yuklar sahifasiga o'tish →`;
+    el.style.display='block';
+  }catch(e){ console.warn("Muddat qo'yilmagan xulosasi yuklanmadi:",e.message||e); }
 }
 
 async function init(){
@@ -2467,6 +2627,7 @@ async function init(){
   $('sozBtn').style.display=(canEdit&&SOZLAMA_OK)?'inline-flex':'none';
   icons();
   await loadAll();
+  loadMuddatsizSummary();   // mustaqil/fon rejimida — asosiy jadvalni kutmaydi
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
