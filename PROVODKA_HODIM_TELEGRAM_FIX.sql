@@ -116,6 +116,15 @@ begin
              case when k.nm = '' or u.nm = '' then 0
                   when k.nm = u.nm then 3
                   when k.wd = u.wd then 2
+                  -- ball 1 = «o'xshash» (FAQAT TAKLIF, avto-bog'lashga KIRMAYDI):
+                  -- kassa nomidagi kamida 2 so'z foydalanuvchi ismidagi so'zga teng
+                  -- yoki birinchi 4 harfi bir xil ("obidjon"~"obid", "murtazayev"~"murtzayev").
+                  when (select count(*) from unnest(k.wd) kw
+                         where length(kw) >= 3
+                           and exists (select 1 from unnest(u.wd) uw
+                                        where uw = kw
+                                           or (length(kw) >= 4 and length(uw) >= 4
+                                               and left(kw, 4) = left(uw, 4)))) >= 2 then 1
                   else 0 end as b
         from k_nm k
         cross join u_nm u
@@ -129,7 +138,7 @@ begin
                                  or (sb.staff_tel9 is not null and sb.staff_tel9 = b0.tel9)))
                   then 3 else b0.b end as ball
         from ball0 b0
-       where b0.b >= 2
+       where b0.b >= 1
     )
     select jsonb_build_object(
       'ok', true,
@@ -149,7 +158,7 @@ begin
       'taklif', coalesce((
         select jsonb_agg(jsonb_build_object('kassa_id', tr.kassa_id, 'user_id', tr.user_id, 'ball', tr.ball)
                order by tr.kassa_id, tr.ball desc)
-        from taklif_raw tr where tr.ball >= 2), '[]'::jsonb)
+        from taklif_raw tr where tr.ball >= 1), '[]'::jsonb)
     )
   );
 end

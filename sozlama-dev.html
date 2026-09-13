@@ -580,6 +580,17 @@
   .htg-chip.warn{background:var(--amber-soft);color:var(--amber)}
   .htg-chip.err{background:var(--red-soft);color:var(--red)}
   .htg-row .item-head{flex-wrap:nowrap}
+  .htg-tak{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:8px 0 2px;padding:8px 10px;border-radius:10px;background:var(--surface-2);font-size:13px}
+  .htg-tak.none{background:transparent;padding:4px 2px;color:var(--muted)}
+  .htg-tak.none a{color:var(--primary)}
+  .htg-tak-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:6px;background:var(--line);color:var(--muted)}
+  .htg-tak.b3 .htg-tak-lbl{background:var(--primary-soft);color:var(--primary)}
+  .htg-tak.b1 .htg-tak-lbl{background:var(--amber-soft);color:var(--amber)}
+  .htg-tak-nm{font-weight:600;color:var(--ink)}
+  .htg-tak-sub,.htg-tak-more{color:var(--muted);font-size:12px}
+  .htg-tak-ok{margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .htg-tak-ok svg{width:14px;height:14px}
+  .htg-tak-ok:disabled{opacity:.6;cursor:default}
   @media(max-width:520px){
     .htg-row .item-head{flex-wrap:wrap}
     .htg-chip{max-width:100%;flex:1 1 100%;order:3}
@@ -2094,6 +2105,44 @@ function htgChipHtml(k){
   }
   return `<span class="htg-chip warn"><i data-lucide="unlink"></i><span>Bog'lanmagan</span></span>`;
 }
+/* Bog'lanmagan kassa ostida ENG YAXSHI taklif + bir bosishda tasdiqlash (2026-09-13):
+   38 ta kassani modal orqali birma-bir qidirib bog'lash og'ir edi. Taklif darajalari
+   (hodim_tg_royxat): 3 aniq mos · 2 so'zlar mos · 1 o'xshash (faqat tavsiya).
+   Avtomatik bog'lash baribir FAQAT 3 ni oladi — bu yerda admin ko'z bilan tasdiqlaydi. */
+const HTG_BALL_TXT={3:'aniq mos',2:"so'zlar mos",1:"o'xshash"};
+function htgBestTaklif(kassaId){
+  const arr=(htgTaklifByKassa[kassaId]||[]).slice().sort((a,b)=>(b.ball||0)-(a.ball||0));
+  if(!arr.length) return null;
+  const users=(htgData&&Array.isArray(htgData.users))?htgData.users:[];
+  const u=users.find(x=>String(x.user_id)===String(arr[0].user_id));
+  if(!u) return null;
+  const teng=arr.filter(t=>t.ball===arr[0].ball).length;
+  return {u, ball:arr[0].ball, boshqa:teng-1};
+}
+function htgTaklifHtml(k){
+  if(k.holat==='boglangan') return '';
+  const t=htgBestTaklif(k.id);
+  if(!t) return `<div class="htg-tak none">Taklif yo'q — <a href="javascript:void(0)" onclick="htgOpenModal('${esc(k.id)}')">qo'lda tanlash</a></div>`;
+  const sub=[t.u.lavozim,t.u.warehouse_name].filter(Boolean).join(' · ');
+  const more=t.boshqa>0?` <span class="htg-tak-more">+${t.boshqa} ta shunday</span>`:'';
+  return `<div class="htg-tak b${t.ball}">
+    <span class="htg-tak-lbl">${esc(HTG_BALL_TXT[t.ball]||'taklif')}</span>
+    <span class="htg-tak-nm">${esc(t.u.ism||('#'+t.u.user_id))}</span>${sub?`<span class="htg-tak-sub">${esc(sub)}</span>`:''}${more}
+    <button class="htg-tak-ok" onclick="htgQuickBind('${esc(k.id)}','${esc(t.u.user_id)}',this)"><i data-lucide="check"></i>Bog'lash</button>
+  </div>`;
+}
+window.htgQuickBind=async(kassaId,userId,btn)=>{
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  const {error}=await sb.rpc('hodim_tg_bogla',{p_kassa:kassaId,p_user_id:userId});
+  if(error){
+    if(btn){ btn.disabled=false; btn.innerHTML='<i data-lucide="check"></i>Bog\'lash'; icons(); }
+    $('htgRes').className='res err';
+    $('htgRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  toast('ok','Bog\'landi ✓');
+  await htgLoad();
+};
 function htgRowHtml(k){
   return `<div class="item htg-row">
     <div class="item-head">
@@ -2101,6 +2150,7 @@ function htgRowHtml(k){
       ${htgChipHtml(k)}
       <button class="edit" onclick="htgOpenModal('${esc(k.id)}')" title="Bog'lash"><i data-lucide="link-2"></i></button>
     </div>
+    ${htgTaklifHtml(k)}
   </div>`;
 }
 function htgRender(){
