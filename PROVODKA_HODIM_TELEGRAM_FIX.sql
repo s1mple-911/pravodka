@@ -38,6 +38,26 @@ comment on column accounts.aros_user_id is
 
 
 -- #####################################################################
+-- ##  1b-BO'LIM — hodim_tg_translit: sikl o'rniga translate() (tezlik) ##
+-- #####################################################################
+-- Imzo va natija AYNAN o'sha (butun kirill bloki bo'yicha tekshirilgan):
+-- avval plpgsql sikli 36 ta replace qilardi; endi 9 ta ko'p harfli replace +
+-- bitta translate(). Faqat hodim_tg_* funksiyalari ishlatadi.
+create or replace function hodim_tg_translit(p_text text)
+returns text
+language sql
+immutable
+as $fn$
+  select translate(
+           replace(replace(replace(replace(replace(replace(replace(replace(replace(
+             lower(coalesce(p_text, '')),
+             'ё', 'yo'), 'ж', 'j'), 'ц', 'ts'), 'ч', 'ch'), 'ш', 'sh'), 'щ', 'sh'),
+             'ъ', ''), 'ю', 'yu'), 'я', 'ya'),
+           'ыэқғҳўабвгдезийклмнопрстуфх',
+           'ieqghoabvgdeziyklmnoprstufx');
+$fn$;
+
+-- #####################################################################
 -- ##  2-BO'LIM — Telegram bog'lash funksiyalari (aros_user_id)        ##
 -- #####################################################################
 
@@ -89,17 +109,17 @@ begin
     --    brauzerda "Failed to fetch" chiqardi. Ball mantiqi AYNAN o'sha:
     --    ikkalasidan biri bo'sh -> 0; norm teng -> 3; so'zlar to'plami teng -> 2
     --    (+ aros_staff ko'prigi worker_id/telefon bilan tasdiqlasa -> 3).
-    k_nm as (
+    k_nm as materialized (
       select k.id, hodim_tg_norm(k.name) as nm, hodim_tg_words(k.name) as wd
         from kassalar_link k
        where k.holat <> 'boglangan'
     ),
-    u_nm as (
+    u_nm as materialized (
       select u.user_id, u.worker_id, hodim_tg_tel_norm(u.telefon) as tel9,
              hodim_tg_norm(u.ism) as nm, hodim_tg_words(u.ism) as wd
         from users_faol u
     ),
-    s_nm as (
+    s_nm as materialized (
       select s.staff_id, hodim_tg_tel_norm(s.telefon) as tel9, hodim_tg_norm(s.toliq_nom) as nm
         from aros_staff s
        where s.is_active
@@ -258,16 +278,16 @@ begin
   --    brauzerda "Failed to fetch" chiqardi. Ball mantiqi AYNAN o'sha:
   --    ikkalasidan biri bo'sh -> 0; norm teng -> 3; so'zlar to'plami teng -> 2
   --    (+ aros_staff ko'prigi worker_id/telefon bilan tasdiqlasa -> 3).
-  k_nm as (
+  k_nm as materialized (
     select u.kassa_id, u.name, hodim_tg_norm(u.name) as nm, hodim_tg_words(u.name) as wd
       from unbound_only u
   ),
-  u_nm as (
+  u_nm as materialized (
     select uf.user_id, uf.ism, uf.worker_id, hodim_tg_tel_norm(uf.telefon) as tel9,
            hodim_tg_norm(uf.ism) as nm, hodim_tg_words(uf.ism) as wd
       from users_faol uf
   ),
-  s_nm as (
+  s_nm as materialized (
     select s.staff_id, hodim_tg_tel_norm(s.telefon) as tel9, hodim_tg_norm(s.toliq_nom) as nm
       from aros_staff s
      where s.is_active
