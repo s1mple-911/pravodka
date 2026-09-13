@@ -33,7 +33,7 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
   #app{display:none}.sidebar{display:none}
   .main{padding:22px 26px 40px;max-width:1120px;margin:0 auto}
-  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:1160px}.mobile-only{display:none!important}.bnav{display:none!important}}/* ===== 1-ISH: Sidebar rail — yopiq(64px)/hover-focus-pin'da 240px overlay (Asilbek, 2026-09-13) ===== */@media(min-width:900px){.sidebar{width:64px;overflow:hidden;transition:width .18s ease-out,box-shadow .18s ease-out;box-shadow:none}.sidebar:hover,.sidebar:focus-within{width:var(--side);box-shadow:var(--shadow-hover);z-index:55}html.side-pin .sidebar{width:var(--side);box-shadow:none;z-index:40}.main{margin-left:64px}html.side-pin .main{margin-left:var(--side)}.sidebar .brand{gap:0;justify-content:center;padding-left:0;padding-right:0}.sidebar:hover .brand,.sidebar:focus-within .brand,html.side-pin .sidebar .brand{gap:11px;justify-content:flex-start;padding-left:8px;padding-right:8px}.sidebar .brand-name,.sidebar .role-badge{display:none}.sidebar:hover .brand-name,.sidebar:focus-within .brand-name,html.side-pin .brand-name,.sidebar:hover .role-badge,.sidebar:focus-within .role-badge,html.side-pin .role-badge{display:block}.sidebar .nav-item,.sidebar .icon-btn{gap:0;justify-content:center;padding-left:0;padding-right:0}.sidebar:hover .nav-item,.sidebar:focus-within .nav-item,html.side-pin .nav-item{gap:11px;justify-content:flex-start;padding-left:12px;padding-right:12px}.sidebar:hover .icon-btn,.sidebar:focus-within .icon-btn,html.side-pin .icon-btn{gap:9px;justify-content:flex-start;padding-left:12px;padding-right:12px}.sidebar .nav-item span,.sidebar .icon-btn span{display:none;white-space:nowrap}.sidebar:hover .nav-item span,.sidebar:focus-within .nav-item span,html.side-pin .nav-item span,.sidebar:hover .icon-btn span,.sidebar:focus-within .icon-btn span,html.side-pin .icon-btn span{display:inline}.side-pin-btn{display:none;margin-left:auto;flex:0 0 auto;width:26px;height:26px;align-items:center;justify-content:center;background:transparent;border:none;border-radius:8px;color:var(--muted);cursor:pointer;padding:0}.side-pin-btn svg{width:15px;height:15px}.side-pin-btn:hover{background:var(--surface-2);color:var(--ink)}.sidebar:hover .side-pin-btn,.sidebar:focus-within .side-pin-btn,html.side-pin .side-pin-btn{display:inline-flex}html.side-pin .side-pin-btn{color:var(--primary)}}@media(min-width:900px) and (prefers-reduced-motion:reduce){.sidebar{transition:none}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
   .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
@@ -259,7 +259,7 @@
 
 <div id="app" class="shell">
   <aside class="sidebar">
-    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div><button class="side-pin-btn" type="button" onclick="toggleSidePin()" aria-label="Sidebar'ni qadash" title="Qadash"><i data-lucide="pin"></i></button></div>
     <nav class="side-nav">
       <a class="nav-item" href="jurnal.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
       <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
@@ -453,6 +453,10 @@
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// ===== 1-ISH: Sidebar rail — pin holati (localStorage, try/catch) =====
+try{ if(localStorage.getItem('prov-side-pin')==='1') document.documentElement.classList.add('side-pin'); }catch(e){}
+window.toggleSidePin=()=>{ const on=!document.documentElement.classList.contains('side-pin');
+  document.documentElement.classList.toggle('side-pin',on); try{ localStorage.setItem('prov-side-pin',on?'1':'0'); }catch(e){} };
 // stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
 const PAGE=location.pathname.split('/').pop()||'index';
 const swrKey=n=>`prov-swr:${PAGE}:${n}`;

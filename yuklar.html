@@ -65,7 +65,7 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
   #app{display:none}.sidebar{display:none}
   .main{padding:var(--s6) var(--s5) var(--s7);max-width:1120px;margin:0 auto}
-  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:none}.mobile-only{display:none!important}.bnav{display:none!important}}
+  @media(min-width:900px){.sidebar{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:var(--side);background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;z-index:40}.main{margin-left:var(--side);max-width:none}.mobile-only{display:none!important}.bnav{display:none!important}}/* ===== 1-ISH: Sidebar rail — yopiq(64px)/hover-focus-pin'da 240px overlay (Asilbek, 2026-09-13) ===== */@media(min-width:900px){.sidebar{width:64px;overflow:hidden;transition:width .18s ease-out,box-shadow .18s ease-out;box-shadow:none}.sidebar:hover,.sidebar:focus-within{width:var(--side);box-shadow:var(--shadow-hover);z-index:55}html.side-pin .sidebar{width:var(--side);box-shadow:none;z-index:40}.main{margin-left:64px}html.side-pin .main{margin-left:var(--side)}.sidebar .brand{gap:0;justify-content:center;padding-left:0;padding-right:0}.sidebar:hover .brand,.sidebar:focus-within .brand,html.side-pin .sidebar .brand{gap:11px;justify-content:flex-start;padding-left:8px;padding-right:8px}.sidebar .brand-name,.sidebar .role-badge{display:none}.sidebar:hover .brand-name,.sidebar:focus-within .brand-name,html.side-pin .brand-name,.sidebar:hover .role-badge,.sidebar:focus-within .role-badge,html.side-pin .role-badge{display:block}.sidebar .nav-item,.sidebar .icon-btn{gap:0;justify-content:center;padding-left:0;padding-right:0}.sidebar:hover .nav-item,.sidebar:focus-within .nav-item,html.side-pin .nav-item{gap:11px;justify-content:flex-start;padding-left:12px;padding-right:12px}.sidebar:hover .icon-btn,.sidebar:focus-within .icon-btn,html.side-pin .icon-btn{gap:9px;justify-content:flex-start;padding-left:12px;padding-right:12px}.sidebar .nav-item span,.sidebar .icon-btn span{display:none;white-space:nowrap}.sidebar:hover .nav-item span,.sidebar:focus-within .nav-item span,html.side-pin .nav-item span,.sidebar:hover .icon-btn span,.sidebar:focus-within .icon-btn span,html.side-pin .icon-btn span{display:inline}.side-pin-btn{display:none;margin-left:auto;flex:0 0 auto;width:26px;height:26px;align-items:center;justify-content:center;background:transparent;border:none;border-radius:8px;color:var(--muted);cursor:pointer;padding:0}.side-pin-btn svg{width:15px;height:15px}.side-pin-btn:hover{background:var(--surface-2);color:var(--ink)}.sidebar:hover .side-pin-btn,.sidebar:focus-within .side-pin-btn,html.side-pin .side-pin-btn{display:inline-flex}html.side-pin .side-pin-btn{color:var(--primary)}}@media(min-width:900px) and (prefers-reduced-motion:reduce){.sidebar{transition:none}}
   @media(max-width:899px){.desktop-only{display:none!important}body{padding-bottom:76px}}
   .brand{display:flex;align-items:center;gap:var(--s3);padding:6px var(--s2) var(--s6);flex:0 0 auto}
   .logo{width:30px;height:36px;color:var(--primary);display:flex;align-items:center;justify-content:center}.logo svg{width:100%;height:100%;display:block}
@@ -183,15 +183,23 @@
   .ytbl td.num{font-variant-numeric:tabular-nums;font-weight:600}
   .ytbl .yid{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .ytbl .prov{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+  .ytbl .omb{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* Holat ustuni — ikki pill (status + yetkazish) ustma-ust, bitta katakda */
   .holat-pills{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
-  /* 1301–1500px: 14 ustun (Aros bojxona + Holat + To'langan + Qoldiq + Muddat bilan) kartaga to'liq
+  /* ≥1301px: 14 ustun (Aros bojxona + Holat + To'langan + Qoldiq + Muddat bilan) kartaga to'liq
      sig'sin — raqam KESILMASIN (Asilbek 2026-09-07). Skroll/kesish emas: padding+shrift
-     kichrayadi, sarlavha ikki qatorga sinadi, karta butun enni oladi (.main max-width:none). */
-  @media(min-width:1301px) and (max-width:1500px){.main{padding-left:var(--s4);padding-right:var(--s4)}.ytbl td{padding:10px 6px;font-size:12px}
-    .ytbl th{padding:0 6px 10px;font-size:10px;white-space:normal;line-height:1.25}
-    .ytbl td.c-jami{font-size:14px}.ytbl .prov{max-width:110px}.bojx-top{font-size:11px}.bojx{min-width:88px}
-    .holat-pills .pill{font-size:11px}.mdl,.mdl-empty{min-width:76px}.mdl-d{font-size:11px}.mdl-sub{font-size:10px}}
+     kichrayadi, sarlavha ikki qatorga sinadi, karta butun enni oladi (.main max-width:none).
+     🔴 2026-09-13: yuqori chegara (max-width:1500px) OLIB TASHLANDI — Muddat ustuni qo'shilgach
+     1366/1440 endi yetarli emas edi, shuning uchun bitta zich o'lcham 1920px'gacha (va undan
+     yuqori) ham qo'llanadi: displey kattaligidan qat'i nazar bir xil zichlik, sig'ish bir marta
+     tekshiriladi. Ombor (.omb) va Yetkazuvchi (.prov) endi ham kesiladi (title'da to'liq nom). */
+  @media(min-width:1301px){.main{padding-left:var(--s4);padding-right:var(--s4)}.ytbl td{padding:9px 5px;font-size:12px}
+    .ytbl th{padding:0 5px 9px;font-size:10px;white-space:normal;line-height:1.25}
+    .ytbl td.c-jami{font-size:14px}.ytbl .prov{max-width:96px}.ytbl .omb{max-width:96px}
+    .bojx-top{font-size:11px}.bojx-lim{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .bojx{min-width:76px}.holat-pills .pill{font-size:11px;padding:2px 6px}
+    .mdl,.mdl-empty{min-width:70px}.mdl-d{font-size:11px}.mdl-sub{font-size:10px}
+    .paidsub{font-size:10px}.qbtn{padding:0 6px 0 8px;font-size:11.5px}}
   /* RAQAM IERARXIYASI (uch xil son bir qatorda):
      Aros narxi — manba (neytral) · Qo'shilgan — bizning ustama (yashil, +) · Jami — ASOSIY (eng katta/qora) */
   .ytbl td.c-aros{color:var(--ink-2);font-weight:600}
@@ -205,6 +213,7 @@
   .ck{width:18px;height:18px;accent-color:var(--primary);cursor:pointer;margin:0}
   .cval{display:block}
   .subx{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:500;letter-spacing:0}
+  .paidsub{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500;white-space:nowrap}
   /* qatorlar sonini ochish tugmasi — chevron ochilganda 180° aylanadi */
   .qbtn{border:1px solid var(--line);background:var(--surface);color:var(--primary-ink);font-family:inherit;font-size:12.5px;
     font-weight:700;cursor:pointer;padding:0 var(--s2) 0 10px;min-height:32px;border-radius:999px;display:inline-flex;
@@ -249,6 +258,7 @@
   .bojx-top{font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
   .bojx-top.warn{color:var(--amber)}
   .bojx-top.over{color:var(--red-ink)}
+  .bojx-lim{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
   .bojx-bar{height:5px;border-radius:999px;background:var(--surface-2);margin-top:3px;overflow:hidden}
   .bojx-bar span{display:block;height:100%;border-radius:999px;background:var(--primary)}
   .bojx-bar span.warn{background:var(--amber)}
@@ -360,7 +370,7 @@
     .ytbl td.c-jami{font-size:17px;padding-top:var(--s2);margin-top:var(--s1);border-top:1px solid var(--line)}
     .ytbl tbody tr.yrow.on td.c-jami{border-top-color:var(--primary-line)}
     .ytbl td.c-jami::before{font-weight:600;color:var(--ink-2)}
-    .ytbl .prov{max-width:none}
+    .ytbl .prov{max-width:none}.ytbl .omb{max-width:none;white-space:normal}
     .ytbl td>.cval{text-align:right}
     .ytbl td .mdl,.ytbl td .mdl-empty{align-items:flex-end;text-align:right}
     /* ochilgan qatorlar — karta bilan yopishib turadi, alohida ko'chib ketmasin */
@@ -567,7 +577,7 @@
 
 <div id="app" class="shell">
   <aside class="sidebar">
-    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div></div>
+    <div class="brand"><div class="logo"><svg viewBox="0 0 100 118" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M32 6H78A16 16 0 0 1 94 22V86L68 112H22A16 16 0 0 1 6 96V32Z M32 20H68A12 12 0 0 1 80 32V76A12 12 0 0 1 68 88H32A12 12 0 0 1 20 76V32A12 12 0 0 1 32 20Z"/><rect x="40" y="73" width="20" height="7" rx="3.5"/></svg></div><div class="brand-name">aros <span>Provodka</span></div><button class="side-pin-btn" type="button" onclick="toggleSidePin()" aria-label="Sidebar'ni qadash" title="Qadash"><i data-lucide="pin"></i></button></div>
     <nav class="side-nav">
       <a class="nav-item" href="jurnal.html"><i data-lucide="scroll-text"></i><span>Jurnal</span></a>
       <a class="nav-item" href="professional.html"><i data-lucide="list-plus"></i><span>Professional</span></a>
@@ -848,6 +858,10 @@
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_meO8FlGtAz1hmwNrrrgI6Q_PBh0T1rT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+// ===== 1-ISH: Sidebar rail — pin holati (localStorage, try/catch) =====
+try{ if(localStorage.getItem('prov-side-pin')==='1') document.documentElement.classList.add('side-pin'); }catch(e){}
+window.toggleSidePin=()=>{ const on=!document.documentElement.classList.contains('side-pin');
+  document.documentElement.classList.toggle('side-pin',on); try{ localStorage.setItem('prov-side-pin',on?'1':'0'); }catch(e){} };
 // stale-while-revalidate: keshdan darrov ko'rsat, fonda yangila (5 daqiqa TTL)
 const PAGE=location.pathname.split('/').pop()||'index';
 const swrKey=n=>`prov-swr:${PAGE}:${n}`;
@@ -938,6 +952,8 @@ function priceF(n,cur){ const v=Number(n); const c=cur?(' '+esc(cur)):'';
   return v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+c; }
 function dF(s){ if(!s) return '—'; try{ return new Date(s).toISOString().slice(0,10); }catch(e){ return '—'; } }
 function dtF(s){ if(!s) return '—'; try{ const d=new Date(s); return d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,16); }catch(e){ return '—'; } }
+// Faqat vaqt (Sana katagida sana ustidan takrorlanmasin — ustun tor, 2026-09-13 zichlash).
+function tF(s){ if(!s) return ''; try{ return new Date(s).toISOString().slice(11,16); }catch(e){ return ''; } }
 function curRate(cur){ if(!cur||String(cur).toUpperCase()==='UZS') return 1; const r=rateMap[cur]; return (r==null?null:Number(r)); }
 function narxUzs(y){ const r=curRate(y.valyuta); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
 // yuk_tannarx_jami: { "1204": {jami_uzs, qatorlar:[...]} } — kalit matn ko'rinishida keladi.
@@ -1116,8 +1132,11 @@ function bojCellHtml(y){
   const cls=pctv>=100?'over':(pctv>=90?'warn':'');
   const rejimTxt=b.rejim==='doc'?'Hujjat darajasida (bir xil limit)':(b.rejim==='item'?'Har tovar alohida':'');
   const title='Aros bojxona limiti: '+money(lim)+' so\'m'+(rejimTxt?' · '+rejimTxt:'');
+  // Ikki qator (qo'shilgan ustida, limit ostida "/ N") — inline "X / Y" tor ustunda joy
+  // yemasin (2026-09-13, Muddat qo'shilgach zichlash).
   return '<div class="bojx" title="'+esc(title)+'">'
-    +'<div class="bojx-top'+(cls?' '+cls:'')+'">'+money(qosh)+' / '+money(lim)+'</div>'
+    +'<div class="bojx-top'+(cls?' '+cls:'')+'">'+money(qosh)+'</div>'
+    +'<div class="bojx-lim">/ '+money(lim)+'</div>'
     +'<div class="bojx-bar"><span class="'+cls+'" style="width:'+Math.max(0,Math.min(100,pctv))+'%"></span></div>'
     +'</div>';
 }
@@ -1172,7 +1191,7 @@ function renderYuklar(){
     // "Holat" ustunida ikki pill ustma-ust; nashr vaqti Sana katagi ostiga ko'chirildi.
     const stcls=y.status==='posted'?'b':'gray', stlbl=ST_LBL[y.status]||y.status||'—';
     const dscls=y.delivery_status==='accepted'?'g':'gray', dslbl=DS_LBL[y.delivery_status]||y.delivery_status||'—';
-    const postTxt=y.post_at?'<div class="paidsub">'+dtF(y.post_at)+'</div>':'';
+    const postTxt=y.post_at?'<div class="paidsub" title="Nashr vaqti: '+esc(dtF(y.post_at))+'">'+esc(tF(y.post_at))+'</div>':'';
     // .cval — qiymat + ostidagi izoh bitta blokda (mobil kartada yorliqdan ajralib turadi)
     const narxTxt='<div class="cval">'+priceF(y.narx,y.valyuta)
       +((y.valyuta&&String(y.valyuta).toUpperCase()!=='UZS'&&n!=null)?'<div class="subx">≈ '+money(n)+' so\'m</div>':'')
@@ -1190,8 +1209,8 @@ function renderYuklar(){
       +'<td data-l="Tanlash"><input type="checkbox" class="ck"'+(on?' checked':'')+' onchange="toggleSel('+id+')" aria-label="Yukni tanlash"></td>'
       +'<td class="yid" data-l="ID">#'+esc(y.id)+'</td>'
       +'<td data-l="Sana">'+dF(y.sana||y.created_datetime)+postTxt+'</td>'
-      +'<td data-l="Ombor">'+esc(y.ombor||'—')+'</td>'
-      +'<td class="prov" data-l="Yetkazuvchi">'+esc(y.yetkazuvchi||'—')+'</td>'
+      +'<td class="omb" data-l="Ombor" title="'+esc(y.ombor||'')+'">'+esc(y.ombor||'—')+'</td>'
+      +'<td class="prov" data-l="Yetkazuvchi" title="'+esc(y.yetkazuvchi||'')+'">'+esc(y.yetkazuvchi||'—')+'</td>'
       +'<td class="num c-aros" data-l="Aros narxi">'+narxTxt+'</td>'
       +'<td class="num c-qo" data-l="Qo\'shilgan">'+qoTxt+'</td>'
       +'<td class="num c-jami" data-l="Jami tannarx">'+jamiTxt+'</td>'
