@@ -294,8 +294,13 @@
     min-height:44px;padding:0 var(--s5);cursor:pointer;transition:background .15s}
   @media(hover:hover){.errbox .retry:hover{background:var(--primary-press)}}
   .errbox .retry svg{width:16px;height:16px;margin:0;opacity:1;color:inherit}
-  /* ===== Tab: Aros yuklari | Bog'lanmagan to'lovlar ===== */
-  .ytabs{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);padding:4px;gap:3px;margin-bottom:var(--s5)}
+  /* ===== Tab: Aros yuklari | Bog'lanmagan to'lovlar | To'lov grafigi =====
+     3-tab qo'shilgach (2026-09-13) tor ekranda (≤480px) enga sig'maydi — .main o'ziga
+     o'ralmaydi (inline-flex, wrap yo'q) va SAHIFA gorizontal siljib ketardi. O'rash o'rniga
+     o'zining ichida SKROLL (tab-panel odatiy naqshi) — qatorlar sonini o'zgartirmaydi. */
+  .ytabs{display:inline-flex;max-width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);padding:4px;gap:3px;margin-bottom:var(--s5)}
+  @media(max-width:480px){.ytabs{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .ytabs::-webkit-scrollbar{display:none}.ytab{flex:none}}
   .ytab{border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 16px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .13s,color .13s}
   .ytab.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
   .ytab .badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--amber-soft);color:var(--amber);font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
@@ -565,6 +570,95 @@
     background:var(--surface-2);color:var(--ink);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s}
   @media(hover:hover){.msheet .close:hover{background:var(--surface-3)}}
   /* /more-sheet */
+  /* ===== To'lov grafigi muharriri (bir nechta muddat) — tanModal/tmodal chrome'ni ishlatadi ===== */
+  .gtarget{font-size:14.5px;font-weight:700;color:var(--ink);background:var(--surface-2);border-radius:var(--r-md);
+    padding:var(--s3) var(--s4);margin-bottom:var(--s4)}
+  .gtarget b{color:var(--primary-ink)}
+  .gtarget .gsub{display:block;margin-top:2px;font-size:12px;font-weight:500;color:var(--muted)}
+  /* segmentli tanlov — .ytabs/.ytab bilan bir xil til (pill ichida pill) */
+  /* 2 ta .teq (Teng bo'lish/Qoldiqni oxirgisiga) BITTA guruh sifatida o'ralishi uchun — .teq
+     o'zining margin-left:auto sini (tanModal'dagi bitta tugma uchun) shu yerda 0 ga qaytaradi,
+     aks holda ikkalasi alohida "auto" bilan torisha (390px'da 2-tugma kesilib qolardi). */
+  .gteqs{display:flex;gap:var(--s2);flex-wrap:wrap;margin-left:auto}
+  .gteqs .teq{margin-left:0}
+  .gseg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);padding:4px;gap:3px;flex-wrap:wrap}
+  .gseg button{border:none;background:transparent;color:var(--ink-2);font-size:13.5px;font-weight:700;font-family:inherit;
+    min-width:40px;height:34px;padding:0 var(--s3);border-radius:9px;cursor:pointer;transition:background .13s,color .13s}
+  @media(hover:hover){.gseg button:hover{background:var(--surface-3);color:var(--ink)}}
+  .gseg button.on{background:var(--primary-strong);color:var(--on-primary)}
+  .gsegcustom{display:flex;gap:var(--s2);align-items:center;margin-top:var(--s3)}
+  .gsegcustom input{height:40px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--r-md);
+    padding:0 var(--s3);font-size:14px;font-family:inherit;text-align:center;outline:none}
+  .gsegcustom input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+  /* har bir to'lov qatori — sana + summa bir qatorda, izoh ostida, holat belgisi va o'chirish o'ngda */
+  .grow{border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s3);margin-bottom:var(--s2);
+    display:flex;flex-direction:column;gap:var(--s2);transition:border-color .15s}
+  @media(hover:hover){.grow:hover{border-color:var(--surface-3)}}
+  .grow .gri{display:flex;gap:var(--s2);align-items:stretch}
+  .grow .gdate{flex:1;min-width:0;height:42px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-sm);padding:0 var(--s2);font-size:13.5px;font-family:inherit;outline:none}
+  .grow .gdate:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+  .grow .g-amtwrap{flex:1;position:relative}
+  .grow .g-amtwrap::after{content:attr(data-cur);position:absolute;right:var(--s3);top:50%;transform:translateY(-50%);pointer-events:none;
+    font-size:11.5px;font-weight:600;color:var(--muted)}
+  .grow .gamt{width:100%;height:42px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-sm);padding:0 40px 0 var(--s3);font-size:14.5px;font-weight:700;font-family:inherit;text-align:right;
+    font-variant-numeric:tabular-nums;outline:none}
+  .grow .gamt:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+  .grow .gamt.bad{border-color:var(--red-line);background:var(--red-soft)}
+  .grow .gnoterow{display:flex;gap:var(--s2);align-items:stretch}
+  .grow .gnote{flex:1;min-width:0;height:38px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:var(--r-sm);padding:0 var(--s3);font-size:13px;font-family:inherit;outline:none}
+  .grow .gnote:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+  .grow .gbottom{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap}
+  .grow .gsub{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .grow .ddel{flex:none;width:38px;height:38px;border:1px solid var(--line);border-radius:var(--r-sm)}
+  .grow .ddel svg{width:15px;height:15px}
+  .gaddbtn{width:100%;justify-content:center}
+  /* jonli hisob — Taqsimlangan/Qoldi (tsum bilan bir xil quti, lekin katta va rangli) */
+  /* Flex EMAS ataylab — matn+<b>+<small> anonim flex-item bo'lib mobilda gorizontal
+     toshib ketardi (390px'da tekshirilgan xato). Qator-qator (.gfr, label chapda/qiymat
+     o'ngda) — har biri alohida kichik flex, matn tabiiy oqimda "aralashib" chiqmaydi. */
+  .gfoot{border-radius:var(--r-md);padding:var(--s3) var(--s4);margin-top:var(--s3);font-size:14px;font-weight:700;
+    background:var(--surface-2);color:var(--ink-2)}
+  .gfoot .gfr{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3);padding:2px 0}
+  .gfoot .gfr span{opacity:.75;font-weight:600;font-size:12.5px}
+  .gfoot .gfr b{font-variant-numeric:tabular-nums}
+  .gfoot .gfr.gfsub{font-weight:500;font-size:12px;opacity:.8}
+  .gfoot .gfr.gfsub b{font-weight:600}
+  .gfoot.ok{background:var(--primary-soft);color:var(--primary-ink)}
+  .gfoot.warn{background:var(--amber-soft);color:var(--amber)}
+  .gfoot.bad{background:var(--red-soft);color:var(--red-ink)}
+  .gfoot small{display:block;font-size:11px;font-weight:500;color:inherit;opacity:.8;margin-top:1px}
+  @media(max-width:560px){.grow .gri{flex-direction:column}.grow .gdate,.grow .gamt{width:100%}}
+  /* ===== "To'lov grafigi" tab — KPI kartalari + guruh ro'yxati ===== */
+  .gr-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3);margin-bottom:var(--s4)}
+  .gr-tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s4);box-shadow:var(--shadow)}
+  .gr-tile .gl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+  .gr-tile .gv{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+  .gr-tile.warn .gv{color:var(--red-ink)}
+  .gr-tile.ok .gv{color:var(--primary-ink)}
+  @media(max-width:900px){.gr-kpi{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.gr-kpi{grid-template-columns:1fr}}
+  .gr-day{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;
+    display:flex;justify-content:space-between;padding:var(--s3) var(--s1) var(--s1);border-bottom:1px solid var(--line);margin-top:var(--s3)}
+  .gr-day:first-child{margin-top:0}
+  .gr-day b{color:var(--ink-2);font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
+  /* qator — .prow (Bog'lanmagan to'lovlar) bilan bir xil til, faqat bosiladigan (yukka o'tish) */
+  .gr-row{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s1);border-bottom:1px solid var(--line);
+    width:100%;background:transparent;border-left:none;border-right:none;border-top:none;cursor:pointer;text-align:left;
+    font-family:inherit;color:inherit;transition:background .13s}
+  .gr-row:last-child{border-bottom:none}
+  @media(hover:hover){.gr-row:hover{background:var(--surface-2)}}
+  .gr-row .gric{width:38px;height:38px;flex:none;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center}
+  .gr-row .gric svg{width:17px;height:17px}
+  .gr-row .grm{flex:1;min-width:0}
+  .gr-row .grt{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .gr-row .grs{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gr-row .gramt{text-align:right;flex:none}
+  .gr-row .gramt b{display:block;font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .gr-row .gramt span{display:block;font-size:11px;color:var(--muted);margin-top:1px}
+  @media(max-width:560px){.gr-row{flex-wrap:wrap}.gr-row .gramt{margin-left:56px}}
 </style>
 </head>
 <body>
@@ -624,6 +718,7 @@
     <div class="ytabs">
       <button type="button" class="ytab on" id="tabBtnYuklar" onclick="setTab('yuklar')"><i data-lucide="package"></i>Aros yuklari</button>
       <button type="button" class="ytab" id="tabBtnPending" onclick="setTab('pending')"><i data-lucide="hourglass"></i>Bog'lanmagan to'lovlar <span class="badge zero" id="pendBadge">0</span></button>
+      <button type="button" class="ytab" id="tabBtnGrafik" style="display:none" onclick="setTab('grafik')"><i data-lucide="calendar-clock"></i>To'lov grafigi</button>
     </div>
 
     <div id="tabYuklar">
@@ -684,6 +779,26 @@
         </div>
       </div>
       <div class="card"><div id="pendBody"><div class="empty">Yuklanmoqda…</div></div></div>
+    </div>
+
+    <div id="tabGrafik" style="display:none">
+      <div class="gr-kpi">
+        <div class="gr-tile"><div class="gl">Kelgusi 30 kun</div><div class="gv" id="grKpi1">—</div></div>
+        <div class="gr-tile warn"><div class="gl">Kechikkan</div><div class="gv" id="grKpi2">—</div></div>
+        <div class="gr-tile ok"><div class="gl">Bu oy to'langan</div><div class="gv" id="grKpi3">—</div></div>
+        <div class="gr-tile"><div class="gl">Jami qoldiq</div><div class="gv" id="grKpi4">—</div></div>
+      </div>
+      <div class="filtbar">
+        <div class="chips">
+          <button type="button" class="fchip on" data-gf="all" onclick="setGrFilt('all')">Hammasi</button>
+          <button type="button" class="fchip" data-gf="kelgusi" onclick="setGrFilt('kelgusi')">Kelgusi</button>
+          <button type="button" class="fchip" data-gf="kechikkan" onclick="setGrFilt('kechikkan')">Kechikkan</button>
+          <button type="button" class="fchip" data-gf="tolangan" onclick="setGrFilt('tolangan')">To'langan</button>
+          <button type="button" class="fchip" data-gf="hafta" onclick="setGrFilt('hafta')">Bu hafta</button>
+        </div>
+        <button class="btn-ghost" id="grXlsBtn" onclick="grExportExcel()" style="margin-left:auto"><i data-lucide="download"></i><span id="grXlsTxt">Excel</span></button>
+      </div>
+      <div class="card"><div id="grBody"><div class="empty">Yuklanmoqda…</div></div></div>
     </div>
   </main>
 
@@ -836,6 +951,56 @@
     <div class="tacts">
       <button type="button" onclick="closeDl()">Bekor</button>
       <button type="button" class="primary" id="dlSaveBtn" onclick="dlSave()" disabled>Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- To'lov grafigi muharriri (yuk_grafik_*) — bir yukka bir nechta to'lov muddati. RPC yo'q bo'lsa
+     bu modal ochilmaydi, ustidagi #dlModal (bitta muddat) ishlatiladi — muddatCellHtml/openGraf shart. -->
+<div class="tmodal" id="grafikModal" onclick="if(event.target===this)closeGraf()" role="dialog" aria-modal="true" aria-label="To'lov grafigi">
+  <div class="tbox" style="max-width:560px">
+    <div class="mhead">
+      <div class="mh"><h3>To'lov grafigi</h3><div class="tsub" id="grafSub"></div></div>
+      <button type="button" class="mclose" onclick="closeGraf()" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="tscroll">
+      <div class="gtarget" id="grafTarget">Butun tannarx: <b>—</b></div>
+      <div class="fld">
+        <label for="grafKelishuv">Kelishuv izohi (ixtiyoriy)</label>
+        <input id="grafKelishuv" placeholder="Masalan: 50% oldindan, qolgani 2 oyda">
+      </div>
+      <div id="grafSegWrap" class="fld" style="display:none">
+        <label>Necha qismga bo'linadi?</label>
+        <div class="gseg" id="grafSeg">
+          <button type="button" onclick="grafSplit(1)">1</button>
+          <button type="button" onclick="grafSplit(2)">2</button>
+          <button type="button" onclick="grafSplit(3)">3</button>
+          <button type="button" onclick="grafSplit(4)">4</button>
+          <button type="button" onclick="grafSplitCustomOpen()">Boshqa</button>
+        </div>
+        <div id="grafSegCustom" class="gsegcustom" style="display:none">
+          <input id="grafSegN" inputmode="numeric" placeholder="Nechta?" style="width:90px">
+          <button type="button" class="btn-primary" onclick="grafSplitCustomGo()">Yaratish</button>
+        </div>
+      </div>
+      <div class="thint" id="grafRowsHint" style="display:none">To'lov qatorlari
+        <div class="gteqs">
+          <button type="button" class="teq" onclick="grafEqual()">Teng bo'lish</button>
+          <button type="button" class="teq" onclick="grafLastFill()">Qoldiqni oxirgisiga</button>
+        </div>
+      </div>
+      <div id="grafRows"></div>
+      <button type="button" class="btn-ghost gaddbtn" id="grafAddBtn" style="display:none;margin-top:var(--s2)" onclick="grafAddRow()"><i data-lucide="plus"></i>To'lov qo'shish</button>
+      <div class="tmsg warn" id="grafDupMsg"></div>
+    </div>
+    <div class="gfoot" id="grafFoot" style="display:none"></div>
+    <div class="tmsg" id="grafMsg" role="status" aria-live="polite"></div>
+    <div class="tacts" id="grafDelRow" style="display:none">
+      <button type="button" class="danger" onclick="grafDelete()"><i data-lucide="trash-2"></i>Grafikni o'chirish</button>
+    </div>
+    <div class="tacts">
+      <button type="button" onclick="closeGraf()">Bekor</button>
+      <button type="button" class="primary" id="grafSaveBtn" onclick="grafSave()" disabled>Saqlash</button>
     </div>
   </div>
 </div>
@@ -1083,6 +1248,58 @@ async function loadDeadline(ids){
   }catch(e){ console.warn('yuk_deadline istisno:',e); dlMap={}; }
 }
 
+/* ===== To'lov grafigi (yuk_grafik_*) — bir yukka bir nechta to'lov muddati =====
+   Butun ro'yxat (barcha yuklar) BITTA marta o'qiladi (p_yuk_ids=null) — Muddat ustuni
+   VA "To'lov grafigi" tab shu keshdan ishlaydi (qayta so'rov yo'q). RPC hali bazada
+   yo'q bo'lsa (PGRST202/42883) — grafOk=false: Muddat ustuni va openDl eskicha qoladi,
+   tab butunlay yashirin (Asilbek qarori — sahifa sinmaydi). */
+let grafAllRows=[], grafOk=null, grafLoaded=false;
+async function loadGrafAll(){
+  try{
+    const {data,error}=await sb.rpc('yuk_grafik_royxat',{p_yuk_ids:null});
+    if(error){
+      grafOk=false; grafAllRows=[];
+      if(!rpcMissing(error)) console.warn('yuk_grafik_royxat:',error.message||error);
+    }else{
+      grafOk=true;
+      grafAllRows=(data&&data.ok!==false&&Array.isArray(data.rows))?data.rows:[];
+    }
+  }catch(e){ grafOk=false; grafAllRows=[]; console.warn('yuk_grafik_royxat istisno:',e); }
+  grafLoaded=true;
+  $('tabBtnGrafik').style.display=grafOk?'inline-flex':'none';
+  renderYuklar();
+  if(curTab==='grafik') renderGrafTab();
+}
+/* Bitta yukning grafik qatorlari, sana bo'yicha o'sish tartibida. */
+function grafRowsFor(yukId){
+  return grafAllRows.filter(r=>Number(r.yuk_id)===Number(yukId))
+    .slice().sort((a,b)=>String(a.sana).slice(0,10).localeCompare(String(b.sana).slice(0,10)));
+}
+/* Grafik bo'yicha muddat — jadval qatori (grafOk=true holatida muddatCellHtml shundan foydalanadi). */
+function grafMuddatCell(y,rows){
+  const total=rows.reduce((a,r)=>a+(Number(r.summa_uzs)||0),0);
+  const target=jamiTannarx(y);
+  const incomplete=(target!=null)&&Math.abs(total-target)>Math.max(200,rows.length*100);
+  const paidCnt=rows.filter(r=>r.holat==='tolangan').length;
+  const warnHtml=incomplete?'<span class="mdl-sub over" title="Jadval yig\'indisi butun tannarxga teng emas">⚠ grafik to\'liq emas</span>':'';
+  const next=rows.find(r=>r.holat!=='tolangan');
+  if(!next){
+    return '<button type="button" class="mdl" onclick="openGraf('+y.id+')">'
+      +'<span class="mdl-d" style="color:var(--primary-ink)">✓ To\'liq</span>'
+      +'<span class="mdl-sub">'+rows.length+' ta to\'lovdan '+paidCnt+' tasi to\'langan</span>'+warnHtml+'</button>';
+  }
+  const left=dlDaysLeft(next.sana);
+  let cls='',sub='';
+  if(next.kech||(left!=null&&left<0)){ cls='over'; sub=(left!=null&&left<0)?((-left)+' kun kechikdi'):'Kechikdi'; }
+  else if(left!=null&&left<=7){ cls='warn'; sub=left===0?'Bugun':(left+' kun qoldi'); }
+  return '<button type="button" class="mdl" onclick="openGraf('+y.id+')">'
+    +'<span class="mdl-d'+(cls?' '+cls:'')+'">'+dF(next.sana)+'</span>'
+    +'<span class="mdl-sub'+(cls==='over'?' over':'')+'">'+(sub?esc(sub)+' · ':'')+rows.length+' ta to\'lovdan '+paidCnt+' tasi to\'langan</span>'
+    +warnHtml+'</button>';
+}
+/* "Muddat qo'yilmagan" — grafOk bo'lsa grafik yo'qligi, aks holda eski yuk_deadline yo'qligi. */
+function hasDeadlineSet(y){ return grafOk ? (grafRowsFor(y.id).length>0) : !!dlOf(y); }
+
 function fillOmbor(){
   const s=$('omborFilt'), cur=s.value;
   const oms=[...new Set(yuklar.map(y=>y.ombor).filter(Boolean))].sort();
@@ -1097,7 +1314,7 @@ function visibleRows(){
   if(filtPay==='tolanmagan') rows=rows.filter(y=>pct(y)===0);
   else if(filtPay==='qisman') rows=rows.filter(y=>{const p=pct(y);return p>0&&p<100;});
   else if(filtPay==='tolangan') rows=rows.filter(y=>pct(y)>=100);
-  if(filtDl) rows=rows.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !dlOf(y); });
+  if(filtDl) rows=rows.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !hasDeadlineSet(y); });
   if(omb) rows=rows.filter(y=>y.ombor===omb);
   return rows;
 }
@@ -1156,6 +1373,12 @@ function paidCellHtml(y){
    Qizil/sariq ranglash FAQAT qarzi qolgan yukka tegishli — to'liq to'langan yukning
    muddati o'tib ketgan bo'lsa ham ogohlantirish shart emas. */
 function muddatCellHtml(y){
+  // Grafik RPC bor — bir nechta muddat rejimi (openGraf). Yo'q — eski bitta-muddat (openDl), o'zgarmagan.
+  if(grafOk){
+    const rows=grafRowsFor(y.id);
+    if(rows.length) return grafMuddatCell(y,rows);
+    return '<button type="button" class="mdl-empty" onclick="openGraf('+y.id+')" title="Muddat qo\'yilmagan">— qo\'yilmagan</button>';
+  }
   const d=dlOf(y);
   if(!d) return '<button type="button" class="mdl-empty" onclick="openDl('+y.id+')" title="Muddat qo\'yilmagan">— qo\'yilmagan</button>';
   const left=dlDaysLeft(d.deadline), q=qoldiq(y), hasDebt=(q!=null&&q>0);
@@ -1177,7 +1400,7 @@ function renderYuklar(){
   $('cUnpaid').textContent=all.filter(y=>pct(y)===0).length;
   $('cPart').textContent=all.filter(y=>{const p=pct(y);return p>0&&p<100;}).length;
   $('cPaid').textContent=all.filter(y=>pct(y)>=100).length;
-  $('cDlUnset').textContent=all.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !dlOf(y); }).length;
+  $('cDlUnset').textContent=all.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !hasDeadlineSet(y); }).length;
   const rows=visibleRows();
   if(!rows.length){ $('yukBody').innerHTML='<div class="empty none">Bu shartlarga mos yuk yo\'q.'
     +'<span>Sana oralig\'ini kengaytiring yoki filtrni o\'zgartiring.</span></div>';
@@ -1276,7 +1499,7 @@ function renderSelbar(){
 // ===== Modal yordamchilari: fokus, Escape, Tab tuzog'i =====
 /* Tartib MUHIM — ustidan pastga. Birinchi ochig'i "eng ustidagi" hisoblanadi
    (cfmModal z-index 230 > tmodal 210 > mmodal 200). */
-const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','dlModal','moreModal'];
+const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','dlModal','grafikModal','moreModal'];
 const FOCUS_SEL='button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
 // Sichqonchali qurilma: matn maydoniga fokus faqat shu yerda beriladi —
 // telefonda klaviatura o'zi ochilib, varaqni yarmini yeb qo'ymasin.
@@ -1300,6 +1523,7 @@ document.addEventListener('keydown',e=>{
     else if(m.id==='tanModal') window.closeTan();
     else if(m.id==='linkModal') window.closeLink();
     else if(m.id==='dlModal') window.closeDl();
+    else if(m.id==='grafikModal') window.closeGraf();
     else window.closeMore();
     return;
   }
@@ -1568,9 +1792,12 @@ let pendSel=new Set(), pendMultiOk=false;
 window.setTab=k=>{ curTab=k;
   $('tabBtnYuklar').classList.toggle('on',k==='yuklar');
   $('tabBtnPending').classList.toggle('on',k==='pending');
+  $('tabBtnGrafik').classList.toggle('on',k==='grafik');
   $('tabYuklar').style.display=k==='yuklar'?'block':'none';
   $('tabPending').style.display=k==='pending'?'block':'none';
+  $('tabGrafik').style.display=k==='grafik'?'block':'none';
   if(k==='pending' && !pendLoaded) loadPending();
+  if(k==='grafik' && grafLoaded) renderGrafTab();
 };
 function updatePendBadge(){ const b=$('pendBadge'); const n=pendingRows.length;
   b.textContent=n; b.classList.toggle('zero',n===0); }
@@ -1911,6 +2138,337 @@ window.dlDelete=async()=>{
   await window.loadYuklar('fresh');
 };
 
+// ===== To'lov grafigi muharriri (bir yukka bir nechta muddat, Asilbek 2026-09-13) =====
+let grafCur=null, grafTargetAmt=null, grafKurs=null, grafValyuta='', grafExisted=false;
+let grafRows=[];   // {sana, raw, izoh, holat, kech, _touched}
+
+/* Xavfsiz arifmetik ifoda — faqat raqam/+-*\/() , eval() YO'Q (alert(1) kabi kod ishlamaydi). */
+function grafSafeEval(expr){
+  const s=String(expr||'').replace(/\s+/g,'');
+  if(!s || /[^0-9+\-*/().,]/.test(s)) return NaN;
+  let i=0;
+  function num(){
+    const start=i;
+    if(s[i]==='-'||s[i]==='+') i++;
+    let hasDigit=false;
+    while(i<s.length&&/[0-9]/.test(s[i])){ i++; hasDigit=true; }
+    if(s[i]==='.'||s[i]===','){ i++; while(i<s.length&&/[0-9]/.test(s[i])){ i++; hasDigit=true; } }
+    if(!hasDigit) throw 0;
+    return Number(s.slice(start,i).replace(',','.'));
+  }
+  function factor(){ if(s[i]==='('){ i++; const v=expr_(); if(s[i]!==')') throw 0; i++; return v; } return num(); }
+  function term(){ let v=factor(); while(s[i]==='*'||s[i]==='/'){ const op=s[i]; i++; const v2=factor(); v=(op==='*')?v*v2:v/v2; } return v; }
+  function expr_(){ let v=term(); while(s[i]==='+'||s[i]==='-'){ const op=s[i]; i++; const v2=term(); v=(op==='+')?v+v2:v-v2; } return v; }
+  try{ const v=expr_(); return (i===s.length)?v:NaN; }catch(e){ return NaN; }
+}
+/* Summa maydoni: "12 500" / "12,000"→12000 (ming ajratgich, vergulndan keyin ANIQ 3 xona) /
+   "12,5"→12.5 (kasr, aks holda) / "=1500/3" (formula). Harf bo'lsa (abc, 1e9, alert(1)) — NaN. */
+function grafParseAmt(str){
+  const s=String(str==null?'':str).trim();
+  if(!s) return NaN;
+  if(s[0]==='='){ const v=grafSafeEval(s.slice(1)); return isFinite(v)?v:NaN; }
+  if(/[a-zA-Z]/.test(s)) return NaN;
+  let t=s.replace(/\s+/g,'');
+  const lastComma=t.lastIndexOf(',');
+  if(lastComma>=0){
+    const afterLen=t.length-lastComma-1;
+    if(afterLen===3 && !t.includes('.')) t=t.replace(/,/g,'');
+    else t=t.slice(0,lastComma).replace(/,/g,'')+'.'+t.slice(lastComma+1);
+  }
+  if(!/^-?\d+(\.\d+)?$/.test(t)) return NaN;
+  const v=Number(t);
+  return isFinite(v)?v:NaN;
+}
+
+// Summa yonidagi valyuta belgisi — yuk hujjati valyutasi (avval CSS'da qattiq "so'm" edi,
+// USD yukda ham "so'm" ko'rinardi).
+function grafCurLabel(){ const v=String(grafValyuta||'UZS').toUpperCase(); return v==='UZS'?"so'm":v; }
+function grafRowHtml(r,i){
+  const badge=r.holat?('<span class="pill '+(r.holat==='tolangan'?(r.kech?'r':'g'):(r.holat==='qisman'?'y':'gray'))+'">'
+    +(r.holat==='tolangan'?(r.kech?"Kech to'landi":"To'langan"):(r.holat==='qisman'?'Qisman':"To'lanmagan"))+'</span>'):'';
+  const bad=(r._touched && !(grafParseAmt(r.raw)>0))?' bad':'';
+  return '<div class="grow">'
+    +'<div class="gri">'
+    +'<input type="date" class="gdate" id="grD'+i+'" value="'+esc(r.sana||'')+'" oninput="grafRowSet('+i+',\'sana\',this.value)" aria-label="To\'lov sanasi">'
+    +'<div class="g-amtwrap" data-cur="'+esc(grafCurLabel())+'"><input class="gamt'+bad+'" id="grA'+i+'" value="'+esc(r.raw||'')+'" placeholder="0" inputmode="decimal" oninput="grafRowSet('+i+',\'raw\',this.value)" onblur="grafRowBlur('+i+',this)" aria-label="Summa"></div>'
+    +'</div>'
+    +'<div class="gnoterow">'
+    +'<input class="gnote" value="'+esc(r.izoh||'')+'" placeholder="Izoh (ixtiyoriy)" oninput="grafRowSet('+i+',\'izoh\',this.value)" aria-label="Qator izohi">'
+    +'<button type="button" class="ddel" onclick="grafDelRow('+i+')" aria-label="Qatorni o\'chirish"><i data-lucide="x"></i></button>'
+    +'</div>'
+    +(badge?'<div class="gbottom">'+badge+'</div>':'')
+    +'</div>';
+}
+function renderGrafRows(){ $('grafRows').innerHTML=grafRows.map((r,i)=>grafRowHtml(r,i)).join(''); icons(); }
+window.grafRowSet=(i,key,val)=>{ if(!grafRows[i]) return; grafRows[i][key]=val; if(key==='raw') grafRows[i]._touched=true; grafValidate(); };
+window.grafRowBlur=(i,el)=>{ if(!grafRows[i]) return; const v=grafParseAmt(grafRows[i].raw);
+  if(isFinite(v)&&v>0){ grafRows[i].raw=money(v); el.value=grafRows[i].raw; el.classList.remove('bad'); }
+  else if(grafRows[i].raw) el.classList.add('bad');
+  grafValidate(); };
+window.grafDelRow=i=>{ grafRows.splice(i,1); renderGrafRows(); grafValidate(); if(!grafRows.length) grafShowSeg(true); };
+window.grafAddRow=()=>{ grafRows.push({sana:'',raw:'',izoh:'',holat:null,kech:false}); renderGrafRows(); grafValidate();
+  setTimeout(()=>{ try{ const el=$('grD'+(grafRows.length-1)); if(el&&isDesktop()) el.focus(); }catch(e){} },50); };
+
+function grafShowSeg(show){
+  $('grafSegWrap').style.display=show?'block':'none';
+  $('grafRowsHint').style.display=show?'none':'flex';
+  $('grafAddBtn').style.display=show?'none':'inline-flex';
+}
+/* n ta qatorga TENG bo'lish — oxirgisiga yaxlitlash qoldig'i (Asilbek: bo'lib to'lash
+   MUDDAT QO'YAYOTGANDA darhol bo'ladi — ta'minotchi kelishuvi shunday). Sanalar BO'SH
+   qoladi (foydalanuvchi kelishilgan sanalarni o'zi kiritadi). */
+function grafBuildSplit(n){
+  n=Math.max(1,Math.min(50,Math.round(n)||1));
+  const amt=grafTargetAmt||0;
+  const base=Math.floor(amt/n); let left=amt;
+  grafRows=[];
+  for(let k=0;k<n;k++){ const v=(k===n-1)?left:base; left-=v; grafRows.push({sana:'',raw:v?money(v):'',izoh:'',holat:null,kech:false,_touched:!!v}); }
+}
+window.grafSplit=n=>{
+  grafBuildSplit(n); grafShowSeg(false); renderGrafRows(); grafValidate();
+  setTimeout(()=>{ try{ const el=$('grD0'); if(el&&isDesktop()) el.focus(); }catch(e){} },60);
+};
+window.grafSplitCustomOpen=()=>{ $('grafSegCustom').style.display='flex'; setTimeout(()=>{ try{ $('grafSegN').focus(); }catch(e){} },30); };
+window.grafSplitCustomGo=()=>{ const n=Number(($('grafSegN').value||'').replace(/\D/g,''))||0; if(n>=1) window.grafSplit(n); };
+window.grafEqual=()=>{
+  const n=grafRows.length; if(!n) return;
+  const amt=grafTargetAmt||0; const base=Math.floor(amt/n); let left=amt;
+  grafRows.forEach((r,i)=>{ const v=(i===n-1)?left:base; left-=v; r.raw=v?money(v):''; r._touched=true; });
+  renderGrafRows(); grafValidate();
+};
+window.grafLastFill=()=>{
+  const n=grafRows.length; if(!n) return;
+  let others=0; for(let i=0;i<n-1;i++) others+=Number(grafParseAmt(grafRows[i].raw))||0;
+  const v=Math.max(0,(grafTargetAmt||0)-others);
+  grafRows[n-1].raw=v?money(v):''; grafRows[n-1]._touched=true;
+  renderGrafRows(); grafValidate();
+};
+
+/* Jonli hisob + saqlash tugmasi. Qoldi ≈0 (±1) bo'lgandagina Saqlash yoqiladi. */
+function grafValidate(){
+  const foot=$('grafFoot'), msg=$('grafMsg'), btn=$('grafSaveBtn'), dup=$('grafDupMsg');
+  if(!grafRows.length){ foot.style.display='none'; msg.textContent=''; msg.className='tmsg'; btn.disabled=true; dup.textContent=''; return false; }
+  foot.style.display='block';
+  let total=0, badRow=false, noDate=false; const seen={};
+  grafRows.forEach(r=>{
+    const v=grafParseAmt(r.raw);
+    if(!(v>0)) badRow=true; else total+=v;
+    if(!r.sana) noDate=true; else seen[r.sana]=(seen[r.sana]||0)+1;
+  });
+  dup.textContent=Object.values(seen).some(n=>n>1)?"Diqqat: bir xil sanaga bir nechta to'lov qo'yilgan.":'';
+  const target=grafTargetAmt;
+  let footCls='warn';
+  let rows='<div class="gfr"><span>Taqsimlangan</span><b>'+money(total)+' '+esc(grafValyuta)+'</b></div>';
+  let m='', ok=false;
+  if(target==null){
+    rows+='<div class="gfr"><span>Butun tannarx</span><b>hisoblanmoqda…</b></div>';
+    m='Butun tannarx hisoblanmoqda…';
+  }else{
+    const diff=target-total;
+    if(Math.abs(diff)<1){ footCls='ok'; rows+='<div class="gfr"><span>Holat</span><b>✓ To\'liq</b></div>'; }
+    else if(diff>0){ footCls='warn'; rows+='<div class="gfr"><span>Qoldi</span><b>yana '+money(diff)+' '+esc(grafValyuta)+'</b></div>'; }
+    else{ footCls='bad'; rows+='<div class="gfr"><span>Ortiqcha</span><b>'+money(-diff)+' '+esc(grafValyuta)+'</b></div>'; }
+    if(noDate) m="Har qatorga sana kiriting";
+    else if(badRow) m="Har qatorga to'g'ri summa kiriting";
+    else if(Math.abs(diff)>=1) m=diff>0?('Taqsimlanmagan qoldi: '+money(diff)+' '+esc(grafValyuta)):('Ortiqcha: '+money(-diff)+' '+esc(grafValyuta));
+    else{ ok=true; m="✓ Saqlashga tayyor"; }
+  }
+  if(grafKurs&&String(grafValyuta).toUpperCase()!=='UZS') rows+='<div class="gfr gfsub"><span>≈ so\'mda</span><b>'+money(total*grafKurs)+" so'm</b></div>";
+  foot.className='gfoot '+footCls; foot.innerHTML=rows;
+  msg.textContent=m; msg.className='tmsg '+(ok?'ok':'no'); btn.disabled=!ok;
+  return ok;
+}
+
+window.openGraf=async id=>{
+  const y=yuklar.find(x=>Number(x.id)===Number(id)); if(!y) return;
+  grafCur=y; grafTargetAmt=null; grafKurs=null; grafValyuta=y.valyuta||'UZS';
+  $('grafSub').textContent='Yuk #'+y.id+' · '+(y.yetkazuvchi||y.ombor||'—');
+  const dOld=dlOf(y);
+  $('grafKelishuv').value=(dOld&&dOld.izoh)||'';
+  $('grafTarget').innerHTML="Butun tannarx: <b>Hisoblanmoqda…</b>";
+  $('grafMsg').textContent=''; $('grafMsg').className='tmsg';
+  $('grafDupMsg').textContent='';
+  $('grafSegN').value=''; $('grafSegCustom').style.display='none';
+  $('grafSaveBtn').textContent='Saqlash';
+  const existing=grafRowsFor(y.id);
+  grafExisted=existing.length>0;
+  grafRows=existing.map(r=>({sana:String(r.sana||'').slice(0,10), raw:r.summa?money(r.summa):'', izoh:r.izoh||'', holat:r.holat||null, kech:!!r.kech, _touched:true}));
+  $('grafDelRow').style.display=grafExisted?'flex':'none';
+  grafShowSeg(!grafExisted);
+  renderGrafRows();
+  $('grafikModal').classList.add('open');
+  icons();
+  grafValidate();
+  mFocus(grafExisted?'grD0':'grafKelishuv',false);
+  try{
+    const {data,error}=await sb.rpc('yuk_grafik_maqsad',{p_yuk_id:Number(y.id),p_narx:(y.narx==null?null:Number(y.narx)),p_valyuta:y.valyuta||null});
+    if(error||!data||data.ok===false){
+      $('grafTarget').innerHTML='Butun tannarx: <b style="color:var(--red-ink)">hisoblab bo\'lmadi</b>';
+      grafTargetAmt=null;
+    }else{
+      grafTargetAmt=Number(data.maqsad)||0;
+      grafKurs=data.kurs!=null?Number(data.kurs):null;
+      grafValyuta=data.valyuta||grafValyuta;
+      $('grafTarget').innerHTML='Butun tannarx: <b>'+money(grafTargetAmt)+' '+esc(grafValyuta)+'</b>'
+        +((grafKurs&&String(grafValyuta).toUpperCase()!=='UZS')?('<span class="gsub">≈ '+money(grafTargetAmt*grafKurs)+" so'm</span>"):'');
+      if(!grafExisted && !grafRows.length) grafShowSeg(true);
+    }
+  }catch(e){
+    $('grafTarget').innerHTML='Butun tannarx: <b style="color:var(--red-ink)">hisoblab bo\'lmadi</b>';
+    grafTargetAmt=null;
+  }
+  grafValidate();
+};
+window.closeGraf=()=>{ $('grafikModal').classList.remove('open'); grafCur=null; grafRows=[]; };
+window.grafSave=async()=>{
+  if(!grafCur) return;
+  if(!grafValidate()) return;
+  const btn=$('grafSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
+  const rows=grafRows.slice().sort((a,b)=>String(a.sana).localeCompare(String(b.sana)))
+    .map(r=>({sana:r.sana, summa:grafParseAmt(r.raw), izoh:(r.izoh||'').trim()||null}));
+  const kelishuv=($('grafKelishuv').value||'').trim()||null;
+  const {data,error}=await sb.rpc('yuk_grafik_saqla',{
+    p_yuk_id:Number(grafCur.id), p_narx:(grafCur.narx==null?null:Number(grafCur.narx)), p_valyuta:grafCur.valyuta||null,
+    p_rows:rows, p_kelishuv:kelishuv
+  });
+  btn.textContent='Saqlash';
+  if(error){ $('grafMsg').textContent=(window.permErr?window.permErr(error):error.message); $('grafMsg').className='tmsg no'; btn.disabled=false; return; }
+  if(data&&data.ok===false){
+    let m=String(data.error||'Saqlanmadi');
+    if(data.kod==='summa_mos_emas') m="Yig'indi mos kelmadi: jami "+money(data.jami)+', kerak '+money(data.maqsad)+', farq '+money(data.farq);
+    else if(data.kod==='ruxsat') m="Sizda bu amal uchun ruxsat yo'q";
+    $('grafMsg').textContent=m; $('grafMsg').className='tmsg no'; btn.disabled=false; return;
+  }
+  closeGraf();
+  showBanner("To'lov grafigi saqlandi: "+(data&&data.n!=null?data.n:rows.length)+' ta qator',true);
+  await Promise.all([loadGrafAll(), window.loadYuklar('fresh')]);
+  if(curTab==='grafik') renderGrafTab();
+};
+window.grafDelete=async()=>{
+  if(!grafCur) return;
+  if(!await askConfirm('Grafikni o\'chirish',"Yuk #"+grafCur.id+" uchun to'lov grafigi butunlay o'chirilsinmi? (Muddat ham olib tashlanadi)","O'chirish")) return;
+  const {data,error}=await sb.rpc('yuk_grafik_saqla',{
+    p_yuk_id:Number(grafCur.id), p_narx:(grafCur.narx==null?null:Number(grafCur.narx)), p_valyuta:grafCur.valyuta||null,
+    p_rows:[], p_kelishuv:null
+  });
+  if(error){ $('grafMsg').textContent=(window.permErr?window.permErr(error):error.message); $('grafMsg').className='tmsg no'; return; }
+  if(data&&data.ok===false){ $('grafMsg').textContent=String(data.error||"O'chirilmadi"); $('grafMsg').className='tmsg no'; return; }
+  closeGraf();
+  showBanner('Grafik o\'chirildi',true);
+  await Promise.all([loadGrafAll(), window.loadYuklar('fresh')]);
+  if(curTab==='grafik') renderGrafTab();
+};
+
+// ===== "To'lov grafigi" tab — barcha yuklarning grafik qatorlari (yuk_grafik_royxat(null)) =====
+let grFilt='all';
+window.setGrFilt=k=>{ grFilt=k; document.querySelectorAll('#tabGrafik [data-gf]').forEach(b=>b.classList.toggle('on',b.dataset.gf===k)); renderGrafTab(); };
+function yukById(id){ return yuklar.find(y=>Number(y.id)===Number(id)); }
+/* 4 holat: o'z vaqtida to'langan (yashil) / kech to'langan (qizil) / kechikkan-to'lanmagan (qizil) / kelgusi (kulrang). */
+function grDisplayStatus(r){
+  const today=isoDay(nowUz()), sana=String(r.sana||'').slice(0,10);
+  const overdue=!!sana && sana<today;
+  if(r.holat==='tolangan') return r.kech?{k:'kech',lbl:"Kech to'landi",cls:'r'}:{k:'ozvaqtida',lbl:"O'z vaqtida to'landi",cls:'g'};
+  if(overdue) return {k:'kechikkan',lbl:'Kechikkan',cls:'r'};
+  return {k:'kelgusi',lbl:'Kelgusi',cls:'gray'};
+}
+function grEnrich(r){
+  const y=yukById(r.yuk_id);
+  return Object.assign({},r,{_ombor:y?(y.ombor||'—'):'—', _yetkaz:y?(y.yetkazuvchi||('Yuk #'+r.yuk_id)):('Yuk #'+r.yuk_id), _st:grDisplayStatus(r)});
+}
+function grFilterRows(){
+  const today=isoDay(nowUz()), weekEnd=isoDay(new Date(nowUz().getTime()+6*86400000));
+  return grafAllRows.map(grEnrich).filter(r=>{
+    const sana=String(r.sana||'').slice(0,10);
+    if(grFilt==='kelgusi') return r._st.k==='kelgusi';
+    if(grFilt==='kechikkan') return r._st.k==='kechikkan';
+    if(grFilt==='tolangan') return r.holat==='tolangan';
+    if(grFilt==='hafta') return sana>=today && sana<=weekEnd;
+    return true;
+  });
+}
+/* Bu oy to'langan — REJALASHTIRILGAN sana joriy oyda VA qator to'liq to'langan bo'yicha
+   taxminiy yig'indi (aniq to'lov sanasi bo'yicha emas — kontrakt shu darajada ma'lumot beradi). */
+function grKpis(){
+  const today=isoDay(nowUz()), in30=isoDay(new Date(nowUz().getTime()+30*86400000)), mStart=today.slice(0,7);
+  let kelgusi30=0, kechikkanN=0, kechikkanSum=0, oyTolangan=0, jamiQoldiq=0;
+  grafAllRows.forEach(r=>{
+    const st=grDisplayStatus(r), sana=String(r.sana||'').slice(0,10);
+    jamiQoldiq+=Number(r.qoldiq_uzs)||0;
+    if(st.k==='kelgusi' && sana>=today && sana<=in30) kelgusi30+=Number(r.qoldiq_uzs)||0;
+    if(st.k==='kechikkan'){ kechikkanN++; kechikkanSum+=Number(r.qoldiq_uzs)||0; }
+    if(r.holat==='tolangan' && sana.slice(0,7)===mStart) oyTolangan+=Number(r.summa_uzs)||0;
+  });
+  return {kelgusi30,kechikkanN,kechikkanSum,oyTolangan,jamiQoldiq};
+}
+function renderGrafTab(){
+  const k=grKpis();
+  $('grKpi1').textContent=money(k.kelgusi30)+" so'm";
+  $('grKpi2').textContent=k.kechikkanN+' ta · '+money(k.kechikkanSum)+" so'm";
+  $('grKpi3').textContent=money(k.oyTolangan)+" so'm";
+  $('grKpi4').textContent=money(k.jamiQoldiq)+" so'm";
+  const rows=grFilterRows().sort((a,b)=>String(a.sana).localeCompare(String(b.sana)));
+  if(!rows.length){ $('grBody').innerHTML='<div class="empty none">Bu filtrga mos to\'lov qatori yo\'q.<span>Boshqa filtrni tanlang yoki yukka muddat qo\'ying.</span></div>'; icons(); return; }
+  const groups={}; rows.forEach(r=>{ const d=String(r.sana||'—').slice(0,10); (groups[d]=groups[d]||[]).push(r); });
+  const days=Object.keys(groups).sort();
+  let html='';
+  days.forEach(d=>{
+    const grp=groups[d], sum=grp.reduce((a,r)=>a+(Number(r.summa_uzs)||0),0);
+    html+='<div class="gr-day">'+esc(dF(d))+'<b>'+money(sum)+" so'm</b></div>";
+    html+=grp.map(r=>{
+      const bg=r._st.cls==='g'?'var(--primary-soft)':(r._st.cls==='r'?'var(--red-soft)':'var(--surface-2)');
+      const fg=r._st.cls==='g'?'var(--primary-ink)':(r._st.cls==='r'?'var(--red-ink)':'var(--muted)');
+      const ic=r._st.cls==='g'?'check':(r._st.cls==='r'?'alert-triangle':'clock');
+      const kelishuv=(dlMap[String(r.yuk_id)]&&dlMap[String(r.yuk_id)].izoh)||'';
+      const subTxt=[r._yetkaz, kelishuv, (r.izoh&&r.izoh!==kelishuv)?r.izoh:''].filter(Boolean).join(' · ');
+      return '<button type="button" class="gr-row" onclick="openGraf('+r.yuk_id+')">'
+        +'<div class="gric" style="background:'+bg+';color:'+fg+'"><i data-lucide="'+ic+'"></i></div>'
+        +'<div class="grm"><div class="grt">Yuk #'+esc(r.yuk_id)+' <span class="pill '+r._st.cls+'">'+esc(r._st.lbl)+'</span></div>'
+        +'<div class="grs" title="'+esc(subTxt)+'">'+esc(subTxt||'—')+'</div></div>'
+        +'<div class="gramt"><b>'+money(r.summa)+' '+esc(r.valyuta||'')+'</b><span>qoldiq '+money(r.qoldiq_uzs)+" so'm</span></div>"
+        +'</button>';
+    }).join('');
+  });
+  $('grBody').innerHTML=html;
+  icons();
+}
+
+// Excel eksport — jurnal-dev/qarzdor-dev bilan bir xil LAZY SheetJS naqshi (birinchi bosishda yuklanadi).
+const GR_XLS_SRC='vendor/xlsx-0.18.5.min.js';
+let _grXlsLib=null;
+function grLoadXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(_grXlsLib) return _grXlsLib;
+  const p=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=GR_XLS_SRC; s.async=true;
+    s.onload=()=>{ if(window.XLSX) res(window.XLSX); else rej(new Error('kutubxona yuklandi, lekin topilmadi')); };
+    s.onerror=()=>rej(new Error('kutubxona yuklanmadi'));
+    document.head.appendChild(s);
+  });
+  p.catch(e=>{ _grXlsLib=null; console.error('SheetJS:',e); });
+  _grXlsLib=p; return p;
+}
+window.grExportExcel=async()=>{
+  const btn=$('grXlsBtn'), txt=$('grXlsTxt');
+  if(btn) btn.disabled=true; if(txt) txt.textContent='Yuklanmoqda…';
+  try{
+    const X=await grLoadXlsx();
+    const rows=grFilterRows().sort((a,b)=>String(a.sana).localeCompare(String(b.sana)));
+    const aoa=[['Sana','Yuk ID',"Yetkazib beruvchi",'Summa','Valyuta',"So'mda","To'langan (so'm)","Qoldiq (so'm)",'Holat'],
+      ...rows.map(r=>[String(r.sana||'').slice(0,10),r.yuk_id,r._yetkaz,Number(r.summa)||0,r.valyuta||'',Math.round(r.summa_uzs||0),Math.round(r.tolangan_uzs||0),Math.round(r.qoldiq_uzs||0),r._st.lbl])];
+    const ws=X.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:11},{wch:8},{wch:22},{wch:12},{wch:8},{wch:13},{wch:14},{wch:12},{wch:16}];
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb,ws,"To'lov grafigi");
+    X.writeFile(wb,'tolov_grafigi_'+isoDay(nowUz())+'.xlsx');
+  }catch(ex){
+    console.error('Excel:',ex);
+    alert("Excel tayyorlanmadi");
+  }finally{
+    if(btn) btn.disabled=false; if(txt) txt.textContent='Excel';
+  }
+};
+
 function init(){
   computeTanAllowed();
   $('sababBtn').style.display=tanAllowed?'inline-flex':'none';
@@ -1919,7 +2477,7 @@ function init(){
   $('to').value=isoDay(t); $('from').value=isoDay(from);
   $('from').onchange=()=>window.loadYuklar('fresh');
   $('to').onchange=()=>window.loadYuklar('fresh');
-  Promise.all([loadSabablar(), window.loadYuklar()]);
+  Promise.all([loadSabablar(), window.loadYuklar(), loadGrafAll()]);
   loadPending();   // badge darrov to'lsin (tab ochilmasa ham)
 }
 
