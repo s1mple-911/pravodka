@@ -133,6 +133,7 @@
   @media(hover:hover){.btn-ghost:hover{border-color:var(--surface-3);background:var(--surface-2);color:var(--ink)}}
   .btn-ghost:active{transform:scale(.98)}
   .btn-ghost svg{width:16px;height:16px}
+  .btn-ghost:disabled{opacity:.5;cursor:not-allowed;transform:none}
   /* ===== tanlov paneli — desktopda sticky, mobilda pastdagi savebar ===== */
   .selbar{display:none;align-items:center;gap:var(--s3);background:var(--primary-soft);border:1px solid var(--primary-line);
     border-radius:var(--r-lg);padding:var(--s3) var(--s4);margin-bottom:var(--s4);
@@ -160,9 +161,11 @@
       background:var(--surface);border-color:var(--line);box-shadow:var(--shadow-lg);
       animation:selup .2s cubic-bezier(.22,.61,.36,1)}
     @keyframes selup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-    .selbar .sp{margin-left:0}
+    .selbar .sp{margin-left:0;flex-wrap:wrap}
     .selbar .sp button{flex:1;min-height:48px}
     .selbar .sp .btn-primary{flex:1.7}
+    .selbar .sp #grafGroupBtn{flex:1 1 100%;order:2}
+    .selbar .sp .btn-primary{order:3}
     /* panel oxirgi qatorni to'smasin */
     body:has(.selbar.on){padding-bottom:214px}
   }
@@ -210,6 +213,13 @@
   @media(hover:hover){.ytbl tbody tr.yrow:hover td{background:var(--surface-2)}}
   .ytbl tbody tr.yrow.has td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
   .ytbl tbody tr.yrow.on td{background:var(--primary-soft)}
+  /* Qarzi bor, lekin to'lov muddati/grafigi UMUMAN yo'q — qator foni qizil (Asilbek, 2026-09-14).
+     Kechikkan muddat matni (.mdl-d.over) alohida naqsh — bu ikkisi bitta qatorda birga
+     chiqmaydi (muddat yo'qligi VA muddat kechikkani bir vaqtda bo'lolmaydi), lekin ikkisi
+     ham --red tokenlaridan olingani uchun bir xil "diqqat" tilida ko'rinadi. Tanlangan (.on)
+     holat ustun keladi — foydalanuvchi tanlaganini ko'rib turishi muhimroq. */
+  .ytbl tbody tr.yrow.noplan td{background:var(--red-soft)}
+  .ytbl tbody tr.yrow.noplan.on td{background:var(--primary-soft)}
   .ck{width:18px;height:18px;accent-color:var(--primary);cursor:pointer;margin:0}
   .cval{display:block}
   .subx{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:500;letter-spacing:0}
@@ -361,6 +371,9 @@
     .ytbl tbody tr.yrow.has td:first-child{box-shadow:none}
     .ytbl tbody tr.yrow.on{border-color:var(--primary);border-left-color:var(--primary);background:var(--primary-soft)}
     .ytbl tbody tr.yrow.on td{background:transparent}
+    .ytbl tbody tr.yrow.noplan{border-left-color:var(--red);background:var(--red-soft)}
+    .ytbl tbody tr.yrow.noplan td{background:transparent}
+    .ytbl tbody tr.yrow.noplan.on{border-color:var(--primary);border-left-color:var(--primary);background:var(--primary-soft)}
     .ytbl td{grid-column:1/-1;border:none;padding:5px 0;display:flex;align-items:baseline;justify-content:space-between;
       gap:var(--s4);white-space:normal;text-align:right}
     .ytbl td::before{content:attr(data-l);color:var(--muted);font-weight:500;font-size:13px;text-align:left;flex:none}
@@ -659,6 +672,42 @@
   .gr-row .gramt b{display:block;font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
   .gr-row .gramt span{display:block;font-size:11px;color:var(--muted);margin-top:1px}
   @media(max-width:560px){.gr-row{flex-wrap:wrap}.gr-row .gramt{margin-left:56px}}
+  /* ===== Guruh to'lov grafigi — hujjatlar ro'yxati (#grafTarget ichida, guruh rejimida) ===== */
+  .gdoclist{display:flex;flex-direction:column;gap:5px;margin-bottom:var(--s2)}
+  .gdoc{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink-2);padding:7px 10px;
+    background:var(--surface);border-radius:var(--r-sm);flex-wrap:wrap}
+  .gdoc b{font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .gdoc span{margin-left:auto;color:var(--primary-ink);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  /* ===== Aros'dagi o'zgarishlar — banner + panel (aros_yuk_ozgarish_*, 2026-09-14) ===== */
+  .ao-banner{display:none;width:100%;align-items:center;gap:var(--s3);text-align:left;border:1px solid var(--red-line);
+    background:var(--red-soft);color:var(--red-ink);border-radius:var(--r-lg);padding:var(--s3) var(--s4);
+    margin:0 0 var(--s5);font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer;
+    transition:background .15s,border-color .15s}
+  .ao-banner svg{width:18px;height:18px;flex:none}
+  @media(hover:hover){.ao-banner:hover{border-color:var(--red-ink)}}
+  .ao-bar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:0 var(--s1) var(--s3);
+    border-bottom:1px solid var(--line);margin-bottom:var(--s3)}
+  .ao-bar label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}
+  .ao-row{display:flex;align-items:flex-start;gap:var(--s3);padding:var(--s3) var(--s1);border-bottom:1px solid var(--line)}
+  .ao-row:last-child{border-bottom:none}
+  .ao-row.muhim{background:var(--red-soft);border-radius:var(--r-md);margin-bottom:var(--s2);border-bottom:none;padding:var(--s3)}
+  .ao-row>.ck{margin-top:9px;flex:none}
+  .ao-row .aoc{width:36px;height:36px;flex:none;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;
+    background:var(--surface-2);color:var(--muted)}
+  .ao-row .aoc svg{width:17px;height:17px}
+  .ao-row.muhim .aoc{background:var(--red-line);color:var(--red-ink)}
+  .ao-row .aom{flex:1;min-width:0}
+  .ao-row .aot{font-size:14px;font-weight:700;color:var(--ink);display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .ao-row .aod{font-size:13px;color:var(--ink-2);margin-top:3px;line-height:1.4}
+  .ao-row .aos{font-size:12px;color:var(--muted);margin-top:4px}
+  .ao-row .aost{font-size:11px;color:var(--muted);margin-top:5px}
+  .ao-row .aoact{flex:none}
+  .ao-row .aobtn{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-size:12px;font-weight:700;
+    font-family:inherit;border-radius:var(--r-sm);padding:0 11px;min-height:32px;cursor:pointer;white-space:nowrap;
+    transition:background .15s,border-color .15s,color .15s}
+  @media(hover:hover){.ao-row .aobtn:hover{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}}
+  .ao-row .aobtn.done{border-color:var(--primary-line);background:var(--primary-soft);color:var(--primary-ink);cursor:default}
+  @media(max-width:560px){.ao-row{flex-wrap:wrap}.ao-row .aom{flex:1 1 70%}.ao-row .aoact{margin-left:44px}}
 </style>
 </head>
 <body>
@@ -721,6 +770,10 @@
       <button type="button" class="ytab" id="tabBtnGrafik" style="display:none" onclick="setTab('grafik')"><i data-lucide="calendar-clock"></i>To'lov grafigi</button>
     </div>
 
+    <button type="button" class="ao-banner" id="arosBanner" style="display:none" onclick="openAros()">
+      <i data-lucide="alert-triangle"></i><span id="arosBannerTxt"></span>
+    </button>
+
     <div id="tabYuklar">
       <div class="selbar" id="selbar" role="region" aria-label="Tanlangan yuklar">
         <div class="selhead">
@@ -732,6 +785,7 @@
         </div>
         <div class="sp">
           <button class="btn-ghost" onclick="clearSel()"><i data-lucide="x"></i>Bekor</button>
+          <button class="btn-ghost" id="grafGroupBtn" style="display:none" onclick="openGrafGroup()"><i data-lucide="calendar-clock"></i><span id="grafGroupBtnTxt">Guruh to'lov grafigi</span></button>
           <button class="btn-primary" id="tanAddBtn" onclick="openTan()"><i data-lucide="plus"></i>Tannarx qo'shish</button>
         </div>
       </div>
@@ -960,7 +1014,7 @@
 <div class="tmodal" id="grafikModal" onclick="if(event.target===this)closeGraf()" role="dialog" aria-modal="true" aria-label="To'lov grafigi">
   <div class="tbox" style="max-width:560px">
     <div class="mhead">
-      <div class="mh"><h3>To'lov grafigi</h3><div class="tsub" id="grafSub"></div></div>
+      <div class="mh"><h3 id="grafTitle">To'lov grafigi</h3><div class="tsub" id="grafSub"></div></div>
       <button type="button" class="mclose" onclick="closeGraf()" aria-label="Yopish"><i data-lucide="x"></i></button>
     </div>
     <div class="tscroll">
@@ -995,13 +1049,40 @@
     </div>
     <div class="gfoot" id="grafFoot" style="display:none"></div>
     <div class="tmsg" id="grafMsg" role="status" aria-live="polite"></div>
+    <button type="button" class="btn-ghost" id="grafGotoGroupBtn" style="display:none;margin-bottom:var(--s3);width:100%;justify-content:center" onclick="grafGotoGroup()"><i data-lucide="users"></i>Guruh muharririga o'tish</button>
     <div class="tacts" id="grafDelRow" style="display:none">
-      <button type="button" class="danger" onclick="grafDelete()"><i data-lucide="trash-2"></i>Grafikni o'chirish</button>
+      <button type="button" class="danger" onclick="grafDelete()"><i data-lucide="trash-2"></i><span id="grafDelBtnTxt">Grafikni o'chirish</span></button>
     </div>
     <div class="tacts">
       <button type="button" onclick="closeGraf()">Bekor</button>
       <button type="button" class="primary" id="grafSaveBtn" onclick="grafSave()" disabled>Saqlash</button>
     </div>
+  </div>
+</div>
+
+<!-- Aros'dagi o'zgarishlar paneli (aros_yuk_ozgarish_*). RPC yo'q bo'lsa banner ham chiqmaydi
+     (arosOk=false), bu modal umuman ochilmaydi (openAros erta return qiladi). -->
+<div class="tmodal" id="arosModal" onclick="if(event.target===this)closeAros()" role="dialog" aria-modal="true" aria-label="Aros'dagi o'zgarishlar">
+  <div class="tbox" style="max-width:640px">
+    <div class="mhead">
+      <div class="mh"><h3>Aros'dagi o'zgarishlar</h3><div class="tsub" id="arosSub"></div></div>
+      <button type="button" class="mclose" onclick="closeAros()" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="filtbar" style="margin-bottom:var(--s3)">
+      <div class="chips">
+        <button type="button" class="fchip on" data-ao="all" onclick="setAoFilt('all')">Hammasi</button>
+        <button type="button" class="fchip" data-ao="muhim" onclick="setAoFilt('muhim')">Faqat muhim</button>
+        <button type="button" class="fchip" data-ao="yangi" onclick="setAoFilt('yangi')">Ko'rilmagan</button>
+      </div>
+    </div>
+    <div class="ao-bar">
+      <label><input type="checkbox" class="ck" id="aoAllCk" onchange="toggleAoAll(this)">Hammasini tanlash</label>
+      <button type="button" class="btn-ghost" id="aoBarBtn" onclick="aoMarkSeenSel()" disabled style="margin-left:auto">
+        <i data-lucide="check"></i>Ko'rilgan deb belgilash <span id="aoBarTxt"></span></button>
+    </div>
+    <div class="tscroll" id="arosList"></div>
+    <div class="tmsg" id="arosMsg" role="status" aria-live="polite"></div>
+    <div class="tacts"><button type="button" onclick="closeAros()">Yopish</button></div>
   </div>
 </div>
 
@@ -1282,11 +1363,14 @@ function grafMuddatCell(y,rows){
   const incomplete=(target!=null)&&Math.abs(total-target)>Math.max(200,rows.length*100);
   const paidCnt=rows.filter(r=>r.holat==='tolangan').length;
   const warnHtml=incomplete?'<span class="mdl-sub over" title="Jadval yig\'indisi butun tannarxga teng emas">⚠ grafik to\'liq emas</span>':'';
+  // Guruh a'zosi — kichik "guruh N" belgisi (Asilbek 2026-09-14: bir necha hujjatga bitta grafik).
+  const gN=(rows[0]&&Array.isArray(rows[0].guruh_yuklar))?rows[0].guruh_yuklar.length:0;
+  const guruhHtml=gN>1?'<span class="mdl-sub" title="Guruh to\'lov grafigi">👥 guruh · '+gN+' ta hujjat</span>':'';
   const next=rows.find(r=>r.holat!=='tolangan');
   if(!next){
     return '<button type="button" class="mdl" onclick="openGraf('+y.id+')">'
       +'<span class="mdl-d" style="color:var(--primary-ink)">✓ To\'liq</span>'
-      +'<span class="mdl-sub">'+rows.length+' ta to\'lovdan '+paidCnt+' tasi to\'langan</span>'+warnHtml+'</button>';
+      +'<span class="mdl-sub">'+rows.length+' ta to\'lovdan '+paidCnt+' tasi to\'langan</span>'+warnHtml+guruhHtml+'</button>';
   }
   const left=dlDaysLeft(next.sana);
   let cls='',sub='';
@@ -1295,10 +1379,13 @@ function grafMuddatCell(y,rows){
   return '<button type="button" class="mdl" onclick="openGraf('+y.id+')">'
     +'<span class="mdl-d'+(cls?' '+cls:'')+'">'+dF(next.sana)+'</span>'
     +'<span class="mdl-sub'+(cls==='over'?' over':'')+'">'+(sub?esc(sub)+' · ':'')+rows.length+' ta to\'lovdan '+paidCnt+' tasi to\'langan</span>'
-    +warnHtml+'</button>';
+    +warnHtml+guruhHtml+'</button>';
 }
 /* "Muddat qo'yilmagan" — grafOk bo'lsa grafik yo'qligi, aks holda eski yuk_deadline yo'qligi. */
 function hasDeadlineSet(y){ return grafOk ? (grafRowsFor(y.id).length>0) : !!dlOf(y); }
+/* Qarzi bor (qoldiq>0), lekin muddat/grafik UMUMAN yo'q — "Muddat qo'yilmagan" chipi VA
+   qator qizil foni (Asilbek talabi 2026-09-14) shu bittadan hisoblanadi. */
+function dlUnset(y){ const q=qoldiq(y); return q!=null && q>0 && !hasDeadlineSet(y); }
 
 function fillOmbor(){
   const s=$('omborFilt'), cur=s.value;
@@ -1314,7 +1401,7 @@ function visibleRows(){
   if(filtPay==='tolanmagan') rows=rows.filter(y=>pct(y)===0);
   else if(filtPay==='qisman') rows=rows.filter(y=>{const p=pct(y);return p>0&&p<100;});
   else if(filtPay==='tolangan') rows=rows.filter(y=>pct(y)>=100);
-  if(filtDl) rows=rows.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !hasDeadlineSet(y); });
+  if(filtDl) rows=rows.filter(dlUnset);
   if(omb) rows=rows.filter(y=>y.ombor===omb);
   return rows;
 }
@@ -1400,7 +1487,7 @@ function renderYuklar(){
   $('cUnpaid').textContent=all.filter(y=>pct(y)===0).length;
   $('cPart').textContent=all.filter(y=>{const p=pct(y);return p>0&&p<100;}).length;
   $('cPaid').textContent=all.filter(y=>pct(y)>=100).length;
-  $('cDlUnset').textContent=all.filter(y=>{ const q=qoldiq(y); return q!=null && q>0 && !hasDeadlineSet(y); }).length;
+  $('cDlUnset').textContent=all.filter(dlUnset).length;
   const rows=visibleRows();
   if(!rows.length){ $('yukBody').innerHTML='<div class="empty none">Bu shartlarga mos yuk yo\'q.'
     +'<span>Sana oralig\'ini kengaytiring yoki filtrni o\'zgartiring.</span></div>';
@@ -1428,7 +1515,7 @@ function renderYuklar(){
       ? '<button type="button" class="qbtn'+(openDet.has(id)?' on':'')+'" onclick="toggleDet('+id+')"><i data-lucide="chevron-down"></i>'+qCount+' ta</button>'
       : '<span class="qzero">—</span>';
     // .yrow — hover/aksent uchun; .has — tannarxi bor yuk (chapda yashil chiziq)
-    let tr='<tr class="yrow'+(on?' on':'')+(qo>0?' has':'')+'">'
+    let tr='<tr class="yrow'+(on?' on':'')+(qo>0?' has':'')+(dlUnset(y)?' noplan':'')+'">'
       +'<td data-l="Tanlash"><input type="checkbox" class="ck"'+(on?' checked':'')+' onchange="toggleSel('+id+')" aria-label="Yukni tanlash"></td>'
       +'<td class="yid" data-l="ID">#'+esc(y.id)+'</td>'
       +'<td data-l="Sana">'+dF(y.sana||y.created_datetime)+postTxt+'</td>'
@@ -1489,6 +1576,14 @@ function selYuklar(){ return yuklar.filter(y=>sel.has(Number(y.id))); }
 function renderSelbar(){
   const n=sel.size;
   $('selbar').classList.toggle('on',n>0);
+  // "Guruh to'lov grafigi" — grafik RPC bor bo'lganda ko'rinadi, faqat ≥2 yuk tanlanganda faol
+  // (Asilbek: bir yetkazib beruvchidan bir necha hujjatga BITTA grafik).
+  const gbtn=$('grafGroupBtn');
+  if(gbtn){
+    gbtn.style.display=grafOk?'inline-flex':'none';
+    gbtn.disabled=n<2;
+    $('grafGroupBtnTxt').textContent="Guruh to'lov grafigi"+(n>=2?' ('+n+' ta)':'');
+  }
   if(!n) return;
   // innerHTML — raqam <b> ichida. Bu yerga faqat son tushadi, baribir esc() naqshi saqlanadi.
   $('selCount').innerHTML='<b>'+esc(n)+'</b> ta yuk tanlandi';
@@ -1499,7 +1594,7 @@ function renderSelbar(){
 // ===== Modal yordamchilari: fokus, Escape, Tab tuzog'i =====
 /* Tartib MUHIM — ustidan pastga. Birinchi ochig'i "eng ustidagi" hisoblanadi
    (cfmModal z-index 230 > tmodal 210 > mmodal 200). */
-const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','dlModal','grafikModal','moreModal'];
+const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','dlModal','grafikModal','arosModal','moreModal'];
 const FOCUS_SEL='button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
 // Sichqonchali qurilma: matn maydoniga fokus faqat shu yerda beriladi —
 // telefonda klaviatura o'zi ochilib, varaqni yarmini yeb qo'ymasin.
@@ -1524,6 +1619,7 @@ document.addEventListener('keydown',e=>{
     else if(m.id==='linkModal') window.closeLink();
     else if(m.id==='dlModal') window.closeDl();
     else if(m.id==='grafikModal') window.closeGraf();
+    else if(m.id==='arosModal') window.closeAros();
     else window.closeMore();
     return;
   }
@@ -2141,6 +2237,14 @@ window.dlDelete=async()=>{
 // ===== To'lov grafigi muharriri (bir yukka bir nechta muddat, Asilbek 2026-09-13) =====
 let grafCur=null, grafTargetAmt=null, grafKurs=null, grafValyuta='', grafExisted=false;
 let grafRows=[];   // {sana, raw, izoh, holat, kech, _touched}
+// Guruh rejimi (Asilbek 2026-09-14): bir yetkazib beruvchidan bir nechta hujjatga BITTA
+// grafik. grafGroupYuklar — tanlangan yuklar (id/ombor/yetkazuvchi/narx/valyuta/sana),
+// grafGroupId — mavjud guruh (yuk_grafik_royxat.guruh_id) yoki null (yangi guruh),
+// grafGroupBreakdown — yuk_grafik_guruh_maqsad.yuklar (har hujjat uchun tannarx taqsimi).
+let grafGroupMode=false, grafGroupYuklar=[], grafGroupId=null, grafGroupYetkazuvchi='', grafGroupBreakdown=[];
+// yuk_grafik_saqla 'guruhda' bilan rad etsa (yakka rejimda, kutilmagan holat — asosiy
+// himoya yuqorida openGraf() da) — shu guruhga o'tish tugmasi shu id ni ishlatadi.
+let grafGotoGroupId=null;
 
 /* Xavfsiz arifmetik ifoda — faqat raqam/+-*\/() , eval() YO'Q (alert(1) kabi kod ishlamaydi). */
 function grafSafeEval(expr){
@@ -2279,14 +2383,172 @@ function grafValidate(){
   return ok;
 }
 
+/* Tanlangan yuklar orasida MAVJUD guruhni topadi. Ular ichida ikki xil (null bo'lmagan)
+   guruh_id uchrasa — nomuvofiq, null qaytadi (yangi guruh sifatida davom etadi; server
+   saqlashda "boshqa_guruhda" bilan haqiqiy taqiqni tekshiradi). */
+function existingGroupIdFor(ids){
+  let gid=null, mismatch=false;
+  ids.forEach(id=>{
+    const rows=grafRowsFor(id);
+    const g=rows.length?(rows[0].guruh_id||null):null;
+    if(g){ if(gid==null) gid=g; else if(String(gid)!==String(g)) mismatch=true; }
+  });
+  return mismatch?null:gid;
+}
+/* Guruh a'zolarini guruh_id bo'yicha grafAllRows dan hosil qiladi — bitta qatordagi
+   guruh_yuklar maydoniga tayanmaydi (u yo'q/noto'liq bo'lsa ham ishlaydi), shuning uchun
+   "yuk aslida guruhda" holatini aniqlashning YAGONA ishonchli manbasi shu. */
+function groupMembersFor(gid){
+  if(!gid) return [];
+  const ids=[...new Set(grafAllRows.filter(r=>String(r.guruh_id)===String(gid)).map(r=>Number(r.yuk_id)))];
+  return yuklar.filter(y=>ids.includes(Number(y.id)));
+}
+/* Guruhning saqlangan to'lov qatorlari — SANA bo'yicha qo'shiladi (har hujjatga taqsimlangan
+   ulush guruh_id orqali qaytarilishi mumkin; sanaga yig'ish har qanday ichki taqsimotda ham
+   to'g'ri "N-chi to'lov" ro'yxatini beradi). holat: hamma a'zosi to'langan bo'lsagina "tolangan",
+   hech biri to'lanmagan bo'lsa null (kutilmoqda), aralash bo'lsa "qisman". */
+function grafGroupExistingRows(gid){
+  if(!gid) return [];
+  const rows=grafAllRows.filter(r=>String(r.guruh_id)===String(gid));
+  const bySana={};
+  rows.forEach(r=>{
+    const k=String(r.sana||'').slice(0,10);
+    const b=bySana[k]=bySana[k]||{sana:k,summa:0,izoh:'',kech:false,_n:0,_paid:0};
+    b.summa+=Number(r.summa)||0;
+    if(!b.izoh&&r.izoh) b.izoh=r.izoh;
+    if(r.kech) b.kech=true;
+    b._n++; if(r.holat==='tolangan') b._paid++;
+  });
+  return Object.values(bySana).map(b=>({ sana:b.sana, summa:b.summa, izoh:b.izoh,
+    holat: b._paid===0?null:(b._paid===b._n?'tolangan':'qisman'), kech:b.kech }))
+    .sort((a,b)=>a.sana.localeCompare(b.sana));
+}
+/* Guruh rejimida #grafTarget — sarlavha + hujjatlar ro'yxati (id/sana/narx/tannarx ulushi) +
+   umumiy butun tannarx. Yakka rejimda bu funksiya chaqirilmaydi (eski matn saqlanadi). */
+function renderGrafGroupHeader(){
+  const docs=grafGroupYuklar.map(y=>{
+    const bd=grafGroupBreakdown.find(b=>Number(b.yuk_id)===Number(y.id));
+    const tn=bd?(Number(bd.tannarx_uzs)||0):null;
+    return '<div class="gdoc"><b>#'+esc(y.id)+'</b> '+esc(dF(y.sana||y.created_datetime))+' · '+priceF(y.narx,y.valyuta)
+      +(tn!=null?'<span>'+money(tn)+" so'm</span>":'')+'</div>';
+  }).join('');
+  const targetTxt=(grafTargetAmt==null)
+    ? '<b>Hisoblanmoqda…</b>'
+    : ('<b>'+money(grafTargetAmt)+' '+esc(grafValyuta)+'</b>'
+      +((grafKurs&&String(grafValyuta).toUpperCase()!=='UZS')?('<span class="gsub">≈ '+money(grafTargetAmt*grafKurs)+" so'm</span>"):''));
+  $('grafTarget').innerHTML='<div style="font-weight:700;color:var(--ink);margin-bottom:8px">Guruh: '
+    +esc(grafGroupYetkazuvchi||'—')+' · '+grafGroupYuklar.length+" ta hujjat</div>"
+    +'<div class="gdoclist">'+docs+'</div>'
+    +'Umumiy butun tannarx: '+targetTxt;
+}
+/* Guruh muharririning umumiy tanasi — YANGI guruh yaratishda (openGrafGroup) va mavjud
+   guruh a'zosini yakka ochishda (openGraf redirekti) ikkalasida ham shu chaqiriladi. */
+async function openGrafGroupEditor(){
+  grafCur=null;
+  $('grafTitle').textContent="Guruh to'lov grafigi";
+  $('grafSub').textContent=grafGroupYuklar.length+" ta hujjat tanlandi";
+  $('grafDelBtnTxt').textContent="Guruhni o'chirish";
+  grafTargetAmt=null; grafKurs=null; grafValyuta=(grafGroupYuklar[0]&&grafGroupYuklar[0].valyuta)||'UZS';
+  grafGroupBreakdown=[];
+  renderGrafGroupHeader();
+  $('grafKelishuv').value='';
+  $('grafMsg').textContent=''; $('grafMsg').className='tmsg';
+  $('grafGotoGroupBtn').style.display='none'; grafGotoGroupId=null;
+  $('grafDupMsg').textContent='';
+  $('grafSegN').value=''; $('grafSegCustom').style.display='none';
+  $('grafSaveBtn').textContent='Saqlash';
+  const existing=grafGroupExistingRows(grafGroupId);
+  grafExisted=existing.length>0;
+  grafRows=existing.map(r=>({sana:r.sana, raw:r.summa?money(r.summa):'', izoh:r.izoh||'', holat:r.holat||null, kech:!!r.kech, _touched:true}));
+  $('grafDelRow').style.display=grafExisted?'flex':'none';
+  grafShowSeg(!grafExisted);
+  renderGrafRows();
+  $('grafikModal').classList.add('open');
+  icons(); grafValidate();
+  mFocus(grafExisted?'grD0':'grafKelishuv',false);
+  try{
+    const p_yuklar=grafGroupYuklar.map(y=>({yuk_id:Number(y.id), narx:(y.narx==null?null:Number(y.narx)), valyuta:y.valyuta||null}));
+    const {data,error}=await sb.rpc('yuk_grafik_guruh_maqsad',{p_yuklar});
+    if(error||!data||data.ok===false){
+      grafTargetAmt=null; renderGrafGroupHeader();
+      const kod=data&&data.kod;
+      $('grafMsg').textContent = kod==='valyuta_xilma_xil' ? "Tanlangan yuklar valyutasi bir xil emas"
+        : (rpcMissing(error) ? "Guruh to'lov grafigi funksiyasi hali ulanmagan (SQL RUN kutilmoqda)"
+        : "Butun tannarxni hisoblab bo'lmadi");
+      $('grafMsg').className='tmsg no';
+    }else{
+      grafTargetAmt=Number(data.maqsad)||0;
+      grafKurs=data.kurs!=null?Number(data.kurs):null;
+      grafValyuta=data.valyuta||grafValyuta;
+      grafGroupBreakdown=Array.isArray(data.yuklar)?data.yuklar:[];
+      renderGrafGroupHeader();
+      if(!grafExisted && !grafRows.length) grafShowSeg(true);
+    }
+  }catch(e){ grafTargetAmt=null; renderGrafGroupHeader(); console.warn('yuk_grafik_guruh_maqsad istisno:',e); }
+  grafValidate();
+}
+/* .selbar dagi "Guruh to'lov grafigi" tugmasi — ≥2 yuk tanlangandagina faol.
+   Faqat BIR XIL yetkazib beruvchi va BIR XIL valyutadagi yuklar (Asilbek qarori);
+   mos kelmasa aniq xabar (qaysi yuk boshqa) — davom etmaydi. */
+window.openGrafGroup=async()=>{
+  if(!grafOk) return;
+  const rows=selYuklar();
+  if(rows.length<2) return;
+  const bosh=rows[0];
+  const boshProv=(bosh.yetkazuvchi||'—').trim();
+  const boshCur=(bosh.valyuta||'UZS').toUpperCase();
+  const farqProv=rows.find(y=>(y.yetkazuvchi||'—').trim()!==boshProv);
+  if(farqProv){
+    // showBanner textContent bilan yozadi (allaqachon xavfsiz) — esc() BU YERDA KERAK EMAS,
+    // aks holda "&#39;" kabi entity harf-baharf ko'rinib qolardi.
+    showBanner('Guruh grafigi faqat BIR XIL yetkazib beruvchidagi yuklar uchun. Yuk #'+farqProv.id
+      +' ("'+(farqProv.yetkazuvchi||'—')+'") boshqalaridan farq qiladi ("'+boshProv+'").',false);
+    return;
+  }
+  const farqCur=rows.find(y=>(y.valyuta||'UZS').toUpperCase()!==boshCur);
+  if(farqCur){
+    showBanner('Guruh grafigi faqat BIR XIL valyutadagi yuklar uchun. Yuk #'+farqCur.id
+      +' ('+(farqCur.valyuta||'UZS')+') boshqalaridan farq qiladi ('+boshCur+').',false);
+    return;
+  }
+  showBanner('');
+  grafGroupMode=true;
+  grafGroupYetkazuvchi=boshProv;
+  grafGroupYuklar=rows;
+  grafGroupId=existingGroupIdFor(rows.map(y=>Number(y.id)));
+  await openGrafGroupEditor();
+};
 window.openGraf=async id=>{
   const y=yuklar.find(x=>Number(x.id)===Number(id)); if(!y) return;
+  // Bu yuk allaqachon guruh grafigida — yakka muharrir o'rniga guruh muharririga
+  // yo'naltiriladi (Asilbek: "yuk faqat bitta grafikda bo'ladi"). Trigger — `guruh_id`
+  // ning o'zi (rowdagi `guruh_yuklar`ga TAYANMAYDI, u yo'q/noto'liq bo'lsa ham to'g'ri
+  // ishlashi uchun a'zolar groupMembersFor() bilan grafAllRows dan qayta hosil qilinadi).
+  // Shu tekshiruv tufayli yuk_grafik_saqla'ning 'guruhda' xatosi ODATDA umuman chiqmaydi.
+  const existingRows=grafRowsFor(y.id);
+  const gid0=existingRows.length?(existingRows[0].guruh_id||null):null;
+  if(gid0){
+    const members=groupMembersFor(gid0);
+    if(members.length){
+      showBanner('Yuk #'+y.id+' — bu yuk '+members.length+" ta hujjatli guruh grafigida. Guruh muharriri ochildi.",true);
+      grafGroupMode=true;
+      grafGroupYetkazuvchi=(y.yetkazuvchi||(members[0]&&members[0].yetkazuvchi)||'—').trim();
+      grafGroupYuklar=members;
+      grafGroupId=gid0;
+      await openGrafGroupEditor();
+      return;
+    }
+  }
+  grafGroupMode=false;
   grafCur=y; grafTargetAmt=null; grafKurs=null; grafValyuta=y.valyuta||'UZS';
+  $('grafTitle').textContent="To'lov grafigi";
+  $('grafDelBtnTxt').textContent="Grafikni o'chirish";
   $('grafSub').textContent='Yuk #'+y.id+' · '+(y.yetkazuvchi||y.ombor||'—');
   const dOld=dlOf(y);
   $('grafKelishuv').value=(dOld&&dOld.izoh)||'';
   $('grafTarget').innerHTML="Butun tannarx: <b>Hisoblanmoqda…</b>";
   $('grafMsg').textContent=''; $('grafMsg').className='tmsg';
+  $('grafGotoGroupBtn').style.display='none'; grafGotoGroupId=null;
   $('grafDupMsg').textContent='';
   $('grafSegN').value=''; $('grafSegCustom').style.display='none';
   $('grafSaveBtn').textContent='Saqlash';
@@ -2319,32 +2581,86 @@ window.openGraf=async id=>{
   }
   grafValidate();
 };
-window.closeGraf=()=>{ $('grafikModal').classList.remove('open'); grafCur=null; grafRows=[]; };
+window.closeGraf=()=>{ $('grafikModal').classList.remove('open'); grafCur=null; grafRows=[];
+  grafGroupMode=false; grafGroupYuklar=[]; grafGroupId=null; grafGroupYetkazuvchi=''; grafGroupBreakdown=[];
+  grafGotoGroupId=null; };
+/* Yakka rejimda saqlash "guruhda" bilan rad etilganda (kutilmagan holat — asosiy
+   himoya openGraf() da) ko'rsatiladigan zaxira yo'l: bevosita guruh muharririga o'tadi. */
+window.grafGotoGroup=async()=>{
+  const gid=grafGotoGroupId; if(!gid) return;
+  const members=groupMembersFor(gid);
+  if(!members.length) return;
+  grafGroupMode=true;
+  grafGroupYetkazuvchi=(members[0].yetkazuvchi||'—').trim();
+  grafGroupYuklar=members;
+  grafGroupId=gid;
+  await openGrafGroupEditor();
+};
 window.grafSave=async()=>{
-  if(!grafCur) return;
+  if(grafGroupMode){ if(!grafGroupYuklar.length) return; }
+  else if(!grafCur) return;
   if(!grafValidate()) return;
   const btn=$('grafSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
   const rows=grafRows.slice().sort((a,b)=>String(a.sana).localeCompare(String(b.sana)))
     .map(r=>({sana:r.sana, summa:grafParseAmt(r.raw), izoh:(r.izoh||'').trim()||null}));
   const kelishuv=($('grafKelishuv').value||'').trim()||null;
-  const {data,error}=await sb.rpc('yuk_grafik_saqla',{
-    p_yuk_id:Number(grafCur.id), p_narx:(grafCur.narx==null?null:Number(grafCur.narx)), p_valyuta:grafCur.valyuta||null,
-    p_rows:rows, p_kelishuv:kelishuv
-  });
+  let data,error;
+  if(grafGroupMode){
+    const p_yuklar=grafGroupYuklar.map(y=>({yuk_id:Number(y.id), narx:(y.narx==null?null:Number(y.narx)), valyuta:y.valyuta||null}));
+    ({data,error}=await sb.rpc('yuk_grafik_guruh_saqla',{
+      p_guruh_id:grafGroupId||null, p_yuklar, p_rows:rows, p_kelishuv:kelishuv, p_yetkazuvchi:grafGroupYetkazuvchi||null
+    }));
+  }else{
+    ({data,error}=await sb.rpc('yuk_grafik_saqla',{
+      p_yuk_id:Number(grafCur.id), p_narx:(grafCur.narx==null?null:Number(grafCur.narx)), p_valyuta:grafCur.valyuta||null,
+      p_rows:rows, p_kelishuv:kelishuv
+    }));
+  }
   btn.textContent='Saqlash';
   if(error){ $('grafMsg').textContent=(window.permErr?window.permErr(error):error.message); $('grafMsg').className='tmsg no'; btn.disabled=false; return; }
   if(data&&data.ok===false){
     let m=String(data.error||'Saqlanmadi');
     if(data.kod==='summa_mos_emas') m="Yig'indi mos kelmadi: jami "+money(data.jami)+', kerak '+money(data.maqsad)+', farq '+money(data.farq);
     else if(data.kod==='ruxsat') m="Sizda bu amal uchun ruxsat yo'q";
+    else if(data.kod==='boshqa_guruhda') m='Yuk #'+(data.yuk_id!=null?data.yuk_id:'—')+" allaqachon boshqa guruh grafigida — avval o'shandan chiqaring";
+    else if(data.kod==='valyuta_xilma_xil') m="Tanlangan yuklar valyutasi bir xil emas";
+    else if(data.kod==='guruhda'){
+      // Bu yuk (yakka rejimda saqlanayotgan) aslida guruh grafigida — server rad etdi.
+      // Odatda openGraf()dagi oldindan tekshiruv buni chiqarmasligi kerak (masalan boshqa
+      // oyna orqali guruh SHU ORADA yaratilgan bo'lsa yuz beradi) — shu bois "Guruh
+      // muharririga o'tish" tugmasi bilan zaxira yo'l ko'rsatiladi.
+      const members=groupMembersFor(data.guruh_id);
+      m='Bu yuk '+(members.length||'bir necha')+" ta hujjatli guruh grafigida — o'sha grafikni tahrirlang.";
+      grafGotoGroupId=data.guruh_id||null;
+      $('grafGotoGroupBtn').style.display=(grafGotoGroupId&&members.length)?'inline-flex':'none';
+    }
     $('grafMsg').textContent=m; $('grafMsg').className='tmsg no'; btn.disabled=false; return;
   }
   closeGraf();
-  showBanner("To'lov grafigi saqlandi: "+(data&&data.n!=null?data.n:rows.length)+' ta qator',true);
+  showBanner(grafGroupMode
+    ? ("Guruh to'lov grafigi saqlandi: "+money((data&&data.jami!=null)?data.jami:rows.reduce((a,r)=>a+r.summa,0))+' '+grafValyuta)
+    : ("To'lov grafigi saqlandi: "+(data&&data.n!=null?data.n:rows.length)+' ta qator'), true);
+  sel.clear();
   await Promise.all([loadGrafAll(), window.loadYuklar('fresh')]);
   if(curTab==='grafik') renderGrafTab();
 };
 window.grafDelete=async()=>{
+  if(grafGroupMode){
+    if(!grafGroupYuklar.length) return;
+    if(!await askConfirm('Guruhni o\'chirish',"Bu guruh to'lov grafigi ("+grafGroupYuklar.length+" ta hujjat) butunlay o'chirilsinmi? (Har hujjatning muddati ham olib tashlanadi)","O'chirish")) return;
+    const p_yuklar=grafGroupYuklar.map(y=>({yuk_id:Number(y.id), narx:(y.narx==null?null:Number(y.narx)), valyuta:y.valyuta||null}));
+    const {data,error}=await sb.rpc('yuk_grafik_guruh_saqla',{
+      p_guruh_id:grafGroupId||null, p_yuklar, p_rows:[], p_kelishuv:null, p_yetkazuvchi:grafGroupYetkazuvchi||null
+    });
+    if(error){ $('grafMsg').textContent=(window.permErr?window.permErr(error):error.message); $('grafMsg').className='tmsg no'; return; }
+    if(data&&data.ok===false){ $('grafMsg').textContent=String(data.error||"O'chirilmadi"); $('grafMsg').className='tmsg no'; return; }
+    closeGraf();
+    showBanner("Guruh grafigi o'chirildi",true);
+    sel.clear();
+    await Promise.all([loadGrafAll(), window.loadYuklar('fresh')]);
+    if(curTab==='grafik') renderGrafTab();
+    return;
+  }
   if(!grafCur) return;
   if(!await askConfirm('Grafikni o\'chirish',"Yuk #"+grafCur.id+" uchun to'lov grafigi butunlay o'chirilsinmi? (Muddat ham olib tashlanadi)","O'chirish")) return;
   const {data,error}=await sb.rpc('yuk_grafik_saqla',{
@@ -2469,6 +2785,114 @@ window.grExportExcel=async()=>{
   }
 };
 
+// ===== Aros'dagi o'zgarishlar (aros_yuk_ozgarish_*, Asilbek 2026-09-14) =====
+// Provodkada puli/tannarxi bor yuk Aros adminkadan o'chirilsa yoki narxi kamaysa — jimgina
+// yo'qolib ketmasin, tepada qizil banner ko'rsatiladi. RPC yo'q bo'lsa (SQL RUN kutilmoqda)
+// banner ham chiqmaydi (arosOk=false) — sahifa eskicha ishlaydi.
+let arosRows=[], arosOk=null, arosLoaded=false, arosFilt='all', arosSel=new Set();
+const AO_TUR={
+  ochirildi:{ic:'trash-2',lbl:"Aros'dan o'chirildi"},
+  qaytdi:{ic:'rotate-ccw',lbl:'Qaytarildi'},
+  narx_kamaydi:{ic:'trending-down',lbl:'Narxi kamaydi'},
+  narx_oshdi:{ic:'trending-up',lbl:'Narxi oshdi'},
+  valyuta:{ic:'banknote',lbl:"Valyutasi o'zgardi"}
+};
+async function loadAros(){
+  try{
+    const {data,error}=await sb.rpc('aros_yuk_ozgarish_royxat',{p_faqat_ochiq:true,p_limit:200});
+    if(error){ arosOk=false; arosRows=[]; if(!rpcMissing(error)) console.warn('aros_yuk_ozgarish_royxat:',error.message||error); }
+    else if(!data||data.ok===false){ arosOk=false; arosRows=[]; }
+    else{ arosOk=true; arosRows=Array.isArray(data.rows)?data.rows:[]; }
+  }catch(e){ arosOk=false; arosRows=[]; console.warn('aros_yuk_ozgarish_royxat istisno:',e); }
+  arosLoaded=true;
+  renderArosBanner();
+}
+function renderArosBanner(){
+  const b=$('arosBanner');
+  if(!arosOk||!arosRows.length){ b.style.display='none'; return; }
+  const muhim=arosRows.filter(r=>r.muhim).length;
+  b.style.display='flex';
+  $('arosBannerTxt').textContent="Aros'da "+arosRows.length+" ta o'zgarish"
+    +(muhim?(' — Provodkada puli/tannarxi bor '+muhim+' tasi'):'');
+  icons();
+}
+function aoTurTxt(r){
+  const t=AO_TUR[r.tur]||{lbl:r.tur||"O'zgarish"};
+  if(r.tur==='narx_kamaydi'||r.tur==='narx_oshdi') return t.lbl+': '+money(r.eski_narx)+' → '+money(r.yangi_narx)+(r.valyuta?' '+esc(r.valyuta):'');
+  if(r.tur==='valyuta') return t.lbl+((r.eski_narx!=null&&r.yangi_narx!=null)?(': '+esc(r.eski_narx)+' → '+esc(r.yangi_narx)):'');
+  return t.lbl;
+}
+function aoProvTxt(r){
+  const parts=[];
+  if(r.tolangan_uzs) parts.push("To'langan "+money(r.tolangan_uzs)+" so'm");
+  if(r.tannarx_uzs) parts.push('Tannarx '+money(r.tannarx_uzs)+" so'm");
+  if(r.grafik_n) parts.push('Grafik '+r.grafik_n+" ta to'lov");
+  return parts.length?parts.join(' · '):"Provodkada pul yo'q";
+}
+window.setAoFilt=k=>{ arosFilt=k; document.querySelectorAll('#arosModal [data-ao]').forEach(b=>b.classList.toggle('on',b.dataset.ao===k)); renderArosList(); };
+/* Muhim (Provodkada puli bor) qatorlar tepada VA qizil, qolgani kulrang — Asilbek qarori. */
+function arosVisible(){
+  let rows=arosRows.slice();
+  if(arosFilt==='muhim') rows=rows.filter(r=>r.muhim);
+  else if(arosFilt==='yangi') rows=rows.filter(r=>!r.korildi);
+  return rows.sort((a,b)=>{ if(!!b.muhim!==!!a.muhim) return b.muhim?1:-1;
+    return String(b.sezildi_at||'').localeCompare(String(a.sezildi_at||'')); });
+}
+function renderArosList(){
+  const rows=arosVisible();
+  $('arosSub').textContent=arosRows.length+" ta ochiq o'zgarish";
+  if(!rows.length){ $('arosList').innerHTML='<div class="empty none">Bu filtrga mos o\'zgarish yo\'q.</div>'; renderAoBar(); icons(); return; }
+  $('arosList').innerHTML=rows.map(r=>{
+    const t=AO_TUR[r.tur]||{ic:'info'};
+    const on=arosSel.has(r.id);
+    return '<div class="ao-row'+(r.muhim?' muhim':'')+'">'
+      +'<input type="checkbox" class="ck" onchange="toggleAoSel(\''+esc(r.id)+'\')"'+(on?' checked':'')+' aria-label="Tanlash">'
+      +'<div class="aoc"><i data-lucide="'+esc(t.ic||'info')+'"></i></div>'
+      +'<div class="aom"><div class="aot">Yuk #'+esc(r.yuk_id)+' <span class="pill '+(r.muhim?'r':'gray')+'">'+(r.muhim?'Muhim':'Oddiy')+'</span></div>'
+      +'<div class="aod">'+esc(aoTurTxt(r))+'</div>'
+      +(r.izoh?'<div class="aod" style="color:var(--muted)">'+esc(r.izoh)+'</div>':'')
+      +'<div class="aos">'+esc(aoProvTxt(r))+'</div>'
+      +'<div class="aost">Sezildi: '+esc(dtF(r.sezildi_at))+'</div></div>'
+      +'<div class="aoact">'+(r.korildi
+        ?'<span class="aobtn done">✓ Ko\'rildi</span>'
+        :'<button type="button" class="aobtn" onclick="aoMarkSeen([\''+esc(r.id)+'\'])">Ko\'rildi</button>')+'</div>'
+      +'</div>';
+  }).join('');
+  renderAoBar();
+  icons();
+}
+function renderAoBar(){
+  const n=arosSel.size;
+  const btn=$('aoBarBtn'); if(btn) btn.disabled=n===0;
+  const txt=$('aoBarTxt'); if(txt) txt.textContent=n?('('+n+')'):'';
+  const ids=arosVisible().map(r=>r.id);
+  const allCk=$('aoAllCk'); if(allCk) allCk.checked=ids.length>0 && ids.every(id=>arosSel.has(id));
+}
+window.toggleAoSel=id=>{ if(arosSel.has(id)) arosSel.delete(id); else arosSel.add(id); renderArosList(); };
+window.toggleAoAll=el=>{ const ids=arosVisible().map(r=>r.id);
+  if(el.checked) ids.forEach(id=>arosSel.add(id)); else ids.forEach(id=>arosSel.delete(id));
+  renderArosList(); };
+window.aoMarkSeen=async ids=>{
+  if(!ids||!ids.length) return;
+  const {data,error}=await sb.rpc('aros_yuk_ozgarish_korildi',{p_ids:ids});
+  if(error){ $('arosMsg').textContent=(window.permErr?window.permErr(error):error.message); $('arosMsg').className='tmsg no'; return; }
+  if(data&&data.ok===false){ $('arosMsg').textContent=String(data.error||'Bajarilmadi'); $('arosMsg').className='tmsg no'; return; }
+  ids.forEach(id=>{ const r=arosRows.find(x=>String(x.id)===String(id)); if(r) r.korildi=true; arosSel.delete(id); });
+  $('arosMsg').textContent=''; $('arosMsg').className='tmsg';
+  renderArosList(); renderArosBanner();
+};
+window.aoMarkSeenSel=()=>window.aoMarkSeen([...arosSel]);
+window.openAros=()=>{
+  if(!arosOk) return;
+  arosFilt='all'; arosSel.clear();
+  document.querySelectorAll('#arosModal [data-ao]').forEach(b=>b.classList.toggle('on',b.dataset.ao==='all'));
+  $('arosMsg').textContent=''; $('arosMsg').className='tmsg';
+  renderArosList();
+  $('arosModal').classList.add('open');
+  icons();
+};
+window.closeAros=()=>{ $('arosModal').classList.remove('open'); };
+
 function init(){
   computeTanAllowed();
   $('sababBtn').style.display=tanAllowed?'inline-flex':'none';
@@ -2477,7 +2901,7 @@ function init(){
   $('to').value=isoDay(t); $('from').value=isoDay(from);
   $('from').onchange=()=>window.loadYuklar('fresh');
   $('to').onchange=()=>window.loadYuklar('fresh');
-  Promise.all([loadSabablar(), window.loadYuklar(), loadGrafAll()]);
+  Promise.all([loadSabablar(), window.loadYuklar(), loadGrafAll(), loadAros()]);
   loadPending();   // badge darrov to'lsin (tab ochilmasa ham)
 }
 
