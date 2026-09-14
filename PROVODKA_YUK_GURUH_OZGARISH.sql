@@ -79,7 +79,7 @@
 --     yuk_grafik_royxat                      — PROVODKA_5KUNLIK_GRAFIK.sql
 --     yuk_deadline, entry_yuk, perm_has_page(text), conv_baza_kurs(text)
 --     yuk_tannarx, yuk_tannarx_jami(integer[])  — PROVODKA_YUK_TANNARX.sql
---     gen_random_uuid()                      — pgcrypto (Supabase sukut)
+--     gen_random_uuid()                      — PG13+ da o'rnatilgan (pg_catalog)
 --
 --  🔴 SQL'ni ASILBEK o'zi RUN qiladi. Agent bajarmaydi.
 -- =====================================================================
@@ -109,9 +109,14 @@ begin
   if to_regprocedure('public.conv_baza_kurs(text)') is null then
     raise exception 'conv_baza_kurs(text) yoq — avval valyuta migratsiyasini bajaring';
   end if;
-  if to_regprocedure('public.gen_random_uuid()') is null then
-    raise exception 'gen_random_uuid() yoq — pgcrypto kengaytmasi kerak';
-  end if;
+  -- 🔴 gen_random_uuid() PG13+ da O'RNATILGAN (pg_catalog), public'da EMAS —
+  --    shuning uchun 'public.gen_random_uuid()' tekshiruvi yolg'on xato berardi.
+  --    Eng ishonchlisi — funksiyani chaqirib ko'rish (search_path bo'yicha topiladi).
+  begin
+    perform gen_random_uuid();
+  exception when others then
+    raise exception 'gen_random_uuid() ishlamadi (%) — PG13+ da o''rnatilgan, eski versiyada pgcrypto kerak', sqlerrm;
+  end;
 end
 $yg2_pre$;
 
