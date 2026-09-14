@@ -379,17 +379,27 @@
   .je .chekpin:hover{color:var(--primary);border-color:var(--primary)}
   .chekov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:200}
   .chekov.open{display:flex}
-  .chekbox{background:var(--surface);border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-hover)}
-  .chekhd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700}
+  .chekbox{background:var(--surface);border-radius:16px;max-width:min(980px,96vw);width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-hover)}
+  .chekhd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;flex:none}
   .chekhd button{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;display:flex}
   .chekhd button svg{width:20px;height:20px}
+  .chekhint{font-style:normal;font-weight:500;font-size:11.5px;color:var(--muted);margin-left:8px}
+  .chekacts{display:flex;align-items:center;gap:2px}
+  .chekico{color:var(--muted);padding:6px;border-radius:8px;display:flex;text-decoration:none}
+  .chekico:hover{color:var(--primary);background:var(--surface-2)}
+  .chekico svg{width:19px;height:19px}
+  .chekico[hidden]{display:none}
+  /* Rasm VA AI paneli birgalikda skroll bo'ladi — tablo rasmi pastda qolib ketmasin. */
+  .chekbody{flex:1 1 auto;min-height:0;overflow:auto}
   /* 2026-08-31 (Asilbek): baland chek rasmi YARIM ko'rinardi — align-items:center + overflow
      birga kelganda rasm ikki tomonga toshib, TEPASI kesiladi va skroll unga yetmaydi (klassik
      flexbox muammosi). margin:auto xavfsiz markazlaydi (toshganda tepadan boshlanadi),
      max-height esa chekni oynaga butunlay sig'diradi — skrollsiz TO'LIQ ko'rinadi. */
-  .chekimg{padding:12px;overflow:auto;display:flex;min-height:120px;flex:1 1 auto}
+  .chekimg{padding:12px;display:flex;min-height:120px}
   .chekimg>*{margin:auto}
-  .chekimg img{max-width:100%;height:auto;max-height:72vh;border-radius:8px}
+  /* Bosilganda kattalashadi (zoom) — mayda yozuvli chekni o'qish uchun. */
+  .chekimg img{max-width:100%;height:auto;max-height:70vh;border-radius:8px;cursor:zoom-in}
+  .chekimg img.zoom,.chekai img.zoom{max-height:none;width:100%;cursor:zoom-out}
   /* PDF/hujjat ko'rinishi — rasm bo'lmagan chek (professional.html ixtiyoriy fayli) */
   .chekdoc{display:flex;flex-direction:column;gap:10px;width:100%;align-items:center}
   .chekdoc iframe{width:100%;height:62vh;border:1px solid var(--line);border-radius:8px;background:#fff}
@@ -409,7 +419,20 @@
   .chekai .al2{margin-top:2px;font-weight:600}
   .chekai .aidiff{color:var(--red)}
   .chekai .aiok{color:var(--green)}
-  .chekai img{max-width:100%;border-radius:8px;margin-top:8px;display:block}
+  .chekai img{max-width:100%;border-radius:8px;margin-top:8px;display:block;cursor:zoom-in}
+  .chekai .aiimg{margin-top:10px}
+  .chekai .aiimg .aicap{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11.5px;
+          font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+  .chekai .aiimg .aicap a{display:inline-flex;align-items:center;gap:5px;color:var(--primary);text-decoration:none;
+          text-transform:none;letter-spacing:0;font-size:12px}
+  .chekai .aiimg .aicap svg{width:14px;height:14px}
+  @media(max-width:640px){
+    .chekov{padding:8px}
+    .chekbox{max-height:96vh}
+    .chekimg{padding:8px}
+    .chekimg img{max-height:64vh}
+    .chekhint{display:none}
+  }
   /* ================================================================
      JADVAL (entry.jadval) — 2-BOSQICH (BRIEF_PROVODKA_JADVAL.md).
      Chip Izoh ustunida (.jd-chip), modal ALOHIDA (.jd-ov/.jd-box —
@@ -1444,9 +1467,18 @@
   <!-- chek rasm modali (admin uchun AI tekshiruv paneli #chekAiBody bilan birlashtirilgan) -->
   <div class="chekov" id="chekModal" onclick="if(event.target===this)closeChek()">
     <div class="chekbox">
-      <div class="chekhd"><span>Chek / hujjat</span><button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button></div>
-      <div class="chekimg" id="chekImg"></div>
-      <div class="chekai" id="chekAiBody"></div>
+      <div class="chekhd"><span>Chek / hujjat <i class="chekhint">rasmni bosing — kattalashadi</i></span>
+        <div class="chekacts">
+          <a class="chekico" id="chekOpenNew" target="_blank" rel="noopener" title="Yangi oynada ochish" hidden><i data-lucide="external-link"></i></a>
+          <button onclick="closeChek()" aria-label="Yopish"><i data-lucide="x"></i></button>
+        </div>
+      </div>
+      <!-- 2026-09-14: rasm + AI paneli BITTA skroll konteynerida — avval .chekbox
+           overflow:hidden edi va AI paneli (tablo rasmi bilan) kesilib qolardi. -->
+      <div class="chekbody">
+        <div class="chekimg" id="chekImg"></div>
+        <div class="chekai" id="chekAiBody"></div>
+      </div>
     </div>
   </div>
   <!-- /chek -->
@@ -2042,10 +2074,24 @@ async function refreshCheks(){
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
 // openChek — chek/hujjat rasmi + (admin) AI tekshiruv paneli BITTA modalda (#chekModal).
 // kassaId bo'sh/null bo'lishi mumkin (kassaOf(e) topmasa) — shunda faqat AI fallback rasmi ishlatiladi.
+// Baland (chek shaklidagi) rasm kenglikka to'liq ochiladi — mayda yozuv o'qilsin;
+// modal tanasi skroll qiladi. Keng/past rasm esa butunlay sig'adi. Bosilsa almashadi.
+function chekFitImgs(){
+  document.querySelectorAll('#chekModal img').forEach(img=>{
+    const fit=()=>{ const w=img.naturalWidth||1; if(img.naturalHeight/w>1.4) img.classList.add('zoom'); };
+    if(img.complete&&img.naturalWidth) fit(); else img.addEventListener('load',fit,{once:true});
+  });
+}
+// Sarlavhadagi «Yangi oynada ochish» havolasi — asosiy fayl URL'i bo'lsa ko'rinadi.
+function chekSetOpen(url){
+  const a=$('chekOpenNew'); if(!a) return;
+  if(url){ a.href=url; a.hidden=false; } else { a.removeAttribute('href'); a.hidden=true; }
+}
 window.openChek=async(kassaId,entryId)=>{
   const box=$('chekImg'), aiBox=$('chekAiBody');
   box.innerHTML='<div style="padding:30px;color:var(--muted)">Yuklanmoqda…</div>';
   if(aiBox) aiBox.innerHTML='';
+  chekSetOpen('');
   $('chekModal').classList.add('open');
   const kid=kassaId||null;
   const am=aiMap[entryId]||{};   // 2026-08-31: AI ma'lumoti endi hammaga (jurnal ruxsati yetarli)
@@ -2063,6 +2109,7 @@ window.openChek=async(kassaId,entryId)=>{
       if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; }
       else{
         const url=esc(data.signedUrl);
+        chekSetOpen(data.signedUrl);
         if(!ext||CHEK_IMG.indexOf(ext)>=0) box.innerHTML=`<img src="${url}" alt="chek">`;
         // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
         else if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
@@ -2076,20 +2123,32 @@ window.openChek=async(kassaId,entryId)=>{
     // egasi / admin / jurnal ruxsati + kassa doirasi (PROVODKA_RASM_JURNAL_RUXSAT.sql, 2026-09-05).
     try{
       const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
+      if(!se&&su) chekSetOpen(su.signedUrl);
       box.innerHTML=(!se&&su)?`<img src="${esc(su.signedUrl)}" alt="AI chek">`:'<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>';
     }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
   } else {
     box.innerHTML='<div style="padding:30px;color:var(--muted)">Chek yo\'q</div>';
   }
-  icons();
+  icons(); chekFitImgs();
   if(!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
-  await renderChekAi(entryId,am,rt);
+  await renderChekAi(entryId,am,rt,hasChek);
 };
 // AI tekshiruv paneli — chek/hujjat rasmi ostida, aiMap'da ma'lumot bo'lsa chizadi.
-async function renderChekAi(entryId,am,rt){
+async function renderChekAi(entryId,am,rt,hasChek){
   const aiBox=$('chekAiBody'); if(!aiBox) return;
   try{
     const out=[];
+    // AI aynan QAYSI rasmni o'qiganini ko'rsatamiz. Haqiqiy chek fayli bo'lmasa u
+    // yuqorida (.chekimg) turibdi — takrorlamaymiz; bo'lsa esa shu yerda chiqadi.
+    let aiImg='';
+    if(hasChek&&rt&&rt.user_id&&rt.id){
+      try{
+        const {data:su0,error:se0}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
+        if(!se0&&su0) aiImg=`<div class="aiimg"><div class="aicap"><span>AI o'qigan rasm</span>`
+          +`<a href="${esc(su0.signedUrl)}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada</a></div>`
+          +`<img src="${esc(su0.signedUrl)}" alt="AI chek"></div>`;
+      }catch(e){}
+    }
     const e=rows.find(x=>x.id===entryId);
     const yozilgan=e?sumDt(e):null;
     if(rt){
@@ -2125,15 +2184,26 @@ async function renderChekAi(entryId,am,rt){
       if(rtSpid&&rtSpid.user_id&&rtSpid.id){
         try{
           const {data:su2,error:se2}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300);
-          if(!se2&&su2) spidImg=`<img src="${esc(su2.signedUrl)}" alt="spidometr">`;
+          // Tablo rasmi izohsiz turardi va modaldan chiqib ketardi — endi sarlavha +
+          // «Yangi oynada ochish» bilan, bosilganda kattalashadi (.zoom).
+          if(!se2&&su2) spidImg=`<div class="aiimg"><div class="aicap"><span>Tablo rasmi</span>`
+            +`<a href="${esc(su2.signedUrl)}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada</a></div>`
+            +`<img src="${esc(su2.signedUrl)}" alt="spidometr"></div>`;
         }catch(e){}
       }
     }
-    aiBox.innerHTML=out.join('')+spidImg;
-    icons();
+    aiBox.innerHTML=out.join('')+aiImg+spidImg;
+    icons(); chekFitImgs();
   }catch(e){ aiBox.innerHTML=''; }
 }
-window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; const ab=$('chekAiBody'); if(ab) ab.innerHTML=''; };
+window.closeChek=()=>{ $('chekModal').classList.remove('open'); $('chekImg').innerHTML=''; const ab=$('chekAiBody'); if(ab) ab.innerHTML=''; chekSetOpen(''); };
+// Rasmni bosganda kattalashtirish/qaytarish (bitta delegat — har render'da qayta bog'lanmaydi).
+document.addEventListener('click',ev=>{
+  const img=ev.target&&ev.target.closest?ev.target.closest('#chekModal img'):null;
+  if(!img) return;
+  img.classList.toggle('zoom');
+  if(img.classList.contains('zoom')) img.scrollIntoView({block:'nearest'});
+});
 
 /* ==================== JADVAL MODALI (entry.jadval) — 2-BOSQICH ====================
    Chip izohCell() ichida chizadi (jd_n bor bo'lganda). Bosilganda TO'LIQ jadval shu
@@ -2381,8 +2451,11 @@ function mxdTags(e){
 // Rasm kattalashtirish — mavjud #chekModal/#chekImg qayta ishlatiladi (yangi modal YO'Q).
 window.openMxdImg=(url,label)=>{
   const box=$('chekImg'); if(!box) return;
+  const ab=$('chekAiBody'); if(ab) ab.innerHTML='';
   box.innerHTML=`<img src="${esc(url)}" alt="${esc(label)}">`;
+  chekSetOpen(url);
   $('chekModal').classList.add('open');
+  chekFitImgs();
 };
 // Rasm 404 → ikonkaga qaytadi (singan rasm ikonkasi hech qachon ko'rinmaydi).
 window.mxdImgErr=img=>{
