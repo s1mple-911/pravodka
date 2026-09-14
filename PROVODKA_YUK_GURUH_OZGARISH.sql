@@ -238,10 +238,15 @@ comment on column yuk_tolov_grafik.guruh_id is
 -- id'si bilan so'ralganda ham butun guruh qatori qaytadi — u yakka
 -- ko'rinishda ko'rsatiladigan "shu yukning grafigi").
 --
--- Yangi OUT ustunlar OXIRIGA qo'shilgan (guruh_id, guruh_yuklar) — eski
--- pozitsion o'quvchilar (agar bo'lsa) buzilmaydi, PostgreSQL CREATE OR
--- REPLACE bu holatda return type o'zgarishini FAQAT oxiriga qo'shishga
--- ruxsat beradi.
+-- Yangi OUT ustunlar (guruh_id, guruh_yuklar) qo'shilgani uchun qaytish TURI
+-- o'zgaradi — PostgreSQL buni `create or replace` bilan RUXSAT BERMAYDI
+-- (42P13), shuning uchun avval DROP qilinadi. Xavfsiz: bu ICHKI funksiya
+-- (authenticated'dan revoke qilingan), uni faqat shu repo funksiyalari
+-- (_taqsim'ni nom bilan chaqiradigan yuk_grafik_royxat / beshkunlik_qarz_v3 /
+-- beshkunlik_qarz_detal_v3) ishlatadi va ular shu skriptda qayta e'lon
+-- qilinadi. Skript bitta tranzaksiyada bajariladi — oraliq holat ko'rinmaydi.
+
+drop function if exists _yuk_grafik_taqsim(integer[]);
 
 create or replace function _yuk_grafik_taqsim(p_yuk_ids integer[])
 returns table (
