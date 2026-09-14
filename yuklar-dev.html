@@ -707,6 +707,9 @@
     transition:background .15s,border-color .15s,color .15s}
   @media(hover:hover){.ao-row .aobtn:hover{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}}
   .ao-row .aobtn.done{border-color:var(--primary-line);background:var(--primary-soft);color:var(--primary-ink);cursor:default}
+  .ao-row .aobtn.wrap{white-space:normal;text-align:center;line-height:1.3;height:auto;padding:8px 10px;max-width:160px}
+  .ao-row .aowarn{font-size:12px;color:var(--amber);margin-top:4px;display:flex;align-items:flex-start;gap:5px}
+  .ao-row .aowarn svg{width:13px;height:13px;flex:none;margin-top:1px}
   @media(max-width:560px){.ao-row{flex-wrap:wrap}.ao-row .aom{flex:1 1 70%}.ao-row .aoact{margin-left:44px}}
 </style>
 </head>
@@ -1083,6 +1086,23 @@
     <div class="tscroll" id="arosList"></div>
     <div class="tmsg" id="arosMsg" role="status" aria-live="polite"></div>
     <div class="tacts"><button type="button" onclick="closeAros()">Yopish</button></div>
+  </div>
+</div>
+
+<!-- To'lovlarni bog'lanmaganga qaytarish (Aros'dan o'chirilgan yuk, yuk_boglash_bekor_*).
+     arosModal ustida ochiladi (ikkalasi ham .tmodal, DOM tartibi ustki qatlamni beradi). -->
+<div class="tmodal" id="aoTolModal" onclick="if(event.target===this)closeAoTol()" role="dialog" aria-modal="true" aria-label="To'lovlarni bog'lanmaganga qaytarish">
+  <div class="tbox">
+    <div class="mhead">
+      <div class="mh"><h3>To'lovlarni bog'lanmaganga qaytarish</h3><div class="tsub" id="aoTolSub"></div></div>
+      <button type="button" class="mclose" onclick="closeAoTol()" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="tscroll" id="aoTolList"><div class="empty">Yuklanmoqda…</div></div>
+    <div class="tmsg" id="aoTolMsg" role="status" aria-live="polite"></div>
+    <div class="tacts">
+      <button type="button" onclick="closeAoTol()">Bekor</button>
+      <button type="button" class="primary" id="aoTolBtn" onclick="aoTolConfirm()" disabled>Davom etish</button>
+    </div>
   </div>
 </div>
 
@@ -1594,7 +1614,7 @@ function renderSelbar(){
 // ===== Modal yordamchilari: fokus, Escape, Tab tuzog'i =====
 /* Tartib MUHIM — ustidan pastga. Birinchi ochig'i "eng ustidagi" hisoblanadi
    (cfmModal z-index 230 > tmodal 210 > mmodal 200). */
-const MODAL_IDS=['cfmModal','sababModal','tanModal','linkModal','dlModal','grafikModal','arosModal','moreModal'];
+const MODAL_IDS=['cfmModal','aoTolModal','sababModal','tanModal','linkModal','dlModal','grafikModal','arosModal','moreModal'];
 const FOCUS_SEL='button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
 // Sichqonchali qurilma: matn maydoniga fokus faqat shu yerda beriladi —
 // telefonda klaviatura o'zi ochilib, varaqni yarmini yeb qo'ymasin.
@@ -1620,6 +1640,7 @@ document.addEventListener('keydown',e=>{
     else if(m.id==='dlModal') window.closeDl();
     else if(m.id==='grafikModal') window.closeGraf();
     else if(m.id==='arosModal') window.closeAros();
+    else if(m.id==='aoTolModal') window.closeAoTol();
     else window.closeMore();
     return;
   }
@@ -2790,6 +2811,9 @@ window.grExportExcel=async()=>{
 // yo'qolib ketmasin, tepada qizil banner ko'rsatiladi. RPC yo'q bo'lsa (SQL RUN kutilmoqda)
 // banner ham chiqmaydi (arosOk=false) — sahifa eskicha ishlaydi.
 let arosRows=[], arosOk=null, arosLoaded=false, arosFilt='all', arosSel=new Set();
+// yuk_boglash_bekor_* (PROVODKA_YUK_BOGLASH_BEKOR.sql) — alohida SQL, hali RUN qilinmagan
+// bo'lishi mumkin. null = hali tekshirilmagan, true/false = probeYukBoglashBekor natijasi.
+let yukBoglashOk=null, aoTolYukId=null, aoTolRows=[];
 const AO_TUR={
   ochirildi:{ic:'trash-2',lbl:"Aros'dan o'chirildi"},
   qaytdi:{ic:'rotate-ccw',lbl:'Qaytarildi'},
@@ -2804,8 +2828,18 @@ async function loadAros(){
     else if(!data||data.ok===false){ arosOk=false; arosRows=[]; }
     else{ arosOk=true; arosRows=Array.isArray(data.rows)?data.rows:[]; }
   }catch(e){ arosOk=false; arosRows=[]; console.warn('aros_yuk_ozgarish_royxat istisno:',e); }
+  if(arosOk) await probeYukBoglashBekor(); else yukBoglashOk=false;
   arosLoaded=true;
   renderArosBanner();
+}
+/* yuk_tolovlari — faqat o'qish, yon ta'sirsiz — RPC bazada bormi tekshirish uchun bir marta
+   chaqiriladi (p_yuk_id=-1, hech qachon mos yuk topilmaydi). Topilmasa (PGRST202/42883)
+   «To'lovlarni bog'lanmaganga qaytarish» tugmasi umuman ko'rsatilmaydi. */
+async function probeYukBoglashBekor(){
+  try{
+    const {error}=await sb.rpc('yuk_tolovlari',{p_yuk_id:-1});
+    yukBoglashOk=!(error&&rpcMissing(error));
+  }catch(e){ yukBoglashOk=false; }
 }
 function renderArosBanner(){
   const b=$('arosBanner');
@@ -2829,6 +2863,18 @@ function aoProvTxt(r){
   if(r.grafik_n) parts.push('Grafik '+r.grafik_n+" ta to'lov");
   return parts.length?parts.join(' · '):"Provodkada pul yo'q";
 }
+/* narx_kamaydi: to'langan summa yangi (kamaygan) narxdan oshib qolgan bo'lishi mumkin — faqat
+   matn, tugma emas. Narx/valyuta avval sahifadagi yuk qatoridan (eng yangisi), topilmasa
+   o'zgarish qatoridagi yangi_narx/valyuta'dan olinadi. */
+function aoNarxOgohlantir(r){
+  if(r.tur!=='narx_kamaydi'||!r.tolangan_uzs) return '';
+  const y=yuklar.find(x=>String(x.id)===String(r.yuk_id));
+  let uzs=null;
+  if(y) uzs=narxUzs(y);
+  else if(r.yangi_narx!=null){ const rt=curRate(r.valyuta); if(rt!=null) uzs=Math.round(Number(r.yangi_narx)*rt); }
+  if(uzs==null||Number(r.tolangan_uzs)<=uzs) return '';
+  return '<div class="aowarn"><i data-lucide="alert-triangle"></i>To\'langan summa yangi narxdan oshib ketgan bo\'lishi mumkin — tekshiring</div>';
+}
 window.setAoFilt=k=>{ arosFilt=k; document.querySelectorAll('#arosModal [data-ao]').forEach(b=>b.classList.toggle('on',b.dataset.ao===k)); renderArosList(); };
 /* Muhim (Provodkada puli bor) qatorlar tepada VA qizil, qolgani kulrang — Asilbek qarori. */
 function arosVisible(){
@@ -2845,6 +2891,12 @@ function renderArosList(){
   $('arosList').innerHTML=rows.map(r=>{
     const t=AO_TUR[r.tur]||{ic:'info'};
     const on=arosSel.has(r.id);
+    const tolBtn=(yukBoglashOk&&r.tur==='ochirildi'&&Number(r.tolangan_uzs)>0)
+      ?'<button type="button" class="aobtn wrap" onclick="openAoTol('+esc(r.yuk_id)+')"><i data-lucide="undo-2"></i>To\'lovlarni bog\'lanmaganga qaytarish</button>'
+      :'';
+    const seenBtn=r.korildi
+      ?'<span class="aobtn done">✓ Ko\'rildi</span>'
+      :'<button type="button" class="aobtn" onclick="aoMarkSeen([\''+esc(r.id)+'\'])">Ko\'rildi</button>';
     return '<div class="ao-row'+(r.muhim?' muhim':'')+'">'
       +'<input type="checkbox" class="ck" onchange="toggleAoSel(\''+esc(r.id)+'\')"'+(on?' checked':'')+' aria-label="Tanlash">'
       +'<div class="aoc"><i data-lucide="'+esc(t.ic||'info')+'"></i></div>'
@@ -2852,10 +2904,9 @@ function renderArosList(){
       +'<div class="aod">'+esc(aoTurTxt(r))+'</div>'
       +(r.izoh?'<div class="aod" style="color:var(--muted)">'+esc(r.izoh)+'</div>':'')
       +'<div class="aos">'+esc(aoProvTxt(r))+'</div>'
+      +aoNarxOgohlantir(r)
       +'<div class="aost">Sezildi: '+esc(dtF(r.sezildi_at))+'</div></div>'
-      +'<div class="aoact">'+(r.korildi
-        ?'<span class="aobtn done">✓ Ko\'rildi</span>'
-        :'<button type="button" class="aobtn" onclick="aoMarkSeen([\''+esc(r.id)+'\'])">Ko\'rildi</button>')+'</div>'
+      +'<div class="aoact" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'+tolBtn+seenBtn+'</div>'
       +'</div>';
   }).join('');
   renderAoBar();
@@ -2892,6 +2943,87 @@ window.openAros=()=>{
   icons();
 };
 window.closeAros=()=>{ $('arosModal').classList.remove('open'); };
+
+// ===== To'lovlarni bog'lanmaganga qaytarish (yuk_boglash_bekor_*, Asilbek 2026-09-14) =====
+// Aros'dan o'chirilgan yukka bog'langan to'lov(lar)ni qaytadan "hujjat kutmoqda" holatiga
+// o'tkazadi — yozuv o'chirilmaydi, faqat entry_yuk bog'lanishi bekor qilinadi.
+window.openAoTol=async(yukId)=>{
+  aoTolYukId=yukId; aoTolRows=[];
+  $('aoTolSub').textContent='Yuk #'+yukId;
+  $('aoTolList').innerHTML='<div class="empty">Yuklanmoqda…</div>';
+  $('aoTolMsg').textContent=''; $('aoTolMsg').className='tmsg';
+  $('aoTolBtn').disabled=true; $('aoTolBtn').textContent='Davom etish';
+  $('aoTolModal').classList.add('open');
+  icons();
+  mFocus('aoTolBtn',false);
+  const {data,error}=await sb.rpc('yuk_tolovlari',{p_yuk_id:yukId});
+  if(error){ $('aoTolList').innerHTML='';
+    $('aoTolMsg').textContent=(window.permErr?window.permErr(error):(error.message||'Xato'));
+    $('aoTolMsg').className='tmsg no'; return; }
+  aoTolRows=Array.isArray(data)?data:[];
+  renderAoTolList();
+};
+function renderAoTolList(){
+  if(!aoTolRows.length){
+    $('aoTolList').innerHTML='<div class="empty none">Bu yukka bog\'langan to\'lov topilmadi — allaqachon bog\'lanmagan bo\'lishi mumkin.</div>';
+    $('aoTolSub').textContent='Yuk #'+aoTolYukId;
+    $('aoTolBtn').disabled=true; return;
+  }
+  const oddiy=aoTolRows.filter(r=>!r.kop_yuk), kop=aoTolRows.filter(r=>r.kop_yuk);
+  const jami=oddiy.reduce((s,r)=>s+(Number(r.summa_uzs)||0),0);
+  const rowHtml=(r,dim)=>'<div class="prow"'+(dim?' style="opacity:.6"':'')+'>'
+    +'<div class="pic"><i data-lucide="'+(dim?'alert-triangle':'banknote')+'"></i></div>'
+    +'<div class="pm"><div class="pt">'+money(r.summa_uzs)+" so'm</div>"
+    +'<div class="pk">'+esc(r.kassa||'—')+(r.kim?' · '+esc(r.kim):'')+'</div>'
+    +'<div class="ps">'+dF(r.entry_date)+(r.izoh?' · '+esc(r.izoh):'')+'</div></div></div>';
+  let html=oddiy.map(r=>rowHtml(r,false)).join('');
+  if(kop.length){
+    html+='<div class="tsub" style="margin:var(--s3) 0 var(--s2)">Bir nechta yukka bog\'langan — qo\'lda ko\'rib chiqing, avtomatik qaytarilmaydi:</div>'
+      +kop.map(r=>rowHtml(r,true)).join('');
+  }
+  $('aoTolList').innerHTML=html;
+  $('aoTolSub').textContent='Yuk #'+aoTolYukId+' · '+oddiy.length+" ta to'lov · jami "+money(jami)+" so'm"
+    +(kop.length?(' · '+kop.length+" tasi qo'lda ko'rib chiqiladi"):'');
+  $('aoTolBtn').disabled=oddiy.length===0;
+  icons();
+}
+window.closeAoTol=()=>{ $('aoTolModal').classList.remove('open'); };
+window.aoTolConfirm=async()=>{
+  const oddiy=aoTolRows.filter(r=>!r.kop_yuk);
+  if(!oddiy.length) return;
+  const jami=oddiy.reduce((s,r)=>s+(Number(r.summa_uzs)||0),0);
+  const ok=await askConfirm(oddiy.length+" ta to'lovni qaytarish",
+    oddiy.length+" ta to'lov (jami "+money(jami)+" so'm) \"Bog'lanmagan to'lovlar\" tabiga qaytariladi. "
+    +"Yozuvlar o'chirilmaydi, faqat yukka bog'lanishi bekor qilinadi.",
+    'Qaytarish');
+  if(!ok) return;
+  const btn=$('aoTolBtn'); btn.disabled=true; btn.textContent='Qaytarilmoqda…';
+  const yukId=aoTolYukId;
+  const {data,error}=await sb.rpc('yuk_boglash_bekor_hammasi',{p_yuk_id:yukId});
+  btn.textContent='Davom etish';
+  if(error){ $('aoTolMsg').textContent=(window.permErr?window.permErr(error):(error.message||'Xato'));
+    $('aoTolMsg').className='tmsg no'; btn.disabled=false; return; }
+  if(!data||data.ok===false){ $('aoTolMsg').textContent=String((data&&data.error)||'Bajarilmadi');
+    $('aoTolMsg').className='tmsg no'; btn.disabled=false; return; }
+  window.closeAoTol();
+  const AO_OTKAZILDI_SABAB={kop_yuk:"bir nechta yuk bog'langan",ochirilgan:"yozuv o'chirilgan",satr_yoq:"yozuvda 9110 satri yo'q"};
+  let msg=(data.bekor||0)+" ta to'lov (jami "+money(data.summa_uzs)+" so'm) \"Bog'lanmagan to'lovlar\" tabiga qaytarildi.";
+  const otk=Array.isArray(data.otkazildi)?data.otkazildi:[];
+  if(otk.length){
+    const guruh={};
+    otk.forEach(o=>{ const k=o&&o.kod?String(o.kod):'nomalum'; guruh[k]=(guruh[k]||0)+1; });
+    msg+=' '+otk.length+" ta to'lov o'tkazilmadi: "+Object.entries(guruh)
+      .map(([k,n])=>n+' ta ('+(AO_OTKAZILDI_SABAB[k]||k)+')').join(', ')+'.';
+  }
+  const aoRow=arosRows.find(x=>String(x.yuk_id)===String(yukId)&&x.tur==='ochirildi'&&!x.korildi);
+  if(aoRow) msg+=' <button type="button" class="aobtn" onclick="aoMarkSeen([\''+esc(aoRow.id)+'\'])">'
+    +"Ushbu o'zgarishni ko'rildi deb belgilash</button>";
+  await Promise.all([loadAros(), loadPending(), window.loadYuklar('fresh')]);
+  renderArosList();
+  $('arosMsg').innerHTML=msg;
+  $('arosMsg').className='tmsg ok';
+  icons();
+};
 
 function init(){
   computeTanAllowed();
