@@ -1679,18 +1679,50 @@ let tagSel=[], xmCache={}, tagOptsL=[];
 // 🔴 ≤5 modda: xarajat_maydonlar() har moddaga bitta RPC — jurnalda bir nechta modda "VA/YOKI"
 //    kesimi bo'lgani uchun ko'pi tanlansa tag ro'yxati o'qib bo'lmas darajada uzun/sekin bo'lardi;
 //    birinchi 5 tasi yetarli (odatda 1-2 modda tanlanadi).
+// --- «Tovar tannarxi» taglari (PROVODKA_JURNAL_SABAB.sql) ---
+// Tovar tannarxining taglari maxsus maydon EMAS — to'lov turi (yuk_tannarx_sabab) va
+// u to'lovning o'zida (entry.yuk_sabab_id). Qiymat 's:<id>' ko'rinishida tagSel ichida
+// turadi (maxsus maydon elementi — oddiy uuid), args() ikkiga ajratadi. 's:0' = «Tovar narxi».
+let useSababF=false, sababTagList=null;
+async function loadUseSababF(){
+  const cached=swrGet('sababfok',86400000);
+  if(cached===true){ useSababF=true; return; }
+  try{
+    const {data,error}=await sb.rpc('jurnal_sabab_filtr_ok');
+    if(!error&&data===true){ useSababF=true; swrSet('sababfok',true); }
+    else if(error) console.warn('jurnal: PROVODKA_JURNAL_SABAB.sql RUN qilinmagan — Tovar tannarxi taglari o\'chiq', error.message||error);
+  }catch(e){}
+}
+async function ensureSababTags(){
+  if(sababTagList!==null) return;
+  try{
+    const {data,error}=await sb.from('yuk_tannarx_sabab').select('id,nom,ikonka,tartib').eq('is_active',true).order('tartib').order('nom');
+    sababTagList=(!error&&Array.isArray(data))?data:[];
+  }catch(e){ sababTagList=[]; }
+}
+const isTanModda=id=>{ const a=(accounts||[]).find(x=>x.id===id); return !!(a&&(a.code==='9110'||a.code==='9110-1')); };
 async function refreshTagOpts(){
-  if(!useMaydonF){ tagOptsL=[]; tagShow(); return; }
+  if(!useMaydonF && !useSababF){ tagOptsL=[]; tagShow(); return; }
   const ids=moddaSel.slice(0,5);
   if(!ids.length){ tagOptsL=[]; tagPrune(); tagShow(); return; }
-  await Promise.all(ids.filter(id=>!xmCache[id]).map(async id=>{
+  if(useMaydonF) await Promise.all(ids.filter(id=>!xmCache[id]).map(async id=>{
     try{
       const {data,error}=await sb.rpc('xarajat_maydonlar',{p_modda:id});
       xmCache[id]=error?[]:(data||[]);
     }catch(e){ xmCache[id]=[]; }
   }));
   const seen=new Set(), out=[];
-  ids.forEach(id=>{
+  // Tovar tannarxi tanlangan bo'lsa — to'lov turlari birinchi guruh bo'lib chiqadi.
+  if(useSababF && moddaSel.some(isTanModda)){
+    await ensureSababTags();
+    const G='Tovar tannarxi — to\'lov turi';
+    out.push({v:'s:0', l:'📦 Tovar narxi', sub:'hujjat bo\'yicha', grp:G, s:'tovar narxi hujjat'});
+    (sababTagList||[]).forEach(s=>{
+      out.push({v:'s:'+s.id, l:(s.ikonka?s.ikonka+' ':'')+(s.nom||('#'+s.id)), sub:'', grp:G,
+        s:String(s.nom||'').toLowerCase()});
+    });
+  }
+  if(useMaydonF) ids.forEach(id=>{
     (xmCache[id]||[]).filter(m=>m.maydon_turi==='royxat').forEach(m=>{
       (m.elementlar||[]).forEach(el=>{
         if(!el||!el.id||seen.has(el.id)) return;
@@ -1712,7 +1744,7 @@ function tagPrune(){
   if(next.length!==tagSel.length) tagSel=next;
 }
 function tagShow(){
-  const f=$('fldTag'); if(f) f.style.display=(useMaydonF&&tagOptsL.length)?'':'none';
+  const f=$('fldTag'); if(f) f.style.display=((useMaydonF||useSababF)&&tagOptsL.length)?'':'none';
   sselSync('tag');
 }
 window.tagClearSel=()=>{ if(!tagSel.length) return; tagSel=[]; sselSync('tag'); load(); };
@@ -3365,6 +3397,8 @@ const argsV2=a=>{
   //    bo'lsa qo'shiladi (jurnal_maydon_filtr_ok() javob berdi). Eski imzoda bu
   //    kalit PGRST202 beradi — useIjr naqshi bilan AYNAN bir xil.
   if(useMaydonF) o.p_elementlar=a.p_elementlar||null;
+  // 🔴 p_sabablar (Tovar tannarxi to'lov turi taglari) — PROVODKA_JURNAL_SABAB.sql RUN bo'lsagina.
+  if(useSababF) o.p_sabablar=a.p_sabablar||null;
   return o;
 };
 // Qidiruv: v2 da server so'rovi (debounce 350ms), zaxirada avvalgidek klient render()
@@ -3908,7 +3942,9 @@ function args(){
     p_moddalar:moddaSel.length?moddaSel.slice():null,
     p_turlar:TUR_SRV[tur]||null,
     p_ijrochi:(($('fIjrochi')&&$('fIjrochi').value)||null),
-    p_elementlar:tagSel.length?tagSel.slice():null,
+    // tagSel ikki xil: maxsus maydon elementi (uuid) va 's:<id>' — tovar tannarxi to'lov turi.
+    p_elementlar:(()=>{ const x=tagSel.filter(v=>!String(v).startsWith('s:')); return x.length?x:null; })(),
+    p_sabablar:(()=>{ const x=tagSel.filter(v=>String(v).startsWith('s:')).map(v=>Number(String(v).slice(2))).filter(n=>Number.isInteger(n)); return x.length?x:null; })(),
     p_q:($('q').value||'').trim()||null};
 }
 async function load(){
@@ -3939,7 +3975,7 @@ async function load(){
     //    ko'rsatadi. Ikkalasi bir ekranda zid turmasin — filtr bo'lsa satr
     //    umuman chizilmaydi (fail-closed) va keraksiz so'rov ham ketmaydi.
     //    🔴 p_elementlar (Tag) ham shu ro'yxatga qo'shildi — o'sha sabab.
-    const ladOk=!(a.p_moddalar&&a.p_moddalar.length)&&!a.p_q&&!a.p_ijrochi&&!(a.p_elementlar&&a.p_elementlar.length);
+    const ladOk=!(a.p_moddalar&&a.p_moddalar.length)&&!a.p_q&&!a.p_ijrochi&&!(a.p_elementlar&&a.p_elementlar.length)&&!(a.p_sabablar&&a.p_sabablar.length);
     const qv={p_from:a.p_from,p_to:a.p_to,p_accounts:(a.p_account?[a.p_account]:a.p_accounts)||null};
     const [r1,r2,r3,r4]=await Promise.all([
       sb.rpc('jurnal_v2',{...v,p_limit:LIMIT,p_offset:0}),
@@ -4499,7 +4535,7 @@ async function init(){
   //    tanlaganda TUR_SRV.kv orqali keladi) — faqat chipni ko'rsatish/yashirish uchun.
   //    loadUseMaydonF() ham shu Promise.all'da: useMaydonF load()'dan OLDIN aniq bo'lsin
   //    (aks holda #fldTag/argsV2 sovuq keshda "yo'q" holatda qotib qolardi).
-  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF() ]);
+  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF(), loadUseSababF() ]);
   if(useKonvertF){ const b=$('turKv'); if(b) b.style.display=''; }
   if(window.permScope && window.permScope()==='list'){
     await loadAccounts();

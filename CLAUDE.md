@@ -1171,6 +1171,23 @@ Filtr **serverda** (sanoq/sahifalash/Excel to'g'ri chiqsin — Asilbek tanlovi).
   xatti-harakati o'zgarmagan. `args().p_elementlar` (kesh kaliti uchun DOIM bor) → `argsV2` faqat `useMaydonF` bo'lsa
   yuboradi (`p_ijrochi`/`useIjr` naqshi). Modda tanlovi o'zgarsa tag ro'yxati qayta hisoblanadi va yo'q elementlar
   tanlovdan chiqadi (`tagPrune`). Tag filtri faol bo'lsa zinapoya (`ladOk`) chizilmaydi.
+- **2-qadam `PROVODKA_JURNAL_SABAB.sql` (2026-09-15)** — Asilbek: «Tovar tannarxi tanlansa tag chiqmayapti». Tovar tannarxining
+  taglari maxsus maydon EMAS — to'lov turi `entry.yuk_sabab_id` (Professional'dagi «To'lov turi»). To'rtala RPC ga OXIRGI
+  argument **`p_sabablar integer[] default null`** (DROP + CREATE; tanalar `PROVODKA_JURNAL_MAYDON.sql` dan skript bilan,
+  har almashtirish soni tekshirilib). Tag filtri endi **ikki xil tag BIRLASHMASI (YOKI)**: maxsus maydon elementi YOKI
+  to'lov turi; `0` = sababsiz «📦 Tovar narxi» — faqat 9110/9110-1 Dt satri bor yozuvlar. 🔴 `jurnal_v2*` ning ENG OXIRGI
+  versiyasi endi SHU faylda. Probe `jurnal_sabab_filtr_ok()`. Klient: `useSababF`, `ensureSababTags()` (`yuk_tannarx_sabab`),
+  `isTanModda()`; tag qiymati `'s:<id>'` ko'rinishida `tagSel` ichida, `args()` uni `p_elementlar` (uuid) va `p_sabablar`
+  (int) ga ajratadi.
+
+### Excel jadvali IXTIYORIY (2026-09-15, `PROVODKA_EXCEL_IXTIYORIY.sql`, hodim-dev + hodim)
+
+Asilbek: «Oziq-ovqat turida Excel majburiy bo'lib qolibdi — xohlasa izoh yozsin, xohlasa Excel yuklasin». 2026-09-09 dagi
+«jadval MAJBURIY» qoidasi yumshatildi: `excel_jadval` moddada **izoh YOKI jadval** yetarli. `jdRequired()` =
+`jadvalOk() && !jadval && !izoh`, xabar «Izoh yozing yoki Excel jadvalini yuklang», `#izoh` input'ida `jdReqUI` qayta
+chiziladi. Ruxsat so'rash (Tab 2) va Pul so'rash yo'llarida izoh baribir majburiy (≥3) — u yerda Excel talabi olib
+tashlandi (`rxJdUI` yorlig'i «(ixtiyoriy)»). Server: `ruxsat_yarat_v2` Excel sharti endi faqat izoh HAM, jadval HAM
+bo'sh bo'lsa rad etadi (🔴 `ruxsat_yarat_v2` ning ENG OXIRGI versiyasi `PROVODKA_EXCEL_IXTIYORIY.sql` da).
 
 ### Sof aylanma kapital — kunlik 08:00 snapshot (2026-09-08, `ARX_PROVODKA_AYLANMA.md`, `PROVODKA_AYLANMA.sql`, faqat dev, RUN kutilmoqda)
 
