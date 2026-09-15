@@ -1188,6 +1188,31 @@ Asilbek: «Oziq-ovqat turida Excel majburiy bo'lib qolibdi — xohlasa izoh yozs
 chiziladi. Ruxsat so'rash (Tab 2) va Pul so'rash yo'llarida izoh baribir majburiy (≥3) — u yerda Excel talabi olib
 tashlandi (`rxJdUI` yorlig'i «(ixtiyoriy)»). Server: `ruxsat_yarat_v2` Excel sharti endi faqat izoh HAM, jadval HAM
 bo'sh bo'lsa rad etadi (🔴 `ruxsat_yarat_v2` ning ENG OXIRGI versiyasi `PROVODKA_EXCEL_IXTIYORIY.sql` da).
+Prod'ga chiqqan (`promote.sh hodim`, 2026-09-15).
+
+### Tovar tannarxida izoh — SERVER qorovuli (2026-09-15, `PROVODKA_TANNARX_IZOH.sql`)
+
+Asilbek Professional'da Tovar tannarxi → to'lov turi tanlab izohsiz saqlay oldi. Sabablar: prod `professional.html` da
+yangi modal yo'q edi; dev'da `#yukPickIzoh` ning inline `oninput="updateYukSaveBtn()"` i window'da bo'lmagan funksiyani
+chaqirardi (tuzatildi: `window.updateYukSaveBtn=updateYukSaveBtn`). Klientga tayanib qolmaslik uchun
+**`trg_tannarx_izoh_guard`** — `entry_line` BEFORE **INSERT**: foydalanuvchi (auth.uid() bor) 9110/9110-1 Dt satrini
+yozayotganda `entry.description` bo'sh bo'lsa 22000 «Tovar tannarxi uchun izoh majburiy». service_role (Aros sinxroni)
+o'tadi; UPDATE (yukka bog'lash 9110-1→9110) tekshirilmaydi — eski izohsiz yozuvlar ham bog'lanaveradi.
+
+### «Yo'l harajati» + «Transport va yetkazib berish» birlashtirildi (2026-09-15, `PROVODKA_MODDA_BIRLASHTIR.sql`)
+
+Asilbek: ikkalasi bitta narsa — Yo'l harajati yopiladi, provodkalari Transport'ga o'tadi, Transport «Yo'l harajati»
+deb nomlanadi; rollar qayta ulanmasin. 🔴 Rol/limit/qorovul/maxsus maydon — HAMMASI moddani **UUID** bo'yicha taniydi
+(`rbac_modda_ok`, `rbac_role_modda`, `standart_xarajat`, `xarajat_maydon_modda`), nom bo'yicha hech narsa yo'q —
+shuning uchun SAQLANADIGAN qator Transport'niki (id/kod o'zgarmaydi, faqat nomi). Skript: moddalarni normallashtirilgan
+NOM bo'yicha topadi (har biridan aynan bitta, aks holda to'xtaydi), to'siqlar (ovqat/ehson moddasi, bola hisob, ovqat
+taqsimotli satr, bitta hodimda ikkala turga ochiq ruxsat so'rovi) — bo'lsa to'xtaydi; `entry_line` ko'chiriladi
+(+`entry_history` izi, `provodka.notify_off`), rollar/filial limitlari — ikkalasi bo'lsa **limit yig'indisi**
+(null=cheksiz yutadi), maxsus maydonlar birlashadi, ochiq `ruxsat_sorov` ko'chadi; eski modda **o'chirilmaydi** —
+`is_active=false` + nomiga «(eski — birlashtirildi 2026-09-15)». Hammasi bitta `do` blokida (atomik), har o'zgarish
+`modda_birlashtir_log` da (orqaga qaytarish shu yerdan), qayta RUN — «allaqachon bajarilgan». ⚠️ Shu oy sarfi
+birlashgani uchun faqat bitta turga limit qo'yilgan rollar darhol limitga urilishi mumkin — DIAG 3-so'rovi ro'yxatlaydi.
+Klient keshi: `hisobot.html` localStorage'dagi pin qilingan eski id 0 ko'rsatadi (qayta pin qilinadi).
 
 ### Sof aylanma kapital — kunlik 08:00 snapshot (2026-09-08, `ARX_PROVODKA_AYLANMA.md`, `PROVODKA_AYLANMA.sql`, faqat dev, RUN kutilmoqda)
 

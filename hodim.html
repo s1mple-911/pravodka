@@ -1241,7 +1241,7 @@
         <!-- Jadval (Excel shablon) — izohdan alohida, entry.jadval ga yoziladi -->
         <input type="file" accept=".xlsx,.xls" id="jdFile" class="vh" onchange="onJdFile(this)">
         <div id="jdCard" class="jdcard" style="display:none"></div>
-        <div id="jdReq" class="chekreq" style="display:none">Bu xarajat uchun Excel jadvali shart</div>
+        <div id="jdReq" class="chekreq" style="display:none">Izoh yozing yoki Excel jadvalini yuklang</div>
       </div>
 
     </div>
@@ -2361,8 +2361,12 @@ function jadvalOk(){ const m=moddaObj(); return !!(m && m.excel_jadval); }
 // biriktirmasdan yuborishardi — `excel_jadval` yoqilgan moddada jadval SHART.
 // Uchala saqlash yo'li ham shu yordamchini ishlatadi (saveHodim / srvSave / rxSave);
 // ruxsat so'rashda esa `rxJdOk()` (rxModdaObj().excel) — o'z holati bilan bir xil qoida.
-function jdRequired(){ return jadvalOk() && !jadval; }
-const JD_REQ_MSG="Bu xarajat uchun Excel jadvali shart — shablonni yuklab olib, to'ldirib yuklang";
+// 🔴 2026-09-15 (Asilbek): Excel IXTIYORIY bo'ldi — «xohlasa izoh yozsin, xohlasa Excel
+//    yuklasin». Endi `excel_jadval` moddada IKKALASIDAN BIRI shart: izoh YOKI jadval.
+//    Pul so'rash / Ruxsat so'rash yo'llarida izoh baribir majburiy (≥3 belgi), shuning
+//    uchun u yerda Excel amalda talab qilinmaydi.
+function jdRequired(){ return jadvalOk() && !jadval && !($('izoh')&&$('izoh').value.trim()); }
+const JD_REQ_MSG="Izoh yozing yoki Excel jadvalini yuklang";
 function davrVals(){ return {s:davrS, e:davrE}; }
 function davrOk(){ if(!davrRequired()) return true; return !!(davrS&&davrE&&davrS<=davrE); }  // ISO sana leksik solishtiriladi
 // Filial majburiy bo'lsa kamida bittasi tanlansin. AMMO foydalanuvchiga umuman filial
@@ -4346,6 +4350,7 @@ function bindInputs(){ if(_bound) return; _bound=true;
   // so'mda — minglik ajratgich + avtomat "000"; valyutada — 2 kasrgacha, "000" YO'Q.
   $('summa').addEventListener('input',e=>{ if(amtCur==='UZS') fmtAmt(e.target); else fmtFc(e.target); updateSave(); jdWarnUpdate(); });
   $('izoh').addEventListener('input',updateSave);
+  $('izoh').addEventListener('input',jdReqUI);   // 2026-09-15: «izoh yoki Excel» — izoh yozilsa qizil satr yo'qoladi
   // 🔴 2026-09-03: Izoh/Ruxsat-izoh paste'dan jadval qurish O'CHIRILDI (Asilbek qarori —
   // faqat umumiy shablon qabul qilinadi). Paste endi oddiy matn, Izoh o'zgarmaydi.
   // RBAC: ruxsat fonda (fetchFresh) o'zgarsa — tanlangan modda endi ruxsatsiz bo'lishi
@@ -4929,11 +4934,11 @@ function rxJdUI(){
   if(wrap) wrap.style.display=ok?'block':'none';
   if(!ok && rxJadval){ rxJadval=null; rxJdRender(); toast("Bu turda jadval yo'q"); }
   rxJdWarnUpdate();
-  // 2026-09-09: jadval MAJBURIY — yorliq va qizil satr asosiy formadagi bilan bir xil.
+  // 2026-09-15: jadval IXTIYORIY (izoh bu yo'lda baribir majburiy) — qizil satr ko'rsatilmaydi.
   const lbl=$('rxJdLbl');
-  if(lbl) lbl.innerHTML='Jadval <span class="req">majburiy</span>';
+  if(lbl) lbl.innerHTML='Jadval <span style="font-weight:400">(ixtiyoriy)</span>';
   const rq=$('rxJdReq');
-  if(rq) rq.style.display=(ok && !rxJadval)?'block':'none';
+  if(rq) rq.style.display='none';
   const hint=$('rxIzohHint');
   if(hint) hint.textContent = rxJadval
     ? "Tasdiqlovchi faqat shu matnni va jadvalni ko'radi."
@@ -5134,7 +5139,7 @@ window.rxUI=()=>{
   // 🔴 Bloklar OLDIN chiziladi: `rxTalabYoq()`/`rxJdOk()` moddaga bog'liq,
   //    tugma holati esa shu natijalarga qaraydi.
   rxTalabUI(); rxJdUI();
-  const jdYoq=rxJdOk()&&!rxJadval;   // 2026-09-09: excel_jadval yoqilgan moddada jadval majburiy
+  const jdYoq=false;   // 2026-09-15: jadval IXTIYORIY — bu yo'lda izoh (≥3 belgi) baribir majburiy
   const yoq=rxTalabYoq() || (jdYoq?JD_REQ_MSG:'');
   if(m&&!rxSaving&&!msg&&yoq){ m.textContent=yoq; m.className='tmsg no'; }
   if(b) b.disabled=rxSaving||!!yoq||!(rxModda&&kassa&&rxWho&&v>0&&!msg&&izoh.length>=SRV_MIN_IZOH);
@@ -5649,7 +5654,7 @@ window.rxSave=async()=>{
   if(izoh.length<SRV_MIN_IZOH){ no('Izohni yozing (kamida 3 belgi)'); return; }
   // 🔴 Jadval jami summadan KO'P — bloklaydi (ruxsat so'rash yo'li, 4-saqlash nuqtasi).
   { const jc=jdCheck(rxJadval, sAmt); if(jc && jc.over){ no(jc.text); return; } }
-  if(rxJdOk() && !rxJadval){ no(JD_REQ_MSG); return; }  // 2026-09-09: jadval majburiy (asosiy forma bilan bir xil)
+  // 2026-09-15: jadval IXTIYORIY — izoh (yuqorida, ≥3 belgi) yetarli (Asilbek: «izoh yoki Excel»).
   // 🔴 Modda talablari (chek/filial/davr/kommunal) — server ham AYNAN shuni tekshiradi.
   { const ty=rxTalabYoq(); if(ty){ no(ty); return; } }
   const bal=rxKassaBal();

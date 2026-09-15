@@ -2739,6 +2739,10 @@ function updateYukSaveBtn(){
   if(b){ b.disabled=!(st.ok&&izohOk); b.textContent=st.ok?(izohOk?'Saqlash':'Izoh kiriting'):(st.msg||'Saqlash'); }
   const sel=$('yukSel'); if(sel) sel.textContent=selYuk.size;
 }
+// 🔴 #yukPickIzoh ning inline `oninput="updateYukSaveBtn()"` i GLOBAL doirada ishlaydi —
+//    module ichidagi funksiya window'da bo'lmasa ReferenceError bo'lib, izoh yozilganda
+//    tugma holati yangilanmasdi (2026-09-15 tuzatildi).
+window.updateYukSaveBtn=updateYukSaveBtn;
 async function loadYukList(){
   if(yukLoaded){ afterYukLoad(); return; }
   $('yukList').innerHTML='<div class="yukempty">Yuklanmoqda…</div>';
