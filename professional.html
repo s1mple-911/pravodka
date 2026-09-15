@@ -2570,7 +2570,12 @@ async function ensureYukSabab(){
   if(yukSababList!==null) return;
   try{
     const {data,error}=await sb.from('yuk_tannarx_sabab').select('*').eq('is_active',true).order('tartib').order('nom');
-    yukSababList=(!error&&Array.isArray(data))?data:[];
+    // 2026-09-15 (Asilbek): «Valyuta farqi» Professional'dagi to'lov turi ro'yxatida KERAK EMAS —
+    // bu to'lov emas (kurs farqi). Yuklar sahifasidagi «Tannarx qo'shish»da esa qoladi (u yerda
+    // tannarxga qo'lda qo'shilishi mumkin) — shuning uchun jadvalda o'chirilmaydi, faqat shu yerda yashiriladi.
+    const YASHIR=['valyuta farqi'];
+    const nrm=v=>String(v||'').toLowerCase().replace(/[‘’ʻʼ'`]/g,'').replace(/\s+/g,' ').trim();
+    yukSababList=((!error&&Array.isArray(data))?data:[]).filter(x=>!YASHIR.includes(nrm(x.nom)));
   }catch(e){ yukSababList=[]; }
   fillYukPendSabab();
 }
