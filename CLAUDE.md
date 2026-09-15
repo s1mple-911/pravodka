@@ -863,8 +863,11 @@ hujjat darajasidagi `custom_clearance_uzs`/`fare_percent` null bo'lsa har tovar 
 - **RPC** `yuk_bojxona_jami(p_ids int[])` → `{ "<id>": {bojxona_uzs, fare_uzs, limit_uzs, qoshilgan_uzs, qoldi_uzs, rejim, currency,
   synced_at} }`; **`yuk_tannarx_qosh` qayta e'lon** (imzo bir xil, tana PROVODKA_YUK_TANNARX.sql 5-BO'LIM + «1.5-BOSQICH»
   limit, advisory lock): qo'shilgan + yangi > limit → `{ok:false, kod:'limit', error, yuk_id, limit_uzs, qoshilgan_uzs,
-  qoldi_uzs}`, HECH NARSA yozilmaydi; Aros qatori yo'q / limit 0 → tekshirilmaydi (ogohlantirish). 🔴 Keyingi safar
-  `yuk_tannarx_qosh` o'zgartirilsa — ENG OXIRGI versiya shu faylda.
+  qoldi_uzs}`, HECH NARSA yozilmaydi; Aros qatori yo'q / limit 0 → tekshirilmaydi (ogohlantirish).
+  🔴 **2026-09-15 dan `yuk_tannarx_qosh` ning ENG OXIRGI versiyasi `PROVODKA_YUK_PROF_TANNARX.sql` da** (5-argumentli,
+  `p_limit_ogoh` bilan) — bu fayl eski 4-argumentlisini DROP qilib qayta yaratadi. 🔴 Shundan keyin shu faylning
+  6-BO'LIMini (yoki `PROVODKA_YUK_TANNARX.sql` 5-BO'LIMini) QAYTA RUN QILMANG: ular 4-argumentli ikkinchi nusxani
+  tiklaydi va 4 argument bilan chaqirilganda Postgres «function is not unique» xatosini beradi.
 - **UI** `tannarx-dev.html`: ustun «Aros bojxona» (`bojCellHtml`, progress ≥90% sariq, ≥100% qizil; ma'lumot yo'q/limit 0 → «—»),
   modal `bojCheck` (har yuk qoldi, oshsa Saqlash yopiq), `loadBojxona` (`yuk_bojxona_jami`, swr `yuk:` kaliti ichida; RPC yo'q → jim).
 
@@ -1128,6 +1131,46 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
 - `yuklar-dev` Bog'lanmagan tab: ☐ + «Hammasi», sabab/tovar chip, status «Kutilmoqda»+sana, `#pendSelbar` (N · Σ · tovar/xizmat) →
   `#linkModal` ko'p rejimi (`linkMulti`, summa maydoni o'rniga taqsimot, `validateLinkMulti`, `linkKodMsg`). Bitta «Yukka bog'lash» eskicha.
   `hodim-dev` tegilmagan (u yerda yuk modali yo'q). Jurnal ⏳ modali eskicha (bitta, tannarxsiz qoldiq — ma'lum nomuvofiqlik).
+
+### Professional'da tannarx (xizmat) to'lovi (2026-09-15, `PROVODKA_YUK_PROF_TANNARX.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «Tannarx qo'shish faqat Yuklar ichida edi — Professional'da xarajat yozayotganda ham turi tanlansin
+(tovar narxi / yo'l puli / bojxona / Abusaxiy …), hammasida izoh shart, bular Bog'lanmaganlarga tushadi yoki
+darhol yukka bog'lanadi». Qarorlar: (1) bitta xizmat to'lovi **bir nechta yukka taqsimlanadi**; (2) Aros bojxona
+limiti YANGI yo'lda faqat **ogohlantiradi**; (3) «tannarx» ruxsati yo'q user'ning to'lovi **bog'lanmagan** qoladi.
+- **SQL**: `yuk_tannarx_qosh` ga 5-argument **`p_limit_ogoh boolean default false`** (eski 4-arg DROP + qayta CREATE;
+  false = eski bloklovchi xatti-harakat — Yuklar sahifasi shunday qoladi, true = ogohlantirib yozadi). 🔴 Shundan keyin
+  `PROVODKA_YUK_BOJXONA.sql` 6-BO'LIMini QAYTA RUN QILMANG (4-argumentli ikkinchi nusxa → «function is not unique»).
+  Yangi **`yuk_boglash_taqsim(p_entry uuid, p_taqsim jsonb, p_qoldiq jsonb default null, p_limit_ogoh boolean default true)`**
+  — BITTA bog'lanmagan to'lovni N ta yukka taqsimlab bog'laydi (`yuk_boglash_koplik` ning teskarisi): Σ taqsim = yozuv
+  summasi (±0.01), `entry_yuk` upsert, 9110-1→9110, `yuk_ids`, `entry_history`, sabab bo'lsa BITTA `yuk_tannarx_qosh`
+  chaqiruvi (`kalit='entry:<id>'`). Xato kodlari: `topilmadi|ochirilgan|holat|yolda_emas|satr_yoq|hisob_yoq|bosh|kop|notogri|summa_notogri|qoldiq|tannarx_ruxsat|limit|tannarx_xato|xato`.
+- **UI `professional-dev.html`**: 9110 modalida **Ekran 0 — «To'lov turi»** (`#yukTypeScreen`, chiplar `yuk_tannarx_sabab` dan;
+  jadval bo'sh/RPC yo'q → qadam umuman ko'rsatilmaydi, eski oqim); tanlangan tur `#yukTypeBar` chipida, bosilsa qaytadi.
+  **Izoh Ekran 1 da ham majburiy** (`#yukPickIzoh` → asosiy `#izoh` ga qaytariladi). Xizmat tanlansa: qarz cheklovi yo'q
+  (`selectableFor`), teng taqsimlash, `#yukBojWarn` sariq ogohlantirish (`yuk_bojxona_jami`, bloklamaydi). Saqlash yo'li —
+  HAR DOIM avval `doSavePending` (Dt 9110-1 + `yuk_kutilmoqda`), 🔴 keyin `entry_yuk_sabab_yoz` **await bilan** (sabab
+  yozilmasa bog'lash tovar narxi bo'lib ketardi va tannarx yozilmasdi), so'ng `yuk_boglash_taqsim`. Bog'lash yiqilsa
+  to'lov saqlangan holicha «Bog'lanmagan»da qoladi va sabab ochiq aytiladi. Tovar narxi yo'li — eski `provodka_yoz`+`yuk_taqsim`,
+  o'zgarmagan. `adv` (ko'p satrli) rejimda tur qadami YO'Q. Ruxsatsiz user xizmatni tanlasa to'g'ridan Ekran 2 (`🔒` izoh bilan).
+- ⚠️ Ma'lum chegara: taqsimlangan (bir nechta yukli) to'lovni `yuk_boglash_bekor` bekor QILMAYDI (`kod:'kop_yuk'` —
+  u faqat bitta yukli to'lov uchun). Kerak bo'lsa alohida bosqich.
+
+### Jurnalda TAG filtri (maxsus maydon elementi) (2026-09-15, `PROVODKA_JURNAL_MAYDON.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «Gaz moddasiga tracker/damas qo'shilgan, jurnalda aralash chiqadi — xarajat turi tanlanganda tag ham tanlansin».
+Filtr **serverda** (sanoq/sahifalash/Excel to'g'ri chiqsin — Asilbek tanlovi).
+- **SQL**: `jurnal_v2_baza` / `jurnal_v2` / `jurnal_v2_count` / `jurnal_dash` ga OXIRGI argument **`p_elementlar uuid[] default null`**
+  (har biri DROP + qayta CREATE — 42P13). Filtr: `exists (select 1 from entry_maydon em where em.entry_id = en.id and
+  em.element_id = any(p_elementlar))` (`entry_maydon_element_idx` indeksi). Bo'sh massiv/null = filtr yo'q.
+  🔴 Tanalar **`PROVODKA_KONVERT_FILTR.sql` dan** ko'chirilgan (`jurnal_v2_baza`/`jurnal_v2` ning eng oxirgi versiyasi
+  o'sha yerda — IJROCHI emas; `jurnal_v2_count`/`jurnal_dash` esa IJROCHI dan). Probe: `jurnal_maydon_filtr_ok()`.
+- **UI `jurnal-dev.html`**: «Xarajat turi» yonida **«Tag»** ko'p tanlovi (`#fldTag`/`#sselTag`) — tanlangan modda(lar)da
+  `royxat` turidagi maydon bo'lsagina ko'rinadi (`refreshTagOpts`, `xarajat_maydonlar(p_modda)` ≤5 modda, `xmCache`).
+  `.ssel` dvigateli `MULTI` xaritasi bilan umumlashtirildi (`xtur` → `moddaSel`, `tag` → `tagSel`) — `#sselXtur`
+  xatti-harakati o'zgarmagan. `args().p_elementlar` (kesh kaliti uchun DOIM bor) → `argsV2` faqat `useMaydonF` bo'lsa
+  yuboradi (`p_ijrochi`/`useIjr` naqshi). Modda tanlovi o'zgarsa tag ro'yxati qayta hisoblanadi va yo'q elementlar
+  tanlovdan chiqadi (`tagPrune`). Tag filtri faol bo'lsa zinapoya (`ladOk`) chizilmaydi.
 
 ### Sof aylanma kapital — kunlik 08:00 snapshot (2026-09-08, `ARX_PROVODKA_AYLANMA.md`, `PROVODKA_AYLANMA.sql`, faqat dev, RUN kutilmoqda)
 

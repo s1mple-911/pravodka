@@ -1237,6 +1237,32 @@
             </div>
           </div>
         </div>
+        <!-- Tag (xarajat moddasiga biriktirilgan "royxat" turidagi maxsus maydon, masalan
+             "Mashina": Tracker/Damas) — #sselXtur naqshi bilan AYNAN bir xil, faqat holat
+             tagSel massivida. Tanlangan modda(lar)da shunday maydon bo'lmasa BUTUNLAY
+             yashirin (PROVODKA_JURNAL_MAYDON.sql, refreshTagOpts()). -->
+        <div class="fld" id="fldTag" style="display:none">
+          <label id="lblTag" for="sselTagBtn">Tag</label>
+          <div class="ssel" id="sselTag" data-multi="1" data-key="tag">
+            <button type="button" class="ssel-btn" id="sselTagBtn" aria-haspopup="listbox"
+                    aria-expanded="false" aria-controls="sselTagPop" aria-labelledby="lblTag sselTagVal">
+              <span class="ssel-val ph" id="sselTagVal">Barcha taglar</span>
+              <span class="ssel-cnt" id="sselTagCnt">0</span>
+              <i data-lucide="chevron-down" class="ssel-chev"></i>
+            </button>
+            <div class="ssel-pop" id="sselTagPop">
+              <div class="ssel-hd"><span class="ssel-ht">Tag</span>
+                <button type="button" class="ssel-x" aria-label="Yopish"><i data-lucide="x"></i></button></div>
+              <div class="ssel-sbar">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input class="ssel-inp" type="text" placeholder="Qidirish…" autocomplete="off"
+                       role="combobox" aria-expanded="true" aria-controls="sselTagList" aria-autocomplete="list">
+              </div>
+              <div class="ssel-list" id="sselTagList" role="listbox" aria-labelledby="lblTag" aria-multiselectable="true"></div>
+              <div class="ssel-foot"><button type="button" class="ssel-clr" id="sselTagClr">Tanlovni tozalash</button></div>
+            </div>
+          </div>
+        </div>
         <!-- Ijrochi (kim yozdi) — bir tanlovli, .ssel naqshi #sselFil bilan bir xil.
              🔴 Sukut bo'yicha YASHIRIN: jurnal_ijrochilar() javob bergandagina ochiladi
              (PROVODKA_IJROCHI.sql RUN qilinmagan bo'lsa filtr umuman ko'rinmaydi). -->
@@ -1628,6 +1654,68 @@ async function loadUseKonvertF(){
     else if(error) console.warn('jurnal: PROVODKA_KONVERT_FILTR.sql RUN qilinmagan — Konvert chipi yashirin', error.message||error);
   }catch(e){}
 }
+// --- "Tag" (xarajat maydon TAG) filtri — PROVODKA_JURNAL_MAYDON.sql ---
+// useMaydonF : jurnal_v2/jurnal_v2_count/jurnal_dash p_elementlar argumentini tushunadimi
+//              (jurnal_maydon_filtr_ok() bor-yo'qligi bilan aniqlanadi, loadUsePul() bilan
+//              AYNAN bir xil naqsh). false bo'lsa Tag filtri BUTUNLAY yashirin qoladi va
+//              p_elementlar UMUMAN yuborilmaydi (p_ijrochi/useIjr naqshi — YANGI PARAMETR,
+//              'pul'/'savdosiz'/'konvert' kabi mavjud massiv ichiga qo'shilmaydi).
+let useMaydonF=false;
+async function loadUseMaydonF(){
+  const cached=swrGet('maydonfok',86400000);   // 1 kun — har ochilishda qayta so'ramaslik uchun
+  if(cached===true){ useMaydonF=true; return; }
+  try{
+    const {data,error}=await sb.rpc('jurnal_maydon_filtr_ok');
+    if(!error&&data===true){ useMaydonF=true; swrSet('maydonfok',true); }
+    else if(error) console.warn('jurnal: PROVODKA_JURNAL_MAYDON.sql RUN qilinmagan — Tag filtri o\'chiq', error.message||error);
+  }catch(e){}
+}
+// tagSel  : tanlangan maxsus maydon elementlari (id) — args() ga p_elementlar bo'lib ketadi.
+// xmCache : modda id -> xarajat_maydonlar(p_modda) javobi (qayta so'ralmasin).
+// tagOptsL: joriy moddaSel bo'yicha "royxat" turidagi maydon elementlari — Tag dropdown variantlari.
+let tagSel=[], xmCache={}, tagOptsL=[];
+// Tanlangan moddalar (dashboard/Xarajat turi bilan bitta holat — moddaSel) bo'yicha "royxat"
+// turidagi maxsus maydon elementlarini yig'adi va #fldTag ko'rinishini/tanlovini shunga moslaydi.
+// 🔴 ≤5 modda: xarajat_maydonlar() har moddaga bitta RPC — jurnalda bir nechta modda "VA/YOKI"
+//    kesimi bo'lgani uchun ko'pi tanlansa tag ro'yxati o'qib bo'lmas darajada uzun/sekin bo'lardi;
+//    birinchi 5 tasi yetarli (odatda 1-2 modda tanlanadi).
+async function refreshTagOpts(){
+  if(!useMaydonF){ tagOptsL=[]; tagShow(); return; }
+  const ids=moddaSel.slice(0,5);
+  if(!ids.length){ tagOptsL=[]; tagPrune(); tagShow(); return; }
+  await Promise.all(ids.filter(id=>!xmCache[id]).map(async id=>{
+    try{
+      const {data,error}=await sb.rpc('xarajat_maydonlar',{p_modda:id});
+      xmCache[id]=error?[]:(data||[]);
+    }catch(e){ xmCache[id]=[]; }
+  }));
+  const seen=new Set(), out=[];
+  ids.forEach(id=>{
+    (xmCache[id]||[]).filter(m=>m.maydon_turi==='royxat').forEach(m=>{
+      (m.elementlar||[]).forEach(el=>{
+        if(!el||!el.id||seen.has(el.id)) return;
+        seen.add(el.id);
+        out.push({v:el.id, l:el.nom||'', sub:el.qiymat||'', grp:m.nom||'',
+          s:((el.nom||'')+' '+(el.qiymat||'')).toLowerCase()});
+      });
+    });
+  });
+  tagOptsL=out;
+  tagPrune();   // endi ro'yxatda yo'q elementlar tanlovdan o'zi chiqadi
+  tagShow();
+}
+// Endi tagOptsL da yo'q (modda tanlovi o'zgargani uchun) tanlangan elementlarni olib tashlaydi.
+function tagPrune(){
+  if(!tagSel.length) return;
+  const ok=new Set(tagOptsL.map(o=>o.v));
+  const next=tagSel.filter(v=>ok.has(v));
+  if(next.length!==tagSel.length) tagSel=next;
+}
+function tagShow(){
+  const f=$('fldTag'); if(f) f.style.display=(useMaydonF&&tagOptsL.length)?'':'none';
+  sselSync('tag');
+}
+window.tagClearSel=()=>{ if(!tagSel.length) return; tagSel=[]; sselSync('tag'); load(); };
 // Ruxsat (scope='list'): ko'rishga ruxsat etilgan pul-hisob id'lari (valyuta bolalari + hodim
 // kassalari ham). null = cheklovsiz (admin yoki scope='all'). Jurnal so'roviga p_accounts sifatida
 // ketadi — server faqat shu kassalar qatnashgan yozuvlarni qaytaradi (entrylar ham, jurnal_count ham).
@@ -3247,6 +3335,8 @@ function v2Off(){
   // 🔴 Modda filtri ham yashirin: serverda p_moddalar yo'q, klientda soxta ishlagandek ko'rinmasin
   const fx=$('fldXtur'); if(fx) fx.style.display='none';
   sselSync('xtur');
+  // 🔴 Modda filtri bilan bitta holat — modda yo'q bo'lsa tag ro'yxati ham bo'sh
+  tagSel=[]; tagOptsL=[]; tagShow();
   // 🔴 Eski jurnal() da ijrochi YO'Q — filtr ham yashiriladi, chip ham chizilmaydi
   ijrOff();
   const b=$('banner');
@@ -3271,6 +3361,10 @@ const argsV2=a=>{
   // 🔴 p_ijrochi FAQAT PROVODKA_IJROCHI.sql RUN qilingan bo'lsa qo'shiladi
   //    (jurnal_ijrochilar javob berdi). Eski imzoda bu kalit PGRST202 beradi.
   if(useIjr) o.p_ijrochi=a.p_ijrochi||null;
+  // 🔴 p_elementlar (Tag filtri) FAQAT PROVODKA_JURNAL_MAYDON.sql RUN qilingan
+  //    bo'lsa qo'shiladi (jurnal_maydon_filtr_ok() javob berdi). Eski imzoda bu
+  //    kalit PGRST202 beradi — useIjr naqshi bilan AYNAN bir xil.
+  if(useMaydonF) o.p_elementlar=a.p_elementlar||null;
   return o;
 };
 // Qidiruv: v2 da server so'rovi (debounce 350ms), zaxirada avvalgidek klient render()
@@ -3556,24 +3650,44 @@ function xtBarSvg(parts,jami){
     +' aria-label="Xarajat ulushi">'+g+'</svg>';
 }
 // Modda (xarajat turi) filtri — toggle. moddaSel args() ga p_moddalar bo'lib ketadi.
-window.xtToggle=id=>{
+// 🔴 moddaSel o'zgarganda Tag ro'yxati (refreshTagOpts) ham qayta hisoblanadi —
+//    mavjud bo'lmagan tag filtrda qolib ketmasin (PROVODKA_JURNAL_MAYDON.sql).
+window.xtToggle=async id=>{
   if(!id||!useV2) return;
   const i=moddaSel.indexOf(id);
   if(i>=0) moddaSel.splice(i,1); else moddaSel.push(id);
   sselSync('xtur');   // dashboard va "Xarajat turi" dropdowni — BITTA holat, ikkalasi mos
+  await refreshTagOpts();
   load();
 };
-window.xtClearSel=()=>{ if(!moddaSel.length) return; moddaSel=[]; sselSync('xtur'); load(); };
+window.xtClearSel=async()=>{
+  if(!moddaSel.length) return;
+  moddaSel=[];
+  sselSync('xtur');
+  await refreshTagOpts();
+  load();
+};
 
 /* ==================== C. QIDIRUVLI TANLAGICH (.ssel-*) ====================
    🔴 DIZAYN QARORI (buzma): native <select> DOM da QOLADI, faqat vizual yashirin.
    .ssel uning ustiga qo'yiladi — tanlanganda `sel.value` yoziladi va 'change'
    yuboriladi. Shu tufayli loadFilSel / buildAccSel / buildHodimSel / onFil /
    onAcc / onHodim / exportExcel kodi UMUMAN o'zgarmaydi (regression xavfi nol).
-   ISTISNO — #sselXtur: u KO'P tanlovli (xarajat moddalari, moddaSel massivi),
-   native select bilan ifodalab bo'lmaydi → o'z holatini boshqaradi.
+   ISTISNO — #sselXtur/#sselTag: ular KO'P tanlovli (xarajat moddalari — moddaSel,
+   maxsus maydon taglari — tagSel), native select bilan ifodalab bo'lmaydi → o'z
+   holatini boshqaradi. Ikkalasi ham `MULTI` xaritasi orqali BIR XIL kod bilan
+   ishlaydi (PROVODKA_JURNAL_MAYDON.sql — moddaSel'ga qattiq bog'langan eski kod
+   `S.mkey` bilan umumlashtirildi, xatti-harakat #sselXtur uchun bittasi ham
+   o'zgarmagan).
    z-index: overlay 118 · panel 120 → sahifaning modallari (200+) ustun qoladi. */
 const SSELS={};
+// Ko'p tanlovli .ssel'lar uchun holat manbasi: get/set — massivning o'zi (tagSel/
+// moddaSel qayta tayinlanadi, shuning uchun to'g'ridan REFERENCE emas, funksiya).
+// opts — dropdown variantlari, noun — "N ta <noun>" belgisidagi so'z.
+const MULTI={
+  xtur:{ get:()=>moddaSel, set:v=>{ moddaSel=v; }, opts:xturOpts, noun:'modda' },
+  tag: { get:()=>tagSel,   set:v=>{ tagSel=v;   }, opts:()=>tagOptsL, noun:'tag' },
+};
 const sselMob=()=>{ try{ return window.matchMedia('(max-width:899px)').matches; }catch(e){ return false; } };
 // Native <select> → variantlar. "5011 · Toshkent Kassa" kabi matnda kod alohida
 // kichik satrga (.ssel-os) chiqadi; optgroup esa guruh sarlavhasi bo'ladi.
@@ -3608,14 +3722,14 @@ function xturOpts(){
   }
   return faol.concat(qolgan);
 }
-function sselBuild(S){ S.opts = S.multi ? xturOpts() : (S.sel?sselFromSel(S.sel):[]); }
+function sselBuild(S){ S.opts = S.multi ? MULTI[S.mkey].opts() : (S.sel?sselFromSel(S.sel):[]); }
 // Tugma matni. Ko'p tanlovda: "Ijara +2" va yonida son belgisi.
 function sselLabel(S){
   let txt='', ph=false;
   if(S.multi){
-    const n=moddaSel.length;
+    const arr=MULTI[S.mkey].get(), n=arr.length;
     if(!n){ txt=S.ph; ph=true; }
-    else { const f=S.opts.find(o=>o.v===moddaSel[0]); txt=(f?f.l:n+' ta modda')+(n>1?' +'+(n-1):''); }
+    else { const f=S.opts.find(o=>o.v===arr[0]); txt=(f?f.l:n+' ta '+MULTI[S.mkey].noun)+(n>1?' +'+(n-1):''); }
     S.root.classList.toggle('has-sel',n>0);
     if(S.cnt) S.cnt.textContent=String(n);
   } else if(S.sel){
@@ -3633,7 +3747,7 @@ function sselRender(S,q){
   for(const o of S.opts){
     if(q && o.s.indexOf(q)<0) continue;
     if(o.grp!==lastGrp){ lastGrp=o.grp; if(o.grp) html+='<div class="ssel-grp" role="presentation">'+esc(o.grp)+'</div>'; }
-    const on=S.multi?(moddaSel.indexOf(o.v)>=0):(String(o.v)===cur);
+    const on=S.multi?(MULTI[S.mkey].get().indexOf(o.v)>=0):(String(o.v)===cur);
     html+='<div class="ssel-opt'+(on?' on':'')+'" role="option" aria-selected="'+(on?'true':'false')+'" data-v="'+esc(o.v)+'">'
       +'<span class="ssel-om"><span class="ssel-on">'+esc(o.l)+'</span>'
       +(o.sub?'<span class="ssel-os">'+esc(o.sub)+'</span>':'')+'</span>'
@@ -3667,13 +3781,16 @@ function sselSync(key){
   sselBuild(S); sselLabel(S);
   if(S.root.classList.contains('open')) sselRender(S,S.inp?S.inp.value:'');
 }
-const sselSyncAll=()=>{ ['fil','hodim','acc','xtur','fIjrochi'].forEach(sselSync); };
+const sselSyncAll=()=>{ ['fil','hodim','acc','xtur','fIjrochi','tag'].forEach(sselSync); };
 function sselPick(S,v){
   if(S.multi){
-    const i=moddaSel.indexOf(v);
-    if(i>=0) moddaSel.splice(i,1); else moddaSel.push(v);
+    const arr=MULTI[S.mkey].get().slice();
+    const i=arr.indexOf(v);
+    if(i>=0) arr.splice(i,1); else arr.push(v);
+    MULTI[S.mkey].set(arr);
     sselLabel(S); sselRender(S,S.inp?S.inp.value:'');   // panel ochiq qoladi (ko'p tanlov)
-    load();
+    // 🔴 xtur o'zgarsa Tag ro'yxati ham qayta hisoblanadi (xtToggle/xtClearSel naqshi)
+    if(S.mkey==='xtur') refreshTagOpts().then(load); else load();
     return;
   }
   if(S.sel){
@@ -3706,7 +3823,11 @@ function sselInit(id){
     multi: root.dataset.multi==='1', opts:[]};
   if(!S.btn||!S.val||!S.list) return;
   S.ph=(S.val.textContent||'').trim();
-  SSELS[root.dataset.sel||'xtur']=S;
+  // 🔴 Ko'p tanlovlilar uchun MULTI kaliti: data-key bo'lsa o'shandan (masalan
+  //    #sselTag → 'tag'), aks holda eskidek 'xtur' (data-sel bo'lmagan yagona eski
+  //    ko'p tanlovli #sselXtur — moslik buzilmasin).
+  S.mkey = S.multi ? (root.dataset.key||'xtur') : '';
+  SSELS[root.dataset.sel||root.dataset.key||'xtur']=S;
   S.btn.addEventListener('click',()=>{ root.classList.contains('open')?sselClose(S,true):sselOpen(S); });
   const x=root.querySelector('.ssel-x'); if(x) x.addEventListener('click',()=>sselClose(S,true));
   S.list.addEventListener('click',e=>{ const o=e.target.closest('.ssel-opt'); if(o) sselPick(S,o.dataset.v); });
@@ -3726,8 +3847,9 @@ function sselInit(id){
   sselBuild(S); sselLabel(S);
 }
 function sselWire(){
-  ['sselFil','sselHodim','sselAcc','sselXtur','sselIjrochi'].forEach(sselInit);
+  ['sselFil','sselHodim','sselAcc','sselXtur','sselIjrochi','sselTag'].forEach(sselInit);
   const clr=$('sselXturClr'); if(clr) clr.addEventListener('click',()=>{ window.xtClearSel(); });
+  const tclr=$('sselTagClr'); if(tclr) tclr.addEventListener('click',()=>{ window.tagClearSel(); });
   const ov=$('sselOv'); if(ov) ov.addEventListener('click',()=>sselCloseAll());
   // Tashqariga bosish — capture bosqichida (panel ichidagi bosish .ssel ichida qoladi)
   document.addEventListener('pointerdown',e=>{
@@ -3780,11 +3902,13 @@ function args(){
   // Eski jurnal() ga bular YUBORILMAYDI (argsOld) — imzosi boshqa.
   // p_ijrochi — XOM kalit (ijrochi_raw), '(bosh)' sentineli ham SHUNDAYLIGICHA.
   // Kesh kaliti barqaror bo'lishi uchun u args() da DOIM bor; serverga esa faqat
-  // useIjr bo'lganda ketadi (argsV2).
+  // useIjr bo'lganda ketadi (argsV2). p_elementlar (Tag filtri) ham shu naqsh —
+  // useMaydonF bo'lganda ketadi (PROVODKA_JURNAL_MAYDON.sql).
   return {p_from:$('from').value,p_to:$('to').value,p_account:acc,p_accounts:accs,
     p_moddalar:moddaSel.length?moddaSel.slice():null,
     p_turlar:TUR_SRV[tur]||null,
     p_ijrochi:(($('fIjrochi')&&$('fIjrochi').value)||null),
+    p_elementlar:tagSel.length?tagSel.slice():null,
     p_q:($('q').value||'').trim()||null};
 }
 async function load(){
@@ -3814,7 +3938,8 @@ async function load(){
     //    holati, filtrga bo'ysunmaydi), kartalar esa filtrlangan kirim/chiqimni
     //    ko'rsatadi. Ikkalasi bir ekranda zid turmasin — filtr bo'lsa satr
     //    umuman chizilmaydi (fail-closed) va keraksiz so'rov ham ketmaydi.
-    const ladOk=!(a.p_moddalar&&a.p_moddalar.length)&&!a.p_q&&!a.p_ijrochi;
+    //    🔴 p_elementlar (Tag) ham shu ro'yxatga qo'shildi — o'sha sabab.
+    const ladOk=!(a.p_moddalar&&a.p_moddalar.length)&&!a.p_q&&!a.p_ijrochi&&!(a.p_elementlar&&a.p_elementlar.length);
     const qv={p_from:a.p_from,p_to:a.p_to,p_accounts:(a.p_account?[a.p_account]:a.p_accounts)||null};
     const [r1,r2,r3,r4]=await Promise.all([
       sb.rpc('jurnal_v2',{...v,p_limit:LIMIT,p_offset:0}),
@@ -4372,7 +4497,9 @@ async function init(){
   //    'konvertok') bu await sinxron qaytadi — kechikish yo'q.
   //    loadUseKonvertF() argsV2()ga hech narsa qo'shmaydi (Konvert chipi foydalanuvchi
   //    tanlaganda TUR_SRV.kv orqali keladi) — faqat chipni ko'rsatish/yashirish uchun.
-  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF() ]);
+  //    loadUseMaydonF() ham shu Promise.all'da: useMaydonF load()'dan OLDIN aniq bo'lsin
+  //    (aks holda #fldTag/argsV2 sovuq keshda "yo'q" holatda qotib qolardi).
+  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF() ]);
   if(useKonvertF){ const b=$('turKv'); if(b) b.style.display=''; }
   if(window.permScope && window.permScope()==='list'){
     await loadAccounts();
