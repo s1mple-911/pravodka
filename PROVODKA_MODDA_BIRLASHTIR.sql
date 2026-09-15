@@ -59,13 +59,34 @@ revoke all on table modda_birlashtir_log from public, anon, authenticated;
 
 
 -- ----------------------------------------------------------------------------
+--  NOM NORMALLASHTIRISH — 1-urinish «Yo'l harajati» ni topa olmadi (0 ta mos):
+--  bazadagi nom boshqacha yozilgan (masalan «Yul harajati», kirillcha
+--  «Йўл харажати», «Yo'l xarajatlari»). Endi: kichik harf, kirill → lotin
+--  (o'zbek harflari bilan), apostrof turlari o'chiriladi, x → h, bo'shliqlar
+--  bittaga. Natija faqat [a-z0-9 ].
+-- ----------------------------------------------------------------------------
+create or replace function _modda_norm(p text)
+returns text
+language sql
+immutable
+as $fn$
+  select btrim(regexp_replace(regexp_replace(
+           translate(
+             translate(lower(coalesce(p, '')),
+                       'абвгдежзийклмнопрстуфхцўқғҳэё' || chr(39) || '`ʻʼ’‘',
+                       'abvgdejziyklmnoprstufxcoqghee'),
+             'x', 'h'),
+           '[^a-z0-9 ]', '', 'g'), '\s+', ' ', 'g'))
+$fn$;
+revoke all on function _modda_norm(text) from public, anon, authenticated;
+
+
+-- ----------------------------------------------------------------------------
 --  BIRLASHTIRISH (atomik)
 -- ----------------------------------------------------------------------------
 do $mig$
 declare
   c_batch    constant text := 'yol_harajati_2026_09_15';
-  c_eski     constant text := 'yol harajati';                   -- normallashtirilgan nom
-  c_yangi    constant text := 'transport va yetkazib berish';
   v_old      uuid;
   v_new      uuid;
   v_old_name text;
@@ -84,28 +105,35 @@ begin
     return;
   end if;
 
-  -- 1) Moddalarni NOM bo'yicha topish (normallashtirib), har biridan AYNAN BITTA
-  select count(*), min(a.id::text)::uuid into v_n, v_old
-    from accounts a
-   where a.type = 'xarajat' and a.is_active
-     and btrim(regexp_replace(regexp_replace(translate(lower(a.name), 'x', 'h'),
-                               '[^a-z0-9 ]', '', 'g'), '\s+', ' ', 'g')) = c_eski;
-  if v_n <> 1 then
-    select string_agg(a.code || ' · ' || a.name || case when a.is_active then '' else ' (nofaol)' end, '; ')
-      into v_list from accounts a where a.type = 'xarajat' and a.name ilike '%yo%l%' ;
-    raise exception '«Yo''l harajati» moddasi aniq topilmadi (% ta mos). Nomzodlar: %', v_n, coalesce(v_list, 'yo''q');
-  end if;
+  -- 1) Moddalarni NOM bo'yicha topish (_modda_norm), har biridan AYNAN BITTA faol xarajat moddasi.
+  --    ESKI : «yol/yul harajat…» bilan boshlanadi (Yo'l harajati, Yul xarajatlari, Йўл харажати …)
+  --    YANGI: nomida ham «transport», ham «(y)etkaz» bor (Transport va yetkazib berish …)
+  declare
+    v_n_old int;
+    v_n_new int;
+  begin
+    select count(*), min(a.id::text)::uuid into v_n_old, v_old
+      from accounts a
+     where a.type = 'xarajat' and a.is_active
+       and _modda_norm(a.name) ~ '^y[ou]l h?arajat';
+    select count(*), min(a.id::text)::uuid into v_n_new, v_new
+      from accounts a
+     where a.type = 'xarajat' and a.is_active
+       and _modda_norm(a.name) ~ 'transport' and _modda_norm(a.name) ~ 'y?etkaz';
 
-  select count(*), min(a.id::text)::uuid into v_n, v_new
-    from accounts a
-   where a.type = 'xarajat' and a.is_active
-     and btrim(regexp_replace(regexp_replace(translate(lower(a.name), 'x', 'h'),
-                               '[^a-z0-9 ]', '', 'g'), '\s+', ' ', 'g')) = c_yangi;
-  if v_n <> 1 then
-    select string_agg(a.code || ' · ' || a.name || case when a.is_active then '' else ' (nofaol)' end, '; ')
-      into v_list from accounts a where a.type = 'xarajat' and (a.name ilike '%transport%' or a.name ilike '%yetkaz%');
-    raise exception '«Transport va yetkazib berish» moddasi aniq topilmadi (% ta mos). Nomzodlar: %', v_n, coalesce(v_list, 'yo''q');
-  end if;
+    if v_n_old <> 1 or v_n_new <> 1 then
+      -- Nomzodlar HAMMA tur va holatdan (xarajat bo'lmasa ham, nofaol bo'lsa ham) —
+      -- xato matnining o'zidan bazada aynan nima borligi ko'rinsin.
+      select string_agg(a.code || ' · ' || a.name || ' [' || coalesce(a.type, '?')
+                        || case when a.is_active then '' else ', nofaol' end || ']', '; ' order by a.code)
+        into v_list
+        from (select * from accounts a
+               where _modda_norm(a.name) ~ '(^| )y[ou]l( |$)|transport|etkaz'
+               order by a.code limit 30) a;
+      raise exception 'Moddalar aniq topilmadi: «Yo''l harajati» — % ta, «Transport va yetkazib berish» — % ta mos (har biridan 1 ta kerak). Nomzodlar: %',
+        v_n_old, v_n_new, coalesce(v_list, 'yo''q');
+    end if;
+  end;
 
   if v_old = v_new then
     raise exception 'Ikkala nom bitta moddaga tushdi — to''xtatildi';
