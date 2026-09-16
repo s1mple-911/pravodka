@@ -1190,6 +1190,23 @@ tashlandi (`rxJdUI` yorlig'i «(ixtiyoriy)»). Server: `ruxsat_yarat_v2` Excel s
 bo'sh bo'lsa rad etadi (🔴 `ruxsat_yarat_v2` ning ENG OXIRGI versiyasi `PROVODKA_EXCEL_IXTIYORIY.sql` da).
 Prod'ga chiqqan (`promote.sh hodim`, 2026-09-15).
 
+### Excel ixtiyoriy — 2-urinish (2026-09-16, `PROVODKA_EXCEL_IXTIYORIY_2.sql`)
+
+Asilbek yana: «Excel hali ham required». Tekshirildi — **klient aybdor emas**: `hodim-dev.html`, prod
+`hodim.html` va jonli `pravodka.com/hodim.html` uchalasida ham `jdRequired()` = «izoh YOKI jadval»,
+to'rtala saqlash yo'lida (`saveHodim`/`srvSave`/`rxSave`/`jdReqUI`). `professional-dev`/`sorovlar-dev`/
+`jurnal-dev` da Excel qoidasi UMUMAN yo'q. Server qatlamida Excel talabi **yagona joyda** —
+`ruxsat_yarat_v2(jsonb)`; eski tanasi (`PROVODKA_RUXSAT_TALAB.sql` 4-BO'LIM) izohdan qat'i nazar
+«Bu xarajat uchun Excel jadvali shart» deb rad etadi. Ya'ni sabab: `PROVODKA_EXCEL_IXTIYORIY.sql`
+**RUN qilinmagan** bo'lishi.
+- 🔴 **Funksiya tanasini tashqaridan ko'rib bo'lmaydi** — anon kalit bilan `rpc/<fn>` faqat 401
+  (bor) yoki 404 PGRST202 (yo'q) beradi. Shuning uchun `excel_ixtiyoriy_ok()` **probe** qo'shildi:
+  uning MAVJUDLIGI = `PROVODKA_EXCEL_IXTIYORIY_2.sql` RUN qilingan; qiymati (authenticated) =
+  `ruxsat_yarat_v2` tanasida yangi qoida bormi. Kelgusida shu chalkashlik takrorlanmasin.
+- 🔴 Bo'sh `{}` bilan RPC probe qilish YARAMAYDI — mavjud funksiya ham 404 beradi (argument nomi
+  mos kelmasa). To'g'ri argument nomi bilan yubor (`{"p_data":{}}`).
+- `ruxsat_yarat_v2` ning ENG OXIRGI versiyasi endi `PROVODKA_EXCEL_IXTIYORIY_2.sql` da.
+
 ### Tovar tannarxida izoh — SERVER qorovuli (2026-09-15, `PROVODKA_TANNARX_IZOH.sql`)
 
 Asilbek Professional'da Tovar tannarxi → to'lov turi tanlab izohsiz saqlay oldi. Sabablar: prod `professional.html` da
