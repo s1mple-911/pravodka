@@ -77,6 +77,40 @@ select e.id, e.entry_date, e.source, coalesce(e.ext_ref,'—') as ext_ref,
  order by e.id;
 
 -- ----------------------------------------------------------------------------
+-- 3b) ⭐ ENG MUHIMI — NAVOIY KASSA hisoblarining HAR HARAKATI (07–16.09)
+--     3-so'rov «Navoiy ombori» (tovar) yozuvlarini ham tortib kelgan va natija
+--     kesilib qolgan. Bu yerda FAQAT pul hisoblari: 5224 ildiz + pul turlari.
+--     Shu jadval «yetishmayotgan 21.5 mln Navoiyda bormi yoki umuman
+--     kirmaganmi» degan savolga javob beradi — tuzatish shunga bog'liq.
+-- ----------------------------------------------------------------------------
+select e.entry_date,
+       coalesce(e.ext_ref, '—')      as ext_ref,
+       left(e.description, 60)       as izoh,
+       a.code, a.name,
+       el.debit, el.credit
+  from entry e
+  join entry_line el on el.entry_id = e.id
+  join accounts a    on a.id = el.account_id
+ where a.code in ('5224', '5589', '5590', '5591', '5172', '5658')
+   and e.is_deleted = false
+   and e.entry_date between date '2026-09-07' and date '2026-09-16'
+ order by e.entry_date, a.code;
+
+-- 3c) O'shaning yig'indisi (bitta qatorda ko'rinishi uchun)
+select a.code, a.name,
+       sum(el.debit)                  as dt_jami,
+       sum(el.credit)                 as kt_jami,
+       sum(el.debit) - sum(el.credit) as farq
+  from entry e
+  join entry_line el on el.entry_id = e.id
+  join accounts a    on a.id = el.account_id
+ where a.code in ('5224', '5589', '5590', '5591', '5172', '5658')
+   and e.is_deleted = false
+   and e.entry_date between date '2026-09-07' and date '2026-09-16'
+ group by a.code, a.name
+ order by a.code;
+
+-- ----------------------------------------------------------------------------
 -- 4) Hozirgi qoldiqlar: Toshkent Kassa va Navoiy (pul turlari bilan)
 -- ----------------------------------------------------------------------------
 select a.code, a.name, coalesce(a.pul_turi, a.currency) as tur,
