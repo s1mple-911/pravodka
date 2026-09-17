@@ -1,34 +1,22 @@
 -- ============================================================================
 --  PROVODKA_STANDART_LIMIT_SARF.sql — 2026-09-17 (Asilbek)
 --
---  «Standart xarajatlar»da ovqatlanish, oxrana kabi moddalar uchun limit
---  ko'rinmayapti, chunki ular FILIALGA emas, ROLLAR orqali HAR HODIMGA
---  berilgan. Talab: filial kesimida ham ko'rsatilsin — hodimlarga berilgan
---  limitlar YIG'INDISI, shu oyda qancha ishlatilgani, qancha qolgani va
---  filialning kassa balansi.
+--  Ovqatlanish / oxrana kabi moddalarda limit FILIALGA emas, ROL orqali HAR
+--  HODIMGA berilgan (masalan Qarshi main store hodimlarida «1talikovqat» roli,
+--  obed uchun 120 000 — ya'ni shu hodim bir oyda faqat 120 000 ishlata oladi).
+--  Bu funksiya filial kesimida shuni ko'rsatadi: har hodimning limiti, sarfi,
+--  qoldig'i va O'Z kassasidagi pul (filial kassasi EMAS).
 --
---  Bu fayl FAQAT O'QISH uchun yangi funksiya qo'shadi. Hech qanday ustun,
---  trigger, RLS yoki mavjud funksiya O'ZGARMAYDI (additive).
+--  Faqat O'QISH. Ustun/trigger/RLS/mavjud funksiya o'zgarmaydi (additive).
 --
---  Manbalar (mavjud, tegilmaydi):
---    • rbac_role_modda.limit_uzs  — rol × modda uchun OYLIK limit (null = cheksiz)
---    • rbac_modda_ishlatildi()    — shu oyda ishlatilgani (entry.created_by bo'yicha)
---    • standart_filial_moddalar() — filial ↔ hodim ↔ modda bog'lanishi (shu yerdan
---                                   staff_in / staff_admin / staff_role mantiqi
---                                   AYNAN ko'chirildi, ikkalasi bir xil javob bersin)
+--  Manbalar: rbac_role_modda.limit_uzs (rol × modda oylik limit, null = cheksiz),
+--  standart_filial_moddalar() (filial ↔ hodim ↔ modda — staff CTE'lari AYNAN
+--  o'sha yerdan ko'chirildi), v_kassa_card (hodim xarajat kassasi qoldig'i).
 --
---  🔴 MANTIQ (Asilbek, 2026-09-17): «bitta user obed yozguncha hamkasblari bilan
---     BIRGA qo'shib yozadi — demak ulardagi roldan kamayishi kerak». Shuning uchun:
---       • LIMIT  = filial hodimlarining limitlari YIG'INDISI (pul havzasi);
---                  har hodimda bir nechta rol bo'lsa — eng KATTA limit olinadi
---                  (rbac_limit_modda bilan bir xil: bitta rolda cheksiz bo'lsa cheksiz);
---                  Provodkaga KIRMAYDIGAN hodim ham hisobga olinadi (rbac_staff_role).
---       • SARF   = shu oyda FILIAL bo'yicha sarflangan pul — kim yozganidan qat'i nazar
---                  (`entry.filial_ids` ichida shu filial bo'lsa). Bu standart_holat()
---                  dagi filial limiti hisobi bilan AYNAN bir xil manba.
---       • QOLDIQ = limit yig'indisi − filial sarfi.
---     Hodim-hodim tafsilotda har kimning O'ZI yozgani ham ko'rsatiladi (created_by
---     bo'yicha) — lekin havzadan kamayishi filial sarfi bilan hisoblanadi.
+--  Qoidalar: hodimda bir necha rol bo'lsa eng KATTA limit; bittasi cheksiz
+--  bo'lsa cheksiz. Provodkaga kirmaydigan hodim ham hisobda (rbac_staff_role).
+--  Sarf: filial bo'yicha (entry.filial_ids) — bitta hodim hamkasblari uchun
+--  birga yozadi; hodim satridagi sarf esa o'zi yozgani (entry.created_by).
 -- ============================================================================
 
 create or replace function standart_filial_limit_sarf(p_filial uuid,
@@ -119,9 +107,22 @@ begin
         join rbac_role r on r.id = sr.role_id and r.is_active
        where si.user_id is null
     ),
+    -- 🔴 HODIMNING O'Z KASSASI (5400 ostidagi 54xx, kassa_turi='xarajat') —
+    -- filial kassasi EMAS. Bog'lanish nom bo'yicha: kassa nomi = hodim ismi
+    -- (TaskFix shunday ochadi). Nomlar normallashtiriladi (registr + probel +
+    -- tinish belgisi olib tashlanadi); bir nechta mos kassa bo'lsa yig'iladi.
+    hodim_kassa as (
+      select si.staff_id, sum(coalesce(k.jami, 0)) as kassa_uzs
+        from staff_in si
+        join accounts a
+          on a.kassa_turi = 'xarajat'
+         and coalesce(a.is_active, true)
+         and nullif(lower(regexp_replace(a.name,  '[^[:alnum:]]', '', 'g')), '')
+           = nullif(lower(regexp_replace(si.nom, '[^[:alnum:]]', '', 'g')), '')
+        left join v_kassa_card k on k.id = a.id
+       group by si.staff_id
+    ),
     -- Hodim × modda: rol orqali (limit bor/cheksiz) + admin (hamma modda, cheksiz).
-    -- Bitta hodimda bir necha rol bo'lsa — eng KATTA limit amal qiladi (rbac_limit_modda
-    -- ham shunday: max), rollardan biri cheksiz bo'lsa cheksiz yutadi.
     hm_raw as (
       select sr.staff_id, am.id as modda_id, rm.limit_uzs
         from staff_role sr
@@ -142,8 +143,7 @@ begin
         from hm_raw r
        group by r.staff_id, r.modda_id
     ),
-    -- TAFSILOT uchun: har hodimning O'ZI yozgan summasi (entry.created_by).
-    -- Havzadan kamayish BU EMAS — pastdagi sarf_filial ishlatiladi.
+    -- Hodim satridagi sarf: o'zi yozgani (entry.created_by).
     sarf as (
       select h.staff_id, h.modda_id,
              coalesce((
@@ -164,15 +164,14 @@ begin
     hm_full as (
       select h.staff_id, si.nom, si.lavozim, (si.user_id is not null) as bog_langan,
              h.modda_id, h.cheksiz, h.limit_uzs,
-             coalesce(s.sarf_uzs, 0) as sarf_uzs
+             coalesce(s.sarf_uzs, 0)  as sarf_uzs,
+             coalesce(hk.kassa_uzs, 0) as kassa_uzs
         from hm h
         join staff_in si on si.staff_id = h.staff_id
-        left join sarf s on s.staff_id = h.staff_id and s.modda_id = h.modda_id
+        left join sarf s        on s.staff_id  = h.staff_id and s.modda_id = h.modda_id
+        left join hodim_kassa hk on hk.staff_id = h.staff_id
     ),
-    -- 🔴 HAVZADAN KAMAYISH MANBAI: filial bo'yicha sarf (kim yozganidan qat'i nazar).
-    -- standart_holat() dagi filial limiti hisobi bilan bir xil shart: entry.filial_ids.
-    -- Status: posted + pending — rbac_limit_entry_line qorovuli ham ikkalasini sanaydi,
-    -- shuning uchun bu yerdagi qoldiq foydalanuvchi ko'radigan to'siq bilan mos keladi.
+    -- Modda bo'yicha jami sarf: filial kesimi (kim yozganidan qat'i nazar).
     sarf_filial as (
       select h.modda_id,
              coalesce((
@@ -194,8 +193,6 @@ begin
              bool_or(f.cheksiz)                                             as cheksiz_bor,
              sum(f.limit_uzs) filter (where not f.cheksiz)                  as limit_jami,
              max(sf.sarf_uzs)                                               as sarf_jami,
-             sum(f.sarf_uzs)                                                as sarf_hodimlar,
-             count(*) filter (where not f.bog_langan)::int                  as boglanmagan_soni,
              jsonb_agg(jsonb_build_object(
                'staff_id',   f.staff_id,
                'nom',        f.nom,
@@ -204,6 +201,7 @@ begin
                'cheksiz',    f.cheksiz,
                'limit_uzs',  f.limit_uzs,
                'sarf_uzs',   f.sarf_uzs,
+               'kassa_uzs',  f.kassa_uzs,
                'qoldi_uzs',  case when f.cheksiz or f.limit_uzs is null then null
                                   else greatest(0, f.limit_uzs - f.sarf_uzs) end
              ) order by f.nom)                                              as hodimlar
@@ -215,14 +213,13 @@ begin
       'ok',     true,
       'oy',     to_char(v_oy, 'YYYY-MM'),
       'filial', jsonb_build_object('id', v_filial_id, 'name', v_filial_nom),
-      -- Filial kassasidagi jonli pul (parent + valyuta/pul turi bolalari bilan).
-      'kassa_qoldiq_uzs', coalesce((select k.jami from v_kassa_card k where k.id = v_filial_id), 0),
+      -- Filial hodimlarining O'Z kassalaridagi jonli pul (filial kassasi emas).
+      'kassa_qoldiq_uzs', (select coalesce(sum(hk.kassa_uzs), 0) from hodim_kassa hk),
       'jami', jsonb_build_object(
         'limit_uzs', (select coalesce(sum(ma.limit_jami), 0) from modda_agg ma),
         'sarf_uzs',  (select coalesce(sum(ma.sarf_jami), 0)  from modda_agg ma),
         'qoldi_uzs', (select greatest(0, coalesce(sum(ma.limit_jami), 0) - coalesce(sum(ma.sarf_jami), 0))
-                        from modda_agg ma),
-        'cheksiz_bor', (select coalesce(bool_or(ma.cheksiz_bor), false) from modda_agg ma)
+                        from modda_agg ma)
       ),
       'moddalar', coalesce((
         select jsonb_agg(jsonb_build_object(
@@ -238,14 +235,10 @@ begin
                  'foiz',        case when coalesce(ma.limit_jami, 0) > 0
                                      then least(999, round(ma.sarf_jami / ma.limit_jami * 100))
                                      else null end,
-                 'sarf_hodimlar_uzs', ma.sarf_hodimlar,
-                 'boglanmagan_soni', ma.boglanmagan_soni,
-                 'filial_limit_uzs', sx.limit_uzs,
                  'hodimlar',    ma.hodimlar
                ) order by (ma.limit_jami is null), coalesce(ma.sarf_jami, 0) desc, a.code)
           from modda_agg ma
           join accounts a on a.id = ma.modda_id
-          left join standart_xarajat sx on sx.filial_id = v_filial_id and sx.modda_id = ma.modda_id
       ), '[]'::jsonb)
     )
   );
@@ -256,11 +249,10 @@ revoke all on function standart_filial_limit_sarf(uuid, date) from public, anon;
 grant execute on function standart_filial_limit_sarf(uuid, date) to authenticated;
 
 comment on function standart_filial_limit_sarf(uuid, date) is
-  'Filial kesimida ROL orqali berilgan xarajat limitlari. LIMIT = filial hodimlari '
-  'limitlarining yigindisi (har hodimda rollar ichidan eng kattasi; Provodkaga kirmaydigan '
-  'hodim ham hisobda). SARF = shu oyda filial boyicha (entry.filial_ids) sarflangan pul, '
-  'kim yozganidan qati nazar — bitta hodim hamkasblari uchun birga yozadi. QOLDIQ = ikkisining '
-  'farqi. Yana: filial kassa balansi va hodim-hodim tafsilot. Faqat oqish.';
+  'Filial hodimlariga ROL orqali berilgan xarajat limitlari: har hodimning oylik '
+  'limiti (rollari ichidan eng kattasi), sarfi, qoldigi va O''Z xarajat kassasidagi '
+  'pul (filial kassasi emas). Modda jami sarfi filial boyicha (entry.filial_ids). '
+  'Faqat oqish.';
 
 -- ---------------------------------------------------------------------------
 -- TEKSHIRUV (RUN natijasida ko'rinadi)
