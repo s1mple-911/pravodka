@@ -417,13 +417,13 @@ async function loadFilMod(fid,force){
 // HODIMGA berilgan (masalan obed uchun 120 000). RPC yo'q -> bo'lim yashirin.
 let filLim=null;
 function flCacheGet(fid){
-  try{ const raw=sessionStorage.getItem('prov-swr:std-fl:'+fid); if(!raw) return null;
+  try{ const raw=sessionStorage.getItem('prov-swr:std-fl:'+fid+':'+$('oy').value); if(!raw) return null;
     const o=JSON.parse(raw); if(!o||typeof o.t!=='number'||Date.now()-o.t>FM_TTL) return null; return o.v; }catch(e){ return null; }
 }
-function flCacheSet(fid,v){ try{ sessionStorage.setItem('prov-swr:std-fl:'+fid, JSON.stringify({t:Date.now(),v})); }catch(e){} }
+function flCacheSet(fid,v){ try{ sessionStorage.setItem('prov-swr:std-fl:'+fid+':'+$('oy').value, JSON.stringify({t:Date.now(),v})); }catch(e){} }
 async function loadFilLim(fid,force){
   if(!force){ const c=flCacheGet(fid); if(c){ if(curFilial===fid){ filLim=c; render(); } } }
-  const {data,error}=await sb.rpc('standart_filial_limit_sarf',{p_filial:fid});
+  const {data,error}=await sb.rpc('standart_filial_limit_sarf',{p_filial:fid,p_oy:oyDate()});
   if(error||!data||data.ok!==true){
     if(force || !flCacheGet(fid)){ if(curFilial===fid){ filLim=null; render(); } }
     return;
@@ -775,7 +775,7 @@ $('limModda').addEventListener('change',updateLimBtn);
 async function init(){
   // Oy — joriy oy (YYYY-MM)
   $('oy').value=oyNowStr();
-  $('oy').onchange=()=>{ syncOyUI(); loadHolat(); };
+  $('oy').onchange=()=>{ syncOyUI(); loadHolat(); if(curFilial) loadFilLim(curFilial,true); };
   syncOyUI();
   // admin holati (perms.js dan; profiles bilan ham tasdiqlaymiz)
   isAdmin=isAdminUser();
