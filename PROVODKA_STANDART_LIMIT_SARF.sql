@@ -1,0 +1,239 @@
+-- ============================================================================
+--  PROVODKA_STANDART_LIMIT_SARF.sql — 2026-09-17 (Asilbek)
+--
+--  «Standart xarajatlar»da ovqatlanish, oxrana kabi moddalar uchun limit
+--  ko'rinmayapti, chunki ular FILIALGA emas, ROLLAR orqali HAR HODIMGA
+--  berilgan. Talab: filial kesimida ham ko'rsatilsin — hodimlarga berilgan
+--  limitlar YIG'INDISI, shu oyda qancha ishlatilgani, qancha qolgani va
+--  filialning kassa balansi.
+--
+--  Bu fayl FAQAT O'QISH uchun yangi funksiya qo'shadi. Hech qanday ustun,
+--  trigger, RLS yoki mavjud funksiya O'ZGARMAYDI (additive).
+--
+--  Manbalar (mavjud, tegilmaydi):
+--    • rbac_role_modda.limit_uzs  — rol × modda uchun OYLIK limit (null = cheksiz)
+--    • rbac_modda_ishlatildi()    — shu oyda ishlatilgani (entry.created_by bo'yicha)
+--    • standart_filial_moddalar() — filial ↔ hodim ↔ modda bog'lanishi (shu yerdan
+--                                   staff_in / staff_admin / staff_role mantiqi
+--                                   AYNAN ko'chirildi, ikkalasi bir xil javob bersin)
+--
+--  🔴 SARF EGASI: xarajat kimning nomiga yozilgani `entry.created_by` bilan
+--     aniqlanadi (rbac_limit_entry_line qorovuli ham xuddi shunday hisoblaydi).
+--     Shuning uchun `aros_staff.user_id` bog'lanmagan hodimning sarfi 0 bo'lib
+--     ko'rinadi — javobda `bog_langan=false` bilan ochiq belgilanadi, jimgina
+--     nol ko'rsatilmaydi.
+-- ============================================================================
+
+create or replace function standart_filial_limit_sarf(p_filial uuid,
+                                                      p_oy date default null)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_page_ok    boolean := false;
+  v_filial_id  uuid;
+  v_filial_nom text;
+  v_bids       int[];
+  v_oy         date;
+begin
+  if auth.uid() is null then
+    raise exception 'Avtorizatsiya kerak' using errcode = '42501';
+  end if;
+
+  -- Ruxsat: standart_filial_moddalar bilan AYNAN bir xil qoida.
+  if is_admin() then
+    v_page_ok := true;
+  elsif exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'perm_has_page'
+  ) then
+    v_page_ok := perm_has_page('standart');
+  end if;
+  if not v_page_ok then
+    raise exception 'Standart xarajatlar sahifasiga ruxsat yoq' using errcode = '42501';
+  end if;
+
+  if p_filial is null then
+    raise exception 'Filial tanlanmadi' using errcode = '22000';
+  end if;
+
+  v_oy := date_trunc('month', coalesce(p_oy, (now() at time zone 'Asia/Tashkent')::date))::date;
+
+  select id, name into v_filial_id, v_filial_nom
+    from accounts
+   where id = p_filial
+     and kassa_turi = 'filial'
+     and parent_id is null
+     and coalesce(is_active, true);
+  if v_filial_id is null then
+    raise exception 'Filial topilmadi: %', p_filial using errcode = '22023';
+  end if;
+
+  select coalesce(array_agg(m.branch_id), '{}'::int[]) into v_bids
+    from staff_branch_map m
+   where m.filial_id = v_filial_id or m.provodka_filial = v_filial_nom;
+
+  return (
+    with staff_in as (
+      select s.staff_id,
+             coalesce(nullif(btrim(s.toliq_nom), ''),
+                      btrim(coalesce(s.ism, '') || ' ' || coalesce(s.familiya, ''))) as nom,
+             s.lavozim, s.user_id
+        from aros_staff s
+       where s.is_active
+         and (
+           s.branch_id = any(v_bids)
+           or exists (
+             select 1 from jsonb_array_elements(coalesce(s.branches, '[]'::jsonb)) b
+              where (b ->> 'id') ~ '^\d+$' and (b ->> 'id')::int = any(v_bids)
+           )
+         )
+    ),
+    staff_admin as (
+      select si.staff_id
+        from staff_in si
+        join profiles p on p.id = si.user_id
+       where si.user_id is not null and p.role = 'admin'
+    ),
+    staff_role as (
+      select si.staff_id, r.id as role_id
+        from staff_in si
+        join rbac_user_role ur on ur.user_id = si.user_id
+        join rbac_role r on r.id = ur.role_id and r.is_active
+       where si.user_id is not null
+         and not exists (select 1 from staff_admin sa where sa.staff_id = si.staff_id)
+      union all
+      select si.staff_id, r.id
+        from staff_in si
+        join rbac_staff_role sr on sr.staff_id = si.staff_id
+        join rbac_role r on r.id = sr.role_id and r.is_active
+       where si.user_id is null
+    ),
+    -- Hodim × modda: rol orqali (limit bor/cheksiz) + admin (hamma modda, cheksiz).
+    -- Bitta hodimda bir necha rol bo'lsa — eng KATTA limit amal qiladi (rbac_limit_modda
+    -- ham shunday: max), rollardan biri cheksiz bo'lsa cheksiz yutadi.
+    hm_raw as (
+      select sr.staff_id, am.id as modda_id, rm.limit_uzs
+        from staff_role sr
+        join rbac_role_modda rm on rm.role_id = sr.role_id
+        join accounts am on am.id = rm.account_id
+                        and am.type = 'xarajat'
+                        and coalesce(am.is_active, true)
+      union all
+      select sa.staff_id, a.id, null::numeric
+        from staff_admin sa
+        cross join accounts a
+       where a.type = 'xarajat' and coalesce(a.is_active, true)
+    ),
+    hm as (
+      select r.staff_id, r.modda_id,
+             bool_or(r.limit_uzs is null)                                  as cheksiz,
+             max(r.limit_uzs)                                              as limit_uzs
+        from hm_raw r
+       group by r.staff_id, r.modda_id
+    ),
+    -- Shu oyda ishlatilgani: entry.created_by = hodimning auth user_id si.
+    -- (rbac_modda_ishlatildi bilan bir xil shart — takrorlanmasin deb inline.)
+    sarf as (
+      select h.staff_id, h.modda_id,
+             coalesce((
+               select sum(el.debit)
+                 from entry_line el
+                 join entry e on e.id = el.entry_id
+                where el.account_id = h.modda_id
+                  and el.debit > 0
+                  and e.is_deleted = false
+                  and e.status in ('posted', 'pending')
+                  and date_trunc('month', e.entry_date) = v_oy
+                  and (to_jsonb(e) ->> 'created_by') = si.user_id::text
+             ), 0) as sarf_uzs
+        from hm h
+        join staff_in si on si.staff_id = h.staff_id
+       where si.user_id is not null
+    ),
+    hm_full as (
+      select h.staff_id, si.nom, si.lavozim, (si.user_id is not null) as bog_langan,
+             h.modda_id, h.cheksiz, h.limit_uzs,
+             coalesce(s.sarf_uzs, 0) as sarf_uzs
+        from hm h
+        join staff_in si on si.staff_id = h.staff_id
+        left join sarf s on s.staff_id = h.staff_id and s.modda_id = h.modda_id
+    ),
+    modda_agg as (
+      select f.modda_id,
+             count(*)::int                                                  as hodim_soni,
+             bool_or(f.cheksiz)                                             as cheksiz_bor,
+             sum(f.limit_uzs) filter (where not f.cheksiz)                  as limit_jami,
+             sum(f.sarf_uzs)                                                as sarf_jami,
+             count(*) filter (where not f.bog_langan)::int                  as boglanmagan_soni,
+             jsonb_agg(jsonb_build_object(
+               'staff_id',   f.staff_id,
+               'nom',        f.nom,
+               'lavozim',    f.lavozim,
+               'bog_langan', f.bog_langan,
+               'cheksiz',    f.cheksiz,
+               'limit_uzs',  f.limit_uzs,
+               'sarf_uzs',   f.sarf_uzs,
+               'qoldi_uzs',  case when f.cheksiz or f.limit_uzs is null then null
+                                  else greatest(0, f.limit_uzs - f.sarf_uzs) end
+             ) order by f.nom)                                              as hodimlar
+        from hm_full f
+       group by f.modda_id
+    )
+    select jsonb_build_object(
+      'ok',     true,
+      'oy',     to_char(v_oy, 'YYYY-MM'),
+      'filial', jsonb_build_object('id', v_filial_id, 'name', v_filial_nom),
+      -- Filial kassasidagi jonli pul (parent + valyuta/pul turi bolalari bilan).
+      'kassa_qoldiq_uzs', coalesce((select k.jami from v_kassa_card k where k.id = v_filial_id), 0),
+      'jami', jsonb_build_object(
+        'limit_uzs', (select coalesce(sum(ma.limit_jami), 0) from modda_agg ma),
+        'sarf_uzs',  (select coalesce(sum(ma.sarf_jami), 0)  from modda_agg ma),
+        'qoldi_uzs', (select greatest(0, coalesce(sum(ma.limit_jami), 0) - coalesce(sum(ma.sarf_jami), 0))
+                        from modda_agg ma),
+        'cheksiz_bor', (select coalesce(bool_or(ma.cheksiz_bor), false) from modda_agg ma)
+      ),
+      'moddalar', coalesce((
+        select jsonb_agg(jsonb_build_object(
+                 'modda_id',    ma.modda_id,
+                 'code',        a.code,
+                 'name',        a.name,
+                 'hodim_soni',  ma.hodim_soni,
+                 'cheksiz_bor', ma.cheksiz_bor,
+                 'limit_uzs',   ma.limit_jami,
+                 'sarf_uzs',    ma.sarf_jami,
+                 'qoldi_uzs',   case when ma.limit_jami is null then null
+                                     else greatest(0, ma.limit_jami - ma.sarf_jami) end,
+                 'foiz',        case when coalesce(ma.limit_jami, 0) > 0
+                                     then least(999, round(ma.sarf_jami / ma.limit_jami * 100))
+                                     else null end,
+                 'boglanmagan_soni', ma.boglanmagan_soni,
+                 'filial_limit_uzs', sx.limit_uzs,
+                 'hodimlar',    ma.hodimlar
+               ) order by (ma.limit_jami is null), coalesce(ma.sarf_jami, 0) desc, a.code)
+          from modda_agg ma
+          join accounts a on a.id = ma.modda_id
+          left join standart_xarajat sx on sx.filial_id = v_filial_id and sx.modda_id = ma.modda_id
+      ), '[]'::jsonb)
+    )
+  );
+end
+$fn$;
+
+revoke all on function standart_filial_limit_sarf(uuid, date) from public, anon;
+grant execute on function standart_filial_limit_sarf(uuid, date) to authenticated;
+
+comment on function standart_filial_limit_sarf(uuid, date) is
+  'Filial kesimida ROL orqali berilgan xarajat limitlari: har modda uchun hodimlar '
+  'limitlari yigindisi, shu oydagi sarf (entry.created_by boyicha), qoldiq va filial '
+  'kassa balansi. Faqat oqish. Ruxsat: admin yoki perm_has_page(standart).';
+
+-- ---------------------------------------------------------------------------
+-- TEKSHIRUV (RUN natijasida ko'rinadi)
+-- ---------------------------------------------------------------------------
+select 'standart_filial_limit_sarf' as funksiya,
+       case when to_regprocedure('public.standart_filial_limit_sarf(uuid,date)') is not null
+            then '✅ yaratildi' else '❌ yaratilmadi' end as holat;

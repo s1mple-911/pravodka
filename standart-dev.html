@@ -407,6 +407,74 @@ async function loadFilMod(fid,force){
   fmCacheSet(fid,data);
   if(curFilial===fid){ filMod=data; render(); }
 }
+// --- Rol limitlari va sarf (filial kesimi) — standart_filial_limit_sarf RPC.
+// 🔴 Ovqatlanish/oxrana kabi moddalarda limit FILIALGA emas, hodim ROLIGA berilgan.
+// Bu bo'lim o'sha limitlarni filial bo'yicha yig'ib ko'rsatadi: jami limit, shu
+// oydagi sarf, qoldiq va filial kassasidagi jonli pul. RPC yo'q -> bo'lim yashirin.
+let filLim=null;
+function flCacheGet(fid){
+  try{ const raw=sessionStorage.getItem('prov-swr:std-fl:'+fid); if(!raw) return null;
+    const o=JSON.parse(raw); if(!o||typeof o.t!=='number'||Date.now()-o.t>FM_TTL) return null; return o.v; }catch(e){ return null; }
+}
+function flCacheSet(fid,v){ try{ sessionStorage.setItem('prov-swr:std-fl:'+fid, JSON.stringify({t:Date.now(),v})); }catch(e){} }
+async function loadFilLim(fid,force){
+  if(!force){ const c=flCacheGet(fid); if(c){ if(curFilial===fid){ filLim=c; render(); } } }
+  const {data,error}=await sb.rpc('standart_filial_limit_sarf',{p_filial:fid});
+  if(error||!data||data.ok!==true){
+    if(force || !flCacheGet(fid)){ if(curFilial===fid){ filLim=null; render(); } }
+    return;
+  }
+  flCacheSet(fid,data);
+  if(curFilial===fid){ filLim=data; render(); }
+}
+const flNum=v=>v==null?null:Number(v);
+function flHodimRows(m){
+  return (m.hodimlar||[]).map(h=>{
+    const lim=flNum(h.limit_uzs), sarf=flNum(h.sarf_uzs)||0, qol=flNum(h.qoldi_uzs);
+    const limTxt=h.cheksiz?'cheksiz':(lim==null?'—':money(lim));
+    const qolTxt=h.cheksiz||qol==null?'':' · qoldi <b>'+money(qol)+'</b>';
+    // Bog'lanmagan hodim: sarfini hisoblab bo'lmaydi (xarajat egasi entry.created_by).
+    const bog=h.bog_langan?'':' <span style="color:var(--amber)">· hisob ulanmagan</span>';
+    return '<div class="fc-sub" style="display:flex;justify-content:space-between;gap:8px">'
+      +'<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.nom||'—')+bog+'</span>'
+      +'<span style="flex:none">limit <b>'+limTxt+'</b> · sarf <b>'+money(sarf)+'</b>'+qolTxt+'</span></div>';
+  }).join('');
+}
+function filLimHtml(){
+  if(!filLim||!Array.isArray(filLim.moddalar)||!filLim.moddalar.length) return '';
+  const j=filLim.jami||{}, lim=flNum(j.limit_uzs)||0, sarf=flNum(j.sarf_uzs)||0, qol=flNum(j.qoldi_uzs)||0;
+  const p=lim>0?Math.round(sarf/lim*100):0;
+  const kassa=flNum(filLim.kassa_qoldiq_uzs)||0;
+  const rows=filLim.moddalar.map(m=>{
+    const ml=flNum(m.limit_uzs), ms=flNum(m.sarf_uzs)||0, mq=flNum(m.qoldi_uzs);
+    const mp=(m.foiz==null)?null:Number(m.foiz);
+    const limTxt=(ml==null||ml===0)?(m.cheksiz_bor?'cheksiz':'limitsiz'):money(ml);
+    const bar=(mp==null)?'':'<div class="track"><div class="fill '+fillCls(mp)+'" style="width:'+Math.min(100,mp)+'%"></div></div>';
+    const qolTxt=(mq==null)?'':'<span'+(mq<=0?' class="over"':'')+'>Qoldi: <b class="lr-val">'+money(mq)+'</b></span>';
+    const ogoh=m.boglanmagan_soni>0?'<div class="lr-line" style="color:var(--amber)">'
+      +'<i data-lucide="triangle-alert" style="width:14px;height:14px;flex:none"></i>'
+      +m.boglanmagan_soni+' hodimning hisobi ulanmagan — ularning sarfi ko\'rinmaydi</div>':'';
+    return '<div class="lcard" style="margin-top:8px">'
+      +'<div class="lc-modda"><b>'+esc(m.code)+'</b> '+esc(m.name)+' · <span class="fc-cnt">'+m.hodim_soni+' hodim</span>'
+      +(m.cheksiz_bor&&ml!=null?' · <span class="fc-sub">ba\'zisi cheksiz</span>':'')+'</div>'
+      +'<div class="lr-line"><span>Limit: <b>'+limTxt+'</b></span>'
+      +'<span>Sarflandi: <b class="lr-val">'+money(ms)+'</b>'+(mp==null?'':' ('+mp+'%)')+'</span>'
+      +qolTxt+'</div>'+bar+ogoh
+      +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">Hodimlar bo\'yicha</summary>'
+      +'<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">'+flHodimRows(m)+'</div></details>'
+      +'</div>';
+  }).join('');
+  return '<div class="lcard" style="background:var(--surface-2)">'
+    +'<div class="lc-modda" style="margin-bottom:8px">Rol limitlari va sarf'
+    +'<span class="oychip">'+esc(oyUz($('oy').value))+'</span></div>'
+    +'<div class="lr-line"><span>Jami limit: <b>'+money(lim)+'</b></span>'
+    +'<span>Sarflandi: <b class="lr-val">'+money(sarf)+'</b>'+(lim>0?' ('+p+'%)':'')+'</span>'
+    +'<span'+(qol<=0&&lim>0?' class="over"':'')+'>Qoldi: <b class="lr-val">'+money(qol)+'</b></span></div>'
+    +(lim>0?'<div class="track"><div class="fill '+fillCls(p)+'" style="width:'+Math.min(100,p)+'%"></div></div>':'')
+    +'<div class="lr-line" style="margin-top:8px"><span>Filial kassasida hozir: <b>'+money(kassa)+'</b> so\'m</span></div>'
+    +(j.cheksiz_bor?'<div class="fc-sub" style="margin-top:4px">Ba\'zi moddalarda limit cheksiz — ular yig\'indiga kirmaydi.</div>':'')
+    +rows+'</div>';
+}
 function ochiqModdaIds(){
   if(!filMod || !Array.isArray(filMod.moddalar)) return null;   // null = RPC yo'q/xato — filtr YO'Q
   return new Set(filMod.moddalar.map(m=>m.modda_id));
@@ -534,7 +602,7 @@ window.avtoBogla=async btn=>{
   $('banner').textContent=msg;
   $('banner').className='banner '+(ch.length?'warn':'ok');
   if($('bogModal').classList.contains('open')) closeBog();
-  if(curFilial) loadFilMod(curFilial,true);
+  if(curFilial){ loadFilMod(curFilial,true); loadFilLim(curFilial,true); }
 };
 window.saveBog=async()=>{
   const btn=$('bogSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
@@ -542,7 +610,7 @@ window.saveBog=async()=>{
   if(error){ $('bogMsg').textContent=(window.permErr?window.permErr(error):error.message); $('bogMsg').className='mmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   btn.disabled=false; btn.textContent='Saqlash';
   closeBog();
-  loadFilMod(curFilial,true);
+  loadFilMod(curFilial,true); loadFilLim(curFilial,true);
 };
 const oyDate=()=>{ const v=$('oy').value; return v?(v+'-01'):null; };  // 'YYYY-MM' → 'YYYY-MM-01'
 // --- V8: oy navigatsiyasi ---------------------------------------------
@@ -604,8 +672,8 @@ function renderList(){
   box.innerHTML=`<div class="fgrid">${cards}</div>`;
   icons();
 }
-window.openFilial=id=>{ curFilial=id; filMod=null; render(); loadFilMod(id); window.scrollTo(0,0); };
-window.backToList=()=>{ curFilial=null; filMod=null; render(); };
+window.openFilial=id=>{ curFilial=id; filMod=null; filLim=null; render(); loadFilMod(id); loadFilLim(id); window.scrollTo(0,0); };
+window.backToList=()=>{ curFilial=null; filMod=null; filLim=null; render(); };
 
 function pct(r){ const l=Number(r.limit_uzs)||0; if(l<=0) return 0; return Math.round((Number(r.sarflandi)||0)/l*100); }
 function fillCls(p){ return p>=100?'over':(p>=80?'warn':'ok'); }
@@ -638,7 +706,7 @@ function renderDetail(){
   }
   box.innerHTML=`<button class="back" onclick="backToList()"><i data-lucide="arrow-left"></i>Barcha filiallar</button>`
     +`<div class="det-head"><div><div class="dh-name">${esc(filName(fid))}<span class="oychip">${esc(oyUz($('oy').value))}</span></div>${filSub(fid)?`<div class="dh-sub">${esc(filSub(fid))}</div>`:''}</div>${rows.length?addBtn:''}</div>`
-    +filModHtml()+ro+listHtml;
+    +filLimHtml()+filModHtml()+ro+listHtml;
   icons();
 }
 
@@ -700,7 +768,7 @@ window.saveLim=async()=>{
   if(error){ $('limMsg').textContent=(window.permErr?window.permErr(error):error.message); $('limMsg').className='mmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   closeLim(); btn.textContent='Saqlash';
   await loadHolat();
-  if(curFilial) loadFilMod(curFilial,true);   // filial_limit_uzs (override belgisi) yangilansin
+  if(curFilial){ loadFilMod(curFilial,true); loadFilLim(curFilial,true); }   // filial_limit_uzs (override belgisi) yangilansin
 };
 window.delLim=async(id,name)=>{
   if(!canStdEdit()){ alert('Standart xarajatlar sahifasiga ruxsatingiz yo\'q'); return; }
@@ -708,7 +776,7 @@ window.delLim=async(id,name)=>{
   const {error}=await sb.rpc('standart_limit_delete',{p_id:id});
   if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
   await loadHolat();
-  if(curFilial) loadFilMod(curFilial,true);
+  if(curFilial){ loadFilMod(curFilial,true); loadFilLim(curFilial,true); }
 };
 $('limModda').addEventListener('change',updateLimBtn);
 
