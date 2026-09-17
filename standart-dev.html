@@ -473,6 +473,7 @@ function ochiqModdaIds(){
 }
 function rolLimTxt(m){
   if(!m) return '—';
+  if(m.rol_limit_jami!=null && Number(m.rol_limit_jami)>0) return 'jami '+money(m.rol_limit_jami)+" so'm/oy"+(m.cheksiz_bor?' (+cheksiz)':'');
   if(m.cheksiz_bor) return m.rol_limit_min!=null ? 'aralash (ba\'zi cheksiz)' : 'cheksiz';
   if(m.rol_limit_min==null) return '—';
   return m.rol_limit_min===m.rol_limit_max ? money(m.rol_limit_min)+" so'm/oy" : money(m.rol_limit_min)+'–'+money(m.rol_limit_max)+" so'm/oy";
@@ -696,9 +697,25 @@ function renderDetail(){
         +`<div class="track"><div class="fill ${cls}" style="width:${Math.min(100,p)}%"></div></div>${warn}</div>`;
     }).join('');
   }
+  // Rol orqali berilgan limitlar (Ovqatlanish kabi) — filial limiti bo'lmasa, filial-limit kartasi
+  // bilan AYNAN bir xil ko'rinishda: Limit (hodimlar limitlari jami) · Sarflandi · Qoldi.
+  const rolRows=(filMod&&Array.isArray(filMod.moddalar)?filMod.moddalar:[])
+    .filter(m=>m.filial_limit_uzs==null && Number(m.rol_limit_jami)>0);
+  const rolHtml=rolRows.map(m=>{
+    const lim=Number(m.rol_limit_jami)||0, sarf=Number(m.sarf_uzs)||0, qoldi=lim-sarf, over=qoldi<0;
+    const p=lim>0?Math.round(sarf/lim*100):0, cls=fillCls(p);
+    return `<div class="lcard"><div class="lc-top"><div class="lc-modda"><span class="code">${esc(m.code)}</span>${esc(m.name)}</div>`
+      +`<span class="oychip" title="Limit hodimlarga rollar orqali berilgan (${m.hodim_soni} hodim)">rollar · ${m.hodim_soni} hodim</span></div>`
+      +`<div class="lr-line"><span>Limit: <b>${money(lim)}</b></span>`
+      +`<span>Sarflandi: <b class="lr-val">${money(sarf)}</b> (${p}%)</span>`
+      +`<span class="${over?'over':''}">Qoldi: <b class="lr-val">${money(qoldi)}</b></span></div>`
+      +`<div class="track"><div class="fill ${cls}" style="width:${Math.min(100,p)}%"></div></div></div>`;
+  }).join('');
+  if(rolHtml && !rows.length) listHtml=rolHtml+(admin?`<div class="empty">Filial limiti qo'yilmagan.${addBtn}</div>`:'');
+  else listHtml+=rolHtml;
   box.innerHTML=`<button class="back" onclick="backToList()"><i data-lucide="arrow-left"></i>Barcha filiallar</button>`
     +`<div class="det-head"><div><div class="dh-name">${esc(filName(fid))}<span class="oychip">${esc(oyUz($('oy').value))}</span></div>${filSub(fid)?`<div class="dh-sub">${esc(filSub(fid))}</div>`:''}</div>${rows.length?addBtn:''}</div>`
-    +filLimHtml()+filModHtml()+ro+listHtml;
+    +filModHtml()+ro+listHtml;
   icons();
 }
 

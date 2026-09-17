@@ -446,13 +446,36 @@ begin
         cross join accounts a
        where a.type = 'xarajat' and coalesce(a.is_active, true)
     ),
+    -- Har hodimning shu moddaga EFFEKTIV limiti: rollari ichidan MAX, bittasi cheksiz → cheksiz
+    hodim_lim as (
+      select z.staff_id, z.modda_id,
+             bool_or(z.limit_uzs is null) as cheksiz,
+             max(z.limit_uzs)             as lim
+        from modda_z z
+       group by z.staff_id, z.modda_id
+    ),
+    -- Shu oyda FILIAL bo'yicha sarf (entry.filial_ids; posted+pending) — standart_holat bilan bir manba
+    modda_sarf as (
+      select h.modda_id,
+             coalesce((select sum(el.debit)
+                         from entry e
+                         join entry_line el on el.entry_id = e.id and el.account_id = h.modda_id and el.debit > 0
+                        where e.is_deleted = false and e.status in ('posted', 'pending')
+                          and date_trunc('month', e.entry_date)
+                              = date_trunc('month', (now() at time zone 'Asia/Tashkent')::date)
+                          and v_filial_id = any(e.filial_ids)), 0) as sarf_uzs
+        from (select distinct modda_id from modda_z) h
+    ),
     modda_agg as (
       select z.modda_id,
              count(distinct z.staff_id)::int as hodim_soni,
              to_jsonb(array_agg(distinct z.nom order by z.nom)) as hodimlar,
              min(z.limit_uzs) filter (where z.limit_uzs is not null) as rol_limit_min,
              max(z.limit_uzs) filter (where z.limit_uzs is not null) as rol_limit_max,
-             bool_or(z.limit_uzs is null) as cheksiz_bor
+             bool_or(z.limit_uzs is null) as cheksiz_bor,
+             -- JAMI = filial hodimlari effektiv limitlari yig'indisi (Asilbek: «jami necha pul ruxsat berilgan»)
+             (select sum(hl.lim) filter (where not hl.cheksiz) from hodim_lim hl where hl.modda_id = z.modda_id) as rol_limit_jami,
+             (select ms.sarf_uzs from modda_sarf ms where ms.modda_id = z.modda_id) as sarf_uzs
         from modda_z z
        group by z.modda_id
     ),
@@ -500,6 +523,8 @@ begin
                  'hodimlar',         ma.hodimlar,
                  'rol_limit_min',    ma.rol_limit_min,
                  'rol_limit_max',    ma.rol_limit_max,
+                 'rol_limit_jami',   ma.rol_limit_jami,
+                 'sarf_uzs',         ma.sarf_uzs,
                  'cheksiz_bor',      ma.cheksiz_bor,
                  'filial_limit_uzs', sx.limit_uzs
                ) order by a.code)
