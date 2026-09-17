@@ -432,12 +432,12 @@ function flHodimRows(m){
   return (m.hodimlar||[]).map(h=>{
     const lim=flNum(h.limit_uzs), sarf=flNum(h.sarf_uzs)||0, qol=flNum(h.qoldi_uzs);
     const limTxt=h.cheksiz?'cheksiz':(lim==null?'—':money(lim));
-    const qolTxt=h.cheksiz||qol==null?'':' · qoldi <b>'+money(qol)+'</b>';
+    const qolTxt='';   // shaxsiy qoldiq ko'rsatilmaydi: havza filial bo'yicha kamayadi
     // Bog'lanmagan hodim: sarfini hisoblab bo'lmaydi (xarajat egasi entry.created_by).
-    const bog=h.bog_langan?'':' <span style="color:var(--amber)">· hisob ulanmagan</span>';
+    const bog=h.bog_langan?'':' <span style="color:var(--muted)">· Provodkaga kirmaydi</span>';
     return '<div class="fc-sub" style="display:flex;justify-content:space-between;gap:8px">'
       +'<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.nom||'—')+bog+'</span>'
-      +'<span style="flex:none">limit <b>'+limTxt+'</b> · sarf <b>'+money(sarf)+'</b>'+qolTxt+'</span></div>';
+      +'<span style="flex:none">limit <b>'+limTxt+'</b> · o\'zi yozgan <b>'+money(sarf)+'</b>'+qolTxt+'</span></div>';
   }).join('');
 }
 function filLimHtml(){
@@ -451,14 +451,18 @@ function filLimHtml(){
     const limTxt=(ml==null||ml===0)?(m.cheksiz_bor?'cheksiz':'limitsiz'):money(ml);
     const bar=(mp==null)?'':'<div class="track"><div class="fill '+fillCls(mp)+'" style="width:'+Math.min(100,mp)+'%"></div></div>';
     const qolTxt=(mq==null)?'':'<span'+(mq<=0?' class="over"':'')+'>Qoldi: <b class="lr-val">'+money(mq)+'</b></span>';
-    const ogoh=m.boglanmagan_soni>0?'<div class="lr-line" style="color:var(--amber)">'
-      +'<i data-lucide="triangle-alert" style="width:14px;height:14px;flex:none"></i>'
-      +m.boglanmagan_soni+' hodimning hisobi ulanmagan — ularning sarfi ko\'rinmaydi</div>':'';
+    // Kim yozgani tafsilot uchun; jami sarf filial bo'yicha olinadi, shuning uchun
+    // Provodkaga kirmaydigan hodim HAVZAGA to'liq kiradi (limiti hisoblanadi).
+    const hs=flNum(m.sarf_hodimlar_uzs);
+    const farq=(hs!=null&&ms!=null)?ms-hs:null;
+    const ogoh=(farq!=null&&Math.abs(farq)>=1000)?'<div class="fc-sub" style="margin-top:4px">'
+      +'Shundan hodimlar o\'z nomidan yozgani: <b>'+money(hs)+'</b>'
+      +(farq>0?' · qolgani boshqa xodim/admin yozgan: <b>'+money(farq)+'</b>':'')+'</div>':'';
     return '<div class="lcard" style="margin-top:8px">'
       +'<div class="lc-modda"><b>'+esc(m.code)+'</b> '+esc(m.name)+' · <span class="fc-cnt">'+m.hodim_soni+' hodim</span>'
       +(m.cheksiz_bor&&ml!=null?' · <span class="fc-sub">ba\'zisi cheksiz</span>':'')+'</div>'
       +'<div class="lr-line"><span>Limit: <b>'+limTxt+'</b></span>'
-      +'<span>Sarflandi: <b class="lr-val">'+money(ms)+'</b>'+(mp==null?'':' ('+mp+'%)')+'</span>'
+      +'<span>Filial sarfi: <b class="lr-val">'+money(ms)+'</b>'+(mp==null?'':' ('+mp+'%)')+'</span>'
       +qolTxt+'</div>'+bar+ogoh
       +'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted);font-size:12.5px">Hodimlar bo\'yicha</summary>'
       +'<div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">'+flHodimRows(m)+'</div></details>'
@@ -467,12 +471,15 @@ function filLimHtml(){
   return '<div class="lcard" style="background:var(--surface-2)">'
     +'<div class="lc-modda" style="margin-bottom:8px">Rol limitlari va sarf'
     +'<span class="oychip">'+esc(oyUz($('oy').value))+'</span></div>'
-    +'<div class="lr-line"><span>Jami limit: <b>'+money(lim)+'</b></span>'
-    +'<span>Sarflandi: <b class="lr-val">'+money(sarf)+'</b>'+(lim>0?' ('+p+'%)':'')+'</span>'
+    +'<div class="lr-line"><span>Hodimlar limiti (jami): <b>'+money(lim)+'</b></span>'
+    +'<span>Filial sarfi: <b class="lr-val">'+money(sarf)+'</b>'+(lim>0?' ('+p+'%)':'')+'</span>'
     +'<span'+(qol<=0&&lim>0?' class="over"':'')+'>Qoldi: <b class="lr-val">'+money(qol)+'</b></span></div>'
     +(lim>0?'<div class="track"><div class="fill '+fillCls(p)+'" style="width:'+Math.min(100,p)+'%"></div></div>':'')
     +'<div class="lr-line" style="margin-top:8px"><span>Filial kassasida hozir: <b>'+money(kassa)+'</b> so\'m</span></div>'
-    +(j.cheksiz_bor?'<div class="fc-sub" style="margin-top:4px">Ba\'zi moddalarda limit cheksiz — ular yig\'indiga kirmaydi.</div>':'')
+    +'<div class="fc-sub" style="margin-top:6px">Limit — shu filial hodimlariga rollar orqali berilgan '
+    +'limitlar yig\'indisi (Provodkaga kirmaydigan hodim ham hisobda). Sarf — kim yozganidan qat\'i nazar, '
+    +'shu filial nomiga yozilgan xarajatlar.</div>'
+    +(j.cheksiz_bor?'<div class="fc-sub" style="margin-top:2px">Ba\'zi moddalarda limit cheksiz — ular yig\'indiga kirmaydi.</div>':'')
     +rows+'</div>';
 }
 function ochiqModdaIds(){
