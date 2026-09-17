@@ -528,6 +528,18 @@
   .lamt input{flex:1;height:44px;border:1px solid var(--primary);background:var(--surface);color:var(--ink);border-radius:var(--r-md);padding:0 var(--s3);font-size:16px;font-family:inherit;text-align:right;outline:none;font-variant-numeric:tabular-nums}
   .lamt .cur{color:var(--muted);font-size:14px}
   /* Ko'p tanlash rejimi — summa maydoni o'rniga taqsimot o'qish */
+  .lsplit{margin:var(--s3) 0 2px;padding-top:var(--s3);border-top:1px solid var(--line)}
+  .lsphead{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);margin-bottom:6px}
+  .lsphead b{font-size:13px;color:var(--ink)}
+  .lspeq{height:30px;padding:0 10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--r-sm);font-size:12.5px;font-weight:600;cursor:pointer}
+  .lsprow{display:flex;align-items:center;gap:8px;padding:4px 0}
+  .lsprow .lspn{flex:1;min-width:0;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lsprow .lspn i{display:block;font-style:normal;font-size:11.5px;color:var(--muted)}
+  .lsprow input{width:140px;flex:none;height:38px;border:1px solid var(--primary);background:var(--surface);color:var(--ink);border-radius:var(--r-md);padding:0 10px;font-size:15px;font-family:inherit;text-align:right;outline:none;font-variant-numeric:tabular-nums}
+  .lsprow .lspx{flex:none;width:30px;height:30px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
+  .lsptot{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
+  .lsptot b{font-variant-numeric:tabular-nums}
+  .lsptot.no b{color:var(--danger,#c0392b)}
   .lminfo{border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin:var(--s3) 0 2px;background:var(--surface-2)}
   .lmrow{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);font-size:13.5px;padding:3px 0}
   .lmrow span{color:var(--muted)}
@@ -964,6 +976,7 @@
       <input id="linkAmt" inputmode="numeric" placeholder="0" oninput="onLinkAmt(this)">
       <span class="cur">so'm</span>
     </div>
+    <div id="linkSplit" class="lsplit" style="display:none"></div>
     <div id="linkMultiInfo" class="lminfo" style="display:none"></div>
     <div class="tmsg" id="linkMsg"></div>
     <div class="tacts">
@@ -1991,6 +2004,10 @@ function renderPending(){
 // linkEntry — bitta to'lov rejimi (eski). linkMulti — ko'p tanlash rejimi (pendSel dan kelgan
 // qatorlar massivi); ikkalasi bir vaqtda bo'lmaydi (openLink/openLinkMulti bir-birini tozalaydi).
 let linkEntry=null, linkMulti=null, linkYuklar=[], linkPaid={}, linkRate={}, linkTan={}, linkLoaded=false, linkFilt='unpaid', linkSel=null;
+// linkSels — BITTA to'lov rejimida tanlangan yuklar: Map(yuk_id -> summa).
+// (linkSel faqat ko'p-to'lov rejimida ishlatiladi — u yerda bitta yuk tanlanadi.)
+let linkSels = new Map();
+const linkSplitSum = () => { let t = 0; linkSels.forEach(v => { t += Number(v) || 0; }); return t; };
 const lRate=cur=>{ if(!cur||String(cur).toUpperCase()==='UZS') return 1; const r=linkRate[cur]; return (r==null?null:Number(r)); };
 const lNarxUzs=y=>{ const r=lRate(y.valyuta); if(r==null) return null; return Math.round(Number(y.narx||0)*r); };
 const lTolangan=id=>{ const s=linkPaid[id]; return s?Number(s.tolangan_uzs)||0:0; };
@@ -2006,7 +2023,7 @@ function resetLinkMultiInfo(){ const w=$('linkMultiInfo'); if(w){ w.style.displa
 window.openLink=id=>{
   linkEntry=pendingRows.find(r=>String(r.entry_id)===String(id)); if(!linkEntry) return;
   linkMulti=null; resetLinkMultiInfo();
-  linkSel=null; linkFilt='unpaid';
+  linkSel=null; linkFilt='unpaid'; linkSels=new Map(); renderLinkSplit();
   document.querySelectorAll('#linkModal [data-lf]').forEach(b=>b.classList.toggle('on',b.dataset.lf==='unpaid'));
   $('linkSearch').value=''; $('linkAmtRow').style.display='none'; $('linkAmt').value=''; $('linkMsg').textContent=''; $('linkMsg').className='tmsg';
   $('linkSaveBtn').disabled=true;
@@ -2023,7 +2040,7 @@ window.openLinkMulti=()=>{
   if(!pendMultiOk) return;
   const rows=pendSelRows(); if(!rows.length) return;
   linkMulti=rows; linkEntry=null;
-  linkSel=null; linkFilt='unpaid';
+  linkSel=null; linkFilt='unpaid'; linkSels=new Map(); renderLinkSplit();
   document.querySelectorAll('#linkModal [data-lf]').forEach(b=>b.classList.toggle('on',b.dataset.lf==='unpaid'));
   $('linkSearch').value=''; $('linkAmtRow').style.display='none'; $('linkAmt').value=''; $('linkMsg').textContent=''; $('linkMsg').className='tmsg';
   $('linkSaveBtn').disabled=true;
@@ -2050,7 +2067,7 @@ function renderLinkMultiInfo(){
   }
   wrap.innerHTML=html; wrap.style.display='block';
 }
-window.closeLink=()=>{ $('linkModal').classList.remove('open'); linkMulti=null; resetLinkMultiInfo(); };
+window.closeLink=()=>{ $('linkModal').classList.remove('open'); linkMulti=null; linkSels=new Map(); resetLinkMultiInfo(); };
 window.setLinkFilt=k=>{ linkFilt=k; document.querySelectorAll('#linkModal [data-lf]').forEach(b=>b.classList.toggle('on',b.dataset.lf===k)); renderLinkList(); };
 window.retryLink=()=>{ linkLoaded=false; loadLinkList(); };
 async function loadLinkList(){
@@ -2094,7 +2111,7 @@ window.renderLinkList=()=>{
   if(q) rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')).toLowerCase().includes(q));
   rows.sort((a,b)=>(lSelectable(b)-lSelectable(a))||String(b.sana||'').localeCompare(String(a.sana||'')));
   $('linkList').innerHTML= rows.length ? rows.map(y=>{
-    const id=Number(y.id), on=linkSel===id, jami=lJami(y), qol=lQoldiq(y), p=lPct(y), rateErr=jami==null;
+    const id=Number(y.id), on=(linkMulti? linkSel===id : linkSels.has(id)), jami=lJami(y), qol=lQoldiq(y), p=lPct(y), rateErr=jami==null;
     const tn=lTannarx(id), lsabab=sababTxt((linkTan[String(id)]||{}).qatorlar);
     // Ko'rsatiladigan asosiy son — JAMI tannarx (Aros narxi + qo'shimcha xarajatlar).
     const uzsTxt=rateErr?'<span class="lerr">kurs yo\'q</span>':(y.valyuta&&String(y.valyuta).toUpperCase()!=='UZS'?'≈ '+money(jami)+' so\'m':money(jami)+' so\'m');
@@ -2115,28 +2132,62 @@ window.renderLinkList=()=>{
 };
 window.selectLinkYuk=id=>{ id=Number(id);
   const y=linkYuklar.find(x=>Number(x.id)===id); if(!y) return;
-  if(!linkMulti&&!lSelectable(y)) return;
-  linkSel=id;
-  if(!linkMulti){
-    const qol=lQoldiq(y)||0, def=Math.min(entrySumma(), qol);
-    $('linkAmtRow').style.display='flex';
-    $('linkAmt').value=def?money(def):'';
-  }
+  if(linkMulti){ linkSel=id; renderLinkList(); return; }
+  // Bitta to'lov rejimi: yuk tanlovi ALMASHADI (qo'shiladi/olinadi), summa teng bo'linadi.
+  if(!linkSels.has(id) && !lSelectable(y)) return;
+  if(linkSels.has(id)) linkSels.delete(id); else linkSels.set(id, 0);
+  splitEqual();
   renderLinkList();
 };
+// Teng bo'lish: to'lov summasi tanlangan yuklarga teng bo'linadi, qoldiq (tiyinlar)
+// birinchi yukka qo'shiladi — yig'indi HAR DOIM to'lov summasiga aniq teng bo'lsin.
+function splitEqual(){
+  const ids=[...linkSels.keys()], n=ids.length; if(!n){ renderLinkSplit(); return; }
+  const tot=entrySumma(), base=Math.floor(tot/n);
+  ids.forEach((k,i)=>linkSels.set(k, i===0 ? tot-base*(n-1) : base));
+  renderLinkSplit();
+}
+window.linkSplitEqual=()=>{ splitEqual(); validateLink(); };
+window.linkSplitDel=id=>{ linkSels.delete(Number(id)); splitEqual(); renderLinkList(); };
+window.onSplitAmt=(id,el)=>{ fmtAmt(el); linkSels.set(Number(id), Number((el.value||'').replace(/\D/g,''))||0); validateLink(); };
+function renderLinkSplit(){
+  const w=$('linkSplit'); if(!w) return;
+  if(linkMulti || !linkSels.size){ w.style.display='none'; w.innerHTML=''; return; }
+  const tot=entrySumma(), sum=linkSplitSum(), farq=tot-sum;
+  let h='<div class="lsphead"><b>Taqsimot ('+linkSels.size+' ta yuk)</b>'
+       +'<button type="button" class="lspeq" onclick="linkSplitEqual()">Teng bo\'lish</button></div>';
+  linkSels.forEach((v,id)=>{
+    const y=linkYuklar.find(x=>Number(x.id)===Number(id))||{};
+    const qol=lQoldiq(y);
+    h+='<div class="lsprow"><span class="lspn">#'+esc(id)+' · '+esc(y.ombor||'—')
+      +'<i>'+esc(y.yetkazuvchi||'—')+(qol!=null?' · qoldi '+money(qol):'')+'</i></span>'
+      +'<input inputmode="numeric" value="'+(v?money(v):'')+'" oninput="onSplitAmt('+id+',this)" aria-label="Summa">'
+      +'<button type="button" class="lspx" onclick="linkSplitDel('+id+')" aria-label="Olib tashlash">×</button></div>';
+  });
+  h+='<div class="lsptot'+(Math.abs(farq)<1?'':' no')+'"><span>Yig\'indi</span><b>'+money(sum)+' / '+money(tot)
+    +(Math.abs(farq)<1?'':' (farq '+money(Math.abs(farq))+')')+'</b></div>';
+  w.innerHTML=h; w.style.display='block';
+}
 window.onLinkAmt=el=>{ fmtAmt(el); validateLink(); };
 function linkAmtVal(){ return Number(($('linkAmt').value||'').replace(/\D/g,''))||0; }
 function validateLink(){
   if(linkMulti) return validateLinkMulti();
   const msg=$('linkMsg'), btn=$('linkSaveBtn');
-  if(linkSel==null){ msg.textContent=''; msg.className='tmsg'; btn.disabled=true; return; }
-  const y=linkYuklar.find(x=>Number(x.id)===linkSel);
-  const qol=y?(lQoldiq(y)||0):0, amt=linkAmtVal(), es=entrySumma();
-  let m='',ok=false;
-  if(amt<=0) m='Summa kiriting';
-  else if(amt>es) m='To\'lov summasidan oshdi · max '+money(es)+' so\'m';
-  else if(amt>qol) m='Yuk qoldig\'idan oshdi · max '+money(qol)+' so\'m';
-  else { ok=true; m='✓ '+money(amt)+' so\'m bog\'lanadi'; }
+  renderLinkSplit();
+  if(!linkSels.size){ msg.textContent=''; msg.className='tmsg'; btn.disabled=true; return; }
+  const es=entrySumma(), sum=linkSplitSum();
+  // 🔴 Xizmat to'lovi (sabab_id bor) yuk qoldig'ini kamaytirmaydi — u tannarxga qo'shiladi,
+  // shuning uchun qoldiq tekshiruvi faqat TOVAR to'lovida qo'llanadi (server ham shunday).
+  const xizmat=!!(linkEntry&&linkEntry.sabab_id);
+  let m='',ok=false, bad=null;
+  linkSels.forEach((v,id)=>{ if(bad) return;
+    if((Number(v)||0)<=0){ bad='Har bir yukka summa kiriting'; return; }
+    if(!xizmat){ const y=linkYuklar.find(x=>Number(x.id)===Number(id)); const q=y?lQoldiq(y):null;
+      if(q!=null && Number(v)>q+0.01) bad='#'+id+' qoldig\'idan oshdi · max '+money(q)+' so\'m'; }
+  });
+  if(bad) m=bad;
+  else if(Math.abs(sum-es)>=1) m=(sum>es?'Yig\'indi to\'lovdan '+money(sum-es)+' so\'m ortiq':'Yig\'indi to\'lovdan '+money(es-sum)+' so\'m kam');
+  else { ok=true; m='✓ '+money(es)+' so\'m '+linkSels.size+' ta yukka bog\'lanadi'; }
   msg.textContent=m; msg.className='tmsg '+(ok?'ok':'no'); btn.disabled=!ok;
 }
 // Ko'p tanlash tekshiruvi: FAQAT tovar Σ yuk qoldig'idan oshmasin (xizmat qismi
@@ -2156,10 +2207,24 @@ function validateLinkMulti(){
 }
 window.confirmLink=async()=>{
   if(linkMulti) return confirmLinkMulti();
-  if(linkSel==null||!linkEntry) return;
-  const amt=linkAmtVal(); const btn=$('linkSaveBtn'); btn.disabled=true; btn.textContent='Bog\'lanmoqda…';
+  if(!linkSels.size||!linkEntry) return;
+  const btn=$('linkSaveBtn'); btn.disabled=true; btn.textContent='Bog\'lanmoqda…';
   try{
-    const {error}=await sb.rpc('yuk_boglash',{p_entry:linkEntry.entry_id,p_yuk_id:linkSel,p_summa:amt});
+    let error=null, data=null;
+    if(linkSels.size===1){
+      // Bitta yuk — eski, sinovdan o'tgan yo'l (imzo ham, xatti-harakat ham o'zgarmaydi).
+      const id=[...linkSels.keys()][0];
+      ({error}=await sb.rpc('yuk_boglash',{p_entry:linkEntry.entry_id,p_yuk_id:id,p_summa:linkSels.get(id)}));
+    }else{
+      // Bir nechta yuk — PROVODKA_YUK_PROF_TANNARX.sql dagi yuk_boglash_taqsim:
+      //   p_taqsim = [{yuk_id, summa}...], p_qoldiq = {"<yuk_id>": qoldiq_uzs}
+      const taqsim=[], qol={};
+      linkSels.forEach((v,id)=>{ taqsim.push({yuk_id:Number(id), summa:Number(v)});
+        const y=linkYuklar.find(x=>Number(x.id)===Number(id)); const q=y?lQoldiq(y):null;
+        if(q!=null) qol[String(id)]=q; });
+      ({data,error}=await sb.rpc('yuk_boglash_taqsim',{p_entry:linkEntry.entry_id,p_taqsim:taqsim,p_qoldiq:qol,p_limit_ogoh:true}));
+      if(!error&&data&&data.ok===false){ $('linkMsg').textContent=linkKodMsg(data); $('linkMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Bog\'lash'; return; }
+    }
     if(error){ $('linkMsg').textContent=(window.permErr?window.permErr(error):error.message); $('linkMsg').className='tmsg no'; btn.disabled=false; btn.textContent='Bog\'lash'; return; }
     closeLink(); btn.textContent='Bog\'lash';
     await loadPending();        // ro'yxat + badge yangilanadi (bu yozuv chiqib ketadi)
