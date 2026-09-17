@@ -307,9 +307,220 @@ comment on function standart_filial_limit_sarf(uuid, date) is
   'pul (filial kassasi emas). Modda jami sarfi filial boyicha (entry.filial_ids). '
   'Faqat oqish.';
 
+
+
+-- ============================================================================
+--  2) standart_filial_moddalar — QAYTA E'LON (imzo bir xil, PROVODKA_STANDART_ROL.sql)
+--     «Hodimlarga ochiq moddalar» kartasi ovqat moddasida «cheksiz» derdi —
+--     limitni rbac_role_modda dan o'qirdi. Endi ovqat moddasi uchun
+--     rbac_role_ovqat.limit_uzs (tuzatish shu bitta joyda, qolgani verbatim).
+-- ============================================================================
+
+create or replace function standart_filial_moddalar(p_filial uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $fn$
+declare
+  v_page_ok    boolean := false;
+  v_filial_id  uuid;
+  v_filial_nom text;
+  v_bids       int[];
+begin
+  if auth.uid() is null then
+    raise exception 'Avtorizatsiya kerak' using errcode = '42501';
+  end if;
+
+  if is_admin() then
+    v_page_ok := true;
+  elsif exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'perm_has_page'
+  ) then
+    v_page_ok := perm_has_page('standart');
+  end if;
+  if not v_page_ok then
+    raise exception 'Standart xarajatlar sahifasiga ruxsat yoq' using errcode = '42501';
+  end if;
+
+  if p_filial is null then
+    raise exception 'Filial tanlanmadi' using errcode = '22000';
+  end if;
+
+  select id, name into v_filial_id, v_filial_nom
+    from accounts
+   where id = p_filial
+     and kassa_turi = 'filial'
+     and parent_id is null
+     and coalesce(is_active, true);
+  if v_filial_id is null then
+    raise exception 'Filial topilmadi: %', p_filial using errcode = '22023';
+  end if;
+
+  -- Aros branch_id'lar — YANGI: staff_branch_map.filial_id = shu filial (admin
+  -- tomonidan standart_branch_bogla() bilan bog'langan). ESKI zaxira (OR):
+  -- provodka_filial (matn) ↔ filial NOMI aynan teng bo'lsa ham qamraladi —
+  -- ba'zi filiallar hali qo'lda bog'lanmagan bo'lishi mumkin.
+  select coalesce(array_agg(m.branch_id), '{}'::int[]) into v_bids
+    from staff_branch_map m
+   where m.filial_id = v_filial_id or m.provodka_filial = v_filial_nom;
+
+  return (
+    with staff_in as (
+      select s.staff_id,
+             coalesce(nullif(btrim(s.toliq_nom), ''),
+                      btrim(coalesce(s.ism, '') || ' ' || coalesce(s.familiya, ''))) as nom,
+             s.lavozim, s.user_id
+        from aros_staff s
+       where s.is_active
+         and (
+           s.branch_id = any(v_bids)
+           or exists (
+             select 1 from jsonb_array_elements(coalesce(s.branches, '[]'::jsonb)) b
+              where (b ->> 'id') ~ '^\d+$' and (b ->> 'id')::int = any(v_bids)
+           )
+         )
+    ),
+    -- Bog'langan (user_id bor) VA o'sha user admin -> alohida shox (rbac_staff_ovqat
+    -- bilan bir xil: profiles.role='admin'). Profiles qatori yo'q -> admin EMAS.
+    staff_admin as (
+      select si.staff_id
+        from staff_in si
+        join profiles p on p.id = si.user_id
+       where si.user_id is not null and p.role = 'admin'
+    ),
+    -- Effektiv rollar: admin-bog'langan hodim bu yerda YO'Q (alohida qatnaydi).
+    staff_role as (
+      select si.staff_id, r.id as role_id, r.nom as role_nom
+        from staff_in si
+        join rbac_user_role ur on ur.user_id = si.user_id
+        join rbac_role r on r.id = ur.role_id and r.is_active
+       where si.user_id is not null
+         and not exists (select 1 from staff_admin sa where sa.staff_id = si.staff_id)
+      union all
+      select si.staff_id, r.id, r.nom
+        from staff_in si
+        join rbac_staff_role sr on sr.staff_id = si.staff_id
+        join rbac_role r on r.id = sr.role_id and r.is_active
+       where si.user_id is null
+    ),
+    hodim_rollar as (
+      select si.staff_id, si.nom, si.lavozim,
+             case when exists (select 1 from staff_admin sa where sa.staff_id = si.staff_id)
+                  then '["Admin"]'::jsonb
+                  else coalesce((
+                    select jsonb_agg(distinct sr.role_nom order by sr.role_nom)
+                      from staff_role sr where sr.staff_id = si.staff_id
+                  ), '[]'::jsonb)
+             end as rollar
+        from staff_in si
+    ),
+    -- Modda yig'ma manbasi: oddiy rol orqali (faqat xarajat/faol modda) +
+    -- admin-bog'langan hodim uchun HAMMA faol xarajat modda (cheksiz).
+    modda_z as (
+      select sr.staff_id, si.nom, am.id as modda_id, rm.limit_uzs
+        from staff_role sr
+        join staff_in si on si.staff_id = sr.staff_id
+        join rbac_role_modda rm on rm.role_id = sr.role_id
+        join accounts am on am.id = rm.account_id and am.type = 'xarajat' and coalesce(am.is_active, true)
+                        and not coalesce(am.ovqat_modda, false)
+      union all
+      -- 🔴 OVQAT moddasi: limit rbac_role_modda da EMAS — rbac_role_ovqat da
+      -- (rol × obed/zavtrak/kechki). Rol limiti = turlar yig'indisi; bittasi
+      -- cheksiz bo'lsa cheksiz.
+      select sr.staff_id, si.nom, am.id as modda_id,
+             case when bool_or(ro.limit_uzs is null) then null else sum(ro.limit_uzs) end
+        from staff_role sr
+        join staff_in si on si.staff_id = sr.staff_id
+        join rbac_role_ovqat ro on ro.role_id = sr.role_id
+        cross join (select a.id from accounts a
+                     where coalesce(a.ovqat_modda, false) and a.type = 'xarajat'
+                       and coalesce(a.is_active, true)) am
+       group by sr.staff_id, si.nom, am.id, sr.role_id
+      union all
+      select sa.staff_id, si.nom, a.id as modda_id, null::numeric as limit_uzs
+        from staff_admin sa
+        join staff_in si on si.staff_id = sa.staff_id
+        cross join accounts a
+       where a.type = 'xarajat' and coalesce(a.is_active, true)
+    ),
+    modda_agg as (
+      select z.modda_id,
+             count(distinct z.staff_id)::int as hodim_soni,
+             to_jsonb(array_agg(distinct z.nom order by z.nom)) as hodimlar,
+             min(z.limit_uzs) filter (where z.limit_uzs is not null) as rol_limit_min,
+             max(z.limit_uzs) filter (where z.limit_uzs is not null) as rol_limit_max,
+             bool_or(z.limit_uzs is null) as cheksiz_bor
+        from modda_z z
+       group by z.modda_id
+    ),
+    -- Filialga bog'langan Aros bo'limlar (filial_id VA provodka_filial ikkalasidan
+    -- ham — v_bids bilan bir xil manba), UI'da "Bo'limlar: X (N hodim)" uchun.
+    branch_in as (
+      select m.branch_id, m.branch_nomi
+        from staff_branch_map m
+       where m.filial_id = v_filial_id or m.provodka_filial = v_filial_nom
+    )
+    select jsonb_build_object(
+      'filial', jsonb_build_object('id', v_filial_id, 'name', v_filial_nom),
+      'bog_yoq', (array_length(v_bids, 1) is null),
+      'branchlar', coalesce((
+        select jsonb_agg(jsonb_build_object(
+                 'branch_id',   bi.branch_id,
+                 'branch_nomi', bi.branch_nomi,
+                 'hodim_soni',  (
+                   select count(*) from aros_staff s2
+                    where s2.is_active
+                      and (s2.branch_id = bi.branch_id
+                           or exists (
+                             select 1 from jsonb_array_elements(coalesce(s2.branches, '[]'::jsonb)) b2
+                              where (b2 ->> 'id') ~ '^\d+$' and (b2 ->> 'id')::int = bi.branch_id
+                           ))
+                 )
+               ) order by bi.branch_nomi)
+          from branch_in bi
+      ), '[]'::jsonb),
+      'hodimlar', coalesce((
+        select jsonb_agg(jsonb_build_object(
+                 'staff_id',  hr.staff_id,
+                 'toliq_nom', hr.nom,
+                 'lavozim',   hr.lavozim,
+                 'rollar',    hr.rollar
+               ) order by hr.nom)
+          from hodim_rollar hr
+      ), '[]'::jsonb),
+      'moddalar', coalesce((
+        select jsonb_agg(jsonb_build_object(
+                 'modda_id',         ma.modda_id,
+                 'code',             a.code,
+                 'name',             a.name,
+                 'hodim_soni',       ma.hodim_soni,
+                 'hodimlar',         ma.hodimlar,
+                 'rol_limit_min',    ma.rol_limit_min,
+                 'rol_limit_max',    ma.rol_limit_max,
+                 'cheksiz_bor',      ma.cheksiz_bor,
+                 'filial_limit_uzs', sx.limit_uzs
+               ) order by a.code)
+          from modda_agg ma
+          join accounts a on a.id = ma.modda_id
+          left join standart_xarajat sx on sx.filial_id = v_filial_id and sx.modda_id = ma.modda_id
+      ), '[]'::jsonb)
+    )
+  );
+end
+$fn$;
+
+revoke all on function standart_filial_moddalar(uuid) from public, anon;
+grant execute on function standart_filial_moddalar(uuid) to authenticated;
 -- ---------------------------------------------------------------------------
 -- TEKSHIRUV (RUN natijasida ko'rinadi)
 -- ---------------------------------------------------------------------------
 select 'standart_filial_limit_sarf' as funksiya,
        case when to_regprocedure('public.standart_filial_limit_sarf(uuid,date)') is not null
-            then '✅ yaratildi' else '❌ yaratilmadi' end as holat;
+            then '✅ yaratildi' else '❌ yaratilmadi' end as holat
+union all
+select 'standart_filial_moddalar',
+       case when to_regprocedure('public.standart_filial_moddalar(uuid)') is not null
+            then '✅ yangilandi' else '❌' end;
