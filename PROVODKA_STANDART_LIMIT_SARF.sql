@@ -10,8 +10,11 @@
 --  Faqat O'QISH. Ustun/trigger/RLS/mavjud funksiya o'zgarmaydi (additive).
 --
 --  Manbalar: rbac_role_modda.limit_uzs (rol × modda oylik limit, null = cheksiz),
---  standart_filial_moddalar() (filial ↔ hodim ↔ modda — staff CTE'lari AYNAN
---  o'sha yerdan ko'chirildi), v_kassa_card (hodim xarajat kassasi qoldig'i).
+--  🔴 OVQAT moddasi uchun rbac_role_ovqat.limit_uzs (rol × obed/zavtrak/kechki) +
+--  entry_ovqat (yeyuvchi hodim bo'yicha) — rbac_limit_ovqat_staff /
+--  rbac_ovqat_ishlatildi bilan bir xil mantiq; standart_filial_moddalar()
+--  (filial ↔ hodim ↔ modda — staff CTE'lari AYNAN o'sha yerdan ko'chirildi),
+--  v_kassa_card (hodim xarajat kassasi qoldig'i).
 --
 --  Qoidalar: hodimda bir necha rol bo'lsa eng KATTA limit; bittasi cheksiz
 --  bo'lsa cheksiz. Provodkaga kirmaydigan hodim ham hisobda (rbac_staff_role).
@@ -122,7 +125,13 @@ begin
         left join v_kassa_card k on k.id = a.id
        group by si.staff_id
     ),
-    -- Hodim × modda: rol orqali (limit bor/cheksiz) + admin (hamma modda, cheksiz).
+    -- Ovqat moddasi (accounts.ovqat_modda) ALOHIDA: limiti rbac_role_ovqat da
+    -- (obed/zavtrak/kechki), yeyilgani entry_ovqat da — pastdagi ov_* CTE'lar.
+    ov_modda as (
+      select a.id from accounts a
+       where coalesce(a.ovqat_modda, false) and a.type = 'xarajat' and coalesce(a.is_active, true)
+    ),
+    -- Hodim × modda (ovqat moddasidan tashqari): rol orqali + admin (hamma modda, cheksiz).
     hm_raw as (
       select sr.staff_id, am.id as modda_id, rm.limit_uzs
         from staff_role sr
@@ -130,11 +139,13 @@ begin
         join accounts am on am.id = rm.account_id
                         and am.type = 'xarajat'
                         and coalesce(am.is_active, true)
+                        and not coalesce(am.ovqat_modda, false)
       union all
       select sa.staff_id, a.id, null::numeric
         from staff_admin sa
         cross join accounts a
        where a.type = 'xarajat' and coalesce(a.is_active, true)
+         and not coalesce(a.ovqat_modda, false)
     ),
     hm as (
       select r.staff_id, r.modda_id,
@@ -163,13 +174,54 @@ begin
     ),
     hm_full as (
       select h.staff_id, si.nom, si.lavozim, (si.user_id is not null) as bog_langan,
-             h.modda_id, h.cheksiz, h.limit_uzs,
+             h.modda_id, null::text as tur, h.cheksiz, h.limit_uzs,
              coalesce(s.sarf_uzs, 0)  as sarf_uzs,
              coalesce(hk.kassa_uzs, 0) as kassa_uzs
         from hm h
         join staff_in si on si.staff_id = h.staff_id
         left join sarf s        on s.staff_id  = h.staff_id and s.modda_id = h.modda_id
         left join hodim_kassa hk on hk.staff_id = h.staff_id
+    ),
+    -- 🔴 OVQAT: hodim × tur limiti — rbac_limit_ovqat_staff bilan AYNAN bir xil
+    -- manba (user_id bog'langan → rbac_user_role, aks holda rbac_staff_role);
+    -- rollar ichidan MAX, bittasi cheksiz bo'lsa cheksiz. Tur rolda yo'q → satr yo'q.
+    ov_lim as (
+      select si.staff_id, t.tur,
+             bool_or(ro.limit_uzs is null) as cheksiz,
+             max(ro.limit_uzs)             as limit_uzs
+        from staff_in si
+        cross join unnest(array['obed', 'zavtrak', 'kechki']) as t(tur)
+        join lateral (
+          select ro.role_id, ro.limit_uzs
+            from rbac_user_role ur
+            join rbac_role r on r.id = ur.role_id and r.is_active
+            join rbac_role_ovqat ro on ro.role_id = ur.role_id and ro.tur = t.tur
+           where si.user_id is not null and ur.user_id = si.user_id
+          union all
+          select ro.role_id, ro.limit_uzs
+            from rbac_staff_role sr
+            join rbac_role r on r.id = sr.role_id and r.is_active
+            join rbac_role_ovqat ro on ro.role_id = sr.role_id and ro.tur = t.tur
+           where si.user_id is null and sr.staff_id = si.staff_id
+        ) ro on true
+       group by si.staff_id, t.tur
+    ),
+    -- Yeyilgani: entry_ovqat (yeyuvchi hodim bo'yicha, kim yozganidan qat'i nazar).
+    ov_full as (
+      select si.staff_id, si.nom, si.lavozim, (si.user_id is not null) as bog_langan,
+             am.id as modda_id, ol.tur, ol.cheksiz,
+             case when ol.cheksiz then null else ol.limit_uzs end as limit_uzs,
+             rbac_ovqat_ishlatildi(si.staff_id, ol.tur, v_oy)      as sarf_uzs,
+             coalesce(hk.kassa_uzs, 0)                              as kassa_uzs
+        from ov_lim ol
+        join staff_in si on si.staff_id = ol.staff_id
+        cross join ov_modda am
+        left join hodim_kassa hk on hk.staff_id = si.staff_id
+    ),
+    all_full as (
+      select * from hm_full
+      union all
+      select * from ov_full
     ),
     -- Modda bo'yicha jami sarf: filial kesimi (kim yozganidan qat'i nazar).
     sarf_filial as (
@@ -185,7 +237,7 @@ begin
                   and date_trunc('month', e.entry_date) = v_oy
                   and v_filial_id = any(e.filial_ids)
              ), 0) as sarf_uzs
-        from (select distinct modda_id from hm) h
+        from (select distinct modda_id from all_full) h
     ),
     modda_agg as (
       select f.modda_id,
@@ -197,6 +249,7 @@ begin
                'staff_id',   f.staff_id,
                'nom',        f.nom,
                'lavozim',    f.lavozim,
+               'tur',        f.tur,
                'bog_langan', f.bog_langan,
                'cheksiz',    f.cheksiz,
                'limit_uzs',  f.limit_uzs,
@@ -204,8 +257,8 @@ begin
                'kassa_uzs',  f.kassa_uzs,
                'qoldi_uzs',  case when f.cheksiz or f.limit_uzs is null then null
                                   else greatest(0, f.limit_uzs - f.sarf_uzs) end
-             ) order by f.nom)                                              as hodimlar
-        from hm_full f
+             ) order by f.nom, f.tur)                                       as hodimlar
+        from all_full f
         join sarf_filial sf on sf.modda_id = f.modda_id
        group by f.modda_id
     )
