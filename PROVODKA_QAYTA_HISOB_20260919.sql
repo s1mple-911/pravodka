@@ -2,7 +2,7 @@
 --  PROVODKA_QAYTA_HISOB_20260919.sql — yetkazuvchi qarzini Asilbek ro'yxatiga moslash
 --  Qoida: oxirgi 4 oy (sana >= 2026-05-19) posted hujjatlar; har yetkazuvchi uchun ENG YANGIdan
 --  ro'yxatdagi summaga yetguncha OCHIQ, chegaradagi hujjat QISMAN, qolganlari YOPILADI (yuk_yopiq).
---  Valyuta taxmini: Aros hujjati CHY bo'lgan yetkazuvchi -> CNY, qolganlar -> USD (kurs conv_baza_kurs).
+--  Valyuta ro'yxatdan (Yuan=CNY, Dollar=USD, So'm=MING so'm); jami so'mga kurs conv_baza_kurs bilan.
 --  Pul harakati YO'Q. AVVAL PROVODKA_YUK_YOPISH.sql RUN qilingan bo'lishi shart.
 --
 --  1-BO'LIM (oldindan ko'rish) — faqat SELECT. 2-BO'LIM — yozadi (kalit 'qh20260919:<id>', takror xavfsiz).
@@ -195,28 +195,27 @@ docs(yuk_id, sana, yetkazuvchi, narx, valyuta) as (values
   (2808, '2026-09-10', 'Zahra', 999637.0, 'CHY'),
   (2809, '2026-09-10', 'Zahra', 651078.0, 'CHY')
 ),
-targets(yetkazuvchi, summa, valyuta) as (values
-  ('Yangi joy', 8500.0, 'CNY'),
-  ('RS-Mobile', 14486.099999999999, 'USD'),
-  ('BEST', 772.8, 'USD'),
-  ('Tina', 131910.0, 'CNY'),
-  ('Xinbo', 598664.0, 'CNY'),
-  ('Evro Mobile', 151726.5, 'USD'),
-  ('Azizaka (SP Itel)', 3190.0, 'USD'),
-  ('Mobil Plus', 6515.0, 'USD'),
-  ('Mobil Zone', 1200.0, 'USD'),
-  ('Lobaropa (Sergeli)', 42984.5, 'USD'),
-  ('56-do''kon', 36750.0, 'USD'),
-  ('130-Do''kon', 12370.0, 'USD'),
-  ('Zahra', 5673333.0, 'CNY'),
-  ('Ace', 3511887.0, 'CNY'),
-  ('Mobiart', 41428.7, 'USD'),
-  ('Ali (Azka)', 50988.2, 'USD'),
-  ('Bonny', 557863.0, 'CNY'),
-  ('Hojiakbar', 760.0, 'USD'),
-  ('A33 (Malika)', 6158.0, 'USD'),
-  ('Mega Star', 1152.0, 'USD'),
-  ('Pixel', 125663.0, 'USD')
+targets(yetkazuvchi, usd, cny, uzs) as (values
+  ('Yangi joy', 0, 8500.0, 0),
+  ('RS-Mobile', 14486.1, 0, 0),
+  ('BEST', 772.8, 0, 0),
+  ('Tina', 0, 131910.0, 0),
+  ('Xinbo', 0, 598664.0, 0),
+  ('Evro Mobile', 663.0, 0, 151063500.0),
+  ('Azizaka (SP Itel)', 3190.0, 0, 0),
+  ('Mobil Plus', 0, 0, 6515000.0),
+  ('Mobil Zone', 0, 0, 1200000.0),
+  ('Lobaropa (Sergeli)', 0, 0, 42984500.0),
+  ('56-do''kon', 0, 0, 36750000.0),
+  ('130-Do''kon', 630.0, 0, 11740000.0),
+  ('Zahra', 0, 5673333.0, 0),
+  ('Ace', 0, 3511887.0, 0),
+  ('Mobiart', 0, 0, 41428700.0),
+  ('Ali (Azka)', 0, 0, 50988200.0),
+  ('Bonny', 0, 557863.0, 0),
+  ('Hojiakbar', 0, 0, 760000.0),
+  ('Mega Star', 1152.0, 0, 0),
+  ('Pixel', 0, 0, 125663000.0)
 ),
 d as (
   select docs.*, k.k as kurs, docs.narx * k.k as narx_uzs,
@@ -231,10 +230,13 @@ qd as (
   select d.*, greatest(0, narx_uzs + tannarx_uzs + bojxona_uzs - tolangan_uzs - yopiq_uzs) as qoldiq_uzs from d
 ),
 tg as (
-  select targets.*, targets.summa * k.k as target_uzs from targets join kurs k on k.cur = targets.valyuta
+  select t.yetkazuvchi,
+         trim(both ' + ' from concat_ws(' + ', nullif(t.usd, 0) || ' $', nullif(t.cny, 0) || ' ¥', nullif(round(t.uzs), 0) || ' so''m')) as ruyxat,
+         t.usd * (select k from kurs where cur = 'USD') + t.cny * (select k from kurs where cur = 'CNY') + t.uzs as target_uzs
+    from targets t
 ),
 c as (
-  select qd.*, tg.summa as target, tg.valyuta as target_cur, tg.target_uzs,
+  select qd.*, tg.ruyxat, tg.target_uzs,
          sum(qd.qoldiq_uzs) over (partition by qd.yetkazuvchi order by qd.sana desc, qd.yuk_id desc rows unbounded preceding) as cum
     from qd join tg on tg.yetkazuvchi = qd.yetkazuvchi
    where qd.qoldiq_uzs > 0
@@ -247,7 +249,7 @@ r as (
               when cum - qoldiq_uzs < target_uzs then cum - target_uzs else qoldiq_uzs end as yopiq_yangi
     from c
 )
-select yetkazuvchi, target || ' ' || target_cur as ruyxat, yuk_id, sana, narx || ' ' || valyuta as hujjat,
+select yetkazuvchi, ruyxat, yuk_id, sana, narx || ' ' || valyuta as hujjat,
        round(qoldiq_uzs) as qoldiq_uzs, qaror, round(yopiq_yangi) as yopiladi_uzs,
        round((qoldiq_uzs - yopiq_yangi) / kurs, 2) || ' ' || valyuta as ochiq_qoladi
   from r
@@ -441,28 +443,27 @@ docs(yuk_id, sana, yetkazuvchi, narx, valyuta) as (values
   (2808, '2026-09-10', 'Zahra', 999637.0, 'CHY'),
   (2809, '2026-09-10', 'Zahra', 651078.0, 'CHY')
 ),
-targets(yetkazuvchi, summa, valyuta) as (values
-  ('Yangi joy', 8500.0, 'CNY'),
-  ('RS-Mobile', 14486.099999999999, 'USD'),
-  ('BEST', 772.8, 'USD'),
-  ('Tina', 131910.0, 'CNY'),
-  ('Xinbo', 598664.0, 'CNY'),
-  ('Evro Mobile', 151726.5, 'USD'),
-  ('Azizaka (SP Itel)', 3190.0, 'USD'),
-  ('Mobil Plus', 6515.0, 'USD'),
-  ('Mobil Zone', 1200.0, 'USD'),
-  ('Lobaropa (Sergeli)', 42984.5, 'USD'),
-  ('56-do''kon', 36750.0, 'USD'),
-  ('130-Do''kon', 12370.0, 'USD'),
-  ('Zahra', 5673333.0, 'CNY'),
-  ('Ace', 3511887.0, 'CNY'),
-  ('Mobiart', 41428.7, 'USD'),
-  ('Ali (Azka)', 50988.2, 'USD'),
-  ('Bonny', 557863.0, 'CNY'),
-  ('Hojiakbar', 760.0, 'USD'),
-  ('A33 (Malika)', 6158.0, 'USD'),
-  ('Mega Star', 1152.0, 'USD'),
-  ('Pixel', 125663.0, 'USD')
+targets(yetkazuvchi, usd, cny, uzs) as (values
+  ('Yangi joy', 0, 8500.0, 0),
+  ('RS-Mobile', 14486.1, 0, 0),
+  ('BEST', 772.8, 0, 0),
+  ('Tina', 0, 131910.0, 0),
+  ('Xinbo', 0, 598664.0, 0),
+  ('Evro Mobile', 663.0, 0, 151063500.0),
+  ('Azizaka (SP Itel)', 3190.0, 0, 0),
+  ('Mobil Plus', 0, 0, 6515000.0),
+  ('Mobil Zone', 0, 0, 1200000.0),
+  ('Lobaropa (Sergeli)', 0, 0, 42984500.0),
+  ('56-do''kon', 0, 0, 36750000.0),
+  ('130-Do''kon', 630.0, 0, 11740000.0),
+  ('Zahra', 0, 5673333.0, 0),
+  ('Ace', 0, 3511887.0, 0),
+  ('Mobiart', 0, 0, 41428700.0),
+  ('Ali (Azka)', 0, 0, 50988200.0),
+  ('Bonny', 0, 557863.0, 0),
+  ('Hojiakbar', 0, 0, 760000.0),
+  ('Mega Star', 1152.0, 0, 0),
+  ('Pixel', 0, 0, 125663000.0)
 ),
 d as (
   select docs.*, k.k as kurs, docs.narx * k.k as narx_uzs,
@@ -477,10 +478,13 @@ qd as (
   select d.*, greatest(0, narx_uzs + tannarx_uzs + bojxona_uzs - tolangan_uzs - yopiq_uzs) as qoldiq_uzs from d
 ),
 tg as (
-  select targets.*, targets.summa * k.k as target_uzs from targets join kurs k on k.cur = targets.valyuta
+  select t.yetkazuvchi,
+         trim(both ' + ' from concat_ws(' + ', nullif(t.usd, 0) || ' $', nullif(t.cny, 0) || ' ¥', nullif(round(t.uzs), 0) || ' so''m')) as ruyxat,
+         t.usd * (select k from kurs where cur = 'USD') + t.cny * (select k from kurs where cur = 'CNY') + t.uzs as target_uzs
+    from targets t
 ),
 c as (
-  select qd.*, tg.summa as target, tg.valyuta as target_cur, tg.target_uzs,
+  select qd.*, tg.ruyxat, tg.target_uzs,
          sum(qd.qoldiq_uzs) over (partition by qd.yetkazuvchi order by qd.sana desc, qd.yuk_id desc rows unbounded preceding) as cum
     from qd join tg on tg.yetkazuvchi = qd.yetkazuvchi
    where qd.qoldiq_uzs > 0
@@ -493,11 +497,11 @@ r as (
               when cum - qoldiq_uzs < target_uzs then cum - target_uzs else qoldiq_uzs end as yopiq_yangi
     from c
 )
-select yetkazuvchi, max(target) || ' ' || max(target_cur) as ruyxat,
-       count(*) as hujjat, round(sum(qoldiq_uzs) / max(kurs), 2) as hujjat_qoldiq,
-       round(sum(qoldiq_uzs - yopiq_yangi) / max(kurs), 2) as ochiq_qoladi,
-       round(sum(yopiq_yangi) / max(kurs), 2) as yopiladi,
-       round(max(target) - sum(qoldiq_uzs - yopiq_yangi) / max(kurs), 2) as farq
+select yetkazuvchi, max(ruyxat) as ruyxat, round(max(target_uzs)) as ruyxat_uzs,
+       count(*) as hujjat, round(sum(qoldiq_uzs)) as hujjat_qoldiq_uzs,
+       round(sum(qoldiq_uzs - yopiq_yangi)) as ochiq_qoladi_uzs,
+       round(sum(yopiq_yangi)) as yopiladi_uzs,
+       round(max(target_uzs) - sum(qoldiq_uzs - yopiq_yangi)) as farq_uzs
   from r group by yetkazuvchi order by yetkazuvchi;
 
 -- ---------------------------------------------------------------- 2-BO'LIM: YOZISH (oldindan ko'rishni tasdiqlagach)
@@ -687,28 +691,27 @@ docs(yuk_id, sana, yetkazuvchi, narx, valyuta) as (values
   (2808, '2026-09-10', 'Zahra', 999637.0, 'CHY'),
   (2809, '2026-09-10', 'Zahra', 651078.0, 'CHY')
 ),
-targets(yetkazuvchi, summa, valyuta) as (values
-  ('Yangi joy', 8500.0, 'CNY'),
-  ('RS-Mobile', 14486.099999999999, 'USD'),
-  ('BEST', 772.8, 'USD'),
-  ('Tina', 131910.0, 'CNY'),
-  ('Xinbo', 598664.0, 'CNY'),
-  ('Evro Mobile', 151726.5, 'USD'),
-  ('Azizaka (SP Itel)', 3190.0, 'USD'),
-  ('Mobil Plus', 6515.0, 'USD'),
-  ('Mobil Zone', 1200.0, 'USD'),
-  ('Lobaropa (Sergeli)', 42984.5, 'USD'),
-  ('56-do''kon', 36750.0, 'USD'),
-  ('130-Do''kon', 12370.0, 'USD'),
-  ('Zahra', 5673333.0, 'CNY'),
-  ('Ace', 3511887.0, 'CNY'),
-  ('Mobiart', 41428.7, 'USD'),
-  ('Ali (Azka)', 50988.2, 'USD'),
-  ('Bonny', 557863.0, 'CNY'),
-  ('Hojiakbar', 760.0, 'USD'),
-  ('A33 (Malika)', 6158.0, 'USD'),
-  ('Mega Star', 1152.0, 'USD'),
-  ('Pixel', 125663.0, 'USD')
+targets(yetkazuvchi, usd, cny, uzs) as (values
+  ('Yangi joy', 0, 8500.0, 0),
+  ('RS-Mobile', 14486.1, 0, 0),
+  ('BEST', 772.8, 0, 0),
+  ('Tina', 0, 131910.0, 0),
+  ('Xinbo', 0, 598664.0, 0),
+  ('Evro Mobile', 663.0, 0, 151063500.0),
+  ('Azizaka (SP Itel)', 3190.0, 0, 0),
+  ('Mobil Plus', 0, 0, 6515000.0),
+  ('Mobil Zone', 0, 0, 1200000.0),
+  ('Lobaropa (Sergeli)', 0, 0, 42984500.0),
+  ('56-do''kon', 0, 0, 36750000.0),
+  ('130-Do''kon', 630.0, 0, 11740000.0),
+  ('Zahra', 0, 5673333.0, 0),
+  ('Ace', 0, 3511887.0, 0),
+  ('Mobiart', 0, 0, 41428700.0),
+  ('Ali (Azka)', 0, 0, 50988200.0),
+  ('Bonny', 0, 557863.0, 0),
+  ('Hojiakbar', 0, 0, 760000.0),
+  ('Mega Star', 1152.0, 0, 0),
+  ('Pixel', 0, 0, 125663000.0)
 ),
 d as (
   select docs.*, k.k as kurs, docs.narx * k.k as narx_uzs,
@@ -723,10 +726,13 @@ qd as (
   select d.*, greatest(0, narx_uzs + tannarx_uzs + bojxona_uzs - tolangan_uzs - yopiq_uzs) as qoldiq_uzs from d
 ),
 tg as (
-  select targets.*, targets.summa * k.k as target_uzs from targets join kurs k on k.cur = targets.valyuta
+  select t.yetkazuvchi,
+         trim(both ' + ' from concat_ws(' + ', nullif(t.usd, 0) || ' $', nullif(t.cny, 0) || ' ¥', nullif(round(t.uzs), 0) || ' so''m')) as ruyxat,
+         t.usd * (select k from kurs where cur = 'USD') + t.cny * (select k from kurs where cur = 'CNY') + t.uzs as target_uzs
+    from targets t
 ),
 c as (
-  select qd.*, tg.summa as target, tg.valyuta as target_cur, tg.target_uzs,
+  select qd.*, tg.ruyxat, tg.target_uzs,
          sum(qd.qoldiq_uzs) over (partition by qd.yetkazuvchi order by qd.sana desc, qd.yuk_id desc rows unbounded preceding) as cum
     from qd join tg on tg.yetkazuvchi = qd.yetkazuvchi
    where qd.qoldiq_uzs > 0
@@ -742,7 +748,7 @@ r as (
 ins as (
   insert into yuk_yopiq (yuk_id, summa_uzs, toliq, sabab, kalit, created_by_name)
   select yuk_id, round(yopiq_yangi, 2), (qaror = 'yopiladi'),
-         'Qayta hisob 19.09.2026: ' || yetkazuvchi || ' qoldiq ' || target || ' ' || target_cur,
+         'Qayta hisob 19.09.2026: ' || yetkazuvchi || ' qoldiq ' || ruyxat,
          'qh20260919:' || yuk_id, 'Asilbek (qayta hisob)'
     from r where yopiq_yangi > 0.5
   on conflict (kalit) do nothing
