@@ -821,7 +821,7 @@
 
     <!-- ============ TAB: Kontragentlar — eski tarkib, mantiq O'ZGARMAGAN (faqat konteyner + display) ============ -->
     <div id="tab-kontr" class="qz-tabpanel">
-    <p class="sub">To'lanmagan yuklar (Aros hujjatlari). Qoldiq = yuk narxi − Provodka'da shu yukka to'langan summa.</p>
+    <p class="sub">To'lanmagan yuklar (Aros hujjatlari). Qoldiq = yuk narxi + qo'shilgan tannarx − Provodka'da shu yukka to'langan summa (Yuklar sahifasi bilan bir xil).</p>
     <div id="banner" class="banner"></div>
     <div id="rateWarn" class="warnbox" style="display:none"><i data-lucide="triangle-alert"></i><div id="rateWarnTxt"></div></div>
 
@@ -1013,7 +1013,7 @@ async function boot(){
 //  alohida ogohlantirish chiqadi (senior qoida: yashirin nol bo'lmasin).
 // =====================================================================
 const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
-let yuklar=[], paidMap={}, rateMap={}, usdRate=null;
+let yuklar=[], paidMap={}, rateMap={}, tanMap={}, usdRate=null;
 let selCur=null, expanded=false, holat='all', prov='';
 
 const curOf=y=>String(y.valyuta||'UZS').toUpperCase();
@@ -1024,9 +1024,15 @@ const rateOfYuk=y=>{ const raw=y.valyuta; if(!raw||String(raw).toUpperCase()==='
   return (r==null?null:Number(r)); };
 const tolangan=y=>{ const s=paidMap[y.id]; return s?Number(s.tolangan_uzs)||0:0; };
 function narxUzs(y){ const r=rateOfYuk(y); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
-function qoldiqUzs(y){ const n=narxUzs(y); if(n==null) return null; return Math.max(0,n-tolangan(y)); }
+// Qo'shilgan tannarx (yuk_tannarx_jami) — xizmat to'lovlari (bojxona, yo'l puli) entry_yuk orqali shu yukka
+// bog'lanadi va tannarx bilan yopiladi. Tannarx qo'shilmasa ular yetkazuvchi qarzidan ayirilib ketardi
+// (2026-09-19: Zahra ¥726 000 kam ko'rinardi). Formula Yuklar/5 kunlik bilan BIR XIL: narx + tannarx − to'langan.
+const qoshilgan=y=>{ const t=tanMap[y.id]||tanMap[String(y.id)]; return t?(Number(t.jami_uzs)||0):0; };
+function jamiUzs(y){ const n=narxUzs(y); return (n==null)?null:n+qoshilgan(y); }
+// Qoldiq 1 so'mdan kam bo'lsa 0 — yopiq/kurs yaxlitlash qoldig'i "to'lanmagan hujjat" bo'lib sanalmasin.
+function qoldiqUzs(y){ const n=jamiUzs(y); if(n==null) return null; const q=n-tolangan(y); return q<1?0:q; }
 function qoldiqFc(y){ const q=qoldiqUzs(y), r=rateOfYuk(y); if(q==null||!r) return null; return q/r; }
-function pct(y){ const n=narxUzs(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
+function pct(y){ const n=jamiUzs(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
 
 // Filtrlar (yetkazuvchi + holat) HAMMA darajaga ta'sir qiladi — jami ham, ro'yxat ham.
 function qarzList(){
@@ -1171,9 +1177,9 @@ function renderError(msg){
 window.load=async(force)=>{
   const kun=Number($('davr').value)||365;
   const t=nowUz(), from=new Date(t.getTime()-kun*86400000);
-  const ck='qarz:p:'+kun;
+  const ck='qarz:t:'+kun;
   const cached=force?null:swrGet(ck);
-  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; usdRate=cached.usdRate??null;
+  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; tanMap=cached.tanMap||{}; usdRate=cached.usdRate??null;
     fillProv(); render(); }
   else { $('body').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
   $('banner').style.display='none';
@@ -1192,16 +1198,21 @@ window.load=async(force)=>{
   yuklar=arr.filter(y=>y.status==='posted');
   const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
-  const [krQ,stQ,usdQ]=await Promise.all([
+  const [krQ,stQ,tnQ,usdQ]=await Promise.all([
     curs.length?sb.rpc('yuk_kurslar',{p_curs:curs}):Promise.resolve({data:{}}),
     ids.length ?sb.rpc('yuk_tolangan_summa',{p_ids:ids}):Promise.resolve({data:[]}),
+    ids.length ?sb.rpc('yuk_tannarx_jami',{p_ids:ids}):Promise.resolve({data:{}}),
     (async()=>{ try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); return data; }catch(e){ return null; } })()
   ]);
   rateMap=krQ.data||{};
   paidMap={}; (stQ.data||[]).forEach(s=>{ paidMap[s.yuk_id]=s; });
+  // Tannarx RPC xato bersa (ruxsat yo'q / RPC yo'q) — formula narx − to'langan ga tushadi, banner bilan aytiladi.
+  tanMap=(!tnQ.error&&tnQ.data&&typeof tnQ.data==='object')?tnQ.data:{};
+  if(tnQ.error){ console.warn('yuk_tannarx_jami:',tnQ.error.message||tnQ.error);
+    const bn=$('banner'); bn.textContent="Tannarx olinmadi — qoldiq tannarxsiz hisoblandi: "+(tnQ.error.message||''); bn.style.display='block'; }
   usdRate=(usdQ===null||usdQ===undefined)?null:Number(usdQ);
   if(!(usdRate>0)) usdRate=null;
-  swrSet(ck,{yuklar,paidMap,rateMap,usdRate});
+  swrSet(ck,{yuklar,paidMap,rateMap,tanMap,usdRate});
   fillProv(); render();
 };
 
