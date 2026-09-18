@@ -1171,7 +1171,7 @@ function renderError(msg){
 window.load=async(force)=>{
   const kun=Number($('davr').value)||365;
   const t=nowUz(), from=new Date(t.getTime()-kun*86400000);
-  const ck='qarz:'+kun;
+  const ck='qarz:p:'+kun;
   const cached=force?null:swrGet(ck);
   if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; usdRate=cached.usdRate??null;
     fillProv(); render(); }
@@ -1187,7 +1187,9 @@ window.load=async(force)=>{
     arr=j.yuklar;
   }catch(e){ if(!cached) renderError(e.message||String(e)); return; }
 
-  yuklar=arr;
+  // Faqat NASHR QILINGAN (posted) hujjatlar qarz — Yuklar/5 kunlik/Aylanma bilan bir xil qoida.
+  // `created` (nashr qilinmagan) hujjatlar qarzga kirmaydi (2026-09-19: Zahra $1.8M shundan edi).
+  yuklar=arr.filter(y=>y.status==='posted');
   const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
   const [krQ,stQ,usdQ]=await Promise.all([
