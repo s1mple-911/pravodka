@@ -1,7 +1,7 @@
 // n8n «Aros Provodka - Balans Sync» (5TB7ekGcBlU5qVZ0) → «Build Payload» Code node.
 // 2026-09-19: Aros cachier detail `balances[]` shakli o'zgardi. Ikkala shakl ham o'qiladi:
 //   ESKI:  {label: 'cash_balance'|'click_balance'|'payme_balance'|'dollar_balance', balance}
-//   YANGI: {label_code: 'cash_balance'|'click_balance'|'dollar_balance'|'terminal'|..., amount|balance, currency}
+//   YANGI: {label: {code: 'cash_balance'|'click_balance'|'dollar_balance'|'terminal', title...}, balance: '0.00', currency_name}
 // 🔴 Pul yo'lida JIMGINA 0 YO'Q: noma'lum label (summasi 0 dan katta) bo'lsa XATO — sync to'xtaydi, ko'rinadi.
 const rows = $input.all().map(function(i){ return i.json; });
 function num(v){ if (v === null || v === undefined || v === '') return null; const n = parseFloat(String(v)); return isNaN(n) ? null : n; }
@@ -36,7 +36,9 @@ for (let i = 0; i < rows.length; i++) {
   let hasDollar = false;
   for (let j = 0; j < bals.length; j++) {
     const b = bals[j] || {};
-    const lbl = String(b.label_code || b.label || b.code || b.type || '').trim();
+    // YANGI shakl (2026-09-19 tasdiqlandi): label = {id, code:'cash_balance'|'click_balance'|'terminal'|'dollar_balance', title...}, balance:'0.00'
+    const lraw = (b.label && typeof b.label === 'object') ? (b.label.code || b.label.label_code || '') : (b.label_code || b.label || b.code || b.type || '');
+    const lbl = String(lraw).trim();
     const val = num(b.balance !== undefined ? b.balance : b.amount);
     if (val === null) { continue; }
     const key = MAP[lbl];
