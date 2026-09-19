@@ -8,7 +8,7 @@
 --  Valyuta ro'yxatdan (Yuan=CNY, Dollar=USD, So'm=MING so'm); jami so'mga kurs conv_baza_kurs bilan.
 --  Pul harakati YO'Q. AVVAL PROVODKA_YUK_YOPISH.sql RUN qilingan bo'lishi shart.
 --
---  1-BO'LIM (oldindan ko'rish) — faqat SELECT. 2-BO'LIM — yozadi (kalit 'qh20260919:<id>', takror xavfsiz).
+--  1-BO'LIM (oldindan ko'rish) — faqat SELECT. 2-BO'LIM — yozadi (kalit 'qh20260919b:<id>', takror xavfsiz).
 -- ============================================================================
 
 -- ---------------------------------------------------------------- 1-BO'LIM: OLDINDAN KO'RISH (hujjat kesimi)
