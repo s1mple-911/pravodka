@@ -2567,15 +2567,23 @@ async function loadAll(){
    jim (blok yashirin qoladi), asosiy jadvalga ta'sir qilmaydi. Bosilsa
    yuklar.html ga olib boradi (E). ===================== */
 const N8N_YUKLAR='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+// Boshlang'ich (qo'lda) qarz hujjatlari — Aros'da yo'q, Provodka jadvali yuk_qolda. RPC yo'q bo'lsa jim.
+async function loadQolda(){
+  try{ const {data,error}=await sb.rpc('yuk_qolda_royxat'); if(error){ console.warn('yuk_qolda_royxat:',error.message); return []; }
+       return Array.isArray(data)?data:[]; }catch(e){ console.warn('yuk_qolda_royxat:',e); return []; }
+}
 async function loadMuddatsizSummary(){
   const el=$('bkMuddatsiz'); if(!el) return;
   try{
     const t=nowUz(), from=new Date(t.getTime()-30*86400000);
-    const res=await fetch(N8N_YUKLAR+'?date_from='+encodeURIComponent(isoDay(from))+'&date_to='+encodeURIComponent(isoDay(t)),{headers:{'Accept':'application/json'}});
+    const [res,qolda]=await Promise.all([
+      fetch(N8N_YUKLAR+'?date_from='+encodeURIComponent(isoDay(from))+'&date_to='+encodeURIComponent(isoDay(t)),{headers:{'Accept':'application/json'}}),
+      loadQolda()
+    ]);
     if(!res.ok) throw new Error('HTTP '+res.status);
     const j=await res.json();
     if(!j || j.ok===false || !Array.isArray(j.yuklar)) throw new Error((j&&j.error)||"javob formati kutilmagan");
-    const yuklar=j.yuklar;
+    const yuklar=j.yuklar.concat(qolda);
     const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
     if(!ids.length){ el.style.display='none'; return; }
     const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
