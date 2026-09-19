@@ -1268,6 +1268,11 @@ const LOADSKEL='<div class="ldsk" aria-hidden="true">'+SKEL_ROW+SKEL_ROW+SKEL_RO
 const nowUz=()=>new Date(Date.now()+5*3600*1000);
 const isoDay=d=>d.toISOString().slice(0,10);
 const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+// Boshlang'ich (qo'lda) qarz hujjatlari — Aros'da yo'q, Provodka jadvali yuk_qolda. RPC yo'q bo'lsa jim.
+async function loadQolda(){
+  try{ const {data,error}=await sb.rpc('yuk_qolda_royxat'); if(error){ console.warn('yuk_qolda_royxat:',error.message); return []; }
+       return Array.isArray(data)?data:[]; }catch(e){ console.warn('yuk_qolda_royxat:',e); return []; }
+}
 const ST_LBL={posted:'Nashr qilingan',created:'Yaratilgan'};
 const DS_LBL={accepted:'Qabul qilingan',on_way:"Yo'lda"};
 let yuklar=[], rateMap={}, tanMap={}, bojxonaMap={}, paidMap={}, dlMap={}, yopiqMap={}, sabablar=[];
@@ -1347,13 +1352,14 @@ function renderError(msg){
 window.loadYuklar=async(mode)=>{
   const from=$('from').value, to=$('to').value;
   if(!from||!to) return;
-  const key='yuk:'+from+':'+to;
+  const key='yukq:'+from+':'+to;
   if(mode!=='fresh'){
     const c=swrGet(key);
     if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; paidMap=c.paidMap||{}; dlMap=c.dlMap||{}; yopiqMap=c.yopiqMap||{}; fillOmbor(); renderYuklar(); }
     else $('yukBody').innerHTML=LOADSKEL;
   }
   let arr;
+  const qoldaP=loadQolda();
   try{
     const res=await fetch(N8N+'?date_from='+encodeURIComponent(from)+'&date_to='+encodeURIComponent(to),{headers:{'Accept':'application/json'}});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -1361,7 +1367,8 @@ window.loadYuklar=async(mode)=>{
     if(!j || j.ok===false || !Array.isArray(j.yuklar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
     arr=j.yuklar;
   }catch(e){ if(!yuklar.length) renderError(e.message||String(e)); return; }
-  yuklar=arr;
+  // Boshlang'ich (qo'lda) qarz hujjatlari — tanlangan davrdan qat'i nazar har doim qo'shiladi.
+  yuklar=arr.concat(await qoldaP);
   const ids=yuklar.map(y=>Number(y.id)).filter(x=>Number.isFinite(x));
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
   rateMap={}; tanMap={}; bojxonaMap={}; paidMap={}; dlMap={}; yopiqMap={};
@@ -1629,15 +1636,17 @@ function renderYuklar(){
     const jamiTxt=(jami==null)?'<span class="pill gray">kurs yo\'q</span>':money(jami);
     const qolTxt=(qol==null)?'<span class="dash">—</span>':money(qol);
     const qCount=qs.length+paidEntries.length;
-    const qsTxt=qCount
+    const qsTxt=(qCount&&!y.qolda)
       ? '<button type="button" class="qbtn'+(openDet.has(id)?' on':'')+'" onclick="toggleDet('+id+')"><i data-lucide="chevron-down"></i>'+qCount+' ta</button>'
       : '<span class="qzero">—</span>';
+    // Boshlang'ich (qo'lda) qarz hujjati — omborsiz, muted pill ko'rsatiladi ombor o'rniga.
+    const ombTxt=y.qolda?'<span class="pill gray">Boshlang\'ich qarz</span>':esc(y.ombor||'—');
     // .yrow — hover/aksent uchun; .has — tannarxi bor yuk (chapda yashil chiziq)
     let tr='<tr class="yrow'+(on?' on':'')+(qo>0?' has':'')+(dlUnset(y)?' noplan':'')+'">'
       +'<td data-l="Tanlash"><input type="checkbox" class="ck"'+(on?' checked':'')+' onchange="toggleSel('+id+')" aria-label="Yukni tanlash"></td>'
       +'<td class="yid" data-l="ID">#'+esc(y.id)+'</td>'
       +'<td data-l="Sana">'+dF(y.sana||y.created_datetime)+postTxt+'</td>'
-      +'<td class="omb" data-l="Ombor" title="'+esc(y.ombor||'')+'">'+esc(y.ombor||'—')+'</td>'
+      +'<td class="omb" data-l="Ombor" title="'+esc(y.ombor||'')+'">'+ombTxt+'</td>'
       +'<td class="prov" data-l="Yetkazuvchi" title="'+esc(y.yetkazuvchi||'')+'">'+esc(y.yetkazuvchi||'—')+'</td>'
       +'<td class="num c-aros" data-l="Aros narxi">'+narxTxt+'</td>'
       +'<td class="num c-qo" data-l="Qo\'shilgan">'+qoTxt+'</td>'

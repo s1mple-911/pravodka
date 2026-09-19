@@ -1013,6 +1013,11 @@ async function boot(){
 //  alohida ogohlantirish chiqadi (senior qoida: yashirin nol bo'lmasin).
 // =====================================================================
 const N8N='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
+// Boshlang'ich (qo'lda) qarz hujjatlari — Aros'da yo'q, Provodka jadvali yuk_qolda. RPC yo'q bo'lsa jim.
+async function loadQolda(){
+  try{ const {data,error}=await sb.rpc('yuk_qolda_royxat'); if(error){ console.warn('yuk_qolda_royxat:',error.message); return []; }
+       return Array.isArray(data)?data:[]; }catch(e){ console.warn('yuk_qolda_royxat:',e); return []; }
+}
 let yuklar=[], paidMap={}, rateMap={}, tanMap={}, usdRate=null;
 let selCur=null, expanded=false, holat='all', prov='';
 
@@ -1119,8 +1124,9 @@ function render(){
       const badge=q===null?'<span class="pill y">kurs yo\'q</span>':(p>0?`<span class="pill y">qisman ${p}%</span>`:'<span class="pill r">to\'lanmagan</span>');
       const qTxt=q===null?'—':(selCur==='UZS'?money(qf)+' so\'m':money2(qf)+' '+esc(selCur));
       const uzsTxt=(q===null||selCur==='UZS')?'':` · ≈ ${money(q)} so'm`;
+      const omborTxt=y.qolda?'<span class="pill" style="background:var(--surface-2);color:var(--muted)">Boshlang\'ich</span>':esc(y.ombor||'—');
       return `<button type="button" class="doc" onclick="toPay('${esc(y.id)}')">`
-        +`<div class="d1"><span class="did">#${esc(y.id)} · ${esc(y.ombor||'—')}${badge}</span>`
+        +`<div class="d1"><span class="did">#${esc(y.id)} · ${omborTxt}${badge}</span>`
         +`<span class="dq">${qTxt}</span></div>`
         +`<div class="d2">${esc(y.yetkazuvchi||'—')}${y.sana?' · '+esc(String(y.sana).slice(0,10)):''}</div>`
         +`<div class="track"><div class="fill" style="width:${p}%"></div></div>`
@@ -1177,7 +1183,7 @@ function renderError(msg){
 window.load=async(force)=>{
   const kun=Number($('davr').value)||365;
   const t=nowUz(), from=new Date(t.getTime()-kun*86400000);
-  const ck='qarz:t:'+kun;
+  const ck='qarz:q:'+kun;
   const cached=force?null:swrGet(ck);
   if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; tanMap=cached.tanMap||{}; usdRate=cached.usdRate??null;
     fillProv(); render(); }
@@ -1185,6 +1191,7 @@ window.load=async(force)=>{
   $('banner').style.display='none';
 
   let arr;
+  const qoldaP=loadQolda();
   try{
     const res=await fetch(N8N+'?date_from='+isoDay(from)+'&date_to='+isoDay(t),{headers:{'Accept':'application/json'}});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -1195,7 +1202,8 @@ window.load=async(force)=>{
 
   // Faqat NASHR QILINGAN (posted) hujjatlar qarz — Yuklar/5 kunlik/Aylanma bilan bir xil qoida.
   // `created` (nashr qilinmagan) hujjatlar qarzga kirmaydi (2026-09-19: Zahra $1.8M shundan edi).
-  yuklar=arr.filter(y=>y.status==='posted');
+  // Boshlang'ich (qo'lda) qarz hujjatlari davrdan qat'i nazar har doim qo'shiladi — ular oz sonli.
+  yuklar=arr.filter(y=>y.status==='posted').concat(await qoldaP);
   const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
   const [krQ,stQ,tnQ,usdQ]=await Promise.all([
