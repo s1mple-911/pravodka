@@ -130,11 +130,35 @@
   /* kassa-kartalar */
   .ktots{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
   @media(max-width:700px){.ktots{grid-template-columns:repeat(2,1fr)}}
-  .ktot{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 20px;box-shadow:var(--shadow);min-width:0}
+  .ktot{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 20px;box-shadow:var(--shadow);min-width:0;cursor:pointer;transition:border-color .13s}
   .ktot .k{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);font-weight:500;margin-bottom:6px}
   .ktot .k svg{width:15px;height:15px;flex:0 0 auto}
+  .ktot .k .chev{margin-left:auto;color:var(--muted);transition:transform .15s}
+  .ktot.open{border-color:var(--primary)}
+  .ktot.open .chev{transform:rotate(180deg);color:var(--primary)}
   .ktot .v{font-size:26px;font-weight:800;letter-spacing:-.025em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ktot .s{font-size:11.5px;color:var(--muted);margin-top:4px}
+  /* Box dropdown — 1/2-daraja taqsimot (2026-09-21) */
+  .ktot-dd{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);margin-bottom:24px;overflow:hidden}
+  .dd-item{border-top:1px solid var(--line)}
+  .dd-item:first-child{border-top:none}
+  .dd-row{display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:none;font-family:inherit;color:inherit;text-align:left;padding:12px 18px;cursor:pointer;font-size:13.5px}
+  .dd-row:hover{background:var(--surface-2)}
+  .dd-chev{width:14px;height:14px;flex:0 0 auto;color:var(--muted);transition:transform .15s}
+  .dd-item.open .dd-chev{transform:rotate(90deg)}
+  .dd-row .lbl{flex:1;min-width:0;font-weight:600;color:var(--ink)}
+  .dd-row .amt{font-weight:700;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .dd-row .cnt{font-size:11px;color:var(--muted);white-space:nowrap;min-width:56px;text-align:right}
+  .dd-sub{padding:0 18px 10px 40px;display:flex;flex-direction:column;gap:5px}
+  .dd-sub.scroll{max-height:320px;overflow-y:auto}
+  .dd-src{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--muted)}
+  .dd-src .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dd-src .grp{margin-left:6px;font-size:10.5px;opacity:.7}
+  .dd-src .amt{color:var(--ink);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .dd-div{padding:12px 18px 4px;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+  .dd-total{padding:11px 18px;font-size:12px;color:var(--muted);text-align:right;border-top:1px solid var(--line)}
+  .dd-empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+  @media(max-width:700px){.dd-row{flex-wrap:wrap}.dd-row .cnt{min-width:0}.dd-src{flex-wrap:wrap}}
   .kgrp{margin-bottom:22px}
   .kgh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 2px 10px}
   .kgh .n{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
@@ -318,27 +342,28 @@
     <div id="banner" class="banner"></div>
 
     <div class="ktots">
-      <div class="ktot">
-        <div class="k"><i data-lucide="landmark"></i>Umumiy jami</div>
+      <div class="ktot" data-box="jami" aria-expanded="false" onclick="window.ktotToggle('jami')">
+        <div class="k"><i data-lucide="landmark"></i>Umumiy jami<i data-lucide="chevron-down" class="chev"></i></div>
         <div class="v" id="jami">0</div>
         <div class="s" id="jamiSub"></div>
       </div>
-      <div class="ktot">
-        <div class="k"><i data-lucide="star"></i>Asosiy kassalar</div>
+      <div class="ktot" data-box="asosiy" aria-expanded="false" onclick="window.ktotToggle('asosiy')">
+        <div class="k"><i data-lucide="star"></i>Asosiy kassalar<i data-lucide="chevron-down" class="chev"></i></div>
         <div class="v" id="jamiAsosiy">0</div>
         <div class="s" id="jamiAsosiySub"></div>
       </div>
-      <div class="ktot">
-        <div class="k"><i data-lucide="truck"></i>Yo'ldagi pullar</div>
+      <div class="ktot" data-box="yolda" aria-expanded="false" onclick="window.ktotToggle('yolda')">
+        <div class="k"><i data-lucide="truck"></i>Yo'ldagi pullar<i data-lucide="chevron-down" class="chev"></i></div>
         <div class="v" id="jamiYolda">0</div>
         <div class="s" id="jamiYoldaSub"></div>
       </div>
-      <div class="ktot">
-        <div class="k"><i data-lucide="star"></i>Umumiy asosiy</div>
+      <div class="ktot" data-box="asosiyYolda" aria-expanded="false" onclick="window.ktotToggle('asosiyYolda')">
+        <div class="k"><i data-lucide="star"></i>Umumiy asosiy<i data-lucide="chevron-down" class="chev"></i></div>
         <div class="v" id="jamiAsosiyYolda">0</div>
         <div class="s" id="jamiAsosiyYoldaSub"></div>
       </div>
     </div>
+    <div id="ktotDD" style="display:none"></div>
 
     <!-- Yo'ldagi pullar — Aros filialdan markaziy kassaga jo'natilgan, hali qabul qilinmagan pul.
          RPC yolda_royxat() (PROVODKA_YOLDA.sql, RUN kutilmoqda) — yo'q/bo'sh bo'lsa #yolda bo'sh qoladi,
@@ -893,11 +918,10 @@ function renderYolda(){
     +`<div class="yl-body" id="yoldaBody" style="${open?'':'display:none'}"><div class="klist">${rows.map(ylRow).join('')}</div>${qBlock}</div></div>`;
   icons();
 }
-// Tepadagi 4 ta summa box (#jami/#jamiAsosiy/#jamiYolda/#jamiAsosiyYolda).
-// Ikkala chaqiruvchi ham (renderKassalar, renderYolda) XOM lastList'ni beradi — filtr
-// (is_active + ruxsat + guruh chiqarib tashlash) shu yerda, #jami bilan AYNI qoida bo'yicha,
-// bir marta qo'llanadi, shuning uchun ikkala joyda natija bir xil chiqadi.
-function renderTotals(list){
+// Tepadagi 4 ta summa box (#jami/#jamiAsosiy/#jamiYolda/#jamiAsosiyYolda) uchun XOM
+// lastList'dan tozalangan kesim: is_active + ruxsat + guruh chiqarib tashlash. renderTotals()
+// va box dropdown'i (ktotBoxRows) AYNI shu funksiyani chaqiradi — natija ikkala joyda bir xil.
+function totalsScope(list){
   list=(Array.isArray(list)?list:[]).filter(r=>r&&r.is_active!==false);
   if(window.permScope&&window.permScope()==='list'){
     const ok=list.filter(r=>r.kassa_turi===KT_GURUH||window.permViewOk(r));
@@ -908,6 +932,12 @@ function renderTotals(list){
   const rows=list.filter(r=>!gIds.has(r.id));
   const asosiyRows=rows.filter(r=>asosiySet.has(r.id));
   const ylRows=(yolda&&Array.isArray(yolda.rows))?yolda.rows:[];
+  return {rows,asosiyRows,ylRows};
+}
+// Ikkala chaqiruvchi ham (renderKassalar, renderYolda) XOM lastList'ni beradi — #jami bilan
+// AYNI qoida bo'yicha bir marta qo'llanadi, shuning uchun ikkala joyda natija bir xil chiqadi.
+function renderTotals(list){
+  const {rows,asosiyRows,ylRows}=totalsScope(list);
   const ylJami=ylRows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
   const jamiKassa=jamiOf(rows), jamiAsosiy=jamiOf(asosiyRows);
   $('jami').textContent=money(jamiKassa+ylJami);
@@ -919,7 +949,157 @@ function renderTotals(list){
   sub('jamiAsosiySub', asosiyRows.length+' ta kassa');
   sub('jamiYoldaSub', ylRows.length+' ta transfer');
   sub('jamiAsosiyYoldaSub', asosiyRows.length+' ta kassa · '+ylRows.length+' ta transfer');
+  renderKtotDD();   // panel ochiq bo'lsa — yangi ma'lumot bilan qayta chiziladi
 }
+// ===================== Box dropdown — pul turi taqsimoti (2026-09-21) =====================
+// 1-daraja: qaysi box ('jami'|'asosiy'|'yolda'|'asosiyYolda') ochiq. 2-daraja: shu box ichida
+// qaysi pul-turi qatori ochilib, manba (kassa/transfer) ro'yxati ko'rsatilgan.
+let ddBox=null;
+let ddOpen=new Set();
+const KTOT_LBL={
+  naqd:{ic:'💵',lbl:'Naqd'}, click:{ic:'💳',lbl:'Click'}, payme:{ic:'📱',lbl:'Payme'},
+  terminal:{ic:'🏧',lbl:'Terminal'}, karta:{ic:'🏦',lbl:'Karta'}, plastik:{ic:'💠',lbl:'Plastik'},
+  dollar:{ic:'💵',lbl:'Dollar'}, own:{ic:'◦',lbl:"Turga ajratilmagan"}, otherVal:{ic:'▫',lbl:'Boshqa valyuta'},
+  boshqa:{ic:'▫',lbl:'Boshqa'},
+  yl_cash:{ic:'💵',lbl:"Naqd (yo'lda)"}, yl_click:{ic:'💳',lbl:"Click (yo'lda)"}, yl_payme:{ic:'📱',lbl:"Payme (yo'lda)"},
+  yl_terminal:{ic:'🏧',lbl:"Terminal (yo'lda)"}, yl_dollar:{ic:'💵',lbl:"Dollar (yo'lda)"},
+};
+const KTOT_GRP_LBL={markaziy:'markaziy',xarajat:'xarajat',filial:'filial'};
+// Bitta kassa qatorining pul-turi/valyuta/qoldiq bo'linishi — taqsimot()dagi AYNI formula
+// (turUst+oz+usdUzs+otherUzs+boshqa=jami), shuning uchun aggregatsiya box jamisidan hech qachon farq qilmaydi.
+function rowSplit(r){
+  const vals=(kval[r.id]||[]), turs=(ktur[r.id]||[]);
+  const types={}; let turUst=0;
+  if(turs.length){
+    turs.forEach(t=>{ const n=Number(t.qoldiq)||0; turUst+=n; types[t.pul_turi]=(types[t.pul_turi]||0)+n; });
+  }else{
+    const turi=(k,v)=>{ const n=Number(v)||0; if(n){ turUst+=n; types[k]=(types[k]||0)+n; } };
+    turi('naqd',r.naqd); turi('click',r.click); turi('payme',r.payme);
+  }
+  const oz=Number(r.uzs)||0, usdUzs=Number(r.usd_uzs)||0, usdAmt=Number(r.usd)||0;
+  const otherUzs=vals.filter(v=>v.currency!=='USD').reduce((a,v)=>a+(Number(v.uzs)||0),0);
+  const boshqa=Math.round((Number(r.jami)||0)-oz-usdUzs-otherUzs-turUst);
+  return {types,oz,usdUzs,usdAmt,otherUzs,boshqa};
+}
+// Kassa qatorlari ro'yxatini pul turi bo'yicha yig'adi, har tur uchun manba (kassa) ro'yxati bilan.
+function aggregateKassa(rows){
+  const typeSum={}, sources={};
+  let dollarUzs=0, dollarUsd=0, ownUzs=0, otherValUzs=0, boshqaSum=0;
+  const push=(key,amt,extra)=>{ (sources[key]||(sources[key]=[])).push(Object.assign({amt},extra)); };
+  rows.forEach(r=>{
+    const sp=rowSplit(r), extra={name:r.name,grp:r.kassa_turi};
+    Object.keys(sp.types).forEach(k=>{ const amt=sp.types[k]; if(!amt) return;
+      typeSum[k]=(typeSum[k]||0)+amt; push(k,amt,extra); });
+    if(sp.usdUzs){ dollarUzs+=sp.usdUzs; dollarUsd+=sp.usdAmt; push('dollar',sp.usdUzs,Object.assign({usd:sp.usdAmt},extra)); }
+    if(sp.oz){ ownUzs+=sp.oz; push('own',sp.oz,extra); }
+    if(sp.otherUzs){ otherValUzs+=sp.otherUzs; push('otherVal',sp.otherUzs,extra); }
+    if(Math.abs(sp.boshqa)>=1){ boshqaSum+=sp.boshqa; push('boshqa',sp.boshqa,extra); }
+  });
+  return {typeSum,dollarUzs,dollarUsd,ownUzs,otherValUzs,boshqaSum,sources};
+}
+// Yo'lda transferlar ro'yxatini tur bo'yicha yig'adi. Dollar — jami_uzs'dan qolgan qism,
+// ylRow()dagi AYNI hisob (cash+click+payme+terminal+dollar=jami_uzs).
+function aggregateYolda(rows){
+  const typeSum={cash:0,click:0,payme:0,terminal:0}; let dollarUzs=0,dollarUsd=0;
+  const sources={};
+  const push=(key,amt,extra)=>{ (sources[key]||(sources[key]=[])).push(Object.assign({amt},extra)); };
+  rows.forEach(r=>{
+    const cash=Number(r.cash)||0, click=Number(r.click)||0, payme=Number(r.payme)||0, terminal=Number(r.terminal)||0;
+    const extra={sender:r.sender_nom,receiver:r.receiver_nom};
+    if(cash){ typeSum.cash+=cash; push('yl_cash',cash,extra); }
+    if(click){ typeSum.click+=click; push('yl_click',click,extra); }
+    if(payme){ typeSum.payme+=payme; push('yl_payme',payme,extra); }
+    if(terminal){ typeSum.terminal+=terminal; push('yl_terminal',terminal,extra); }
+    const dUzs=Math.round((Number(r.jami_uzs)||0)-cash-click-payme-terminal);
+    if(dUzs){ dollarUzs+=dUzs; dollarUsd+=Number(r.usd)||0; push('yl_dollar',dUzs,extra); }
+  });
+  return {typeSum,dollarUzs,dollarUsd,sources};
+}
+// Box kaliti -> shu boxga kiruvchi kassa/yo'lda qatorlar (renderTotals bilan AYNI kesim).
+function ktotBoxRows(box){
+  const {rows,asosiyRows,ylRows}=totalsScope(lastList);
+  if(box==='jami') return {kassaRows:rows, ylRows};
+  if(box==='asosiy') return {kassaRows:asosiyRows, ylRows:[]};
+  if(box==='yolda') return {kassaRows:[], ylRows};
+  if(box==='asosiyYolda') return {kassaRows:asosiyRows, ylRows};
+  return {kassaRows:[], ylRows:[]};
+}
+const ddSrcRow=s=>`<div class="dd-src"><span class="nm">${esc(s.name)}<span class="grp">${esc(KTOT_GRP_LBL[s.grp]||s.grp||'')}</span></span><span class="amt">${money(s.amt)}</span></div>`;
+const ddSrcRowDollar=s=>`<div class="dd-src"><span class="nm">${esc(s.name)}<span class="grp">${esc(KTOT_GRP_LBL[s.grp]||s.grp||'')}</span></span><span class="amt">$ ${fc(s.usd)} ≈ ${money(s.amt)}</span></div>`;
+const ddSrcRowYolda=s=>`<div class="dd-src"><span class="nm">${esc(s.sender||'Boshqa kassa')} → ${esc(s.receiver||'Boshqa kassa')}</span><span class="amt">${money(s.amt)}</span></div>`;
+// 2-daraja ro'yxati — 12 tadan ko'p bo'lsa scroll (.dd-sub.scroll, max-height CSS'da).
+function ddRow(key,ic,label,amountHtml,count,countLbl,sources,srcFn){
+  const open=ddOpen.has(key);
+  const list=(sources||[]).slice().sort((a,b)=>b.amt-a.amt);
+  const sub=open?`<div class="dd-sub${list.length>12?' scroll':''}">${list.map(srcFn).join('')}</div>`:'';
+  return `<div class="dd-item${open?' open':''}"><button type="button" class="dd-row" onclick="window.ktotRow('${key}')" aria-expanded="${open?'true':'false'}">`
+    +`<i class="dd-chev" data-lucide="chevron-right"></i><span class="lbl">${ic} ${esc(label)}</span>`
+    +`<span class="amt">${amountHtml}</span><span class="cnt">${count} ${esc(countLbl)}</span>`
+    +`</button>${sub}</div>`;
+}
+// #ktotDD panelini to'liq qayta chizadi (ddBox=null bo'lsa yashiradi). renderTotals() ham
+// shuni chaqiradi — ma'lumot yangilanganda ochiq panel eskirib qolmaydi.
+function renderKtotDD(){
+  document.querySelectorAll('.ktot').forEach(el=>{
+    const on=!!ddBox&&el.dataset.box===ddBox;
+    el.classList.toggle('open',on);
+    el.setAttribute('aria-expanded',on?'true':'false');
+  });
+  const wrap=$('ktotDD'); if(!wrap) return;
+  if(!ddBox){ wrap.innerHTML=''; wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const {kassaRows,ylRows}=ktotBoxRows(ddBox);
+  const agg=aggregateKassa(kassaRows);
+  const yAgg=aggregateYolda(ylRows);
+  let html='';
+  ['naqd','click','payme','terminal','karta','plastik'].forEach(k=>{
+    const amt=agg.typeSum[k]||0; if(!amt) return;
+    const srcs=agg.sources[k]||[];
+    html+=ddRow(k,KTOT_LBL[k].ic,KTOT_LBL[k].lbl,money(amt),srcs.length,'kassa',srcs,ddSrcRow);
+  });
+  if(agg.dollarUzs){
+    const srcs=agg.sources.dollar||[];
+    html+=ddRow('dollar',KTOT_LBL.dollar.ic,KTOT_LBL.dollar.lbl,`$ ${fc(agg.dollarUsd)} ≈ ${money(agg.dollarUzs)}`,srcs.length,'kassa',srcs,ddSrcRowDollar);
+  }
+  if(agg.ownUzs){
+    const srcs=agg.sources.own||[];
+    html+=ddRow('own',KTOT_LBL.own.ic,KTOT_LBL.own.lbl,money(agg.ownUzs),srcs.length,'kassa',srcs,ddSrcRow);
+  }
+  if(agg.otherValUzs){
+    const srcs=agg.sources.otherVal||[];
+    html+=ddRow('otherVal',KTOT_LBL.otherVal.ic,KTOT_LBL.otherVal.lbl,money(agg.otherValUzs),srcs.length,'kassa',srcs,ddSrcRow);
+  }
+  if(Math.abs(agg.boshqaSum)>=1){
+    const srcs=agg.sources.boshqa||[];
+    html+=ddRow('boshqa',KTOT_LBL.boshqa.ic,KTOT_LBL.boshqa.lbl,money(agg.boshqaSum),srcs.length,'kassa',srcs,ddSrcRow);
+  }
+  if(ylRows.length){
+    html+=`<div class="dd-div">🚚 Yo'ldagi</div>`;
+    ['cash','click','payme','terminal'].forEach(k=>{
+      const amt=yAgg.typeSum[k]||0; if(!amt) return;
+      const key='yl_'+k, srcs=yAgg.sources[key]||[];
+      html+=ddRow(key,KTOT_LBL[key].ic,KTOT_LBL[key].lbl,money(amt),srcs.length,'transfer',srcs,ddSrcRowYolda);
+    });
+    if(yAgg.dollarUzs){
+      const srcs=yAgg.sources.yl_dollar||[];
+      html+=ddRow('yl_dollar',KTOT_LBL.yl_dollar.ic,KTOT_LBL.yl_dollar.lbl,`$ ${fc(yAgg.dollarUsd)} ≈ ${money(yAgg.dollarUzs)}`,srcs.length,'transfer',srcs,ddSrcRowYolda);
+    }
+  }
+  const boxTotal=jamiOf(kassaRows)+ylRows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
+  html+=`<div class="dd-total">Jami · ${money(boxTotal)}</div>`;
+  wrap.innerHTML=`<div class="ktot-dd">${html||'<div class="dd-empty">Ma\'lumot yo\'q</div>'}</div>`;
+  icons();
+}
+window.ktotToggle=box=>{
+  ddBox=(ddBox===box)?null:box;
+  ddOpen=new Set();
+  renderKtotDD();
+};
+window.ktotRow=key=>{
+  if(ddOpen.has(key)) ddOpen.delete(key); else ddOpen.add(key);
+  renderKtotDD();
+};
+// /Box dropdown
 window.toggleYlOpen=()=>{
   const body=$('yoldaBody'); if(!body) return;
   const open=body.style.display==='none';
