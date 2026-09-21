@@ -54,6 +54,12 @@
   .icon-btn svg{width:19px;height:19px}.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
   .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
+  /* Asosiy valyuta segmenti (#curSeg) — .seg/.cvseg bilan bir xil naqsh, faqat .kbtn balandligiga (40px) moslangan */
+  .cseg{display:inline-flex;background:var(--surface-2);border-radius:11px;padding:3px;gap:2px}
+  .cseg button{border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;height:34px;padding:0 13px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background .13s,color .13s}
+  .cseg button:hover{color:var(--ink)}
+  .cseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .cur-rate{font-size:12.5px;color:var(--muted);margin:-12px 0 18px 2px}
   label{font-size:13px;color:var(--muted);display:block;margin:0 0 7px 2px;font-weight:500}
   select,.txt{width:100%;height:46px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:11px;padding:0 13px;font-size:15px;font-family:inherit;outline:none;margin-bottom:15px;cursor:pointer;transition:border-color .13s,box-shadow .13s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
   .txt{cursor:text;background-image:none}
@@ -331,6 +337,12 @@
     <div class="page-head">
       <h1>Kassa</h1>
       <div class="head-actions">
+        <!-- Asosiy valyuta segmenti (Asilbek, 2026-09-21) — tanlov localStorage'da eslanadi
+             (prov-kassa-cur), sahifadagi HAR BIR so'm summasi shunga qarab disp() bilan chiqadi. -->
+        <div class="cseg" id="curSeg">
+          <button type="button" class="on" data-cur="UZS" onclick="window.setCur('UZS')" aria-pressed="true">🇺🇿 so'm</button>
+          <button type="button" data-cur="USD" onclick="window.setCur('USD')" aria-pressed="false">💵 $</button>
+        </div>
         <button class="kbtn" id="turBtn" onclick="openTur()"><i data-lucide="shuffle"></i>Tur o'tkazish</button>
         <button class="kbtn" id="convBtn" onclick="openConv()"><i data-lucide="arrow-right-left"></i>Konvert</button>
         <div class="mobile-only" style="display:flex;gap:2px">
@@ -363,6 +375,9 @@
         <div class="s" id="jamiAsosiyYoldaSub"></div>
       </div>
     </div>
+    <!-- USD tanlangan va kurs bor bo'lsa qaysi kursda ko'rsatilayotgani ("1 $ = 11 850 so'm") —
+         window.setCur()/curSegSync() to'ldiradi, aks holda yashirin turadi. -->
+    <div id="curRate" class="cur-rate" style="display:none"></div>
     <div id="ktotDD" style="display:none"></div>
 
     <!-- Yo'ldagi pullar — Aros filialdan markaziy kassaga jo'natilgan, hali qabul qilinmagan pul.
@@ -522,6 +537,11 @@ const swrKey=n=>`prov-swr:${PAGE}:${n}`;
 function swrGet(n,maxAge=300000){ try{ const r=sessionStorage.getItem(swrKey(n)); if(!r) return null;
   const o=JSON.parse(r); return (Date.now()-o.t>maxAge)?null:o.v; }catch(e){ return null; } }
 function swrSet(n,v){ try{ sessionStorage.setItem(swrKey(n),JSON.stringify({t:Date.now(),v})); }catch(e){} }
+// Asosiy valyuta ko'rinishi (Asilbek, 2026-09-21) — har user/brauzer localStorage'da eslab
+// qoladi. Faqat 'UZS'|'USD'; boshqa/buzuq qiymat sukut 'UZS'ga tushadi. Birinchi renderdan
+// OLDIN o'qilishi shart — shu sabab bu yerda, boot() dan ancha yuqorida turadi.
+let dispCur='UZS';
+try{ if(localStorage.getItem('prov-kassa-cur')==='USD') dispCur='USD'; }catch(e){}
 let isAdmin=false, myName='';
 const $=id=>document.getElementById(id);
 const money=n=>Math.round(Number(n)||0).toLocaleString('en-US').replaceAll(',',' ');
@@ -617,6 +637,19 @@ const accLbl=a=>a.name+(a.subtitle?' · '+a.subtitle:'');
 const jamiOf=rows=>rows.reduce((a,r)=>a+(Number(r.jami)||0),0);
 // Valyuta qoldig'i — 2 kasr, probel bilan (money() butun son uchun)
 const fc=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ');
+// USD kursi (conv_baza_kurs('USD')) — loadKassalar() to'ldiradi, swr keshi 'usdrate'. null/0 = kurs yo'q.
+let usdRate=null;
+// Sahifadagi HAR BIR so'm summasi shundan chiqadi (money() o'rniga): dispCur==='USD' va kurs
+// bor bo'lsa dollarda (fc() bilan, native $ summalar bilan bir xil format), aks holda avvalgidek
+// so'mda — tanlangan valyuta o'zgarmasa ham, kurs yo'q bo'lsa shu yerda jimgina so'mga tushadi.
+// 🔴 Native chet-el summalar (fc(usd)+' USD'/'$ '+fc(usd)) buni CHAQIRMAYDI — faqat so'm sonlar.
+function disp(uzs){
+  if(dispCur==='USD'&&usdRate>0) return '$ '+fc(uzs/usdRate);
+  return money(uzs);
+}
+// taqsimot()/srvHit'dagi qo'lda qo'shilgan "... so'm" qo'shimchasi: USD holatida disp() o'zi
+// "$ .." qaytaradi, so'm so'zi keraksiz — shu bittasi tanlaydi.
+const somSfx=()=>(dispCur==='USD'&&usdRate>0)?'':" so'm";
 // Tur ikonkalari — TC_LBL (tur o'tkazish modali) bilan bir xil oila.
 // karta/terminal/plastik PROVODKA_TURLAR_AVTO.sql bilan qo'shilgan turlar.
 const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'💠'};
@@ -644,13 +677,13 @@ function taqsimot(r,p_oz){
   if(turs.length){
     turs.forEach(t=>{
       const n=Number(t.qoldiq)||0; turUst+=n;
-      const s=(TURI_IKO[t.pul_turi]||'▫')+' '+money(n);
+      const s=(TURI_IKO[t.pul_turi]||'▫')+' '+disp(n);
       qism.push(n?s:'<span class="zq">'+s+'</span>');
     });
   }else{
     // Zaxira yo'l: v_kassa_turlar o'qilmadi (view yo'q yoki tarmoq xatosi) —
     // avvalgidek karta ustunlaridan chizamiz, nolsiz.
-    const turi=(k,v)=>{ const n=Number(v)||0; if(n){ turUst+=n; qism.push(TURI_IKO[k]+' '+money(n)); } };
+    const turi=(k,v)=>{ const n=Number(v)||0; if(n){ turUst+=n; qism.push(TURI_IKO[k]+' '+disp(n)); } };
     turi('naqd',r.naqd); turi('click',r.click); turi('payme',r.payme);
   }
   const oz=Number(r.uzs)||0;
@@ -660,11 +693,11 @@ function taqsimot(r,p_oz){
   // Qoldiq = jami − o'z qoldig'i − valyuta bolalari − ko'rsatilgan turlar.
   const valUzs=vals.reduce((a,v)=>a+(Number(v.uzs)||0),0);
   const boshqa=Math.round((Number(r.jami)||0)-oz-valUzs-turUst);
-  if(Math.abs(boshqa)>=1) qism.push('▫ Boshqa '+money(boshqa));
+  if(Math.abs(boshqa)>=1) qism.push('▫ Boshqa '+disp(boshqa));
   const turBor=qism.length>0;
   // Turlar bor + parentda ham pul bor -> "turga ajratilmagan pul", shunday belgilanadi
-  if(turBor && oz) qism.push('◦ '+money(oz)+" so'm");
-  else if(p_oz && !turBor) qism.push(money(oz)+" so'm");
+  if(turBor && oz) qism.push('◦ '+disp(oz)+somSfx());
+  else if(p_oz && !turBor) qism.push(disp(oz)+somSfx());
   // Valyuta satrlari: nol qoldiqlisi ko'rsatilmaydi. Sabab — seed hamma kassaga USD
   // hisobini oldindan ochadi (n8n tur bo'yicha sinxron qilishi uchun), aks holda har
   // kartada foydasiz "0.00 USD" yozilib turardi. Hisob o'zi joyida: professional va
@@ -682,18 +715,18 @@ function kcard(r){
   const ylIn=ylIdx.inn[r.id]||0, ylOut=ylIdx.out[r.id]||0;
   const ylTtl="Aros'da jo'natilgan, hali qabul qilinmagan";
   const ylBadge = ylIn
-    ? `<div class="yl-badge in" title="${esc(ylTtl)}">🚚 Yo'lda: ${money(ylIn)}</div>`
-    : ylOut ? `<div class="yl-badge out" title="${esc(ylTtl)}">🚚 Yo'lda: −${money(ylOut)}</div>` : '';
+    ? `<div class="yl-badge in" title="${esc(ylTtl)}">🚚 Yo'lda: ${disp(ylIn)}</div>`
+    : ylOut ? `<div class="yl-badge out" title="${esc(ylTtl)}">🚚 Yo'lda: −${disp(ylOut)}</div>` : '';
   const ka=`<div class="kasosiy-wrap">${kasosiyHtml(r.id,asosiySet.has(r.id))}</div>`;
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
-    +`<div class="v">${money(r.jami)}</div>${sub}${ylBadge}${ka}</div>`;
+    +`<div class="v">${disp(r.jami)}</div>${sub}${ylBadge}${ka}</div>`;
 }
 // hc — "3 / 62" sanoq chipi. FAQAT qidiruv faol bo'lganda beriladi, aks holda bo'sh
 // satr (chip umuman chizilmaydi) — guruh sarlavhasi odatdagidek qoladi.
 const hcChip=hc=>hc?`<span class="srv-hc">${esc(hc)}</span>`:'';
 function kgroup(lbl,rows,hc){
   if(!rows.length) return '';
-  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="t">${money(jamiOf(rows))}</span></div>`
+  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="t">${disp(jamiOf(rows))}</span></div>`
     +`<div class="kgrid">${rows.map(kcard).join('')}</div></div>`;
 }
 // Guruh qatori (5400) + uning bolalari: karta emas, nom + kichik kulrang subtitle ro'yxati.
@@ -706,7 +739,7 @@ function krow(r){
   const add=`<button class="kadd" title="Valyuta / pul turi qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
   const ka=`<div class="kasosiy-wrap">${kasosiyHtml(r.id,asosiySet.has(r.id))}</div>`;
   return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}${ka}</div>`
-    +`<div class="v">${money(r.jami)}</div>${add}</div>`;
+    +`<div class="v">${disp(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
 // «Kassa qo'shish» — faqat 5400 guruh sarlavhasida (kgroupList shu guruh uchun);
@@ -715,7 +748,7 @@ function kgroupList(lbl,rows,hc,gid){
   const ichi=rows.length ? rows.map(krow).join('')
     : '<div class="krow kempty">Hozircha hodim kassasi yo\'q</div>';
   const add=`<button type="button" class="kgadd" title="Yangi xarajat kassasi" onclick="openXk('${esc(gid||'')}')"><i data-lucide="plus"></i>Kassa qo\'shish</button>`;
-  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="kgr">${add}<span class="t">${money(jamiOf(rows))}</span></span></div>`
+  return `<div class="kgrp"><div class="kgh"><span class="n">${esc(lbl)}${hcChip(hc)}</span><span class="kgr">${add}<span class="t">${disp(jamiOf(rows))}</span></span></div>`
     +`<div class="klist">${ichi}</div></div>`;
 }
 // Guruhning bolalari. View parent_id bermasa (yoki null bo'lsa) — bitta guruh bo'lgan
@@ -851,14 +884,14 @@ function ylTime(iso){
 }
 function ylRow(r){
   const parts=[];
-  const push=(ic,v)=>{ const n=Number(v)||0; if(n) parts.push(ic+' '+money(n)); };
+  const push=(ic,v)=>{ const n=Number(v)||0; if(n) parts.push(ic+' '+disp(n)); };
   push(YL_IKO.cash,r.cash); push(YL_IKO.click,r.click); push(YL_IKO.payme,r.payme); push(YL_IKO.terminal,r.terminal);
   if(Number(r.usd)) parts.push('$ '+fc(r.usd));
   const t=ylTime(r.sent_at);
   return `<div class="krow yl-row"><div class="l"><div class="nm">${esc(r.sender_nom||'Boshqa kassa')} → ${esc(r.receiver_nom||'Boshqa kassa')}</div>`
     +`<div class="st tq">${parts.join(' · ')||'—'}</div>`
     +(t.txt?`<div class="st yl-time${t.cls?' '+t.cls:''}">${esc(t.txt)}</div>`:'')
-    +`</div><div class="v">${money(r.jami_uzs)}</div></div>`;
+    +`</div><div class="v">${disp(r.jami_uzs)}</div></div>`;
 }
 // Sotuvchi/kassa jami — usd qism dollar_rate bilan so'mga o'girilgan (server shu tartibda hisoblagan).
 // s_terminal/c_terminal kaliti kelmasa (SQL RUN qilinmagan) — 0 deb olinadi, xato bermaydi.
@@ -866,9 +899,9 @@ const ylSum=(r,pfx)=>(Number(r[pfx+'_cash'])||0)+(Number(r[pfx+'_click'])||0)+(N
 function ylQabulRow(r){
   const farq=Number(r.farq_uzs)||0;
   const farqHtml = farq===0 ? '<span class="yl-mos">mos</span>'
-    : `<span class="${farq<0?'yl-neg':'yl-pos'}">${farq>0?'+':''}${money(farq)}</span>`;
+    : `<span class="${farq<0?'yl-neg':'yl-pos'}">${farq>0?'+':''}${disp(farq)}</span>`;
   return `<div class="krow yl-row yl-qrow"><div class="l"><div class="nm">${esc(r.sender_nom||'Boshqa kassa')} → ${esc(r.receiver_nom||'Boshqa kassa')}</div>`
-    +`<div class="st tq">sotuvchi: ${money(ylSum(r,'s'))} · qabul: ${money(ylSum(r,'c'))} · farq: ${farqHtml}</div></div></div>`;
+    +`<div class="st tq">sotuvchi: ${disp(ylSum(r,'s'))} · qabul: ${disp(ylSum(r,'c'))} · farq: ${farqHtml}</div></div></div>`;
 }
 // #yolda blokini to'liq qayta chizadi. yolda=null yoki rows bo'sh → bo'lim umuman chizilmaydi.
 // Qidiruv faol bo'lsa (oddiy qoida, filtrlanmaydi) bo'lim yashiriladi.
@@ -914,7 +947,7 @@ function renderYolda(){
   // ko'rinib turadi, bosilsa ro'yxat ochiladi (localStorage 'yl-open').
   const open=localStorage.getItem('yl-open')==='1';
   el.innerHTML=`<div class="kgrp yl-grp${open?' open':''}"><button type="button" class="kgh yl-head" onclick="toggleYlOpen()" aria-expanded="${open?'true':'false'}">`
-    +`<span class="n"><i data-lucide="chevron-right" class="yl-chev"></i>🚚 Yo'ldagi pullar · ${rows.length} ta</span><span class="t">${money(jami)}</span></button>`
+    +`<span class="n"><i data-lucide="chevron-right" class="yl-chev"></i>🚚 Yo'ldagi pullar · ${rows.length} ta</span><span class="t">${disp(jami)}</span></button>`
     +`<div class="yl-body" id="yoldaBody" style="${open?'':'display:none'}"><div class="klist">${rows.map(ylRow).join('')}</div>${qBlock}</div></div>`;
   icons();
 }
@@ -940,10 +973,10 @@ function renderTotals(list){
   const {rows,asosiyRows,ylRows}=totalsScope(list);
   const ylJami=ylRows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
   const jamiKassa=jamiOf(rows), jamiAsosiy=jamiOf(asosiyRows);
-  $('jami').textContent=money(jamiKassa+ylJami);
-  $('jamiAsosiy').textContent=money(jamiAsosiy);
-  $('jamiYolda').textContent=money(ylJami);
-  $('jamiAsosiyYolda').textContent=money(jamiAsosiy+ylJami);
+  $('jami').textContent=disp(jamiKassa+ylJami);
+  $('jamiAsosiy').textContent=disp(jamiAsosiy);
+  $('jamiYolda').textContent=disp(ylJami);
+  $('jamiAsosiyYolda').textContent=disp(jamiAsosiy+ylJami);
   const sub=(id,t)=>{ const el=$(id); if(el) el.textContent=t; };
   sub('jamiSub', rows.length+' ta kassa · '+ylRows.length+' ta transfer');
   sub('jamiAsosiySub', asosiyRows.length+' ta kassa');
@@ -1024,9 +1057,12 @@ function ktotBoxRows(box){
   if(box==='asosiyYolda') return {kassaRows:asosiyRows, ylRows};
   return {kassaRows:[], ylRows:[]};
 }
-const ddSrcRow=s=>`<div class="dd-src"><span class="nm">${esc(s.name)}<span class="grp">${esc(KTOT_GRP_LBL[s.grp]||s.grp||'')}</span></span><span class="amt">${money(s.amt)}</span></div>`;
+const ddSrcRow=s=>`<div class="dd-src"><span class="nm">${esc(s.name)}<span class="grp">${esc(KTOT_GRP_LBL[s.grp]||s.grp||'')}</span></span><span class="amt">${disp(s.amt)}</span></div>`;
+// 🔴 "≈" qismi ataylab money() da qoladi (disp()ga o'tilmagan): satr allaqachon native
+// dollarni (fc(s.usd)) ko'rsatib turgan, uni yana disp() bilan qayta dollarga o'girish
+// ikkinchi (boshqa kursdagi) $ raqam chiqarardi — "$X ≈ $Y" chalkash bo'lardi.
 const ddSrcRowDollar=s=>`<div class="dd-src"><span class="nm">${esc(s.name)}<span class="grp">${esc(KTOT_GRP_LBL[s.grp]||s.grp||'')}</span></span><span class="amt">$ ${fc(s.usd)} ≈ ${money(s.amt)}</span></div>`;
-const ddSrcRowYolda=s=>`<div class="dd-src"><span class="nm">${esc(s.sender||'Boshqa kassa')} → ${esc(s.receiver||'Boshqa kassa')}</span><span class="amt">${money(s.amt)}</span></div>`;
+const ddSrcRowYolda=s=>`<div class="dd-src"><span class="nm">${esc(s.sender||'Boshqa kassa')} → ${esc(s.receiver||'Boshqa kassa')}</span><span class="amt">${disp(s.amt)}</span></div>`;
 // 2-daraja ro'yxati — 12 tadan ko'p bo'lsa scroll (.dd-sub.scroll, max-height CSS'da).
 function ddRow(key,ic,label,amountHtml,count,countLbl,sources,srcFn){
   const open=ddOpen.has(key);
@@ -1055,38 +1091,40 @@ function renderKtotDD(){
   ['naqd','click','payme','terminal','karta','plastik'].forEach(k=>{
     const amt=agg.typeSum[k]||0; if(!amt) return;
     const srcs=agg.sources[k]||[];
-    html+=ddRow(k,KTOT_LBL[k].ic,KTOT_LBL[k].lbl,money(amt),srcs.length,'kassa',srcs,ddSrcRow);
+    html+=ddRow(k,KTOT_LBL[k].ic,KTOT_LBL[k].lbl,disp(amt),srcs.length,'kassa',srcs,ddSrcRow);
   });
   if(agg.dollarUzs){
     const srcs=agg.sources.dollar||[];
+    // Bu qator native dollar (fc) — ataylab money(), disp() emas (ddSrcRowDollar izohiga qara).
     html+=ddRow('dollar',KTOT_LBL.dollar.ic,KTOT_LBL.dollar.lbl,`$ ${fc(agg.dollarUsd)} ≈ ${money(agg.dollarUzs)}`,srcs.length,'kassa',srcs,ddSrcRowDollar);
   }
   if(agg.ownUzs){
     const srcs=agg.sources.own||[];
-    html+=ddRow('own',KTOT_LBL.own.ic,KTOT_LBL.own.lbl,money(agg.ownUzs),srcs.length,'kassa',srcs,ddSrcRow);
+    html+=ddRow('own',KTOT_LBL.own.ic,KTOT_LBL.own.lbl,disp(agg.ownUzs),srcs.length,'kassa',srcs,ddSrcRow);
   }
   if(agg.otherValUzs){
     const srcs=agg.sources.otherVal||[];
-    html+=ddRow('otherVal',KTOT_LBL.otherVal.ic,KTOT_LBL.otherVal.lbl,money(agg.otherValUzs),srcs.length,'kassa',srcs,ddSrcRow);
+    html+=ddRow('otherVal',KTOT_LBL.otherVal.ic,KTOT_LBL.otherVal.lbl,disp(agg.otherValUzs),srcs.length,'kassa',srcs,ddSrcRow);
   }
   if(Math.abs(agg.boshqaSum)>=1){
     const srcs=agg.sources.boshqa||[];
-    html+=ddRow('boshqa',KTOT_LBL.boshqa.ic,KTOT_LBL.boshqa.lbl,money(agg.boshqaSum),srcs.length,'kassa',srcs,ddSrcRow);
+    html+=ddRow('boshqa',KTOT_LBL.boshqa.ic,KTOT_LBL.boshqa.lbl,disp(agg.boshqaSum),srcs.length,'kassa',srcs,ddSrcRow);
   }
   if(ylRows.length){
     html+=`<div class="dd-div">🚚 Yo'ldagi</div>`;
     ['cash','click','payme','terminal'].forEach(k=>{
       const amt=yAgg.typeSum[k]||0; if(!amt) return;
       const key='yl_'+k, srcs=yAgg.sources[key]||[];
-      html+=ddRow(key,KTOT_LBL[key].ic,KTOT_LBL[key].lbl,money(amt),srcs.length,'transfer',srcs,ddSrcRowYolda);
+      html+=ddRow(key,KTOT_LBL[key].ic,KTOT_LBL[key].lbl,disp(amt),srcs.length,'transfer',srcs,ddSrcRowYolda);
     });
     if(yAgg.dollarUzs){
       const srcs=yAgg.sources.yl_dollar||[];
+      // Native dollar (fc) — ataylab money(), ddSrcRowDollar bilan bir xil sabab.
       html+=ddRow('yl_dollar',KTOT_LBL.yl_dollar.ic,KTOT_LBL.yl_dollar.lbl,`$ ${fc(yAgg.dollarUsd)} ≈ ${money(yAgg.dollarUzs)}`,srcs.length,'transfer',srcs,ddSrcRowYolda);
     }
   }
   const boxTotal=jamiOf(kassaRows)+ylRows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
-  html+=`<div class="dd-total">Jami · ${money(boxTotal)}</div>`;
+  html+=`<div class="dd-total">Jami · ${disp(boxTotal)}</div>`;
   wrap.innerHTML=`<div class="ktot-dd">${html||'<div class="dd-empty">Ma\'lumot yo\'q</div>'}</div>`;
   icons();
 }
@@ -1116,12 +1154,45 @@ window.toggleYlQabul=()=>{
 };
 // /Yo'ldagi pullar
 
+// ===================== Asosiy valyuta segmenti (#curSeg, Asilbek 2026-09-21) =====================
+// dispCur/usdRate — o'zgaruvchilar fayl boshida (money()/fc() yonida). Bu yerda faqat
+// UI-sinxronlash: segment "on" holati, kurs qatori (#curRate) va USD-kursi-yo'q banneri.
+function curBanner(){
+  const el=$('banner'); if(!el) return;
+  const msg="USD kursi yo'q — so'mda ko'rsatilmoqda";
+  if(dispCur==='USD'&&!(usdRate>0)){ el.style.display='block'; el.textContent=msg; }
+  // Faqat O'ZINING xabarini tozalaydi — boshqa (haqiqiy) xato banneriga tegmaydi.
+  else if(el.textContent===msg){ el.style.display='none'; el.textContent=''; }
+}
+function curSegSync(){
+  const seg=$('curSeg');
+  if(seg) [...seg.children].forEach(b=>{
+    const on=b.dataset.cur===dispCur;
+    b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  const rt=$('curRate'), show=dispCur==='USD'&&usdRate>0;
+  if(rt){ rt.style.display=show?'block':'none';
+    if(show) rt.textContent='1 $ = '+money(Math.round(usdRate))+" so'm"; }
+  curBanner();
+}
+window.setCur=cur=>{
+  if(cur!==dispCur){ dispCur=cur; try{ localStorage.setItem('prov-kassa-cur',cur); }catch(e){} }
+  curSegSync();
+  // onQ() bilan bir xil naqsh: renderKassalar() ichida renderTotals()+renderKtotDD() ham
+  // chaqiriladi, alohida qayta chaqirish shart emas.
+  renderKassalar(lastList);
+  renderYolda();
+};
+// /Asosiy valyuta segmenti
+
 async function loadKassalar(){
   // SWR: keshdagi qatorlarni darrov ko'rsat, aks holda "Yuklanmoqda…" placeholder
   const cachedVal=swrGet('valyutalar'); if(cachedVal) kval=kvalIndex(cachedVal);
   const cachedTur=swrGet('turlar'); if(cachedTur) ktur=kturIndex(cachedTur);
   const cachedYolda=swrGet('yolda'); if(cachedYolda) yolda=cachedYolda;
   const cachedAsosiy=swrGet('asosiy'); if(cachedAsosiy) asosiySet=new Set(cachedAsosiy);
+  const cachedRate=swrGet('usdrate'); if(cachedRate!=null) usdRate=cachedRate;
+  curSegSync();   // dispCur eslangan bo'lsa segment/bannerni birinchi renderdan oldin to'g'rilaydi
   renderYolda();
   const cached=swrGet('cards');
   if(cached) renderKassalar(cached);
@@ -1129,12 +1200,13 @@ async function loadKassalar(){
   // Ikkalasi parallel — lekin render ikkovi kelgach bo'ladi, aks holda karta
   // valyutasiz chizilib, keyin sassiz eskirib qoladi. View hali yaratilmagan
   // bo'lsa xato yutiladi va karta eski ko'rinishda (faqat jami) chiziladi.
-  const [{data,error},{data:vs,error:ve},{data:ts,error:te},{data:yl,error:ye},{data:as,error:ae}]=await Promise.all([
+  const [{data,error},{data:vs,error:ve},{data:ts,error:te},{data:yl,error:ye},{data:as,error:ae},{data:ur,error:ue}]=await Promise.all([
     sb.from('v_kassa_card').select('*').order('code'),
     sb.from('v_kassa_valyutalar').select('*').order('code'),
     sb.from('v_kassa_turlar').select('*').order('code'),
     sb.rpc('yolda_royxat'),
     sb.from('accounts').select('id,asosiy').eq('section','pul').eq('is_active',true),
+    sb.rpc('conv_baza_kurs',{p_cur:'USD'}),
   ]);
   if(!ve&&vs){ swrSet('valyutalar',vs); kval=kvalIndex(vs); }
   // View bo'lmasa (PROVODKA_VALYUTA.sql RUN qilinmagan) xato jimgina yutiladi —
@@ -1147,6 +1219,11 @@ async function loadKassalar(){
   // RUN qilinmagan) — bo'sh to'plam, toggle "off" holatda ko'rinadi, sahifa sinmaydi.
   if(!ae&&as){ const ids=as.filter(r=>r.asosiy).map(r=>r.id); asosiySet=new Set(ids); swrSet('asosiy',ids); }
   else if(ae){ console.warn('accounts.asosiy yuklanmadi:',ae.message); if(ae.code==='42703') asosiySet=new Set(); }
+  // USD kursi (conv_baza_kurs) — null/0 kelsa disp() so'mga tushadi, curSegSync() banner chiqaradi.
+  // Xato bo'lsa eski (keshdagi) kurs saqlanadi, jimgina qolib qolmasin uchun ogohlantirish yetarli.
+  if(!ue){ usdRate=Number(ur)||null; swrSet('usdrate',usdRate); }
+  else console.warn('conv_baza_kurs(USD):',ue.message);
+  curSegSync();
   // Xato bo'lsa har doim ko'rsat — keshdagi eski raqam jimgina qolib ketmasin
   if(error){
     $('banner').style.display='block';
@@ -1871,7 +1948,7 @@ function srvHit(rows,q){
   const el=$('qHit'); if(!el) return;
   if(!q){ el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='block';
-  el.innerHTML='Topildi: <b>'+rows.length+'</b> ta · <b class="num">'+money(jamiOf(rows))+'</b> so\'m';
+  el.innerHTML='Topildi: <b>'+rows.length+'</b> ta · <b class="num">'+disp(jamiOf(rows))+'</b>'+somSfx();
 }
 // Natija yo'q — so'rov matni esc() bilan qaytariladi ("men nima terdim?" savoli qolmasin)
 function srvNone(q){
