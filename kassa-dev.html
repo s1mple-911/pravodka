@@ -128,10 +128,13 @@
   .cv-msg.ok{background:var(--green-soft);color:var(--green);display:block}
   /* /konvert */
   /* kassa-kartalar */
-  .ktot{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 20px;margin-bottom:24px;box-shadow:var(--shadow)}
+  .ktots{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  @media(max-width:700px){.ktots{grid-template-columns:repeat(2,1fr)}}
+  .ktot{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 20px;box-shadow:var(--shadow);min-width:0}
   .ktot .k{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);font-weight:500;margin-bottom:6px}
-  .ktot .k svg{width:15px;height:15px}
-  .ktot .v{font-size:32px;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+  .ktot .k svg{width:15px;height:15px;flex:0 0 auto}
+  .ktot .v{font-size:26px;font-weight:800;letter-spacing:-.025em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ktot .s{font-size:11.5px;color:var(--muted);margin-top:4px}
   .kgrp{margin-bottom:22px}
   .kgh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 2px 10px}
   .kgh .n{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
@@ -201,6 +204,19 @@
   .kgadd:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
   body.is-admin .kgadd{display:inline-flex}
   @media print{.kgadd{display:none!important}}
+  /* "Asosiy" toggle — har kassa kartasi/qatorida. Admin uchun bosiladigan pill
+     (body.is-admin .kasosiy-btn), boshqalarga faqat "on" bo'lganda statik yorliq. */
+  .kasosiy-wrap{margin-top:8px}
+  .kasosiy{display:inline-flex;align-items:center;gap:4px;height:23px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;font-family:inherit}
+  .kasosiy svg{width:11px;height:11px}
+  .kasosiy-static{border:1px solid var(--line);background:var(--surface-2);color:var(--muted)}
+  .kasosiy-static.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .kasosiy-btn{display:none;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .13s,border-color .13s,color .13s}
+  .kasosiy-btn:hover{border-color:var(--primary);color:var(--primary)}
+  .kasosiy-btn.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  body.is-admin .kasosiy-btn{display:inline-flex}
+  body.is-admin .kasosiy-static{display:none}
+  @media print{.kasosiy-btn{display:none!important}}
   /* "+" modali — pul turi bo'limi: qo'shish tugmalari yonma-yon, sig'masa keyingi qatorga */
   .vlwrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
   .vlwrap .kbtn{height:36px;padding:0 12px;font-size:13.5px}
@@ -301,9 +317,27 @@
     </div>
     <div id="banner" class="banner"></div>
 
-    <div class="ktot">
-      <div class="k"><i data-lucide="landmark"></i>Umumiy jami</div>
-      <div class="v" id="jami">0</div>
+    <div class="ktots">
+      <div class="ktot">
+        <div class="k"><i data-lucide="landmark"></i>Umumiy jami</div>
+        <div class="v" id="jami">0</div>
+        <div class="s" id="jamiSub"></div>
+      </div>
+      <div class="ktot">
+        <div class="k"><i data-lucide="star"></i>Asosiy kassalar</div>
+        <div class="v" id="jamiAsosiy">0</div>
+        <div class="s" id="jamiAsosiySub"></div>
+      </div>
+      <div class="ktot">
+        <div class="k"><i data-lucide="truck"></i>Yo'ldagi pullar</div>
+        <div class="v" id="jamiYolda">0</div>
+        <div class="s" id="jamiYoldaSub"></div>
+      </div>
+      <div class="ktot">
+        <div class="k"><i data-lucide="star"></i>Umumiy asosiy</div>
+        <div class="v" id="jamiAsosiyYolda">0</div>
+        <div class="s" id="jamiAsosiyYoldaSub"></div>
+      </div>
     </div>
 
     <!-- Yo'ldagi pullar — Aros filialdan markaziy kassaga jo'natilgan, hali qabul qilinmagan pul.
@@ -625,8 +659,9 @@ function kcard(r){
   const ylBadge = ylIn
     ? `<div class="yl-badge in" title="${esc(ylTtl)}">🚚 Yo'lda: ${money(ylIn)}</div>`
     : ylOut ? `<div class="yl-badge out" title="${esc(ylTtl)}">🚚 Yo'lda: −${money(ylOut)}</div>` : '';
+  const ka=`<div class="kasosiy-wrap">${kasosiyHtml(r.id,asosiySet.has(r.id))}</div>`;
   return `<div class="kchip"><div class="top"><i data-lucide="wallet"></i><span>${esc(r.name)}</span>${add}</div>`
-    +`<div class="v">${money(r.jami)}</div>${sub}${ylBadge}</div>`;
+    +`<div class="v">${money(r.jami)}</div>${sub}${ylBadge}${ka}</div>`;
 }
 // hc — "3 / 62" sanoq chipi. FAQAT qidiruv faol bo'lganda beriladi, aks holda bo'sh
 // satr (chip umuman chizilmaydi) — guruh sarlavhasi odatdagidek qoladi.
@@ -644,7 +679,8 @@ function krow(r){
   // faqat valyutani ko'rsatardi — naqd/Click/Payme umuman ko'rinmasdi.
   const tq=t.qism.length?`<div class="st tq">${t.qism.join(' · ')}</div>`:'';
   const add=`<button class="kadd" title="Valyuta / pul turi qo'shish" onclick="openVal('${r.id}')"><i data-lucide="plus"></i></button>`;
-  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}</div>`
+  const ka=`<div class="kasosiy-wrap">${kasosiyHtml(r.id,asosiySet.has(r.id))}</div>`;
+  return `<div class="krow"><div class="l"><div class="nm">${esc(r.name)}</div>${st}${tq}${ka}</div>`
     +`<div class="v">${money(r.jami)}</div>${add}</div>`;
 }
 // Bo'sh guruh ham chiziladi — foydalanuvchi tizim ulanganini ko'rishi kerak.
@@ -686,10 +722,10 @@ function renderKassalar(list){
       [...new Set(list.map(r=>r.kassa_turi))].join(', '),'| jami qator:',list.length);
     const gIds=new Set(gAll.map(g=>g.id));
     // Guruh konteyner — o'z summasi yo'q, umumiy jamiga qo'shilmaydi (bolalari alohida sanaladi).
-    // 🔴 #jami QIDIRUVDAN OLDINGI ro'yxatdan hisoblanadi va qidiruvga qarab HECH QACHON
-    //    o'zgarmaydi: u "Umumiy jami" — kompaniyaning xossasi, qidiruv natijasi emas
+    // 🔴 Tepadagi 4 ta summa QIDIRUVDAN OLDINGI ro'yxatdan hisoblanadi va qidiruvga qarab
+    //    HECH QACHON o'zgarmaydi: ular kompaniyaning xossasi, qidiruv natijasi emas
     //    ("qidirdim — pulim kamaydi" holati bo'lmasin). Topilganlar yig'indisi #qHit da.
-    $('jami').textContent=money(jamiOf(list.filter(r=>!gIds.has(r.id))));
+    renderTotals(lastList);
     if(!list.length){ $('kassalar').innerHTML='<div class="empty">Kassa yo\'q</div>'; return; }
     // Qidiruv — ruxsat filtridan KEYIN: u faqat ko'rinishni qisqartiradi, ruxsatni
     // hech qachon kengaytirmaydi (srvFilter qator qo'shmaydi, faqat olib tashlaydi).
@@ -745,6 +781,15 @@ const kturIndex=rows=>{ const m={};
   (rows||[]).slice().sort((a,b)=>(TURI_TART[a.pul_turi]||9)-(TURI_TART[b.pul_turi]||9))
     .forEach(t=>{ (m[t.parent_id]||(m[t.parent_id]=[])).push(t); });
   return m; };
+// "Asosiy kassa" bayrog'i — accounts.asosiy (PROVODKA_KASSA_ASOSIY.sql). Ustun hali yo'q
+// bo'lsa (42703) bo'sh to'plam qoladi, kartalarda toggle ko'rinadi lekin hammasi "off".
+let asosiySet=new Set();
+function kasosiyHtml(id,on){
+  const label=`<i data-lucide="star"></i>Asosiy`;
+  const st=on?`<span class="kasosiy kasosiy-static on">${label}</span>`:'';
+  const btn=`<button type="button" class="kasosiy kasosiy-btn${on?' on':''}" title="Asosiy kassaga belgilash" onclick="window.toggleAsosiy('${id}')">${label}</button>`;
+  return st+btn;
+}
 
 // ===================== Yo'ldagi pullar (2026-09-06, PROVODKA_YOLDA.sql — RUN kutilmoqda) =====================
 // RPC yolda_royxat() → {rows:[yo'lda transferlar], jami_uzs, soni, qabul:[yaqinda qabul qilingan], synced_at}.
@@ -810,6 +855,9 @@ function renderYolda(){
     if(r.receiver_id) ylIdx.inn[r.receiver_id]=(ylIdx.inn[r.receiver_id]||0)+(Number(r.jami_uzs)||0);
     if(r.sender_id) ylIdx.out[r.sender_id]=(ylIdx.out[r.sender_id]||0)+(Number(r.jami_uzs)||0);
   });
+  // yolda_royxat() renderKassalar()dan mustaqil ravishda kelishi mumkin — tepadagi
+  // 4 ta summa shu yerda ham yangilanadi (jami/asosiy hisobiga "yo'ldagi" kiradi).
+  renderTotals(lastList);
   const Qraw=(($('q')||{}).value||'').trim();
   // RPC hali kelmagan/yo'q (y=null) yoki qidiruv faol -> bo'lim umuman chizilmaydi.
   if(!y||Qraw){ el.innerHTML=''; return; }
@@ -845,6 +893,33 @@ function renderYolda(){
     +`<div class="yl-body" id="yoldaBody" style="${open?'':'display:none'}"><div class="klist">${rows.map(ylRow).join('')}</div>${qBlock}</div></div>`;
   icons();
 }
+// Tepadagi 4 ta summa box (#jami/#jamiAsosiy/#jamiYolda/#jamiAsosiyYolda).
+// Ikkala chaqiruvchi ham (renderKassalar, renderYolda) XOM lastList'ni beradi — filtr
+// (is_active + ruxsat + guruh chiqarib tashlash) shu yerda, #jami bilan AYNI qoida bo'yicha,
+// bir marta qo'llanadi, shuning uchun ikkala joyda natija bir xil chiqadi.
+function renderTotals(list){
+  list=(Array.isArray(list)?list:[]).filter(r=>r&&r.is_active!==false);
+  if(window.permScope&&window.permScope()==='list'){
+    const ok=list.filter(r=>r.kassa_turi===KT_GURUH||window.permViewOk(r));
+    const bor=new Set(ok.filter(r=>r.kassa_turi!==KT_GURUH).map(r=>r.parent_id));
+    list=ok.filter(r=>r.kassa_turi!==KT_GURUH||bor.has(r.id));
+  }
+  const gIds=new Set(list.filter(r=>r.kassa_turi===KT_GURUH).map(g=>g.id));
+  const rows=list.filter(r=>!gIds.has(r.id));
+  const asosiyRows=rows.filter(r=>asosiySet.has(r.id));
+  const ylRows=(yolda&&Array.isArray(yolda.rows))?yolda.rows:[];
+  const ylJami=ylRows.reduce((a,r)=>a+(Number(r.jami_uzs)||0),0);
+  const jamiKassa=jamiOf(rows), jamiAsosiy=jamiOf(asosiyRows);
+  $('jami').textContent=money(jamiKassa+ylJami);
+  $('jamiAsosiy').textContent=money(jamiAsosiy);
+  $('jamiYolda').textContent=money(ylJami);
+  $('jamiAsosiyYolda').textContent=money(jamiAsosiy+ylJami);
+  const sub=(id,t)=>{ const el=$(id); if(el) el.textContent=t; };
+  sub('jamiSub', rows.length+' ta kassa · '+ylRows.length+' ta transfer');
+  sub('jamiAsosiySub', asosiyRows.length+' ta kassa');
+  sub('jamiYoldaSub', ylRows.length+' ta transfer');
+  sub('jamiAsosiyYoldaSub', asosiyRows.length+' ta kassa · '+ylRows.length+' ta transfer');
+}
 window.toggleYlOpen=()=>{
   const body=$('yoldaBody'); if(!body) return;
   const open=body.style.display==='none';
@@ -866,6 +941,7 @@ async function loadKassalar(){
   const cachedVal=swrGet('valyutalar'); if(cachedVal) kval=kvalIndex(cachedVal);
   const cachedTur=swrGet('turlar'); if(cachedTur) ktur=kturIndex(cachedTur);
   const cachedYolda=swrGet('yolda'); if(cachedYolda) yolda=cachedYolda;
+  const cachedAsosiy=swrGet('asosiy'); if(cachedAsosiy) asosiySet=new Set(cachedAsosiy);
   renderYolda();
   const cached=swrGet('cards');
   if(cached) renderKassalar(cached);
@@ -873,11 +949,12 @@ async function loadKassalar(){
   // Ikkalasi parallel — lekin render ikkovi kelgach bo'ladi, aks holda karta
   // valyutasiz chizilib, keyin sassiz eskirib qoladi. View hali yaratilmagan
   // bo'lsa xato yutiladi va karta eski ko'rinishda (faqat jami) chiziladi.
-  const [{data,error},{data:vs,error:ve},{data:ts,error:te},{data:yl,error:ye}]=await Promise.all([
+  const [{data,error},{data:vs,error:ve},{data:ts,error:te},{data:yl,error:ye},{data:as,error:ae}]=await Promise.all([
     sb.from('v_kassa_card').select('*').order('code'),
     sb.from('v_kassa_valyutalar').select('*').order('code'),
     sb.from('v_kassa_turlar').select('*').order('code'),
     sb.rpc('yolda_royxat'),
+    sb.from('accounts').select('id,asosiy').eq('section','pul').eq('is_active',true),
   ]);
   if(!ve&&vs){ swrSet('valyutalar',vs); kval=kvalIndex(vs); }
   // View bo'lmasa (PROVODKA_VALYUTA.sql RUN qilinmagan) xato jimgina yutiladi —
@@ -886,6 +963,10 @@ async function loadKassalar(){
   // yolda_royxat() hali RUN qilinmagan bo'lsa (42883/PGRST202) jimgina yutiladi — bo'lim chizilmaydi.
   if(!ye&&yl&&typeof yl==='object'){ yolda=yl; swrSet('yolda',yl); renderYolda(); }
   else if(ye) console.warn('yolda_royxat:',ye.message);
+  // accounts.asosiy ustuni hali qo'shilmagan bo'lsa (42703, PROVODKA_KASSA_ASOSIY.sql
+  // RUN qilinmagan) — bo'sh to'plam, toggle "off" holatda ko'rinadi, sahifa sinmaydi.
+  if(!ae&&as){ const ids=as.filter(r=>r.asosiy).map(r=>r.id); asosiySet=new Set(ids); swrSet('asosiy',ids); }
+  else if(ae){ console.warn('accounts.asosiy yuklanmadi:',ae.message); if(ae.code==='42703') asosiySet=new Set(); }
   // Xato bo'lsa har doim ko'rsat — keshdagi eski raqam jimgina qolib ketmasin
   if(error){
     $('banner').style.display='block';
@@ -898,6 +979,36 @@ async function loadKassalar(){
   renderKassalar(list);
 }
 // /kassa-kartalar
+
+// "Asosiy kassa" toggle (RPC set_kassa_asosiy, PROVODKA_KASSA_ASOSIY.sql, RUN kutilmoqda).
+// Optimistik: darrov flip qilib qayta chizadi, RPC muvaffaqiyatsiz bo'lsa qaytaradi.
+window.toggleAsosiy=async(id)=>{
+  if(!isAdmin) return;
+  const was=asosiySet.has(id), val=!was;
+  if(val) asosiySet.add(id); else asosiySet.delete(id);
+  renderKassalar(lastList);
+  try{
+    const {data,error}=await sb.rpc('set_kassa_asosiy',{p_account:id,p_bool:val});
+    if(error) throw error;
+    if(!data||!data.ok){
+      if(val) asosiySet.delete(id); else asosiySet.add(id);
+      renderKassalar(lastList);
+      const kod=data&&data.kod;
+      $('banner').style.display='block';
+      $('banner').textContent = kod==='ruxsat' ? 'Faqat admin'
+        : kod==='kassa_emas' ? 'Bu hisob kassa emas'
+        : kod==='topilmadi' ? 'Kassa topilmadi'
+        : 'Asosiy holatini o\'zgartirib bo\'lmadi';
+      return;
+    }
+    swrSet('asosiy',[...asosiySet]);
+  }catch(e){
+    if(val) asosiySet.delete(id); else asosiySet.add(id);
+    renderKassalar(lastList);
+    $('banner').style.display='block';
+    $('banner').textContent='Xato: '+(e&&e.message||e);
+  }
+};
 
 // valyuta qo'shish (admin) — kassaga bola-hisob ochadi
 let vlParent=null;
