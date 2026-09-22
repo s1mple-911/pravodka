@@ -193,6 +193,9 @@
   .line .kursnote{margin:9px 0 0 2px}
   /* Valyuta kassasida: kurs + so'm ekvivalenti (entry_line debit/credit shu so'mda yoziladi) */
   .kursnote{font-size:12.5px;color:var(--muted);margin:-8px 0 14px 2px}
+  /* «Hammasi: 60 882 USD» — summa ostidagi kichik tugma (qoldiqni aynan to'ldiradi) */
+  .balall{display:inline-flex;align-items:center;gap:5px;margin:-8px 0 12px 2px;padding:3px 9px;border:1px dashed var(--line);border-radius:8px;background:transparent;color:var(--primary);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
+  .balall:hover{background:var(--primary-soft);border-color:var(--primary)}
   .kursnote b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .kursnote.no{color:var(--red)}
   /* Modal: xarajat vs tanlangan yuklar summasi */
@@ -632,6 +635,9 @@
         <div id="kommChipWrap" style="display:none;margin:-6px 0 15px"><button type="button" class="kommchip" onclick="openKomm()"><span id="kommChipTxt"></span><i data-lucide="pencil"></i></button></div>
         <label id="summaLbl">Summa</label>
         <input class="txt" id="summa" inputmode="numeric" placeholder="0" style="text-align:right" oninput="fmtSumma(this)">
+        <!-- «Hammasi» — kassa qoldig'ini aynan to'ldiradi (2026-09-22: dollar kassasida odam qoldiqni
+             qo'lda terib 1-2 $ ga adashib «mablag' yo'q» olardi). Faqat chiqimda, qoldiq > 0 bo'lsa. -->
+        <button type="button" id="balAll" class="balall" style="display:none" onclick="summaHammasi()"></button>
         <div id="kursNote" class="kursnote" style="display:none" role="status" aria-live="polite"></div>
         <div id="simpleWarn" class="simplewarn" style="display:none"></div>
         <div id="dirHint" class="dirhint"></div>
@@ -2372,6 +2378,13 @@ document.addEventListener('keydown',e=>{
 // valyutada o'qiladi (7 800 $) — "7" tersa "7 000" bo'lib qolishi 1000 barobar
 // xato degani. Shuning uchun valyutada oddiy minglik ajratgich, nol qo'shilmaydi
 // (kassa.html konvert modalida ham ayni qoida).
+// «Hammasi» — kassa qoldig'ini summa maydoniga aynan yozadi (butun birlik; summa maydoni kasr qabul qilmaydi).
+// dataset.a000='1' — fmtSumma bitta raqamga «000» qo'shmasin (qoldiq 2 $ → 2000 bo'lib ketardi).
+window.summaHammasi=()=>{
+  if(simpleBal==null) return;
+  const el=$('summa'); el.dataset.a000='1'; el.value=money(Math.floor(simpleBal));
+  updateSimple();
+};
 window.fmtSumma=el=>{
   const k=effKassa();
   if(k && k.currency && k.currency!=='UZS'){
@@ -2406,6 +2419,13 @@ window.updateSimple=()=>{
     const ehW=ehsonCurWarn(modda,kassa);
     if(ehW) h.innerHTML+='<br><span class="ehwarn">'+esc(ehW)+'</span>';
   } else h.style.display='none';
+  // «Hammasi» tugmasi — chiqimda, kassa qoldig'i ma'lum va > 0 bo'lsa (valyuta: fc, so'm: so'm)
+  const ba=$('balAll');
+  if(ba){
+    const cur=(kassa&&kassa.currency&&kassa.currency!=='UZS')?kassa.currency:"so'm";
+    if(kassa&&!income&&simpleBal!=null&&Math.floor(simpleBal)>0){ ba.style.display=''; ba.textContent='Hammasi: '+money(Math.floor(simpleBal))+' '+cur; }
+    else ba.style.display='none';
+  }
   updateDavrUI();                                    // V6: modda davr talab qilsa kalendar chiqadi
   updateIzohUI();                                    // V6: izoh majburiyligi — yorliq + ogohlantirish
   updateChekUI();                                    // V6: chek majburiyligi
