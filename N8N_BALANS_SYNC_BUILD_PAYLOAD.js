@@ -2,6 +2,7 @@
 // 2026-09-19: Aros cachier detail `balances[]` shakli o'zgardi. Ikkala shakl ham o'qiladi:
 //   ESKI:  {label: 'cash_balance'|'click_balance'|'payme_balance'|'dollar_balance', balance}
 //   YANGI: {label: {code: 'cash_balance'|'click_balance'|'dollar_balance'|'terminal', title...}, balance: '0.00', currency_name}
+// 2026-09-22: yangi to'lov turi 'qr_code' (QR code, UZS) — MAP ga qo'shildi (PROVODKA_QR_TUR.sql).
 // 🔴 Pul yo'lida JIMGINA 0 YO'Q: noma'lum label (summasi 0 dan katta) bo'lsa XATO — sync to'xtaydi, ko'rinadi.
 const rows = $input.all().map(function(i){ return i.json; });
 function num(v){ if (v === null || v === undefined || v === '') return null; const n = parseFloat(String(v)); return isNaN(n) ? null : n; }
@@ -24,7 +25,8 @@ try {
 } catch (e) { usdRate = null; }
 
 const MAP = { cash_balance: 'cash', click_balance: 'click', payme_balance: 'payme', terminal_balance: 'terminal',
-              terminal: 'terminal', dollar_balance: 'dollar_usd', cash: 'cash', click: 'click', payme: 'payme', dollar: 'dollar_usd' };
+              terminal: 'terminal', dollar_balance: 'dollar_usd', cash: 'cash', click: 'click', payme: 'payme', dollar: 'dollar_usd',
+              qr_code: 'qr', qr_balance: 'qr', qr: 'qr' };
 const filiallar = [];
 const nomalum = {};
 let tanildi = 0;

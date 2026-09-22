@@ -1,5 +1,5 @@
 // ============================================================================
-// «Aros Provodka - Yolda Sync» — n8n Workflow SDK kodi (2026-09-12 yangilandi)
+// «Aros Provodka - Yolda Sync» — n8n Workflow SDK kodi (2026-09-22 yangilandi)
 // ----------------------------------------------------------------------------
 // n8n'da YARATILGAN: workflow id xRARQu9MiZmQ1sAO
 //   https://n8n.arosmarket.com/workflow/xRARQu9MiZmQ1sAO
@@ -26,6 +26,11 @@
 // 🔴 JIMGINA 0 YO'Q: noma'lum label_code (summasi>0) yoki oynadagi HAMMA
 // sent-transfer summasi 0 bo'lsa — Payload yasash node'i XATO beradi
 // (2026-09-09 hodisasi — 5 kun jim turgan sinxron — takrorlanmasin).
+//
+// 🔴 2026-09-22 — Aros yana bitta to'lov turi qo'shdi: `document.amounts[].label_code
+// = 'qr_code'` (QR code, UZS). `YOLDA_SQL` endi buni ham `qr` turiga xaritalaydi
+// (s_qr/c_qr — PROVODKA_QR_TUR.sql), Payload yasash `seller`/`confirmed` obyektiga
+// `qr` kalitini qo'shadi.
 //
 // Har 5 daqiqada Aros mirror (n8n Postgres, «Postgres account 3»)
 // cachier_transfers dan: status != received (yo'lda) + so'nggi 14 kunda
@@ -76,6 +81,7 @@ tur as (
            when 'click_balance'  then 'click'
            when 'payme_balance'  then 'payme'
            when 'terminal'       then 'terminal'
+           when 'qr_code'        then 'qr'
            when 'dollar_balance' then 'dollar_usd'
            else 'NOMALUM'
          end as tur,
@@ -101,11 +107,13 @@ agg as (
          coalesce(sum(s_summa) filter (where tur = 'click'), 0)      as s_click,
          coalesce(sum(s_summa) filter (where tur = 'payme'), 0)      as s_payme,
          coalesce(sum(s_summa) filter (where tur = 'terminal'), 0)   as s_terminal,
+         coalesce(sum(s_summa) filter (where tur = 'qr'), 0)         as s_qr,
          coalesce(sum(s_summa) filter (where tur = 'dollar_usd'), 0) as s_usd,
          sum(c_summa) filter (where tur = 'cash')       as c_cash,
          sum(c_summa) filter (where tur = 'click')      as c_click,
          sum(c_summa) filter (where tur = 'payme')      as c_payme,
          sum(c_summa) filter (where tur = 'terminal')   as c_terminal,
+         sum(c_summa) filter (where tur = 'qr')         as c_qr,
          sum(c_summa) filter (where tur = 'dollar_usd') as c_usd,
          round(sum(s_summa * kurs) filter (where tur = 'dollar_usd')
                / nullif(sum(s_summa) filter (where tur = 'dollar_usd'), 0), 2) as dollar_rate,
@@ -123,8 +131,8 @@ select t.id,
        sc.responsible as responsible,
        to_char(t.sent_at, 'YYYY-MM-DD"T"HH24:MI:SS') as sent_at,
        to_char(t.received_at, 'YYYY-MM-DD"T"HH24:MI:SS') as received_at,
-       a.s_cash, a.s_click, a.s_payme, a.s_terminal, a.s_usd,
-       a.c_cash, a.c_click, a.c_payme, a.c_terminal, a.c_usd,
+       a.s_cash, a.s_click, a.s_payme, a.s_terminal, a.s_qr, a.s_usd,
+       a.c_cash, a.c_click, a.c_payme, a.c_terminal, a.c_qr, a.c_usd,
        a.dollar_rate,
        a.nomalum_summa
   from cachier_transfers t
@@ -160,10 +168,10 @@ for (var i = 0; i < rows.length; i++) {
     nomalum.push(String(r.id));
   }
   var sCash = num(r.s_cash), sClick = num(r.s_click), sPayme = num(r.s_payme),
-      sTerminal = num(r.s_terminal), sUsd = num(r.s_usd);
+      sTerminal = num(r.s_terminal), sQr = num(r.s_qr), sUsd = num(r.s_usd);
   if (status === "sent") {
     sentCount = sentCount + 1;
-    if (sCash > 0 || sClick > 0 || sPayme > 0 || sTerminal > 0 || sUsd > 0) {
+    if (sCash > 0 || sClick > 0 || sPayme > 0 || sTerminal > 0 || sQr > 0 || sUsd > 0) {
       sentNonZero = true;
     }
   }
@@ -176,8 +184,8 @@ for (var i = 0; i < rows.length; i++) {
     receiver_ref: (r.receiver_ref !== null && r.receiver_ref !== undefined) ? String(r.receiver_ref) : null,
     sent_at: fixTz(r.sent_at),
     received_at: fixTz(r.received_at),
-    seller: { cash: sCash, click: sClick, payme: sPayme, terminal: sTerminal, dollar_usd: sUsd },
-    confirmed: isReceived ? { cash: num(r.c_cash), click: num(r.c_click), payme: num(r.c_payme), terminal: num(r.c_terminal), dollar_usd: num(r.c_usd) } : null,
+    seller: { cash: sCash, click: sClick, payme: sPayme, terminal: sTerminal, qr: sQr, dollar_usd: sUsd },
+    confirmed: isReceived ? { cash: num(r.c_cash), click: num(r.c_click), payme: num(r.c_payme), terminal: num(r.c_terminal), qr: num(r.c_qr), dollar_usd: num(r.c_usd) } : null,
     dollar_rate: (r.dollar_rate !== null && r.dollar_rate !== undefined && r.dollar_rate !== "") ? Number(r.dollar_rate) : null,
     responsible: r.responsible || null
   };

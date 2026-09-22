@@ -2423,7 +2423,8 @@ let kmMap={};     // entry.id → mashina_km row
 // RPC hali yo'q bo'lsa (42883/PGRST202) yoldaMap bo'sh qoladi — izohCell hech narsa chizmaydi.
 // terminal — 2026-09-12 (PROVODKA_YOLDA_TERMINAL.sql): Transfer Sync v2 terminal turi uchun
 // shu ext_ref suffiksini yozadi, yoldaSatr() `key` ni to'g'ridan-to'g'ri `tur` dan oladi.
-const YOLDA_RE=/^aros_tr:(.+):(cash|click|payme|terminal|dollar_usd)$/;
+// qr — 2026-09-22 (PROVODKA_QR_TUR.sql): Aros yangi to'lov turi 'qr_code', xuddi shu naqsh.
+const YOLDA_RE=/^aros_tr:(.+):(cash|click|payme|terminal|qr|dollar_usd)$/;
 let yoldaMap={};  // transfer_id → yolda_farq() qatori
 // AI ustunlari so'rovi — izoh_mos ustunlari hali RUN qilinmagan bo'lsa (42703)
 // eski ro'yxat bilan QAYTA so'raladi: AI xulosasi ustuni SQL'siz ham avvalgidek ishlaydi.
@@ -2771,7 +2772,7 @@ window.confirmLink=async()=>{
 // hisob NOMIDA allaqachon bor ("Toshkent Kassa · Click"). Ko'z bilan tez ajratish uchun
 // oldiga belgi qo'yamiz. jurnal() RPC pul_turi qaytarmaydi (imzosi o'zgarmaydi),
 // shuning uchun accounts'dan qaraladi; u hali yuklanmagan bo'lsa belgi chiqmaydi.
-const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'🏦'};
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',qr:'🔳',karta:'🏦',plastik:'🏦'};
 const turiIko=id=>{ const a=accounts.find(x=>x.id===id); return (a&&a.pul_turi&&TURI_IKO[a.pul_turi])?TURI_IKO[a.pul_turi]+' ':''; };
 function lineRow(l){
   const dt=Number(l.debit)||0, kt=Number(l.credit)||0;
