@@ -124,6 +124,43 @@
   .empty .addbtn{margin-top:14px}
   .roinfo{font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:10px 13px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
   .roinfo svg{width:16px;height:16px;flex:none}
+  /* "Hodim bo'yicha xarajatlar" bo'limi (2026-09-24) */
+  .segtabs{display:inline-flex;background:var(--surface-2);border-radius:12px;padding:3px;gap:2px;margin-bottom:16px}
+  .segtab{border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer;transition:background .13s,color .13s}
+  .segtab.active{background:var(--surface);color:var(--primary);box-shadow:var(--shadow)}
+  .oychip.warn{background:var(--red-soft);color:var(--red)}
+  .hd-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .hd-filters select,.hd-filters input{min-width:150px}
+  .hd-chk{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer;padding:0 4px}
+  .hd-chk input{width:16px;height:16px;margin:0}
+  .hd-chips{margin-bottom:14px}
+  .hd-chips .oychip{margin-left:0;margin-right:8px}
+  .hdtbl-wrap{overflow-x:auto}
+  .hdtbl{width:100%;border-collapse:collapse;font-size:13px}
+  .hdtbl th,.hdtbl td{padding:9px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+  .hdtbl th{color:var(--muted);font-weight:600;border-top:0;background:var(--surface-2);white-space:nowrap}
+  .hdtbl td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .hdtbl td.n.over{color:var(--red)}
+  .hdtbl tr.first-row td{border-top:2px solid var(--line)}
+  .hdtbl .hd-name{font-weight:700}
+  .hdtbl .hd-sub{color:var(--muted);font-size:11.5px;font-weight:500}
+  .hd-track{width:64px;display:inline-block;vertical-align:middle;margin-left:8px}
+  .hd-editcell{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+  .hd-editval{cursor:pointer;border-bottom:1px dashed var(--muted);font-weight:600}
+  .hd-editval:hover{color:var(--primary);border-color:var(--primary)}
+  .hd-editinp{width:96px;height:28px;border:1px solid var(--primary);border-radius:8px;padding:0 8px;font-size:12.5px;font-family:inherit;text-align:right;font-variant-numeric:tabular-nums;outline:none;background:var(--surface);color:var(--ink)}
+  .hd-mini{background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;padding:2px 4px;text-decoration:underline;font-family:inherit}
+  .hd-mini:hover{color:var(--primary)}
+  .hd-locked{color:var(--muted);font-size:12px;font-style:italic}
+  @media(max-width:900px){
+    .hdtbl thead{display:none}
+    .hdtbl,.hdtbl tbody,.hdtbl tr,.hdtbl td{display:block;width:100%}
+    .hdtbl tr{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:0 0 10px;background:var(--surface)}
+    .hdtbl tr.first-row{border-top:1px solid var(--line)}
+    .hdtbl td{border-top:none;padding:4px 0;display:flex;justify-content:space-between;align-items:center;gap:10px;white-space:normal}
+    .hdtbl td::before{content:attr(data-lbl);color:var(--muted);font-weight:600;font-size:11.5px;flex:none}
+    .hdtbl td.hd-namecell::before{content:''}
+  }
   /* Modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:200}
   .modal.open{display:flex}
@@ -219,10 +256,28 @@
         </div>
       </div>
     </div>
-    <p class="sub">Har filial + xarajat modda uchun <b>oylik limit</b>. Limitdan oshiq yozib bo'lmaydi.</p>
-    <div class="resetnote"><i data-lucide="rotate-ccw"></i><div>Limit <b>har oy 1-sanasida qaytadan boshlanadi</b>: limit summasi o'zgarmaydi, «Sarflandi» esa 0 dan sanaladi. Quyidagi raqamlar <b id="oyLbl">shu oy</b> uchun — sentabrda avgust xarajati hisobga olinmaydi (server ham shu oynani tekshiradi).</div></div>
-    <div id="banner" class="banner"></div>
-    <div id="content"><div class="empty">Yuklanmoqda…</div></div>
+    <div class="segtabs">
+      <button type="button" class="segtab active" id="segFilial" onclick="switchView('filial')">Filiallar</button>
+      <button type="button" class="segtab" id="segHodim" onclick="switchView('hodim')">Hodim bo'yicha</button>
+    </div>
+    <div id="filView">
+      <p class="sub">Har filial + xarajat modda uchun <b>oylik limit</b>. Limitdan oshiq yozib bo'lmaydi.</p>
+      <div class="resetnote"><i data-lucide="rotate-ccw"></i><div>Limit <b>har oy 1-sanasida qaytadan boshlanadi</b>: limit summasi o'zgarmaydi, «Sarflandi» esa 0 dan sanaladi. Quyidagi raqamlar <b id="oyLbl">shu oy</b> uchun — sentabrda avgust xarajati hisobga olinmaydi (server ham shu oynani tekshiradi).</div></div>
+      <div id="banner" class="banner"></div>
+      <div id="content"><div class="empty">Yuklanmoqda…</div></div>
+    </div>
+    <div id="hodimView" style="display:none">
+      <p class="sub">Har hodimga <b>rollar orqali</b> tegishli bo'lgan limitlar — shu oy sarfi/qoldig'i bilan. Bu yerda faqat KO'RISH + shu hodim uchun tuzatish; rolning o'zi <a href="sozlama-dev.html#rollar" style="color:var(--primary);font-weight:600;text-decoration:none">Rollar</a> sahifasida beriladi.</p>
+      <div class="hd-filters">
+        <select id="hdFilial" class="monthpick" onchange="hdFilialChange()"><option value="">Barcha filiallar</option></select>
+        <input id="hdQ" class="monthpick" style="text-align:left" placeholder="Hodim qidirish…" oninput="renderHodim()">
+        <select id="hdRol" class="monthpick" onchange="renderHodim()"><option value="">Barcha rollar</option></select>
+        <label class="hd-chk"><input type="checkbox" id="hdOver" onchange="renderHodim()">Faqat oshgan/yaqin</label>
+      </div>
+      <div id="hdChips" class="hd-chips"></div>
+      <div id="hdBanner" class="banner"></div>
+      <div id="hdContent"><div class="empty">Yuklanmoqda…</div></div>
+    </div>
   </main>
 
   <nav class="bnav mobile-only">
@@ -377,7 +432,7 @@ async function boot(){
 }
 
 // ===== Standart xarajatlar =====
-let filials=[], moddas=[], holat=[], curFilial=null, isAdmin=false;
+let filials=[], moddas=[], holat=[], curFilial=null, isAdmin=false, viewMode='filial';
 const isAdminUser=()=>!!(window.PERMS && window.PERMS.is_admin) || isAdmin;
 /* 🔴 2026-09-09 (Asilbek): «faqat admin limit qo'yadi / faqat admin filialni
    bog'laydi» — bu CHEKLOV OLIB TASHLANDI. Sahifaning O'QISH tomonida ruxsat
@@ -620,8 +675,9 @@ function syncOyUI(){
   $('oyNow').style.display=(v&&v!==cur)?'inline-flex':'none';
 }
 window.oyMove=d=>{ const v=$('oy').value||oyNowStr(); const [y,m]=v.split('-').map(Number);
-  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); loadHolat(); };
-window.oyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); loadHolat(); };
+  const t=new Date(Date.UTC(y,m-1+d,1)); $('oy').value=t.toISOString().slice(0,7); syncOyUI(); loadHolat();
+  if(viewMode==='hodim') loadHodim(); };
+window.oyNow=()=>{ $('oy').value=oyNowStr(); syncOyUI(); loadHolat(); if(viewMode==='hodim') loadHodim(); };
 // holat -> filial bo'yicha guruh
 function byFilial(fid){ return holat.filter(r=>r.filial_id===fid); }
 // Filial nomi bazada "Toshkent Kassa" ko'rinishida. Oxiridagi "kassa" so'zi ekranda ortiqcha —
@@ -789,10 +845,199 @@ window.delLim=async(id,name)=>{
 };
 $('limModda').addEventListener('change',updateLimBtn);
 
+// ===== "Hodim bo'yicha xarajatlar" bo'limi (2026-09-24) =====
+// RPC standart_hodim_limitlar/standart_hodim_limit_set — PROVODKA_STANDART_HODIM.sql
+// (RUN kutilmoqda). RPC yo'q (42883/PGRST202) -> bo'lim "SQL hali RUN qilinmagan" deydi,
+// qolgan sahifa (Filiallar tabi) ishlab turadi.
+let hodimData=null, hodimRpcState='ok';   // 'ok' | 'loading' | 'missing' | 'ruxsat' | 'error'
+const HD_TUR_LBL={obed:'Tushlik', zavtrak:'Nonushta', kechki:'Kechki ovqat'};
+window.switchView=mode=>{
+  if(viewMode===mode) return;
+  viewMode=mode;
+  $('segFilial').classList.toggle('active',mode==='filial');
+  $('segHodim').classList.toggle('active',mode==='hodim');
+  $('filView').style.display=mode==='filial'?'block':'none';
+  $('hodimView').style.display=mode==='hodim'?'block':'none';
+  if(mode==='hodim' && !hodimData) loadHodim();
+};
+function hdFilialVal(){ return $('hdFilial').value||null; }
+function hdCacheKey(fid,oy){ return 'std-hodim:'+(fid||'')+':'+oy; }
+function hdCacheGet(fid,oy){ try{ const raw=sessionStorage.getItem('prov-swr:'+hdCacheKey(fid,oy)); if(!raw) return null;
+    const o=JSON.parse(raw); if(!o||typeof o.t!=='number'||Date.now()-o.t>FM_TTL) return null; return o.v; }catch(e){ return null; } }
+function hdCacheSet(fid,oy,v){ try{ sessionStorage.setItem('prov-swr:'+hdCacheKey(fid,oy), JSON.stringify({t:Date.now(),v})); }catch(e){} }
+window.hdFilialChange=()=>{ loadHodim(); };
+async function loadHodim(force){
+  if(viewMode!=='hodim') return;
+  const fid=hdFilialVal(), oy=$('oy').value;
+  if(!force){
+    const c=hdCacheGet(fid,oy);
+    if(c){ hodimData=c; hodimRpcState='ok'; renderHodim(); }
+  }
+  if(!hodimData) hodimRpcState='loading';
+  renderHodim();
+  const {data,error}=await sb.rpc('standart_hodim_limitlar',{p_filial:fid,p_oy:oyDate()});
+  if(error){
+    const missing=(error.code==='42883'||error.code==='PGRST202'||/schema cache/i.test(error.message||''));
+    hodimRpcState=missing?'missing':'error';
+    const c=hdCacheGet(fid,oy);
+    hodimData=c||null;
+    renderHodim();
+    return;
+  }
+  if(data && data.ok===false && data.kod==='ruxsat'){
+    hodimRpcState='ruxsat'; hodimData=null; renderHodim(); return;
+  }
+  hodimRpcState='ok';
+  hodimData=data;
+  hdCacheSet(fid,oy,data);
+  renderHodim();
+}
+function hdRoleOptions(){
+  const sel=$('hdRol'); const cur=sel.value;
+  const set=new Set();
+  (hodimData&&hodimData.hodimlar||[]).forEach(h=>(h.rollar||[]).forEach(r=>set.add(r)));
+  const list=Array.from(set).sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML='<option value="">Barcha rollar</option>'+list.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  if(list.includes(cur)) sel.value=cur;
+}
+function hdPct(lim,sarf){ const l=Number(lim); if(!l||l<=0) return null; return Math.round((Number(sarf)||0)/l*100); }
+function hdRowOver(h){
+  if((h.qatorlar||[]).some(q=>{ const p=hdPct(q.effektiv_limit,q.sarf); return p!=null && p>=80; })) return true;
+  const u=h.ovqat_umumiy;
+  if(u && u.bor && u.limit!=null){ const p=hdPct(u.limit,u.sarf); if(p!=null && p>=80) return true; }
+  return false;
+}
+function hdFilterList(){
+  if(!hodimData || !Array.isArray(hodimData.hodimlar)) return [];
+  const q=($('hdQ').value||'').trim().toLowerCase();
+  const rol=$('hdRol').value;
+  const overOnly=$('hdOver').checked;
+  return hodimData.hodimlar.filter(h=>{
+    if(q && String(h.toliq_nom||'').toLowerCase().indexOf(q)<0) return false;
+    if(rol && !(h.rollar||[]).includes(rol)) return false;
+    if(overOnly && !hdRowOver(h)) return false;
+    return true;
+  });
+}
+function hdChipsHtml(list){
+  const n=list.length, over=list.filter(hdRowOver).length;
+  return `<span class="oychip">${n} hodim</span><span class="oychip${over?' warn':''}">${over} limitdan oshgan/yaqin</span>`;
+}
+function hdTrackHtml(p){
+  if(p==null) return '';
+  const cls=fillCls(p);
+  return `<span class="hd-track"><span class="track" style="display:block"><span class="fill ${cls}" style="width:${Math.min(100,p)}%;display:block;height:100%"></span></span></span>`;
+}
+// Limit katakchasi: qiymat (bosilsa input ochiladi) + "cheksiz"/"qaytarish" tez amallar.
+// override — shu (staff,kalit) uchun rbac_staff_limit'da qator bormi (bo'lsa hodim_limit
+// o'sha, aks holda "—" — rol limiti amal qiladi).
+function hdLimCellHtml(staffId,kalit,override,hodimLimit,locked){
+  if(locked) return '<span class="hd-locked">cheksiz (umumiy)</span>';
+  const valTxt=override ? (hodimLimit==null?'cheksiz':money(hodimLimit)) : '—';
+  if(!canStdEdit()) return valTxt;
+  return `<span class="hd-editcell">`
+    +`<span class="hd-editval" onclick="hdOpenEdit(this,${staffId},'${kalit}')">${valTxt}</span>`
+    +`<button type="button" class="hd-mini" onclick="hdQuick(${staffId},'${kalit}','cheksiz')">cheksiz</button>`
+    +(override?`<button type="button" class="hd-mini" onclick="hdQuick(${staffId},'${kalit}','qaytar')">qaytarish</button>`:'')
+    +`</span>`;
+}
+window.hdOpenEdit=(el,staffId,kalit)=>{
+  if(!canStdEdit()) return;
+  const wrap=el.closest('.hd-editcell'); if(!wrap || wrap.querySelector('.hd-editinp')) return;
+  const inp=document.createElement('input');
+  inp.type='text'; inp.inputMode='numeric'; inp.className='hd-editinp'; inp.placeholder='cheksiz';
+  inp.addEventListener('input',()=>fmtAmt(inp));
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ e.preventDefault(); hdCommitInput(staffId,kalit,inp); }
+    else if(e.key==='Escape'){ e.preventDefault(); renderHodim(); }
+  });
+  inp.addEventListener('blur',()=>{ hdCommitInput(staffId,kalit,inp); });
+  el.replaceWith(inp);
+  inp.focus();
+};
+function hdCommitInput(staffId,kalit,inp){
+  const amt=Number((inp.value||'').replace(/\D/g,''))||0;
+  if(amt<=0){ renderHodim(); return; }   // bo'sh/0 — o'zgarish yo'q, bekor
+  hdSaveLimit(staffId,kalit,amt,false);
+}
+window.hdQuick=(staffId,kalit,action)=>{
+  if(action==='cheksiz') hdSaveLimit(staffId,kalit,null,true);
+  else hdSaveLimit(staffId,kalit,null,false);
+};
+async function hdSaveLimit(staffId,kalit,amt,cheksiz){
+  const {data,error}=await sb.rpc('standart_hodim_limit_set',{p_staff:staffId,p_kalit:kalit,p_limit:amt,p_cheksiz:cheksiz});
+  if(error){ alert(window.permErr?window.permErr(error):error.message); renderHodim(); return; }
+  if(data && data.ok===false){ alert(data.kod==='ruxsat'?"Standart xarajatlar sahifasiga ruxsatingiz yo'q":"Saqlab bo'lmadi"); renderHodim(); return; }
+  await loadHodim(true);
+}
+function hdEmpRows(h){
+  const rows=[];
+  const qs=h.qatorlar||[];
+  const nameCell='<td class="hd-namecell" data-lbl=""><div class="hd-name">'+esc(h.toliq_nom||'—')+'</div>'
+    +'<div class="hd-sub">'+esc(h.filial_nom||'')+'</div></td>';
+  qs.forEach((q,i)=>{
+    const p=hdPct(q.effektiv_limit,q.sarf);
+    const qoldi=(q.qoldi==null)?null:Number(q.qoldi);
+    const modName=q.turi==='ovqat' ? esc(HD_TUR_LBL[q.tur]||q.tur) : ('<span class="code" style="color:var(--muted);font-size:11.5px;font-weight:700;margin-right:5px">'+esc(q.code)+'</span>'+esc(q.name));
+    rows.push('<tr class="'+(i===0?'first-row':'')+'">'+nameCell
+      +'<td data-lbl="Lavozim">'+esc(h.lavozim||'—')+'</td>'
+      +'<td data-lbl="Modda">'+modName+'</td>'
+      +'<td class="n" data-lbl="Rol limiti">'+(q.rol_limit==null?'cheksiz':money(q.rol_limit))+'</td>'
+      +'<td data-lbl="Hodim limiti">'+hdLimCellHtml(h.staff_id,q.kalit,q.override,q.hodim_limit,q.turi==='ovqat'&&q.umumiy_rejim)+'</td>'
+      +'<td class="n" data-lbl="Sarflandi">'+money(q.sarf||0)+'</td>'
+      +'<td class="n'+(qoldi!=null&&qoldi<0?' over':'')+'" data-lbl="Qoldi">'+(qoldi==null?'cheksiz':money(qoldi))+hdTrackHtml(p)+'</td>'
+      +'</tr>');
+  });
+  if(qs.some(q=>q.turi==='ovqat')){
+    const u=h.ovqat_umumiy||{bor:false,limit:null,sarf:0,qoldi:null};
+    const p=(u.bor&&u.limit!=null)?hdPct(u.limit,u.sarf):null;
+    rows.push('<tr class="'+(qs.length?'':'first-row')+'">'+nameCell
+      +'<td data-lbl="Lavozim">'+esc(h.lavozim||'—')+'</td>'
+      +'<td data-lbl="Modda"><b>Umumiy ovqatlanish</b></td>'
+      +'<td class="n" data-lbl="Rol limiti">—</td>'
+      +'<td data-lbl="Hodim limiti">'+hdLimCellHtml(h.staff_id,'ovqat:umumiy',u.bor,u.limit,false)+'</td>'
+      +'<td class="n" data-lbl="Sarflandi">'+money(u.sarf||0)+'</td>'
+      +'<td class="n'+(u.bor&&u.limit!=null&&Number(u.qoldi)<0?' over':'')+'" data-lbl="Qoldi">'
+        +((!u.bor)?'—':(u.limit==null?'cheksiz':money(u.qoldi)))+hdTrackHtml(p)+'</td>'
+      +'</tr>');
+  }
+  if(!rows.length){
+    rows.push('<tr class="first-row">'+nameCell+'<td data-lbl="Lavozim">'+esc(h.lavozim||'—')
+      +'</td><td colspan="5" class="fc-sub" data-lbl="">Rollarida limit qo\'yilgan modda/ovqat yo\'q</td></tr>');
+  }
+  return rows.join('');
+}
+function renderHodim(){
+  if(viewMode!=='hodim') return;
+  const box=$('hdContent'), banner=$('hdBanner');
+  if(hodimRpcState==='missing'){
+    banner.style.display='block'; banner.className='banner warn';
+    banner.textContent="SQL hali RUN qilinmagan (standart_hodim_limitlar) — bu bo'lim vaqtincha ishlamaydi.";
+    box.innerHTML=''; $('hdChips').innerHTML=''; return;
+  }
+  if(hodimRpcState==='ruxsat'){
+    banner.style.display='block'; banner.className='banner';
+    banner.textContent="Bu bo'limga ruxsatingiz yo'q.";
+    box.innerHTML=''; $('hdChips').innerHTML=''; return;
+  }
+  banner.style.display=(hodimRpcState==='error')?'block':'none';
+  if(hodimRpcState==='error') banner.textContent='Yuklashda xato yuz berdi — avvalgi ma\'lumot ko\'rsatilmoqda.';
+  if(!hodimData){ box.innerHTML='<div class="empty">Yuklanmoqda…</div>'; $('hdChips').innerHTML=''; icons(); return; }
+  hdRoleOptions();
+  const list=hdFilterList();
+  $('hdChips').innerHTML=hdChipsHtml(list);
+  if(!list.length){ box.innerHTML='<div class="empty">Hodim topilmadi.</div>'; icons(); return; }
+  const rows=list.map(hdEmpRows).join('');
+  box.innerHTML='<div class="hdtbl-wrap"><table class="hdtbl"><thead><tr>'
+    +'<th>Hodim</th><th>Lavozim</th><th>Modda</th><th>Rol limiti</th><th>Hodim limiti</th><th>Sarflandi</th><th>Qoldi</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  icons();
+}
+
 async function init(){
   // Oy — joriy oy (YYYY-MM)
   $('oy').value=oyNowStr();
-  $('oy').onchange=()=>{ syncOyUI(); loadHolat(); if(curFilial) loadFilLim(curFilial,true); };
+  $('oy').onchange=()=>{ syncOyUI(); loadHolat(); if(curFilial) loadFilLim(curFilial,true); if(viewMode==='hodim') loadHodim(); };
   syncOyUI();
   // admin holati (perms.js dan; profiles bilan ham tasdiqlaymiz)
   isAdmin=isAdminUser();
@@ -804,6 +1049,8 @@ async function init(){
   filials=(fData||[]);
   // xarajat moddalari (9110-1 yo'ldagi tovarni chiqarib tashlaymiz — limit modda emas)
   moddas=(aData||[]).filter(a=>a.type==='xarajat'&&a.code!=='9110-1');
+  $('hdFilial').innerHTML='<option value="">Barcha filiallar</option>'
+    +filials.map(f=>`<option value="${f.id}">${esc(filNom(f.name))}</option>`).join('');
   // profiles bilan admin tasdiqlash (PERMS.is_admin bo'lmasa)
   try{ const {data:{user}}=await sb.auth.getUser();
     if(user){ const {data:p}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
