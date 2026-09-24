@@ -652,8 +652,9 @@ function disp(uzs){
 const somSfx=()=>(dispCur==='USD'&&usdRate>0)?'':" so'm";
 // Tur ikonkalari — TC_LBL (tur o'tkazish modali) bilan bir xil oila.
 // karta/terminal/plastik PROVODKA_TURLAR_AVTO.sql bilan qo'shilgan turlar.
-const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',karta:'🏦',plastik:'💠'};
-const TURI_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
+// qr — PROVODKA_QR_TUR.sql (2026-09-22, Aros yangi to'lov turi 'qr_code').
+const TURI_IKO={naqd:"💵",click:'💳',payme:'📱',terminal:'🏧',qr:'🔳',karta:'🏦',plastik:'💠'};
+const TURI_TART={naqd:1,click:2,payme:3,terminal:4,qr:5,karta:6,plastik:7};
 // Taqsimot satri: pul turi bolalari (naqd/Click/Payme) + parentning o'z qoldig'i
 // + valyuta bolalari. Nol bo'lganlar chiqmaydi.
 // ⚠️ kcard (markaziy/filial kartasi) va krow (hodim kassasi qatori) AYNI shu
@@ -856,8 +857,9 @@ function kasosiyHtml(id,on){
 let yolda=null;
 // account_id -> yo'lda summa (kiruvchi/chiquvchi) — kcard() shundan o'qiydi.
 let ylIdx={inn:{},out:{}};
-// terminal ikonkasi TURI_IKO dan qayta ishlatiladi — ikkalasi bir xil oila (2026-09-12).
-const YL_IKO={cash:'💵',click:'💳',payme:'📱',terminal:TURI_IKO.terminal};
+// terminal/qr ikonkalari TURI_IKO dan qayta ishlatiladi — ikkalasi bir xil oila
+// (2026-09-12 terminal, 2026-09-22 qr).
+const YL_IKO={cash:'💵',click:'💳',payme:'📱',terminal:TURI_IKO.terminal,qr:TURI_IKO.qr};
 // created_at bilan bir xil naqsh (jurnal.html uzParts) — brauzer zonasiga tayanmaslik uchun
 // UTC dan +5 soat siljitib o'qiymiz.
 function ylUzParts(x){
@@ -885,7 +887,7 @@ function ylTime(iso){
 function ylRow(r){
   const parts=[];
   const push=(ic,v)=>{ const n=Number(v)||0; if(n) parts.push(ic+' '+disp(n)); };
-  push(YL_IKO.cash,r.cash); push(YL_IKO.click,r.click); push(YL_IKO.payme,r.payme); push(YL_IKO.terminal,r.terminal);
+  push(YL_IKO.cash,r.cash); push(YL_IKO.click,r.click); push(YL_IKO.payme,r.payme); push(YL_IKO.terminal,r.terminal); push(YL_IKO.qr,r.qr);
   if(Number(r.usd)) parts.push('$ '+fc(r.usd));
   const t=ylTime(r.sent_at);
   return `<div class="krow yl-row"><div class="l"><div class="nm">${esc(r.sender_nom||'Boshqa kassa')} → ${esc(r.receiver_nom||'Boshqa kassa')}</div>`
@@ -894,8 +896,8 @@ function ylRow(r){
     +`</div><div class="v">${disp(r.jami_uzs)}</div></div>`;
 }
 // Sotuvchi/kassa jami — usd qism dollar_rate bilan so'mga o'girilgan (server shu tartibda hisoblagan).
-// s_terminal/c_terminal kaliti kelmasa (SQL RUN qilinmagan) — 0 deb olinadi, xato bermaydi.
-const ylSum=(r,pfx)=>(Number(r[pfx+'_cash'])||0)+(Number(r[pfx+'_click'])||0)+(Number(r[pfx+'_payme'])||0)+(Number(r[pfx+'_terminal'])||0)+(Number(r[pfx+'_usd'])||0)*(Number(r.dollar_rate)||0);
+// s_terminal/c_terminal, s_qr/c_qr kaliti kelmasa (SQL RUN qilinmagan) — 0 deb olinadi, xato bermaydi.
+const ylSum=(r,pfx)=>(Number(r[pfx+'_cash'])||0)+(Number(r[pfx+'_click'])||0)+(Number(r[pfx+'_payme'])||0)+(Number(r[pfx+'_terminal'])||0)+(Number(r[pfx+'_qr'])||0)+(Number(r[pfx+'_usd'])||0)*(Number(r.dollar_rate)||0);
 function ylQabulRow(r){
   const farq=Number(r.farq_uzs)||0;
   const farqHtml = farq===0 ? '<span class="yl-mos">mos</span>'
@@ -991,11 +993,11 @@ let ddBox=null;
 let ddOpen=new Set();
 const KTOT_LBL={
   naqd:{ic:'💵',lbl:'Naqd'}, click:{ic:'💳',lbl:'Click'}, payme:{ic:'📱',lbl:'Payme'},
-  terminal:{ic:'🏧',lbl:'Terminal'}, karta:{ic:'🏦',lbl:'Karta'}, plastik:{ic:'💠',lbl:'Plastik'},
+  terminal:{ic:'🏧',lbl:'Terminal'}, qr:{ic:'🔳',lbl:'QR'}, karta:{ic:'🏦',lbl:'Karta'}, plastik:{ic:'💠',lbl:'Plastik'},
   dollar:{ic:'💵',lbl:'Dollar'}, own:{ic:'◦',lbl:"Turga ajratilmagan"}, otherVal:{ic:'▫',lbl:'Boshqa valyuta'},
   boshqa:{ic:'▫',lbl:'Boshqa'},
   yl_cash:{ic:'💵',lbl:"Naqd (yo'lda)"}, yl_click:{ic:'💳',lbl:"Click (yo'lda)"}, yl_payme:{ic:'📱',lbl:"Payme (yo'lda)"},
-  yl_terminal:{ic:'🏧',lbl:"Terminal (yo'lda)"}, yl_dollar:{ic:'💵',lbl:"Dollar (yo'lda)"},
+  yl_terminal:{ic:'🏧',lbl:"Terminal (yo'lda)"}, yl_qr:{ic:'🔳',lbl:"QR (yo'lda)"}, yl_dollar:{ic:'💵',lbl:"Dollar (yo'lda)"},
 };
 const KTOT_GRP_LBL={markaziy:'markaziy',xarajat:'xarajat',filial:'filial'};
 // Bitta kassa qatorining pul-turi/valyuta/qoldiq bo'linishi — taqsimot()dagi AYNI formula
@@ -1031,19 +1033,20 @@ function aggregateKassa(rows){
   return {typeSum,dollarUzs,dollarUsd,ownUzs,otherValUzs,boshqaSum,sources};
 }
 // Yo'lda transferlar ro'yxatini tur bo'yicha yig'adi. Dollar — jami_uzs'dan qolgan qism,
-// ylRow()dagi AYNI hisob (cash+click+payme+terminal+dollar=jami_uzs).
+// ylRow()dagi AYNI hisob (cash+click+payme+terminal+qr+dollar=jami_uzs).
 function aggregateYolda(rows){
-  const typeSum={cash:0,click:0,payme:0,terminal:0}; let dollarUzs=0,dollarUsd=0;
+  const typeSum={cash:0,click:0,payme:0,terminal:0,qr:0}; let dollarUzs=0,dollarUsd=0;
   const sources={};
   const push=(key,amt,extra)=>{ (sources[key]||(sources[key]=[])).push(Object.assign({amt},extra)); };
   rows.forEach(r=>{
-    const cash=Number(r.cash)||0, click=Number(r.click)||0, payme=Number(r.payme)||0, terminal=Number(r.terminal)||0;
+    const cash=Number(r.cash)||0, click=Number(r.click)||0, payme=Number(r.payme)||0, terminal=Number(r.terminal)||0, qr=Number(r.qr)||0;
     const extra={sender:r.sender_nom,receiver:r.receiver_nom};
     if(cash){ typeSum.cash+=cash; push('yl_cash',cash,extra); }
     if(click){ typeSum.click+=click; push('yl_click',click,extra); }
     if(payme){ typeSum.payme+=payme; push('yl_payme',payme,extra); }
     if(terminal){ typeSum.terminal+=terminal; push('yl_terminal',terminal,extra); }
-    const dUzs=Math.round((Number(r.jami_uzs)||0)-cash-click-payme-terminal);
+    if(qr){ typeSum.qr+=qr; push('yl_qr',qr,extra); }
+    const dUzs=Math.round((Number(r.jami_uzs)||0)-cash-click-payme-terminal-qr);
     if(dUzs){ dollarUzs+=dUzs; dollarUsd+=Number(r.usd)||0; push('yl_dollar',dUzs,extra); }
   });
   return {typeSum,dollarUzs,dollarUsd,sources};
@@ -1088,7 +1091,7 @@ function renderKtotDD(){
   const agg=aggregateKassa(kassaRows);
   const yAgg=aggregateYolda(ylRows);
   let html='';
-  ['naqd','click','payme','terminal','karta','plastik'].forEach(k=>{
+  ['naqd','click','payme','terminal','qr','karta','plastik'].forEach(k=>{
     const amt=agg.typeSum[k]||0; if(!amt) return;
     const srcs=agg.sources[k]||[];
     html+=ddRow(k,KTOT_LBL[k].ic,KTOT_LBL[k].lbl,disp(amt),srcs.length,'kassa',srcs,ddSrcRow);
@@ -1112,7 +1115,7 @@ function renderKtotDD(){
   }
   if(ylRows.length){
     html+=`<div class="dd-div">🚚 Yo'ldagi</div>`;
-    ['cash','click','payme','terminal'].forEach(k=>{
+    ['cash','click','payme','terminal','qr'].forEach(k=>{
       const amt=yAgg.typeSum[k]||0; if(!amt) return;
       const key='yl_'+k, srcs=yAgg.sources[key]||[];
       html+=ddRow(key,KTOT_LBL[key].ic,KTOT_LBL[key].lbl,disp(amt),srcs.length,'transfer',srcs,ddSrcRowYolda);
@@ -1645,8 +1648,8 @@ const tcIsTur=r=>{
   return !!p && p.kassa_turi!==KT_GURUH;
 };
 // Yorliqlar hodim.html dagi TURI_LBL bilan bir xil ro'yxat — yangi tur qo'shilsa
-// (karta/terminal/plastik) modalda xom kalit ("karta") ko'rinib qolmasin.
-const TC_LBL={naqd:'💵 Naqd',click:'💳 Click',payme:'📱 Payme',terminal:'🏧 Terminal',karta:'🏦 Karta',plastik:'🏦 Plastik'};
+// (karta/terminal/plastik/qr) modalda xom kalit ("karta") ko'rinib qolmasin.
+const TC_LBL={naqd:'💵 Naqd',click:'💳 Click',payme:'📱 Payme',terminal:'🏧 Terminal',qr:'🔳 QR',karta:'🏦 Karta',plastik:'🏦 Plastik'};
 const tcLbl=r=>r.pul_turi?(TC_LBL[r.pul_turi]||r.pul_turi):'Asosiy (tursiz)';
 const tcBal=id=>{ const r=tcAll.find(x=>x.id===id); return r?(Number(r.uzs)||0):0; };
 window.tcFmt=el=>{ fmtAmt(el); };
@@ -1675,7 +1678,7 @@ window.openTur=async()=>{
 window.closeTur=()=>$('turModal').classList.remove('open');
 // Tanlangan kassaning turlari: asosiy (parentning o'zi) + naqd/click/payme bolalari.
 // Valyuta bolalari QO'SHILMAYDI — ular kursli konvert orqali harakat qiladi.
-const TC_TART={naqd:1,click:2,payme:3,terminal:4,karta:5,plastik:6};
+const TC_TART={naqd:1,click:2,payme:3,terminal:4,qr:5,karta:6,plastik:7};
 function tcFillTur(){
   const k=$('tcKassa').value;
   $('tcMsg').className='cv-msg'; $('tcMsg').textContent='';
