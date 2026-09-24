@@ -2192,6 +2192,30 @@ async function refreshCheks(){
 }
 
 const CHEK_IMG=['jpg','jpeg','png','webp','gif','heic','heif'];
+// --- Chek signed URL keshi (tezlik): "kassaId/entryId" → {promise, ts}. ts===0 — hali kutilmoqda,
+// ts>0 — muvaffaqiyatli olingan vaqt (300s'lik URL 240s "yangi" deb hisoblanadi). Hover'da
+// oldindan boshlanadi (pastda), openChek ochilganda esa avval shu keshga qaraydi — qayta so'rov yubormaydi.
+const chekUrlCache=new Map();
+function getChekUrlP(kid,entryId,nm){
+  const key=kid+'/'+entryId;
+  const cur=chekUrlCache.get(key);
+  if(cur&&(cur.ts===0||Date.now()-cur.ts<240000)) return cur.promise;   // yangi yoki hali ishlamoqda — qayta so'ramaymiz
+  const p=sb.storage.from('xarajat-cheklari').createSignedUrl(`${kid}/${nm}`,300);
+  chekUrlCache.set(key,{promise:p,ts:0});
+  p.then(res=>{
+    const c=chekUrlCache.get(key);
+    if(c&&c.promise===p){ if(res&&!res.error&&res.data) c.ts=Date.now(); else chekUrlCache.delete(key); }
+  },()=>{ const c=chekUrlCache.get(key); if(c&&c.promise===p) chekUrlCache.delete(key); });
+  return p;
+}
+// Jadval/kartadagi chip'ga sichqoncha/barmoq tegganda chek URL'ini oldindan so'raydi — openChek
+// ochilganda tayyor turadi. Faqat haqiqiy chek fayli bor yozuvlar uchun (chekKeys'da bo'lsa).
+function prefetchChekUrl(kid,entryId){
+  if(!kid||!entryId) return;
+  const nm=chekKeys.get(kid+'/'+entryId);
+  if(!nm) return;
+  getChekUrlP(kid,entryId,nm).catch(()=>{});
+}
 // openChek — chek/hujjat rasmi + (admin) AI tekshiruv paneli BITTA modalda (#chekModal).
 // kassaId bo'sh/null bo'lishi mumkin (kassaOf(e) topmasa) — shunda faqat AI fallback rasmi ishlatiladi.
 // Baland (chek shaklidagi) rasm kenglikka to'liq ochiladi — mayda yozuv o'qilsin;
@@ -2216,21 +2240,25 @@ window.openChek=async(kassaId,entryId)=>{
   const kid=kassaId||null;
   const am=aiMap[entryId]||{};   // 2026-08-31: AI ma'lumoti endi hammaga (jurnal ruxsati yetarli)
   const hasChek=!!(kid&&chekKeys.has(kid+'/'+entryId));
-  // --- AI rasm-tahlil qatori (fallback rasm + AI paneli uchun bir vaqtda kerak) ---
-  let rt=null;
-  if(am.rasm_tahlil_id){
-    try{ const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.rasm_tahlil_id).maybeSingle(); if(!error&&data) rt=data; }catch(e){}
-  }
+  const nm=hasChek?(chekKeys.get(kid+'/'+entryId)||(entryId+'.jpg')):null;   // ro'yxat kelmagan bo'lsa eski naqsh
+  const ext=nm?(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1]:'';
+  const rtIds=[am.rasm_tahlil_id,am.spidometr_tahlil_id].filter(Boolean);
+
+  // --- Mustaqil so'rovlarni HAMMASINI DARROV, PARALLEL yuboramiz (ketma-ket kutish emas):
+  // chek signed url, ikkita rasm_tahlil qatori BITTA .in() so'rovda, mashina_km. ---
+  const chekP=hasChek?getChekUrlP(kid,entryId,nm):null;
+  const rtRowsP=(rtIds.length?sb.from('rasm_tahlil').select('*').in('id',rtIds).then(({data,error})=>(!error&&data)?data:[]):Promise.resolve([])).catch(()=>[]);
+  const kmP=((am.rasm_tahlil_id||am.spidometr_tahlil_id)?sb.from('mashina_km').select('*').eq('entry_id',entryId).maybeSingle().then(({data,error})=>(!error&&data)?data:null):Promise.resolve(null)).catch(()=>null);
+
   if(hasChek){
-    const nm=chekKeys.get(kid+'/'+entryId)||(entryId+'.jpg');   // ro'yxat kelmagan bo'lsa eski naqsh
-    const ext=(String(nm).toLowerCase().match(/\.([a-z0-9]{1,5})$/)||[,''])[1];
+    // Asosiy rasm faqat chek URL'iga bog'liq — AI panel ma'lumotini (rt/km) kutmaydi, tayyor bo'lgani hamon chiqadi.
     try{
-      const {data,error}=await sb.storage.from('xarajat-cheklari').createSignedUrl(`${kid}/${nm}`,300);
+      const {data,error}=await chekP;
       if(error||!data){ box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>'; }
       else{
         const url=esc(data.signedUrl);
         chekSetOpen(data.signedUrl);
-        if(!ext||CHEK_IMG.indexOf(ext)>=0) box.innerHTML=`<img src="${url}" alt="chek">`;
+        if(!ext||CHEK_IMG.indexOf(ext)>=0) box.innerHTML=`<img src="${url}" alt="chek" decoding="async" fetchpriority="high">`;
         // PDF — iframe'da ko'rinadi; boshqa hujjat (xlsx/docx) brauzerda ochilmaydi → yuklab olish.
         else if(ext==='pdf') box.innerHTML=`<div class="chekdoc"><iframe src="${url}" title="hujjat"></iframe>`
           +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada ochish</a></div>`;
@@ -2238,23 +2266,39 @@ window.openChek=async(kassaId,entryId)=>{
           +`<a class="chekdl" href="${url}" target="_blank" rel="noopener"><i data-lucide="download"></i>Yuklab olish</a></div>`;
       }
     }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
-  } else if(rt&&rt.user_id&&rt.id){
-    // Haqiqiy chek fayli yo'q, lekin AI rasmi bor (rasm-tahlil) — shu ko'rsatiladi. Ruxsat serverda:
-    // egasi / admin / jurnal ruxsati + kassa doirasi (PROVODKA_RASM_JURNAL_RUXSAT.sql, 2026-09-05).
-    try{
-      const {data:su,error:se}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
-      if(!se&&su) chekSetOpen(su.signedUrl);
-      box.innerHTML=(!se&&su)?`<img src="${esc(su.signedUrl)}" alt="AI chek">`:'<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>';
-    }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
-  } else {
-    box.innerHTML='<div style="padding:30px;color:var(--muted)">Chek yo\'q</div>';
+    icons(); chekFitImgs();
   }
-  icons(); chekFitImgs();
+
+  // --- rasm_tahlil qatorlari kelgach, ularning signed url'larini DARROV, PARALLEL so'raymiz ---
+  const rtRows=await rtRowsP;
+  const rt=rtRows.find(r=>r.id===am.rasm_tahlil_id)||null;
+  const rtSpid=rtRows.find(r=>r.id===am.spidometr_tahlil_id)||null;
+  const rtImgP=(rt&&rt.user_id&&rt.id)?sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300):Promise.resolve(null);
+  const rtSpidImgP=(rtSpid&&rtSpid.user_id&&rtSpid.id)?sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300):Promise.resolve(null);
+
+  if(!hasChek){
+    if(rt&&rt.user_id&&rt.id){
+      // Haqiqiy chek fayli yo'q, lekin AI rasmi bor (rasm-tahlil) — shu ko'rsatiladi. Ruxsat serverda:
+      // egasi / admin / jurnal ruxsati + kassa doirasi (PROVODKA_RASM_JURNAL_RUXSAT.sql, 2026-09-05).
+      try{
+        const su=await rtImgP;
+        if(su&&!su.error&&su.data){ chekSetOpen(su.data.signedUrl); box.innerHTML=`<img src="${esc(su.data.signedUrl)}" alt="AI chek" decoding="async" fetchpriority="high">`; }
+        else box.innerHTML='<div style="padding:30px;color:var(--red)">Fayl topilmadi</div>';
+      }catch(e){ box.innerHTML='<div style="padding:30px;color:var(--red)">Ochilmadi</div>'; }
+    } else {
+      box.innerHTML='<div style="padding:30px;color:var(--muted)">Chek yo\'q</div>';
+    }
+    icons(); chekFitImgs();
+  }
+
   if(!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
-  await renderChekAi(entryId,am,rt,hasChek);
+  const km=await kmP;
+  await renderChekAi(entryId,am,rt,rtSpid,hasChek,km,rtImgP,rtSpidImgP);
 };
 // AI tekshiruv paneli — chek/hujjat rasmi ostida, aiMap'da ma'lumot bo'lsa chizadi.
-async function renderChekAi(entryId,am,rt,hasChek){
+// rt/rtSpid/km va rtImgP/rtSpidImgP (rasm-tahlil signed url promise'lari) openChek'da
+// allaqachon so'ralgan — bu yerda qayta so'rov YO'Q, faqat natijani kutib chizadi.
+async function renderChekAi(entryId,am,rt,rtSpid,hasChek,km,rtImgP,rtSpidImgP){
   const aiBox=$('chekAiBody'); if(!aiBox) return;
   try{
     const out=[];
@@ -2263,10 +2307,10 @@ async function renderChekAi(entryId,am,rt,hasChek){
     let aiImg='';
     if(hasChek&&rt&&rt.user_id&&rt.id){
       try{
-        const {data:su0,error:se0}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rt.user_id}/${rt.id}.jpg`,300);
-        if(!se0&&su0) aiImg=`<div class="aiimg"><div class="aicap"><span>AI o'qigan rasm</span>`
-          +`<a href="${esc(su0.signedUrl)}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada</a></div>`
-          +`<img src="${esc(su0.signedUrl)}" alt="AI chek"></div>`;
+        const su0=await rtImgP;
+        if(su0&&!su0.error&&su0.data) aiImg=`<div class="aiimg"><div class="aicap"><span>AI o'qigan rasm</span>`
+          +`<a href="${esc(su0.data.signedUrl)}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada</a></div>`
+          +`<img src="${esc(su0.data.signedUrl)}" alt="AI chek"></div>`;
       }catch(e){}
     }
     const e=rows.find(x=>x.id===entryId);
@@ -2286,13 +2330,7 @@ async function renderChekAi(entryId,am,rt,hasChek){
       out.push('<div class="airow"><div class="al1">AI</div><div class="al2 aidiff">AI aniq o\'qimadi</div></div>');
     }
     // Spidometr — alohida bo'lim (chek AI'siga aralashmaydi)
-    let rtSpid=null, km=null, spidImg='';
-    if(am.spidometr_tahlil_id){
-      try{ const {data,error}=await sb.from('rasm_tahlil').select('*').eq('id',am.spidometr_tahlil_id).maybeSingle(); if(!error&&data) rtSpid=data; }catch(e){}
-    }
-    if(am.spidometr_tahlil_id||am.rasm_tahlil_id){
-      try{ const {data,error}=await sb.from('mashina_km').select('*').eq('entry_id',entryId).maybeSingle(); if(!error&&data) km=data; }catch(e){}
-    }
+    let spidImg='';
     if(rtSpid||km){
       out.push('<h4>Spidometr</h4>');
       if(km){
@@ -2303,12 +2341,12 @@ async function renderChekAi(entryId,am,rt,hasChek){
       }
       if(rtSpid&&rtSpid.user_id&&rtSpid.id){
         try{
-          const {data:su2,error:se2}=await sb.storage.from('rasm-tahlil').createSignedUrl(`${rtSpid.user_id}/${rtSpid.id}.jpg`,300);
+          const su2=await rtSpidImgP;
           // Tablo rasmi izohsiz turardi va modaldan chiqib ketardi — endi sarlavha +
           // «Yangi oynada ochish» bilan, bosilganda kattalashadi (.zoom).
-          if(!se2&&su2) spidImg=`<div class="aiimg"><div class="aicap"><span>Tablo rasmi</span>`
-            +`<a href="${esc(su2.signedUrl)}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada</a></div>`
-            +`<img src="${esc(su2.signedUrl)}" alt="spidometr"></div>`;
+          if(su2&&!su2.error&&su2.data) spidImg=`<div class="aiimg"><div class="aicap"><span>Tablo rasmi</span>`
+            +`<a href="${esc(su2.data.signedUrl)}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Yangi oynada</a></div>`
+            +`<img src="${esc(su2.data.signedUrl)}" alt="spidometr"></div>`;
         }catch(e){}
       }
     }
@@ -2324,6 +2362,22 @@ document.addEventListener('click',ev=>{
   img.classList.toggle('zoom');
   if(img.classList.contains('zoom')) img.scrollIntoView({block:'nearest'});
 });
+// Jadval/kartadagi chek chip'iga tegilganda (hover/touch) chek signed url'ini oldindan so'raymiz —
+// openChek ochilganda kesh tayyor turadi. Bitta delegat (#journal statik, ichi render()da almashadi);
+// pointerenter bubble QILMAYDI, shuning uchun capture=true bilan ushlanadi (mouseenter kabi).
+function chekPrefetchFromEl(el){
+  const m=el&&/openChek\('([^']*)'\s*,\s*'([^']*)'\)/.exec(el.getAttribute('onclick')||'');
+  if(m) prefetchChekUrl(m[1],m[2]);
+}
+const journalEl=$('journal');
+if(journalEl){
+  journalEl.addEventListener('pointerenter',ev=>{
+    chekPrefetchFromEl(ev.target&&ev.target.closest?ev.target.closest('[onclick*="openChek("]'):null);
+  },true);
+  journalEl.addEventListener('touchstart',ev=>{
+    chekPrefetchFromEl(ev.target&&ev.target.closest?ev.target.closest('[onclick*="openChek("]'):null);
+  },{passive:true});
+}
 
 /* ==================== JADVAL MODALI (entry.jadval) — 2-BOSQICH ====================
    Chip izohCell() ichida chizadi (jd_n bor bo'lganda). Bosilganda TO'LIQ jadval shu
