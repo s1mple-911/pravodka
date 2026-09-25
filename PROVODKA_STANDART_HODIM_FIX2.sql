@@ -9,8 +9,8 @@
 --  Old shart: PROVODKA_STANDART_LIMIT_V2.sql va PROVODKA_STANDART_HODIM_FIX.sql RUN bo'lgan.
 -- ============================================================================
 
--- 1) Gulnoza
-select rbac_staff_link_set(244, '97827481-9236-41fc-8859-bcad0c93c960'::uuid);
+-- 1) Gulnoza (SQL editor'da auth.uid() yo'q → RPC «Faqat admin» deydi; to'g'ridan update — RPC bilan bir xil natija)
+update aros_staff set user_id = '97827481-9236-41fc-8859-bcad0c93c960'::uuid where staff_id = 244;
 
 -- 2) Ta'minot Xitoy — faqat shu ikkisi
 delete from staff_filial_qolda
@@ -41,7 +41,7 @@ begin
        and (select count(*) from profiles p2 where standart_norm(p2.full_name) = standart_norm(p.full_name)) = 1
        and not exists (select 1 from aros_staff s2 where s2.user_id = p.id)
   loop
-    perform rbac_staff_link_set(r.staff_id, r.user_id);
+    update aros_staff set user_id = r.user_id where staff_id = r.staff_id;   -- RPC admin talab qiladi (SQL editor'da uid yo'q)
     n := n + 1;
     raise notice 'bog''landi: % (staff %) <-> % (%)', r.toliq_nom, r.staff_id, r.full_name, r.user_id;
   end loop;
