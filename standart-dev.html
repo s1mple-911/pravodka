@@ -136,22 +136,29 @@
   .hd-chips{margin-bottom:14px}
   .hd-chips .oychip{margin-left:0;margin-right:8px}
   .hdtbl-wrap{overflow-x:auto}
-  .hdtbl{width:100%;border-collapse:collapse;font-size:13px}
-  .hdtbl th,.hdtbl td{padding:9px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+  .hdtbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .hdtbl th,.hdtbl td{padding:11px 12px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
   .hdtbl th{color:var(--muted);font-weight:600;border-top:0;background:var(--surface-2);white-space:nowrap}
   .hdtbl td.n{text-align:right;font-variant-numeric:tabular-nums}
   .hdtbl td.n.over{color:var(--red)}
   .hdtbl tr.first-row td{border-top:2px solid var(--line)}
   .hdtbl .hd-name{font-weight:700}
   .hdtbl .hd-sub{color:var(--muted);font-size:11.5px;font-weight:500}
+  /* 2026-09-25: hodim guruh sarlavhasi (bosilsa ochiladi/yopiladi) */
+  .hdtbl tr.hd-head-row{cursor:pointer}
+  .hdtbl tr.hd-head-row:hover td,.hdtbl tr.hd-head-row.open td{background:var(--surface-2)}
   .hd-track{width:64px;display:inline-block;vertical-align:middle;margin-left:8px}
   .hd-editcell{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
   .hd-editval{cursor:pointer;border-bottom:1px dashed var(--muted);font-weight:600}
   .hd-editval:hover{color:var(--primary);border-color:var(--primary)}
   .hd-editinp{width:96px;height:28px;border:1px solid var(--primary);border-radius:8px;padding:0 8px;font-size:12.5px;font-family:inherit;text-align:right;font-variant-numeric:tabular-nums;outline:none;background:var(--surface);color:var(--ink)}
+  .hd-editcur{height:28px;border:1px solid var(--primary);border-radius:8px;padding:0 4px;font-size:11.5px;font-family:inherit;outline:none;background:var(--surface);color:var(--ink);cursor:pointer}
   .hd-mini{background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;padding:2px 4px;text-decoration:underline;font-family:inherit}
   .hd-mini:hover{color:var(--primary)}
   .hd-locked{color:var(--muted);font-size:12px;font-style:italic}
+  /* 2026-09-25: hodim tab to'liq sahifa kengligida (filial tabi 900px kartalarda qolaveradi) */
+  body.hd-wide .main{max-width:1400px}
+  .lim-preview{font-size:12.5px;font-weight:600;color:var(--muted);text-align:right;margin:-8px 0 10px;min-height:16px}
   @media(max-width:900px){
     .hdtbl thead{display:none}
     .hdtbl,.hdtbl tbody,.hdtbl tr,.hdtbl td{display:block;width:100%}
@@ -320,8 +327,15 @@
     <label>Xarajat modda</label>
     <select id="limModda"></select>
     <button type="button" id="limShowAllBtn" onclick="limShowAllModdas()" style="display:none;background:none;border:none;color:var(--primary);font-size:12.5px;font-weight:600;cursor:pointer;padding:0 0 15px;margin-top:-11px">Barcha moddalarni ko'rsatish</button>
-    <label>Oylik limit (so'm)</label>
+    <label>Valyuta</label>
+    <select id="limCur" onchange="onLimCurChange()">
+      <option value="UZS">so'm (UZS)</option>
+      <option value="USD">dollar ($)</option>
+      <option value="CNY">yuan (¥)</option>
+    </select>
+    <label>Oylik limit</label>
     <input id="limAmt" inputmode="numeric" placeholder="0" oninput="onLimAmt(this)">
+    <div class="lim-preview" id="limPreview"></div>
     <div class="mmsg" id="limMsg"></div>
     <div class="mrow">
       <button type="button" onclick="closeLim()">Bekor</button>
@@ -815,21 +829,46 @@ window.openLim=(id,presetModda)=>{
   // modda select
   renderLimOptions();
   $('limModda').disabled=editing;   // tahrirlashda modda o'zgarmaydi (kalit)
-  $('limAmt').value=r?money(r.limit_uzs):'';
+  // Valyuta/xom qiymat — standart_holat() UZS ekvivalentini beradi (imzo qotgan),
+  // xom qiymat+valyuta filMod.moddalar dan (standart_filial_moddalar, shu filial uchun
+  // allaqachon yuklangan) olinadi. Topilmasa — UZS (eski qatorlar sukut shunday).
+  const mFM=(hintModda && filMod && Array.isArray(filMod.moddalar)) ? filMod.moddalar.find(x=>x.modda_id===hintModda) : null;
+  const curVal=mFM ? (mFM.filial_limit_valyuta||'UZS') : 'UZS';
+  const rawVal=(mFM && mFM.filial_limit_val!=null) ? mFM.filial_limit_val : (r ? r.limit_uzs : null);
+  $('limCur').value=curVal;
+  $('limAmt').value=rawVal!=null?money(rawVal):'';
   $('limMsg').textContent='';
   updateLimBtn();
+  limPreviewUpdate();
   $('limModal').classList.add('open');
   setTimeout(()=>{ try{ $('limAmt').focus(); }catch(e){} },60);
 };
 window.closeLim=()=>{ $('limModal').classList.remove('open'); };
-window.onLimAmt=el=>{ fmtAmt(el); updateLimBtn(); };
+// Valyuta (so'm/$/¥) — 2026-09-25: limit endi UZS|USD|CNY bo'lishi mumkin, kurs
+// standart_limit_set(...,p_valyuta) ichida JONLI hisoblanadi (bu yerda faqat "≈ N so'm"
+// oldindan ko'rsatish uchun conv_baza_kurs — koridor ko'rsatishga ham ruxsatli RPC).
+let limRateCache={};
+async function limPreviewUpdate(){
+  const cur=$('limCur').value, amt=limAmtVal(), el=$('limPreview');
+  if(cur==='UZS'||!amt){ el.textContent=''; return; }
+  let rate=limRateCache[cur];
+  if(rate==null){
+    const {data,error}=await sb.rpc('conv_baza_kurs',{p_cur:cur});
+    if(error||data==null){ el.textContent="Kurs topilmadi — Valyuta bo'limida kiritilmagan"; return; }
+    rate=Number(data); limRateCache[cur]=rate;
+  }
+  const sym=cur==='USD'?'$':'¥';
+  el.textContent=sym+' '+money(amt)+' ≈ '+money(amt*rate)+" so'm";
+}
+window.onLimCurChange=()=>{ limPreviewUpdate(); };
+window.onLimAmt=el=>{ fmtAmt(el); updateLimBtn(); limPreviewUpdate(); };
 function limAmtVal(){ return Number(($('limAmt').value||'').replace(/\D/g,''))||0; }
 function updateLimBtn(){ $('limSaveBtn').disabled=!($('limModda').value && limAmtVal()>0); }
 window.saveLim=async()=>{
-  const modda=$('limModda').value, amt=limAmtVal();
+  const modda=$('limModda').value, amt=limAmtVal(), cur=$('limCur').value||'UZS';
   if(!modda||amt<=0) return;
   const btn=$('limSaveBtn'); btn.disabled=true; btn.textContent='Saqlanmoqda…';
-  const {error}=await sb.rpc('standart_limit_set',{p_filial:curFilial,p_modda:modda,p_limit:amt});
+  const {error}=await sb.rpc('standart_limit_set',{p_filial:curFilial,p_modda:modda,p_limit:amt,p_valyuta:cur});
   if(error){ $('limMsg').textContent=(window.permErr?window.permErr(error):error.message); $('limMsg').className='mmsg no'; btn.disabled=false; btn.textContent='Saqlash'; return; }
   closeLim(); btn.textContent='Saqlash';
   await loadHolat();
@@ -850,6 +889,10 @@ $('limModda').addEventListener('change',updateLimBtn);
 // (RUN kutilmoqda). RPC yo'q (42883/PGRST202) -> bo'lim "SQL hali RUN qilinmagan" deydi,
 // qolgan sahifa (Filiallar tabi) ishlab turadi.
 let hodimData=null, hodimRpcState='ok';   // 'ok' | 'loading' | 'missing' | 'ruxsat' | 'error'
+// Guruhlash (2026-09-25): har hodim BITTA sarlavha qator — bosilsa ochiladi. staff_id
+// to'plami — qaysi hodimlar hozir ochiq. Filtr/oy o'zgarganda ATAYLAB tozalanmaydi (odam
+// nimani ochgan bo'lsa, filtr o'zgarsa ham o'sha holat saqlansin — kamroq bosish).
+let hdExpanded=new Set();
 const HD_TUR_LBL={obed:'Tushlik', zavtrak:'Nonushta', kechki:'Kechki ovqat'};
 window.switchView=mode=>{
   if(viewMode===mode) return;
@@ -858,6 +901,8 @@ window.switchView=mode=>{
   $('segHodim').classList.toggle('active',mode==='hodim');
   $('filView').style.display=mode==='filial'?'block':'none';
   $('hodimView').style.display=mode==='hodim'?'block':'none';
+  // Hodim tab kengroq jadval bilan ishlaydi — sahifa kengligi shu tab uchun kengaytiriladi.
+  document.body.classList.toggle('hd-wide',mode==='hodim');
   if(mode==='hodim' && !hodimData) loadHodim();
 };
 function hdFilialVal(){ return $('hdFilial').value||null; }
@@ -907,13 +952,17 @@ function hdRowOver(h){
   if(u && u.bor && u.limit!=null){ const p=hdPct(u.limit,u.sarf); if(p!=null && p>=80) return true; }
   return false;
 }
+// Ism qidiruv apostrof/registrga sezgir bo'lmasin — standart_norm() (SQL) bilan bir xil
+// qoida: pastki registr + harf/raqamdan boshqa HAMMA belgi (probel, apostrof, tinish
+// belgilari) olib tashlanadi. "G'iyos"/"Giyos"/"G‘iyos" — hammasi "giyos" ga tushadi.
+function hdNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 function hdFilterList(){
   if(!hodimData || !Array.isArray(hodimData.hodimlar)) return [];
-  const q=($('hdQ').value||'').trim().toLowerCase();
+  const q=hdNorm($('hdQ').value);
   const rol=$('hdRol').value;
   const overOnly=$('hdOver').checked;
   return hodimData.hodimlar.filter(h=>{
-    if(q && String(h.toliq_nom||'').toLowerCase().indexOf(q)<0) return false;
+    if(q && hdNorm(h.toliq_nom).indexOf(q)<0) return false;
     if(rol && !(h.rollar||[]).includes(rol)) return false;
     if(overOnly && !hdRowOver(h)) return false;
     return true;
@@ -921,22 +970,30 @@ function hdFilterList(){
 }
 function hdChipsHtml(list){
   const n=list.length, over=list.filter(hdRowOver).length;
-  return `<span class="oychip">${n} hodim</span><span class="oychip${over?' warn':''}">${over} limitdan oshgan/yaqin</span>`;
+  const allOpen=list.length>0 && list.every(h=>hdExpanded.has(h.staff_id));
+  return `<span class="oychip">${n} hodim</span><span class="oychip${over?' warn':''}">${over} limitdan oshgan/yaqin</span>`
+    +` <button type="button" class="hd-mini" onclick="hdToggleAll()">${allOpen?"Hammasini yopish":"Hammasini ochish"}</button>`;
 }
 function hdTrackHtml(p){
   if(p==null) return '';
   const cls=fillCls(p);
   return `<span class="hd-track"><span class="track" style="display:block"><span class="fill ${cls}" style="width:${Math.min(100,p)}%;display:block;height:100%"></span></span></span>`;
 }
-// Limit katakchasi: qiymat (bosilsa input ochiladi) + "cheksiz"/"qaytarish" tez amallar.
-// override — shu (staff,kalit) uchun rbac_staff_limit'da qator bormi (bo'lsa hodim_limit
-// o'sha, aks holda "—" — rol limiti amal qiladi).
-function hdLimCellHtml(staffId,kalit,override,hodimLimit,locked){
+// Limit katakchasi: qiymat (bosilsa input+valyuta ochiladi) + "cheksiz"/"qaytarish" tez
+// amallar. override — shu (staff,kalit) uchun rbac_staff_limit'da qator bormi (bo'lsa
+// hodim_limit o'sha, aks holda "—" — rol limiti amal qiladi). 2026-09-25: hodimLimitVal/
+// hodimLimitCur — xom qiymat+valyuta (chet valyutada bo'lsa "$ 1 000 (11 850 000 so'm)").
+function hdLimCellHtml(staffId,kalit,override,hodimLimit,locked,hodimLimitVal,hodimLimitCur){
   if(locked) return '<span class="hd-locked">cheksiz (umumiy)</span>';
-  const valTxt=override ? (hodimLimit==null?'cheksiz':money(hodimLimit)) : '—';
+  const cur=hodimLimitCur||'UZS';
+  const sym=cur==='USD'?'$':(cur==='CNY'?'¥':'');
+  const valTxt=override
+    ? (hodimLimit==null?'cheksiz'
+        :(sym?sym+' '+money(hodimLimitVal)+' ('+money(hodimLimit)+" so'm)":money(hodimLimit)))
+    : '—';
   if(!canStdEdit()) return valTxt;
   return `<span class="hd-editcell">`
-    +`<span class="hd-editval" onclick="hdOpenEdit(this,${staffId},'${kalit}')">${valTxt}</span>`
+    +`<span class="hd-editval" onclick="hdOpenEdit(this,${staffId},'${kalit}')" data-cur="${cur}">${valTxt}</span>`
     +`<button type="button" class="hd-mini" onclick="hdQuick(${staffId},'${kalit}','cheksiz')">cheksiz</button>`
     +(override?`<button type="button" class="hd-mini" onclick="hdQuick(${staffId},'${kalit}','qaytar')">qaytarish</button>`:'')
     +`</span>`;
@@ -944,46 +1001,58 @@ function hdLimCellHtml(staffId,kalit,override,hodimLimit,locked){
 window.hdOpenEdit=(el,staffId,kalit)=>{
   if(!canStdEdit()) return;
   const wrap=el.closest('.hd-editcell'); if(!wrap || wrap.querySelector('.hd-editinp')) return;
+  const sel=document.createElement('select');
+  sel.className='hd-editcur';
+  sel.innerHTML='<option value="UZS">so\'m</option><option value="USD">$</option><option value="CNY">¥</option>';
+  sel.value=el.dataset.cur||'UZS';
   const inp=document.createElement('input');
   inp.type='text'; inp.inputMode='numeric'; inp.className='hd-editinp'; inp.placeholder='cheksiz';
   inp.addEventListener('input',()=>fmtAmt(inp));
   inp.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){ e.preventDefault(); hdCommitInput(staffId,kalit,inp); }
+    if(e.key==='Enter'){ e.preventDefault(); hdCommitInput(staffId,kalit,inp,sel); }
     else if(e.key==='Escape'){ e.preventDefault(); renderHodim(); }
   });
-  inp.addEventListener('blur',()=>{ hdCommitInput(staffId,kalit,inp); });
+  // Input/valyuta select orasida fokus almashsa bekor qilinmasin — faqat IKKALASIDAN
+  // ham fokus chiqsa qo'yiladi (setTimeout — activeElement blur tugagach yangilanadi).
+  const onBlur=other=>()=>{ setTimeout(()=>{ if(document.activeElement!==other) hdCommitInput(staffId,kalit,inp,sel); },0); };
+  inp.addEventListener('blur',onBlur(sel));
+  sel.addEventListener('blur',onBlur(inp));
   el.replaceWith(inp);
+  inp.after(sel);
   inp.focus();
 };
-function hdCommitInput(staffId,kalit,inp){
+function hdCommitInput(staffId,kalit,inp,sel){
   const amt=Number((inp.value||'').replace(/\D/g,''))||0;
+  const cur=(sel&&sel.value)||'UZS';
   if(amt<=0){ renderHodim(); return; }   // bo'sh/0 — o'zgarish yo'q, bekor
-  hdSaveLimit(staffId,kalit,amt,false);
+  hdSaveLimit(staffId,kalit,amt,false,cur);
 }
 window.hdQuick=(staffId,kalit,action)=>{
-  if(action==='cheksiz') hdSaveLimit(staffId,kalit,null,true);
-  else hdSaveLimit(staffId,kalit,null,false);
+  if(action==='cheksiz') hdSaveLimit(staffId,kalit,null,true,'UZS');
+  else hdSaveLimit(staffId,kalit,null,false,'UZS');
 };
-async function hdSaveLimit(staffId,kalit,amt,cheksiz){
-  const {data,error}=await sb.rpc('standart_hodim_limit_set',{p_staff:staffId,p_kalit:kalit,p_limit:amt,p_cheksiz:cheksiz});
+async function hdSaveLimit(staffId,kalit,amt,cheksiz,cur){
+  const {data,error}=await sb.rpc('standart_hodim_limit_set',
+    {p_staff:staffId,p_kalit:kalit,p_limit:amt,p_cheksiz:cheksiz,p_valyuta:cur||'UZS'});
   if(error){ alert(window.permErr?window.permErr(error):error.message); renderHodim(); return; }
   if(data && data.ok===false){ alert(data.kod==='ruxsat'?"Standart xarajatlar sahifasiga ruxsatingiz yo'q":"Saqlab bo'lmadi"); renderHodim(); return; }
   await loadHodim(true);
 }
+// Guruhlangan qatorlarda ism/lavozim faqat sarlavhada (hdHeadRowHtml) chiqadi — bu yerda
+// bo'sh (ustun tekislanishi/mobil karta ko'rinishi uchun <td> baribir turishi kerak).
 function hdEmpRows(h){
   const rows=[];
   const qs=h.qatorlar||[];
-  const nameCell='<td class="hd-namecell" data-lbl=""><div class="hd-name">'+esc(h.toliq_nom||'—')+'</div>'
-    +'<div class="hd-sub">'+esc(h.filial_nom||'')+'</div></td>';
+  const nameCell='<td class="hd-namecell" data-lbl=""></td>';
   qs.forEach((q,i)=>{
     const p=hdPct(q.effektiv_limit,q.sarf);
     const qoldi=(q.qoldi==null)?null:Number(q.qoldi);
     const modName=q.turi==='ovqat' ? esc(HD_TUR_LBL[q.tur]||q.tur) : ('<span class="code" style="color:var(--muted);font-size:11.5px;font-weight:700;margin-right:5px">'+esc(q.code)+'</span>'+esc(q.name));
     rows.push('<tr class="'+(i===0?'first-row':'')+'">'+nameCell
-      +'<td data-lbl="Lavozim">'+esc(h.lavozim||'—')+'</td>'
+      +'<td data-lbl="Lavozim"></td>'
       +'<td data-lbl="Modda">'+modName+'</td>'
       +'<td class="n" data-lbl="Rol limiti">'+(q.rol_limit==null?'cheksiz':money(q.rol_limit))+'</td>'
-      +'<td data-lbl="Hodim limiti">'+hdLimCellHtml(h.staff_id,q.kalit,q.override,q.hodim_limit,q.turi==='ovqat'&&q.umumiy_rejim)+'</td>'
+      +'<td data-lbl="Hodim limiti">'+hdLimCellHtml(h.staff_id,q.kalit,q.override,q.hodim_limit,q.turi==='ovqat'&&q.umumiy_rejim,q.hodim_limit_val,q.hodim_limit_valyuta)+'</td>'
       +'<td class="n" data-lbl="Sarflandi">'+money(q.sarf||0)+'</td>'
       +'<td class="n'+(qoldi!=null&&qoldi<0?' over':'')+'" data-lbl="Qoldi">'+(qoldi==null?'cheksiz':money(qoldi))+hdTrackHtml(p)+'</td>'
       +'</tr>');
@@ -992,20 +1061,66 @@ function hdEmpRows(h){
     const u=h.ovqat_umumiy||{bor:false,limit:null,sarf:0,qoldi:null};
     const p=(u.bor&&u.limit!=null)?hdPct(u.limit,u.sarf):null;
     rows.push('<tr class="'+(qs.length?'':'first-row')+'">'+nameCell
-      +'<td data-lbl="Lavozim">'+esc(h.lavozim||'—')+'</td>'
+      +'<td data-lbl="Lavozim"></td>'
       +'<td data-lbl="Modda"><b>Umumiy ovqatlanish</b></td>'
       +'<td class="n" data-lbl="Rol limiti">—</td>'
-      +'<td data-lbl="Hodim limiti">'+hdLimCellHtml(h.staff_id,'ovqat:umumiy',u.bor,u.limit,false)+'</td>'
+      +'<td data-lbl="Hodim limiti">'+hdLimCellHtml(h.staff_id,'ovqat:umumiy',u.bor,u.limit,false,u.limit_val,u.valyuta)+'</td>'
       +'<td class="n" data-lbl="Sarflandi">'+money(u.sarf||0)+'</td>'
       +'<td class="n'+(u.bor&&u.limit!=null&&Number(u.qoldi)<0?' over':'')+'" data-lbl="Qoldi">'
         +((!u.bor)?'—':(u.limit==null?'cheksiz':money(u.qoldi)))+hdTrackHtml(p)+'</td>'
       +'</tr>');
   }
   if(!rows.length){
-    rows.push('<tr class="first-row">'+nameCell+'<td data-lbl="Lavozim">'+esc(h.lavozim||'—')
-      +'</td><td colspan="5" class="fc-sub" data-lbl="">Rollarida limit qo\'yilgan modda/ovqat yo\'q</td></tr>');
+    rows.push('<tr class="first-row">'+nameCell+'<td data-lbl="Lavozim"></td>'
+      +'<td colspan="5" class="fc-sub" data-lbl="">Rollarida limit qo\'yilgan modda/ovqat yo\'q</td></tr>');
   }
   return rows.join('');
+}
+// Sarlavha qator uchun yig'ma hisob: N modda/ovqat qatori, K oshgan/yaqin (>=80%), jami qoldi
+// (raqamli qoldilar yig'indisi — taxminiy, aniq raqamlar ochilgandan keyin ko'rinadi).
+function hdEmpSummary(h){
+  const qs=h.qatorlar||[];
+  let n=qs.length, over=0, qoldiJami=0;
+  qs.forEach(q=>{
+    const p=hdPct(q.effektiv_limit,q.sarf);
+    if(p!=null && p>=80) over++;
+    if(q.qoldi!=null) qoldiJami+=Number(q.qoldi);
+  });
+  const u=h.ovqat_umumiy;
+  if(u && u.bor){
+    n++;
+    if(u.limit!=null){
+      const p=hdPct(u.limit,u.sarf);
+      if(p!=null && p>=80) over++;
+      if(u.qoldi!=null) qoldiJami+=Number(u.qoldi);
+    }
+  }
+  return {n,over,qoldiJami};
+}
+window.hdToggleRow=staffId=>{
+  if(hdExpanded.has(staffId)) hdExpanded.delete(staffId); else hdExpanded.add(staffId);
+  renderHodim();
+};
+window.hdToggleAll=()=>{
+  const list=hdFilterList();
+  const allOpen=list.length>0 && list.every(h=>hdExpanded.has(h.staff_id));
+  hdExpanded=allOpen?new Set():new Set(list.map(h=>h.staff_id));
+  renderHodim();
+};
+function hdHeadRowHtml(h){
+  const {n,over,qoldiJami}=hdEmpSummary(h);
+  const open=hdExpanded.has(h.staff_id);
+  return '<tr class="hd-head-row'+(open?' open':'')+'" onclick="hdToggleRow('+h.staff_id+')">'
+    +'<td class="hd-namecell" data-lbl=""><div class="hd-name"><i data-lucide="chevron-'+(open?'down':'right')+'" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;color:var(--muted)"></i>'
+      +esc(h.toliq_nom||'—')+'</div><div class="hd-sub">'+esc(h.filial_nom||'')+(h.lavozim?' · '+esc(h.lavozim):'')+'</div></td>'
+    +'<td colspan="6" data-lbl="">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">'
+        +'<span class="oychip">'+n+' modda/ovqat</span>'
+        +(over?'<span class="oychip warn">'+over+' oshgan/yaqin</span>':'')
+        +'<span class="hd-sub">'+esc((h.rollar||[]).join(', ')||'rolsiz')+'</span>'
+        +'<b class="lr-val" style="margin-left:auto'+(qoldiJami<0?';color:var(--red)':'')+'">jami qoldi: '+money(qoldiJami)+'</b>'
+      +'</div>'
+    +'</td></tr>';
 }
 function renderHodim(){
   if(viewMode!=='hodim') return;
@@ -1027,7 +1142,7 @@ function renderHodim(){
   const list=hdFilterList();
   $('hdChips').innerHTML=hdChipsHtml(list);
   if(!list.length){ box.innerHTML='<div class="empty">Hodim topilmadi.</div>'; icons(); return; }
-  const rows=list.map(hdEmpRows).join('');
+  const rows=list.map(h=>hdHeadRowHtml(h)+(hdExpanded.has(h.staff_id)?hdEmpRows(h):'')).join('');
   box.innerHTML='<div class="hdtbl-wrap"><table class="hdtbl"><thead><tr>'
     +'<th>Hodim</th><th>Lavozim</th><th>Modda</th><th>Rol limiti</th><th>Hodim limiti</th><th>Sarflandi</th><th>Qoldi</th>'
     +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
