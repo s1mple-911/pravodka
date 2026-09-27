@@ -2452,7 +2452,7 @@ window.updateSimple=()=>{
   const uzsAmt = pair ? pair.uzs : 0;     // limit/taqsim HAR DOIM so'mda
   // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
   let overLimit=false; const lw=$('limitWarn');
-  if(selFilials.size===1 && $('modda').value){
+  if(selFilials.size===1 && $('modda').value && !hodimLimBor($('modda').value)){
     const lm=limitFor([...selFilials][0], $('modda').value);
     if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
@@ -3174,6 +3174,20 @@ async function loadLimits(){
     updateSimple();
   }catch(e){}
 }
+// 🔴 2026-09-27 (Asilbek): limit YOZAYOTGAN HODIMDAN yechiladi, tanlangan filialdan emas.
+// Hodimning o'z (rol/override) limiti bo'lgan moddada filial limiti tekshirilmaydi —
+// `limMap` (rbac_my_limitlar, account_id → limit). Server: limit_guard_entry_line (PROVODKA_LIMIT_HODIM_USTUN.sql).
+// RPC yo'q/xato → bo'sh xarita, eski (filial limiti) ko'rinish qoladi.
+let limMap={};
+const hodimLimBor=(mid)=>!!(mid&&limMap[mid]);
+async function limLoad(){
+  try{
+    const {data,error}=await sb.rpc('rbac_my_limitlar');
+    if(error||!Array.isArray(data)) return;
+    const m={}; data.forEach(r=>{ if(r&&r.account_id) m[r.account_id]={limit:Number(r.limit)||0, ishlatildi:Number(r.ishlatildi)||0, qoldi:Number(r.qoldi)||0}; });
+    limMap=m; updateSimple();
+  }catch(e){}
+}
 // ---- Stage 2: Filial taqsimoti modali (har filialga alohida entry, atomik RPC) ----
 let taqsimCtx=null, taqsimAlloc={}, taqsimFils=[];
 // amt — HAR DOIM so'mda (valyuta kassasida kurs bilan hisoblangan). `pair` esa
@@ -3213,7 +3227,7 @@ function renderTaqsimSum(){
   const allPos=taqsimFils.every(f=>(Number(taqsimAlloc[f.id])||0)>0);
   // Stage 4: har filial ulushi o'z limitidan oshmasin
   let limErr='';
-  taqsimFils.forEach(f=>{ const lm=limitFor(f.id, taqsimCtx.moddaId); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
+  taqsimFils.forEach(f=>{ const lm=hodimLimBor(taqsimCtx.moddaId)?null:limitFor(f.id, taqsimCtx.moddaId); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
     if(a>lm.qoldi && !limErr) limErr=`${filNom(f.name)}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
@@ -3423,6 +3437,7 @@ async function init(){
   $('izoh').addEventListener('input',updateSimple);
   renderChips(); fetchSubBal(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   loadLimits();                      // Stage 4: standart limitlar (fon)
+  limLoad();                         // hodimning o'z limitlari (rbac_my_limitlar, fon)
   mxdLoad();                         // maxsus maydon ta'riflari (fon, fail-closed/fail-open)
   // Ehson kaskadi — fon (RPC yo'q/xato bo'lsa jimgina eski ko'rinishda qoladi).
   loadEhsonDaraxt().then(()=>{ window.renderModdaList(); if(curMode==='adv') renderLines(); });
