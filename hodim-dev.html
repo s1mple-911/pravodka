@@ -3300,11 +3300,11 @@ function updateSave(){
   const needFilial = filialRequired() && !filialOk();            // filial yo'q (ruxsat) userni bloklamaydi
   // Stage 4: bitta filial tanlansa limit tekshiruvi (2+ filial → taqsim modalda)
   let overLimit=false; const lw=$('limitWarn');
-  // 🔴 2026-09-27 (Asilbek): hodimning O'Z limiti (rol/override — limMap) bo'lsa filial limiti
-  //    tekshirilmaydi — limit yozayotgan hodimdan yechiladi, tanlangan filialdan emas.
-  //    Server (limit_guard_entry_line) ham shu qoidada — PROVODKA_LIMIT_HODIM_USTUN.sql.
-  const hodimLimBor=!!(selModda&&limMap[selModda]);
-  if(selFilials.size===1 && selModda && !hodimLimBor){
+  // 🔴 2026-09-28 (Asilbek): filial limiti FAQAT shu filial hodimiga tegishli (`filialLimOk`,
+  //    mening_filiallarim). Begona filial hodimi (Gulnoza → Malika) yozsa Malika limiti ko'rsatilmaydi —
+  //    sarf o'z limitidan yechiladi. Server (limit_guard_entry_line) ham shu qoidada — PROVODKA_LIMIT_FILIAL_SARF_2.sql.
+  const fid1=selFilials.size===1?[...selFilials][0]:null;
+  if(fid1 && selModda && filialLimOk(fid1)){
     const lm=limitFor([...selFilials][0], selModda);
     if(lm && uzsAmt>lm.qoldi){ overLimit=true; lw.style.display='block'; lw.textContent=`Bu filial uchun "${lm.modda_name}" limiti: qoldi ${money(Math.max(0,lm.qoldi))} so'm`; }
     else lw.style.display='none';
@@ -3958,7 +3958,20 @@ const limitFor=(fid,mid)=>limitMap[fid+'|'+mid]||null;
 // SWR: kesh 10 daqiqa — kesh bo'lsa DARROV limitMap to'ladi, fonda RPC bilan yangilanadi.
 // `fresh=true` — yozuvdan keyin (saveHodim/taqsim/ovqat) chaqiriladi: keshdan bermay,
 // darrov RPC so'raydi va yangi natijani keshga yozadi (boshqa yozuvlar naqshi bilan bir xil).
+// 🔴 2026-09-28: men qaysi filiallarning hodimiman (`mening_filiallarim`) — filial limiti faqat
+// o'sha filiallarda ko'rsatiladi/tekshiriladi. null = hodimga bog'lanmagan yoki RPC yo'q → hamma
+// filial limiti tegishli (server bilan bir xil: noma'lum yozuvchi filialga sanaladi).
+let myFils=null, myFilsLoaded=false;
+const filialLimOk=(fid)=>myFils===null||myFils.has(fid);
+async function myFilsLoad(){
+  if(myFilsLoaded) return; myFilsLoaded=true;
+  try{ const {data,error}=await sb.rpc('mening_filiallarim');
+    if(error){ myFilsLoaded=false; return; }
+    myFils=Array.isArray(data)?new Set(data):null; updateSave();
+  }catch(e){ myFilsLoaded=false; }
+}
 async function loadLimits(fresh){
+  myFilsLoad();
   const oy=isoDay(nowUz()).slice(0,7)+'-01';
   if(!fresh){ const c=swrGet('limits',600000);
     if(c&&c.oy===oy&&c.map&&typeof c.map==='object'){ limitMap=c.map; updateSave(); } }
@@ -4026,9 +4039,8 @@ function renderTaqsimSum(){
   const allPos=taqsimFils.every(f=>(Number(taqsimAlloc[f.id])||0)>0);
   // Stage 4: har filial ulushi o'z limitidan oshmasin
   let limErr='';
-  // 🔴 2026-09-27: hodimning o'z limiti (limMap) bo'lsa filial limiti taqsimda ham tekshirilmaydi
-  const hodimLimBor=!!(selModda&&limMap[selModda]);
-  taqsimFils.forEach(f=>{ const lm=hodimLimBor?null:limitFor(f.id, selModda); if(lm){ const a=Number(taqsimAlloc[f.id])||0;
+  // 🔴 2026-09-28: filial limiti faqat men hodimi bo'lgan filialga (filialLimOk) — taqsimda ham
+  taqsimFils.forEach(f=>{ const lm=filialLimOk(f.id)?limitFor(f.id, selModda):null; if(lm){ const a=Number(taqsimAlloc[f.id])||0;
     if(a>lm.qoldi && !limErr) limErr=`${filNom(f.name)}: "${lm.modda_name}" limiti — qoldi ${money(Math.max(0,lm.qoldi))} so'm`; } });
   const msg=$('taqsimMsg'); let ok=false;
   if(diff<0){ msg.textContent='Taqsimlanmagan qoldi: '+money(-diff)+' so\'m'; msg.className='tmsg no'; }
