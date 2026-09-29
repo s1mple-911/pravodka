@@ -2293,6 +2293,7 @@ window.openChek=async(kassaId,entryId)=>{
 
   if(!aiBox||!(am.rasm_tahlil_id||am.spidometr_tahlil_id||am.shubhali||am.ai_holat==='xato')) return;
   const km=await kmP;
+  await kmOldingiToldir(km?[km]:[]);   // 🔴 2026-09-29: oldingi quyishdan beri yurgan km + oldingi so'm/km
   await renderChekAi(entryId,am,rt,rtSpid,hasChek,km,rtImgP,rtSpidImgP);
 };
 // AI tekshiruv paneli — chek/hujjat rasmi ostida, aiMap'da ma'lumot bo'lsa chizadi.
@@ -2336,8 +2337,15 @@ async function renderChekAi(entryId,am,rt,rtSpid,hasChek,km,rtImgP,rtSpidImgP){
       if(km){
         out.push(`<div class="airow"><div class="al1">Km</div><div class="al2">${km.km!=null?esc(String(km.km)):'—'}</div></div>`);
         out.push(`<div class="airow"><div class="al1">Oldingi km</div><div class="al2">${km.oldingi_km!=null?esc(String(km.oldingi_km)):'—'}</div></div>`);
-        out.push(`<div class="airow"><div class="al1">Yurgan km</div><div class="al2">${km.yurgan_km!=null?esc(String(km.yurgan_km)):'—'}</div></div>`);
-        if(km.som_per_km!=null) out.push(`<div class="airow"><div class="al1">So'm/km</div><div class="al2">${money(km.som_per_km)}</div></div>`);
+        // 🔴 2026-09-29 (Asilbek): «nechi km yurdi va 1 km nechi so'mdan» SHU yozuvda ko'rinsin.
+        //    Bazada yurgan_km/som_per_km OLDINGI quyish qatoriga yoziladi (PROVODKA_MASHINA_KM_FIX.sql) —
+        //    shu yozuv uchun: yurgan = km − oldingi km (kmOldingiToldir → km._yurgan), so'm/km = oldingi
+        //    quyish summasi / shu km (oldingi qatorning som_per_km → km._som). Keyingi tablo kelsa
+        //    «Shu quyish» qatori ham to'ladi.
+        const yur=km._yurgan!=null?km._yurgan:(km.km!=null&&km.oldingi_km!=null&&km.km-km.oldingi_km>0?km.km-km.oldingi_km:null);
+        out.push(`<div class="airow"><div class="al1">Yurgan km (oldingi tablodan beri)</div><div class="al2">${yur!=null?esc(money(yur))+' km':(km.oldingi_km==null?'— (birinchi tablo)':'—')}</div></div>`);
+        out.push(`<div class="airow"><div class="al1">So'm/km (oldingi quyish)</div><div class="al2">${km._som!=null?money(km._som)+" so'm/km":'—'}</div></div>`);
+        out.push(`<div class="airow"><div class="al1">Shu quyish yurdi</div><div class="al2">${km.yurgan_km!=null?esc(money(km.yurgan_km))+' km'+(km.som_per_km!=null?' · '+money(km.som_per_km)+" so'm/km":''):'keyingi tablo kutilmoqda'}</div></div>`);
       }
       if(rtSpid&&rtSpid.user_id&&rtSpid.id){
         try{
@@ -2471,6 +2479,24 @@ let aiMap={};     // entry.id → {shubhali, shubhali_sabab, ai_holat, rasm_tahl
 // (id'lar aiMap.rasm_tahlil_id/spidometr_tahlil_id dan yig'iladi).
 let rtMap={};     // rasm_tahlil.id → row
 let kmMap={};     // entry.id → mashina_km row
+// 🔴 2026-09-29: mashina_km qatorlariga OLDINGI quyish ma'lumotini qo'shadi (mutatsiya):
+//   row._yurgan = km − oldingi_km (shu tablogacha yurilgan), row._som = oldingi qatorning som_per_km
+//   (= oldingi quyish summasi / shu yurgan km). Oldingi qator: shu mashina + km = oldingi_km (eng
+//   oxirgisi). Bitta .in() so'rov; RLS ko'rsatmasa/xato → faqat _yurgan qoladi, hech narsa buzilmaydi.
+async function kmOldingiToldir(rows){
+  const need=(rows||[]).filter(r=>r&&r.km!=null&&r.oldingi_km!=null);
+  need.forEach(r=>{ const d=Number(r.km)-Number(r.oldingi_km); r._yurgan=d>0?d:null; });
+  const withEl=need.filter(r=>r.mashina_element_id&&r._yurgan!=null);
+  if(!withEl.length) return;
+  try{
+    const els=[...new Set(withEl.map(r=>r.mashina_element_id))], kms=[...new Set(withEl.map(r=>Number(r.oldingi_km)))];
+    const {data,error}=await sb.from('mashina_km').select('mashina_element_id,km,som_per_km,created_at')
+      .in('mashina_element_id',els).in('km',kms).order('created_at',{ascending:true});
+    if(error||!Array.isArray(data)) return;
+    const prev={}; data.forEach(p=>{ prev[p.mashina_element_id+'|'+p.km]=p; });   // oxirgisi yutadi
+    withEl.forEach(r=>{ const p=prev[r.mashina_element_id+'|'+Number(r.oldingi_km)]; if(p&&p.som_per_km!=null) r._som=Number(p.som_per_km); });
+  }catch(e){}
+}
 // --- Yo'ldagi pullar (2026-09-06, PROVODKA_YOLDA.sql — RUN kutilmoqda) ---
 // Aros sinxroni transfer yozuvlarini `ext_ref='aros_tr:<transfer_id>:<cash|click|payme|terminal|dollar_usd>'`
 // bilan yozadi (n8n Auto Sync). transfer_id → yolda_farq() javobi (sotuvchi/kassa taqsimoti).
@@ -2525,11 +2551,11 @@ async function refreshMeta(){
       const [rtRes,kmRes]=await Promise.all([
         rtIds.length ? sb.from('rasm_tahlil').select('id,tur,ai_summa,ai_sana,ai_km,ishonch,aniq,holat,natija').in('id',rtIds)
                      : Promise.resolve({data:null,error:null}),
-        kmIds.length ? sb.from('mashina_km').select('entry_id,km,oldingi_km,yurgan_km,som_per_km').in('entry_id',kmIds)
+        kmIds.length ? sb.from('mashina_km').select('entry_id,mashina_element_id,km,oldingi_km,yurgan_km,som_per_km').in('entry_id',kmIds)
                      : Promise.resolve({data:null,error:null})
       ]);
       if(!rtRes.error&&rtRes.data) rtRes.data.forEach(r=>{ rtMap[r.id]=r; });
-      if(!kmRes.error&&kmRes.data) kmRes.data.forEach(r=>{ kmMap[r.entry_id]=r; });
+      if(!kmRes.error&&kmRes.data){ kmRes.data.forEach(r=>{ kmMap[r.entry_id]=r; }); await kmOldingiToldir(kmRes.data); }   // 🔴 2026-09-29
       izohAiTekshir();   // izoh↔modda AI tekshiruvi — fonda, await YO'Q (renderni kutdirmasin)
       loadYolda();        // yo'ldagi pullar farqi — fonda, await YO'Q (renderni kutdirmasin)
     }
@@ -3261,8 +3287,15 @@ function aiCell(e){
       let l='Tablo: '+(aiKm!=null?money(aiKm)+' km':'—');
       if(km&&km.km!=null&&aiKm!=null&&Number(km.km)!==aiKm) l+=' · <span class="ai-diff">yozilgan '+esc(money(km.km))+'</span>';
       sub.push(l);
+      // 🔴 2026-09-29: shu tablogacha yurilgan km + oldingi quyishning so'm/km (kmOldingiToldir);
+      //    keyingi tablo kelgan bo'lsa shu quyishning o'z ko'rsatkichi ham.
+      if(km&&km._yurgan!=null){
+        let l2='Yurdi '+esc(money(km._yurgan))+' km';
+        if(km._som!=null) l2+=' · '+esc(money(km._som))+" so'm/km";
+        sub.push(l2);
+      }
       if(km&&km.yurgan_km!=null){
-        let l2='+'+esc(money(km.yurgan_km))+' km';
+        let l2='Shu quyish: '+esc(money(km.yurgan_km))+' km';
         if(km.som_per_km!=null) l2+=' · '+esc(money(km.som_per_km))+" so'm/km";
         sub.push(l2);
       }
