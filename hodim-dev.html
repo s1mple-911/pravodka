@@ -594,7 +594,28 @@
   .oz-tbl select.oz-in{width:84px;text-align:left}
   .oz-tbl input.oz-in:focus,.oz-tbl select.oz-in:focus{outline:2px solid var(--primary-ring);outline-offset:-1px}
   .oz-tbl tr.oz-bad td.oz-nom{color:var(--red-ink)}
-  .oz-list{max-height:34vh;display:flex;flex-wrap:wrap;gap:6px;padding:2px}
+  .oz-dd{margin-top:4px;max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);
+    box-shadow:var(--shadow);overscroll-behavior:contain}
+  .oz-dd .oz-item{display:flex;width:100%;border:none;border-radius:0;border-bottom:1px solid var(--line);background:transparent;
+    min-height:40px;padding:0 12px;justify-content:space-between;text-align:left}
+  .oz-dd .oz-item:last-child{border-bottom:none}
+  .oz-dd .oz-item.first{background:var(--surface-2)}
+  .oz-dd .oz-item .oz-on{color:var(--primary-ink);font-size:12px;font-weight:600}
+  .oz-editbtn{display:inline-flex;align-items:center;gap:6px;margin-top:var(--s3);border:none;background:transparent;color:var(--muted);
+    font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:4px 0}
+  .oz-editbtn svg{width:14px;height:14px}
+  @media(hover:hover){.oz-editbtn:hover{color:var(--ink)}}
+  .oz-edit{margin-top:var(--s3);border:1px dashed var(--line);border-radius:var(--r-md);padding:var(--s3) var(--s4);background:var(--surface-2)}
+  .oz-edhd{font-size:13px;font-weight:700;margin:var(--s2) 0}
+  .oz-cnt{color:var(--muted);font-weight:500}
+  .oz-edadd{display:flex;gap:6px;margin-bottom:var(--s2)}
+  .oz-edadd .txt{flex:1;min-height:34px}
+  .oz-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:26vh;overflow:auto;padding:2px}
+  .oz-chips .oz-item{min-height:30px;padding:0 8px 0 10px;font-weight:500;cursor:default}
+  .oz-chips .oz-item button{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:none;background:transparent;
+    color:var(--muted);border-radius:50%;cursor:pointer;padding:0}
+  .oz-chips .oz-item button svg{width:12px;height:12px}
+  @media(hover:hover){.oz-chips .oz-item button:hover{background:var(--red-soft);color:var(--red-ink)}}
   .oz-item{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:999px;
     background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
   @media(hover:hover){.oz-item:hover{background:var(--surface-3)}}
@@ -607,7 +628,7 @@
   .oz-save{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
   .oz-save:disabled{opacity:.45;cursor:not-allowed}
   @media(hover:hover){.oz-save:hover:not(:disabled){background:var(--primary-hover)}}
-  @media(max-width:560px){.oz-list{max-height:none;flex:1;min-height:30vh}.oz-tblwrap{max-height:30vh}}
+  @media(max-width:560px){.oz-dd{max-height:30vh}.oz-tblwrap{max-height:30vh}}
   /* ================= spidometr (.ai-*) — chek blokining "muloyim karta" uslubi ================= */
   .ai-spidsect{margin-top:var(--s3);background:var(--surface-2);border-radius:var(--r-lg);padding:var(--s4)}
   .ai-spidsect .lbl::before{content:'';display:inline-block;width:13px;height:13px;margin-right:5px;vertical-align:-2px;
@@ -1368,8 +1389,19 @@
     <div id="ozSelWrap" class="oz-selwrap" style="display:none">
       <div class="jdwrap oz-tblwrap"><table class="jdtable oz-tbl"><thead><tr><th>Mahsulot</th><th class="num">Miqdor</th><th>Birlik</th><th class="num">Narx</th><th class="num">Summa</th><th></th></tr></thead><tbody id="ozSel"></tbody></table></div>
     </div>
-    <input class="txt" id="ozSearch" placeholder="Qidirish yoki yangi mahsulot nomi" autocomplete="off" oninput="ozRenderList()" aria-label="Masalliq qidirish">
-    <div id="ozList" class="picklist oz-list"></div>
+    <!-- 2026-09-29 (Asilbek): hammasi chiqib turmasin — qidiruv + dropdown (yozganda chiqadi). -->
+    <input class="txt" id="ozSearch" placeholder="Mahsulot nomini yozing…" autocomplete="off" oninput="ozRenderList()" onkeydown="ozKey(event)" aria-label="Masalliq qidirish">
+    <div id="ozList" class="oz-dd" style="display:none" role="listbox"></div>
+    <!-- Admin: ro'yxat (mahsulot/birlik) tahriri — oziq_royxat jadvali (PROVODKA_OZIQ_ROYXAT.sql) -->
+    <button type="button" class="oz-editbtn" id="ozEditBtn" style="display:none" onclick="ozEditToggle()"><i data-lucide="settings-2"></i><span>Ro'yxatni tahrirlash</span></button>
+    <div id="ozEdit" class="oz-edit" style="display:none">
+      <div class="oz-edhd">Mahsulotlar <span id="ozEdMN" class="oz-cnt"></span></div>
+      <div class="oz-edadd"><input class="txt" id="ozEdMIn" placeholder="Yangi mahsulot" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();ozEdAdd('mahsulot')}"><button type="button" class="jdxbtn" onclick="ozEdAdd('mahsulot')"><i data-lucide="plus"></i><span>Qo'shish</span></button></div>
+      <div id="ozEdM" class="oz-chips"></div>
+      <div class="oz-edhd">Birliklar <span id="ozEdBN" class="oz-cnt"></span></div>
+      <div class="oz-edadd"><input class="txt" id="ozEdBIn" placeholder="Yangi birlik (masalan: quti)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();ozEdAdd('birlik')}"><button type="button" class="jdxbtn" onclick="ozEdAdd('birlik')"><i data-lucide="plus"></i><span>Qo'shish</span></button></div>
+      <div id="ozEdB" class="oz-chips"></div>
+    </div>
     <div class="oz-foot">
       <div class="oz-jami">Jami: <b id="ozJami">0</b> so'm · <span id="ozN">0</span> qator</div>
       <button type="button" class="jdxbtn oz-save" id="ozSaveBtn" onclick="ozSave()"><i data-lucide="check"></i><span>Saqlash</span></button>
@@ -3124,7 +3156,9 @@ window.onJdFile=el=>jdHandleXlsxInput(el,jdApply);
    Excel funksiyalari (jdShablonYuklab/jdFromTemplate) kodda qoladi, tugmasi yo'q.
    Ro'yxat — Asilbek bergan masalliqlar (takrorlar olib tashlangan, imlo tuzatilgan). Ro'yxatda
    yo'q mahsulot: qidiruvga yozib «qo'shish» — erkin nom. */
-const OZ_ROYXAT=[
+/* Sukut ro'yxatlar — oziq_royxat jadvali yo'q (SQL RUN qilinmagan) yoki o'qilmasa shular ishlatiladi.
+   Jadval bo'lsa ro'yxat BAZADAN (admin «Ro'yxatni tahrirlash» orqali o'zgartiradi — PROVODKA_OZIQ_ROYXAT.sql). */
+const OZ_DEF_MAHSULOT=[
   'Kartoshka','Piyoz','Sabzi','Karam','Karam (salat)','Lavlagi','Baqlajon','Bolgar qalampir','Pomidor','Bodring',
   'Sarimsoq (chisnok)','Ko\'kat','Zelen','Kashnich','Ezilgan kashnich','Limon','Makkajo\'xori (Bonduelle)',
   'Mol go\'shti','Farsh','Tovuq farsh','Tovuq go\'shti','Tovuq oyoqchasi','Tovuq qanotcha','Quyruq',
@@ -3134,13 +3168,28 @@ const OZ_ROYXAT=[
   'Tuz','Koreya tuzi','Murch','Zira','Qalampir','Ezilgan qalampir','Paprika','Drojji','Choyniy soda',
   'Shakar','Qand','Novvot','Talqon','Pryannik','Pereprava','Choy'
 ];
-const OZ_BIRLIK=['kg','g','dona','litr','pachka','bog\'','shisha','quti'];
-let ozCtx=null;   // {kind:'main'|'rx', rows:[{nomi,miqdor,birlik,narx,summa}]}
+const OZ_DEF_BIRLIK=['kg','g','dona','litr','pachka','quti'];   // 2026-09-29: bog', shisha olib tashlandi (Asilbek)
+let ozMahsulot=OZ_DEF_MAHSULOT.map(n=>({id:null,nom:n})), ozBirlik=OZ_DEF_BIRLIK.map(n=>({id:null,nom:n}));
+let ozDb=null;      // null = hali so'ralmagan, true = jadval bor, false = yo'q (sukut)
+let ozCtx=null;     // {kind:'main'|'rx', rows:[{nomi,miqdor,birlik,narx,summa}]}
+let ozEditOn=false;
 const ozNum=v=>{ const s=String(v==null?'':v).replace(/\s/g,'').replace(',','.').replace(/[^\d.]/g,''); const n=Number(s); return (s&&isFinite(n))?n:null; };
 const ozKey=s=>String(s||'').trim().toLowerCase().replace(/[’ʼ`]/g,"'").replace(/\s+/g,' ');
 function ozState(kind){ return kind==='rx'?JD_STATE_RX:JD_STATE_MAIN; }
 function ozCur(kind){ return kind==='rx'?rxJadval:jadval; }
-// Mavjud jadvaldan qatorlarni tiklash (tahrirlash uchun) — Excel'dan kelgani ham (6 ustun) o'qiladi.
+// Ro'yxatni bazadan olish (swr 1 kun). 42P01/PGRST205 → jadval yo'q → sukut qoladi.
+async function ozLoad(fresh){
+  if(!fresh){ const c=swrGet('oziq',86400000); if(c&&Array.isArray(c.m)&&Array.isArray(c.b)){ ozMahsulot=c.m; ozBirlik=c.b; ozDb=true; } }
+  try{
+    const {data,error}=await sb.from('oziq_royxat').select('id,tur,nom,tartib').order('tartib').order('nom');
+    if(error){ if(ozDb===null) ozDb=false; return; }
+    const m=[],b=[]; (data||[]).forEach(r=>{ (r.tur==='birlik'?b:m).push({id:r.id,nom:r.nom}); });
+    if(m.length) ozMahsulot=m;
+    if(b.length) ozBirlik=b;
+    ozDb=true; swrSet('oziq',{m:ozMahsulot,b:ozBirlik});
+    if(ozCtx){ ozRenderSel(); ozRenderList(); if(ozEditOn) ozEdRender(); }
+  }catch(e){ if(ozDb===null) ozDb=false; }
+}
 function ozRowsFrom(jd){
   if(!jd||!Array.isArray(jd.rows)) return [];
   return jd.rows.map(r=>({nomi:String(r[1]==null?'':r[1]).trim(), miqdor:ozNum(r[2]), birlik:String(r[3]==null?'':r[3]).trim(), narx:ozNum(r[4]), summa:ozNum(r[5])})).filter(r=>r.nomi);
@@ -3148,29 +3197,37 @@ function ozRowsFrom(jd){
 window.ozOpen=(kind)=>{
   ozCtx={kind:kind||'main', rows:ozRowsFrom(ozCur(kind))};
   const s=$('ozSearch'); if(s) s.value='';
+  ozEditOn=false; $('ozEdit').style.display='none';
+  const eb=$('ozEditBtn'); if(eb) eb.style.display=(window.permIsAdmin&&window.permIsAdmin())?'inline-flex':'none';
   ozRenderSel(); ozRenderList();
   $('ozModal').classList.add('open');
+  ozLoad(false);
   setTimeout(()=>{ if(s) s.focus(); },50);
 };
 window.ozClose=()=>{ $('ozModal').classList.remove('open'); ozCtx=null; };
 function ozFind(nomi){ const k=ozKey(nomi); return ozCtx.rows.findIndex(r=>ozKey(r.nomi)===k); }
+function ozFocusLast(){ const inp=document.querySelector('#ozSel tr:last-child input[data-f="miqdor"]'); if(inp) inp.focus(); }
 window.ozToggle=(nomi)=>{
   if(!ozCtx) return;
   const i=ozFind(nomi);
   if(i>=0) ozCtx.rows.splice(i,1);
-  else ozCtx.rows.push({nomi:String(nomi).trim(), miqdor:null, birlik:'kg', narx:null, summa:null});
+  else ozCtx.rows.push({nomi:String(nomi).trim(), miqdor:null, birlik:(ozBirlik[0]||{}).nom||'kg', narx:null, summa:null});
+  const s=$('ozSearch'); if(s) s.value='';
   ozRenderSel(); ozRenderList();
-  if(i<0){ const inp=document.querySelector('#ozSel tr:last-child input[data-f="miqdor"]'); if(inp) inp.focus(); }
+  if(i<0) ozFocusLast();
 };
 window.ozAddCustom=()=>{
   const s=$('ozSearch'); const v=(s?s.value:'').trim();
   if(!v) return;
-  if(ozFind(v)<0) ozCtx.rows.push({nomi:v, miqdor:null, birlik:'kg', narx:null, summa:null});
-  s.value=''; ozRenderSel(); ozRenderList();
-  const inp=document.querySelector('#ozSel tr:last-child input[data-f="miqdor"]'); if(inp) inp.focus();
+  if(ozFind(v)<0) ozCtx.rows.push({nomi:v, miqdor:null, birlik:(ozBirlik[0]||{}).nom||'kg', narx:null, summa:null});
+  s.value=''; ozRenderSel(); ozRenderList(); ozFocusLast();
+};
+// Enter — dropdown'dagi birinchi qator (moslik bo'lmasa yangi nom), Escape — qidiruvni tozalash
+window.ozKey=(e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); const f=document.querySelector('#ozList .oz-item'); if(f) f.click(); }
+  else if(e.key==='Escape'){ e.preventDefault(); $('ozSearch').value=''; ozRenderList(); }
 };
 window.ozRm=(i)=>{ if(!ozCtx) return; ozCtx.rows.splice(i,1); ozRenderSel(); ozRenderList(); };
-// Qator maydoni o'zgardi — TO'LIQ qayta chizilmaydi (fokus yo'qolmasin): faqat summa katagi + jami.
 window.ozSet=(i,f,v)=>{
   const r=ozCtx&&ozCtx.rows[i]; if(!r) return;
   if(f==='birlik') r.birlik=String(v||'').trim();
@@ -3192,27 +3249,29 @@ function ozRenderSel(){
   const wrap=$('ozSelWrap'), tb=$('ozSel'); if(!wrap||!tb) return;
   if(!ozCtx||!ozCtx.rows.length){ wrap.style.display='none'; tb.innerHTML=''; ozFoot(); return; }
   tb.innerHTML=ozCtx.rows.map((r,i)=>{
-    const birliks=[...new Set([r.birlik||'kg',...OZ_BIRLIK])];
+    const cur=r.birlik||(ozBirlik[0]||{}).nom||'';
+    const birliks=[...new Set([cur,...ozBirlik.map(b=>b.nom)].filter(Boolean))];
     return `<tr data-i="${i}" class="${r.summa>0?'':'oz-bad'}"><td class="oz-nom">${esc(r.nomi)}</td>`
       +`<td class="num"><input class="oz-in" inputmode="decimal" data-i="${i}" data-f="miqdor" value="${r.miqdor!=null?esc(String(r.miqdor)):''}" placeholder="0" oninput="ozSet(${i},'miqdor',this.value)"></td>`
-      +`<td><select class="oz-in" data-i="${i}" data-f="birlik" onchange="ozSet(${i},'birlik',this.value)">${birliks.map(b=>`<option${b===(r.birlik||'kg')?' selected':''}>${esc(b)}</option>`).join('')}</select></td>`
+      +`<td><select class="oz-in" data-i="${i}" data-f="birlik" onchange="ozSet(${i},'birlik',this.value)">${birliks.map(b=>`<option${b===cur?' selected':''}>${esc(b)}</option>`).join('')}</select></td>`
       +`<td class="num"><input class="oz-in" inputmode="numeric" data-i="${i}" data-f="narx" value="${r.narx!=null?esc(money(r.narx)):''}" placeholder="0" oninput="ozSet(${i},'narx',this.value)"></td>`
       +`<td class="num"><input class="oz-in" inputmode="numeric" data-i="${i}" data-f="summa" value="${r.summa!=null?esc(money(r.summa)):''}" placeholder="0" oninput="ozSet(${i},'summa',this.value)"></td>`
       +`<td><button type="button" class="jdrm" onclick="ozRm(${i})" title="Olib tashlash" aria-label="Olib tashlash"><i data-lucide="x"></i></button></td></tr>`;
   }).join('');
   wrap.style.display='block'; icons(); ozFoot();
 }
+// Dropdown — FAQAT yozilganda (bo'sh qidiruv → yashirin). ≤12 moslik + «qo'shish».
+const ozAttr=v=>JSON.stringify(String(v)).replace(/"/g,'&quot;');
 window.ozRenderList=()=>{
   const list=$('ozList'); if(!list||!ozCtx) return;
-  const q=ozKey($('ozSearch')?$('ozSearch').value:'');
+  const raw=($('ozSearch')?$('ozSearch').value:'').trim(), q=ozKey(raw);
+  if(!q){ list.style.display='none'; list.innerHTML=''; return; }
   const sel=new Set(ozCtx.rows.map(r=>ozKey(r.nomi)));
-  // Ro'yxat + foydalanuvchi qo'shgan (ro'yxatda yo'q) nomlar — ular ham chip bo'lib ko'rinadi
-  const all=OZ_ROYXAT.slice(); ozCtx.rows.forEach(r=>{ if(!all.some(n=>ozKey(n)===ozKey(r.nomi))) all.push(r.nomi); });
-  const items=all.filter(n=>!q||ozKey(n).includes(q));
-  let html=items.map(n=>`<button type="button" class="oz-item${sel.has(ozKey(n))?' on':''}" onclick="ozToggle(${JSON.stringify(n).replace(/"/g,'&quot;')})">${sel.has(ozKey(n))?'<i data-lucide="check"></i>':''}${esc(n)}</button>`).join('');
-  if(q && !all.some(n=>ozKey(n)===q)) html+=`<button type="button" class="oz-item add" onclick="ozAddCustom()"><i data-lucide="plus"></i>«${esc(($('ozSearch').value||'').trim())}» qo'shish</button>`;
-  if(!html) html='<div class="oz-empty">Topilmadi</div>';
-  list.innerHTML=html; icons();
+  const items=ozMahsulot.map(m=>m.nom).filter(n=>ozKey(n).includes(q));
+  items.sort((a,b)=>{ const sa=ozKey(a).startsWith(q)?0:1, sb2=ozKey(b).startsWith(q)?0:1; return sa-sb2||a.localeCompare(b); });
+  let html=items.slice(0,12).map((n,i)=>`<button type="button" class="oz-item${i===0?' first':''}" role="option" onclick="ozToggle(${ozAttr(n)})"><span>${esc(n)}</span>${sel.has(ozKey(n))?'<span class="oz-on">✓ jadvalda · olib tashlash</span>':''}</button>`).join('');
+  if(!items.some(n=>ozKey(n)===q)) html+=`<button type="button" class="oz-item add${items.length?'':' first'}" onclick="ozAddCustom()"><span><i data-lucide="plus"></i> «${esc(raw)}» — yangi nom bilan qo'shish</span></button>`;
+  list.innerHTML=html; list.style.display='block'; icons();
 };
 window.ozSave=()=>{
   if(!ozCtx||!ozCtx.rows.length) return;
@@ -3222,6 +3281,38 @@ window.ozSave=()=>{
   const kind=ozCtx.kind;
   jdApplyTo(ozState(kind), {v:1, manba:'royxat', shablon:'xarajat-v1', cols:JD_TPL_HEAD.slice(), rows, jami, n:rows.length});
   ozClose();
+};
+/* ---- Admin: ro'yxat tahriri (oziq_royxat_qosh / oziq_royxat_ochir). Jadval yo'q bo'lsa — toast. ---- */
+window.ozEditToggle=()=>{
+  ozEditOn=!ozEditOn;
+  $('ozEdit').style.display=ozEditOn?'block':'none';
+  if(ozEditOn){ if(ozDb===false){ toast("Ro'yxat bazada yo'q — PROVODKA_OZIQ_ROYXAT.sql RUN qilinishi kerak",true); } ozEdRender(); ozLoad(true); }
+};
+function ozEdRender(){
+  const chip=(r,tur)=>`<span class="oz-item"><span>${esc(r.nom)}</span>${r.id?`<button type="button" onclick="ozEdDel(${ozAttr(r.id)},${ozAttr(tur)})" title="O'chirish" aria-label="O'chirish"><i data-lucide="x"></i></button>`:''}</span>`;
+  $('ozEdM').innerHTML=ozMahsulot.map(r=>chip(r,'mahsulot')).join('')||'<div class="oz-empty">Bo\'sh</div>';
+  $('ozEdB').innerHTML=ozBirlik.map(r=>chip(r,'birlik')).join('')||'<div class="oz-empty">Bo\'sh</div>';
+  $('ozEdMN').textContent='· '+ozMahsulot.length; $('ozEdBN').textContent='· '+ozBirlik.length;
+  icons();
+}
+window.ozEdAdd=async(tur)=>{
+  const inp=$(tur==='birlik'?'ozEdBIn':'ozEdMIn'); const v=(inp.value||'').trim(); if(!v) return;
+  try{
+    const {data,error}=await sb.rpc('oziq_royxat_qosh',{p_tur:tur,p_nom:v});
+    if(error){ toast(/42883|PGRST202|42P01/.test(error.code||'')?"SQL hali RUN qilinmagan (PROVODKA_OZIQ_ROYXAT.sql)":(error.message||'Xato'),true); return; }
+    if(!data||!data.ok){ toast((data&&data.error)||'Xato',true); return; }
+    inp.value=''; toast(data.takror?'Allaqachon bor':"Qo'shildi");
+    await ozLoad(true); ozEdRender();
+  }catch(e){ toast('Xato',true); }
+};
+window.ozEdDel=async(id,tur)=>{
+  try{
+    const {data,error}=await sb.rpc('oziq_royxat_ochir',{p_id:id});
+    if(error){ toast(error.message||'Xato',true); return; }
+    if(!data||!data.ok){ toast((data&&data.error)||'Xato',true); return; }
+    toast("O'chirildi");
+    await ozLoad(true); ozEdRender();
+  }catch(e){ toast('Xato',true); }
 };
 
 /* ================= AI rasm tahlili (chek/spidometr) — 7-BOSQICH =================
