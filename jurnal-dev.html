@@ -2419,7 +2419,7 @@ function renderJdModal(){
   const {jadval:jd, description, entry_date}=jdCur.data;
   const ed=entry_date?String(entry_date).slice(0,10).split('-').reverse().join('.'):'';
   $('jdTitle').textContent='Jadval'+(description?' · '+description:'')+(ed?' · '+ed:'');
-  const manba=(jd.manba==='xlsx'&&jd.fayl)?jd.fayl:'Excel nusxasi';
+  const manba=(jd.manba==='xlsx'&&jd.fayl)?jd.fayl:(jd.manba==='izoh'?'Izohdan aniqlangan':'Excel nusxasi');
   $('jdMeta').textContent=manba+' · '+(jd.n!=null?jd.n:(jd.rows||[]).length)+' qator';
   const rows=jd.rows||[];
   if(!rows.length){ $('jdBody').innerHTML='<div class="jd-msg">Bo\'sh jadval</div>'; return; }
@@ -2460,6 +2460,91 @@ window.jdExportXlsx=async()=>{
 };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const ov=$('jdModal'); if(ov&&ov.classList.contains('open')) window.closeJadval(); } });
 /* ==================== /JADVAL MODALI ==================== */
+
+/* ==================== IZOHGA YOZILGAN RO'YXAT — 2026-09-30 (Asilbek) ====================
+   Ba'zi hodimlar oziq-ovqat ro'yxatini Excel/Katta ro'yxat o'rniga izohga bitta uzun qator
+   qilib yozib yuboradi: "<nomi> <miqdor> <birlik> <narx> <summa> <nomi> <miqdor> ...".
+   entry.jadval YO'Q bo'lgan bunday yozuvlarda ham xuddi shu #jdModal ochilsin deb — sof
+   funksiya izohni jadval qatorlariga ajratadi (server/SQL o'zgarishisiz, faqat klientda).
+   Natija entry.jadval bilan BIR XIL shakl (cols=JD_TPL_HEAD, rows, jami, n — hodim-dev.html
+   ozSave()ga qara) — shuning uchun mavjud renderJdModal/jd-chip qayta ishlatiladi. */
+const IZOH_JD_UNIT_RE=/^(кг|kg|шт\.?|dona|л|litr|г|gr|пачка|pachka|дона)$/i;
+const IZOH_JD_QTY_RE=/^\d+(?:[.,]\d+)?$/;
+const IZOH_JD_NUM_RE=/^\d{1,3}(?:[.,]\d{1,2})?$/;
+const JD_TPL_HEAD_IZOH=['№','Nomi','Miqdor','Birlik','Narx','Summa'];
+let izohJdCache={};   // entry.id → parse natijasi — chip chizilganda hisoblanadi, bosilganda qayta o'qiladi
+function izohJdNum(s){
+  const t=String(s).replace(/[\s\u00A0]/g,'').replace(',','.');
+  const n=Number(t);
+  return isFinite(n)?n:null;
+}
+/* Miqdordan keyingi raqam belgilarini narx/summaga ajratadi. Kasr FAQAT summada bo'lgani
+   uchun (masalan "175 990 249 554,00" → narx 175990, summa 249554,00) — necha chunk narxga,
+   necha chunk summaga tegishli ekanini miqdor×narx≈summa tekshiruvi bilan topamiz (chunklar
+   soni digit uzunligi bo'yicha bir xil ko'rinishi mumkin, arifmetika aniq bo'linishni beradi). */
+function izohJdSplitNumbers(chunks,miqdor){
+  if(!chunks.length) return {narx:null,summa:null};
+  if(!chunks.some(c=>/[.,]/.test(c))){
+    // Kasr umuman yo'q — hammasi narx, summa hisoblanadi (spec: "summa yo'q, narx+miqdor bor").
+    const narx=izohJdNum(chunks.join(' '));
+    return {narx, summa:narx!=null?Math.round(miqdor*narx*100)/100:null};
+  }
+  let best=null;
+  for(let sp=0;sp<chunks.length;sp++){
+    const summa=izohJdNum(chunks.slice(sp).join(' '));
+    if(summa==null) continue;
+    const narx=sp>0?izohJdNum(chunks.slice(0,sp).join(' ')):null;
+    const score=(narx!=null&&summa>0)?Math.abs(narx*miqdor-summa)/summa:Infinity;
+    if(!best||score<best.score) best={narx,summa,score};
+  }
+  if(best&&best.score<0.1) return {narx:best.narx,summa:best.summa};
+  // Ishonchli bo'linish topilmadi — xavfsiz variant: narxsiz, bor summani butunligicha olamiz.
+  return {narx:null, summa:izohJdNum(chunks.join(' '))};
+}
+/* Sof funksiya: izoh matnini jadval qatorlariga ajratadi. Kamida 2 qator topilmasa YOKI
+   topilgan qatorlar matnning kamida 60% ini qoplamasa — null (oddiy izohlar, masalan
+   "taksi puli 15000" yoki "Gaz 120000", buzilmay o'tib ketadi). */
+function izohJadvalParse(text){
+  const raw=String(text||'').replace(/\u00A0/g,' ').trim();
+  if(!raw) return null;
+  const tokens=raw.split(/\s+/).filter(Boolean);
+  if(tokens.length<3) return null;
+  const rows=[]; let nameBuf=[], nameStart=0, usedTokens=0, i=0;
+  while(i<tokens.length){
+    const unitRaw=tokens[i+1]?tokens[i+1].replace(/\.$/,''):'';
+    if(IZOH_JD_QTY_RE.test(tokens[i]) && IZOH_JD_UNIT_RE.test(unitRaw)){
+      const miqdor=izohJdNum(tokens[i]);
+      const birlik=unitRaw.toLowerCase();
+      const nomi=nameBuf.join(' ').trim();
+      let j=i+2; const chunks=[];
+      while(j<tokens.length && IZOH_JD_NUM_RE.test(tokens[j])){ chunks.push(tokens[j]); j++; }
+      if(nomi){
+        const {narx,summa}=izohJdSplitNumbers(chunks,miqdor);
+        rows.push([rows.length+1, nomi, miqdor, birlik, narx==null?'':narx, summa==null?0:summa]);
+        usedTokens+=(j-nameStart);
+      }
+      nameBuf=[]; nameStart=j; i=j; continue;
+    }
+    nameBuf.push(tokens[i]); i++;
+  }
+  if(rows.length<2) return null;
+  if(usedTokens/tokens.length<0.6) return null;
+  let jami=0; rows.forEach(r=>{ jami+=Number(r[5])||0; });
+  jami=Math.round(jami*100)/100;
+  const qoldiq=nameBuf.join(' ').trim();   // oxirgi qatordan keyin qolgan matn (jadvalga kirmagan)
+  return {v:1, manba:'izoh', cols:JD_TPL_HEAD_IZOH.slice(), rows, jami, n:rows.length, qoldiq};
+}
+/* Server so'rovsiz — izohJdCache'dagi tayyor natijani #jdModal'ga uzatadi (openJadval kabi,
+   lekin sb.from('entry') o'qishisiz). Entry o'zi `rows` (joriy sahifa) ichida bo'lishi shart. */
+window.openIzohJadval=(id)=>{
+  const jd=izohJdCache[id]; if(!jd) return;
+  const ov=$('jdModal'); if(!ov) return;
+  const en=rows.find(x=>x.id===id)||{};
+  jdCur={id, data:{jadval:jd, description:en.description, entry_date:en.entry_date}};
+  ov.classList.add('open');
+  renderJdModal();
+};
+/* ==================== /IZOHGA YOZILGAN RO'YXAT ==================== */
 
 // --- V6: filial + davr metadata (entry.filial_ids, davr_start/end) ---
 // jurnal() RPC bu ustunlarni qaytarmaydi — yuklangan yozuvlar uchun alohida o'qiladi.
@@ -3020,9 +3105,17 @@ function izohCell(e,k,multi){
   // Konvert (valyuta sotib olish/sotish) — ixcham yo'nalish qatori, description'dan OLDIN.
   if(!chala){ const ks=konvSatr(e); if(ks) parts.push(`<div class="j-konvline">${ks}</div>`); }
   // Jadval chipi (entry.jadval) — description'dan OLDIN. metaMap hali kelmagan/ustun yo'q → chip yo'q.
+  // jd_n yo'q bo'lsa ham — hodim ro'yxatni izohga bitta qator matn qilib yozgan bo'lishi mumkin,
+  // shu holatni klientda aniqlaymiz (izohJadvalParse) va xuddi shu #jdModal'ni ochamiz.
+  let izohJd=null;
   { const m=metaMap[e.id];
-    if(m&&m.jd_n) parts.push(`<div><button type="button" class="jd-chip" onclick="openJadval('${e.id}')"><i data-lucide="table-2"></i>Jadval · ${m.jd_n} qator${m.jd_jami!=null?' · '+money(m.jd_jami):''}</button></div>`); }
-  if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
+    if(m&&m.jd_n) parts.push(`<div><button type="button" class="jd-chip" onclick="openJadval('${e.id}')"><i data-lucide="table-2"></i>Jadval · ${m.jd_n} qator${m.jd_jami!=null?' · '+money(m.jd_jami):''}</button></div>`);
+    else { izohJd=izohJadvalParse(e.description); if(izohJd) izohJdCache[e.id]=izohJd; } }
+  if(izohJd){
+    parts.push(`<div><button type="button" class="jd-chip" onclick="openIzohJadval('${e.id}')"><i data-lucide="list"></i>Ro'yxat · ${izohJd.n} qator${izohJd.jami?' · '+money(izohJd.jami):''}</button></div>`);
+    if(izohJd.qoldiq) parts.push(`<div class="jgoal">${esc(izohJd.qoldiq)}</div>`);
+  }
+  else if(e.description) parts.push(`<div class="jgoal">${esc(e.description)}</div>`);
   // 🔴 Chala yozuvda "Kt → Dt" satri CHIZILMAYDI: hisob yo'q, u bo'sh " → " bo'lib
   // ko'rinardi (aynan foydalanuvchini chalkashtirgan holat).
   else if(!chala) parts.push(!multi
@@ -3212,8 +3305,9 @@ function autoIssues(e,k){
   const d=String(e.description||'').trim();
   const moddaNom=(k.dt&&k.dt.name)?String(k.dt.name).trim():'';
   const meta=metaMap[e.id];
-  // Jadval biriktirilgan xarajatda izoh ataylab qisqa — "izoh <5 belgi" qoidasi shu holatda o'tkazib yuboriladi.
-  if(d.length<5){ if(!(meta&&meta.jd_n)) out.push('Izoh yozilmagan yoki juda qisqa'); }
+  // Jadval biriktirilgan (entry.jadval YOKI izohga yozilgan ro'yxat parse qilingan) xarajatda
+  // izoh ataylab qisqa — "izoh <5 belgi" qoidasi shu holatda o'tkazib yuboriladi.
+  if(d.length<5){ if(!(meta&&meta.jd_n)&&!izohJadvalParse(d)) out.push('Izoh yozilmagan yoki juda qisqa'); }
   else if(moddaNom&&d.toLowerCase()===moddaNom.toLowerCase()) out.push("Izoh modda nomini takrorlaydi — tafsilot yo'q");
   if(!(meta&&(meta.davr_start||meta.davr_end))){
     const p=uzParts(e.created_at);   // xarajatHtml() dagi .j-oth bilan AYNAN bir xil qoida
