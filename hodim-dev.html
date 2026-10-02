@@ -1707,9 +1707,9 @@ function fmtAmt(el){
   const oldin=(el.value.slice(0,pos).match(/\d/g)||[]).length;   // kursordan oldingi raqamlar soni
   let raw=(el.value||'').replace(/\D/g,'');
   if(!raw){ el.value=''; el.dataset.a000=''; return 0; }
-  // raw.length===1 — faqat qo'lda terilgan birinchi raqam. Nusxa-joylashtirishda
-  // (bir necha raqam birdan tushadi) 000 qo'shilmaydi.
-  if(el.dataset.a000!=='1' && raw.length===1){ raw+='000'; el.dataset.a000='1'; }
+  // 🔴 2026-10-02 (Asilbek): AVTOMAT "000" O'CHIRILDI — hodim summani to'liq o'zi teradi
+  //    (15 000 deb yozmoqchi bo'lsa 15000 teradi). Faqat minglik ajratgich qoladi.
+  //    dataset.a000 belgisi boshqa joylarda tozalanadi — zararsiz, tegilmadi.
   el.value=money(raw);
   // Probellar qo'shilgani uchun kursor surilib ketadi — o'sha raqamdan keyingi joyga qaytaramiz
   let idx=0;
