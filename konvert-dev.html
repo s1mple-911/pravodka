@@ -286,8 +286,9 @@
     <div id="cvXYWrap" style="display:none">
       <label>Qayerdan</label><select id="cvXYFrom"></select>
       <label>Qayerga</label><select id="cvXYTo"></select>
-      <label>Beriladigan summa</label><input class="txt" id="cvXYAmount" inputmode="decimal" placeholder="0" oninput="cvXYFmtAmt(this)">
-      <label>Olinadigan summa</label><input class="txt" id="cvXYToAmount" inputmode="decimal" placeholder="0" oninput="cvXYFmtAmt(this)">
+      <label id="cvXYAmountLbl">Beriladigan summa</label><input class="txt" id="cvXYAmount" inputmode="decimal" placeholder="0" oninput="cvXYFmtAmt(this)">
+      <label id="cvXYRateLbl">Kurs (1 FROM = ? TO)</label><input class="txt" id="cvXYRateInp" inputmode="decimal" placeholder="0" oninput="cvXYFmtRate(this)">
+      <label id="cvXYToAmountLbl">Olinadigan summa</label><input class="txt" id="cvXYToAmount" inputmode="decimal" placeholder="0" oninput="cvXYFmtAmt(this)">
       <div class="cv-rate" id="cvXYRateBox"><i data-lucide="repeat"></i><span id="cvXYRate">—</span></div>
       <div id="cvXYUzsWrap" hidden>
         <label>So'm ekvivalenti</label><input class="txt" id="cvXYUzs" inputmode="numeric" placeholder="0" oninput="cvXYFmtUzs(this)">
@@ -743,7 +744,34 @@ window.convSave=async()=>{
 // O'zida turgan pulni bevosita bir valyutadan ikkinchisiga aylantirish — so'mga qaytib
 // sotib olish shart emas. Ustama (komissiya) alohida "Konvert ustama" xarajat yozuvi bilan.
 let cvXYList=[], cvXYBaza=null, cvXYUstMode='summa';
+// Qaysi maydon oxirgi marta qo'lda tahrirlangan: 'rate' (Kurs) yoki 'to' (Olinadigan summa).
+// Beriladigan summa o'zgarsa shu bayroq asosida qaysi biri qayta hisoblanishi hal qilinadi.
+let cvXYLastEdit='to';
 const cvXYNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
+function fmtAmt2(n){
+  n=Math.round((Number(n)||0)*100)/100;
+  const [b,k]=n.toFixed(2).split('.');
+  return k==='00' ? money(b) : money(b)+'.'+k;
+}
+function cvXYLabels(){
+  const f=cvXYFromCur()||'FROM', t=cvXYToCur()||'TO';
+  $('cvXYAmountLbl').textContent='Beriladigan summa'+(cvXYFromCur()?' ('+f+')':'')+" — kassadan chiqadi";
+  $('cvXYToAmountLbl').textContent='Olinadigan summa'+(cvXYToCur()?' ('+t+')':'')+' — kassaga kiradi';
+  $('cvXYRateLbl').textContent='Kurs (1 '+f+' = ? '+t+')';
+}
+// Kurs qo'lda kiritilganda Olinadigan summa = Beriladigan summa × kurs avtomat to'ldiriladi.
+function cvXYApplyRateToToAmount(){
+  const amt=cvXYNum('cvXYAmount'), rate=cvXYNum('cvXYRateInp');
+  if(amt>0&&rate>0) $('cvXYToAmount').value=fmtAmt2(amt*rate);
+}
+window.cvXYFmtRate=el=>{
+  let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+  const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,6):'');
+  el.value=raw;
+  cvXYLastEdit='rate';
+  cvXYApplyRateToToAmount();
+  cvXYCalc();
+};
 // Ruxsat doirasi root_id bo'yicha — v_konvert_valyuta_hisoblar.root_id = kassa_root(a.id).
 const cvxOpOk=r=>window.permOpOk({parent_id:r.root_id,currency:r.currency});
 const cvXYFromCur=()=>{ const r=cvXYList.find(x=>x.id===$('cvXYFrom').value); return r?r.currency:null; };
@@ -779,8 +807,9 @@ async function cvXYLoad(){
   await cvXYFromChange();
 }
 function cvXYResetForm(){
-  $('cvXYAmount').value=''; $('cvXYToAmount').value=''; $('cvXYUstama').value=''; $('cvXYNote').value='';
+  $('cvXYAmount').value=''; $('cvXYToAmount').value=''; $('cvXYRateInp').value=''; $('cvXYUstama').value=''; $('cvXYNote').value='';
   $('cvXYUzsWrap').hidden=true; $('cvXYUzs').value='';
+  cvXYLastEdit='to';
   cvXYUstMode='summa';
   [...$('cvXYUstSeg').children].forEach((b,i)=>b.classList.toggle('on',i===0));
   $('cvXYUstLbl').textContent='Ustama (summa)';
@@ -799,6 +828,8 @@ window.cvXYFmtAmt=el=>{
   const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
   const [b,k]=raw.split('.');
   el.value=b?money(b)+(k!==undefined?'.'+k:''):'';
+  if(el.id==='cvXYToAmount') cvXYLastEdit='to';
+  else if(el.id==='cvXYAmount'&&cvXYLastEdit==='rate') cvXYApplyRateToToAmount();
   cvXYCalc();
 };
 window.cvXYFmtUzs=el=>{ const raw=el.value.replace(/\D/g,''); el.value=raw?money(raw):''; cvXYCalc(); };
@@ -810,6 +841,7 @@ window.cvXYFmtUst=el=>{
   cvXYCalc();
 };
 function cvXYCalc(){
+  cvXYLabels();
   const amt=cvXYNum('cvXYAmount'), toAmt=cvXYNum('cvXYToAmount');
   const fromCur=cvXYFromCur(), toCur=cvXYToCur();
   const el=$('cvXYRate');
@@ -821,6 +853,9 @@ function cvXYCalc(){
     const cross=toAmt/amt;
     el.innerHTML='1 '+esc(fromCur)+' = <b>'+cross.toLocaleString('en-US',{maximumFractionDigits:6})+'</b> '+esc(toCur)
       +(uzs?(' · ≈ <b>'+money(uzs)+"</b> so'm (asosiy kurs, ma'lumot uchun)"):'');
+    // Kurs maydoni Olinadigan summadan hisoblangan bo'lsa ("to" tahrirlangan) — qayta yoziladi.
+    // Kurs o'zi qo'lda kiritilgan bo'lsa ("rate") — tahrirlanayotgan maydonga tegilmaydi.
+    if(cvXYLastEdit!=='rate') $('cvXYRateInp').value=cross.toLocaleString('en-US',{useGrouping:false,maximumFractionDigits:6});
   }
   const ustRaw=cvXYNum('cvXYUstama');
   const ustFc=(cvXYUstMode==='foiz')
