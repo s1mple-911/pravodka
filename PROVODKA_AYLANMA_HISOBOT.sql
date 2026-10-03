@@ -151,6 +151,7 @@ begin
       from kunlar k
       left join snap s1 on s1.sana = k.kun
       left join snap s2 on s2.sana = k.kun + 1
+      left join foyda f on f.sana = k.kun          -- (FIX 2026-10-03: PROVODKA_AYLANMA_HISOBOT_FIX.sql bilan bir xil)
   )
   select coalesce(jsonb_agg(jsonb_build_object(
            'kun', kun, 'jami_oldin', jami_oldin, 'jami', jami, 'rejim', rejim, 'hisoblangan_at', hisoblangan_at,
