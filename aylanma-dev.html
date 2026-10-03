@@ -210,6 +210,14 @@
   #hisXarajatRoyxatBody td:nth-child(5){text-align:left}
   .hisxj summary{cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:600}
   @media(max-width:768px){.hisgrid{flex-direction:column;gap:14px}}
+  /* 2026-10-03 (Asilbek): tafsilot pastda ochilishi noqulay — MODAL (overlay) bo'lib ochiladi. Mobil: pastdan sheet. */
+  .hismodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .hismodal.open{display:flex}
+  .hismodal .dd{display:block;margin:0;border-top:none;padding:18px 20px 16px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-hover);width:min(1120px,100%);max-height:88vh;overflow:auto}
+  .hismodal.m-foyda .dd{width:min(720px,100%)}
+  .hismodal .dd-hd h3{font-size:16px}
+  .hismodal .dd .scroll{max-height:min(60vh,520px)}
+  @media(max-width:600px){.hismodal{padding:0;align-items:flex-end}.hismodal .dd{border-radius:20px 20px 0 0;max-height:90vh;padding:16px 14px calc(16px + env(safe-area-inset-bottom))}}
   /* ---- trend ---- */
   .trendseg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin:10px 0 14px;max-width:280px}
   .trendseg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
@@ -345,7 +353,8 @@
         <thead><tr><th>Kun</th><th>Jami summa</th><th>Bo'lishi kerak</th><th>Raznitsa</th><th>Foyda</th><th>Xarajat</th><th>Holat</th></tr></thead>
         <tbody id="hisBody"><tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
-      <div class="dd" id="hisDd">
+      <div class="hismodal" id="hisModal" onclick="if(event.target===this)hisDrillClose()">
+      <div class="dd" id="hisDd" role="dialog" aria-modal="true" aria-labelledby="hisDdTitle">
         <div class="dd-hd">
           <h3 id="hisDdTitle">Tafsilot</h3>
           <div style="display:flex;gap:6px;align-items:center">
@@ -378,6 +387,7 @@
             <div class="note" id="hisXarajatFallbackNote" style="display:none">Batafsil ro'yxat uchun PROVODKA_AYLANMA_HISOBOT_2.sql RUN qilinsin.</div>
           </div>
         </div>
+      </div>
       </div>
       <div class="note">Jami — ertasi kun 08:00 dagi snapshot (kun oxiri holati). Bo'lishi kerak = kun boshi + foyda − xarajat. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan. Xarajat — faqat asosiy deb belgilangan kassalardan chiqqan xarajatlar.</div>
     </div>
@@ -1086,7 +1096,7 @@ window.hisDrill=async(kun,mode)=>{
   const cached=(hisOpenKun===kun && hisDetail);
   hisOpenKun=kun; hisOpenMode=mode;
   markOpenHisRow();
-  $('hisDd').style.display='block';
+  hisModalOpen(mode);
   if(cached){ renderHisDrill(); return; }
   $('hisDdTitle').textContent=hisDrillTitle(mode,kun,null);
   $('hisFoydaBody').innerHTML='<tr><td colspan="5" class="empty">Yuklanmoqda...</td></tr>';
@@ -1109,7 +1119,16 @@ window.hisDrill=async(kun,mode)=>{
   hisDetail=data;
   renderHisDrill();
 };
-window.hisDrillClose=()=>{ hisOpenKun=null; hisOpenMode=null; hisDetail=null; $('hisDd').style.display='none'; markOpenHisRow(); };
+/* Modal (2026-10-03): katak bosilganda overlay ochiladi; Esc / fon bosilsa yopiladi. Foyda rejimi torroq. */
+function hisModalOpen(mode){
+  const m=$('hisModal');
+  m.classList.toggle('m-foyda', mode==='foyda');
+  m.classList.add('open');
+  document.body.style.overflow='hidden';
+  $('hisDd').scrollTop=0;
+}
+window.hisDrillClose=()=>{ hisOpenKun=null; hisOpenMode=null; hisDetail=null; $('hisModal').classList.remove('open'); document.body.style.overflow=''; markOpenHisRow(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && hisOpenKun) window.hisDrillClose(); });
 async function hisDrillReload(){
   if(!hisOpenKun) return;
   const {data,error}=await sb.rpc('aylanma_hisobot_tafsilot',{p_sana:hisOpenKun});
