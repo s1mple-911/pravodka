@@ -334,23 +334,10 @@
         <button onclick="aylSetTrend(365,this)">365 kun</button>
       </div>
       <div class="tsvg-wrap" id="trendSvgWrap"><div class="empty">Yuklanmoqda...</div></div>
-      <div class="scroll" style="margin-top:12px"><table>
-        <thead><tr><th>Sana</th><th>Jami (so'm)</th><th>Holat</th></tr></thead>
-        <tbody id="trendTb"><tr><td colspan="3" class="empty">Yuklanmoqda...</td></tr></tbody>
-      </table></div>
-      <div class="note">Har kun uchun bitta nuqta: 08:00 dagi avtomatik hisob, u bo'lmasa o'sha kunning oxirgi qo'lda hisobi.</div>
-    </div>
-
-    <div class="card">
-      <h2>Kunlik hisobot</h2>
-      <div class="trendseg" id="hisSeg">
-        <button onclick="hisSetDays(7,this)">7 kun</button>
-        <button class="on" onclick="hisSetDays(14,this)">14 kun</button>
-        <button onclick="hisSetDays(30,this)">30 kun</button>
-      </div>
-      <div class="scroll" id="hisTableWrap"><table>
-        <thead><tr><th>Kun</th><th>Jami summa</th><th>Bo'lishi kerak</th><th>Raznitsa</th><th>Foyda</th><th>Xarajat</th></tr></thead>
-        <tbody id="hisBody"><tr><td colspan="6" class="empty">Yuklanmoqda...</td></tr></tbody>
+      <!-- 2026-10-03 (Asilbek): kunlik hisobot DIAGRAMMA TAGIDA — eski Sana/Jami/Holat jadvali o'rnida; davr Trend segmenti (30/90/365) bilan bir xil -->
+      <div class="scroll" id="hisTableWrap" style="margin-top:12px"><table>
+        <thead><tr><th>Kun</th><th>Jami summa</th><th>Bo'lishi kerak</th><th>Raznitsa</th><th>Foyda</th><th>Xarajat</th><th>Holat</th></tr></thead>
+        <tbody id="hisBody"><tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
       <div class="dd" id="hisDd">
         <div class="dd-hd">
@@ -379,6 +366,7 @@
       </div>
       <div class="note">Jami — ertasi kun 08:00 dagi snapshot (kun oxiri holati). Bo'lishi kerak = kun boshi + foyda − xarajat. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan. Xarajat — faqat asosiy deb belgilangan kassalardan chiqqan xarajatlar.</div>
     </div>
+
   </main>
 
   <nav class="bnav mobile-only">
@@ -530,7 +518,7 @@ const BOLIM_LABEL={
 let curDate=null, curId=null, curSnap=null, curQatorlar=[], curOldingi=null;
 let ddBolim=null, ddRows=[];
 let trendDays=30, trendRows=[];
-let hisDays=14, hisRows=[], hisOpenKun=null, hisDetail=null;
+let hisDays=30, hisRows=[], hisOpenKun=null, hisDetail=null;   // davr = trendDays (aylSetTrend)
 
 /* ---- aylanma_kun ---- */
 async function loadKun(fresh){
@@ -888,7 +876,9 @@ window.aylRefresh=async()=>{
 
 /* ---- trend (aylanma_trend) — inline SVG chiziq, Chart.js YO'Q ---- */
 window.aylSetTrend=(days,btn)=>{
-  trendDays=days;
+  trendDays=days; hisDays=days;   // 2026-10-03: kunlik hisobot ham shu davr
+  if(window.hisDrillClose) window.hisDrillClose();
+  loadHisobot(false);
   [...document.querySelectorAll('#trendSeg button')].forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
   loadTrend(days,false);
@@ -988,6 +978,7 @@ function aylLineSvg(rows){
   return s+'</svg>';
 }
 function renderTrend(){
+  if(!$('trendTb')){ if(trendRows.length) $('trendSvgWrap').innerHTML=aylLineSvg(trendRows)+'<div class="ttip" id="trendTip"></div>'; else $('trendSvgWrap').innerHTML=estateHtml(ICON_INBOX,"Ma'lumot yo'q"); return; }
   if(!trendRows.length){
     $('trendSvgWrap').innerHTML=estateHtml(ICON_INBOX,"Ma'lumot yo'q",'Bu oraliqda hech qanday snapshot yo\'q.');
     $('trendTb').innerHTML='<tr><td colspan="3">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
@@ -1019,12 +1010,12 @@ async function loadHisobot(fresh){
   const from=iso(fromD);
   const {data,error}=await sb.rpc('aylanma_hisobot',{p_from:from,p_to:to});
   if(error){
-    if(!swrGet(key)) $('hisBody').innerHTML='<tr><td colspan="6">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?'SQL hali RUN qilinmagan':error.message)+'</td></tr>';
+    if(!swrGet(key)) $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?'SQL hali RUN qilinmagan':error.message)+'</td></tr>';
     return;
   }
   if(data && data.ok===false){
     hisRows=[];
-    $('hisBody').innerHTML='<tr><td colspan="6">'+estateHtml(data.kod==='ruxsat'?ICON_LOCK:ICON_INBOX,data.kod==='ruxsat'?"Ruxsat yo'q":'Xato')+'</td></tr>';
+    $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(data.kod==='ruxsat'?ICON_LOCK:ICON_INBOX,data.kod==='ruxsat'?"Ruxsat yo'q":'Xato')+'</td></tr>';
     return;
   }
   hisRows=(data&&data.rows)||[];
@@ -1033,7 +1024,7 @@ async function loadHisobot(fresh){
 }
 function hisNum(n){ return n==null?'—':money(n); }
 function renderHisobot(){
-  if(!hisRows.length){ $('hisBody').innerHTML='<tr><td colspan="6">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>'; return; }
+  if(!hisRows.length){ $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>'; return; }
   $('hisBody').innerHTML=hisRows.map(r=>{
     const raz=r.raznitsa;
     const razCls=raz==null?'':(raz>0?'pos':(raz<0?'neg':''));
@@ -1046,6 +1037,7 @@ function renderHisobot(){
       +'<td class="n '+razCls+'">'+razTxt+'</td>'
       +'<td class="n">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+(r.foyda_usd!=null?'<div class="c">$'+money(r.foyda_usd)+'</div>':'')+'</td>'
       +'<td class="n">'+hisNum(r.xarajat_uzs)+'</td>'
+      +'<td>'+(r.jami==null?'—':(r.toliq===false?'<span class="c">To\'liq emas</span>':'<span class="ok">To\'liq</span>'))+'</td>'
       +'</tr>';
   }).join('');
   markOpenHisRow(hisOpenKun);
