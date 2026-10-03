@@ -25,8 +25,8 @@
 <script src="ai-widget.js" defer></script>
 <style>
   @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/inter.woff2') format('woff2')}
-  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
-  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
+  :root{--bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--ink:#101828;--muted:#667085;--line:#e6e8ec;--primary:#1ea83a;--primary-hover:#17862f;--primary-soft:#e6f6ea;--on-primary:#fff;--green:#12b76a;--green-soft:#e7f7ef;--red:#f04438;--red-soft:#feecea;--amber:#b54708;--amber-soft:#fef0c7;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);--shadow-hover:0 6px 16px rgba(16,24,40,.10);--side:240px;--radius:14px}
+  [data-theme="dark"]{--bg:#0b0e14;--surface:#151a22;--surface-2:#1e232d;--ink:#e6e9ef;--muted:#8a93a3;--line:#252b36;--primary:#2ec24a;--primary-hover:#45d160;--primary-soft:#10281a;--green:#2dd08a;--green-soft:#0f2a1e;--red:#ff5c50;--red-soft:#33150f;--amber:#fdb022;--amber-soft:#2e1e05;--shadow:0 1px 3px rgba(0,0,0,.45);--shadow-hover:0 8px 22px rgba(0,0,0,.55)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;font-size:15px;line-height:1.5}
   .num,.tot .v,.line input.amt{font-variant-numeric:tabular-nums}
@@ -561,6 +561,56 @@
     .mxd-ck{display:none!important}
   }
 
+  /* ===== Konvert qilish — konvert.html #convModal'ning TO'LIQ nusxasi (2026-10-03).
+     .kbtn allaqachon boshqa ma'noda band (rejim kartasi) — tugma uchun .cv-trig. ===== */
+  .cv-trig{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 15px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .13s,border-color .13s,color .13s}
+  .cv-trig svg{width:17px;height:17px}
+  .cv-trig:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:200}
+  .modal.open{display:flex}
+  @media(min-width:600px){.modal{align-items:center;padding:20px}}
+  .sheet{background:var(--surface);width:100%;max-width:440px;border-radius:20px 20px 0 0;padding:20px;max-height:92vh;overflow:auto}
+  @media(min-width:600px){.sheet{border-radius:20px}}
+  .sheet h3{margin:0 0 16px;font-size:19px;font-weight:800}
+  .mrow{display:flex;gap:8px;margin-top:8px}
+  .mrow button{flex:1;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-weight:600;font-family:inherit;font-size:15px;cursor:pointer;transition:background .13s}
+  .mrow button:hover{background:var(--line)}
+  .mrow button.primary{background:var(--primary);color:#fff;border:none}.mrow button.primary:hover{background:var(--primary-hover)}
+  .mrow button:disabled{opacity:.55;cursor:default}
+  .cvseg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-bottom:16px}
+  .cvseg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:9px 4px;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
+  .cvseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .cv-rate{background:var(--surface-2);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin:-8px 0 15px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .cv-rate svg{width:14px;height:14px;flex:0 0 auto}
+  .cv-rate b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .cv-out{background:var(--primary-soft);border-radius:12px;padding:13px 15px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .cv-out .k{font-size:12.5px;color:var(--muted);font-weight:500}
+  .cv-out .v{font-size:22px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .cv-out.lg{padding:15px 16px}
+  .cv-out.lg .v{font-size:27px}
+  .cv-farq{background:var(--surface-2);border-radius:12px;padding:14px 14px 12px;margin-bottom:16px}
+  .cv-farq label{margin:0 0 9px 2px}
+  .cv-farq .cvseg{margin-bottom:10px}
+  .cv-farq .cvseg button.on{box-shadow:none}
+  .cv-farq .cvseg button:first-child.on{background:var(--red-soft);color:var(--red)}
+  .cv-farq .cvseg button:last-child.on{background:var(--green-soft);color:var(--green)}
+  .cv-farq .txt{margin-bottom:0}
+  .cv-farq-hint{font-size:12px;color:var(--muted);margin:8px 2px 0;line-height:1.5}
+  .cv-ust{background:var(--surface-2);border-radius:12px;padding:14px 14px 12px;margin-bottom:16px}
+  .cv-ust label{margin:0 0 9px 2px}
+  .cv-ust .cvseg{margin-bottom:10px}
+  .cv-ust-out{font-size:13px;color:var(--ink);font-weight:600;margin-top:2px}
+  .cv-msg{border-radius:11px;padding:12px 14px;font-size:13.5px;margin-bottom:14px;display:none;line-height:1.5}
+  .cv-msg.pend{background:var(--amber-soft);color:var(--amber);display:block}
+  .cv-msg.err{background:var(--red-soft);color:var(--red);display:block}
+  .cv-msg.ok{background:var(--green-soft);color:var(--green);display:block}
+  /* Umumiy toast — professional-dev'da avval yo'q edi (saqlash natijasi tugma matnida ko'rsatilardi) */
+  .rb-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,12px);z-index:300;
+    background:var(--surface);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--green);
+    border-radius:11px;padding:11px 18px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-hover);
+    opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;max-width:calc(100vw - 32px)}
+  .rb-toast.err{border-left-color:var(--red)}
+  .rb-toast.show{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -603,9 +653,13 @@
   <main class="main">
     <div class="page-head">
       <h1>Professional</h1>
-      <div class="head-actions mobile-only">
-        <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
-        <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+      <div class="head-actions">
+        <!-- Konvert qilish — faqat window.permConvert() true bo'lsa ko'rinadi (init() guard, kassa.html naqshi) -->
+        <button class="cv-trig" id="convBtn" onclick="openConv()"><i data-lucide="arrow-right-left"></i>Konvert qilish</button>
+        <div class="mobile-only" style="display:flex;gap:4px">
+          <button class="icon-btn" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
+          <button class="icon-btn" onclick="logout()"><i data-lucide="log-out"></i></button>
+        </div>
       </div>
     </div>
     <div id="banner" class="banner"></div>
@@ -912,6 +966,65 @@
     </div>
   </div>
 </div>
+
+<!-- Konvert qilish — konvert.html #convModal'ning TO'LIQ nusxasi (2026-10-03).
+     Uch rejim: Sotib olish / Sotish (so'm ↔ valyuta, convert_start_v3→v2) va
+     Valyuta → valyuta (convert_valyuta_v4, PROVODKA_KONVERT_V4.sql). Ruxsat doirasi
+     faqat foydalanuvchining O'Z kassalari (permFilterOp/permOpOk) — konvert.html'dagi
+     bilan bir xil, lekin u yerda hammaga ko'rinadigan konvert so'rovlari tarixi YO'Q,
+     shuning uchun faqat modal (openConv/closeConv va ichidagi funksiyalar) ko'chirilgan. -->
+<div class="modal" id="convModal"><div class="sheet">
+  <h3>Konvert qilish</h3>
+  <div id="cvMsg" class="cv-msg"></div>
+  <div class="cvseg" id="cvSeg">
+    <button class="on" id="cvBuy" onclick="cvSetYon('sotib_olish',this)">Sotib olish</button>
+    <button id="cvSell" onclick="cvSetYon('sotish',this)">Sotish</button>
+    <button id="cvXY" onclick="cvSetYon('valyuta',this)">Valyuta→valyuta</button>
+  </div>
+  <div id="cvSomWrap">
+    <label>Kassa</label><input class="txt" id="cvFromQ" placeholder="Kassa qidirish… (nom, kod, Naqd/Click)" autocomplete="off" oninput="cvFromFilter()" style="margin-bottom:6px">
+    <select class="txt" id="cvFrom"></select>
+    <label>Valyuta</label><select class="txt" id="cvTo"></select>
+    <label id="cvAmountLbl">Summa (so'm)</label><input class="txt" id="cvAmount" inputmode="decimal" placeholder="0" oninput="cvFmt(this)">
+    <label id="cvRateLbl">Kurs (1 birlik necha so'm)</label><input class="txt" id="cvRate" inputmode="numeric" placeholder="0" oninput="cvFmt(this)">
+    <div class="cv-rate" id="cvArosBox"><i data-lucide="info"></i><span id="cvAros">—</span></div>
+    <div class="cv-rate" id="cvMbBox" style="display:none" title="O'zbekiston Markaziy banki rasmiy kursi (cbu.uz)"><i data-lucide="landmark"></i><span id="cvMb">—</span></div>
+    <div class="cv-out lg"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
+    <div class="cv-farq">
+      <label>Kurs farqi (so'm) — ixtiyoriy</label>
+      <div class="cvseg" id="cvFarqYon">
+        <button class="on" onclick="cvSetFarqYon('+',this)">Ko'p berildi (+)</button>
+        <button onclick="cvSetFarqYon('-',this)">Kam berildi (−)</button>
+      </div>
+      <input class="txt" id="cvFarq" inputmode="numeric" placeholder="0" oninput="cvFmtFarq(this)">
+      <p class="cv-farq-hint">Mayda pul bo'lmasa: ko'p berilgan farq xarajat, kam berilgani foyda bo'lib yoziladi.</p>
+    </div>
+    <label>Izoh</label><input class="txt" id="cvNote" placeholder="ixtiyoriy izoh">
+  </div>
+  <div id="cvXYWrap" style="display:none">
+    <label>Qayerdan</label><select class="txt" id="cvXYFrom"></select>
+    <label>Qayerga</label><select class="txt" id="cvXYTo"></select>
+    <label id="cvXYAmountLbl">Beriladigan summa</label><input class="txt" id="cvXYAmount" inputmode="decimal" placeholder="0" oninput="cvXYFmtAmt(this)">
+    <label id="cvXYRateLbl">Kurs (1 FROM = ? TO)</label><input class="txt" id="cvXYRateInp" inputmode="decimal" placeholder="0" oninput="cvXYFmtRate(this)">
+    <label id="cvXYToAmountLbl">Olinadigan summa</label><input class="txt" id="cvXYToAmount" inputmode="decimal" placeholder="0" oninput="cvXYFmtAmt(this)">
+    <div class="cv-rate" id="cvXYRateBox"><i data-lucide="repeat"></i><span id="cvXYRate">—</span></div>
+    <div id="cvXYUzsWrap" hidden>
+      <label>So'm ekvivalenti</label><input class="txt" id="cvXYUzs" inputmode="numeric" placeholder="0" oninput="cvXYFmtUzs(this)">
+    </div>
+    <div class="cv-ust">
+      <label id="cvXYUstLbl">Ustama (summa)</label>
+      <div class="cvseg" id="cvXYUstSeg">
+        <button class="on" onclick="cvXYSetUst('summa',this)">Summa</button>
+        <button onclick="cvXYSetUst('foiz',this)">Foiz</button>
+      </div>
+      <input class="txt" id="cvXYUstama" inputmode="decimal" placeholder="0" oninput="cvXYFmtUst(this)">
+      <div id="cvXYUstOut" class="cv-ust-out"></div>
+      <p class="cv-farq-hint">Ustama Konvert ustama xarajat moddasiga yoziladi.</p>
+    </div>
+    <label>Izoh</label><input class="txt" id="cvXYNote" placeholder="ixtiyoriy izoh">
+  </div>
+  <div class="mrow"><button onclick="closeConv()">Bekor</button><button class="primary" id="cvSave" onclick="cvSaveClick()">Konvert qilish</button></div>
+</div></div>
 
 <script type="module">
 const SUPABASE_URL='https://kxzerccdpcltmzrxutlo.supabase.co';
@@ -3429,6 +3542,8 @@ async function init(){
   // jamg'armaga kirim — faqat 'ehson_kirim' bayrog'i (yoki admin). Server: trg_ehson_kirim_guard (42501).
   // Ustun yo'q bazada (undefined) hech narsa yashirilmaydi.
   accounts=accounts.filter(a=>!a.ehson_kassa_id || !window.permFlagOk || window.permFlagOk('ehson_kirim'));
+  // Konvert qilish tugmasi — faqat kassa sahifasi ruxsati (yoki admin) bo'lsa (kassa.html naqshi).
+  if(!window.permConvert()){ const b=$('convBtn'); if(b) b.style.display='none'; }
   // Oddiy rejim: modda ro'yxati + kassa chiplari + filial multiselect
   $('modda').innerHTML=moddaOptions();
   window.renderModdaList(); syncModdaBtn();          // qidiruvli modal ro'yxati + tugma yorlig'i
@@ -3822,6 +3937,426 @@ async function mxdYoz(entryIds,vals,need){
 const mxdModdaId=()=>{ const el=$('modda'); return (el&&el.value)||''; };
 const mxdAfterChange=()=>{ updateSimple(); };
 const mxdWarn=msg=>alert(msg);
+
+// ================= Konvert qilish — modal (konvert.html #convModal'dan ko'chirilgan
+// funksional nusxa, 2026-10-03). Funksiya nomlari ATAYLAB bir xil saqlangan — konvert-dev'da
+// ham o'zgarish bo'lsa, mantiq ikki joyda bir xil qolaveradi. konvert.html'ga TEGILMAGAN.
+// esc/accLbl — bu fayldagi mavjud yordamchilar qayta ishlatiladi (konvert-dev'dagi nusxasi bilan
+// matnan farq qilsa ham, "professional'ning o'z elementlariga tegma" qoidasi bo'yicha). =================
+const KT_GURUH='xarajat_guruh';
+// Valyuta miqdori — 2 kasr. Kod berilmasa (eski so'rovlar) $ deb ko'rsatiladi.
+const usdFmt=(n,cur)=>(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).replaceAll(',',' ')+' '+(cur||'$');
+// Umumiy toast (konvert.html/sozlama.html bilan bir xil naqsh) — konvert bajarilgach ko'rsatiladi.
+let toastTimer=null;
+function toast(type,msg){
+  let el=$('globalToast');
+  if(!el){ el=document.createElement('div'); el.id='globalToast'; el.className='rb-toast'; document.body.appendChild(el); }
+  el.className='rb-toast'+(type==='err'?' err':'')+' show';
+  el.textContent=msg||'';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ el.classList.remove('show'); },2500);
+}
+
+// ---- Sotib olish / Sotish (so'm ↔ valyuta) — konvert.html bilan AYNAN bir xil mantiq ----
+let cvKassa=[], cvBaza=null, cvYon='sotib_olish', cvValyutalar=[], cvFarqSign='+';
+const cvNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
+window.cvFmt=el=>{
+  const kasr=(el.id==='cvAmount');
+  let raw=el.value.replaceAll(' ','').replace(',','.').replace(kasr?/[^0-9.]/g:/\D/g,'');
+  if(kasr){
+    const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+    const [b,k]=raw.split('.');
+    el.value=b?money(b)+(k!==undefined?'.'+k:''):'';
+  }else{
+    el.value=raw?money(raw):'';
+  }
+  cvCalc();
+};
+window.cvFmtFarq=el=>{
+  const raw=el.value.replace(/\D/g,'');
+  el.value=raw?money(raw):'';
+};
+window.cvSetFarqYon=(y,btn)=>{
+  cvFarqSign=y;
+  [...$('cvFarqYon').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+};
+window.cvSetYon=(y,btn)=>{
+  cvYon=y;
+  [...$('cvSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
+  if(y==='valyuta'){
+    $('cvXYWrap').style.display='block'; $('cvSomWrap').style.display='none';
+    cvXYResetForm();
+  }else{
+    $('cvXYWrap').style.display='none'; $('cvSomWrap').style.display='block';
+    $('cvAmount').value='';
+    cvFillTo();
+  }
+};
+window.openConv=async()=>{
+  $('cvAmount').value=''; $('cvRate').value=''; $('cvNote').value=''; $('cvFarq').value='';
+  cvFarqSign='+'; [...$('cvFarqYon').children].forEach((b,i)=>b.classList.toggle('on',i===0));
+  $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
+  $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+  // cvYon oldingi ochilishdan saqlanadi — segment/wrap shunga moslanadi
+  const btnMap={sotib_olish:$('cvBuy'),sotish:$('cvSell'),valyuta:$('cvXY')};
+  [...$('cvSeg').children].forEach(b=>b.classList.remove('on'));
+  (btnMap[cvYon]||$('cvBuy')).classList.add('on');
+  $('cvXYWrap').style.display=(cvYon==='valyuta')?'block':'none';
+  $('cvSomWrap').style.display=(cvYon==='valyuta')?'none':'block';
+  $('convModal').classList.add('open');
+  // v_kassa_tanlov = v_kassa_toliq + pul_turi; hali RUN qilinmagan bo'lsa eskisiga qaytamiz.
+  let {data,error}=await sb.from('v_kassa_tanlov').select('*').order('code');
+  if(error){ ({data,error}=await sb.from('v_kassa_toliq').select('*').order('code')); }
+  if(error){ cvErr(error.message); return; }
+  cvKassa=data||[];
+  try{ const {data:vr}=await sb.from('v_valyuta_royxat').select('currency').order('currency');
+    cvValyutalar=(vr||[]).map(x=>x.currency).filter(c=>c&&c!=='UZS');
+  }catch(e){ cvValyutalar=[]; }
+  // Filial asosiy kassasi Aros bilan sinxronlanadi — undan konvert qilib bo'lmaydi.
+  // Ruxsat: faqat amaliyot qilishga ruxsat etilgan kassalar tanlanadi (server ham tekshiradi).
+  cvFromList=cvKassa.filter(r=>r.currency==='UZS'&&r.kassa_turi!=='filial'&&r.kassa_turi!==KT_GURUH&&window.permOpOk(r));
+  $('cvFromQ').value='';
+  cvFromRender('');
+  $('cvFrom').onchange=cvFillTo;
+  $('cvTo').onchange=()=>{ Promise.resolve(cvValyutaChanged()).then(cvMbLoad,cvMbLoad); };
+  await cvFillTo(); icons();
+  cvMbLoad();   // await'siz — MB so'rovi modalni ushlab turmaydi
+  cvXYLoad();   // await'siz — valyuta→valyuta ro'yxati fonda yuklanadi
+};
+window.closeConv=()=>$('convModal').classList.remove('open');
+// Kassa qidiruvi — nom/kod/pul turi bo'yicha filtr.
+let cvFromList=[];
+const cvNorm=v=>String(v||'').toLowerCase().replace(/[’‘ʻ`´]/g,"'");
+function cvFromRender(q){
+  q=cvNorm(q).trim();
+  const prev=$('cvFrom').value;
+  const list=q?cvFromList.filter(r=>cvNorm(accLbl(r)+' '+(r.code||'')+' '+(r.pul_turi||'')+' '+(r.subtitle||'')).indexOf(q)>-1):cvFromList;
+  $('cvFrom').innerHTML=list.length?list.map(r=>`<option value="${r.id}">${esc(accLbl(r))}</option>`).join('')
+    :(cvFromList.length?"<option value=''>Qidiruvga mos kassa yo'q</option>":"<option value=''>Mos kassa yo'q</option>");
+  if(prev&&list.some(r=>r.id===prev)) $('cvFrom').value=prev;
+}
+window.cvFromFilter=()=>{ const prev=$('cvFrom').value; cvFromRender($('cvFromQ').value); if($('cvFrom').value!==prev) cvFillTo(); };
+
+// ---- MB (CBU) rasmiy kursi — konvert izohiga yoziladi ----
+let cvMbRate=null, cvMbDate=null, cvMbCur=null;
+const mbTodayIso=()=>new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);
+const mbDisp=d=>d.split('-').reverse().join('.');
+async function mbFetch(cur,d){
+  const ck='prov-mbk:'+cur+':'+d;
+  try{ const r=sessionStorage.getItem(ck); if(r){ const o=JSON.parse(r); if(Date.now()-o.t<12*3600*1000) return o.rate; } }catch(e){}
+  const ctrl=('AbortController' in window)?new AbortController():null;
+  const t=setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} },6000);
+  try{
+    const res=await fetch('https://cbu.uz/uz/arkhiv-kursov-valyut/json/'+encodeURIComponent(cur)+'/'+d+'/',{signal:ctrl?ctrl.signal:undefined});
+    if(!res.ok) return null;
+    const j=await res.json();
+    const row=Array.isArray(j)?j.find(x=>String(x.Ccy||'').toUpperCase()===cur):null;
+    const rate=row?Number(String(row.Rate||'').replace(',','.'))/Math.max(1,Number(row.Nominal)||1):NaN;
+    if(!isFinite(rate)||rate<=0) return null;
+    try{ sessionStorage.setItem(ck,JSON.stringify({t:Date.now(),rate})); }catch(e){}
+    return rate;
+  }catch(e){ return null; }
+  finally{ clearTimeout(t); }
+}
+async function cvMbLoad(){
+  const box=$('cvMbBox'), el=$('cvMb'); if(!box||!el) return;
+  const cur=String(cvCur()||'').toUpperCase();
+  cvMbRate=null; cvMbDate=null; cvMbCur=null;
+  if(!cur||cur==='UZS'){ box.style.display='none'; return; }
+  box.style.display=''; el.textContent='MB rasmiy kursi yuklanmoqda…';
+  const d=mbTodayIso();
+  const rate=await mbFetch(cur,d);
+  if(String(cvCur()||'').toUpperCase()!==cur) return;   // shu orada valyuta almashdi
+  if(rate==null){ el.textContent='MB rasmiy kursi olinmadi'; return; }
+  cvMbRate=rate; cvMbDate=d; cvMbCur=cur;
+  el.innerHTML='MB rasmiy: 1 '+esc(cur)+' = <b>'+money(Math.round(rate))+"</b> so'm · "+esc(mbDisp(d))+' — izohga yoziladi';
+}
+function cvMbNote(){
+  if(!cvMbRate||!cvMbDate||cvMbCur!==String(cvCur()||'').toUpperCase()) return '';
+  return 'MB '+money(Math.round(cvMbRate))+' ('+mbDisp(cvMbDate)+')';
+}
+function cvErr(m){ $('cvMsg').className='cv-msg err'; $('cvMsg').textContent=m; }
+const YANGI='yangi:';
+const cvCur=()=>{ const v=$('cvTo').value||'';
+  if(v.startsWith(YANGI)) return v.slice(YANGI.length);
+  const t=cvKassa.find(r=>r.id===v); return t?t.currency:null; };
+const cvRoot=id=>{ const r=cvKassa.find(x=>x.id===id); if(!r) return id;
+  return (r.pul_turi||(r.currency&&r.currency!=='UZS')) ? r.parent_id : r.id; };
+async function cvFillTo(){
+  const p=$('cvFrom').value;
+  const ildiz=cvRoot(p);
+  const to=cvKassa.filter(r=>r.currency!=='UZS'&&r.parent_id===ildiz);
+  const bor=new Set(to.map(r=>r.currency));
+  const yangilar=(cvYon==='sotish') ? []
+    : cvValyutalar.filter(c=>c&&c!=='UZS'&&!bor.has(c));
+  const opts=to.map(r=>`<option value="${r.id}">${esc(r.currency)} — ${esc(r.name)}</option>`)
+    .concat(yangilar.map(c=>`<option value="${YANGI}${esc(c)}">${esc(c)} — yangi hisob ochiladi</option>`));
+  $('cvTo').innerHTML=opts.length?opts.join('')
+    :'<option value="">Valyuta ro\'yxati bo\'sh — Valyuta bo\'limida kurs qo\'shing</option>';
+  await cvValyutaChanged();
+}
+async function cvValyutaChanged(){
+  const cur=cvCur();
+  $('cvAmountLbl').textContent='Summa ('+(cur||'valyuta')+')';
+  $('cvRateLbl').textContent='Kurs (1 '+(cur||'birlik')+' necha so\'m)';
+  $('cvOutLbl').textContent=cvYon==='sotish'?'Olinadigan so\'m':'To\'lanadigan so\'m';
+  $('cvAmount').setAttribute('inputmode','decimal');
+  cvBaza=null;
+  if(cur){
+    const {data}=await sb.rpc('conv_baza_kurs',{p_cur:cur});
+    cvBaza=(data===null||data===undefined)?null:Number(data);
+  }
+  cvCalc();
+}
+function cvCalc(){
+  const amt=cvNum('cvAmount'), rate=cvNum('cvRate'), cur=cvCur()||'';
+  $('cvUsd').textContent = money(rate>0?amt*rate:0)+" so'm";
+  const box=$('cvArosBox'), el=$('cvRate');
+  if(cvBaza===null){
+    box.className='cv-rate';
+    $('cvAros').textContent=cur
+      ? 'Bu juftlik uchun kurs tarixi yo\'q — admin tasdig\'i kerak bo\'ladi.'
+      : 'Avval valyutani tanlang.';
+    el.classList.remove('warn'); return;
+  }
+  // Koridor (tayanch kurs + ruxsat etilgan oraliq) bu yerda ko'rsatilmaydi — admin ham
+  // "Konvert" bo'limidagi kartalarda (tasdiqlash ekrani) ko'radi, bu yerda emas.
+  box.className='cv-rate';
+  $('cvAros').textContent="Kursni kiriting. Kurs odatdagidan sezilarli farq qilsa, so'rov admin tasdig'iga tushadi.";
+  el.classList.remove('warn');
+}
+// v3 funksiyasi bazada hali yo'q bo'lishi (PROVODKA_KONVERT_V3.sql RUN qilinmagan)
+function cvFn3Missing(e){
+  const m=(e&&e.message)||'';
+  return (e&&e.code)==='PGRST202'||(e&&e.code)==='42883'
+    ||m.indexOf('convert_start_v3')>-1||m.indexOf('Could not find the function')>-1;
+}
+window.convSave=async()=>{
+  const kassa=$('cvFrom').value;
+  let valyuta=$('cvTo').value;
+  const p_amount=cvNum('cvAmount'), p_rate=cvNum('cvRate');
+  const farqRaw=cvNum('cvFarq');
+  $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
+  if(!kassa||!valyuta){ cvErr('Kassa va valyutani tanlang'); return; }
+  if(p_amount<=0){ cvErr('Summa kiriting'); return; }
+  if(p_rate<=0){ cvErr('Kurs kiriting'); return; }
+  const somEkv=p_amount*p_rate;
+  if(farqRaw>0 && farqRaw>=somEkv){ cvErr('Farq summadan katta'); return; }
+  const p_farq = farqRaw>0 ? (cvFarqSign==='-'?-farqRaw:farqRaw) : null;
+  $('cvSave').disabled=true; $('cvSave').textContent='Yuborilmoqda...';
+  if(valyuta.startsWith(YANGI)){
+    const cur=valyuta.slice(YANGI.length);
+    const {data:yid,error:ye}=await sb.rpc('ensure_valyuta_child',{p_kassa:cvRoot(kassa),p_currency:cur});
+    if(ye||!yid){
+      $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+      cvErr(ye ? (window.permErr?window.permErr(ye):ye.message)
+               : (cur+' hisobini ochib bo\'lmadi'));
+      return;
+    }
+    valyuta=yid;
+  }
+  const p_from=cvYon==='sotish'?valyuta:kassa, p_to=cvYon==='sotish'?kassa:valyuta;
+  const p_note=[cvMbNote(),($('cvNote').value||'').trim()].filter(Boolean).join(' · ')||null;
+  let {data,error}=await sb.rpc('convert_start_v3',{p_from,p_to,p_amount,p_rate,p_note,p_farq});
+  if(error && cvFn3Missing(error)){
+    if(p_farq!==null){
+      $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+      cvErr('Kurs farqi uchun yangi SQL kerak (PROVODKA_KONVERT_V3.sql) — farqsiz yuboring yoki admin SQL RUN qilsin.');
+      return;
+    }
+    const p_amount_v2 = cvYon==='sotish' ? p_amount : Math.round(p_amount*p_rate);
+    ({data,error}=await sb.rpc('convert_start_v2',{p_from,p_to,p_amount:p_amount_v2,p_rate,p_note}));
+  }
+  $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+  if(error){ cvErr('Xato: '+error.message); return; }
+  const r=data||{};
+  if(r.ok&&r.status==='done'){ closeConv(); toast('ok','Konvert bajarildi'); fetchSubBal(); fetchSimpleBal(); return; }
+  if(!r.ok&&r.status==='pending'){
+    $('cvMsg').className='cv-msg pend';
+    $('cvMsg').innerHTML="Admin tasdig'i kutilmoqda — pul hali harakat qilmadi."
+      +'<br>So\'rov "Konvert" bo\'limida (konvert.html) ko\'rinadi.';
+    $('cvSave').disabled=true;
+    return;
+  }
+  cvErr(r.error||"Noma'lum javob");
+};
+
+// ---- Valyuta → valyuta (convert_valyuta_v4, PROVODKA_KONVERT_V4.sql, 2026-10-03) ----
+// O'zida turgan pulni bevosita bir valyutadan ikkinchisiga aylantirish — so'mga qaytib
+// sotib olish shart emas. Ustama (komissiya) alohida "Konvert ustama" xarajat yozuvi bilan.
+let cvXYList=[], cvXYBaza=null, cvXYUstMode='summa';
+// Qaysi maydon oxirgi marta qo'lda tahrirlangan: 'rate' (Kurs) yoki 'to' (Olinadigan summa).
+// Beriladigan summa o'zgarsa shu bayroq asosida qaysi biri qayta hisoblanishi hal qilinadi.
+let cvXYLastEdit='to';
+const cvXYNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
+function fmtAmt2(n){
+  n=Math.round((Number(n)||0)*100)/100;
+  const [b,k]=n.toFixed(2).split('.');
+  return k==='00' ? money(b) : money(b)+'.'+k;
+}
+function cvXYLabels(){
+  const f=cvXYFromCur()||'FROM', t=cvXYToCur()||'TO';
+  $('cvXYAmountLbl').textContent='Beriladigan summa'+(cvXYFromCur()?' ('+f+')':'')+" — kassadan chiqadi";
+  $('cvXYToAmountLbl').textContent='Olinadigan summa'+(cvXYToCur()?' ('+t+')':'')+' — kassaga kiradi';
+  $('cvXYRateLbl').textContent='Kurs (1 '+f+' = ? '+t+')';
+}
+// Kurs qo'lda kiritilganda Olinadigan summa = Beriladigan summa × kurs avtomat to'ldiriladi.
+function cvXYApplyRateToToAmount(){
+  const amt=cvXYNum('cvXYAmount'), rate=cvXYNum('cvXYRateInp');
+  if(amt>0&&rate>0) $('cvXYToAmount').value=fmtAmt2(amt*rate);
+}
+window.cvXYFmtRate=el=>{
+  let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+  const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,6):'');
+  el.value=raw;
+  cvXYLastEdit='rate';
+  cvXYApplyRateToToAmount();
+  cvXYCalc();
+};
+// Ruxsat doirasi root_id bo'yicha — v_konvert_valyuta_hisoblar.root_id = kassa_root(a.id).
+const cvxOpOk=r=>window.permOpOk({parent_id:r.root_id,currency:r.currency});
+const cvXYFromCur=()=>{ const r=cvXYList.find(x=>x.id===$('cvXYFrom').value); return r?r.currency:null; };
+const cvXYToCur=()=>{ const r=cvXYList.find(x=>x.id===$('cvXYTo').value); return r?r.currency:null; };
+function cvXYOptions(list){
+  const byK={};
+  list.forEach(r=>{ const k=r.kassa_nomi||'—'; (byK[k]=byK[k]||[]).push(r); });
+  return Object.keys(byK).sort().map(k=>'<optgroup label="'+esc(k)+'">'+
+    byK[k].map(r=>`<option value="${r.id}">${esc(r.currency)} — ${esc(r.name)}</option>`).join('')+'</optgroup>').join('');
+}
+function cvXYRenderFrom(){
+  $('cvXYFrom').innerHTML=cvXYList.length?cvXYOptions(cvXYList):'<option value="">Valyuta hisobi topilmadi</option>';
+}
+function cvXYRenderTo(){
+  const fromId=$('cvXYFrom').value;
+  const list=cvXYList.filter(r=>r.id!==fromId);
+  $('cvXYTo').innerHTML=list.length?cvXYOptions(list):'<option value="">Boshqa valyuta hisobi yo\'q</option>';
+}
+async function cvXYFromChange(){
+  cvXYRenderTo();
+  const cur=cvXYFromCur();
+  cvXYBaza=null;
+  if(cur){ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:cur}); cvXYBaza=(data==null)?null:Number(data); }
+  cvXYCalc();
+}
+async function cvXYLoad(){
+  const {data,error}=await sb.from('v_konvert_valyuta_hisoblar').select('*').order('kassa_nomi').order('currency');
+  if(error){ cvXYList=[]; cvXYRenderFrom(); cvXYRenderTo(); return; }
+  cvXYList=(data||[]).filter(cvxOpOk);
+  cvXYRenderFrom();
+  $('cvXYFrom').onchange=cvXYFromChange;
+  $('cvXYTo').onchange=cvXYCalc;
+  await cvXYFromChange();
+}
+function cvXYResetForm(){
+  $('cvXYAmount').value=''; $('cvXYToAmount').value=''; $('cvXYRateInp').value=''; $('cvXYUstama').value=''; $('cvXYNote').value='';
+  $('cvXYUzsWrap').hidden=true; $('cvXYUzs').value='';
+  cvXYLastEdit='to';
+  cvXYUstMode='summa';
+  [...$('cvXYUstSeg').children].forEach((b,i)=>b.classList.toggle('on',i===0));
+  $('cvXYUstLbl').textContent='Ustama (summa)';
+  cvXYRenderTo();
+  cvXYCalc();
+}
+window.cvXYSetUst=(m,btn)=>{
+  cvXYUstMode=m;
+  [...$('cvXYUstSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  $('cvXYUstLbl').textContent = m==='foiz' ? 'Ustama (%)' : 'Ustama (summa, beriladigan valyutada)';
+  $('cvXYUstama').value='';
+  cvXYCalc();
+};
+window.cvXYFmtAmt=el=>{
+  let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+  const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+  const [b,k]=raw.split('.');
+  el.value=b?money(b)+(k!==undefined?'.'+k:''):'';
+  if(el.id==='cvXYToAmount') cvXYLastEdit='to';
+  else if(el.id==='cvXYAmount'&&cvXYLastEdit==='rate') cvXYApplyRateToToAmount();
+  cvXYCalc();
+};
+window.cvXYFmtUzs=el=>{ const raw=el.value.replace(/\D/g,''); el.value=raw?money(raw):''; cvXYCalc(); };
+window.cvXYFmtUst=el=>{
+  let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+  const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+  if(cvXYUstMode==='foiz'){ el.value=raw; }
+  else{ const [b,k]=raw.split('.'); el.value=b?money(b)+(k!==undefined?'.'+k:''):''; }
+  cvXYCalc();
+};
+function cvXYCalc(){
+  cvXYLabels();
+  const amt=cvXYNum('cvXYAmount'), toAmt=cvXYNum('cvXYToAmount');
+  const fromCur=cvXYFromCur(), toCur=cvXYToCur();
+  const el=$('cvXYRate');
+  const uzsOverride=$('cvXYUzsWrap').hidden?0:cvXYNum('cvXYUzs');
+  const uzs=uzsOverride>0?uzsOverride:((cvXYBaza&&amt>0)?Math.round(amt*cvXYBaza):0);
+  if(!fromCur||!toCur||!amt||!toAmt){
+    el.textContent='Summalarni va hisoblarni kiriting — kross-kurs hisoblanadi.';
+  }else{
+    const cross=toAmt/amt;
+    el.innerHTML='1 '+esc(fromCur)+' = <b>'+cross.toLocaleString('en-US',{maximumFractionDigits:6})+'</b> '+esc(toCur)
+      +(uzs?(' · ≈ <b>'+money(uzs)+"</b> so'm (asosiy kurs, ma'lumot uchun)"):'');
+    // Kurs maydoni Olinadigan summadan hisoblangan bo'lsa ("to" tahrirlangan) — qayta yoziladi.
+    // Kurs o'zi qo'lda kiritilgan bo'lsa ("rate") — tahrirlanayotgan maydonga tegilmaydi.
+    if(cvXYLastEdit!=='rate') $('cvXYRateInp').value=cross.toLocaleString('en-US',{useGrouping:false,maximumFractionDigits:6});
+  }
+  const ustRaw=cvXYNum('cvXYUstama');
+  const ustFc=(cvXYUstMode==='foiz')
+    ? ((ustRaw>0&&amt>0) ? Math.round(amt*ustRaw)/100 : 0)
+    : ustRaw;
+  $('cvXYUstOut').textContent = ustFc>0
+    ? ('≈ '+ustFc.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(fromCur||'')+" — xarajat bo'lib yoziladi")
+    : '';
+}
+// convert_valyuta_v4 bazada hali yo'q bo'lishi (PROVODKA_KONVERT_V4.sql RUN qilinmagan)
+function cvXYFnMissing(e){
+  const m=(e&&e.message)||'';
+  return (e&&e.code)==='PGRST202'||(e&&e.code)==='42883'
+    ||m.indexOf('convert_valyuta_v4')>-1||m.indexOf('Could not find the function')>-1;
+}
+window.convXYSave=async()=>{
+  const p_from=$('cvXYFrom').value, p_to=$('cvXYTo').value;
+  const p_amount=cvXYNum('cvXYAmount'), p_to_amount=cvXYNum('cvXYToAmount');
+  $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
+  if(!p_from||!p_to){ cvErr('Qayerdan va qayerga hisobni tanlang'); return; }
+  if(p_from===p_to){ cvErr('Bir hisobning o\'zida konvert bo\'lmaydi'); return; }
+  if(p_amount<=0){ cvErr('Beriladigan summani kiriting'); return; }
+  if(p_to_amount<=0){ cvErr('Olinadigan summani kiriting'); return; }
+  let p_ustama=null, p_ustama_foiz=null;
+  const ustRaw=cvXYNum('cvXYUstama');
+  if(ustRaw>0){ if(cvXYUstMode==='foiz') p_ustama_foiz=ustRaw; else p_ustama=ustRaw; }
+  let p_uzs=null;
+  if(!$('cvXYUzsWrap').hidden){ const u=cvXYNum('cvXYUzs'); if(u>0) p_uzs=u; }
+  const p_note=($('cvXYNote').value||'').trim()||null;
+  $('cvSave').disabled=true; $('cvSave').textContent='Yuborilmoqda...';
+  const {data,error}=await sb.rpc('convert_valyuta_v4',{p_from,p_to,p_amount,p_to_amount,p_ustama,p_ustama_foiz,p_uzs,p_note});
+  $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
+  if(error){
+    if(cvXYFnMissing(error)){ cvErr('SQL hali RUN qilinmagan (PROVODKA_KONVERT_V4.sql) — adminga ayting.'); return; }
+    cvErr('Xato: '+error.message); return;
+  }
+  const r=data||{};
+  if(r.ok&&r.status==='done'){
+    closeConv();
+    toast('ok','Konvert bajarildi: '+usdFmt(p_to_amount,cvXYToCur()));
+    fetchSubBal(); fetchSimpleBal();
+    return;
+  }
+  // Kurs tarixi yo'q — server p_uzs so'raydi. "So'm ekvivalenti" maydonini ko'rsatib qayta yuboramiz.
+  if(!r.ok && /p_uzs/i.test(r.error||'')){
+    $('cvXYUzsWrap').hidden=false;
+    cvErr((r.error||'')+" — \"So'm ekvivalenti\" maydonini to'ldirib qayta yuboring.");
+    return;
+  }
+  if(!r.ok && r.qoldiq!==undefined){
+    cvErr((r.error||'Balans yetarli emas')+' · qoldiq: '+money(r.qoldiq)+' · kerak: '+money(r.kerak));
+    return;
+  }
+  cvErr(r.error||"Noma'lum javob");
+};
+// Save tugmasi ikki funksiyadan birini chaqiradi — inline onclick module'dagi `let cvYon`ni
+// ko'ra olmaydi (global skop emas), shuning uchun tanlov shu dispatcher ichida.
+window.cvSaveClick=()=>{ cvYon==='valyuta' ? convXYSave() : convSave(); };
+// /konvert qilish
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

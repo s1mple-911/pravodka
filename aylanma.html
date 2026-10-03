@@ -194,6 +194,30 @@
   .dd .scroll{max-height:360px;overflow-y:auto;border-radius:10px}
   .dd .scroll thead th{position:sticky;top:0;background:var(--surface);z-index:1;box-shadow:0 1px 0 var(--line)}
   .badge.mut{background:var(--surface-2);color:var(--muted)}
+  /* ---- kunlik hisobot (Jami/Kerak/Raznitsa/Foyda/Xarajat) ---- */
+  #hisTableWrap table{min-width:600px}
+  #hisBody tr[data-kun]{cursor:pointer;transition:background .13s}
+  #hisBody tr[data-kun]:hover{background:var(--surface-2)}
+  #hisBody tr[data-kun].open{background:var(--primary-soft)}
+  .his-cell{cursor:pointer;border-radius:6px;transition:background .13s,box-shadow .13s}
+  .his-cell:hover{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
+  .his-cell.active{background:var(--primary-soft);box-shadow:inset 0 0 0 1px var(--primary)}
+  .hisgrid{display:flex;gap:20px;flex-wrap:wrap;margin-top:4px}
+  .hisgrid>div{flex:1 1 320px;min-width:260px}
+  .hisgrid h4{font-size:13px;font-weight:700;margin:4px 0 6px;color:var(--muted)}
+  .hisgrid>div.full{flex:1 1 100%}
+  #hisXarajatBody td:nth-child(2){text-align:left}
+  #hisXarajatRoyxatBody td:nth-child(5){text-align:left}
+  .hisxj summary{cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:600}
+  @media(max-width:768px){.hisgrid{flex-direction:column;gap:14px}}
+  /* 2026-10-03 (Asilbek): tafsilot pastda ochilishi noqulay — MODAL (overlay) bo'lib ochiladi. Mobil: pastdan sheet. */
+  .hismodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .hismodal.open{display:flex}
+  .hismodal .dd{display:block;margin:0;border-top:none;padding:18px 20px 16px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-hover);width:min(1120px,100%);max-height:88vh;overflow:auto}
+  .hismodal.m-foyda .dd{width:min(720px,100%)}
+  .hismodal .dd-hd h3{font-size:16px}
+  .hismodal .dd .scroll{max-height:min(60vh,520px)}
+  @media(max-width:600px){.hismodal{padding:0;align-items:flex-end}.hismodal .dd{border-radius:20px 20px 0 0;max-height:90vh;padding:16px 14px calc(16px + env(safe-area-inset-bottom))}}
   /* ---- trend ---- */
   .trendseg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin:10px 0 14px;max-width:280px}
   .trendseg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
@@ -324,12 +348,50 @@
         <button onclick="aylSetTrend(365,this)">365 kun</button>
       </div>
       <div class="tsvg-wrap" id="trendSvgWrap"><div class="empty">Yuklanmoqda...</div></div>
-      <div class="scroll" style="margin-top:12px"><table>
-        <thead><tr><th>Sana</th><th>Jami (so'm)</th><th>Holat</th></tr></thead>
-        <tbody id="trendTb"><tr><td colspan="3" class="empty">Yuklanmoqda...</td></tr></tbody>
+      <!-- 2026-10-03 (Asilbek): kunlik hisobot DIAGRAMMA TAGIDA — eski Sana/Jami/Holat jadvali o'rnida; davr Trend segmenti (30/90/365) bilan bir xil -->
+      <div class="scroll" id="hisTableWrap" style="margin-top:12px"><table>
+        <thead><tr><th>Kun</th><th>Jami summa</th><th>Bo'lishi kerak</th><th>Raznitsa</th><th>Foyda</th><th>Xarajat</th><th>Holat</th></tr></thead>
+        <tbody id="hisBody"><tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
-      <div class="note">Har kun uchun bitta nuqta: 08:00 dagi avtomatik hisob, u bo'lmasa o'sha kunning oxirgi qo'lda hisobi.</div>
+      <div class="hismodal" id="hisModal" onclick="if(event.target===this)hisDrillClose()">
+      <div class="dd" id="hisDd" role="dialog" aria-modal="true" aria-labelledby="hisDdTitle">
+        <div class="dd-hd">
+          <h3 id="hisDdTitle">Tafsilot</h3>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn ghost" style="height:32px;padding:0 10px;font-size:12.5px" onclick="hisExcelDrill()"><i data-lucide="download"></i>Excel</button>
+            <button class="dd-x" onclick="hisDrillClose()" title="Yopish"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        <div class="hisgrid" id="hisGrid">
+          <div id="hisFoydaPane">
+            <h4>Foyda — filiallar bo'yicha</h4>
+            <div class="scroll"><table>
+              <thead><tr><th>Filial</th><th>Sotilgan</th><th>Qaytarilgan</th><th>$</th><th>So'm</th></tr></thead>
+              <tbody id="hisFoydaBody"><tr><td colspan="5" class="empty">—</td></tr></tbody>
+            </table></div>
+          </div>
+          <div id="hisXarajatPane">
+            <h4>Xarajat — asosiy kassadan</h4>
+            <details class="hisxj" id="hisXarajatJamiWrap" style="margin-bottom:10px">
+              <summary>Modda bo'yicha jami</summary>
+              <div class="scroll" style="margin-top:6px"><table>
+                <thead><tr><th>Modda</th><th>Kassa</th><th>Summa</th><th>Soni</th></tr></thead>
+                <tbody id="hisXarajatBody"><tr><td colspan="4" class="empty">—</td></tr></tbody>
+              </table></div>
+            </details>
+            <div class="scroll"><table>
+              <thead><tr><th>Vaqt</th><th>Kassa</th><th>Modda</th><th>Summa</th><th>Izoh</th><th>Ijrochi</th><th>Filial</th></tr></thead>
+              <tbody id="hisXarajatRoyxatBody"><tr><td colspan="7" class="empty">—</td></tr></tbody>
+              <tfoot id="hisXarajatRoyxatFoot" style="display:none"></tfoot>
+            </table></div>
+            <div class="note" id="hisXarajatFallbackNote" style="display:none">Batafsil ro'yxat uchun PROVODKA_AYLANMA_HISOBOT_2.sql RUN qilinsin.</div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="note">Jami — ertasi kun 08:00 dagi snapshot (kun oxiri holati). Bo'lishi kerak = kun boshi + foyda − xarajat. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan. Xarajat — faqat asosiy deb belgilangan kassalardan chiqqan xarajatlar.</div>
     </div>
+
   </main>
 
   <nav class="bnav mobile-only">
@@ -461,6 +523,15 @@ function fmtDateShort(s){
   try{ const d=new Date(String(s)+'T00:00:00Z'); return String(d.getUTCDate()).padStart(2,'0')+'.'+String(d.getUTCMonth()+1).padStart(2,'0'); }
   catch(e){ return String(s||''); }
 }
+function fmtDateFull(s){
+  try{ const d=new Date(String(s)+'T00:00:00Z'); return fmtDateShort(s)+'.'+d.getUTCFullYear(); }
+  catch(e){ return String(s||''); }
+}
+function fmtTime(x){
+  if(!x) return '—';
+  try{ return new Date(x).toLocaleString('ru-RU',{timeZone:'Asia/Tashkent',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return '—'; }
+}
 function shortMoney(n){
   n=Number(n)||0; const a=Math.abs(n);
   if(a>=1e9) return (n/1e9).toFixed(1).replace('.0','')+' mlrd';
@@ -481,6 +552,7 @@ const BOLIM_LABEL={
 let curDate=null, curId=null, curSnap=null, curQatorlar=[], curOldingi=null;
 let ddBolim=null, ddRows=[];
 let trendDays=30, trendRows=[];
+let hisDays=30, hisRows=[], hisOpenKun=null, hisOpenMode=null, hisDetail=null;   // davr = trendDays (aylSetTrend)
 
 /* ---- aylanma_kun ---- */
 async function loadKun(fresh){
@@ -831,13 +903,16 @@ window.aylDateChange=()=>{ curDate=$('dateInput').value||iso(nowUz()); curId=nul
 window.aylRefresh=async()=>{
   const btn=$('refreshBtn'); const old=btn.innerHTML;
   btn.disabled=true; btn.innerHTML='Yangilanmoqda...';
-  await Promise.all([loadKun(true), loadTrend(trendDays,true)]);
+  await Promise.all([loadKun(true), loadTrend(trendDays,true), loadHisobot(true)]);
+  if(hisOpenKun) await hisDrillReload();
   btn.disabled=false; btn.innerHTML=old; icons();
 };
 
 /* ---- trend (aylanma_trend) — inline SVG chiziq, Chart.js YO'Q ---- */
 window.aylSetTrend=(days,btn)=>{
-  trendDays=days;
+  trendDays=days; hisDays=days;   // 2026-10-03: kunlik hisobot ham shu davr
+  if(window.hisDrillClose) window.hisDrillClose();
+  loadHisobot(false);
   [...document.querySelectorAll('#trendSeg button')].forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
   loadTrend(days,false);
@@ -937,6 +1012,7 @@ function aylLineSvg(rows){
   return s+'</svg>';
 }
 function renderTrend(){
+  if(!$('trendTb')){ if(trendRows.length) $('trendSvgWrap').innerHTML=aylLineSvg(trendRows)+'<div class="ttip" id="trendTip"></div>'; else $('trendSvgWrap').innerHTML=estateHtml(ICON_INBOX,"Ma'lumot yo'q"); return; }
   if(!trendRows.length){
     $('trendSvgWrap').innerHTML=estateHtml(ICON_INBOX,"Ma'lumot yo'q",'Bu oraliqda hech qanday snapshot yo\'q.');
     $('trendTb').innerHTML='<tr><td colspan="3">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
@@ -949,11 +1025,214 @@ function renderTrend(){
     + '<td>'+(r.toliq?'<span class="ok">To\'liq</span>':'<span class="c">To\'liq emas</span>')+'</td></tr>').join('');
 }
 
+/* ---- Kunlik hisobot (aylanma_hisobot) — Jami/Kerak/Raznitsa/Foyda/Xarajat ---- */
+window.hisSetDays=(days,btn)=>{
+  hisDays=days;
+  [...document.querySelectorAll('#hisSeg button')].forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  window.hisDrillClose();
+  loadHisobot(false);
+};
+async function loadHisobot(fresh){
+  const key='hisobot:'+hisDays;
+  if(!fresh){
+    const cached=swrGet(key);
+    if(cached){ hisRows=cached; renderHisobot(); }
+  }
+  const to=iso(nowUz());
+  const fromD=nowUz(); fromD.setUTCDate(fromD.getUTCDate()-hisDays);
+  const from=iso(fromD);
+  const {data,error}=await sb.rpc('aylanma_hisobot',{p_from:from,p_to:to});
+  if(error){
+    if(!swrGet(key)) $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?'SQL hali RUN qilinmagan':error.message)+'</td></tr>';
+    return;
+  }
+  if(data && data.ok===false){
+    hisRows=[];
+    $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(data.kod==='ruxsat'?ICON_LOCK:ICON_INBOX,data.kod==='ruxsat'?"Ruxsat yo'q":'Xato')+'</td></tr>';
+    return;
+  }
+  hisRows=(data&&data.rows)||[];
+  swrSet(key,hisRows);
+  renderHisobot();
+}
+function hisNum(n){ return n==null?'—':money(n); }
+function renderHisobot(){
+  if(!hisRows.length){ $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>'; return; }
+  $('hisBody').innerHTML=hisRows.map(r=>{
+    const raz=r.raznitsa;
+    const razCls=raz==null?'':(raz>0?'pos':(raz<0?'neg':''));
+    const razTxt=raz==null?'—':(raz===0?'·':((raz>0?'+':'−')+money(Math.abs(raz))));
+    const qolda=r.rejim==='qolda'?' <span class="badge mut">qo\'lda</span>':'';
+    return '<tr data-kun="'+esc(r.kun)+'" onclick="window.hisDrill(\''+esc(r.kun)+'\')">'
+      +'<td class="f">'+esc(fmtDateShort(r.kun))+'</td>'
+      +'<td class="n">'+hisNum(r.jami)+qolda+'</td>'
+      +'<td class="n">'+hisNum(r.kerak)+'</td>'
+      +'<td class="n '+razCls+'">'+razTxt+'</td>'
+      +'<td class="n his-cell his-foyda" onclick="event.stopPropagation();window.hisDrill(\''+esc(r.kun)+'\',\'foyda\')">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+(r.foyda_usd!=null?'<div class="c">$'+money(r.foyda_usd)+'</div>':'')+'</td>'
+      +'<td class="n his-cell his-xarajat" onclick="event.stopPropagation();window.hisDrill(\''+esc(r.kun)+'\',\'xarajat\')">'+hisNum(r.xarajat_uzs)+'</td>'
+      +'<td>'+(r.jami==null?'—':(r.toliq===false?'<span class="c">To\'liq emas</span>':'<span class="ok">To\'liq</span>'))+'</td>'
+      +'</tr>';
+  }).join('');
+  markOpenHisRow();
+}
+function markOpenHisRow(){
+  document.querySelectorAll('#hisBody tr[data-kun]').forEach(r=>{
+    const open=!!hisOpenKun && r.dataset.kun===hisOpenKun;
+    r.classList.toggle('open', open);
+    const fc=r.querySelector('.his-foyda'), xc=r.querySelector('.his-xarajat');
+    if(fc) fc.classList.toggle('active', open && hisOpenMode==='foyda');
+    if(xc) xc.classList.toggle('active', open && hisOpenMode==='xarajat');
+  });
+}
+function hisDrillTitle(mode,kun,n){
+  if(mode==='foyda') return 'Foyda — '+fmtDateFull(kun);
+  if(mode==='xarajat') return 'Xarajat — '+fmtDateFull(kun)+(n!=null?(' · '+n+" ta yozuv"):'');
+  return 'Tafsilot: '+fmtDateShort(kun);
+}
+window.hisDrill=async(kun,mode)=>{
+  mode=mode||'all';
+  if(hisOpenKun===kun && hisOpenMode===mode){ window.hisDrillClose(); return; }
+  const cached=(hisOpenKun===kun && hisDetail);
+  hisOpenKun=kun; hisOpenMode=mode;
+  markOpenHisRow();
+  hisModalOpen(mode);
+  if(cached){ renderHisDrill(); return; }
+  $('hisDdTitle').textContent=hisDrillTitle(mode,kun,null);
+  $('hisFoydaBody').innerHTML='<tr><td colspan="5" class="empty">Yuklanmoqda...</td></tr>';
+  $('hisXarajatBody').innerHTML='<tr><td colspan="4" class="empty">Yuklanmoqda...</td></tr>';
+  $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr>';
+  const {data,error}=await sb.rpc('aylanma_hisobot_tafsilot',{p_sana:kun});
+  if(error){
+    const m='<tr><td colspan="5">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
+    $('hisFoydaBody').innerHTML=m;
+    $('hisXarajatBody').innerHTML='<tr><td colspan="4">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
+    $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
+    return;
+  }
+  if(data && data.ok===false){
+    $('hisFoydaBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
+    $('hisXarajatBody').innerHTML='<tr><td colspan="4">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
+    $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
+    return;
+  }
+  hisDetail=data;
+  renderHisDrill();
+};
+/* Modal (2026-10-03): katak bosilganda overlay ochiladi; Esc / fon bosilsa yopiladi. Foyda rejimi torroq. */
+function hisModalOpen(mode){
+  const m=$('hisModal');
+  m.classList.toggle('m-foyda', mode==='foyda');
+  m.classList.add('open');
+  document.body.style.overflow='hidden';
+  $('hisDd').scrollTop=0;
+}
+window.hisDrillClose=()=>{ hisOpenKun=null; hisOpenMode=null; hisDetail=null; $('hisModal').classList.remove('open'); document.body.style.overflow=''; markOpenHisRow(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && hisOpenKun) window.hisDrillClose(); });
+async function hisDrillReload(){
+  if(!hisOpenKun) return;
+  const {data,error}=await sb.rpc('aylanma_hisobot_tafsilot',{p_sana:hisOpenKun});
+  if(error || (data && data.ok===false)) return; // fon yangilanishda xato bo'lsa eski tafsilot qoladi
+  hisDetail=data;
+  renderHisDrill();
+}
+function renderHisDrill(){
+  const mode=hisOpenMode||'all';
+  const foyda=(hisDetail&&hisDetail.foyda)||[];
+  const xarajat=(hisDetail&&hisDetail.xarajat)||[];
+  const royxat=(hisDetail&&hisDetail.xarajat_royxat);
+  const hasRoyxat=Array.isArray(royxat);
+  $('hisFoydaPane').style.display=(mode==='all'||mode==='foyda')?'':'none';
+  $('hisXarajatPane').style.display=(mode==='all'||mode==='xarajat')?'':'none';
+  $('hisFoydaPane').classList.toggle('full', mode==='foyda');
+  $('hisXarajatPane').classList.toggle('full', mode==='xarajat');
+  $('hisDdTitle').textContent=hisDrillTitle(mode,hisOpenKun,hasRoyxat?royxat.length:null);
+
+  $('hisFoydaBody').innerHTML = foyda.length ? foyda.map(r=>{
+    const jami=(r.filial==='JAMI');
+    return '<tr'+(jami?' style="font-weight:700;border-top:2px solid var(--line)"':'')+'>'
+      +'<td class="f">'+(jami?'JAMI':esc(r.filial))+'</td>'
+      +'<td class="n">'+(r.sotilgan==null?'—':money(r.sotilgan))+'</td>'
+      +'<td class="n">'+(r.qaytarilgan==null?'—':money(r.qaytarilgan))+'</td>'
+      +'<td class="n">'+(r.foyda_usd==null?'—':'$'+money(r.foyda_usd))+'</td>'
+      +'<td class="n">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+'</td>'
+      +'</tr>';
+  }).join('') : '<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+
+  $('hisXarajatBody').innerHTML = xarajat.length ? xarajat.map(r=>
+    '<tr><td class="f">'+esc(r.modda)+'</td><td>'+esc(r.kassa)+'</td><td class="n">'+money(r.summa)+'</td><td class="n">'+(r.soni==null?'—':money(r.soni))+'</td></tr>'
+  ).join('') : '<tr><td colspan="4">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+
+  $('hisXarajatFallbackNote').style.display=hasRoyxat?'none':'block';
+  $('hisXarajatJamiWrap').open=!hasRoyxat;
+  const foot=$('hisXarajatRoyxatFoot');
+  if(hasRoyxat){
+    $('hisXarajatRoyxatBody').innerHTML = royxat.length ? royxat.map(r=>
+      '<tr><td>'+esc(fmtTime(r.vaqt))+'</td><td>'+esc(r.kassa||'—')+'</td><td class="f">'+esc(r.modda||'—')+'</td>'
+      +'<td class="n">'+money(r.summa)+'</td><td>'+esc(r.izoh||'—')+'</td><td>'+esc(r.ijrochi||'—')+'</td><td>'+esc(r.filial||'—')+'</td></tr>'
+    ).join('') : '<tr><td colspan="7">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+    const jami=(hisDetail&&hisDetail.xarajat_jami!=null)?hisDetail.xarajat_jami:null;
+    if(royxat.length && jami!=null){
+      foot.style.display='';
+      foot.innerHTML='<tr style="font-weight:700;border-top:2px solid var(--line)"><td colspan="3">Jami</td><td class="n">'+money(jami)+'</td><td colspan="3"></td></tr>';
+    } else foot.style.display='none';
+  } else {
+    $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7" class="empty">—</td></tr>';
+    foot.style.display='none';
+  }
+  icons();
+}
+/* Excel (SheetJS lazy, aylExcelDrill naqshida — aylLoadXlsx qayta ishlatiladi) + CSV zaxira. Rejimga mos: foyda/xarajat ro'yxati yoki ikkalasi. */
+function hisExcelSheets(){
+  const mode=hisOpenMode||'all';
+  const foyda=(hisDetail&&hisDetail.foyda)||[];
+  const xarajat=(hisDetail&&hisDetail.xarajat)||[];
+  const royxat=Array.isArray(hisDetail&&hisDetail.xarajat_royxat)?hisDetail.xarajat_royxat:null;
+  const sheets=[];
+  if(mode==='foyda' || mode==='all'){
+    const aoa=[['Filial','Sotilgan','Qaytarilgan','Foyda $',"Foyda so'm"]];
+    foyda.forEach(r=>aoa.push([r.filial||'', r.sotilgan??'', r.qaytarilgan??'', r.foyda_usd??'', r.foyda_uzs??'']));
+    sheets.push(['Foyda',aoa]);
+  }
+  if(mode==='xarajat' || mode==='all'){
+    if(royxat){
+      const aoa=[['Vaqt','Kassa','Modda','Summa','Izoh','Ijrochi','Filial']];
+      royxat.forEach(r=>aoa.push([fmtTime(r.vaqt), r.kassa||'', r.modda||'', r.summa??'', r.izoh||'', r.ijrochi||'', r.filial||'']));
+      if(hisDetail && hisDetail.xarajat_jami!=null) aoa.push(['','','Jami',hisDetail.xarajat_jami,'','','']);
+      sheets.push(['Xarajat',aoa]);
+    } else {
+      const aoa=[['Modda','Kassa','Summa','Soni']];
+      xarajat.forEach(r=>aoa.push([r.modda||'', r.kassa||'', r.summa??'', r.soni??'']));
+      sheets.push(['Xarajat',aoa]);
+    }
+  }
+  return sheets;
+}
+function hisCsvFallback(){
+  const sheets=hisExcelSheets();
+  const parts=sheets.map(([name,aoa])=>[['== '+name+' ==']].concat(aoa));
+  let rows=[]; parts.forEach((p,i)=>{ if(i) rows.push(['']); rows=rows.concat(p); });
+  const csv=rows.map(r=>r.map(v=>String(v).replace(/;/g,',')).join(';')).join('\r\n');
+  const blob=new Blob(['﻿sep=;\r\n'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='aylanma_hisobot_'+(hisOpenKun||'tafsilot')+'.csv'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+window.hisExcelDrill=async()=>{
+  if(!hisDetail) return;
+  try{
+    const X=await aylLoadXlsx();
+    const wb=X.utils.book_new();
+    hisExcelSheets().forEach(([name,aoa])=>X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(aoa),name));
+    X.writeFile(wb,'aylanma_hisobot_'+(hisOpenKun||'tafsilot')+'.xlsx');
+  }catch(e){ hisCsvFallback(); }
+};
+
 async function init(){
   curDate=iso(nowUz());
   $('dateInput').value=curDate;
   $('dateInput').onchange=window.aylDateChange;
-  await Promise.all([loadRole(), loadKun(false), loadTrend(trendDays,false)]);
+  await Promise.all([loadRole(), loadKun(false), loadTrend(trendDays,false), loadHisobot(false)]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.

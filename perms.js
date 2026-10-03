@@ -225,6 +225,10 @@
   function convOk(p) {
     if (p.is_admin) return true;
     if (p.allowed_pages && p.allowed_pages.indexOf('kassa') >= 0) return true;
+    // 2026-10-03 (Asilbek): konvert sahifasi ruxsati = konvert qilish huquqi — kassa sahifasiz.
+    // Server juftligi: perm_can_convert() (PROVODKA_KONVERT_V4.sql). Busiz faqat `konvert`
+    // sahifasi berilgan user gate()/firstAllowed() da sahifaga umuman kirolmasdi.
+    if (p.allowed_pages && p.allowed_pages.indexOf('konvert') >= 0) return true;
     return p.can_convert;
   }
   /* Birinchi ochiq sahifa. Konvert ruxsati yo'q bo'lsa konvert O'TKAZIB YUBORILADI —
