@@ -194,6 +194,16 @@
   .dd .scroll{max-height:360px;overflow-y:auto;border-radius:10px}
   .dd .scroll thead th{position:sticky;top:0;background:var(--surface);z-index:1;box-shadow:0 1px 0 var(--line)}
   .badge.mut{background:var(--surface-2);color:var(--muted)}
+  /* ---- kunlik hisobot (Jami/Kerak/Raznitsa/Foyda/Xarajat) ---- */
+  #hisTableWrap table{min-width:600px}
+  #hisBody tr[data-kun]{cursor:pointer;transition:background .13s}
+  #hisBody tr[data-kun]:hover{background:var(--surface-2)}
+  #hisBody tr[data-kun].open{background:var(--primary-soft)}
+  .hisgrid{display:flex;gap:20px;flex-wrap:wrap;margin-top:4px}
+  .hisgrid>div{flex:1 1 320px;min-width:260px}
+  .hisgrid h4{font-size:13px;font-weight:700;margin:4px 0 6px;color:var(--muted)}
+  #hisXarajatBody td:nth-child(2){text-align:left}
+  @media(max-width:768px){.hisgrid{flex-direction:column;gap:14px}}
   /* ---- trend ---- */
   .trendseg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin:10px 0 14px;max-width:280px}
   .trendseg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
@@ -329,6 +339,45 @@
         <tbody id="trendTb"><tr><td colspan="3" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
       <div class="note">Har kun uchun bitta nuqta: 08:00 dagi avtomatik hisob, u bo'lmasa o'sha kunning oxirgi qo'lda hisobi.</div>
+    </div>
+
+    <div class="card">
+      <h2>Kunlik hisobot</h2>
+      <div class="trendseg" id="hisSeg">
+        <button onclick="hisSetDays(7,this)">7 kun</button>
+        <button class="on" onclick="hisSetDays(14,this)">14 kun</button>
+        <button onclick="hisSetDays(30,this)">30 kun</button>
+      </div>
+      <div class="scroll" id="hisTableWrap"><table>
+        <thead><tr><th>Kun</th><th>Jami summa</th><th>Bo'lishi kerak</th><th>Raznitsa</th><th>Foyda</th><th>Xarajat</th></tr></thead>
+        <tbody id="hisBody"><tr><td colspan="6" class="empty">Yuklanmoqda...</td></tr></tbody>
+      </table></div>
+      <div class="dd" id="hisDd">
+        <div class="dd-hd">
+          <h3 id="hisDdTitle">Tafsilot</h3>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn ghost" style="height:32px;padding:0 10px;font-size:12.5px" onclick="hisExcelDrill()"><i data-lucide="download"></i>Excel</button>
+            <button class="dd-x" onclick="hisDrillClose()" title="Yopish"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        <div class="hisgrid">
+          <div>
+            <h4>Foyda — filiallar bo'yicha</h4>
+            <div class="scroll"><table>
+              <thead><tr><th>Filial</th><th>Sotilgan</th><th>Qaytarilgan</th><th>$</th><th>So'm</th></tr></thead>
+              <tbody id="hisFoydaBody"><tr><td colspan="5" class="empty">—</td></tr></tbody>
+            </table></div>
+          </div>
+          <div>
+            <h4>Xarajat — asosiy kassadan</h4>
+            <div class="scroll"><table>
+              <thead><tr><th>Modda</th><th>Kassa</th><th>Summa</th><th>Soni</th></tr></thead>
+              <tbody id="hisXarajatBody"><tr><td colspan="4" class="empty">—</td></tr></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Jami — ertasi kun 08:00 dagi snapshot (kun oxiri holati). Bo'lishi kerak = kun boshi + foyda − xarajat. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan. Xarajat — faqat asosiy deb belgilangan kassalardan chiqqan xarajatlar.</div>
     </div>
   </main>
 
@@ -481,6 +530,7 @@ const BOLIM_LABEL={
 let curDate=null, curId=null, curSnap=null, curQatorlar=[], curOldingi=null;
 let ddBolim=null, ddRows=[];
 let trendDays=30, trendRows=[];
+let hisDays=14, hisRows=[], hisOpenKun=null, hisDetail=null;
 
 /* ---- aylanma_kun ---- */
 async function loadKun(fresh){
@@ -831,7 +881,8 @@ window.aylDateChange=()=>{ curDate=$('dateInput').value||iso(nowUz()); curId=nul
 window.aylRefresh=async()=>{
   const btn=$('refreshBtn'); const old=btn.innerHTML;
   btn.disabled=true; btn.innerHTML='Yangilanmoqda...';
-  await Promise.all([loadKun(true), loadTrend(trendDays,true)]);
+  await Promise.all([loadKun(true), loadTrend(trendDays,true), loadHisobot(true)]);
+  if(hisOpenKun) await hisDrillReload();
   btn.disabled=false; btn.innerHTML=old; icons();
 };
 
@@ -949,11 +1000,142 @@ function renderTrend(){
     + '<td>'+(r.toliq?'<span class="ok">To\'liq</span>':'<span class="c">To\'liq emas</span>')+'</td></tr>').join('');
 }
 
+/* ---- Kunlik hisobot (aylanma_hisobot) — Jami/Kerak/Raznitsa/Foyda/Xarajat ---- */
+window.hisSetDays=(days,btn)=>{
+  hisDays=days;
+  [...document.querySelectorAll('#hisSeg button')].forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  window.hisDrillClose();
+  loadHisobot(false);
+};
+async function loadHisobot(fresh){
+  const key='hisobot:'+hisDays;
+  if(!fresh){
+    const cached=swrGet(key);
+    if(cached){ hisRows=cached; renderHisobot(); }
+  }
+  const to=iso(nowUz());
+  const fromD=nowUz(); fromD.setUTCDate(fromD.getUTCDate()-hisDays);
+  const from=iso(fromD);
+  const {data,error}=await sb.rpc('aylanma_hisobot',{p_from:from,p_to:to});
+  if(error){
+    if(!swrGet(key)) $('hisBody').innerHTML='<tr><td colspan="6">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?'SQL hali RUN qilinmagan':error.message)+'</td></tr>';
+    return;
+  }
+  if(data && data.ok===false){
+    hisRows=[];
+    $('hisBody').innerHTML='<tr><td colspan="6">'+estateHtml(data.kod==='ruxsat'?ICON_LOCK:ICON_INBOX,data.kod==='ruxsat'?"Ruxsat yo'q":'Xato')+'</td></tr>';
+    return;
+  }
+  hisRows=(data&&data.rows)||[];
+  swrSet(key,hisRows);
+  renderHisobot();
+}
+function hisNum(n){ return n==null?'—':money(n); }
+function renderHisobot(){
+  if(!hisRows.length){ $('hisBody').innerHTML='<tr><td colspan="6">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>'; return; }
+  $('hisBody').innerHTML=hisRows.map(r=>{
+    const raz=r.raznitsa;
+    const razCls=raz==null?'':(raz>0?'pos':(raz<0?'neg':''));
+    const razTxt=raz==null?'—':(raz===0?'·':((raz>0?'+':'−')+money(Math.abs(raz))));
+    const qolda=r.rejim==='qolda'?' <span class="badge mut">qo\'lda</span>':'';
+    return '<tr data-kun="'+esc(r.kun)+'" onclick="window.hisDrill(\''+esc(r.kun)+'\')">'
+      +'<td class="f">'+esc(fmtDateShort(r.kun))+'</td>'
+      +'<td class="n">'+hisNum(r.jami)+qolda+'</td>'
+      +'<td class="n">'+hisNum(r.kerak)+'</td>'
+      +'<td class="n '+razCls+'">'+razTxt+'</td>'
+      +'<td class="n">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+(r.foyda_usd!=null?'<div class="c">$'+money(r.foyda_usd)+'</div>':'')+'</td>'
+      +'<td class="n">'+hisNum(r.xarajat_uzs)+'</td>'
+      +'</tr>';
+  }).join('');
+  markOpenHisRow(hisOpenKun);
+}
+function markOpenHisRow(kun){
+  document.querySelectorAll('#hisBody tr[data-kun]').forEach(r=>r.classList.toggle('open', !!kun && r.dataset.kun===kun));
+}
+window.hisDrill=async(kun)=>{
+  if(hisOpenKun===kun){ window.hisDrillClose(); return; }
+  hisOpenKun=kun;
+  markOpenHisRow(kun);
+  $('hisDd').style.display='block';
+  $('hisDdTitle').textContent='Tafsilot: '+fmtDateShort(kun);
+  $('hisFoydaBody').innerHTML='<tr><td colspan="5" class="empty">Yuklanmoqda...</td></tr>';
+  $('hisXarajatBody').innerHTML='<tr><td colspan="4" class="empty">Yuklanmoqda...</td></tr>';
+  const {data,error}=await sb.rpc('aylanma_hisobot_tafsilot',{p_sana:kun});
+  if(error){
+    const m='<tr><td colspan="5">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
+    $('hisFoydaBody').innerHTML=m; $('hisXarajatBody').innerHTML='<tr><td colspan="4">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
+    return;
+  }
+  if(data && data.ok===false){
+    $('hisFoydaBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
+    $('hisXarajatBody').innerHTML='<tr><td colspan="4">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
+    return;
+  }
+  hisDetail=data;
+  renderHisDrill();
+};
+window.hisDrillClose=()=>{ hisOpenKun=null; hisDetail=null; $('hisDd').style.display='none'; markOpenHisRow(null); };
+async function hisDrillReload(){
+  if(!hisOpenKun) return;
+  const {data,error}=await sb.rpc('aylanma_hisobot_tafsilot',{p_sana:hisOpenKun});
+  if(error || (data && data.ok===false)) return; // fon yangilanishda xato bo'lsa eski tafsilot qoladi
+  hisDetail=data;
+  renderHisDrill();
+}
+function renderHisDrill(){
+  const foyda=(hisDetail&&hisDetail.foyda)||[];
+  const xarajat=(hisDetail&&hisDetail.xarajat)||[];
+  $('hisFoydaBody').innerHTML = foyda.length ? foyda.map(r=>{
+    const jami=(r.filial==='JAMI');
+    return '<tr'+(jami?' style="font-weight:700;border-top:2px solid var(--line)"':'')+'>'
+      +'<td class="f">'+(jami?'JAMI':esc(r.filial))+'</td>'
+      +'<td class="n">'+(r.sotilgan==null?'—':money(r.sotilgan))+'</td>'
+      +'<td class="n">'+(r.qaytarilgan==null?'—':money(r.qaytarilgan))+'</td>'
+      +'<td class="n">'+(r.foyda_usd==null?'—':'$'+money(r.foyda_usd))+'</td>'
+      +'<td class="n">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+'</td>'
+      +'</tr>';
+  }).join('') : '<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+  $('hisXarajatBody').innerHTML = xarajat.length ? xarajat.map(r=>
+    '<tr><td class="f">'+esc(r.modda)+'</td><td>'+esc(r.kassa)+'</td><td class="n">'+money(r.summa)+'</td><td class="n">'+(r.soni==null?'—':money(r.soni))+'</td></tr>'
+  ).join('') : '<tr><td colspan="4">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+  icons();
+}
+/* Excel (SheetJS lazy, aylExcelDrill naqshida — aylLoadXlsx qayta ishlatiladi) + CSV zaxira */
+function hisCsvFallback(){
+  const foyda=(hisDetail&&hisDetail.foyda)||[];
+  const xarajat=(hisDetail&&hisDetail.xarajat)||[];
+  const rows1=[['Filial','Sotilgan','Qaytarilgan','Foyda $',"Foyda so'm"]]
+    .concat(foyda.map(r=>[r.filial||'', r.sotilgan??'', r.qaytarilgan??'', r.foyda_usd??'', r.foyda_uzs??'']));
+  const rows2=[['Modda','Kassa','Summa','Soni']]
+    .concat(xarajat.map(r=>[r.modda||'', r.kassa||'', r.summa??'', r.soni??'']));
+  const csv=rows1.concat([['']]).concat(rows2).map(r=>r.map(v=>String(v).replace(/;/g,',')).join(';')).join('\r\n');
+  const blob=new Blob(['﻿sep=;\r\n'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='aylanma_hisobot_'+(hisOpenKun||'tafsilot')+'.csv'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+window.hisExcelDrill=async()=>{
+  if(!hisDetail) return;
+  try{
+    const X=await aylLoadXlsx();
+    const foyda=hisDetail.foyda||[], xarajat=hisDetail.xarajat||[];
+    const aoa1=[['Filial','Sotilgan','Qaytarilgan','Foyda $',"Foyda so'm"]];
+    foyda.forEach(r=>aoa1.push([r.filial||'', r.sotilgan??'', r.qaytarilgan??'', r.foyda_usd??'', r.foyda_uzs??'']));
+    const aoa2=[['Modda','Kassa','Summa','Soni']];
+    xarajat.forEach(r=>aoa2.push([r.modda||'', r.kassa||'', r.summa??'', r.soni??'']));
+    const wb=X.utils.book_new();
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(aoa1),'Foyda');
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(aoa2),'Xarajat');
+    X.writeFile(wb,'aylanma_hisobot_'+(hisOpenKun||'tafsilot')+'.xlsx');
+  }catch(e){ hisCsvFallback(); }
+};
+
 async function init(){
   curDate=iso(nowUz());
   $('dateInput').value=curDate;
   $('dateInput').onchange=window.aylDateChange;
-  await Promise.all([loadRole(), loadKun(false), loadTrend(trendDays,false)]);
+  await Promise.all([loadRole(), loadKun(false), loadTrend(trendDays,false), loadHisobot(false)]);
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
