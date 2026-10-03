@@ -1,71 +1,9 @@
 -- ============================================================================
---  PROVODKA_KONVERT_V4.sql — 2026-10-03 — KONVERT: alohida sahifa ruxsati + VALYUTA → VALYUTA (ustama bilan)
---  Asilbek: (1) «konvert faqat kassa sahifasi ichida — boshqa odamga konvert qil desam kassaga dostup berishga
---  to'g'ri kelyapti» → `konvert` sahifasi ruxsati konvert qilish huquqini ham beradi (perm_can_convert).
---  (2) «o'zimda turgan pulni aylantirish — dollar kassamdan yuan kassamga, ustama bilan (foizda yoki oddiy)» →
---  convert_valyuta_v4: ikki valyuta hisobi orasida to'g'ridan konvert (so'mga sotib, qayta sotib olish SHART EMAS).
---  Ustama (komissiya) — alohida yozuv: Dt «Konvert ustama» XARAJAT moddasi / Kt beruvchi valyuta hisobi. Shunda
---  valyuta qoldig'i haqiqiy miqdorga tushadi, ustama P&L da xarajat bo'lib ko'rinadi (Kurs farqi moddasi bilan bir xil g'oya).
---  So'm baholash: ikkala satr BIR XIL so'm qiymatda (V) — p_uzs berilsa o'sha, bo'lmasa p_amount × conv_baza_kurs(berilayotgan valyuta).
---  Eski imzolar (convert_start_v2/v3, do_convert_v2) TEGILMAGAN. Additive. Asilbek RUN qiladi.
+--  PROVODKA_KONVERT_V4_FIX.sql — 2026-10-03 — convert_valyuta_v4: convert_request.status 'done' → 'approved'
+--  Xato: new row for relation "convert_request" violates check constraint "convert_request_status_check"
+--  (status faqat pending|approved|rejected). Tarix qatori endi 'approved' (entry_id, decided_by bilan).
+--  Faqat shu funksiya qayta e'lon qilinadi. Asilbek RUN qiladi.
 -- ============================================================================
-
--- 1) Konvert ruxsati: konvert sahifasi ham yetarli
-create or replace function perm_can_convert()
-returns boolean
-language plpgsql
-stable
-security definer
-set search_path = public
-as $fn$
-declare p user_perms;
-begin
-  if auth.uid() is null then return true; end if;
-  if is_admin() then return true; end if;
-  select * into p from user_perms where user_id = auth.uid();
-  if not found then return true; end if;
-  if 'kassa' = any(coalesce(p.allowed_pages, '{}'::text[])) then return true; end if;
-  -- 🔴 2026-10-03: konvert sahifasi ruxsati = konvert qilish huquqi (kassa sahifasiz)
-  if 'konvert' = any(coalesce(p.allowed_pages, '{}'::text[])) then return true; end if;
-  return p.can_convert;
-end $fn$;
-revoke all on function perm_can_convert() from public, anon;
-grant execute on function perm_can_convert() to authenticated, service_role;
-comment on function perm_can_convert() is
-  'Konvert ruxsati: admin OR kassa sahifasi OR konvert sahifasi (2026-10-03) OR can_convert.';
-
--- 2) «Konvert ustama» xarajat moddasi (idempotent, 94xx avtokod — Konvert kurs farqi bilan bir xil naqsh)
-do $do$
-declare v_id uuid; v_next int;
-begin
-  select id into v_id from accounts where name = 'Konvert ustama' and type = 'xarajat' limit 1;
-  if v_id is null then
-    select coalesce(max(a.code::int), 9420) + 1 into v_next from accounts a where a.code ~ '^94[0-9]+$';
-    insert into accounts(code, name, type, section, is_active)
-    values (v_next::text, 'Konvert ustama', 'xarajat', 'operatsion', true) returning id into v_id;
-    raise notice 'Konvert ustama moddasi OCHILDI: kod % (id=%)', v_next, v_id;
-  else
-    raise notice 'Konvert ustama moddasi bor (id=%)', v_id;
-  end if;
-end
-$do$;
-
-create or replace function conv_ustama_hisob_id()
-returns uuid
-language sql
-stable
-security definer
-set search_path = public
-as $fn$
-  select id from accounts where name = 'Konvert ustama' and type = 'xarajat' and is_active order by created_at asc limit 1;
-$fn$;
-revoke all on function conv_ustama_hisob_id() from public, anon;
-
--- 3) VALYUTA → VALYUTA konvert
---   p_from, p_to     — ikkala hisob ham valyuta (currency <> 'UZS'), bir xil hisob emas
---   p_amount         — beriladigan miqdor (p_from valyutasida), p_to_amount — olinadigan miqdor (p_to valyutasida)
---   p_ustama         — ustama, p_from valyutasida (oddiy summa), p_ustama_foiz — ustama % (p_amount dan); ikkalasi ham bo'lishi mumkin
---   p_uzs            — so'm ekvivalenti (ixtiyoriy; bo'lmasa conv_baza_kurs(berilayotgan valyuta) × p_amount)
 create or replace function convert_valyuta_v4(p_from uuid, p_to uuid, p_amount numeric, p_to_amount numeric,
                                               p_ustama numeric default null, p_ustama_foiz numeric default null,
                                               p_uzs numeric default null, p_note text default null)
@@ -176,21 +114,4 @@ end
 $fn$;
 revoke all on function convert_valyuta_v4(uuid, uuid, numeric, numeric, numeric, numeric, numeric, text) from public, anon;
 grant execute on function convert_valyuta_v4(uuid, uuid, numeric, numeric, numeric, numeric, numeric, text) to authenticated;
-comment on function convert_valyuta_v4(uuid, uuid, numeric, numeric, numeric, numeric, numeric, text) is
-  'Valyuta → valyuta konvert (USD→CNY va h.k.), ustama alohida xarajat yozuvi (Konvert ustama). convert_start_v3 tegilmagan.';
-
--- 4) konvert sahifasi uchun valyuta hisoblari ro'yxati (ruxsat doirasida ko'rinadi — RLS/perm_op_key klientda)
-create or replace view v_konvert_valyuta_hisoblar as
-  select a.id, a.code, a.name, a.currency, a.parent_id, kassa_root(a.id) as root_id,
-         r.name as kassa_nomi, a.kassa_turi
-    from accounts a
-    left join accounts r on r.id = kassa_root(a.id)
-   where a.is_active and coalesce(a.currency, 'UZS') <> 'UZS'
-     and coalesce(a.kassa_turi, '') not in ('filial', 'xarajat_guruh');
-grant select on v_konvert_valyuta_hisoblar to authenticated;
-
 notify pgrst, 'reload schema';
-
--- tekshiruv
-select code, name from accounts where name in ('Konvert ustama', 'Konvert kurs farqi') order by code;
-select kassa_nomi, name, currency from v_konvert_valyuta_hisoblar order by kassa_nomi, currency;
