@@ -1073,6 +1073,29 @@ taxmin (USD→dollar, click/payme→click, aks holda naqd — faqat kassada faol
   admin «Jamg'arma kassalari» paneli (Kirim tabi). Bu oy tabida kassa filtri YO'Q (`ehson_oy` o'zgartirilmagan).
 - Hodim-dev TEGILMAGAN (ehson moddalari bayroqsiz yashirin). Sukut qarorlar: dollar USD'da; nisob/2.5% hisoboti keyingi bosqich.
 
+### Ehson ichida QARZ bo'limi (2026-10-04, `PROVODKA_EHSON_QARZ.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: jamg'armadan QARZ berish (ehson emas) — pul kompaniyada hech qayerda hisoblanmaydi, faqat Ehson ichida «Qarz»
+tabi; deadline yoki oyma-oy; pul faqat ehson kassalardan; Ehson ruxsati bor har kim qarz bera oladi.
+- **Jadvallar**: `ehson_qarz` (kassa+pul turi, qarzdor `oila`|`shaxs`(ism/telefon), `muddat_turi` bir_martalik(tugash=deadline)|
+  oylik(boshlanish+oylar_soni, `oylik_summa`), holat faol→yopildi|bekor, `ext_ref` unique), `ehson_qarz_jadval` (n/sana/summa/
+  tolangan), `ehson_qarz_tolov` (qaytim). RLS ehson naqshi: select `ehson_page_ok()`, yozish faqat RPC. `ehson_tarix.obyekt`
+  check'iga `qarz`,`qarz_tolov` qo'shildi (constraint nomi pg_constraint dan topilib qayta yaratiladi).
+- 🔴 **Valyuta birligi**: `summa` har doim so'm ekvivalenti; grafik/to'lov/qoldi/oylik — QARZ VALYUTASI birligida
+  (`asosiy = USD ? fc_summa : summa`). USD kurs `conv_baza_kurs('USD')` (pg_proc probe) — `ehson_ber` bilan bir xil.
+  To'lov pul turi valyutasi qarz valyutasiga teng bo'lishi shart (`valyuta_mos_emas`).
+- 🔴 **`v_ehson_kassa_pul` / `v_ehson_kassa` qoldiq = kirim − berildi − qarz_berildi + qarz_qaytdi** (yangi ustunlar OXIRIGA
+  qo'shildi, eskilari tegilmagan → `ehson_dash`/`ehson_ber`/`ehson_kassa_daraxt` avtomat). `v_ehson_kassa` ning eng oxirgi
+  versiyasi endi SHU faylda. `entry`/`accounts` ga TEGILMAGAN.
+- **RPC**: `ehson_qarz_ber(p)` (ehson_ber tekshiruvlari + grafik: oylik = floor(asosiy/n), USD 2 kasr, oxirgi oy qoldiqni oladi;
+  `_ehson_oy_qosh` oy-oxiri clamp), `ehson_qarz_tolov(p)` (FIFO, to'liq → yopildi; `kop` = qoldidan ko'p), `ehson_qarz_bekor(id,sabab)`
+  (to'lov yo'q, admin yoki yaratgan), `ehson_qarz_royxat(p)` ({rows,jami,stat}; `holat='kechikkan'` = faol va keyingi_sana < bugun),
+  `ehson_qarz_kart(id)` (qarz, jadval holatlari, tolovlar, tarix). Serializator `_ehson_qarz_qator(ehson_qarz)` — faqat jadval
+  qatori bilan chaqiriladi (`q.*`), kengaytirilgan CTE qatori bilan EMAS (row type).
+- **UI** `ehson-dev.html` «Qarz» tabi (`ehq*`, `.ehq-*`): stat, «Qarz berish» formasi (oila picker / shaxs, jamg'arma+pul turi
+  Berish tabi mantiqi, muddat seg), ro'yxat (filtr Faol/Kechikkan/Yopilgan/Bekor/Hammasi), karta modali (grafik, to'lovlar,
+  to'lov qabul qilish, bekor), Excel. To'lovni bekor qilish — v1 da YO'Q (keyingi bosqich).
+
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
 `tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +
