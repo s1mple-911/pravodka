@@ -2531,7 +2531,7 @@ function ovqatIsMening(staff, bids){
 // BIR XIL nom (kassa subtitle'ining ' · ' gacha qismi). RPC hali yo'q (PGRST202) yoki filial
 // nomi bo'sh bo'lsa ovqatMeningSet=null qoladi — renderOvqatList eski ovqatIsMening()ga qaytadi.
 // Nom bo'yicha kesh (Map) — kassa almashganda avval so'ralgan nomni qayta so'ramaslik uchun.
-let ovqatMeningSet=null, ovqatMeningSetName=undefined;
+let ovqatMeningSet=null, ovqatMeningSetName=undefined, ovqatMeningInfo=null;
 const ovqatMeningCache=new Map();
 function ovqatMeningFilNomi(){
   const k=effKassa(); if(!k) return '';
@@ -2541,13 +2541,34 @@ async function ovqatMeningSetFetch(filNomi){
   // 2026-10-04: nom bo'sh bo'lsa ham so'raladi — server yozuvchi HODIM bo'lsa uning o'z filiallari
   // (override bilan) bo'yicha javob beradi (PROVODKA_HODIM_FILIAL_OVERRIDE_2.sql), nom faqat zaxira yo'l.
   if(ovqatMeningCache.has(filNomi)){ ovqatMeningSet=ovqatMeningCache.get(filNomi); ovqatMeningSetName=filNomi; return; }
-  let set=null;
+  let set=null; ovqatMeningInfo=null;
   try{
-    const {data,error}=await sb.rpc('ovqat_mening_staff',{p_filial_nom:filNomi||null});
-    if(!error && Array.isArray(data)) set=new Set(data.map(Number));
+    // v2 (PROVODKA_HODIM_FILIAL_OVERRIDE_3.sql): {ids, manba, staff_nom, filiallar, sabab} — sabab ko'rsatiladi;
+    // v2 yo'q (PGRST202) → eski int[] RPC. Kassa id ham yuboriladi: user bog'lanmagan bo'lsa kassa nomi orqali topadi.
+    const k=effKassa();
+    let r=await sb.rpc('ovqat_mening_staff_v2',{p_filial_nom:filNomi||null,p_kassa_id:(k&&k.id)||null});
+    if(r.error && String(r.error.code||'')==='PGRST202'){
+      r=await sb.rpc('ovqat_mening_staff',{p_filial_nom:filNomi||null});
+      if(!r.error && Array.isArray(r.data)) set=new Set(r.data.map(Number));
+    } else if(!r.error && r.data && Array.isArray(r.data.ids)){
+      set=new Set(r.data.ids.map(Number)); ovqatMeningInfo=r.data;
+    } else if(r.error){ console.warn('ovqat_mening_staff_v2 xato:', r.error); ovqatMeningInfo={sabab:'xato', xato:r.error.message}; }
   }catch(e){ set=null; }
   ovqatMeningCache.set(filNomi,set);
   ovqatMeningSet=set; ovqatMeningSetName=filNomi;
+}
+// Bo'sh ro'yxat SABABI — server (v2) javobidan; eski xabar faqat ma'lumot bo'lmasa
+function ovqatBoshSabab(filialNomi){
+  const i=ovqatMeningInfo;
+  if(i){
+    const fil=(Array.isArray(i.filiallar)&&i.filiallar.length)?i.filiallar.join(', '):'';
+    if(i.sabab==='filialda_hodim_yoq') return 'Filialingizda («'+esc(fil)+'») boshqa hodim topilmadi — Aros bo\'limi shu filialga bog\'lanmagan bo\'lishi mumkin (Standart → Bo\'limlarni bog\'lash).';
+    if(i.sabab==='hodim_filialsiz') return 'Siz («'+esc(i.staff_nom||'')+'») hech qaysi filialga biriktirilmagansiz — Sozlamalar → Hodim → Filial.';
+    if(i.sabab==='kassa_filialsiz') return 'Hisobingiz Aros hodimiga bog\'lanmagan va kassangizda filial yo\'q — Sozlamalar → Rollar va foydalanuvchilar → hodimni bog\'lang.';
+    if(i.sabab==='nom_topilmadi') return '«'+esc(i.filial_nom||'')+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish.';
+    if(i.sabab==='xato') return 'Server xatosi: '+esc(i.xato||'');
+  }
+  return filialNomi?('«'+esc(filialNomi)+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish bo\'limida bog\'lang.'):'Kassangizga filial biriktirilmagan — ovqat yozib bo\'lmaydi.';
 }
 // Joriy kassa nomiga mos kelmasa fonda qayta so'raydi, tayyor bo'lgach ro'yxatni qayta chizadi.
 // Ro'yxat shu orada (fetch tugamaguncha) eski klient mantig'i bilan ko'rsatiladi — bloklanmaydi.
@@ -2738,7 +2759,7 @@ function renderOvqatList(){
   if(mine.length) html='<div class="ov-grp">Mening filialim'+(filialNomi?' · '+esc(filialNomi):'')+'</div>'+mine.map(rowHtml).join('');
   // 🔴 Ro'yxat umuman bo'sh (sinxron ishlamagan) — xatosiz bo'lsa ham aniq sabab ko'rsatiladi; saqlash baribir yopiq
   if(!(ovqatStaff&&ovqatStaff.length)) html='<div class="ov-empty">Hodimlar ro\'yxati bo\'sh — aros-staff sinxroni (n8n) hali ishlamagan. Ovqat yozib bo\'lmaydi.</div>';
-  else if(!mineAll.length) html='<div class="ov-empty">'+(filialNomi?('«'+esc(filialNomi)+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish bo\'limida bog\'lang.'):'Kassangizga filial biriktirilmagan — ovqat yozib bo\'lmaydi.')+'</div>';
+  else if(!mineAll.length) html='<div class="ov-empty">'+ovqatBoshSabab(filialNomi)+'</div>';
   else if(!mine.length) html='<div class="ov-empty">Topilmadi</div>';
   box.innerHTML=html;   // qatorlarda lucide ikonka yo'q — icons() chaqirilmaydi (har harfda butun sahifani skan qilib qidiruvni sekinlashtirardi)
 }
