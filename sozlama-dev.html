@@ -726,6 +726,8 @@
         <button id="hfFOverride" onclick="hfFilter('override')">Override</button>
         <button id="hfFFilialsiz" onclick="hfFilter('filialsiz')">Filialsiz</button>
         <button id="hfFYoq" onclick="hfFilter('yoq')">Aros'da filiali yo'q</button>
+        <button id="hfFLoginYoq" onclick="hfFilter('loginyoq')">Login yo'q</button>
+        <button id="hfFOchirilgan" onclick="hfFilter('ochirilgan')">O'chirilgan</button>
       </div>
       <div id="hfList" style="max-height:420px;overflow:auto"></div>
       <div id="hfRes" class="res"></div>
@@ -969,17 +971,46 @@
       <div class="htg-box">
         <h3 id="hfModalTitle">Hodim</h3>
         <div class="htg-sub" id="hfModalSub"></div>
-        <input class="htg-search" id="hfFilQ" placeholder="Filial qidirish…" oninput="hfRenderFilials()">
-        <div class="rb-grid-check" id="hfFilList" style="max-height:260px;overflow:auto;margin-bottom:14px"></div>
-        <div class="mxd-fld" style="margin-bottom:4px">
-          <label class="mxd-l" for="hfIzoh">Izoh <span class="mxd-optl">(ixtiyoriy)</span></label>
-          <input class="mxd-in" id="hfIzoh" maxlength="200" autocomplete="off" placeholder="masalan: ikki filialda ishlaydi">
+
+        <div id="hfOchirilganInfo" class="hf-chip none" style="display:none;margin-bottom:14px">
+          <i data-lucide="alert-triangle"></i><span>O'chirilgan hodim — avval tiklang</span>
         </div>
+
+        <div class="mxd-fhd" style="margin-bottom:8px">Login hisobi</div>
+        <input class="mxd-in" id="hfLoginQ" style="display:none;margin-bottom:8px" placeholder="Login qidirish…" oninput="hfRenderLoginSel()">
+        <select class="mxd-in mxd-sel" id="hfLoginSel"></select>
+        <div class="res" id="hfLoginRes"></div>
+        <button type="button" class="mxd-cancel" id="hfLoginSaveBtn" style="width:100%;margin:8px 0 18px" onclick="hfSaveLogin()">
+          <i data-lucide="link-2"></i>Loginni saqlash</button>
+
+        <div id="hfFilialSec">
+          <input class="htg-search" id="hfFilQ" placeholder="Filial qidirish…" oninput="hfRenderFilials()">
+          <div class="rb-grid-check" id="hfFilList" style="max-height:260px;overflow:auto;margin-bottom:14px"></div>
+          <div class="mxd-fld" style="margin-bottom:4px">
+            <label class="mxd-l" for="hfIzoh">Izoh <span class="mxd-optl">(ixtiyoriy)</span></label>
+            <input class="mxd-in" id="hfIzoh" maxlength="200" autocomplete="off" placeholder="masalan: ikki filialda ishlaydi">
+          </div>
+        </div>
+
+        <div id="hfDelConfirm" style="display:none;margin-top:4px;padding:12px;border-radius:10px;background:var(--red-soft)">
+          <div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:8px">Hodim BARCHA ro'yxatlardan yo'qoladi (ovqat, filial, limit, rollar). Yozuvlari va tarixi saqlanadi. Staff Sync qayta tiriltirmaydi.</div>
+          <input class="mxd-in" id="hfDelIzoh" maxlength="200" autocomplete="off" placeholder="Izoh (ixtiyoriy)" style="margin-bottom:8px">
+          <div class="mxd-facts" style="margin-top:0">
+            <button type="button" class="mxd-cancel" onclick="hfDelCancel()">Bekor</button>
+            <button type="button" class="mxd-save" id="hfDelOkBtn" style="background:var(--red)" onclick="hfDelConfirm()">
+              <i data-lucide="trash-2"></i>Ha, o'chirish</button>
+          </div>
+        </div>
+
         <div class="res" id="hfModalRes"></div>
-        <div class="mxd-facts">
+        <div class="mxd-facts rb-acts">
           <button type="button" class="mxd-cancel" onclick="window.hfCloseModal()">Bekor</button>
           <button type="button" class="mxd-cancel" id="hfClearBtn" onclick="hfClear()" style="display:none">
             <i data-lucide="rotate-ccw"></i>Aros holatiga qaytarish</button>
+          <button type="button" class="mxd-cancel" id="hfDelBtn" onclick="hfAskDelete()" style="display:none;color:var(--red);border-color:var(--red)">
+            <i data-lucide="user-x"></i>Hodimni o'chirish</button>
+          <button type="button" class="mxd-save" id="hfRestoreBtn" onclick="hfRestore()" style="display:none">
+            <i data-lucide="rotate-ccw"></i>Tiklash</button>
           <button type="button" class="mxd-save" id="hfSaveBtn" onclick="hfSave()"><i data-lucide="save"></i>Saqlash</button>
         </div>
       </div>
@@ -2335,7 +2366,7 @@ async function hfLoad(){
       : "Yuklanmadi: "+(data.error||data.kod||"noma'lum xato"));
   }
   $('hfRes').className='res'; $('hfRes').textContent='';
-  hfData=data||{filiallar:[],hodimlar:[]};
+  hfData=data||{filiallar:[],hodimlar:[],loginlar:[]};
   hfRenderTop();
   hfRender();
 }
@@ -2344,9 +2375,13 @@ function hfRenderTop(){
   const list=(hfData&&Array.isArray(hfData.hodimlar))?hfData.hodimlar:[];
   const ov=list.filter(h=>h.override).length;
   const fs=list.filter(h=>!Array.isArray(h.joriy)||h.joriy.length===0).length;
-  el.textContent=`${list.length} ta hodim · ${ov} ta override · ${fs} ta filialsiz`;
+  const nl=list.filter(h=>!h.ochirilgan && !h.login_id).length;
+  const oc=list.filter(h=>h.ochirilgan).length;
+  el.textContent=`${list.length} ta hodim · ${ov} ta override · ${fs} ta filialsiz`
+    +` · ${nl} ta login bog'lanmagan · ${oc} ta o'chirilgan`;
 }
 function hfChipsHtml(h){
+  if(h.ochirilgan) return `<span class="hf-chip none"><i data-lucide="user-x"></i><span>O'chirilgan</span></span>`;
   const joriy=Array.isArray(h.joriy)?h.joriy:[];
   if(!joriy.length) return `<span class="hf-chip none"><i data-lucide="alert-triangle"></i><span>Filialsiz</span></span>`;
   const cls=h.override?'ov':'aros', title=h.override?"qo'lda":"Aros'dan";
@@ -2354,10 +2389,14 @@ function hfChipsHtml(h){
 }
 function hfRowHtml(h){
   const badge=h.override?' <i class="rb-taklif-badge">override</i>':'';
-  return `<div class="item hf-row">
+  const loginLine=h.login_ism
+    ? `<div class="c">${esc(h.login_ism)}</div>`
+    : `<div class="c hf-warn">Login bog'lanmagan</div>`;
+  return `<div class="item hf-row" style="${h.ochirilgan?'opacity:.55':''}">
     <div class="item-head">
       <div class="mid"><div class="t">${esc(h.nom)}${badge}</div>
-        <div class="c">${[esc(h.lavozim||''),h.branch_nomi?esc(h.branch_nomi):''].filter(Boolean).join(' · ')}</div></div>
+        <div class="c">${[esc(h.lavozim||''),h.branch_nomi?esc(h.branch_nomi):''].filter(Boolean).join(' · ')}</div>
+        ${loginLine}</div>
       <button class="edit" onclick="hfOpenModal(${Number(h.staff_id)})" title="Tahrirlash"><i data-lucide="pencil"></i></button>
     </div>
     <div class="hf-chips">${hfChipsHtml(h)}</div>
@@ -2371,6 +2410,8 @@ function hfRender(){
   if(hfFilterMode==='override') arr=arr.filter(h=>h.override);
   else if(hfFilterMode==='filialsiz') arr=arr.filter(h=>!Array.isArray(h.joriy)||h.joriy.length===0);
   else if(hfFilterMode==='yoq') arr=arr.filter(h=>!h.override && (!Array.isArray(h.aros)||h.aros.length===0));
+  else if(hfFilterMode==='loginyoq') arr=arr.filter(h=>!h.ochirilgan && !h.login_id);
+  else if(hfFilterMode==='ochirilgan') arr=arr.filter(h=>h.ochirilgan);
   if(q) arr=arr.filter(h=>((h.nom||'')+' '+(h.lavozim||'')+' '+(h.branch_nomi||'')).toLowerCase().indexOf(q)>=0);
   box.innerHTML=arr.length?arr.map(hfRowHtml).join(''):'<div class="empty">Hodim topilmadi.</div>';
   icons();
@@ -2382,6 +2423,8 @@ window.hfFilter=mode=>{
   $('hfFOverride').className=mode==='override'?'on':'';
   $('hfFFilialsiz').className=mode==='filialsiz'?'on':'';
   $('hfFYoq').className=mode==='yoq'?'on':'';
+  $('hfFLoginYoq').className=mode==='loginyoq'?'on':'';
+  $('hfFOchirilgan').className=mode==='ochirilgan'?'on':'';
   hfRender();
 };
 function hfSetSaveBtnDefault(){
@@ -2417,14 +2460,114 @@ window.hfOpenModal=staffId=>{
   $('hfIzoh').value=(h.override&&h.override.izoh)||'';
   $('hfFilQ').value='';
   $('hfModalRes').className='res'; $('hfModalRes').textContent='';
-  $('hfClearBtn').style.display=h.override?'inline-flex':'none';
+  $('hfLoginRes').className='res'; $('hfLoginRes').textContent='';
+  $('hfDelIzoh').value='';
+  $('hfDelConfirm').style.display='none';
+  const ochirilgan=!!h.ochirilgan;
+  $('hfOchirilganInfo').style.display=ochirilgan?'inline-flex':'none';
+  $('hfFilialSec').style.display=ochirilgan?'none':'block';
+  $('hfLoginQ').value='';
+  $('hfClearBtn').style.display=(!ochirilgan&&h.override)?'inline-flex':'none';
+  $('hfSaveBtn').style.display=ochirilgan?'none':'inline-flex';
+  $('hfLoginSaveBtn').style.display=ochirilgan?'none':'inline-flex';
+  $('hfLoginSel').disabled=ochirilgan;
+  $('hfDelBtn').style.display=ochirilgan?'none':'inline-flex';
+  $('hfRestoreBtn').style.display=ochirilgan?'inline-flex':'none';
   hfSetSaveBtnDefault();
   hfRenderFilials();
+  hfRenderLoginSel();
   $('hfModal').classList.add('open');
-  setTimeout(()=>{ const el=$('hfFilQ'); if(el) el.focus(); },0);
+  setTimeout(()=>{ const el=ochirilgan?null:$('hfFilQ'); if(el) el.focus(); },0);
   icons();
 };
 window.hfCloseModal=()=>{ $('hfModal').classList.remove('open'); hfModalRow=null; };
+// ≥7 login hisobi bo'lsa qidiruv maydoni chiqadi, aks holda select'ning o'zi yetarli.
+window.hfRenderLoginSel=()=>hfRenderLoginSel();
+function hfRenderLoginSel(){
+  const sel=$('hfLoginSel'); if(!sel||!hfModalRow) return;
+  const all=(hfData&&Array.isArray(hfData.loginlar))?hfData.loginlar:[];
+  const qEl=$('hfLoginQ');
+  qEl.style.display=all.length>=7?'block':'none';
+  const q=((qEl&&qEl.value)||'').trim().toLowerCase();
+  const arr=q?all.filter(u=>(u.nom||'').toLowerCase().indexOf(q)>=0):all;
+  const curId=hfModalRow.login_id?String(hfModalRow.login_id):'';
+  const opts=['<option value="">— bog\'lanmagan —</option>']
+    .concat(arr.map(u=>`<option value="${esc(u.id)}" ${String(u.id)===curId?'selected':''}>${esc(u.nom)}</option>`));
+  // joriy bog'langan login qidiruv natijasidan chiqib ketgan bo'lsa ham tanlangan qolsin
+  if(curId && !arr.some(u=>String(u.id)===curId)){
+    const cur=all.find(u=>String(u.id)===curId);
+    if(cur) opts.push(`<option value="${esc(cur.id)}" selected>${esc(cur.nom)}</option>`);
+  }
+  sel.innerHTML=opts.join('');
+}
+window.hfSaveLogin=async()=>{
+  if(!hfModalRow) return;
+  const sel=$('hfLoginSel');
+  const userId=sel?sel.value:'';
+  $('hfLoginRes').className='res'; $('hfLoginRes').textContent='Saqlanmoqda…';
+  const {data,error}=await sb.rpc('hodim_filial_login_bogla',{p_staff:hfModalRow.staff_id,p_user:userId||null});
+  if(error){
+    $('hfLoginRes').className='res err';
+    $('hfLoginRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  if(data && data.ok===false){
+    $('hfLoginRes').className='res err';
+    $('hfLoginRes').textContent=data.error||data.kod||'Saqlanmadi';
+    return;
+  }
+  $('hfLoginRes').className='res ok';
+  $('hfLoginRes').textContent='Saqlandi ✓';
+  toast('ok',"Login saqlandi ✓");
+  await hfLoad();
+  const still=((hfData&&hfData.hodimlar)||[]).find(x=>Number(x.staff_id)===Number(hfModalRow&&hfModalRow.staff_id));
+  if(still){ hfModalRow=still; hfRenderLoginSel(); } else window.hfCloseModal();
+};
+window.hfAskDelete=()=>{
+  $('hfDelIzoh').value='';
+  $('hfDelConfirm').style.display='block';
+  setTimeout(()=>{ const el=$('hfDelIzoh'); if(el) el.focus(); },0);
+};
+window.hfDelCancel=()=>{ $('hfDelConfirm').style.display='none'; };
+window.hfDelConfirm=async()=>{
+  if(!hfModalRow) return;
+  const btn=$('hfDelOkBtn'), old=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.textContent="O'chirilmoqda…"; }
+  const izoh=(($('hfDelIzoh')&&$('hfDelIzoh').value)||'').trim();
+  const {data,error}=await sb.rpc('hodim_filial_ochir',{p_staff:hfModalRow.staff_id,p_ochir:true,p_izoh:izoh||null});
+  if(btn){ btn.disabled=false; btn.innerHTML=old||'<i data-lucide="trash-2"></i>Ha, o\'chirish'; icons(); }
+  if(error){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  if(data && data.ok===false){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=data.error||data.kod||"O'chirilmadi";
+    return;
+  }
+  window.hfCloseModal();
+  toast('ok',"Hodim o'chirildi ✓");
+  await hfLoad();
+};
+window.hfRestore=async()=>{
+  if(!hfModalRow) return;
+  $('hfModalRes').className='res'; $('hfModalRes').textContent='Tiklanmoqda…';
+  const {data,error}=await sb.rpc('hodim_filial_ochir',{p_staff:hfModalRow.staff_id,p_ochir:false,p_izoh:null});
+  if(error){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  if(data && data.ok===false){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=data.error||data.kod||'Tiklanmadi';
+    return;
+  }
+  window.hfCloseModal();
+  toast('ok',"Tiklandi ✓");
+  await hfLoad();
+};
 window.hfSave=async()=>{
   if(!hfModalRow) return;
   const ids=Array.from(hfSelected);

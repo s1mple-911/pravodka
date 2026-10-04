@@ -1428,6 +1428,19 @@ override buzilmasin.
   sababini yozadi, yashirinmaydi): qidiruv, filtr (Hammasi/Override/Filialsiz/Aros'da yo'q), modal multiselect.
 - **hodim-dev ovqat ro'yxati**: `ovqat_mening_staff(p_filial_nom)` → int[] (kassa subtitle'idagi bo'lim nomi bo'yicha,
   override hisobga olinadi); RPC yo'q bo'lsa eski klient filtri (`ovqatIsMening`, faqat `branches[]`) qoladi.
+  🔴 **_2 (2026-10-04)**: ro'yxat YOZUVCHINING O'Z filiallari bo'yicha (chaqiruvchi `aros_staff.user_id` ga bog'langan bo'lsa
+  `hodim_filiallari` → `hodim_filial_azo`), nom yo'li faqat zaxira. **_3**: `ovqat_mening_staff_v2(p_filial_nom, p_kassa_id)` →
+  `{ids, manba:'user'|'kassa'|'nom'|'yoq', sabab}` — klient bo'sh ro'yxat SABABINI yozadi (`ovqatBoshSabab`); user bog'lanmagan
+  bo'lsa kassa nomi = `toliq_nom` (yagona moslik) orqali topadi. Fayoz sabog'i: login ↔ hodim bog'lanmagan edi (`user_id` null) —
+  override hodimga tegishli, tizim «siz kimsiz»ni bilmasa ishlamaydi.
+- **_4 (2026-10-04) — hodimni BUTUNLAY O'CHIRISH + login bog'lash UI'dan**: `hodim_filial_override.ochirilgan` (+at/izoh/by);
+  `hodim_ochirilgan(staff)`, `hodim_ochirilganlar()` int[] (klient ro'yxatlari: hodim-dev ovqat, qarzdor-dev picker);
+  `hodim_filial_azo`/`hodim_filiallari` o'chirilgan uchun false/'{}' → filialga bog'liq hamma ro'yxat avtomat; `standart_hodim_limitlar`
+  (filialsiz rejim), `rbac_staff_royxat`, `ovqat_mening_staff` (nom yo'li) `and not hodim_ochirilgan(s.staff_id)` bilan qayta e'lon
+  (eng oxirgi versiyalar SHU faylda). `hodim_filial_ochir(staff, bool, izoh)` — tiklashda override bo'sh va Aros'da filial bo'lsa qator
+  o'chiriladi (Aros holatiga qaytadi). `hodim_filial_login_bogla(staff, user)` — `aros_staff.user_id` (ruxsat `hodim_filial_page_ok`,
+  `rbac_staff_link_set` admin-only edi). `hodim_filial_royxat()` → `loginlar[]`, qatorda `login_id/login_ism/ochirilgan*`.
+  `aros_staff`/`entry`/`entry_ovqat`/ehson tarixi TEGILMAYDI — faqat ro'yxatlardan yo'qoladi.
 
 ## Avtomatik sinxron (n8n)
 
