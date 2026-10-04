@@ -1380,6 +1380,32 @@ taqiq. Manba tanilmasa XATO berilsin.**
 - ⚠️ `Transfer Sync v2` jadvali `{field:'minutes'}` — `minutesInterval` YO'Q, ya'ni amalda **5 daqiqada**
   ishlaydi (nomi «Har 30 daqiqa»). Yangilashda ATAYLAB o'zgartirilmadi.
 
+### Hodim ↔ Filial OVERRIDE (2026-10-04, `PROVODKA_HODIM_FILIAL_OVERRIDE.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: hodimlar Aros staff importi bo'yicha filialga tushadi — qo'lda almashtirish / butunlay olib tashlash /
+bir nechta filial (multiselect) kerak; override HAMMA joyda amal qilsin; Staff Sync qayta import qilganda
+override buzilmasin.
+- **`hodim_filial_override(staff_id PK, filial_ids uuid[], izoh)`** — qator BOR = a'zolik AYNAN `filial_ids`
+  (Aros ignor), **bo'sh massiv = FILIALSIZ**; qator YO'Q = eski qoida (Aros `branch_id`/`branches[]` +
+  `staff_branch_map` + `staff_filial_qolda`). `aros_staff_sync()` bu jadvalga tegmaydi → qayta import xavfsiz.
+  `staff_filial_qolda` (eski, faqat QO'SHIMCHA filial, bitta) saqlanadi — override bo'lmaganda hamon qo'shiladi.
+- 🔴 **YAGONA predikat `hodim_filial_azo(staff_id, filial)`** (+ `hodim_filiallari(staff)` uuid[],
+  `hodim_filial_aros(staff)` xom Aros, `hodim_filial_nomlar(staff)` matn). A'zolik shartini yangi funksiyaga
+  inline YOZMA — shuni chaqir. Qayta e'lon qilinganlar (imzo bir xil): `hodim_filialda` (→ `filial_begona_userlar`,
+  `filial_hodim_sarf`, `mening_filiallarim`, `limit_guard_entry_line`, `standart_holat` avtomat),
+  `standart_filial_moddalar`, `standart_filial_limit_sarf` (tana SARF_3 dan verbatim, faqat predikat),
+  `standart_hodim_limitlar` (STANDART_HODIM_FIX dan verbatim; `filial_nom` endi `hodim_filial_nomlar`).
+  🔴 Bu uchta funksiyaning ENG OXIRGI versiyasi endi SHU faylda. Tegilmagan (ataylab): `standart_branch_takliflar`
+  va `standart_filial_moddalar.branchlar.hodim_soni` — Aros BO'LIMI bo'yicha sanoq, filial a'zoligi emas.
+- **Admin RPC** (`hodim_filial_page_ok()` = admin YOKI `perm_has_page('sozlama')`, `hodim_tg_page_ok` bilan bir xil):
+  `hodim_filial_royxat()` → `{filiallar, hodimlar[{staff_id,nom,lavozim,aros[],override|null,joriy[]}]}`,
+  `hodim_filial_set(staff, uuid[], izoh)` (bo'sh massiv = filialsiz; faol parent filial bo'lmasa `filial_notogri`),
+  `hodim_filial_clear(staff)` → Aros holatiga qaytarish.
+- **UI** `sozlama-dev.html` «Hodim → Filial» kartasi (`hf*`, `#htgCard` dan keyin, htg naqshi — RPC yo'q bo'lsa karta
+  sababini yozadi, yashirinmaydi): qidiruv, filtr (Hammasi/Override/Filialsiz/Aros'da yo'q), modal multiselect.
+- **hodim-dev ovqat ro'yxati**: `ovqat_mening_staff(p_filial_nom)` → int[] (kassa subtitle'idagi bo'lim nomi bo'yicha,
+  override hisobga olinadi); RPC yo'q bo'lsa eski klient filtri (`ovqatIsMening`, faqat `branches[]`) qoladi.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:

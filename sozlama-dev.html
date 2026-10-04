@@ -618,6 +618,22 @@
   .htg-usub{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .htg-utel{flex:0 0 auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
   .htg-uempty{color:var(--muted);text-align:center;padding:14px;font-size:13.5px}
+
+  /* ================================================================
+     HODIM -> FILIAL (.hf-*) — accounts emas, aros_staff ↔ filial override.
+     Modal .htg-modal/.htg-box qoldirilgan (ikkinchi modal yo'q, naqsh bitta),
+     checklist .rb-grid-check/.rb-chk (mavjud) bilan bir xil.
+     ================================================================ */
+  .hf-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .hf-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;
+    border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;max-width:220px;overflow:hidden}
+  .hf-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hf-chip.ov{background:var(--primary-soft);color:var(--primary)}
+  .hf-chip.aros{background:var(--surface-2);color:var(--muted)}
+  .hf-chip.none{background:var(--red-soft);color:var(--red)}
+  .hf-row .item-head{flex-wrap:nowrap}
+  @media(max-width:520px){ .hf-row .item-head{flex-wrap:wrap} }
+  .hf-warn{color:var(--amber)}
 </style>
 </head>
 <body>
@@ -691,6 +707,28 @@
       </div>
       <div id="htgList" style="max-height:420px;overflow:auto"></div>
       <div id="htgRes" class="res"></div>
+    </div>
+
+    <!-- «Hodim → Filial» — aros_staff a'zoligi odatda Aros importidan keladi; bu yerda
+         qo'lda ustidan yozish (override) mumkin. HECH QACHON yashirinmaydi (htg naqshi:
+         ko'rinish admin YOKI "Sozlamalar" sahifasi ruxsati, server o'zi hal qiladi). -->
+    <div class="card" id="hfCard">
+      <div class="sec">Hodim → Filial</div>
+      <div class="hint">Hodim qaysi filial(lar)ga tegishli ekanligi odatda Aros hodimlar
+        katalogidan keladi. Mos kelmasa shu yerdan qo'lda ustidan yozish mumkin — hech qaysi
+        filial tanlanmasa hodim <b>filialsiz</b> hisoblanadi (xarajat filial tanlashda chiqmaydi).</div>
+      <div id="hfTop" class="hint" style="margin:0 0 12px">Yuklanmoqda…</div>
+      <div class="addrow" style="margin-bottom:12px">
+        <input id="hfQ" placeholder="Hodim, lavozim, filial qidirish…" oninput="hfRender()">
+      </div>
+      <div class="seg" style="margin-bottom:12px">
+        <button id="hfFHammasi" class="on" onclick="hfFilter('hammasi')">Hammasi</button>
+        <button id="hfFOverride" onclick="hfFilter('override')">Override</button>
+        <button id="hfFFilialsiz" onclick="hfFilter('filialsiz')">Filialsiz</button>
+        <button id="hfFYoq" onclick="hfFilter('yoq')">Aros'da filiali yo'q</button>
+      </div>
+      <div id="hfList" style="max-height:420px;overflow:auto"></div>
+      <div id="hfRes" class="res"></div>
     </div>
 
     <div class="card">
@@ -922,6 +960,27 @@
           <button type="button" class="mxd-cancel" onclick="window.htgCloseModal()">Bekor</button>
           <button type="button" class="mxd-cancel" id="htgUnlinkBtn" onclick="htgSaveBind(null)"
                   style="display:none;color:var(--red)"><i data-lucide="unlink"></i>Uzish</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hodim -> Filial tahrirlash modali — filiallar checklist (.rb-chk, mavjud naqsh) -->
+    <div class="htg-modal" id="hfModal" onclick="if(event.target===this) window.hfCloseModal()">
+      <div class="htg-box">
+        <h3 id="hfModalTitle">Hodim</h3>
+        <div class="htg-sub" id="hfModalSub"></div>
+        <input class="htg-search" id="hfFilQ" placeholder="Filial qidirish…" oninput="hfRenderFilials()">
+        <div class="rb-grid-check" id="hfFilList" style="max-height:260px;overflow:auto;margin-bottom:14px"></div>
+        <div class="mxd-fld" style="margin-bottom:4px">
+          <label class="mxd-l" for="hfIzoh">Izoh <span class="mxd-optl">(ixtiyoriy)</span></label>
+          <input class="mxd-in" id="hfIzoh" maxlength="200" autocomplete="off" placeholder="masalan: ikki filialda ishlaydi">
+        </div>
+        <div class="res" id="hfModalRes"></div>
+        <div class="mxd-facts">
+          <button type="button" class="mxd-cancel" onclick="window.hfCloseModal()">Bekor</button>
+          <button type="button" class="mxd-cancel" id="hfClearBtn" onclick="hfClear()" style="display:none">
+            <i data-lucide="rotate-ccw"></i>Aros holatiga qaytarish</button>
+          <button type="button" class="mxd-save" id="hfSaveBtn" onclick="hfSave()"><i data-lucide="save"></i>Saqlash</button>
         </div>
       </div>
     </div>
@@ -2248,6 +2307,171 @@ window.htgAvtoBogla=async btn=>{
   await htgLoad();
 };
 
+// ===== Hodim -> Filial (PROVODKA_HODIM_FILIAL_OVERRIDE.sql):
+//       hodim_filial_royxat() / hodim_filial_set(int,uuid[],text) / hodim_filial_clear(int) =====
+// 🔴 htg bilan bir xil qoida: isAdmin bilan CHEKLANMAYDI, RPC yo'q/ruxsat yo'q bo'lsa
+// karta jimgina yashirinmaydi — sabab kartaning o'zida yoziladi.
+let hfData=null, hfFilterMode='hammasi', hfModalRow=null, hfSelected=new Set(), hfConfirmZero=false;
+async function hfLoad(){
+  const fail=(msg)=>{
+    $('hfTop').textContent=''; $('hfList').innerHTML='';
+    $('hfRes').className='res err'; $('hfRes').textContent=msg;
+  };
+  let data=null, error=null;
+  try{ ({data,error}=await sb.rpc('hodim_filial_royxat')); }catch(e){ error={message:String(e&&e.message||e)}; }
+  if(error){
+    console.warn('hodim_filial_royxat xato:',error);
+    const code=String(error.code||'');
+    if(code==='PGRST202' || (code==='42883' && /hodim_filial_royxat/i.test(String(error.message||''))))
+      return fail("SQL hali RUN qilinmagan — PROVODKA_HODIM_FILIAL_OVERRIDE.sql ni RUN qiling.");
+    if(/Failed to fetch|NetworkError|Load failed/i.test(String(error.message||'')))
+      return fail("Server javob bermadi (tarmoq uzildi yoki so'rov juda uzoq davom etdi). Sahifani yangilab qayta urinib ko'ring.");
+    return fail("Yuklanmadi: "+(window.permErr?window.permErr(error):error.message)+(code?' ('+code+')':''));
+  }
+  if(data && data.ok===false){
+    console.warn('hodim_filial_royxat javobi:',data);
+    return fail(data.kod==='ruxsat'
+      ? "Bu bo'limga ruxsat yo'q — admin yoki «Sozlamalar» sahifasi ruxsati kerak."
+      : "Yuklanmadi: "+(data.error||data.kod||"noma'lum xato"));
+  }
+  $('hfRes').className='res'; $('hfRes').textContent='';
+  hfData=data||{filiallar:[],hodimlar:[]};
+  hfRenderTop();
+  hfRender();
+}
+function hfRenderTop(){
+  const el=$('hfTop'); if(!el) return;
+  const list=(hfData&&Array.isArray(hfData.hodimlar))?hfData.hodimlar:[];
+  const ov=list.filter(h=>h.override).length;
+  const fs=list.filter(h=>!Array.isArray(h.joriy)||h.joriy.length===0).length;
+  el.textContent=`${list.length} ta hodim · ${ov} ta override · ${fs} ta filialsiz`;
+}
+function hfChipsHtml(h){
+  const joriy=Array.isArray(h.joriy)?h.joriy:[];
+  if(!joriy.length) return `<span class="hf-chip none"><i data-lucide="alert-triangle"></i><span>Filialsiz</span></span>`;
+  const cls=h.override?'ov':'aros', title=h.override?"qo'lda":"Aros'dan";
+  return joriy.map(f=>`<span class="hf-chip ${cls}" title="${esc(title)}"><span>${esc(f.name)}</span></span>`).join('');
+}
+function hfRowHtml(h){
+  const badge=h.override?' <i class="rb-taklif-badge">override</i>':'';
+  return `<div class="item hf-row">
+    <div class="item-head">
+      <div class="mid"><div class="t">${esc(h.nom)}${badge}</div>
+        <div class="c">${[esc(h.lavozim||''),h.branch_nomi?esc(h.branch_nomi):''].filter(Boolean).join(' · ')}</div></div>
+      <button class="edit" onclick="hfOpenModal(${Number(h.staff_id)})" title="Tahrirlash"><i data-lucide="pencil"></i></button>
+    </div>
+    <div class="hf-chips">${hfChipsHtml(h)}</div>
+  </div>`;
+}
+function hfRender(){
+  const box=$('hfList'); if(!box) return;
+  const list=(hfData&&Array.isArray(hfData.hodimlar))?hfData.hodimlar:[];
+  const q=(($('hfQ')&&$('hfQ').value)||'').trim().toLowerCase();
+  let arr=list;
+  if(hfFilterMode==='override') arr=arr.filter(h=>h.override);
+  else if(hfFilterMode==='filialsiz') arr=arr.filter(h=>!Array.isArray(h.joriy)||h.joriy.length===0);
+  else if(hfFilterMode==='yoq') arr=arr.filter(h=>!h.override && (!Array.isArray(h.aros)||h.aros.length===0));
+  if(q) arr=arr.filter(h=>((h.nom||'')+' '+(h.lavozim||'')+' '+(h.branch_nomi||'')).toLowerCase().indexOf(q)>=0);
+  box.innerHTML=arr.length?arr.map(hfRowHtml).join(''):'<div class="empty">Hodim topilmadi.</div>';
+  icons();
+}
+window.hfRender=()=>hfRender();
+window.hfFilter=mode=>{
+  hfFilterMode=mode;
+  $('hfFHammasi').className=mode==='hammasi'?'on':'';
+  $('hfFOverride').className=mode==='override'?'on':'';
+  $('hfFFilialsiz').className=mode==='filialsiz'?'on':'';
+  $('hfFYoq').className=mode==='yoq'?'on':'';
+  hfRender();
+};
+function hfSetSaveBtnDefault(){
+  const b=$('hfSaveBtn'); if(!b) return;
+  b.innerHTML='<i data-lucide="save"></i>Saqlash'; icons();
+}
+function hfFilialRowHtml(f){
+  const checked=hfSelected.has(String(f.id));
+  return `<label class="rb-chk"><input type="checkbox" ${checked?'checked':''} onchange="hfToggleFilial('${esc(f.id)}',this.checked)"><span>${esc(f.name)}</span></label>`;
+}
+window.hfRenderFilials=()=>hfRenderFilials();
+function hfRenderFilials(){
+  const box=$('hfFilList'); if(!box) return;
+  const list=(hfData&&Array.isArray(hfData.filiallar))?hfData.filiallar:[];
+  const q=(($('hfFilQ')&&$('hfFilQ').value)||'').trim().toLowerCase();
+  const arr=q?list.filter(f=>(f.name||'').toLowerCase().indexOf(q)>=0):list;
+  box.innerHTML=arr.length?arr.map(hfFilialRowHtml).join(''):'<div class="empty">Filial topilmadi.</div>';
+}
+window.hfToggleFilial=(id,checked)=>{
+  if(checked) hfSelected.add(String(id)); else hfSelected.delete(String(id));
+  hfConfirmZero=false;
+  $('hfModalRes').className='res'; $('hfModalRes').textContent='';
+  hfSetSaveBtnDefault();
+};
+window.hfOpenModal=staffId=>{
+  const h=((hfData&&hfData.hodimlar)||[]).find(x=>Number(x.staff_id)===Number(staffId)); if(!h) return;
+  hfModalRow=h;
+  hfConfirmZero=false;
+  $('hfModalTitle').textContent=h.nom;
+  const arosTxt=(Array.isArray(h.aros)&&h.aros.length)?h.aros.map(a=>a.name).join(', '):'—';
+  $('hfModalSub').textContent=[h.lavozim||'',"Aros: "+arosTxt].filter(Boolean).join(' · ');
+  hfSelected=new Set((Array.isArray(h.joriy)?h.joriy:[]).map(f=>String(f.id)));
+  $('hfIzoh').value=(h.override&&h.override.izoh)||'';
+  $('hfFilQ').value='';
+  $('hfModalRes').className='res'; $('hfModalRes').textContent='';
+  $('hfClearBtn').style.display=h.override?'inline-flex':'none';
+  hfSetSaveBtnDefault();
+  hfRenderFilials();
+  $('hfModal').classList.add('open');
+  setTimeout(()=>{ const el=$('hfFilQ'); if(el) el.focus(); },0);
+  icons();
+};
+window.hfCloseModal=()=>{ $('hfModal').classList.remove('open'); hfModalRow=null; };
+window.hfSave=async()=>{
+  if(!hfModalRow) return;
+  const ids=Array.from(hfSelected);
+  // 0 tanlov = "filialsiz" — qasddan ekanini bitta qo'shimcha bosish bilan tasdiqlatamiz
+  if(!ids.length && !hfConfirmZero){
+    hfConfirmZero=true;
+    $('hfModalRes').className='res hf-warn';
+    $('hfModalRes').textContent="Hech qaysi filial tanlanmadi — hodim FILIALSIZ bo'ladi.";
+    const b=$('hfSaveBtn'); if(b){ b.innerHTML='<i data-lucide="alert-triangle"></i>Ha, filialsiz qil'; icons(); }
+    return;
+  }
+  $('hfModalRes').className='res'; $('hfModalRes').textContent='Saqlanmoqda…';
+  const izoh=(($('hfIzoh')&&$('hfIzoh').value)||'').trim();
+  const {data,error}=await sb.rpc('hodim_filial_set',{p_staff:hfModalRow.staff_id,p_filial_ids:ids,p_izoh:izoh||null});
+  if(error){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  if(data && data.ok===false){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=data.error||data.kod||'Saqlanmadi';
+    return;
+  }
+  window.hfCloseModal();
+  toast('ok',"Saqlandi ✓");
+  await hfLoad();
+};
+window.hfClear=async()=>{
+  if(!hfModalRow) return;
+  $('hfModalRes').className='res'; $('hfModalRes').textContent='Bajarilmoqda…';
+  const {data,error}=await sb.rpc('hodim_filial_clear',{p_staff:hfModalRow.staff_id});
+  if(error){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=window.permErr?window.permErr(error):error.message;
+    return;
+  }
+  if(data && data.ok===false){
+    $('hfModalRes').className='res err';
+    $('hfModalRes').textContent=data.error||data.kod||'Bajarilmadi';
+    return;
+  }
+  window.hfCloseModal();
+  toast('ok',"Aros holatiga qaytarildi ✓");
+  await hfLoad();
+};
+
 // ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql):
 //       rbac_royxat() / rbac_users() / rbac_role_save() / rbac_role_delete() / rbac_user_set() =====
 // Sahifa kalitlari uchun o'zbekcha yorliq — perms-dev.js PAGES bilan bir xil ro'yxat + 'hodim'.
@@ -2819,7 +3043,7 @@ window.addEventListener('hashchange',sozApplyRollarFocus);
 // isAdmin tayyor bo'lishiga tayanadi. RPC yo'q bo'lsa (SQL RUN qilinmagan) —
 // mxdOff bo'ladi va konstruktor umuman chizilmaydi, sahifa avvalgidek ishlaydi.
 // rbLoad() ham xuddi shunday — RPC yo'q bo'lsa rbOff bo'ladi va bo'lim yashirin qoladi.
-async function init(){ await Promise.all([loadRole(), load(), htgLoad()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
+async function init(){ await Promise.all([loadRole(), load(), htgLoad(), hfLoad()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi

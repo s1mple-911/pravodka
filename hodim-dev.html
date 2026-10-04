@@ -2157,7 +2157,7 @@ window.pickKassa=id=>{ avtoTanlandi=true;   // hodim o'zi tanladi — avtomat ta
   // Shu kassaning qoldig'i noma'lum bo'lsa — qayta so'raymiz: 3-yo'l (acc_balance)
   // aynan tanlangan kassa bo'yicha ishlaydi, ya'ni endi raqam kelishi mumkin.
   if(!balOf(id)) loadBalances();
-  if(isOvqat()) renderOvqatList();   // kassa almashdi — "Mening filialim" guruhi yangi kassa filiali bo'yicha qayta chiziladi
+  if(isOvqat()){ renderOvqatList(); ovqatMeningSetRefresh(); }   // kassa almashdi — "Mening filialim" guruhi yangi kassa filiali bo'yicha qayta chiziladi
 };
 
 // Sahifa ochilganda ENG KO'P puli bor kassani avtomat tanlaydi (hodim odatda shundan sarflaydi).
@@ -2515,6 +2515,34 @@ function ovqatIsMening(staff, bids){
   try{ return Array.isArray(staff.branches) && staff.branches.some(b=>b && bids.has(Number(b.id))); }
   catch(e){ return false; }
 }
+// Server tomonidan "Mening filialim" a'zoligi (ovqat_mening_staff) — ovqatMeningBranchIds bilan
+// BIR XIL nom (kassa subtitle'ining ' · ' gacha qismi). RPC hali yo'q (PGRST202) yoki filial
+// nomi bo'sh bo'lsa ovqatMeningSet=null qoladi — renderOvqatList eski ovqatIsMening()ga qaytadi.
+// Nom bo'yicha kesh (Map) — kassa almashganda avval so'ralgan nomni qayta so'ramaslik uchun.
+let ovqatMeningSet=null, ovqatMeningSetName=undefined;
+const ovqatMeningCache=new Map();
+function ovqatMeningFilNomi(){
+  const k=effKassa(); if(!k) return '';
+  return String(k.subtitle||'').split(' · ')[0].trim();
+}
+async function ovqatMeningSetFetch(filNomi){
+  if(!filNomi){ ovqatMeningSet=null; ovqatMeningSetName=filNomi; return; }
+  if(ovqatMeningCache.has(filNomi)){ ovqatMeningSet=ovqatMeningCache.get(filNomi); ovqatMeningSetName=filNomi; return; }
+  let set=null;
+  try{
+    const {data,error}=await sb.rpc('ovqat_mening_staff',{p_filial_nom:filNomi});
+    if(!error && Array.isArray(data)) set=new Set(data.map(Number));
+  }catch(e){ set=null; }
+  ovqatMeningCache.set(filNomi,set);
+  ovqatMeningSet=set; ovqatMeningSetName=filNomi;
+}
+// Joriy kassa nomiga mos kelmasa fonda qayta so'raydi, tayyor bo'lgach ro'yxatni qayta chizadi.
+// Ro'yxat shu orada (fetch tugamaguncha) eski klient mantig'i bilan ko'rsatiladi — bloklanmaydi.
+function ovqatMeningSetRefresh(){
+  const filNomi=ovqatMeningFilNomi();
+  if(filNomi===ovqatMeningSetName) return;
+  ovqatMeningSetFetch(filNomi).then(()=>{ if(isOvqat()) renderOvqatList(); });
+}
 function ovqatNomi(s){ return (s&&(s.toliq_nom||[s.ism,s.familiya].filter(Boolean).join(' ')))||('#'+(s&&s.staff_id)); }
 // aros_staff/staff_branch_map/ovqat_narxlar — swr kesh (5 daq). Xato/bo'sh bo'lsa
 // FAIL-CLOSED: ovqatLoaded qolgan holicha (yoki false), saqlash yopiq qoladi.
@@ -2525,6 +2553,7 @@ async function ovqatLoad(force){
     if(cs && cm && cn){
       ovqatStaff=cs; ovqatBranchMap=cm; ovqatNarx=cn; ovqatLoaded=true; ovqatFailed=false;
       renderOvqatCounter(); renderOvqatList();
+      ovqatMeningSetRefresh();    // "Mening filialim" server-set (bor bo'lsa) ham fonda keladi
       ovqatLoad(true);            // fonda yangilash (swr) — natija jimgina almashtiriladi
       return;
     }
@@ -2545,6 +2574,7 @@ async function ovqatLoad(force){
     ovqatLoaded=true; ovqatFailed=false;
     swrSet('ovqat_staff',ovqatStaff); swrSet('ovqat_map',ovqatBranchMap); swrSet('ovqat_narx',ovqatNarx);
     renderOvqatCounter(); renderOvqatList(); updateSave();
+    ovqatMeningSetRefresh();
   }catch(e){
     if(!ovqatLoaded) ovqatFailed=true;
     renderOvqatCounter(); updateSave();
@@ -2650,7 +2680,12 @@ function renderOvqatList(){
   // 🔴 FAQAT "Mening filialim" (Asilbek qarori 2026-08-27): boshqa filial hodimlari
   //    umuman ko'rsatilmaydi. Filial mosligi topilmasa — ro'yxat bo'sh + aniq sabab
   //    (fail-closed: saqlash baribir yopiq, chunki tanlangan hodim bo'lmaydi).
-  const mineAll=ovqatStaff.filter(s=>ovqatIsMening(s,bids));
+  // ovqat_mening_staff (server) joriy kassa nomiga mos keladigan Set bergan bo'lsa — SHUNDAN
+  // filtrlanadi (aniqroq manba); aks holda (RPC yo'q/filial nomsiz) eski ovqatIsMening()ga qaytadi.
+  const filNomiHozir=ovqatMeningFilNomi();
+  const mineAll=(ovqatMeningSetName===filNomiHozir && ovqatMeningSet)
+    ? ovqatStaff.filter(s=>ovqatMeningSet.has(Number(s.staff_id)))
+    : ovqatStaff.filter(s=>ovqatIsMening(s,bids));
   const rows=mineAll.filter(s=>!q || ovqatNomi(s).toLowerCase().includes(q));
   const mine=rows;
   const byNom=(a,b)=>ovqatNomi(a).localeCompare(ovqatNomi(b));
