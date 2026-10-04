@@ -2403,7 +2403,19 @@ async function loadFilials(){
     if(error||!data) return;
     // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
     filials=window.permFilterFilials?window.permFilterFilials(data):data;
+    autoFilial();
   }catch(e){}
+}
+// 2026-10-04 (Asilbek): userda BITTA filial bo'lsa avtomat tanlangan bo'lsin. Nomzod: mening_filiallarim
+// (override hisobga olingan) ∩ ro'yxat → 1 ta bo'lsa o'sha; aks holda ro'yxatning o'zi 1 ta bo'lsa.
+// Faqat tanlov BO'SH bo'lganda (yuklanganda va har saqlashdan keyingi tozalashda) — foydalanuvchi tanlovini buzmaydi.
+function autoFilial(){
+  if(selFilials.size || !filials.length) return;
+  let cand=filials;
+  if(myFils && myFils.size){ const m=filials.filter(f=>myFils.has(f.id)); if(m.length) cand=m; }
+  if(cand.length!==1) return;
+  selFilials.add(cand[0].id);
+  renderFilials(); updateFilialUI(); updateDavrUI(); updateSave();
 }
 
 // --- V6: modda flaglariga qarab shartli UI (chek / izoh / davr) ---
@@ -2526,11 +2538,12 @@ function ovqatMeningFilNomi(){
   return String(k.subtitle||'').split(' · ')[0].trim();
 }
 async function ovqatMeningSetFetch(filNomi){
-  if(!filNomi){ ovqatMeningSet=null; ovqatMeningSetName=filNomi; return; }
+  // 2026-10-04: nom bo'sh bo'lsa ham so'raladi — server yozuvchi HODIM bo'lsa uning o'z filiallari
+  // (override bilan) bo'yicha javob beradi (PROVODKA_HODIM_FILIAL_OVERRIDE_2.sql), nom faqat zaxira yo'l.
   if(ovqatMeningCache.has(filNomi)){ ovqatMeningSet=ovqatMeningCache.get(filNomi); ovqatMeningSetName=filNomi; return; }
   let set=null;
   try{
-    const {data,error}=await sb.rpc('ovqat_mening_staff',{p_filial_nom:filNomi});
+    const {data,error}=await sb.rpc('ovqat_mening_staff',{p_filial_nom:filNomi||null});
     if(!error && Array.isArray(data)) set=new Set(data.map(Number));
   }catch(e){ set=null; }
   ovqatMeningCache.set(filNomi,set);
@@ -3828,7 +3841,7 @@ function xarAllaqachon(){
   selModda=null; selFilials.clear(); davrS=null; davrE=null;
   mxdReset();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
   loadBalances(); loadHist(); loadMonth(); loadLimits(true); limLoad(true);
@@ -4109,7 +4122,7 @@ window.saveHodim=async()=>{
   davrS=null; davrE=null;
   mxdReset();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);   // saqlash tugagach — xavfsiz bo'lsa yangilanish
@@ -4204,7 +4217,7 @@ async function ovqatSaveFlow(kassa, modda, amt, royxat){
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null; ovqatSel.clear();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi · '+royxat.length+' kishi');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
@@ -4231,7 +4244,7 @@ function ovqatXarAllaqachon(){
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value='';
   selModda=null; selFilials.clear(); davrS=null; davrE=null; ovqatSel.clear();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
   loadBalances(); loadHist(); loadMonth(); loadLimits(true); limLoad(true);
@@ -4253,6 +4266,7 @@ async function myFilsLoad(){
   try{ const {data,error}=await sb.rpc('mening_filiallarim');
     if(error){ myFilsLoaded=false; return; }
     myFils=Array.isArray(data)?new Set(data):null; updateSave();
+    autoFilial();   // 1 ta filial → avtomat tanlov (filials allaqachon yuklangan bo'lsa)
   }catch(e){ myFilsLoaded=false; }
 }
 async function loadLimits(fresh){
