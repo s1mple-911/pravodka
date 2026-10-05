@@ -779,6 +779,11 @@ kirmaydi. Tester isboti: `entry`/`entry_line`/`accounts` faqat 12-BO'LIMda (o'qi
   `professional-dev` accounts va `hodim-dev` `moddaList()` bayroqsiz userga moddani yashiradi (ustun yo'q → yashirmaydi).
   Semantika: `ehson_kirim` = faqat kirim · `ehson` = ko'rish + berish (kirim BERMAYDI) · ikkalasi = hammasi. Ehson Kirim
   tabida Professional'ga havola YO'Q (olib tashlandi).
+  🔴 **RBAC qorovuli istisnosi (2026-10-05, `PROVODKA_RBAC_EHSON_KIRIM_RUXSAT.sql`, RUN kutilmoqda)**: `rbac_guard_entry_line()`
+  ehson moddasini (`accounts.ehson_kassa_id`) oddiy xarajat moddasi deb «rolda bormi» deb to'sardi («9441 … rolingizda yoq») —
+  endi `ehson_kirim_ok()` true bo'lsa rol tekshirilmaydi (konvert kurs farqi naqshi). Shu faylda «Konvert ustama» (V4,
+  `conv_ustama_hisob_id`) uchun ham `perm_can_convert()` istisnosi qo'shildi (V4 da unutilgan edi). 🔴 `rbac_guard_entry_line`
+  ning ENG OXIRGI versiyasi SHU faylda (avval PROVODKA_KURS_FARQI_AVTO.sql).
 - **Sahifa** `ehson-dev.html`, kalit **`ehson`** — 18-kalit: `perm_pages()` (`PROVODKA_EHSON.sql`) = `perms-dev.js`
   `PAGES` = `index-dev.html` `CARDS`; nav 17 dev faylda (sidebar AI'dan keyin + sheet + prefetch), `promote.sh` PAGES;
   admin-dev `PVS_PAGES` — Asilbek (TaskFix repo). Tablar: Bosh · Oilalar · Ehson berish · Bu oy · Kirim · Tarix
