@@ -4190,6 +4190,16 @@ let cvXYList=[], cvXYBaza=null, cvXYUstMode='summa';
 // Beriladigan summa o'zgarsa shu bayroq asosida qaysi biri qayta hisoblanishi hal qilinadi.
 let cvXYLastEdit='to';
 const cvXYNum=id=>Number(($(id).value||'').replaceAll(' ','').replace(',','.'))||0;
+// 🔴 2026-10-05 (Asilbek): ustama BERILADIGAN SUMMA ICHIDAN. Jami 100 000$ berilsa, 1 000$ ustama shu ichidan —
+// konvertga 99 000$ (NET) ketadi, kurs ham NET'ga hisoblanadi. Serverga p_amount=NET, p_ustama=summa yuboriladi:
+// convert_valyuta_v4 kassadan p_amount + ustama = JAMI chiqaradi (server o'zgarmagan).
+function cvXYUstFc(){
+  const amt=cvXYNum('cvXYAmount'), ustRaw=cvXYNum('cvXYUstama');
+  if(!(ustRaw>0)||!(amt>0)) return 0;
+  const fc=(cvXYUstMode==='foiz') ? Math.round(amt*ustRaw)/100 : ustRaw;
+  return fc>=amt ? 0 : Math.round(fc*100)/100;   // ustama jamidan katta/teng bo'lsa — noto'g'ri, hisobga olinmaydi (UI ogohlantiradi)
+}
+function cvXYNet(){ const amt=cvXYNum('cvXYAmount'); return Math.round((amt-cvXYUstFc())*100)/100; }
 function fmtAmt2(n){
   n=Math.round((Number(n)||0)*100)/100;
   const [b,k]=n.toFixed(2).split('.');
@@ -4197,13 +4207,13 @@ function fmtAmt2(n){
 }
 function cvXYLabels(){
   const f=cvXYFromCur()||'FROM', t=cvXYToCur()||'TO';
-  $('cvXYAmountLbl').textContent='Beriladigan summa'+(cvXYFromCur()?' ('+f+')':'')+" — kassadan chiqadi";
+  $('cvXYAmountLbl').textContent='Beriladigan summa'+(cvXYFromCur()?' ('+f+')':'')+" — kassadan chiqadi (ustama shu ichida)";
   $('cvXYToAmountLbl').textContent='Olinadigan summa'+(cvXYToCur()?' ('+t+')':'')+' — kassaga kiradi';
   $('cvXYRateLbl').textContent='Kurs (1 '+f+' = ? '+t+')';
 }
 // Kurs qo'lda kiritilganda Olinadigan summa = Beriladigan summa × kurs avtomat to'ldiriladi.
 function cvXYApplyRateToToAmount(){
-  const amt=cvXYNum('cvXYAmount'), rate=cvXYNum('cvXYRateInp');
+  const amt=cvXYNet(), rate=cvXYNum('cvXYRateInp');   // NET × kurs
   if(amt>0&&rate>0) $('cvXYToAmount').value=fmtAmt2(amt*rate);
 }
 window.cvXYFmtRate=el=>{
@@ -4263,6 +4273,7 @@ window.cvXYSetUst=(m,btn)=>{
   [...$('cvXYUstSeg').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on');
   $('cvXYUstLbl').textContent = m==='foiz' ? 'Ustama (%)' : 'Ustama (summa, beriladigan valyutada)';
   $('cvXYUstama').value='';
+  if(cvXYLastEdit==='rate') cvXYApplyRateToToAmount();
   cvXYCalc();
 };
 window.cvXYFmtAmt=el=>{
@@ -4280,11 +4291,12 @@ window.cvXYFmtUst=el=>{
   const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
   if(cvXYUstMode==='foiz'){ el.value=raw; }
   else{ const [b,k]=raw.split('.'); el.value=b?money(b)+(k!==undefined?'.'+k:''):''; }
+  if(cvXYLastEdit==='rate') cvXYApplyRateToToAmount();   // ustama o'zgardi → NET o'zgardi → olinadigan qayta
   cvXYCalc();
 };
 function cvXYCalc(){
   cvXYLabels();
-  const amt=cvXYNum('cvXYAmount'), toAmt=cvXYNum('cvXYToAmount');
+  const jami=cvXYNum('cvXYAmount'), amt=cvXYNet(), toAmt=cvXYNum('cvXYToAmount');   // amt = NET (konvertga ketadigan)
   const fromCur=cvXYFromCur(), toCur=cvXYToCur();
   const el=$('cvXYRate');
   const uzsOverride=$('cvXYUzsWrap').hidden?0:cvXYNum('cvXYUzs');
@@ -4292,20 +4304,20 @@ function cvXYCalc(){
   if(!fromCur||!toCur||!amt||!toAmt){
     el.textContent='Summalarni va hisoblarni kiriting — kross-kurs hisoblanadi.';
   }else{
-    const cross=toAmt/amt;
+    const cross=toAmt/amt;   // kurs NET'ga
     el.innerHTML='1 '+esc(fromCur)+' = <b>'+cross.toLocaleString('en-US',{maximumFractionDigits:6})+'</b> '+esc(toCur)
+      +(amt!==jami?(' · konvertga <b>'+fmtAmt2(amt)+'</b> '+esc(fromCur)+' (jami '+fmtAmt2(jami)+' − ustama)'):'')
       +(uzs?(' · ≈ <b>'+money(uzs)+"</b> so'm (asosiy kurs, ma'lumot uchun)"):'');
     // Kurs maydoni Olinadigan summadan hisoblangan bo'lsa ("to" tahrirlangan) — qayta yoziladi.
     // Kurs o'zi qo'lda kiritilgan bo'lsa ("rate") — tahrirlanayotgan maydonga tegilmaydi.
     if(cvXYLastEdit!=='rate') $('cvXYRateInp').value=cross.toLocaleString('en-US',{useGrouping:false,maximumFractionDigits:6});
   }
-  const ustRaw=cvXYNum('cvXYUstama');
-  const ustFc=(cvXYUstMode==='foiz')
-    ? ((ustRaw>0&&amt>0) ? Math.round(amt*ustRaw)/100 : 0)
-    : ustRaw;
-  $('cvXYUstOut').textContent = ustFc>0
-    ? ('≈ '+ustFc.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(fromCur||'')+" — xarajat bo'lib yoziladi")
-    : '';
+  const ustRaw=cvXYNum('cvXYUstama'), ustFc=cvXYUstFc();
+  $('cvXYUstOut').textContent = (ustRaw>0&&jami>0&&ustFc===0)
+    ? "Ustama beriladigan summadan katta yoki teng — to'g'rilang"
+    : (ustFc>0
+      ? ('≈ '+ustFc.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(fromCur||'')+" — beriladigan summa ICHIDAN, xarajat bo'lib yoziladi")
+      : '');
 }
 // convert_valyuta_v4 bazada hali yo'q bo'lishi (PROVODKA_KONVERT_V4.sql RUN qilinmagan)
 function cvXYFnMissing(e){
@@ -4315,18 +4327,22 @@ function cvXYFnMissing(e){
 }
 window.convXYSave=async()=>{
   const p_from=$('cvXYFrom').value, p_to=$('cvXYTo').value;
-  const p_amount=cvXYNum('cvXYAmount'), p_to_amount=cvXYNum('cvXYToAmount');
+  const jami=cvXYNum('cvXYAmount'), p_to_amount=cvXYNum('cvXYToAmount');
   $('cvMsg').className='cv-msg'; $('cvMsg').textContent='';
   if(!p_from||!p_to){ cvErr('Qayerdan va qayerga hisobni tanlang'); return; }
   if(p_from===p_to){ cvErr('Bir hisobning o\'zida konvert bo\'lmaydi'); return; }
-  if(p_amount<=0){ cvErr('Beriladigan summani kiriting'); return; }
+  if(jami<=0){ cvErr('Beriladigan summani kiriting'); return; }
   if(p_to_amount<=0){ cvErr('Olinadigan summani kiriting'); return; }
-  let p_ustama=null, p_ustama_foiz=null;
-  const ustRaw=cvXYNum('cvXYUstama');
-  if(ustRaw>0){ if(cvXYUstMode==='foiz') p_ustama_foiz=ustRaw; else p_ustama=ustRaw; }
+  // Ustama JAMI ichidan: serverga NET (konvert) + ustama summasi — kassadan jami chiqadi
+  const ustRaw=cvXYNum('cvXYUstama'), ustFc=cvXYUstFc();
+  if(ustRaw>0&&ustFc===0){ cvErr('Ustama beriladigan summadan katta yoki teng'); return; }
+  const p_amount=cvXYNet();
+  if(p_amount<=0){ cvErr('Konvertga qoladigan summa 0'); return; }
+  const p_ustama=ustFc>0?ustFc:null, p_ustama_foiz=null;   // foiz klientda JAMIdan hisoblandi (server NET'dan hisoblardi)
   let p_uzs=null;
   if(!$('cvXYUzsWrap').hidden){ const u=cvXYNum('cvXYUzs'); if(u>0) p_uzs=u; }
-  const p_note=($('cvXYNote').value||'').trim()||null;
+  let p_note=($('cvXYNote').value||'').trim()||null;
+  if(ustFc>0){ const t='jami '+fmtAmt2(jami)+' '+(cvXYFromCur()||'')+', ustama '+fmtAmt2(ustFc)+(cvXYUstMode==='foiz'?' ('+ustRaw+'%)':'')+' shu ichidan'; p_note=p_note?(p_note+' · '+t):t; }
   $('cvSave').disabled=true; $('cvSave').textContent='Yuborilmoqda...';
   const {data,error}=await sb.rpc('convert_valyuta_v4',{p_from,p_to,p_amount,p_to_amount,p_ustama,p_ustama_foiz,p_uzs,p_note});
   $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';

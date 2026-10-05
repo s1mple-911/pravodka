@@ -2220,9 +2220,14 @@ async function qzLoadStaffList(){
   const ck='qarz:staff';
   const cached=swrGet(ck,600000);
   if(cached){ qzStaffAll=cached; window.qzPickFilter(); }
-  const {data,error}=await sb.from('aros_staff').select('staff_id,toliq_nom,ism,familiya,lavozim,branch_nomi,photo_url,telefon').eq('is_active',true).order('ism');
+  const [{data,error},ro]=await Promise.all([
+    sb.from('aros_staff').select('staff_id,toliq_nom,ism,familiya,lavozim,branch_nomi,photo_url,telefon').eq('is_active',true).order('ism'),
+    sb.rpc('hodim_ochirilganlar')   // SQL hali RUN qilinmagan bo'lsa (PGRST202) — bo'sh, ro'yxatni cheklamaydi
+  ]);
   if(error){ if(!cached) qzStaffAll=qzStaffAll||[]; return; }
-  qzStaffAll=data||[]; swrSet(ck,qzStaffAll); window.qzPickFilter();
+  const ochirilgan=new Set((!ro.error && Array.isArray(ro.data))?ro.data.map(Number):[]);
+  qzStaffAll=(data||[]).filter(s=>!ochirilgan.has(Number(s.staff_id)));
+  swrSet(ck,qzStaffAll); window.qzPickFilter();
 }
 // Avval qo'shilgan shaxslar (qarzdor.tur='tashqi') — hodim bilan BITTA ro'yxatda
 // ko'rsatiladi (4-BOSQICH: "ichki/tashqi" tanlovi UI'dan olib tashlandi).

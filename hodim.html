@@ -1785,6 +1785,7 @@ let amalRows=null, amalOff=false, histReq=0;
    olgan" (ovqat_bugun) esa panel HAR ochilishida FRESH (kesh emas).
    🔴 Fail-closed: ro'yxat/narx yuklanmasa saqlash BUTUNLAY o'chiq. */
 let ovqatStaff=[], ovqatBranchMap=[], ovqatNarx=null;
+let ovqatOchirilgan=new Set();   // hodim_filial_ochir — o'chirilgan staff_id'lar (ovqat ro'yxatidan chiqadi)
 // ovqatRuxsat: null = HALI YUKLANMAGAN -> FAIL-CLOSED (hech qaysi tur ochiq emas, tugmalar
 //   chizilmaydi). 2026-08-29 gacha null = "RPC yo'q" ham edi, shu sabab javob kelguncha
 //   HAMMA tur bir zum ochiq ko'rinib, keyin yopilardi (Asilbek topilmasi).
@@ -2157,7 +2158,7 @@ window.pickKassa=id=>{ avtoTanlandi=true;   // hodim o'zi tanladi — avtomat ta
   // Shu kassaning qoldig'i noma'lum bo'lsa — qayta so'raymiz: 3-yo'l (acc_balance)
   // aynan tanlangan kassa bo'yicha ishlaydi, ya'ni endi raqam kelishi mumkin.
   if(!balOf(id)) loadBalances();
-  if(isOvqat()) renderOvqatList();   // kassa almashdi — "Mening filialim" guruhi yangi kassa filiali bo'yicha qayta chiziladi
+  if(isOvqat()){ renderOvqatList(); ovqatMeningSetRefresh(); }   // kassa almashdi — "Mening filialim" guruhi yangi kassa filiali bo'yicha qayta chiziladi
 };
 
 // Sahifa ochilganda ENG KO'P puli bor kassani avtomat tanlaydi (hodim odatda shundan sarflaydi).
@@ -2403,7 +2404,19 @@ async function loadFilials(){
     if(error||!data) return;
     // Ruxsat: filial_scope='list' bo'lsa faqat biriktirilgan filiallar (perms.js filtri).
     filials=window.permFilterFilials?window.permFilterFilials(data):data;
+    autoFilial();
   }catch(e){}
+}
+// 2026-10-04 (Asilbek): userda BITTA filial bo'lsa avtomat tanlangan bo'lsin. Nomzod: mening_filiallarim
+// (override hisobga olingan) ∩ ro'yxat → 1 ta bo'lsa o'sha; aks holda ro'yxatning o'zi 1 ta bo'lsa.
+// Faqat tanlov BO'SH bo'lganda (yuklanganda va har saqlashdan keyingi tozalashda) — foydalanuvchi tanlovini buzmaydi.
+function autoFilial(){
+  if(selFilials.size || !filials.length) return;
+  let cand=filials;
+  if(myFils && myFils.size){ const m=filials.filter(f=>myFils.has(f.id)); if(m.length) cand=m; }
+  if(cand.length!==1) return;
+  selFilials.add(cand[0].id);
+  renderFilials(); updateFilialUI(); updateDavrUI(); updateSave();
 }
 
 // --- V6: modda flaglariga qarab shartli UI (chek / izoh / davr) ---
@@ -2515,26 +2528,80 @@ function ovqatIsMening(staff, bids){
   try{ return Array.isArray(staff.branches) && staff.branches.some(b=>b && bids.has(Number(b.id))); }
   catch(e){ return false; }
 }
+// Server tomonidan "Mening filialim" a'zoligi (ovqat_mening_staff) — ovqatMeningBranchIds bilan
+// BIR XIL nom (kassa subtitle'ining ' · ' gacha qismi). RPC hali yo'q (PGRST202) yoki filial
+// nomi bo'sh bo'lsa ovqatMeningSet=null qoladi — renderOvqatList eski ovqatIsMening()ga qaytadi.
+// Nom bo'yicha kesh (Map) — kassa almashganda avval so'ralgan nomni qayta so'ramaslik uchun.
+let ovqatMeningSet=null, ovqatMeningSetName=undefined, ovqatMeningInfo=null;
+const ovqatMeningCache=new Map();
+function ovqatMeningFilNomi(){
+  const k=effKassa(); if(!k) return '';
+  return String(k.subtitle||'').split(' · ')[0].trim();
+}
+async function ovqatMeningSetFetch(filNomi){
+  // 2026-10-04: nom bo'sh bo'lsa ham so'raladi — server yozuvchi HODIM bo'lsa uning o'z filiallari
+  // (override bilan) bo'yicha javob beradi (PROVODKA_HODIM_FILIAL_OVERRIDE_2.sql), nom faqat zaxira yo'l.
+  if(ovqatMeningCache.has(filNomi)){ ovqatMeningSet=ovqatMeningCache.get(filNomi); ovqatMeningSetName=filNomi; return; }
+  let set=null; ovqatMeningInfo=null;
+  try{
+    // v2 (PROVODKA_HODIM_FILIAL_OVERRIDE_3.sql): {ids, manba, staff_nom, filiallar, sabab} — sabab ko'rsatiladi;
+    // v2 yo'q (PGRST202) → eski int[] RPC. Kassa id ham yuboriladi: user bog'lanmagan bo'lsa kassa nomi orqali topadi.
+    const k=effKassa();
+    let r=await sb.rpc('ovqat_mening_staff_v2',{p_filial_nom:filNomi||null,p_kassa_id:(k&&k.id)||null});
+    if(r.error && String(r.error.code||'')==='PGRST202'){
+      r=await sb.rpc('ovqat_mening_staff',{p_filial_nom:filNomi||null});
+      if(!r.error && Array.isArray(r.data)) set=new Set(r.data.map(Number));
+    } else if(!r.error && r.data && Array.isArray(r.data.ids)){
+      set=new Set(r.data.ids.map(Number)); ovqatMeningInfo=r.data;
+    } else if(r.error){ console.warn('ovqat_mening_staff_v2 xato:', r.error); ovqatMeningInfo={sabab:'xato', xato:r.error.message}; }
+  }catch(e){ set=null; }
+  ovqatMeningCache.set(filNomi,set);
+  ovqatMeningSet=set; ovqatMeningSetName=filNomi;
+}
+// Bo'sh ro'yxat SABABI — server (v2) javobidan; eski xabar faqat ma'lumot bo'lmasa
+function ovqatBoshSabab(filialNomi){
+  const i=ovqatMeningInfo;
+  if(i){
+    const fil=(Array.isArray(i.filiallar)&&i.filiallar.length)?i.filiallar.join(', '):'';
+    if(i.sabab==='filialda_hodim_yoq') return 'Filialingizda («'+esc(fil)+'») boshqa hodim topilmadi — Aros bo\'limi shu filialga bog\'lanmagan bo\'lishi mumkin (Standart → Bo\'limlarni bog\'lash).';
+    if(i.sabab==='hodim_filialsiz') return 'Siz («'+esc(i.staff_nom||'')+'») hech qaysi filialga biriktirilmagansiz — Sozlamalar → Hodim → Filial.';
+    if(i.sabab==='kassa_filialsiz') return 'Hisobingiz Aros hodimiga bog\'lanmagan va kassangizda filial yo\'q — Sozlamalar → Rollar va foydalanuvchilar → hodimni bog\'lang.';
+    if(i.sabab==='nom_topilmadi') return '«'+esc(i.filial_nom||'')+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish.';
+    if(i.sabab==='xato') return 'Server xatosi: '+esc(i.xato||'');
+  }
+  return filialNomi?('«'+esc(filialNomi)+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish bo\'limida bog\'lang.'):'Kassangizga filial biriktirilmagan — ovqat yozib bo\'lmaydi.';
+}
+// Joriy kassa nomiga mos kelmasa fonda qayta so'raydi, tayyor bo'lgach ro'yxatni qayta chizadi.
+// Ro'yxat shu orada (fetch tugamaguncha) eski klient mantig'i bilan ko'rsatiladi — bloklanmaydi.
+function ovqatMeningSetRefresh(){
+  const filNomi=ovqatMeningFilNomi();
+  if(filNomi===ovqatMeningSetName) return;
+  ovqatMeningSetFetch(filNomi).then(()=>{ if(isOvqat()) renderOvqatList(); });
+}
 function ovqatNomi(s){ return (s&&(s.toliq_nom||[s.ism,s.familiya].filter(Boolean).join(' ')))||('#'+(s&&s.staff_id)); }
 // aros_staff/staff_branch_map/ovqat_narxlar — swr kesh (5 daq). Xato/bo'sh bo'lsa
 // FAIL-CLOSED: ovqatLoaded qolgan holicha (yoki false), saqlash yopiq qoladi.
 async function ovqatLoad(force){
   if(ovqatLoading) return;
   if(!force){
-    const cs=swrGet('ovqat_staff'), cm=swrGet('ovqat_map'), cn=swrGet('ovqat_narx');
+    const cs=swrGet('ovqat_staff'), cm=swrGet('ovqat_map'), cn=swrGet('ovqat_narx'), co=swrGet('ovqat_ochir');
     if(cs && cm && cn){
-      ovqatStaff=cs; ovqatBranchMap=cm; ovqatNarx=cn; ovqatLoaded=true; ovqatFailed=false;
+      ovqatStaff=cs; ovqatBranchMap=cm; ovqatNarx=cn;
+      ovqatOchirilgan=new Set(Array.isArray(co)?co.map(Number):[]);
+      ovqatLoaded=true; ovqatFailed=false;
       renderOvqatCounter(); renderOvqatList();
+      ovqatMeningSetRefresh();    // "Mening filialim" server-set (bor bo'lsa) ham fonda keladi
       ovqatLoad(true);            // fonda yangilash (swr) — natija jimgina almashtiriladi
       return;
     }
   }
   ovqatLoading=true;
   try{
-    const [rs,rm,rn]=await Promise.all([
+    const [rs,rm,rn,ro]=await Promise.all([
       sb.from('aros_staff').select('*').eq('is_active',true).order('ism'),
       sb.from('staff_branch_map').select('branch_id,provodka_filial'),
-      sb.rpc('ovqat_narxlar')
+      sb.rpc('ovqat_narxlar'),
+      sb.rpc('hodim_ochirilganlar')   // SQL hali RUN qilinmagan bo'lsa (PGRST202) — bo'sh, umumiy yuklashni to'xtatmaydi
     ]);
     if(rs.error||rm.error||rn.error||!Array.isArray(rs.data)){
       if(!ovqatLoaded) ovqatFailed=true;
@@ -2542,9 +2609,12 @@ async function ovqatLoad(force){
       return;
     }
     ovqatStaff=rs.data||[]; ovqatBranchMap=rm.data||[]; ovqatNarx=rn.data||null;
+    ovqatOchirilgan=new Set((!ro.error && Array.isArray(ro.data))?ro.data.map(Number):[]);
     ovqatLoaded=true; ovqatFailed=false;
     swrSet('ovqat_staff',ovqatStaff); swrSet('ovqat_map',ovqatBranchMap); swrSet('ovqat_narx',ovqatNarx);
+    swrSet('ovqat_ochir',Array.from(ovqatOchirilgan));
     renderOvqatCounter(); renderOvqatList(); updateSave();
+    ovqatMeningSetRefresh();
   }catch(e){
     if(!ovqatLoaded) ovqatFailed=true;
     renderOvqatCounter(); updateSave();
@@ -2650,7 +2720,14 @@ function renderOvqatList(){
   // 🔴 FAQAT "Mening filialim" (Asilbek qarori 2026-08-27): boshqa filial hodimlari
   //    umuman ko'rsatilmaydi. Filial mosligi topilmasa — ro'yxat bo'sh + aniq sabab
   //    (fail-closed: saqlash baribir yopiq, chunki tanlangan hodim bo'lmaydi).
-  const mineAll=ovqatStaff.filter(s=>ovqatIsMening(s,bids));
+  // ovqat_mening_staff (server) joriy kassa nomiga mos keladigan Set bergan bo'lsa — SHUNDAN
+  // filtrlanadi (aniqroq manba); aks holda (RPC yo'q/filial nomsiz) eski ovqatIsMening()ga qaytadi.
+  const filNomiHozir=ovqatMeningFilNomi();
+  // O'chirilgan hodim (hodim_filial_ochir) — ro'yxatdan chiqib ketgan, mineAll hisoblanishidan oldin.
+  const staffAlive=ovqatStaff.filter(s=>!ovqatOchirilgan.has(Number(s.staff_id)));
+  const mineAll=(ovqatMeningSetName===filNomiHozir && ovqatMeningSet)
+    ? staffAlive.filter(s=>ovqatMeningSet.has(Number(s.staff_id)))
+    : staffAlive.filter(s=>ovqatIsMening(s,bids));
   const rows=mineAll.filter(s=>!q || ovqatNomi(s).toLowerCase().includes(q));
   const mine=rows;
   const byNom=(a,b)=>ovqatNomi(a).localeCompare(ovqatNomi(b));
@@ -2690,7 +2767,7 @@ function renderOvqatList(){
   if(mine.length) html='<div class="ov-grp">Mening filialim'+(filialNomi?' · '+esc(filialNomi):'')+'</div>'+mine.map(rowHtml).join('');
   // 🔴 Ro'yxat umuman bo'sh (sinxron ishlamagan) — xatosiz bo'lsa ham aniq sabab ko'rsatiladi; saqlash baribir yopiq
   if(!(ovqatStaff&&ovqatStaff.length)) html='<div class="ov-empty">Hodimlar ro\'yxati bo\'sh — aros-staff sinxroni (n8n) hali ishlamagan. Ovqat yozib bo\'lmaydi.</div>';
-  else if(!mineAll.length) html='<div class="ov-empty">'+(filialNomi?('«'+esc(filialNomi)+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish bo\'limida bog\'lang.'):'Kassangizga filial biriktirilmagan — ovqat yozib bo\'lmaydi.')+'</div>';
+  else if(!mineAll.length) html='<div class="ov-empty">'+ovqatBoshSabab(filialNomi)+'</div>';
   else if(!mine.length) html='<div class="ov-empty">Topilmadi</div>';
   box.innerHTML=html;   // qatorlarda lucide ikonka yo'q — icons() chaqirilmaydi (har harfda butun sahifani skan qilib qidiruvni sekinlashtirardi)
 }
@@ -3793,7 +3870,7 @@ function xarAllaqachon(){
   selModda=null; selFilials.clear(); davrS=null; davrE=null;
   mxdReset();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
   loadBalances(); loadHist(); loadMonth(); loadLimits(true); limLoad(true);
@@ -4074,7 +4151,7 @@ window.saveHodim=async()=>{
   davrS=null; davrE=null;
   mxdReset();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);   // saqlash tugagach — xavfsiz bo'lsa yangilanish
@@ -4169,7 +4246,7 @@ async function ovqatSaveFlow(kassa, modda, amt, royxat){
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value=''; selModda=null; selFilials.clear();
   davrS=null; davrE=null; ovqatSel.clear();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   btn.classList.add('ok'); btn.innerHTML='<i data-lucide="check"></i>Saqlandi'; icons();
   toast('Saqlandi · '+royxat.length+' kishi');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
@@ -4196,7 +4273,7 @@ function ovqatXarAllaqachon(){
   $('summa').value=''; $('summa').dataset.a000=''; $('izoh').value='';
   selModda=null; selFilials.clear(); davrS=null; davrE=null; ovqatSel.clear();
   jadval=null; jdRender();
-  removeChek(); renderModda(); renderFilials(); updateModdaUI(); updateSave();
+  removeChek(); renderModda(); renderFilials(); autoFilial(); updateModdaUI(); updateSave();
   toast('Allaqachon saqlangan');
   if(yangiVersiya) setTimeout(()=>reloadAgarXavfsiz(),1500);
   loadBalances(); loadHist(); loadMonth(); loadLimits(true); limLoad(true);
@@ -4218,6 +4295,7 @@ async function myFilsLoad(){
   try{ const {data,error}=await sb.rpc('mening_filiallarim');
     if(error){ myFilsLoaded=false; return; }
     myFils=Array.isArray(data)?new Set(data):null; updateSave();
+    autoFilial();   // 1 ta filial → avtomat tanlov (filials allaqachon yuklangan bo'lsa)
   }catch(e){ myFilsLoaded=false; }
 }
 async function loadLimits(fresh){
