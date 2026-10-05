@@ -365,6 +365,11 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   Konvert ruxsati = shu moddaga yozish ruxsati; alohida rol/modda berish KERAK EMAS.
 - `convert_request`ga ustun qo'shilmagan — yo'nalish `from`/`to` hisob valyutasidan tiklanadi
   (`konvert.html` → `yonalish()`).
+- 🔴 **Konvert v4 valyuta→valyuta: USTAMA BERILADIGAN SUMMA ICHIDAN (2026-10-05, Asilbek)** — klientda (`konvert-dev`,
+  `professional-dev`, blok bir xil): «Beriladigan summa» = JAMI (kassadan chiqadi), `cvXYUstFc()` ustama (summa yoki % JAMIdan),
+  `cvXYNet()` = jami − ustama → konvertga ketadi; kurs/olinadigan summa NET'ga. Serverga `p_amount=NET`, `p_ustama=summa`,
+  `p_ustama_foiz=null` (server foizni p_amount'dan hisoblardi — JAMIdan emas; shuning uchun foiz klientda). Server
+  (`convert_valyuta_v4`) O'ZGARMAGAN: u kassadan `p_amount + ustama` = JAMI chiqaradi, konvert yozuvida NET. Ustama ≥ jami → rad.
 
 Konvert RPC'lari (tugma + modal `kassa.html`da — `openConv()`/`convSave()`):
 - `aros_usd_rate()` → **oddiy numeric** (koridor emas). Koridor frontendda: `lo=rate*0.98`, `hi=rate*1.02`.
