@@ -554,6 +554,7 @@
       <div class="card">
         <div class="sec">Foyda va zarar</div>
         <div id="ladder"><div class="empty">—</div></div>
+        <div class="fnote" id="ladderTexnikNote" style="display:none;margin-top:10px"></div>
       </div>
 
       <div class="grid2">
@@ -1125,16 +1126,31 @@ function pnlGroup(list,bolim,sign){
     +'</div>';
 }
 const subRow=(lbl,v,fin)=>`<div class="lrow sub${fin?' final':''}"><span>${lbl}</span><span class="a ${v<0?'neg':'pos'}">${money(v)}</span></div>`;
+// 🔴 Texnik "Pul usti" moddasi (kod 9437, eski nom "Konvert kurs farqi") — avto qayta
+// baholash yozuvlarining yig'indisi (jurnal-dev.html'dagi "Texnik yozuvlar" bilan bir xil
+// sabab, Asilbek: "bizni chalg'ityapti"). OPERATSION guruhi/subtotal/Operatsion va Sof
+// foydadan CHIQARIB TASHLANADI — summasi yo'qolmaydi, pastda alohida izoh bilan ko'rsatiladi.
+const isTexnikPnl=r=>String(r.code||'')==='9437'||r.name==='Konvert kurs farqi';
 function renderLadder(list){
   if(!list.length){ $('ladder').innerHTML='<div class="empty">Bu davrda yozuv yo\'q</div>'; return; }
-  const tushum=sumOf(list,'TUSHUM'),tannarx=sumOf(list,'TANNARX'),oper=sumOf(list,'OPERATSION'),soliq=sumOf(list,'SOLIQ'),boshqa=sumOf(list,'BOSHQA');
+  const texnikRow=list.find(r=>r.bolim==='OPERATSION'&&isTexnikPnl(r));
+  const texnikAmt=texnikRow?(Number(texnikRow.amount)||0):0;
+  const list2=texnikRow?list.filter(r=>r!==texnikRow):list;
+  const tushum=sumOf(list2,'TUSHUM'),tannarx=sumOf(list2,'TANNARX'),oper=sumOf(list2,'OPERATSION'),soliq=sumOf(list2,'SOLIQ'),boshqa=sumOf(list2,'BOSHQA');
   const yalpi=tushum-tannarx, opFoyda=yalpi-oper, sof=opFoyda-soliq-boshqa;
-  $('ladder').innerHTML=pnlGroup(list,'TUSHUM','+')+pnlGroup(list,'TANNARX','−')
+  $('ladder').innerHTML=pnlGroup(list2,'TUSHUM','+')+pnlGroup(list2,'TANNARX','−')
     +subRow('Yalpi foyda',yalpi)
-    +pnlGroup(list,'OPERATSION','−')
+    +pnlGroup(list2,'OPERATSION','−')
     +subRow('Operatsion foyda',opFoyda)
-    +pnlGroup(list,'BOSHQA','−')+pnlGroup(list,'SOLIQ','−')
+    +pnlGroup(list2,'BOSHQA','−')+pnlGroup(list2,'SOLIQ','−')
     +subRow('Sof foyda',sof,true);
+  const note=$('ladderTexnikNote');
+  if(note){
+    if(texnikAmt!==0){
+      note.style.display='';
+      note.textContent=`Texnik kurs farqi yozuvlari (avto qayta baholash) hisobotda ko'rsatilmaydi: ${texnikAmt>=0?'+':'−'}${money(Math.abs(texnikAmt))} so'm`;
+    } else note.style.display='none';
+  }
 }
 function renderReport(prows,entData){
   renderLadder(prows);

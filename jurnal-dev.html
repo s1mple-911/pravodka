@@ -99,6 +99,11 @@
     border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--surface-2)}
   .chekopt input{width:15px;height:15px;margin:0;accent-color:var(--primary);cursor:pointer}
   .chekopt.on{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  .chekopt .c{font-weight:500;opacity:.8}
+  .jchip-texnik{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);
+    color:var(--muted);background:var(--surface-2);border-radius:8px;padding:2px 8px;
+    font-size:11px;font-weight:600;line-height:1.6}
+  .jchip-texnik svg{width:12px;height:12px;flex:none}
   .seg{display:flex;background:var(--surface-2);border-radius:11px;padding:4px;gap:2px;margin-top:12px;overflow-x:auto}
   .seg button{flex:1;min-width:74px;border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;font-family:inherit;padding:8px 0;border-radius:8px;cursor:pointer;transition:background .13s,color .13s}
   .seg button:hover{color:var(--ink)}
@@ -1302,6 +1307,12 @@
             <input type="checkbox" id="chkShubhali" onchange="toggleShubhali(this.checked)">Faqat shubhali
           </label>
         </div>
+        <!-- Texnik (avto kurs farqi) yozuvlari — sukut yashirin (chalg'itadi), 2026-10-06 -->
+        <div class="fld">
+          <label class="chekopt" id="lblTexnik" title="Avtomatik qayta baholash yozuvlari (kursfarq:) — summani o'zgartirmaydi, sukut yashirin">
+            <input type="checkbox" id="chkTexnik" onchange="toggleTexnik(this.checked)">Texnik yozuvlar <span id="texnikCnt" class="c"></span>
+          </label>
+        </div>
       </div>
       <div class="fnote" id="filNote"></div>
       <div class="seg" id="turSeg">
@@ -2039,17 +2050,18 @@ function konvSatr(e){
   let out=`${money(uzs)} so'm ${arrow(arr[0])} · ${money2(fcAmt)} ${esc(String(fc.currency).toUpperCase())} ${arrow(arr[1])} · <span class="j-kv-rate">kurs ${money(kurs)}</span>`;
   const farq=konvFarqMap.get(e.id);
   if(farq) out += farq.foyda
-    ? ` · <span class="j-kv-in">farq −${money(farq.summa)} (foyda)</span>`
-    : ` · <span class="j-kv-out">farq +${money(farq.summa)} (xarajat)</span>`;
+    ? ` · <span class="j-kv-in">pul usti −${money(farq.summa)} (foyda)</span>`
+    : ` · <span class="j-kv-out">pul usti +${money(farq.summa)}</span>`;
   return out;
 }
-// --- Konvert KURS FARQI (2026-09-01, PROVODKA_KONVERT_FILTR.sql) ---
+// --- Konvert PUL USTI (2026-09-01, PROVODKA_KONVERT_FILTR.sql; modda nomi
+//     "Pul usti"ga o'zgardi — PROVODKA_PUL_USTI.sql, ext_ref prefiksi O'ZGARMAGAN) ---
 // convert_start_v3 kurs farqini ALOHIDA yozuv qilib yozadi: ext_ref =
 // 'convfarq:'||<konvert yozuvi id>. Har render() da `rows`dan qayta quriladi
 // (alohida so'rov yo'q) — konvert yozuv/farq yozuvi boshqa SAHIFADA bo'lib
 // qolsa map topolmaydi, bu qabul qilingan cheklov (kod yiqilmaydi).
 // Yo'nalish: farq yozuvida Dt pul (kassa) bo'lsa FOYDA (kam berilgan), Dt
-// xarajat moddasi bo'lsa XARAJAT (ko'p berilgan). SQL/eski javobda `ext_ref`
+// xarajat moddasi («Pul usti») bo'lsa KO'P BERILGAN. SQL/eski javobda `ext_ref`
 // kaliti yo'q bo'lsa (undefined) shunchaki o'tkazib yuboriladi — sinmaydi.
 const CONVFARQ_PFX='convfarq:';
 let konvFarqMap=new Map();
@@ -3100,6 +3112,8 @@ function yoldaSatr(tur,yr){
 function izohCell(e,k,multi){
   const parts=[];
   const chala=!!(k&&k.chala);
+  // Texnik (avto kurs farqi) — checkbox yoqilgandagina ko'rinadi (sukut butunlay yashirin, render() filtrlaydi).
+  if(texnikOn && isTexnikRow(e)) parts.push(`<div><span class="jchip-texnik" title="Avtomatik qayta baholash — pul harakat qilmaydi"><i data-lucide="settings-2"></i>texnik · kurs farqi (avto)</span></div>`);
   if(chala) parts.push(`<div><span class="jchip-chala" title="${esc(CHALA_IZOH)}"><i data-lucide="circle-dashed"></i>${esc(CHALA_NOM)}</span></div>`);
   if(e.is_deleted) parts.push(`<div class="jdel-note"><i data-lucide="trash-2"></i>O'chirdi: ${esc(e.deleted_by_name||'—')} · ${fmtDate(e.deleted_at)}</div>`);
   // Konvert (valyuta sotib olish/sotish) — ixcham yo'nalish qatori, description'dan OLDIN.
@@ -3415,27 +3429,51 @@ window.toggleShubhali=val=>{
 // Avto-tekshiruv muammosi ham "Faqat shubhali" filtriga kiradi — admin bir bosishda
 // izoh/sana muammoli yozuvlarni ham ko'radi (AI shubhasi bilan bir ro'yxatda).
 const isShubhaliRow=e=>{ const am=aiMap[e.id]; return !!(am&&(am.shubhali||am.ai_holat==='xato'||am.izoh_mos===false)) || autoIssues(e,klass(e)).length>0; };
+// --- "Texnik yozuvlar" — avto kurs farqi (2026-10-06, Asilbek: "bizni chalg'ityapti") ---
+// Avtomatik qayta baholash (`kursfarq:<...>`, ext_ref — jurnal_v2 maydoni) foydalanuvchiga
+// sukut YASHIRIN: pul harakat qilmaydi, faqat 9437 qoldig'ini tozalab turadi, lekin jurnalda
+// chalkash ko'rinardi. Checkbox yoqilsa kulrang chip bilan ko'rinadi. localStorage'da persist.
+const KURSFARQ_PFX='kursfarq:';
+const isTexnikRow=e=>typeof (e&&e.ext_ref)==='string' && e.ext_ref.indexOf(KURSFARQ_PFX)===0;
+let texnikOn=false;
+try{ texnikOn=localStorage.getItem('prov-jurnal-texnik')==='1'; }catch(e){}
+window.toggleTexnik=val=>{
+  texnikOn=!!val;
+  try{ localStorage.setItem('prov-jurnal-texnik', texnikOn?'1':'0'); }catch(e){}
+  const lbl=$('lblTexnik'); if(lbl) lbl.classList.toggle('on',texnikOn);
+  render();
+};
 function render(){
   // 🔴 "Noma'lum" chipi FAQAT shu klass bilan ko'rinadi (CSS) — JS da boshqa shart yo'q
   { const fi=$('fIjrochi'); $('journal').classList.toggle('ijr-unk', !!fi && fi.value===IJR_BOSH); }
   buildKonvFarqMap();   // konvSatr() farq ko'rsatishi uchun — pastda chaqiriladi
   const q=$('q').value.trim().toLowerCase();
-  const list=rows.filter(e=>{
+  const preTexnik=rows.filter(e=>{
     // 🔴 'kv' (Konvert) — klass(e).kind da 'kv' YO'Q (konvert kind='tr' bo'lib qoladi),
     //    shuning uchun isKonvert bilan tekshiriladi. Aks holda chip bosilganda server
     //    to'g'ri qatorlarni qaytarsa ham klient filtri hammasini yashirib qo'yardi.
     if(tur==='kv'){ if(!isKonvert(e)) return false; }
     else if(tur!=='all' && klass(e).kind!==tur) return false;
     if(q && !String(e.description||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  // Texnik (avto kurs farqi) — tur/qidiruv filtridan O'TGAN qatorlar ichidan sanaladi,
+  // shuning uchun "(N yashirin)" aynan joriy filtr bo'yicha yashiringan sonni ko'rsatadi.
+  const texnikHidden = texnikOn ? 0 : preTexnik.filter(isTexnikRow).length;
+  { const tc=$('texnikCnt'); if(tc) tc.textContent = texnikHidden ? `(${texnikHidden} yashirin)` : ''; }
+  const list=preTexnik.filter(e=>{
+    if(!texnikOn && isTexnikRow(e)) return false;
     if(shubhaliOnly && !isShubhaliRow(e)) return false;
     return true;
   });
   // 🔴 useV2 da tur/qidiruv SERVERDA filtrlangan → total to'g'ri son, matn sodda.
   // Zaxira yo'lda (eski jurnal) filtr faqat klientda — eski, aniqroq matn qoladi.
+  // Texnik filtri HAR DOIM faqat klientda — serverning `total`iga kirmagan, shuning
+  // uchun useV2 rejimida ham texnikHidden>0 bo'lsa "filtered" matn ishlatiladi.
   const filtered=(tur!=='all'||q);
-  $('count').innerHTML= useV2
+  $('count').innerHTML= (useV2 && !texnikHidden)
     ? `<b>${total}</b> ta yozuv${rows.length<total?` · ${rows.length} tasi yuklandi`:''}`
-    : (filtered
+    : ((filtered||texnikHidden)
       ? `<b>${list.length}</b> ta ko'rsatilmoqda · yuklangan ${rows.length} / jami <b>${total}</b> ta yozuv`
       : `<b>${total}</b> ta yozuv${rows.length<total?` · ${rows.length} tasi yuklandi`:''}`);
   $('moreBtn').style.display = rows.length<total ? 'flex' : 'none';
@@ -4692,6 +4730,8 @@ async function init(){
   wireV2();
   // AI "Faqat shubhali" — faqat admin ko'radi (checkbox sukut yashirin).
   { const f=$('fldShubhali'); if(f) f.style.display=''; }   // 2026-08-31: filtr hammaga
+  // "Texnik yozuvlar" checkbox — localStorage'dagi holatni ko'rsatadi (sukut o'chiq).
+  { const c=$('chkTexnik'), l=$('lblTexnik'); if(c) c.checked=texnikOn; if(l) l.classList.toggle('on',texnikOn); }
   // 🔴 Default davr — BUGUN (avval oyning 1-sanasi edi). Chip "Bugun" .on holatda.
   const n=nowUz();
   $('from').value=iso(n); $('to').value=iso(n);

@@ -365,6 +365,15 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   Konvert ruxsati = shu moddaga yozish ruxsati; alohida rol/modda berish KERAK EMAS.
 - `convert_request`ga ustun qo'shilmagan — yo'nalish `from`/`to` hisob valyutasidan tiklanadi
   (`konvert.html` → `yonalish()`).
+- 🔴 **«Pul usti» moddasi + kurs farqi FONDA (2026-10-06, `PROVODKA_PUL_USTI.sql`, RUN kutilmoqda).** Asilbek: konvert
+  ustamasi «Konvert kurs farqi»ga urilyapti — «Pul usti» ochib shunga urish, eskilarini ham; «kurs farqi» tushunchasi kerak
+  emas, fonda ketaversin, biz ko'rmaylik. Qaror: **qo'lda** farq (v3 «ko'p/kam berildi», ext_ref `convfarq:`) va v4 ustama
+  (`convust:`) → «Pul usti» (`conv_pul_usti_hisob_id()`, 94xx), eski satrlar ko'chirildi, «Konvert ustama» bo'shasa nofaol.
+  **Avtomat qayta baholash** (`PROVODKA_KURS_FARQI_AVTO.sql`, `kursfarq:`, 9437) **O'ZGARMAGAN** — busiz valyuta hisobining
+  so'm qoldig'i osilib qoladi; faqat YASHIRIN: jurnal-dev sukut filtri (`#chkTexnik`, ext_ref `kursfarq:`), hisobot-dev P&L
+  9437 qatori chiqarilmaydi (izoh satri), `aylanma_kun_xarajat`/`aylanma_hisobot_tafsilot` 9437 ni xarajat deb sanamaydi.
+  RBAC: «Pul usti» = konvert ruxsati. 🔴 convert_start_v3 / convert_approve / convert_valyuta_v4 / rbac_guard_entry_line /
+  aylanma_kun_xarajat / aylanma_hisobot_tafsilot ning ENG OXIRGI versiyasi SHU faylda.
 - 🔴 **Konvert v4 valyuta→valyuta: USTAMA BERILADIGAN SUMMA ICHIDAN (2026-10-05, Asilbek)** — klientda (`konvert-dev`,
   `professional-dev`, blok bir xil): «Beriladigan summa» = JAMI (kassadan chiqadi), `cvXYUstFc()` ustama (summa yoki % JAMIdan),
   `cvXYNet()` = jami − ustama → konvertga ketadi; kurs/olinadigan summa NET'ga. Serverga `p_amount=NET`, `p_ustama=summa`,
