@@ -991,13 +991,13 @@
     <div class="cv-rate" id="cvMbBox" style="display:none" title="O'zbekiston Markaziy banki rasmiy kursi (cbu.uz)"><i data-lucide="landmark"></i><span id="cvMb">—</span></div>
     <div class="cv-out lg"><span class="k" id="cvOutLbl">Olinadigan valyuta</span><span class="v" id="cvUsd">0</span></div>
     <div class="cv-farq">
-      <label>Kurs farqi (so'm) — ixtiyoriy</label>
+      <label>Pul usti (so'm) — ixtiyoriy</label>
       <div class="cvseg" id="cvFarqYon">
         <button class="on" onclick="cvSetFarqYon('+',this)">Ko'p berildi (+)</button>
         <button onclick="cvSetFarqYon('-',this)">Kam berildi (−)</button>
       </div>
       <input class="txt" id="cvFarq" inputmode="numeric" placeholder="0" oninput="cvFmtFarq(this)">
-      <p class="cv-farq-hint">Mayda pul bo'lmasa: ko'p berilgan farq xarajat, kam berilgani foyda bo'lib yoziladi.</p>
+      <p class="cv-farq-hint">Ko'p berilgan pul usti «Pul usti» xarajat moddasiga, kam berilgani foyda bo'lib yoziladi.</p>
     </div>
     <label>Izoh</label><input class="txt" id="cvNote" placeholder="ixtiyoriy izoh">
   </div>
@@ -1019,7 +1019,7 @@
       </div>
       <input class="txt" id="cvXYUstama" inputmode="decimal" placeholder="0" oninput="cvXYFmtUst(this)">
       <div id="cvXYUstOut" class="cv-ust-out"></div>
-      <p class="cv-farq-hint">Ustama Konvert ustama xarajat moddasiga yoziladi.</p>
+      <p class="cv-farq-hint">Ustama «Pul usti» xarajat moddasiga yoziladi (beriladigan summa ichidan).</p>
     </div>
     <label>Izoh</label><input class="txt" id="cvXYNote" placeholder="ixtiyoriy izoh">
   </div>
@@ -4162,7 +4162,7 @@ window.convSave=async()=>{
   if(error && cvFn3Missing(error)){
     if(p_farq!==null){
       $('cvSave').disabled=false; $('cvSave').textContent='Konvert qilish';
-      cvErr('Kurs farqi uchun yangi SQL kerak (PROVODKA_KONVERT_V3.sql) — farqsiz yuboring yoki admin SQL RUN qilsin.');
+      cvErr('Pul usti uchun yangi SQL kerak (PROVODKA_PUL_USTI.sql) — farqsiz yuboring yoki admin SQL RUN qilsin.');
       return;
     }
     const p_amount_v2 = cvYon==='sotish' ? p_amount : Math.round(p_amount*p_rate);
@@ -4184,7 +4184,8 @@ window.convSave=async()=>{
 
 // ---- Valyuta → valyuta (convert_valyuta_v4, PROVODKA_KONVERT_V4.sql, 2026-10-03) ----
 // O'zida turgan pulni bevosita bir valyutadan ikkinchisiga aylantirish — so'mga qaytib
-// sotib olish shart emas. Ustama (komissiya) alohida "Konvert ustama" xarajat yozuvi bilan.
+// sotib olish shart emas. Ustama (komissiya) alohida "Pul usti" xarajat yozuvi bilan (eski nom
+// "Konvert ustama", PROVODKA_PUL_USTI.sql bilan birlashtirildi).
 let cvXYList=[], cvXYBaza=null, cvXYUstMode='summa';
 // Qaysi maydon oxirgi marta qo'lda tahrirlangan: 'rate' (Kurs) yoki 'to' (Olinadigan summa).
 // Beriladigan summa o'zgarsa shu bayroq asosida qaysi biri qayta hisoblanishi hal qilinadi.
