@@ -374,6 +374,11 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   9437 qatori chiqarilmaydi (izoh satri), `aylanma_kun_xarajat`/`aylanma_hisobot_tafsilot` 9437 ni xarajat deb sanamaydi.
   RBAC: «Pul usti» = konvert ruxsati. 🔴 convert_start_v3 / convert_approve / convert_valyuta_v4 / rbac_guard_entry_line /
   aylanma_kun_xarajat / aylanma_hisobot_tafsilot ning ENG OXIRGI versiyasi SHU faylda.
+  🔴 **Server tomonda ham yashirin (`PROVODKA_JURNAL_TEXNIK.sql`, RUN kutilmoqda)**: `jurnal_v2_baza` da yangi **`'texnik'` tokeni**
+  ('pul'/'savdosiz'/'konvert' naqshi) — tokensiz `ext_ref 'kursfarq:%'` yozuvlar ro'yxat/sanoq/`jurnal_dash`/Excel'ga CHIQMAYDI;
+  `jurnal_dash` p_turlar dan faqat shu tokenni o'tkazadi. Klient: `useTexnikF` (`jurnal_texnik_filtr_ok()` probe), `#chkTexnik`
+  yoqilsa `argsV2` 'texnik' qo'shadi va `load()` qayta so'raydi; kesh kalitida `T/t`. 🔴 `jurnal_v2_baza`/`jurnal_dash` ning ENG
+  OXIRGI versiyasi endi SHU faylda (avval PROVODKA_JURNAL_SABAB.sql).
 - 🔴 **Konvert v4 valyuta→valyuta: USTAMA BERILADIGAN SUMMA ICHIDAN (2026-10-05, Asilbek)** — klientda (`konvert-dev`,
   `professional-dev`, blok bir xil): «Beriladigan summa» = JAMI (kassadan chiqadi), `cvXYUstFc()` ustama (summa yoki % JAMIdan),
   `cvXYNet()` = jami − ustama → konvertga ketadi; kurs/olinadigan summa NET'ga. Serverga `p_amount=NET`, `p_ustama=summa`,
