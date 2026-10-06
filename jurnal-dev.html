@@ -4425,9 +4425,12 @@ async function xlsFetchAll(a,onProg){
       : await sb.rpc('jurnal',{...argsOld(a),p_limit:XLS_PAGE,p_offset:out.length});
     if(error) throw new Error(error.message);
     const batch=data||[];
-    for(const r of batch) out.push(r);
+    // 2026-10-06 (Asilbek): texnik (avto/tozalash) kurs farqi yozuvlari Excel'ga ham chiqmaydi — ekran bilan bir xil
+    // qoida (`isTexnikRow`, ext_ref 'kursfarq:'); «Texnik yozuvlar» belgisi yoqilgan bo'lsa chiqadi. Qo'lda kiritilgan
+    // konvert farqi (convfarq:, endi «Pul usti») eksportda QOLADI.
+    for(const r of batch){ if(!texnikOn && isTexnikRow(r)) continue; out.push(r); }
     onProg&&onProg(out.length);
-    if(batch.length<XLS_PAGE || out.length>=XLS_MAX) break;
+    if(batch.length<XLS_PAGE || (out.length>=XLS_MAX)) break;
   }
   return out;
 }
