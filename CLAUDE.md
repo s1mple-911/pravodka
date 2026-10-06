@@ -1452,6 +1452,15 @@ override buzilmasin.
   `rbac_staff_link_set` admin-only edi). `hodim_filial_royxat()` → `loginlar[]`, qatorda `login_id/login_ism/ochirilgan*`.
   `aros_staff`/`entry`/`entry_ovqat`/ehson tarixi TEGILMAYDI — faqat ro'yxatlardan yo'qoladi.
 
+### «Kimdan» ro'yxatida kassa_scope='all' userlar (2026-10-06, `PROVODKA_SOROV_KIMDAN_ALL.sql`, RUN kutilmoqda)
+
+Asilbek: «Barcha kassalar» berilgan user (Abror aka) «Kimdan» ro'yxatiga tushmasdi (eski qoida: 'all' → biriktirilgan kassa
+yo'q). Endi 'all' = HAMMA UZS kassa unga tegishli (hodim 54xx xarajat kassalari emas): `sorov_kassa_of('all')` sukut = markaziy
+eng kichik kod; `sorov_kimdan()` kassa_scope sharti yo'q (subtitle «Barcha kassalar»); `sorov_qaror_ctx` hisoblar = hamma UZS
+kassa + tur-bolalari; `sorov_tasdiq` oila chegarasi 'all' uchun o'tkaziladi (perm_check_accounts qoladi). Admin (qatorsiz)
+avvalgidek chiqmaydi. 🔴 To'rttala funksiyaning ENG OXIRGI versiyasi SHU faylda (avval PROVODKA_SOROVLAR.sql / SOROV_KASSA.sql).
+DIAG_SOROV_KIMDAN.sql dagi «2) kassa_scope='list'» sharti ESKIRGAN.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:
