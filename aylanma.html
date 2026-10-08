@@ -350,8 +350,8 @@
       <div class="tsvg-wrap" id="trendSvgWrap"><div class="empty">Yuklanmoqda...</div></div>
       <!-- 2026-10-03 (Asilbek): kunlik hisobot DIAGRAMMA TAGIDA — eski Sana/Jami/Holat jadvali o'rnida; davr Trend segmenti (30/90/365) bilan bir xil -->
       <div class="scroll" id="hisTableWrap" style="margin-top:12px"><table>
-        <thead><tr><th>Kun</th><th>Jami summa</th><th>Bo'lishi kerak</th><th>Raznitsa</th><th>Foyda</th><th>Xarajat</th><th>Holat</th></tr></thead>
-        <tbody id="hisBody"><tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr></tbody>
+        <thead><tr><th>Kun</th><th>Reja</th><th>Fakt</th><th>Raznitsa</th><th>Kunlik farq</th><th>Foyda</th><th>Xarajat</th><th>Holat</th></tr></thead>
+        <tbody id="hisBody"><tr><td colspan="8" class="empty">Yuklanmoqda...</td></tr></tbody>
       </table></div>
       <div class="hismodal" id="hisModal" onclick="if(event.target===this)hisDrillClose()">
       <div class="dd" id="hisDd" role="dialog" aria-modal="true" aria-labelledby="hisDdTitle">
@@ -389,7 +389,7 @@
         </div>
       </div>
       </div>
-      <div class="note">Jami — ertasi kun 08:00 dagi snapshot (kun oxiri holati). Bo'lishi kerak = kun boshi + foyda − xarajat. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan. Xarajat — faqat asosiy deb belgilangan kassalardan chiqqan xarajatlar.</div>
+      <div class="note" id="hisNote"><b>Fakt</b> — ertasi kun snapshot (kun oxiri haqiqiy jami). <b>Reja</b> — uzluksiz: boshlang'ich kundagi haqiqiy jami + shu kungacha barcha foyda − barcha xarajat (faktga qaytib tozalanmaydi). <b>Raznitsa</b> = Fakt − Reja (yig'ilib boradi). <b>Kunlik farq</b> — raznitsaning kechagiga nisbatan o'zgarishi, ya'ni shu kunning o'zida paydo bo'lgan farq. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan; foyda yo'q kun 0 deb olinadi. Xarajat — faqat asosiy kassalardan chiqqan xarajatlar.<span id="hisBoshNote"></span></div>
     </div>
 
   </main>
@@ -1044,32 +1044,39 @@ async function loadHisobot(fresh){
   const from=iso(fromD);
   const {data,error}=await sb.rpc('aylanma_hisobot',{p_from:from,p_to:to});
   if(error){
-    if(!swrGet(key)) $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?'SQL hali RUN qilinmagan':error.message)+'</td></tr>';
+    if(!swrGet(key)) $('hisBody').innerHTML='<tr><td colspan="8">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?'SQL hali RUN qilinmagan':error.message)+'</td></tr>';
     return;
   }
   if(data && data.ok===false){
     hisRows=[];
-    $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(data.kod==='ruxsat'?ICON_LOCK:ICON_INBOX,data.kod==='ruxsat'?"Ruxsat yo'q":'Xato')+'</td></tr>';
+    $('hisBody').innerHTML='<tr><td colspan="8">'+estateHtml(data.kod==='ruxsat'?ICON_LOCK:ICON_INBOX,data.kod==='ruxsat'?"Ruxsat yo'q":'Xato')+'</td></tr>';
     return;
   }
   hisRows=(data&&data.rows)||[];
+  // Boshlang'ich kun (kumulyativ hisob nuqtasi) — PROVODKA_AYLANMA_HISOBOT_3.sql; eski SQL da kalit yo'q → izoh bo'sh
+  try{ const bn=$('hisBoshNote'); if(bn) bn.innerHTML=(data&&data.boshlanish)?(' <b>Boshlang\'ich:</b> '+esc(fmtDateFull(data.boshlanish))+(data.boshlanish_jami!=null?(' (kun boshi jami '+money(data.boshlanish_jami)+')'):'')):''; }catch(e){}
   swrSet(key,hisRows);
   renderHisobot();
 }
 function hisNum(n){ return n==null?'—':money(n); }
+// 2026-10-08 (Asilbek): «Bo'lishi kerak» 1-ustun va KUMULYATIV (PROVODKA_AYLANMA_HISOBOT_3.sql) — kechagi raznitsa
+// ertaga «unutilmaydi». Kunlik farq = raznitsa − kechagi raznitsa. Eski SQL (kun_farq yo'q) bilan ham chiziladi.
+const signTxt=v=>v==null?'—':(v===0?'·':((v>0?'+':'−')+money(Math.abs(v))));
+const signCls=v=>v==null?'':(v>0?'pos':(v<0?'neg':''));
 function renderHisobot(){
-  if(!hisRows.length){ $('hisBody').innerHTML='<tr><td colspan="7">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>'; return; }
+  if(!hisRows.length){ $('hisBody').innerHTML='<tr><td colspan="8">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>'; return; }
   $('hisBody').innerHTML=hisRows.map(r=>{
     const raz=r.raznitsa;
-    const razCls=raz==null?'':(raz>0?'pos':(raz<0?'neg':''));
-    const razTxt=raz==null?'—':(raz===0?'·':((raz>0?'+':'−')+money(Math.abs(raz))));
+    const razCls=signCls(raz), razTxt=signTxt(raz);
     const qolda=r.rejim==='qolda'?' <span class="badge mut">qo\'lda</span>':'';
+    const kf=('kun_farq' in r)?r.kun_farq:null;
     return '<tr data-kun="'+esc(r.kun)+'" onclick="window.hisDrill(\''+esc(r.kun)+'\')">'
       +'<td class="f">'+esc(fmtDateShort(r.kun))+'</td>'
+      +'<td class="n" style="font-weight:700">'+hisNum(r.kerak)+'</td>'
       +'<td class="n">'+hisNum(r.jami)+qolda+'</td>'
-      +'<td class="n">'+hisNum(r.kerak)+'</td>'
       +'<td class="n '+razCls+'">'+razTxt+'</td>'
-      +'<td class="n his-cell his-foyda" onclick="event.stopPropagation();window.hisDrill(\''+esc(r.kun)+'\',\'foyda\')">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+(r.foyda_usd!=null?'<div class="c">$'+money(r.foyda_usd)+'</div>':'')+'</td>'
+      +'<td class="n '+signCls(kf)+'">'+signTxt(kf)+'</td>'
+      +'<td class="n his-cell his-foyda" onclick="event.stopPropagation();window.hisDrill(\''+esc(r.kun)+'\',\'foyda\')">'+(r.foyda_uzs==null?(r.foyda_yoq?'<span class="c">foyda yo\'q</span>':'—'):money(r.foyda_uzs))+(r.foyda_usd!=null?'<div class="c">$'+money(r.foyda_usd)+'</div>':'')+'</td>'
       +'<td class="n his-cell his-xarajat" onclick="event.stopPropagation();window.hisDrill(\''+esc(r.kun)+'\',\'xarajat\')">'+hisNum(r.xarajat_uzs)+'</td>'
       +'<td>'+(r.jami==null?'—':(r.toliq===false?'<span class="c">To\'liq emas</span>':'<span class="ok">To\'liq</span>'))+'</td>'
       +'</tr>';
