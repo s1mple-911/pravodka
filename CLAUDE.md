@@ -1343,6 +1343,13 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   `snapshot.bolimlar` ham, `oldingi.bolimlar` ham bor. 🔴 Ishora: SAK dan Q2b AYIRILADI, shuning uchun
   uning o'sishi SAK ni kamaytiradi — `ozgHissa()` Q2b uchun ishorani teskari oladi (jadvaldagi «Farq» esa
   bo'limning o'z xom harakati). Zinapoyada ham farq yoniga **foiz** qo'shildi va jami qatorda farq to'ldirildi.
+- 🔴 **Kunlik hisobot «Bo'lishi kerak» KUMULYATIV (2026-10-08, `PROVODKA_AYLANMA_HISOBOT_3.sql`, RUN kutilmoqda)** — Asilbek:
+  «bo'lishi kerak doimiy o'sib/kamayib ketaveradi, kechagi raznitsa ertaga unutilmasin». `kerak(kun)` = boshlang'ich kun boshidagi
+  haqiqiy jami + Σ(boshlanish..kun)(foyda − xarajat); `raznitsa` = jami − kerak (yig'iladi); yangi `kun_farq` = raznitsa − kechagi
+  raznitsa (shu kunning o'zida paydo bo'lgan farq); eski kunlik qiymat `kerak_kun`. Boshlang'ich: `aylanma_hisobot_boshlanish()`
+  (provodka_config `aylanma_hisobot_boshlanish` admin override `aylanma_hisobot_boshlanish_set(date)`, bo'lmasa foyda JAMI + kun-boshi
+  snapshot bor eng birinchi kun). Foyda yo'q kun 0 (`foyda_yoq`). UI: ustun tartibi Kun · Bo'lishi kerak · Jami · Raznitsa · Kunlik farq ·
+  Foyda · Xarajat · Holat; izohda boshlang'ich sana. 🔴 `aylanma_hisobot` ning ENG OXIRGI versiyasi SHU faylda.
 - **Sig'masliklar tuzatildi (2026-09-09):** `.wf-lbl` `flex:0 0 190px`+`nowrap` edi — «Ochiq buyurtmalar
   (sotuv narxida)» kesilardi, endi ikkinchi qatorga o'tadi; `.wf-delta` 96px da summa+foiz sig'masdi —
   endi ustma-ust (`<b>`/`<i>`); mobilda `.wf-delta` **`display:none`** edi (bo'lim o'zgarishi telefonda
