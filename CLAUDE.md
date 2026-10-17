@@ -1141,6 +1141,15 @@ qayerda ko'rinmasin; alohida ruxsat; 3 kassa balansini maqsadga to'g'irlash.
   `fc_qoldiq`), farq `tur='tuzatish'` yoziladi. Idempotent — `ehson_tarix` belgisi `balans_togrilandi_20261017` (farq 0 bo'lsa ham).
   Kassa NOM bo'yicha topiladi (child/faol) — topilmasa qator o'tkaziladi, natija jadvalida ko'rinadi.
 
+### Ehson qarzlari Excel ro'yxatidan (2026-10-17, `PROVODKA_EHSON_QARZ_ROYXAT_20261017.sql`, faqat dev, RUN kutilmoqda)
+
+RUN tartibi: EHSON → ZAKOT → QARZ → `PROVODKA_EHSON_KIRIM.sql` → shu fayl (old shart yo'q bo'lsa aniq xato). 22 ta qarz (Ehson asosiy 12, Ehson
+soliq 10) `ehson_qarz` ga `ehson_qarz_ber` bilan bir xil shaklda: `qarzdor_turi='shaxs'`, `ism` = Excel qatori nomi, naqd (UZS) / dollar (USD,
+`fc_summa`, kurs `conv_baza_kurs`), `bir_martalik`, 🔴 **`tugash=2099-12-31` = «MUDDATSIZ» belgisi** (jadvalda NOT NULL) — UI «Muddatsiz» deb
+ko'rsatadi (`ehqMuddatsiz`). Idempotent: `ext_ref 'excel_qarz_20261017:<kassa>:<n>'`. Qoldiq tekshiruvi yo'q; oxirida balans marker
+`balans_togrilandi_20261017b` bilan maqsadga qaytariladi. Yangi RPC **`ehson_qarz_muddat_set(p)`** + Qarz kartasida «Muddatni belgilash»
+(deadline yoki oyma-oy; oyma-oy faqat to'lov yo'q bo'lganda). Natija jadvali: `_ehson_qarz_royxat_20261017()`.
+
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
 `tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +

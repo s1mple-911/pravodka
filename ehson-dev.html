@@ -3463,7 +3463,10 @@ function ehqHolatChipHtml(r){
   if(cls==='kechikkan' && n0(r.kechikkan_kun)) label += ' · '+n0(r.kechikkan_kun)+' kun kechikdi';
   return `<span class="eho-badge ${escapeHtml(cls)}">${escapeHtml(label)}</span>`;
 }
+// 2099-12-31 = «muddatsiz» belgisi (PROVODKA_EHSON_QARZ_ROYXAT_20261017.sql: tugash NOT NULL, muddat keyin qo'yiladi)
+function ehqMuddatsiz(r){ return r.muddat_turi!=='oylik' && String(r.tugash||'').slice(0,4)>='2099'; }
 function ehqMuddatTxt(r){
+  if(ehqMuddatsiz(r)) return 'Muddatsiz';
   if(r.muddat_turi==='oylik'){
     return n0(r.oylar_soni)+' oy · oylik '+ehqFmtLoanAmt(r.valyuta,r.oylik_summa)+(r.keyingi_sana?(' · keyingi '+fmtDate(r.keyingi_sana)):'');
   }
@@ -3933,6 +3936,23 @@ function renderEhqKart(){
       ${ehoDD('Sana', fmtDate(q.sana))}
     </dl>
     ${q.izoh?`<div class="ehb-hint" style="margin-bottom:14px">${escapeHtml(q.izoh)}</div>`:''}
+    ${q.holat==='faol'?`
+    <div style="margin-bottom:14px">
+      <button class="btn ghost" type="button" onclick="ehqMuddatToggle()"><i data-lucide="calendar-clock"></i>Muddatni belgilash</button>
+      <div id="ehqMdBox" style="display:none;margin-top:10px">
+        <div class="ehk-frow" style="margin-bottom:10px">
+          <button type="button" class="ehk-chip on" id="ehqMdSegB" onclick="ehqMdSeg('bir_martalik')">Deadline</button>
+          <button type="button" class="ehk-chip" id="ehqMdSegO" onclick="ehqMdSeg('oylik')">Oyma-oy</button>
+        </div>
+        <div id="ehqMdB"><div class="ehk-field"><label>Tugash (deadline)</label><input class="ehk-input" id="ehqMdTugash" type="date"></div></div>
+        <div id="ehqMdO" style="display:none"><div class="ehk-frow">
+          <div class="ehk-field"><label>Boshlanish (birinchi to'lov)</label><input class="ehk-input" id="ehqMdBosh" type="date"></div>
+          <div class="ehk-field"><label>Oylar soni</label><input class="ehk-input" id="ehqMdN" inputmode="numeric" placeholder="Masalan: 6"></div>
+        </div></div>
+        <div id="ehqMdMsg" class="ehk-msg"></div>
+        <div class="ehk-actions"><button class="btn" onclick="ehqMdSave()">Saqlash</button></div>
+      </div>
+    </div>`:''}
     ${q.holat==='bekor' && q.bekor_sabab?`<div class="ehk-msg err" style="display:block;margin-bottom:14px">Bekor sababi: ${escapeHtml(q.bekor_sabab)}</div>`:''}
 
     <h4 style="margin:0 0 8px;font-size:14px;font-weight:700">To'lov jadvali</h4>
@@ -4072,6 +4092,35 @@ window.ehqKartBekorToggle=()=>{
   box.style.display = show ? 'block':'none';
   if(show){ $('ehqKartBekorSabab').value=''; $('ehqKartBekorMsg').className='ehk-msg'; $('ehqKartBekorMsg').textContent=''; }
 };
+// Muddatni belgilash (ehson_qarz_muddat_set) — muddatsiz yozilgan qarzga deadline yoki oyma-oy qo'yish
+let ehqMdTur='bir_martalik';
+const EHQ_MD_XATO={ muddat_notogri:"Muddat noto'g'ri (sana yoki oylar soni)", tolov_bor:"To'lov bor — oyma-oy grafikka o'tib bo'lmaydi (deadline o'zgartirish mumkin)", holat:'Qarz faol emas', topilmadi:'Qarz topilmadi' };
+window.ehqMuddatToggle=()=>{ const b=$('ehqMdBox'); if(!b) return; b.style.display=(b.style.display==='none')?'block':'none'; };
+window.ehqMdSeg=tur=>{
+  ehqMdTur=tur;
+  $('ehqMdSegB').classList.toggle('on',tur==='bir_martalik'); $('ehqMdSegO').classList.toggle('on',tur==='oylik');
+  $('ehqMdB').style.display=(tur==='bir_martalik')?'block':'none'; $('ehqMdO').style.display=(tur==='oylik')?'block':'none';
+};
+window.ehqMdSave=async()=>{
+  const msg=$('ehqMdMsg'); msg.className='ehk-msg';
+  const p={ id:ehqKartId, muddat_turi:ehqMdTur };
+  if(ehqMdTur==='bir_martalik'){
+    p.tugash=$('ehqMdTugash').value;
+    if(!p.tugash){ msg.classList.add('err'); msg.textContent='Tugash sanasini tanlang'; return; }
+  }else{
+    p.boshlanish=$('ehqMdBosh').value; p.oylar_soni=Number($('ehqMdN').value.replace(/\D/g,''))||0;
+    if(!p.boshlanish || p.oylar_soni<1){ msg.classList.add('err'); msg.textContent='Boshlanish sanasi va oylar sonini kiriting'; return; }
+  }
+  const {data,error}=await sb.rpc('ehson_qarz_muddat_set',{p});
+  if(error){
+    if(error.code==='PGRST202' || error.code==='42883'){ msg.classList.add('err'); msg.textContent='SQL hali RUN qilinmagan (PROVODKA_EHSON_QARZ_ROYXAT_20261017.sql)'; }
+    else{ msg.classList.add('err'); msg.textContent=window.permErr?window.permErr(error):error.message; }
+    return;
+  }
+  if(!data || data.ok===false){ msg.classList.add('err'); msg.textContent=EHQ_MD_XATO[data&&data.kod]||('Xato: '+((data&&data.kod)||"noma'lum")); return; }
+  await ehqKartLoad();
+  loadQarz(true);
+};
 window.ehqKartBekorSave=async()=>{
   const sabab=($('ehqKartBekorSabab').value||'').trim();
   const msg=$('ehqKartBekorMsg'); msg.className='ehk-msg';
@@ -4115,7 +4164,7 @@ window.ehqExport=async()=>{
         fmtDate(r.sana), r.qarzdor_nom||'', r.qarzdor_turi||'', r.oila_kod||'', r.telefon||'',
         r.kassa_nom||'', r.pul_turi_nom||'',
         Number(r.asosiy)||0, Number(r.tolandi)||0, Number(r.qoldi)||0,
-        r.muddat_turi||'', r.muddat_turi==='oylik'?fmtDate(r.boshlanish):fmtDate(r.tugash),
+        r.muddat_turi||'', r.muddat_turi==='oylik'?fmtDate(r.boshlanish):(ehqMuddatsiz(r)?'':fmtDate(r.tugash)),
         r.oylar_soni!=null?r.oylar_soni:'', r.oylik_summa!=null?Number(r.oylik_summa):'',
         r.keyingi_sana?fmtDate(r.keyingi_sana):'', EHQ_HOLAT[r.holat]||r.holat||'', r.izoh||'', r.kim||''
       ]);
