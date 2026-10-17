@@ -1,8 +1,11 @@
 -- ============================================================================
---  PROVODKA_EHSON_QARZ_ROYXAT_20261017.sql — 2026-10-17 — Excel ro'yxatidagi ehson QARZLARINI yozish + balansni qayta to'g'irlash
+--  PROVODKA_EHSON_QARZ_ROYXAT_20261017.sql — 2026-10-17 — Excel ro'yxatidagi ehson QARZLARINI yozish
 --  Asilbek: Ehson asosiy va Ehson soliq kassalaridan Excel ro'yxatidagi odamlarga ISMI bilan qarz yozilsin; pul aynan shu
---  kassadan AYIRILSIN. Muddat (deadline / oyma-oy) keyin UI'da qo'yiladi. Qarzlardan keyin balans maqsad qiymatga kelsin.
+--  kassadan AYIRILSIN. Muddat (deadline / oyma-oy) keyin UI'da qo'yiladi.
 --
+--  🔴 2026-10-17 TUZATISH: bu faylda avval qarzlardan KEYIN balansni maqsadga qaytaruvchi 'b' qismi bor edi — u XATO faraz edi
+--  (maqsad qoldiqlar qarzlardan OLDINGI). 'b' qismi bu fayldan OLIB TASHLANDI (qayta RUN yana yozmasin); allaqachon yozilgan
+--  'b' tuzatishlar PROVODKA_EHSON_QARZ_TUZATISH_BEKOR_20261017.sql bilan bekor qilinadi. Natija jadvali endi faqat QARZ qatorlari.
 --  RUN TARTIBI: avval PROVODKA_EHSON.sql, ZAKOT, QARZ, so'ng PROVODKA_EHSON_KIRIM.sql, ENG OXIRIDA shu fayl.
 --
 --  Qanday yoziladi (ehson_qarz_ber bilan BIR XIL jadvallar/shakl, UI Qarz tabi ularni ko'radi):
@@ -13,10 +16,9 @@
 --   * USD: fc_summa = dollar miqdori, summa = round(fc * conv_baza_kurs('USD')) (kurs yo'q bo'lsa USD qatorlari o'tkaziladi).
 --   * ehson_tarix 'qarz'/'yaratildi'. entry/entry_line/accounts ga TEGILMAYDI.
 --   * IDEMPOTENT: ext_ref 'excel_qarz_20261017:<kassa>:<n>' (unique) — qayta RUN qarzni ikkinchi marta yaratmaydi.
---   * Qoldiq tekshiruvi ataylab YO'Q (ehson_qarz_ber 'qoldiq_yetmadi' bergan bo'lardi): maqsad balans qarzlardan KEYINGI haqiqiy
---     qoldiq, shuning uchun oxirida balans yangi marker (balans_togrilandi_20261017b) bilan maqsadga qaytariladi.
+--   * Qoldiq tekshiruvi ataylab YO'Q (ehson_qarz_ber 'qoldiq_yetmadi' bergan bo'lardi). Qarzlar kassadan AYIRILADI; balans qayta to'g'irlanmaydi.
 --  + ehson_qarz_muddat_set(p) — YANGI RPC: qarz muddatini UI'dan qo'yish (UI'da avval muddatni o'zgartirish yo'q edi).
---  ADDITIVE: hech narsa drop qilinmaydi. Asilbek RUN qiladi. Oxirida natija jadvali: qarzlar + kassa balanslari.
+--  ADDITIVE: hech narsa drop qilinmaydi. Asilbek RUN qiladi. Oxirida natija jadvali: qarzlar.
 -- ============================================================================
 
 -- ######## 0) OLD SHART (yo'q bo'lsa aniq xato) ########
@@ -124,7 +126,7 @@ comment on function ehson_qarz_muddat_set(jsonb) is
   'Faol qarz muddatini qo''yish/o''zgartirish (deadline yoki oyma-oy). 2099-12-31 = muddatsiz belgisi. Oyma-oy/turi almashtirish faqat to''lov yo''q bo''lganda.';
 
 
--- ######## 2) QARZLAR + BALANS (bir martalik, idempotent) — natija jadvali qaytaradi ########
+-- ######## 2) QARZLAR (bir martalik, idempotent) — natija jadvali qaytaradi ########
 -- Kassa NOM bo'yicha topiladi (child, faol, konteyner emas) — bu bazada boshqa ishonchli belgi yo'q (PROVODKA_EHSON_KIRIM.sql bilan bir xil).
 -- UZS summalar Excel'dagi qiymat x 1000 (Excel'da «000» kam yozilgan) — quyida allaqachon yakuniy so'mda.
 create or replace function _ehson_qarz_royxat_20261017()
@@ -137,8 +139,6 @@ as $fn$
 declare
   v_bugun  date := (now() at time zone 'Asia/Tashkent')::date;
   v_muddatsiz constant date := date '2099-12-31';
-  v_hodisa constant text := 'balans_togrilandi_20261017b';
-  v_izoh_b constant text := 'Balans to''g''irlash 2026-10-17 (Asilbek, qarzlardan keyin)';
   v_kurs   numeric;
   v_t      record;
   v_cnt    int;
@@ -148,8 +148,6 @@ declare
   v_fc     numeric;
   v_summa  numeric;
   v_id     uuid;
-  v_cur    numeric;
-  v_farq   numeric;
 begin
   if exists (
     select 1 from pg_proc pr join pg_namespace ns on ns.oid = pr.pronamespace
@@ -239,84 +237,6 @@ begin
     return next;
   end loop;
 
-  -- ---------- B) BALANS: qarzlardan keyin maqsad qiymatga (yangi marker 'b') ----------
-  for v_t in
-    select * from (values
-      ('ehson asosiy', 'Ehson asosiy', 'naqd',   'UZS', 52775000::numeric),
-      ('ehson asosiy', 'Ehson asosiy', 'dollar', 'USD', 25730::numeric),
-      ('ehson soliq',  'Ehson soliq',  'naqd',   'UZS', 107449000::numeric),
-      ('ehson soliq',  'Ehson soliq',  'dollar', 'USD', 48715::numeric),
-      ('zakot',        'Zakot',        'naqd',   'UZS', 476000::numeric),
-      ('zakot',        'Zakot',        'dollar', 'USD', 0::numeric)
-    ) as x(kassa_key, kassa_nom, pul_kod, valyuta, maqsad)
-  loop
-    o_bolim := 'BALANS'; o_nom := null; o_kassa := v_t.kassa_nom; o_pul_turi := v_t.pul_kod; o_valyuta := v_t.valyuta;
-    o_summa := null; o_oldin := null; o_maqsad := v_t.maqsad; o_keyin := null;
-
-    select count(*), min(k.id::text)::uuid into v_cnt, v_kassa
-      from ehson_kassa k
-     where k.parent_id is not null and not k.is_container and k.is_active and lower(btrim(k.nom)) = v_t.kassa_key;
-    if v_cnt <> 1 then
-      o_holat := case when v_cnt = 0 then 'O''TKAZILDI: kassa nomi bo''yicha topilmadi' else 'O''TKAZILDI: bir nechta kassa shu nomda' end;
-      return next; continue;
-    end if;
-
-    select * into v_pt from ehson_pul_turi where kassa_id = v_kassa and kod = v_t.pul_kod and is_active;
-    if not found then
-      o_holat := 'O''TKAZILDI: faol pul turi yoq'; return next; continue;
-    end if;
-
-    perform pg_advisory_xact_lock(hashtext('ehson_kassa:' || v_kassa::text));
-
-    if v_t.valyuta = 'USD' then
-      select coalesce(sum(fc_qoldiq), 0) into v_cur from v_ehson_kassa_pul where kassa_id = v_kassa and pul_turi = v_t.pul_kod;
-    else
-      select coalesce(sum(qoldiq), 0) into v_cur from v_ehson_kassa_pul where kassa_id = v_kassa and pul_turi = v_t.pul_kod;
-    end if;
-    o_oldin := v_cur;
-
-    if exists (select 1 from ehson_tarix where obyekt = 'kassa' and obyekt_id = v_kassa
-                  and hodisa = v_hodisa and data->>'pul_turi' = v_t.pul_kod) then
-      o_keyin := v_cur; o_holat := 'allaqachon qo''llangan (o''tkazildi)'; return next; continue;
-    end if;
-
-    v_farq := v_t.maqsad - v_cur;
-    if v_farq = 0 then
-      perform _ehson_tarix_yoz('kassa', v_kassa, v_hodisa,
-        jsonb_build_object('pul_turi', v_t.pul_kod, 'oldin', v_cur, 'maqsad', v_t.maqsad, 'farq', 0));
-      o_keyin := v_cur; o_holat := 'farq 0 — yozuv kerak emas'; return next; continue;
-    end if;
-
-    if v_t.valyuta = 'USD' then
-      if v_kurs is null or v_kurs <= 0 then
-        o_holat := 'O''TKAZILDI: USD kursi yoq (Valyuta bo''limida kurs kiriting, so''ng qayta RUN)'; return next; continue;
-      end if;
-      v_fc := v_farq;
-      v_summa := round(v_farq * v_kurs);
-      if v_summa = 0 then v_summa := sign(v_farq); end if;
-    else
-      v_fc := null;
-      v_summa := v_farq;
-    end if;
-
-    insert into ehson_kirim (kassa_id, summa, sana, manba, izoh, created_by, pul_turi, valyuta, fc_summa, tur)
-    values (v_kassa, v_summa, v_bugun, 'Balans to''g''irlash', v_izoh_b, null, v_t.pul_kod, v_t.valyuta, v_fc, 'tuzatish')
-    returning id into v_id;
-
-    perform _ehson_tarix_yoz('kirim', v_id, 'balans_togrilandi',
-      jsonb_build_object('pul_turi', v_t.pul_kod, 'oldin', v_cur, 'maqsad', v_t.maqsad, 'farq', v_farq, 'summa', v_summa, 'marker', 'b'));
-    perform _ehson_tarix_yoz('kassa', v_kassa, v_hodisa,
-      jsonb_build_object('pul_turi', v_t.pul_kod, 'oldin', v_cur, 'maqsad', v_t.maqsad, 'farq', v_farq, 'kirim_id', v_id));
-
-    if v_t.valyuta = 'USD' then
-      select coalesce(sum(fc_qoldiq), 0) into v_cur from v_ehson_kassa_pul where kassa_id = v_kassa and pul_turi = v_t.pul_kod;
-    else
-      select coalesce(sum(qoldiq), 0) into v_cur from v_ehson_kassa_pul where kassa_id = v_kassa and pul_turi = v_t.pul_kod;
-    end if;
-    o_keyin := v_cur;
-    o_holat := 'YOZILDI (tuzatish ' || v_farq::text || ')';
-    return next;
-  end loop;
   return;
 end
 $fn$;
@@ -325,9 +245,9 @@ $fn$;
 revoke all on function _ehson_qarz_royxat_20261017() from public, anon, authenticated;
 
 comment on function _ehson_qarz_royxat_20261017() is
-  'Bir martalik: Excel ro''yxatidagi ehson qarzlari (asosiy/soliq) + balansni maqsadga qaytarish (marker balans_togrilandi_20261017b). Idempotent.';
+  'Bir martalik: Excel ro''yxatidagi ehson qarzlari (asosiy/soliq). Idempotent. Balansga tegmaydi.';
 
--- NATIJA JADVALI: QARZ qatorlari (ism, kassa, summa, valyuta) va BALANS qatorlari (oldin / maqsad / keyin)
+-- NATIJA JADVALI: QARZ qatorlari (ism, kassa, summa, valyuta)
 select * from _ehson_qarz_royxat_20261017();
 
 notify pgrst, 'reload schema';
