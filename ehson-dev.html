@@ -112,7 +112,7 @@
   .eh-chip-primary{background:var(--primary-soft);border-color:var(--primary-soft)}
   .eh-chip-primary .top{color:var(--primary)}
   .eh-chip-primary .v{color:var(--primary)}
-  @media(min-width:900px){ #ehCards{grid-template-columns:repeat(5,1fr)} }
+  @media(min-width:900px){ #ehCards{grid-template-columns:repeat(3,1fr)} }
   @media(max-width:600px){ .eh-cards{grid-template-columns:repeat(2,1fr)} }
   .eh-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);transition:box-shadow .15s}
   .eh-card:hover{box-shadow:var(--shadow-hover)}
@@ -479,9 +479,7 @@
     <div class="eh-tabpanel" id="eh-tab-bosh">
       <div class="eh-cards" id="ehCards">
         <div class="eh-chip eh-chip-primary"><div class="top"><i data-lucide="wallet"></i>Jamg'arma qoldig'i</div><div class="v">—</div><div class="sub" id="ehCardChildren"></div></div>
-        <div class="eh-chip"><div class="top"><i data-lucide="arrow-down-circle"></i>Jami to'plandi</div><div class="v">—</div><div class="sub">jurnaldan</div></div>
-        <div class="eh-chip"><div class="top"><i data-lucide="arrow-up-circle"></i>Jami berildi</div><div class="v">—</div></div>
-        <div class="eh-chip"><div class="top"><i data-lucide="calendar-check"></i>Bu oy reja/fakt</div><div class="v">—</div></div>
+        <div class="eh-chip" id="ehCardOy"><div class="top"><i data-lucide="calendar-check"></i>Bu oy reja/fakt</div><div class="v">—</div></div>
         <div class="eh-chip" id="ehCardYil"><div class="top"><i data-lucide="calendar-range"></i>Bu yil berildi</div><div class="v">—</div></div>
       </div>
       <div id="ehOilalarSoni" class="note" style="font-size:12.5px;color:var(--muted);margin:0 2px 14px"></div>
@@ -790,8 +788,6 @@
           <button type="button" class="btn" id="ehkInBtn" style="display:none" onclick="ehkInOpen()"><i data-lucide="plus"></i>Kirim qilish</button>
         </div>
         <div class="ehk-kassas" id="ehkKassas"><div class="empty">Yuklanmoqda…</div></div>
-        <div class="ehb-hint" style="margin-top:10px">Jamg'arma kompaniya balansiga kirmaydi — kassadan chiqqan pul.</div>
-        <div class="ehk-info" id="ehkInfo"><i data-lucide="info"></i><div><span id="ehkInfoTxt"></span></div></div>
       </div>
 
       <!-- Admin: Jamg'arma kassalari boshqaruvi (faqat zakot tuzilmasi bo'lganda ko'rinadi) -->
@@ -1304,8 +1300,6 @@ function renderDash(d){
   const kass=Array.isArray(d.kassalar)?d.kassalar:[];
   window.ehHasZakot = kass.some(k=>k.parent_id!=null || k.is_container===true);
   const qoldiq = kass.reduce((s,k)=>s+n0(k.qoldiq),0);
-  const kirim  = kass.reduce((s,k)=>s+n0(k.kirim),0);
-  const berish = kass.reduce((s,k)=>s+n0(k.berildi),0);
   const reja   = n0(d.bu_oy_reja);
   const fakt   = n0(d.bu_oy_fakt);
   const oh=d.oilalar_holat||{};
@@ -1313,9 +1307,7 @@ function renderDash(d){
   const cards=$('ehCards').children;
   cards[0].querySelector('.v').textContent=money(qoldiq);
   cards[0].classList.toggle('eh-neg', qoldiq<0);   // jurnalda kirim o'chirilib pul allaqachon berilgan — manfiy, qizil
-  cards[1].querySelector('.v').textContent=money(kirim);
-  cards[2].querySelector('.v').textContent=money(berish);
-  cards[3].querySelector('.v').textContent = reja>0 ? (money(fakt)+' / '+money(reja)) : money(fakt);
+  $('ehCardOy').querySelector('.v').textContent = reja>0 ? (money(fakt)+' / '+money(reja)) : money(fakt);
   const soniEl=$('ehOilalarSoni');
   if(oilalarSoni){ soniEl.textContent=oilalarSoni+" ta oila kuzatuvda"; soniEl.style.cursor='pointer'; soniEl.onclick=()=>window.ehTab('oilalar'); }
   else{ soniEl.textContent=''; soniEl.style.cursor=''; soniEl.onclick=null; }
@@ -1450,17 +1442,12 @@ function renderKirimKassa(kass, moddalar){
   moddalar=Array.isArray(moddalar)?moddalar:[];
   const box=$('ehkKassas'); if(!box) return;
   ehkInSyncBtn();
-  if(!kass.length){ box.innerHTML='<div class="empty">Jamg\'arma topilmadi</div>'; renderKirimInfo(false,null); return; }
+  if(!kass.length){ box.innerHTML='<div class="empty">Jamg\'arma topilmadi</div>'; return; }
   if(!window.ehHasZakot){
     box.innerHTML=kass.map(k=>`<div class="ehk-kcard${n0(k.qoldiq)<0?' eh-neg':''}">
         <div class="nom">${escapeHtml(k.nom||"Jamg'arma")}</div>
         <div class="v">${money(n0(k.qoldiq))}</div>
-        <div class="stats">
-          <span class="ehk-mstat out">Berildi <b>${money(n0(k.berildi))}</b></span>
-        </div>
       </div>`).join('');
-    const modda = moddalar.find(m=>String(m.kassa_id)===String(kass[0].id)) || moddalar[0] || null;
-    renderKirimInfo(false, modda);
     return;
   }
   // Zakot: ildiz (konteyner) sarlavha + har child (naqd/dollar/karta/click pul turlari bilan).
@@ -1478,23 +1465,10 @@ function renderKirimKassa(kass, moddalar){
     return `<div class="ehk-kcard${n0(k.qoldiq)<0?' eh-neg':''}">
       <div class="nom">${escapeHtml(k.nom||'')}${nofaol}</div>
       <div class="v">${money(n0(k.qoldiq))}</div>
-      <div class="stats">
-        <span class="ehk-mstat out">Berildi <b>${money(n0(k.berildi))}</b></span>
-      </div>
       ${pulRows?`<div class="stats" style="margin-top:6px">${pulRows}</div>`:''}
     </div>`;
   }).join('');
   box.innerHTML = headHtml + cardsHtml;
-  renderKirimInfo(true, null);
-}
-function renderKirimInfo(hasZakot, m){
-  const txt=$('ehkInfoTxt'); if(!txt) return;
-  if(hasZakot){
-    txt.innerHTML = `Har jamg'arma (masalan Zakot, Ehson asosiy) — o'z xarajat moddasiga ega. Buxgalteriya <b>Professional</b>da "Ehson jamg'armasi" → jamg'arma → pul turini tanlab yozadi, u shu yerda avtomat ko'rinadi. Jurnaldan kelgan kirim Ehson ichida bekor qilinmaydi (jurnalda o'chirilsa — shu yerda ham bekor bo'ladi). «Kirim qilish» (alohida ruxsat bilan) bilan yozilgan kirim faqat shu sahifada ko'rinadi.`;
-    return;
-  }
-  const modda = m ? (escapeHtml(m.code||'')+' '+escapeHtml(m.name||'')).trim() : "Ehson jamg'armasi moddasi (SQL RUN'dan keyin ochiladi)";
-  txt.innerHTML = `Jamg'armaga pul faqat jurnal orqali tushadi — buxgalteriya <b>Dt ${modda} / Kt kassa</b> provodkasini qiladi, u shu yerda avtomat ko'rinadi. Jurnaldan kelgan kirim Ehson ichida bekor qilinmaydi (jurnalda o'chirilsa — shu yerda ham bekor bo'ladi).`;
 }
 
 const EHK_LIMIT=50;
