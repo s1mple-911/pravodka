@@ -136,3 +136,11 @@ aylanma_qator     snapshot_id → aylanma_snapshot · bolim · ref text · nom �
    validate OK, 14 node; kreditsiz yaratildi) + tester.
 2. `aylanma-dev.html` (coder → designer → tester), nav 15+ faylga, index CARDS, perms-dev PAGES, promote PAGES.
 3. Telegram ogohlantirish + «Hozir hisoblash» webhook.
+
+## 8. Manba o'zgarishi (2026-10-17): Metabase → Aros `profit-summary` API
+
+Metabase «Profit report» 03.10 dan to'xtadi; Aros yangi endpoint berdi (`AROS_API_PROFIT_SUMMARY.md`). Yuqoridagi 2-bo'lim «1, 5 Tovar + brak» qatori va
+«Foyda» manbasi endi shu API: har ombor uchun `?warehouse_id=` (kecha) → [1] `total_stock_value`, [5] brak (`total_broken_value`, brak omborda kattasi),
+shu javoblardan kecha foyda per filial; umumiy javob (warehouse_id siz) = JAMI foyda + tekshiruv (Σ omborlar vs umumiy >1% → banner). Metabase node'lari
+o'chirildi. `manba.profit_api` (eski `manba.metabase` RPC'da ham o'qiladi). Patch: `N8N_AYLANMA_PROFIT_API.sh`, SQL: `PROVODKA_AYLANMA_PROFIT_API.sql`.
+

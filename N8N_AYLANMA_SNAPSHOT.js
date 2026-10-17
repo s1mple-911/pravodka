@@ -1,4 +1,8 @@
 // ============================================================================
+// ⚠️ ESKIRGAN (2026-10-17): bu fayl 2026-09-08 holati — live workflow undan ORQADA/oldinda: Kassa (Get Cachiers/Kassa IDs/Get Cachier Detail)
+// va Foyda (Foyda URL/Foyda Payload/sync_aylanma_foyda) node'lari bu yerda YO'Q, Metabase (MB Prep/Get Metabase) esa 2026-10-17 da Aros
+// profit-summary API ga almashtirilgan (Profit Prep/Get Profit WH/Get Profit Foyda). Haqiqat manbai: live workflow + N8N_AYLANMA_PROFIT_API.sh
+// (Postgres orqali patch), arxitektura: ARX_PROVODKA_AYLANMA.md 8-bo'lim, API: AROS_API_PROFIT_SUMMARY.md. Qayta yaratish kerak bo'lsa live JSON'dan oling.
 // «Aros Provodka - Aylanma Snapshot» — n8n Workflow SDK kodi (2026-09-08)
 // n8n'da YARATILGAN: o3BZP8uYatGkRu8b — https://n8n.arosmarket.com/workflow/o3BZP8uYatGkRu8b
 // validate_workflow OK (14 node), kreditsiz. Asilbek kreditlarni ulaydi, SQL RUN qilgach Publish qiladi.

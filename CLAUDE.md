@@ -1390,6 +1390,14 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   swr `kun:<sana|id>`, `trend:<kun>`. RPC yo'q → «SQL hali RUN qilinmagan», sahifa buzilmaydi. Nav: 17 dev faylda Ehson'dan keyin
   (`trending-up`), `hodim-dev`/`tannarx-dev` tegilmagan.
 
+- 🔴 **MANBA: Metabase → Aros `profit-summary` API (2026-10-17, `AROS_API_PROFIT_SUMMARY.md`, `PROVODKA_AYLANMA_PROFIT_API.sql`,
+  `N8N_AYLANMA_PROFIT_API.sh`, RUN/patch kutilmoqda).** Metabase «Profit report» 03.10 dan to'xtagan → 04.10 dan beri `aylanma_foyda` bo'sh edi.
+  `GET api.aros.uz/api/admin/v2/report/profit-summary/?start_date&end_date[&warehouse_id]` (USD; `total_stock_value`/`total_broken_value` sanaga
+  QARAMAYDI — joriy qoldiq). Workflow: har ombor + umumiy so'rov (kecha) → [1]/[5] + kecha foyda per filial; oldingi 4 kun JAMI; `BACKFILL_FROM`
+  (`Foyda URL`) 03.10 dan to'ldiradi — bir marta ishlagach `N8N_AYLANMA_PROFIT_API.sh --backfill-off`. `manba.profit_api`, `manba='aros_api'`,
+  `aylanma_foyda.warehouse_id`; filial nomi = Aros ombor nomi (Metabase nomidan farq qilishi mumkin; faqat `JAMI` hisobga kiradi). ≈73 so'rov/kun.
+  Brak omborda qiymat qaysi maydonda kelishi curl bilan tasdiqlanmagan (kod kattasini oladi). `N8N_AYLANMA_SNAPSHOT.js` eskirgan (live'dan orqada).
+
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
 
 Aros'da filial jo'natgan (`sent`) pul markaziy kassa «qabul qildi» bosguncha hech qayerda ko'rinmasdi.
