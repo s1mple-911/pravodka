@@ -1395,8 +1395,11 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   `GET api.aros.uz/api/admin/v2/report/profit-summary/?start_date&end_date[&warehouse_id]` (USD; `total_stock_value`/`total_broken_value` sanaga
   QARAMAYDI — joriy qoldiq). Workflow: har ombor + umumiy so'rov (kecha) → [1]/[5] + kecha foyda per filial; oldingi 4 kun JAMI; `BACKFILL_FROM`
   (`Foyda URL`) 03.10 dan to'ldiradi — bir marta ishlagach `N8N_AYLANMA_PROFIT_API.sh --backfill-off`. `manba.profit_api`, `manba='aros_api'`,
-  `aylanma_foyda.warehouse_id`; filial nomi = Aros ombor nomi (Metabase nomidan farq qilishi mumkin; faqat `JAMI` hisobga kiradi). ≈73 so'rov/kun.
-  Brak omborda qiymat qaysi maydonda kelishi curl bilan tasdiqlanmagan (kod kattasini oladi). `N8N_AYLANMA_SNAPSHOT.js` eskirgan (live'dan orqada).
+  `aylanma_foyda.warehouse_id`; filial nomi = Aros ombor nomi (Metabase nomidan farq qilishi mumkin; faqat `JAMI` hisobga kiradi). V1: ≈73 so'rov/kun (V2: 5).
+  🔴 **`warehouse_id` prod'da ISHLAMAYDI (2026-10-17 tekshirildi)** — har ombor so'rovi umumiy javob qaytardi (V1 xatosi: tovar 33x, brak 35x, filial foydasi
+  = umumiy nusxa). **SUMMARY-ONLY (V2, `N8N_AYLANMA_PROFIT_API_V2.sh`)**: [1]/[5] = umumiy `total_stock_value`/`total_broken_value` (sintetik «ombor» qatorlari
+  id 0 / -1), foyda faqat JAMI, 5 so'rov/kun; to'g'ri parametr nomi Aros'dan so'ralgan (`--wh-param`). Tozalash: `PROVODKA_AYLANMA_PROFIT_API_TOZALASH.sql`.
+  `N8N_AYLANMA_SNAPSHOT.js` eskirgan (live'dan orqada).
 
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
 

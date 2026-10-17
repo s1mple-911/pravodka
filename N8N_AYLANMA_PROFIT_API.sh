@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ⚠️ V1 — ESKIRGAN/XATOLI: Aros `warehouse_id` ni e'tiborga olmaydi (2026-10-17). Qo'llangan bo'lsa N8N_AYLANMA_PROFIT_API_V2.sh ishlating; yangi o'rnatishda ham avval V1, keyin V2.
 # =====================================================================
 # N8N_AYLANMA_PROFIT_API.sh — 2026-10-17 — «Aros Provodka - Aylanma Snapshot» (o3BZP8uYatGkRu8b)
 # Metabase O'RNIGA Aros yangi API: GET /api/admin/v2/report/profit-summary/ (AROS_API_PROFIT_SUMMARY.md).

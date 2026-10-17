@@ -3,6 +3,15 @@
 Aros bergan YANGI hisobot endpointi. Metabase «Profit report» (card `c89e54d0…`) 2026-10-03 dan to'xtagach va «materialreport total»
 (card `4f729857…`) o'rniga Aylanma sahifasi shundan oladi. Aros'dan **faqat o'qiydi**.
 
+## 🔴 `warehouse_id` prod'da ISHLAMAYDI (2026-10-17 tekshirildi) — SUMMARY-ONLY
+
+Prod'da `&warehouse_id=<id>` e'tiborga olinmaydi: 69 ta so'rovning (umumiy + har ombor) HAMMASI bir xil umumiy javob qaytardi
+(`total_stock_value` 2 636 886.84, `total_broken_value` 10 138.26, `total_profit` 5 647.09 — 16.10 uchun). V1 workflow shuning uchun tovar/brak/foyda
+per-filialni 33-35 marta ko'paytirib yozdi (tozalash: `PROVODKA_AYLANMA_PROFIT_API_TOZALASH.sql`). V2 (`N8N_AYLANMA_PROFIT_API_V2.sh`) faqat umumiy
+(warehouse_id siz) javobdan foydalanadi: [1] = `total_stock_value`, [5] = `total_broken_value`, foyda = JAMI. Kuniga 5 so'rov (kecha + oldingi 4 kun).
+To'g'ri parametr nomi Aros'dan so'ralgan; aytilsa `--wh-param <nom>` bilan yoqiladi (javob umumiydan farq qilmasa avtomat rad etiladi).
+Quyidagi «Provodka'da qayerda ishlatiladi» va so'rov soni bandlari V1 uchun yozilgan edi — V2 da per-ombor qismlari o'chiq.
+
 ## Endpoint
 
 ```
