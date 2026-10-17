@@ -1120,6 +1120,27 @@ tabi; deadline yoki oyma-oy; pul faqat ehson kassalardan; Ehson ruxsati bor har 
   Berish tabi mantiqi, muddat seg), ro'yxat (filtr Faol/Kechikkan/Yopilgan/Bekor/Hammasi), karta modali (grafik, to'lovlar,
   to'lov qabul qilish, bekor), Excel. To'lovni bekor qilish — v1 da YO'Q (keyingi bosqich).
 
+### Ehson ichida QO'LDA KIRIM + balans to'g'irlash (2026-10-17, `PROVODKA_EHSON_KIRIM.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: Ehson sahifasi ichida «Kirim qilish» (Professional'dagi kirim EMAS), faqat ehson kassalarga, izoh majburiy, boshqa hech
+qayerda ko'rinmasin; alohida ruxsat; 3 kassa balansini maqsadga to'g'irlash.
+- 🔴 **Yashirish usuli: yozuv `entry`/`entry_line`/`accounts` ga UMUMAN yozilmaydi.** Ehson balansi butunlay `ehson_*` jadvallarida
+  (`v_ehson_kassa_pul`), shuning uchun yangi kirim faqat `ehson_kirim` ga tushadi (`tur='qolda'`) — jurnal/hisobot/aylanma/kassa/Excel/bot
+  entry_line'dan o'qiydi va ularni ko'rmaydi; `texnik` token kabi server filtri KERAK EMAS. Hech bir o'qish funksiyasi o'zgarmadi.
+- **RPC** `ehson_kirim_qolda(p)`: ruxsat `ehson_pul_kirim_ok()` (admin YOKI bayroq), kassa = faol child (konteyner emas), pul turi faol,
+  izoh >= 3 (server + `ehson_kirim_qolda_izoh_check`), dollar pul turi -> `fc_summa` USD + `conv_baza_kurs('USD')`, sana kelajakda emas,
+  `ext_ref` takror himoyasi. `ehson_kirim.tur` (null=jurnaldan | qolda | tuzatish); `summa>0` check'i `tuzatish` uchun manfiyga yumshatildi.
+  `ehson_kirim_royxat` qatorga `tur` qo'shdi (ENG OXIRGI versiya shu faylda). Bekor qilish YO'Q (jurnaldan kelgan kirim kabi).
+- 🔴 **Ruxsat `ehson_pul_kirim` — BAYROQ** (`perms-dev.js` `FLAGS`, `perm_pages()` 23 kalit, SQL uni dinamik qo'shadi). `ehson_kirim`
+  (Professional'da Dt «Ehson jamg'armasi») bilan ARALASHTIRMA: u kompaniya pulini o'tkazadi, bu Ehson ichida pul yaratadi. admin-dev
+  `PVS_PAGES` (TaskFix repo) ga `{key:'ehson_pul_kirim', label:'Ehson: pul kirim qilish'}` qo'shilishi SHART, aks holda admin berolmaydi.
+- **UI** `ehson-dev.html` Kirim tabi: «Kirim qilish» tugmasi (`#ehkInBtn`, `permFlagOk('ehson_pul_kirim')` + `ehHasZakot`), modal
+  `#ehkInModal` (`ehkIn*`), tarixda tuzatish manfiy qizil, dollar ostida USD.
+- **Balans to'g'irlash**: `_ehson_balans_togrila_20261017()` (SQL editor'dan, authenticated'ga yopiq) — Ehson asosiy naqd 52 775 000 /
+  USD 25 730; Ehson soliq 107 449 000 / 48 715; Zakot 476 000 / 0. Hozirgi qoldiq `v_ehson_kassa_pul` dan o'qiladi (UZS `qoldiq`, USD
+  `fc_qoldiq`), farq `tur='tuzatish'` yoziladi. Idempotent — `ehson_tarix` belgisi `balans_togrilandi_20261017` (farq 0 bo'lsa ham).
+  Kassa NOM bo'yicha topiladi (child/faol) — topilmasa qator o'tkaziladi, natija jadvalida ko'rinadi.
+
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
 `tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +
