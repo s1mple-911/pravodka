@@ -14,7 +14,8 @@
 #
 #   ssh root@37.27.15.184 'bash -s' < /Users/s1mple/Projects/pravodka/N8N_AYLANMA_PROFIT_API_V2.sh
 #   ssh root@37.27.15.184 'bash -s -- --backfill-off' < ...          (backfill o'chirish; --backfill-on yoqish)
-#   ssh root@37.27.15.184 'bash -s -- --wh-param warehouse' < ...     (Aros to'g'ri parametr nomini aytganda; --wh-param-off qaytarish)
+#   ssh root@37.27.15.184 'bash -s -- --wh-param warehouse' < ...     (2026-10-22: TO'G'RI NOM = `warehouse` (warehouse_id EMAS), Asilbek tasdiqladi:
+#       .../profit-summary/?start_date=2026-10-16&end_date=2026-10-16&warehouse=61 — per-filial foyda + [1]/[5] per-ombor yana yoqiladi; --wh-param-off qaytarish)
 # Zaxira: /root/n8n-backups. Qayta ishga tushirish xavfsiz (o'zgarish yo'q bo'lsa hech narsa yozilmaydi).
 # =====================================================================
 set -euo pipefail

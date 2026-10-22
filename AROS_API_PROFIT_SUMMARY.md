@@ -3,7 +3,14 @@
 Aros bergan YANGI hisobot endpointi. Metabase «Profit report» (card `c89e54d0…`) 2026-10-03 dan to'xtagach va «materialreport total»
 (card `4f729857…`) o'rniga Aylanma sahifasi shundan oladi. Aros'dan **faqat o'qiydi**.
 
-## 🔴 `warehouse_id` prod'da ISHLAMAYDI (2026-10-17 tekshirildi) — SUMMARY-ONLY
+## ✅ 2026-10-22: to'g'ri parametr `warehouse` (`warehouse_id` EMAS)
+
+Asilbek: `?start_date=2026-10-16&end_date=2026-10-16&warehouse=61` — shu bilan filial kesimi ishlaydi. Yoqish (V2 skript, tayyor rejim):
+`N8N_AYLANMA_PROFIT_API_V2.sh --wh-param warehouse` → Publish → «Qolda ishga tushirish» (BACKFILL yoqiq bo'lsa 03.10 dan har kun per-filial ham
+to'ladi, ≈19 kun × 34 ombor ≈ 650 so'rov, bir martalik) → keyin `--backfill-off` → Publish. Himoya qoladi: ombor javobi umumiy bilan aynan teng bo'lsa
+rad etiladi (`profit_ogoh`). Quyidagi 2026-10-17 bo'limi tarix uchun.
+
+## 🔴 `warehouse_id` prod'da ISHLAMAYDI (2026-10-17 tekshirildi) — SUMMARY-ONLY (eskirgan, nom xato edi)
 
 Prod'da `&warehouse_id=<id>` e'tiborga olinmaydi: 69 ta so'rovning (umumiy + har ombor) HAMMASI bir xil umumiy javob qaytardi
 (`total_stock_value` 2 636 886.84, `total_broken_value` 10 138.26, `total_profit` 5 647.09 — 16.10 uchun). V1 workflow shuning uchun tovar/brak/foyda
@@ -15,12 +22,12 @@ Quyidagi «Provodka'da qayerda ishlatiladi» va so'rov soni bandlari V1 uchun yo
 ## Endpoint
 
 ```
-GET https://api.aros.uz/api/admin/v2/report/profit-summary/?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD[&warehouse_id=<id>]
+GET https://api.aros.uz/api/admin/v2/report/profit-summary/?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD[&warehouse=<id>]
 ```
 - Prod'da oddiy host `api.aros.uz` (Aros staging'da ko'rsatgan; prod'da ishlashi **hali curl bilan tasdiqlanmagan** — pastdagi tekshiruv).
 - Auth: boshqa Aros so'rovlari bilan bir xil HTTP Basic (n8n kredit `ArosBasicAuth2`). Kredit repoda YO'Q.
 - `start_date`, `end_date` — kun (Toshkent kuni), ikkalasi ham kiradi; bir kun = `start_date = end_date`.
-- `warehouse_id` — ixtiyoriy. **Yo'q** → butun kompaniya (summary); **bor** → shu ombor kesimi.
+- `warehouse` — ixtiyoriy (2026-10-22 gacha hujjatda `warehouse_id` deb yozilgan edi — u e'tiborga olinmaydi). **Yo'q** → butun kompaniya (summary); **bor** → shu ombor kesimi.
 
 ## Javob (hammasi USD)
 

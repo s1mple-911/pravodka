@@ -1399,6 +1399,8 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   🔴 **`warehouse_id` prod'da ISHLAMAYDI (2026-10-17 tekshirildi)** — har ombor so'rovi umumiy javob qaytardi (V1 xatosi: tovar 33x, brak 35x, filial foydasi
   = umumiy nusxa). **SUMMARY-ONLY (V2, `N8N_AYLANMA_PROFIT_API_V2.sh`)**: [1]/[5] = umumiy `total_stock_value`/`total_broken_value` (sintetik «ombor» qatorlari
   id 0 / -1), foyda faqat JAMI, 5 so'rov/kun; to'g'ri parametr nomi Aros'dan so'ralgan (`--wh-param`). Tozalash: `PROVODKA_AYLANMA_PROFIT_API_TOZALASH.sql`.
+  ✅ **2026-10-22: to'g'ri nom `warehouse`** (`…&warehouse=61`). Yoqish: `N8N_AYLANMA_PROFIT_API_V2.sh --wh-param warehouse` → Publish → qo'lda ishga
+  tushirish (backfill bilan per-filial tarix 03.10 dan) → `--backfill-off` → Publish. Shundan keyin [1]/[5] per-ombor, foyda modali per-filial.
   `N8N_AYLANMA_SNAPSHOT.js` eskirgan (live'dan orqada).
 
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
