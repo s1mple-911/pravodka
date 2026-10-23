@@ -384,6 +384,13 @@ Hisobot RPC'lari (`sb.rpc()` orqali, SECURITY INVOKER — anon o'qiy olmaydi):
   `cvXYNet()` = jami − ustama → konvertga ketadi; kurs/olinadigan summa NET'ga. Serverga `p_amount=NET`, `p_ustama=summa`,
   `p_ustama_foiz=null` (server foizni p_amount'dan hisoblardi — JAMIdan emas; shuning uchun foiz klientda). Server
   (`convert_valyuta_v4`) O'ZGARMAGAN: u kassadan `p_amount + ustama` = JAMI chiqaradi, konvert yozuvida NET. Ustama ≥ jami → rad.
+- 🔴 **Konvert v4 — YANGI KETMA-KETLIK, usti USTIGA (2026-10-23, Asilbek, Excel jadvali; `konvert-dev`, `professional-dev`,
+  blok bir xil)**: 1) olingan valyuta hisobi (`#cvXYTo`, sukut USD bo'lmagan) → 2) qancha olindi → 3) kurs (1 FROM = ? TO) →
+  4) berilgan valyuta hisobi (`#cvXYFrom`, sukut USD) + **qancha berildi = olindi ÷ kurs** (avtomat; qo'lda tuzatilsa kurs
+  qayta hisoblanadi, `cvXYLastEdit` 'rate'/'amount') → 5) **usti** — foiz (sukut) yoki qo'lda summa, berilgan valyutada
+  → 6) **JAMI = berildi + usti** (`#cvXYJami`, kassadan chiqadi). 2026-10-05 dagi «ustama ichidan» BEKOR. Serverga
+  `p_amount=berildi (NET)`, `p_ustama=usti`, `p_ustama_foiz=null` — `convert_valyuta_v4` O'ZGARMAGAN (kassadan NET+usti).
+  Usti ≥ berildi → rad. Izohga avtomat: «olindi …, kurs …, berildi … + usti … = jami …».
 
 Konvert RPC'lari (tugma + modal `kassa.html`da — `openConv()`/`convSave()`):
 - `aros_usd_rate()` → **oddiy numeric** (koridor emas). Koridor frontendda: `lo=rate*0.98`, `hi=rate*1.02`.
