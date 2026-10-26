@@ -688,6 +688,8 @@
           <!-- Avval qarz olgan shaxslar (ehson_qarz, qarzdor_turi='shaxs') — tanlansa ism+telefon to'ldiriladi -->
           <div class="ehb-picklist" id="ehqShaxsPickList" style="margin-top:0"></div>
         </div>
+        <!-- Tanlangan qarzdorda faol qarz bo'lsa — yangi qarz umumiy qarzga qo'shilishi eslatiladi (ehson_qarz_guruh_royxat) -->
+        <div class="ehb-hint" id="ehqQarzdorHint" style="display:none;margin-top:10px"></div>
 
         <div class="ehb-qoldiq" id="ehqQoldiq" style="margin-top:14px">Jamg'arma: —</div>
         <div class="ehk-field" id="ehqKassaSelWrap" style="display:none">
@@ -788,6 +790,7 @@
       <div class="eh-card" style="margin-bottom:16px">
         <div class="eh-card-head"><h3>Jamg'arma</h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button type="button" class="btn ghost" id="ehkCvBtn" style="display:none" onclick="ehkCvOpen()"><i data-lucide="refresh-cw"></i>Konvert</button>
             <button type="button" class="btn ghost" id="ehkTrBtn" style="display:none" onclick="ehkTrOpen()"><i data-lucide="arrow-left-right"></i>O'tkazma</button>
             <button type="button" class="btn" id="ehkInBtn" style="display:none" onclick="ehkInOpen()"><i data-lucide="plus"></i>Kirim qilish</button>
           </div>
@@ -797,7 +800,7 @@
 
       <!-- Kassalar aro o'tkazmalar (PROVODKA_EHSON_TRANSFER.sql) — faqat zakot tuzilmasi + RPC bor bo'lsa ko'rinadi -->
       <div class="eh-card" id="ehkTrCard" style="display:none;margin-bottom:16px">
-        <div class="eh-card-head"><h3>Kassalar aro o'tkazmalar</h3><div class="ehk-stat" id="ehkTrStat" style="margin:0"></div></div>
+        <div class="eh-card-head"><h3>O'tkazmalar va konvertlar</h3><div class="ehk-stat" id="ehkTrStat" style="margin:0"></div></div>
         <div id="ehkTrListWrap"><div class="empty">Yuklanmoqda…</div></div>
         <button class="btn ghost" id="ehkTrMore" style="display:none;width:100%;justify-content:center;margin-top:12px" onclick="ehkTrLoadMore()">Yana 50 ta</button>
       </div>
@@ -967,6 +970,39 @@
     </div>
   </div>
   <!-- /Ehson o'tkazma modali -->
+
+  <!-- Ehson konvert modali (PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql): kassadagi $ -> so'm yoki so'm -> $, kurs bilan -->
+  <div class="eh-modal" id="ehkCvModal" onclick="if(event.target===this)ehkCvClose()">
+    <div class="eh-modal-box">
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800">Konvert ($ ↔ so'm)</h3>
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">Ehson kassasidagi dollarni so'mga (yoki so'mni dollarga) kiritilgan kurs bilan o'tkazadi. Pul Ehson ichida qoladi, kompaniya konvertiga aloqasi yo'q.</div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label>Qayerdan</label><select class="ehk-input" id="ehkCvFrom" onchange="ehkCvFromChange()"></select></div>
+        <div class="ehk-field"><label>Pul turi</label><select class="ehk-input" id="ehkCvFromPul" onchange="ehkCvFromPulChange()"></select></div>
+      </div>
+      <div class="ehk-pulq" id="ehkCvQoldiq" style="margin:-8px 0 12px"></div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label>Qayerga</label><select class="ehk-input" id="ehkCvTo" onchange="ehkCvToChange()"></select></div>
+        <div class="ehk-field"><label>Pul turi</label><select class="ehk-input" id="ehkCvToPul" onchange="ehkCvToPulChange()"></select></div>
+      </div>
+      <div class="ehk-pulq" id="ehkCvToQoldiq" style="margin:-8px 0 12px"></div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label id="ehkCvSummaLbl">Summa (USD)</label><input class="ehk-input ehk-input-lg" id="ehkCvSumma" inputmode="decimal" placeholder="0" oninput="ehkCvSumma(this)"></div>
+        <div class="ehk-field"><label>Kurs (1 $ = … so'm)</label><input class="ehk-input ehk-input-lg" id="ehkCvKurs" inputmode="decimal" placeholder="12 700" oninput="ehkCvKursInput(this)"></div>
+      </div>
+      <div class="ehb-hint" id="ehkCvNatija" style="margin:-6px 0 12px"></div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label>Sana</label><input class="ehk-input" id="ehkCvSana" type="date"></div>
+        <div class="ehk-field"><label>Izoh</label><input class="ehk-input" id="ehkCvIzoh" maxlength="300" placeholder="Ixtiyoriy"></div>
+      </div>
+      <div id="ehkCvMsg" class="ehk-msg"></div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn" id="ehkCvSave" style="flex:1;justify-content:center" onclick="ehkCvSave()"><i data-lucide="refresh-cw"></i>Konvert qilish</button>
+        <button class="btn ghost" style="flex:1;justify-content:center" onclick="ehkCvClose()">Yopish</button>
+      </div>
+    </div>
+  </div>
+  <!-- /Ehson konvert modali -->
 
   <!-- Ehson berish: bekor qilish modali (4-bosqich) -->
   <div class="eh-modal" id="ehbBekorModal" onclick="if(event.target===this)ehbBekorClose()">
@@ -1140,6 +1176,18 @@
   <!-- /Excel import -->
 
   <!-- Qarz kartasi -->
+  <!-- Qarzdorning UMUMIY qarzi (guruh): har qarz o'z muddati bilan + umumiy to'lov (PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql) -->
+  <div class="eh-modal" id="ehqGuruhModal" onclick="if(event.target===this)ehqGuruhClose()">
+    <div class="eh-modal-box wide">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <h3 style="margin:0;font-size:17px;font-weight:800">Umumiy qarz</h3>
+        <button class="btn ghost" onclick="ehqGuruhClose()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="eho-body" id="ehqGuruhBody"><div class="empty">Yuklanmoqda…</div></div>
+    </div>
+  </div>
+  <!-- /Umumiy qarz -->
+
   <div class="eh-modal" id="ehqKartModal" onclick="if(event.target===this)ehqKartClose()">
     <div class="eh-modal-box wide">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
@@ -1150,6 +1198,7 @@
     </div>
   </div>
   <!-- /Qarz kartasi -->
+
 </div>
 
 <script type="module">
@@ -1712,7 +1761,7 @@ const EHK_TR_XATO={ kassa_kerak:"Ikkala kassani tanlang", kassa_topilmadi:"Kassa
   kurs_yoq:"USD kursi yo'q — avval Valyuta bo'limida kursni kiriting", sana_notogri:"Sana kelajakda bo'lishi mumkin emas",
   qoldiq_yetmaydi:"Chiqqan kassada mablag' yetarli emas" };
 function ehkTrCanUse(){ return !!(window.ehHasZakot && !ehkTrRpcYoq && (window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length).length>=1); }
-function ehkTrSyncBtn(){ const b=$('ehkTrBtn'); if(b) b.style.display=ehkTrCanUse()?'':'none'; }
+function ehkTrSyncBtn(){ const b=$('ehkTrBtn'); if(b) b.style.display=ehkTrCanUse()?'':'none'; const c=$('ehkCvBtn'); if(c) c.style.display=ehkCvCanUse()?'':'none'; }
 function ehkTrKassa(sel){ return (window.ehZakotKassalar||[]).find(k=>String(k.id)===String($(sel).value))||null; }
 function ehkTrPul(kSel,pSel){ const k=ehkTrKassa(kSel); if(!k) return null; return (k.pul_turlari||[]).find(t=>t.kod===$(pSel).value)||null; }
 function ehkTrFromPulObj(){ return ehkTrPul('ehkTrFrom','ehkTrFromPul'); }
@@ -1836,10 +1885,16 @@ window.ehkTrLoadMore=async()=>{
   try{ await loadTransfer(); } finally { ehkTr.busy=false; }
 };
 function ehkTrAmt(r){
+  if(r.turi==='konvert'){
+    // konvert: chiqqan tomon o'z valyutasida → kirgan tomon o'z valyutasida, kurs kichik yozuvda
+    const from = r.valyuta==='USD' ? (money(n0(r.fc_summa))+' $') : (money(n0(r.summa))+" so'm");
+    const to = (r.to_valyuta||'UZS')==='USD' ? (money(n0(r.to_fc_summa))+' $') : (money(n0(r.to_summa))+" so'm");
+    return from+' → '+to+'<small>kurs '+money(n0(r.kurs))+'</small>';
+  }
   return r.valyuta==='USD' ? (money(n0(r.fc_summa))+' $<small>'+money(n0(r.summa))+" so'm</small>") : (money(n0(r.summa))+" so'm");
 }
 function ehkTrYonalish(r){
-  return `${escapeHtml(r.from_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.from_pul_nom||ehzTuriLabel(r.from_pul_turi))}</span>
+  return `${r.turi==='konvert'?'<span class="eho-badge kuzatuv" style="margin-right:6px">Konvert</span>':''}${escapeHtml(r.from_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.from_pul_nom||ehzTuriLabel(r.from_pul_turi))}</span>
     <span style="color:var(--muted);margin:0 6px">→</span>
     ${escapeHtml(r.to_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.to_pul_nom||ehzTuriLabel(r.to_pul_turi))}</span>`;
 }
@@ -1908,6 +1963,131 @@ window.ehkTrBekorDo=async id=>{
   }
   window.ehkTrBekorCancel();
   window.ehRefresh();
+};
+
+// ---- KONVERT ($ ↔ so'm) Ehson kassalari ichida (PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql) — #ehkCvModal ----
+// RPC ehson_konvert_yoz(p): {from_kassa_id,from_pul_turi,to_kassa_id,to_pul_turi,summa (CHIQQAN valyutada),kurs,sana,izoh,ext_ref}
+// -> {ok,id,summa,fc_summa,to_valyuta,to_summa,to_fc_summa,kurs}|{ok:false,kod}. Yozuv ehson_transfer'da turi='konvert'
+// (ro'yxat — o'tkazmalar kartasida, «Konvert» belgisi bilan). Faqat USD ↔ UZS; «Qayerga» pul turlari QARAMA-QARSHI
+// valyutaga filtrlanadi (sukut — o'sha kassa). Kurs sukuti ehson_kurs_usd() (conv_baza_kurs), foydalanuvchi o'zgartiradi.
+let ehkCvExtRef=null;
+const EHK_CV_XATO=Object.assign({}, EHK_TR_XATO, {
+  valyuta_bir_xil:"Ikkala tomon bir xil valyutada — bu konvert emas, «O'tkazma» tugmasidan foydalaning",
+  valyuta_qollanmaydi:"Faqat $ ↔ so'm konvert qilinadi", kurs_notogri:"Kursni to'g'ri kiriting" });
+function ehkCvCanUse(){
+  if(!ehkTrCanUse()) return false;
+  const puls=(window.ehZakotKassalar||[]).flatMap(k=>Array.isArray(k.pul_turlari)?k.pul_turlari:[]);
+  return puls.some(t=>(t.valyuta||'UZS')==='USD') && puls.some(t=>(t.valyuta||'UZS')==='UZS');
+}
+function ehkCvFromPulObj(){ return ehkTrPul('ehkCvFrom','ehkCvFromPul'); }
+function ehkCvToPulObj(){ return ehkTrPul('ehkCvTo','ehkCvToPul'); }
+function ehkCvIsUsd(){ const t=ehkCvFromPulObj(); return !!(t && t.valyuta==='USD'); }
+function ehkCvVals(){
+  const usd=ehkCvIsUsd();
+  const raw=String($('ehkCvSumma').value||'');
+  const val = usd ? (Number(raw.replace(',','.'))||0) : (Number(raw.replace(/\D/g,''))||0);
+  const kurs = Number(String($('ehkCvKurs').value||'').replace(/\s/g,'').replace(',','.'))||0;
+  return {usd,val,kurs};
+}
+function ehkCvNatija(){
+  const {usd,val,kurs}=ehkCvVals(); const box=$('ehkCvNatija'); if(!box) return;
+  if(!(val>0 && kurs>0)){ box.textContent=''; return; }
+  box.textContent = usd ? ('Olinadi: '+money(Math.round(val*kurs))+" so'm") : ('Olinadi: '+money(Math.round(val/kurs*100)/100)+' $');
+}
+window.ehkCvOpen=async()=>{
+  if(!ehkCvCanUse()) return;
+  const ks=(window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length);
+  const msg=$('ehkCvMsg'); msg.className='ehk-msg'; msg.textContent='';
+  const opts=ks.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
+  $('ehkCvFrom').innerHTML=opts; $('ehkCvTo').innerHTML=opts;   // sukut: ikkalasi ham birinchi kassa (bir kassa ichida $ -> so'm)
+  // sukut chiqish pul turi — USD bo'lgani (odatda dollarni so'mga qilishadi)
+  $('ehkCvSumma').value=''; $('ehkCvKurs').value=''; $('ehkCvIzoh').value=''; $('ehkCvNatija').textContent='';
+  const today=todayUz(); $('ehkCvSana').value=today; $('ehkCvSana').max=today;
+  if(!ehkCvExtRef){ try{ ehkCvExtRef='ehson_cv:'+crypto.randomUUID(); }catch(e){ ehkCvExtRef='ehson_cv:'+Date.now()+'-'+Math.random().toString(36).slice(2); } }
+  window.ehkCvFromChange(true);
+  $('ehkCvModal').classList.add('open');
+  icons();
+  try{
+    const {data}=await sb.rpc('ehson_kurs_usd');
+    if(n0(data)>0 && !$('ehkCvKurs').value){ $('ehkCvKurs').value=money(n0(data)); ehkCvNatija(); }
+  }catch(e){}
+};
+window.ehkCvClose=()=>{ $('ehkCvModal').classList.remove('open'); };
+window.ehkCvFromChange=(first)=>{
+  const k=ehkTrKassa('ehkCvFrom');
+  const puls=k?(k.pul_turlari||[]):[];
+  const sel=$('ehkCvFromPul');
+  sel.innerHTML=puls.map(t=>`<option value="${escapeHtml(t.kod)}">${escapeHtml(t.nom||ehzTuriLabel(t.kod))} · ${ehkTrQoldiqTxt(t)}</option>`).join('');
+  if(first===true){ const u=puls.find(t=>(t.valyuta||'UZS')==='USD'); if(u) sel.value=u.kod; }
+  window.ehkCvFromPulChange();
+};
+window.ehkCvFromPulChange=()=>{
+  const t=ehkCvFromPulObj(), usd=ehkCvIsUsd();
+  $('ehkCvSummaLbl').textContent = usd ? 'Summa (USD)' : "Summa (so'm)";
+  $('ehkCvQoldiq').textContent = t ? ('Qoldiq: '+ehkTrQoldiqTxt(t)) : '';
+  $('ehkCvSumma').value='';   // valyuta almashsa eski son boshqa birlikda qolib ketmasin
+  window.ehkCvToChange();
+};
+window.ehkCvToChange=()=>{
+  const k=ehkTrKassa('ehkCvTo'), fp=ehkCvFromPulObj();
+  const want=((fp&&fp.valyuta)||'UZS')==='USD' ? 'UZS' : 'USD';   // qarama-qarshi valyuta
+  const puls=(k?(k.pul_turlari||[]):[]).filter(t=>(t.valyuta||'UZS')===want);
+  const sel=$('ehkCvToPul');
+  sel.innerHTML=puls.map(t=>`<option value="${escapeHtml(t.kod)}">${escapeHtml(t.nom||ehzTuriLabel(t.kod))} · ${ehkTrQoldiqTxt(t)}</option>`).join('');
+  window.ehkCvToPulChange();
+};
+window.ehkCvToPulChange=()=>{
+  const t=ehkCvToPulObj(), fp=ehkCvFromPulObj();
+  const want=((fp&&fp.valyuta)||'UZS')==='USD' ? "so'm" : 'dollar';
+  $('ehkCvToQoldiq').textContent = t ? ('Qoldiq: '+ehkTrQoldiqTxt(t)) : ("Bu kassada "+want+" pul turi yo'q");
+  ehkCvNatija();
+};
+window.ehkCvSumma=el=>{
+  if(ehkCvIsUsd()){
+    let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+    const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+    el.value=raw;
+  }else{ window.ehFmtAmt(el); }
+  ehkCvNatija();
+};
+window.ehkCvKursInput=el=>{
+  let raw=String(el.value||'').replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+  const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+  el.value=raw;
+  ehkCvNatija();
+};
+window.ehkCvSave=async()=>{
+  const msg=$('ehkCvMsg'); msg.className='ehk-msg';
+  const fail=t=>{ msg.classList.add('err'); msg.textContent=t; };
+  const {usd,val,kurs}=ehkCvVals();
+  const fromId=$('ehkCvFrom').value, fromPul=$('ehkCvFromPul').value, toId=$('ehkCvTo').value, toPul=$('ehkCvToPul').value;
+  if(!fromId || !fromPul) return fail("Qayerdan: kassa va pul turini tanlang");
+  if(!toId || !toPul) return fail("Qayerga: "+(usd?"so'm":"dollar")+" pul turi bor kassani tanlang");
+  if(!(val>0)) return fail('Summani kiriting');
+  if(!(kurs>0)) return fail(EHK_CV_XATO.kurs_notogri);
+  const fp=ehkCvFromPulObj();
+  const qoldiq = fp ? (usd?n0(fp.fc_qoldiq):n0(fp.qoldiq)) : 0;
+  if(val>qoldiq) return fail(EHK_TR_XATO.qoldiq_yetmaydi+' (qoldiq '+(usd?(money(qoldiq)+' $'):(money(qoldiq)+" so'm"))+')');
+  const p={ from_kassa_id:fromId, from_pul_turi:fromPul, to_kassa_id:toId, to_pul_turi:toPul, summa:val, kurs,
+            sana:$('ehkCvSana').value||undefined, izoh:($('ehkCvIzoh').value||'').trim()||undefined, ext_ref:ehkCvExtRef };
+  const btn=$('ehkCvSave'); btn.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('ehson_konvert_yoz',{p});
+    if(error){
+      fail((error.code==='PGRST202'||error.code==='42883') ? "SQL hali RUN qilinmagan (PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql)" : (window.permErr?window.permErr(error):error.message));
+      return;
+    }
+    if(!data) return fail("Bo'sh javob");
+    if(data.ok===false && data.kod!=='takror'){
+      let t=EHK_CV_XATO[data.kod]||('Xato: '+(data.kod||"noma'lum"));
+      if(data.kod==='qoldiq_yetmaydi' && data.qoldiq!=null) t+=' (qoldiq '+(data.valyuta==='USD'?(money(n0(data.qoldiq))+' $'):(money(n0(data.qoldiq))+" so'm"))+')';
+      return fail(t);
+    }
+    // 'takror' = shu forma avval saqlangan (qayta yuborish xavfsiz) — muvaffaqiyat deb olinadi
+    ehkCvExtRef=null;
+    window.ehkCvClose();
+    window.ehRefresh();
+  } finally { btn.disabled=false; }
 };
 
 // ---- Admin: "Jamg'arma kassalari" boshqaruvi (ehson_kassa_daraxt) — .ehz-* -----------------
@@ -3723,7 +3903,13 @@ window.ehqFilterChange=()=>{
   ehqData.offset=0; loadQarz();
 };
 window.ehqLoadMore=()=>{ ehqData.offset+=EHQ_LIMIT; loadQarz(); };
-function ehqFiltrKey(){ return 'qarz:'+JSON.stringify({holat:ehqData.holat,q:ehqData.q,kassa:ehqData.kassaId}); }
+// 2026-10-26 (Asilbek: «oldin qarz bergan odamga yana qarz — 1 ta umumiy bo'lib saqlansin, ustiga bosganda har qarz muddati
+// chiqsin»): ro'yxat endi QARZDOR BO'YICHA GURUH — ehson_qarz_guruh_royxat (PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql):
+// rows:[{kalit,valyuta,qarzdor_nom,…,soni,faol_soni,berildi,tolandi,qoldi,keyingi_sana,kechikkan_kun,holat,oxirgi_sana,
+// kassa_nomlar,qarzlar:[eski qator…]}]. RPC yo'q (PGRST202/42883) -> ehqGuruhYoq=true, eski ehson_qarz_royxat (har qarz
+// alohida) bilan ishlayveradi. Excel eksport har doim eski RPC (har qarz alohida qator) — o'zgarmagan.
+let ehqGuruh=false, ehqGuruhYoq=false;
+function ehqFiltrKey(){ return (ehqGuruhYoq?'qarz:':'qarzg:')+JSON.stringify({holat:ehqData.holat,q:ehqData.q,kassa:ehqData.kassaId}); }
 function ehqPayload(){
   const p={ limit:EHQ_LIMIT, offset:ehqData.offset };
   if(ehqData.holat) p.holat=ehqData.holat;
@@ -3732,23 +3918,30 @@ function ehqPayload(){
   return p;
 }
 async function loadQarz(fresh){
+  if(fresh) ehqData.offset=0;   // 2026-10-26: «Yana 50 ta»dan keyin yangilash oxiriga qo'shib yubormasin
   const isMore=ehqData.offset>0;
   const key=ehqFiltrKey();
   const cached=(fresh||isMore)?null:swrGet(key);
-  if(cached) renderQarz(cached,false);
-  const {data,error}=await sb.rpc('ehson_qarz_royxat',{p:ehqPayload()});
+  if(cached){ const cr=cached.rows||[]; ehqGuruh = cr.length ? ('kalit' in cr[0]) : !ehqGuruhYoq; renderQarz(cached,false); }
+  let res = ehqGuruhYoq ? null : await sb.rpc('ehson_qarz_guruh_royxat',{p:ehqPayload()});
+  if(res && res.error && (res.error.code==='PGRST202' || res.error.code==='42883' || /function .* does not exist/i.test(res.error.message||''))){
+    ehqGuruhYoq=true; res=null;   // guruh SQL hali RUN qilinmagan — eski ro'yxat
+  }
+  if(!res) res = await sb.rpc('ehson_qarz_royxat',{p:ehqPayload()});
+  const {data,error}=res;
   if(error){
     if(isMore) ehqData.offset-=EHQ_LIMIT;
     if(!ehqMissingFn(error) && !cached) showErr('Xato: '+error.message);
     return;
   }
+  ehqGuruh=!ehqGuruhYoq;
   if(!data || data.ok===false){
     if(isMore) ehqData.offset-=EHQ_LIMIT;
     showErr('Xato: '+((data&&data.kod)||"noma'lum"));
     return;
   }
   showErr(''); showInfo('');
-  if(!isMore) swrSet(key,data);
+  if(!isMore) swrSet(ehqFiltrKey(),data);   // kalit fallback aniqlangandan KEYIN (qarzg:/qarz: aralashmasin)
   renderQarz(data,isMore);
 }
 function renderQarzStat(d){
@@ -3787,9 +3980,55 @@ function ehqRowMobile(r){
     <div class="ehk-row-meta">${escapeHtml(ehqMuddatTxt(r))} · ${fmtDate(r.sana)}</div>
   </div>`;
 }
+// ---- Guruh qatorlari (qarzdor = bitta umumiy qarz) ----
+function ehqGuruhMuddatTxt(g){
+  const qs=Array.isArray(g.qarzlar)?g.qarzlar:[];
+  if(n0(g.soni)<=1 && qs.length){ const q=qs.find(x=>x.holat!=='bekor')||qs[0]; return ehqMuddatTxt(q); }
+  const faol=qs.filter(x=>x.holat==='faol');
+  if(!faol.length) return n0(g.soni)+' ta qarz';
+  return n0(g.soni)+' ta qarz'+(g.keyingi_sana?(' · keyingi '+fmtDate(g.keyingi_sana)):'')+(faol.some(ehqMuddatsiz)?' · muddatsiz bor':'');
+}
+function ehqGuruhSoniChip(g){ return n0(g.soni)>1 ? `<span class="eho-badge kuzatuv" style="margin-left:6px">${n0(g.soni)} ta qarz</span>` : ''; }
+function ehqGuruhRowDesktop(g,i){
+  return `<tr onclick="ehqGuruhOpen(${i})" style="cursor:pointer">
+    <td>${escapeHtml(g.qarzdor_nom||'')}${ehqGuruhSoniChip(g)}<br><span class="eho-kod">${g.oila_kod?escapeHtml(g.oila_kod):(g.telefon?escapeHtml(g.telefon):'')}</span></td>
+    <td>${escapeHtml(g.kassa_nomlar||'')}</td>
+    <td class="ehk-amt">${ehqFmtLoanAmt(g.valyuta,g.berildi)}</td>
+    <td class="ehk-amt">${ehqFmtLoanAmt(g.valyuta,g.tolandi)}</td>
+    <td class="ehk-amt">${ehqFmtLoanAmt(g.valyuta,g.qoldi)}</td>
+    <td>${escapeHtml(ehqGuruhMuddatTxt(g))}</td>
+    <td>${ehqHolatChipHtml(g)}</td>
+    <td>${fmtDate(g.oxirgi_sana)}</td>
+  </tr>`;
+}
+function ehqGuruhRowMobile(g,i){
+  return `<div class="ehk-row" onclick="ehqGuruhOpen(${i})" style="cursor:pointer">
+    <div class="ehk-row-top">
+      <div class="ehk-row-manba">${escapeHtml(g.qarzdor_nom||'')}${ehqGuruhSoniChip(g)}</div>
+      ${ehqHolatChipHtml(g)}
+    </div>
+    <div class="ehk-row-meta">${g.oila_kod?escapeHtml(g.oila_kod):''}${g.telefon?(' · '+escapeHtml(g.telefon)):''}</div>
+    <div class="ehk-row-meta">${escapeHtml(g.kassa_nomlar||'')}</div>
+    <div class="ehk-row-top" style="margin-top:4px">
+      <div class="ehk-row-meta">Berildi <b>${ehqFmtLoanAmt(g.valyuta,g.berildi)}</b></div>
+      <div class="ehk-row-meta">Qoldi <b>${ehqFmtLoanAmt(g.valyuta,g.qoldi)}</b></div>
+    </div>
+    <div class="ehk-row-meta">${escapeHtml(ehqGuruhMuddatTxt(g))} · ${fmtDate(g.oxirgi_sana)}</div>
+  </div>`;
+}
 function renderQarzTable(){
   const wrap=$('ehqListWrap');
   if(!ehqData.rows.length){ wrap.innerHTML='<div class="empty">Qarz topilmadi</div>'; $('ehqMore').style.display='none'; return; }
+  if(ehqGuruh){
+    wrap.innerHTML = `<div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
+        <th>Qarzdor</th><th>Jamg'arma</th><th style="text-align:right">Berildi</th><th style="text-align:right">To'landi</th><th style="text-align:right">Qoldi</th><th>Muddat</th><th>Holat</th><th>Oxirgi</th>
+      </tr></thead><tbody>${ehqData.rows.map(ehqGuruhRowDesktop).join('')}</tbody></table></div>
+      <div class="ehk-mlist">${ehqData.rows.map(ehqGuruhRowMobile).join('')}</div>`;
+    $('ehqMore').style.display = ehqData.rows.length<ehqData.jami ? '' : 'none';
+    icons();
+    ehqGuruhSync();   // ochiq umumiy qarz modali yangi ma'lumot bilan qayta chiziladi
+    return;
+  }
   wrap.innerHTML = `<div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
       <th>Qarzdor</th><th>Jamg'arma</th><th style="text-align:right">Berildi</th><th style="text-align:right">To'landi</th><th style="text-align:right">Qoldi</th><th>Muddat</th><th>Holat</th><th>Sana</th>
     </tr></thead><tbody>${ehqData.rows.map(ehqRowDesktop).join('')}</tbody></table></div>
@@ -3929,6 +4168,7 @@ window.ehqTurPick=v=>{
   $('ehqOilaBox').style.display = v==='oila' ? 'block':'none';
   $('ehqShaxsBox').style.display = v==='shaxs' ? 'block':'none';
   const spl=$('ehqShaxsPickList'); if(spl) spl.innerHTML='';
+  ehqQarzdorHintHide();
 };
 // Oila qidiruv — ehbQ/ehbPickList (~4-bosqich) bilan bir xil chaqiruv (ehson_royxat), faqat
 // natija shu yerda (ehqOilaRowsCache) saqlanadi — qayta RPC chaqirmasdan chipni to'ldirish uchun.
@@ -3965,8 +4205,9 @@ window.ehqOilaPick=id=>{
     </div>
     <button class="btn ghost ehb-sel-other" onclick="ehqOilaClear()"><i data-lucide="x"></i></button>`;
   icons();
+  ehqQarzdorHint({oila_id:id});
 };
-window.ehqOilaClear=()=>{ ehqOilaId=null; ehqOilaRow=null; $('ehqOilaSel').style.display='none'; $('ehqOilaSel').innerHTML=''; };
+window.ehqOilaClear=()=>{ ehqOilaId=null; ehqOilaRow=null; $('ehqOilaSel').style.display='none'; $('ehqOilaSel').innerHTML=''; ehqQarzdorHintHide(); };
 // Shaxs qidiruv (2026-10-26, Asilbek: «qarz berish qismida search kerak») — avval qarz olgan shaxslar
 // ehson_qarz_royxat({q, limit:50}) dan (qarzdor_turi='shaxs', ism+telefon bo'yicha dedupe). Tanlansa ism va
 // telefon to'ldiriladi; yangi ism yozilsa — avvalgidek qo'lda. Yangi RPC/SQL YO'Q.
@@ -3999,6 +4240,7 @@ window.ehqShaxsPick=i=>{
   const r=ehqShaxsRows[i]; if(!r) return;
   $('ehqIsm').value=r.ism; if(r.telefon) $('ehqTel').value=r.telefon;
   $('ehqShaxsPickList').innerHTML='';
+  ehqQarzdorHint({ism:r.ism});
 };
 
 // ---- Forma: muddat (bir martalik / oylik) ----------------------------------------------
@@ -4047,6 +4289,7 @@ function ehqResetForm(){
   $('ehqIzoh').value='';
   $('ehqMsg').className='ehk-msg'; $('ehqMsg').textContent='';
   $('ehqQoldiqXato').style.display='none';
+  ehqQarzdorHintHide();
   ehqExtRef=null;
 }
 window.ehqFormToggle=()=>{
@@ -4132,6 +4375,182 @@ window.ehqSave=async()=>{
     loadQarz(true); loadDash(true);
   } finally { btn.disabled=false; }
 };
+
+// ---- UMUMIY QARZ (guruh) modali: qarzdorning hamma qarzlari (har biri o'z muddati bilan) + umumiy to'lov ----
+// Guruhdagi qarz 1 ta bo'lsa to'g'ridan qarz kartasi ochiladi (eski UX). Qarz ustiga bosilsa — qarz kartasi (to'lov,
+// muddat, bekor o'sha yerda). Umumiy to'lov: ehson_qarz_guruh_tolov — eng eski faol qarzdan boshlab (FIFO) taqsimlanadi.
+let ehqGuruhCur=null, ehqGtExtRef=null, ehqGtOkMsg='';
+function ehqGuruhFind(cur){ if(!cur) return null; return (ehqData.rows||[]).find(g=>g.kalit===cur.kalit && (g.valyuta||'UZS')===(cur.valyuta||'UZS'))||null; }
+window.ehqGuruhOpen=i=>{
+  const g=ehqData.rows[i]; if(!g) return;
+  const qs=Array.isArray(g.qarzlar)?g.qarzlar:[];
+  if(qs.length===1){ window.ehqKartOpen(qs[0].id); return; }
+  ehqGuruhCur={kalit:g.kalit, valyuta:g.valyuta||'UZS'}; ehqGtExtRef=null;
+  $('ehqGuruhModal').classList.add('open');
+  renderEhqGuruh(g);
+};
+window.ehqGuruhClose=()=>{ $('ehqGuruhModal').classList.remove('open'); ehqGuruhCur=null; };
+function ehqGuruhSync(){
+  if(!ehqGuruhCur || !$('ehqGuruhModal').classList.contains('open')) return;
+  const g=ehqGuruhFind(ehqGuruhCur);
+  if(g) renderEhqGuruh(g); else window.ehqGuruhClose();   // filtrdan chiqib ketdi (masalan to'liq yopildi)
+}
+function ehqGuruhQarzRow(q){
+  const del=q.holat==='bekor';
+  return `<tr onclick="ehqKartOpen('${escapeHtml(q.id)}')" style="cursor:pointer" class="${del?'del':''}">
+    <td>${fmtDate(q.sana)}</td>
+    <td>${escapeHtml(q.kassa_nom||'')}${q.pul_turi_nom?('<br><span class="eho-kod">'+escapeHtml(q.pul_turi_nom)+'</span>'):''}</td>
+    <td class="ehk-amt${del?' strike':''}">${ehqFmtLoanAmt(q.valyuta,q.asosiy)}</td>
+    <td class="ehk-amt">${ehqFmtLoanAmt(q.valyuta,q.tolandi)}</td>
+    <td class="ehk-amt"><b>${ehqFmtLoanAmt(q.valyuta,q.qoldi)}</b></td>
+    <td>${escapeHtml(ehqMuddatTxt(q))}</td>
+    <td>${ehqHolatChipHtml(q)}</td>
+    <td>${escapeHtml(q.izoh||'')}</td>
+  </tr>`;
+}
+function ehqGuruhQarzCard(q){
+  return `<div class="ehk-row" onclick="ehqKartOpen('${escapeHtml(q.id)}')" style="cursor:pointer">
+    <div class="ehk-row-top"><div class="ehk-row-manba">${fmtDate(q.sana)} · ${escapeHtml(q.kassa_nom||'')}</div>${ehqHolatChipHtml(q)}</div>
+    <div class="ehk-row-top" style="margin-top:4px">
+      <div class="ehk-row-meta">Berildi <b>${ehqFmtLoanAmt(q.valyuta,q.asosiy)}</b></div>
+      <div class="ehk-row-meta">Qoldi <b>${ehqFmtLoanAmt(q.valyuta,q.qoldi)}</b></div>
+    </div>
+    <div class="ehk-row-meta">${escapeHtml(ehqMuddatTxt(q))}</div>
+    ${q.izoh?`<div class="ehk-row-izoh">${escapeHtml(q.izoh)}</div>`:''}
+  </div>`;
+}
+function renderEhqGuruh(g){
+  const qs=Array.isArray(g.qarzlar)?g.qarzlar:[];
+  const fmtL=v=>ehqFmtLoanAmt(g.valyuta,v);
+  const canPay = n0(g.faol_soni)>0;
+  $('ehqGuruhBody').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <div style="font-weight:700;font-size:16px">${escapeHtml(g.qarzdor_nom||'')}</div>
+        <div class="eho-kod">${g.oila_kod?escapeHtml(g.oila_kod):''}${g.telefon?(' · '+escapeHtml(g.telefon)):''}</div>
+      </div>
+      ${ehqHolatChipHtml(g)}
+    </div>
+    <dl class="eho-dl" style="margin-bottom:14px">
+      ${ehoDD('Qarzlar', qs.length+' ta'+(n0(g.faol_soni)?(' · '+n0(g.faol_soni)+' faol'):'')+(qs.some(x=>x.holat==='bekor')?(' · '+qs.filter(x=>x.holat==='bekor').length+' bekor'):''))}
+      ${ehoDD('Berildi (jami)', fmtL(g.berildi))}
+      ${ehoDD("To'landi (jami)", fmtL(g.tolandi))}
+      ${ehoDD('Qoldi (jami)', '<b>'+fmtL(g.qoldi)+'</b>')}
+      ${ehoDD("Keyingi to'lov", g.keyingi_sana?fmtDate(g.keyingi_sana):'—')}
+      ${ehoDD("Jamg'armalar", escapeHtml(g.kassa_nomlar||''))}
+    </dl>
+    <h4 style="margin:0 0 8px;font-size:14px;font-weight:700">Qarzlar — har biri o'z muddati bilan</h4>
+    <div class="ehb-hint" style="margin-bottom:8px">Qarz ustiga bosing — kartasi ochiladi (to'lov jadvali, muddatni belgilash, bekor).</div>
+    <div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
+      <th>Sana</th><th>Jamg'arma</th><th style="text-align:right">Berildi</th><th style="text-align:right">To'landi</th><th style="text-align:right">Qoldi</th><th>Muddat</th><th>Holat</th><th>Izoh</th>
+    </tr></thead><tbody>${qs.map(ehqGuruhQarzRow).join('')}</tbody></table></div>
+    <div class="ehk-mlist">${qs.map(ehqGuruhQarzCard).join('')}</div>
+    ${canPay?`
+    <h4 style="margin:18px 0 8px;font-size:14px;font-weight:700">Umumiy qarzga to'lov qabul qilish</h4>
+    <div class="ehb-hint" style="margin-bottom:8px">To'lov eng eski qarzdan boshlab yopiladi (birinchi qarz to'liq, keyin keyingisi).</div>
+    <div class="ehk-frow">
+      <div class="ehk-field"><label>Jamg'arma</label><select class="ehk-input" id="ehqGtKassaSel" onchange="ehqGtKassaChange()"></select></div>
+      <div class="ehk-field" id="ehqGtPulWrap" style="display:none"><label>Pul turi</label><select class="ehk-input" id="ehqGtPulSel"></select></div>
+    </div>
+    <div class="ehk-frow">
+      <div class="ehk-field"><label>${g.valyuta==='USD'?'Summa ($)':"Summa (so'm)"}</label><input class="ehk-input" id="ehqGtSumma" inputmode="decimal" oninput="ehqGtSummaInput(this)"></div>
+      <div class="ehk-field"><label>Sana</label><input class="ehk-input" id="ehqGtSana" type="date"></div>
+    </div>
+    <div class="ehk-field"><label>Izoh</label><input class="ehk-input" id="ehqGtIzoh" placeholder="Ixtiyoriy"></div>
+    <div id="ehqGtMsg" class="ehk-msg"></div>
+    <div class="ehk-actions"><button class="btn" id="ehqGtSaveBtn" onclick="ehqGtSave()"><i data-lucide="hand-coins"></i>To'lovni saqlash</button></div>
+    `:''}
+  `;
+  if(canPay){
+    $('ehqGtSana').value=todayUz(); $('ehqGtSana').max=todayUz();
+    const sel=$('ehqGtKassaSel');
+    const kassas=ehqKassalarCache||[];
+    sel.innerHTML=kassas.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||"Jamg'arma")}</option>`).join('');
+    const q0=qs.find(x=>x.holat==='faol');
+    if(q0 && q0.kassa_id && kassas.some(k=>String(k.id)===String(q0.kassa_id))) sel.value=q0.kassa_id;
+    window.ehqGtKassaChange();
+    if(ehqGtOkMsg){ const m=$('ehqGtMsg'); if(m){ m.className='ehk-msg ok'; m.textContent=ehqGtOkMsg; } }
+  }
+  ehqGtOkMsg='';
+  icons();
+}
+window.ehqGtKassaChange=()=>{
+  const g=ehqGuruhFind(ehqGuruhCur)||{};
+  const wrap=$('ehqGtPulWrap'), sel=$('ehqGtPulSel'); if(!wrap||!sel) return;
+  if(!ehqHasZakot){ wrap.style.display='none'; return; }
+  const k=ehqKassalarCache.find(x=>String(x.id)===String($('ehqGtKassaSel').value));
+  const val=g.valyuta||'UZS';
+  const puls=(k && Array.isArray(k.pul_turlari)) ? k.pul_turlari.filter(t=>t.is_active!==false && (t.valyuta||'UZS')===val) : [];
+  if(puls.length){
+    wrap.style.display='block';
+    sel.innerHTML=puls.map(t=>`<option value="${escapeHtml(t.kod)}">${escapeHtml(t.nom||t.kod)} · ${t.valyuta==='USD'?(money(n0(t.fc_qoldiq))+' $'):(money(n0(t.qoldiq))+" so'm")}</option>`).join('');
+  }else{ wrap.style.display='none'; sel.innerHTML=''; }
+};
+window.ehqGtSummaInput=el=>{
+  const g=ehqGuruhFind(ehqGuruhCur)||{};
+  if(g.valyuta==='USD'){
+    let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+    const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+    el.value=raw;
+  }else{ window.ehFmtAmt(el); }
+  const raw=String(el.value||''); const s = g.valyuta==='USD' ? (Number(raw.replace(',','.'))||0) : (Number(raw.replace(/\D/g,''))||0);
+  const btn=$('ehqGtSaveBtn'); if(btn) btn.disabled = s>0 && s>n0(g.qoldi);
+};
+// (EHQ_TOL_XATO pastroqda e'lon qilingan — TDZ bo'lmasin deb kodlar shu yerda alohida)
+const EHQ_GT_XATO={ ruxsat:"Ruxsat yo'q", kalit_kerak:'Qarzdor aniqlanmadi', topilmadi:'Faol qarz topilmadi', ext_ref_kerak:"Qayta urinib ko'ring",
+  holat:'Qarz holati mos emas', valyuta_mos_emas:"Pul turi valyutasi qarz valyutasiga mos emas", summa_notogri:"Summani to'g'ri kiriting",
+  kop:"To'lov summasi umumiy qoldiqdan katta", kassa_topilmadi:"Jamg'arma topilmadi", pul_turi_kerak:'Pul turini tanlang',
+  pul_turi_topilmadi:'Pul turi topilmadi', kurs_yoq:"Valyuta kursi topilmadi — avval Valyuta bo'limidan yangilang" };
+window.ehqGtSave=async()=>{
+  const g=ehqGuruhFind(ehqGuruhCur); if(!g) return;
+  const msg=$('ehqGtMsg'); msg.className='ehk-msg'; msg.textContent='';
+  const isUsd=g.valyuta==='USD';
+  const raw=String(($('ehqGtSumma')&&$('ehqGtSumma').value)||'');
+  if(!isUsd && /[.,]/.test(raw)){ msg.classList.add('err'); msg.textContent='Summani qayta kiriting'; return; }
+  const summa = isUsd ? (Number(raw.replace(',','.'))||0) : (Number(raw.replace(/\D/g,''))||0);
+  if(summa<=0){ msg.classList.add('err'); msg.textContent="Summani to'g'ri kiriting"; return; }
+  if(summa>n0(g.qoldi)+0.009){ msg.classList.add('err'); msg.textContent=EHQ_GT_XATO.kop+' ('+ehqFmtLoanAmt(g.valyuta,g.qoldi)+')'; return; }
+  const p={ kalit:g.kalit, valyuta:g.valyuta||'UZS', sana:$('ehqGtSana').value||todayUz() };
+  const izoh=($('ehqGtIzoh').value||'').trim(); if(izoh) p.izoh=izoh;
+  if($('ehqGtKassaSel') && $('ehqGtKassaSel').value) p.kassa_id=$('ehqGtKassaSel').value;
+  const pw=$('ehqGtPulWrap'); if(pw && pw.style.display!=='none' && $('ehqGtPulSel').value) p.pul_turi=$('ehqGtPulSel').value;
+  if(isUsd) p.fc_summa=summa; else p.summa=summa;
+  if(!ehqGtExtRef){ try{ ehqGtExtRef='ehson_qarz_gt:'+crypto.randomUUID(); }catch(e){ ehqGtExtRef='ehson_qarz_gt:'+Date.now()+'-'+Math.random().toString(36).slice(2); } }
+  p.ext_ref=ehqGtExtRef;
+  const btn=$('ehqGtSaveBtn'); btn.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('ehson_qarz_guruh_tolov',{p});
+    if(error){
+      msg.classList.add('err');
+      msg.textContent=(error.code==='PGRST202'||error.code==='42883') ? "SQL hali RUN qilinmagan (PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql)" : (window.permErr?window.permErr(error):error.message);
+      return;
+    }
+    if(!data){ msg.classList.add('err'); msg.textContent="Bo'sh javob"; return; }
+    if(data.ok===false){ msg.classList.add('err'); msg.textContent=EHQ_GT_XATO[data.kod]||('Xato: '+(data.kod||"noma'lum")); return; }
+    ehqGtExtRef=null;
+    const n=Array.isArray(data.tolovlar)?data.tolovlar.length:0;
+    ehqGtOkMsg="To'lov qabul qilindi"+(n>1?(' — '+n+' ta qarzga taqsimlandi'):'');
+    showInfo(ehqGtOkMsg);
+    loadQarz(true); loadDash(true);   // renderQarzTable -> ehqGuruhSync() modalni yangilaydi
+  } finally { btn.disabled=false; }
+};
+// Formada tanlangan qarzdorning faol qarzi bo'lsa eslatma (yangi qarz umumiy qarzga qo'shiladi)
+let ehqHintSeq=0;
+async function ehqQarzdorHint(filt){
+  const box=$('ehqQarzdorHint'); if(!box) return;
+  const seq=++ehqHintSeq;
+  box.style.display='none'; box.innerHTML='';
+  if(!filt || ehqGuruhYoq) return;
+  const {data,error}=await sb.rpc('ehson_qarz_guruh_royxat',{p:Object.assign({holat:'faol',limit:5},filt)});
+  if(seq!==ehqHintSeq) return;   // eskirgan javob
+  if(error || !data || data.ok===false) return;   // yordamchi — jim
+  const rows=Array.isArray(data.rows)?data.rows:[];
+  if(!rows.length) return;
+  const parts=rows.map(g=>n0(g.faol_soni)+' ta faol qarz · qoldi '+ehqFmtLoanAmt(g.valyuta,g.qoldi)+(g.keyingi_sana?(' · keyingi '+fmtDate(g.keyingi_sana)):''));
+  box.innerHTML='<b>Bu qarzdorda qarz bor:</b> '+escapeHtml(parts.join(' | '))+". Yangi qarz o'z muddati bilan yoziladi va ro'yxatda shu qarzdorning umumiy qarziga qo'shiladi.";
+  box.style.display='block';
+}
+function ehqQarzdorHintHide(){ ehqHintSeq++; const box=$('ehqQarzdorHint'); if(box){ box.style.display='none'; box.innerHTML=''; } }
 
 // ---- Qarz kartasi (modal): jadval + to'lovlar + to'lov qabul qilish + bekor + tarix ------
 let ehqKartId=null, ehqKartData=null, ehqTolExtRef=null;
@@ -4454,6 +4873,9 @@ document.addEventListener('keydown',e=>{
   else if(top.id==='ehoForm') window.ehoFormClose();
   else if(top.id==='ehoKart') window.ehoKartClose();
   else if(top.id==='ehqKartModal') window.ehqKartClose();
+  else if(top.id==='ehqGuruhModal') window.ehqGuruhClose();
+  else if(top.id==='ehkTrModal') window.ehkTrClose();
+  else if(top.id==='ehkCvModal') window.ehkCvClose();
 });
 
 async function init(){
