@@ -539,19 +539,17 @@ begin
                     order by (f.holat = 'kechikkan') desc, (f.holat = 'faol') desc, f.keyingi_sana asc nulls last, f.oxirgi_at desc, f.kalit
                     limit v_limit offset v_offset) x
          ), '[]'::jsonb),
-         (select count(*) from f)
-    into v_rows, v_jami;
-
-  -- stat — guruh darajasida (qarzdorlar soni), kassa filtri bo'yicha, holat/qidiruvdan qat'i nazar
-  select jsonb_build_object(
-           'faol_soni',      count(*) filter (where g2.holat in ('faol', 'kechikkan')),
-           'kechikkan_soni', count(*) filter (where g2.holat = 'kechikkan'),
-           'yopildi_soni',   count(*) filter (where g2.holat = 'yopildi'),
-           'ochiq_uzs',      coalesce(sum(g2.qoldi) filter (where g2.valyuta <> 'USD'), 0),
-           'ochiq_usd',      coalesce(sum(g2.qoldi) filter (where g2.valyuta = 'USD'), 0)
-         )
-    into v_stat
-    from g2;
+         (select count(*) from f),
+         -- stat — guruh darajasida (qarzdorlar soni), kassa filtri bo'yicha, holat/qidiruvdan qat'i nazar
+         -- 🔴 SHU so'rov ichida (CTE g2 faqat o'z so'rovida bor — alohida select "relation g2 does not exist" berardi)
+         (select jsonb_build_object(
+                   'faol_soni',      count(*) filter (where g2.holat in ('faol', 'kechikkan')),
+                   'kechikkan_soni', count(*) filter (where g2.holat = 'kechikkan'),
+                   'yopildi_soni',   count(*) filter (where g2.holat = 'yopildi'),
+                   'ochiq_uzs',      coalesce(sum(g2.qoldi) filter (where g2.valyuta <> 'USD'), 0),
+                   'ochiq_usd',      coalesce(sum(g2.qoldi) filter (where g2.valyuta = 'USD'), 0))
+            from g2)
+    into v_rows, v_jami, v_stat;
 
   return jsonb_build_object('ok', true, 'rows', v_rows, 'jami', v_jami, 'stat', v_stat);
 end
