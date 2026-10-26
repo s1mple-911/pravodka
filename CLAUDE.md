@@ -1157,7 +1157,7 @@ ko'rsatadi (`ehqMuddatsiz`). Idempotent: `ext_ref 'excel_qarz_20261017:<kassa>:<
 `balans_togrilandi_20261017b` bilan maqsadga qaytariladi. Yangi RPC **`ehson_qarz_muddat_set(p)`** + Qarz kartasida «Muddatni belgilash»
 (deadline yoki oyma-oy; oyma-oy faqat to'lov yo'q bo'lganda). Natija jadvali: `_ehson_qarz_royxat_20261017()`.
 
-### Ehson kassalari ORASIDA o'tkazma + «Dilnoza Nazarova» kassasi + shaxs qidiruvi (2026-10-26, `PROVODKA_EHSON_TRANSFER.sql`, faqat dev, RUN kutilmoqda)
+### Ehson kassalari ORASIDA o'tkazma + «Dilnoza Nazarova» kassasi + shaxs qidiruvi (2026-10-26, `PROVODKA_EHSON_TRANSFER.sql`, prod'ga chiqdi 26.10, SQL RUN kutilmoqda)
 
 Asilbek: «Ehson soliqdan Ehson zakotga pul o'tkazish imkoni; yangi kassa Dilnoza Nazarova; qarz berishda search».
 - **Jadval `ehson_transfer`** (from/to kassa + pul turi, `valyuta`, `summa` so'm ekv., `fc_summa` USD, `ext_ref` unique, soft-bekor
@@ -1178,6 +1178,38 @@ Asilbek: «Ehson soliqdan Ehson zakotga pul o'tkazish imkoni; yangi kassa Dilnoz
 - **Qarz berish → «Boshqa shaxs»**: ism yozilganda avval qarz olgan shaxslar (`ehson_qarz_royxat {q,limit:50}`, `qarzdor_turi='shaxs'`,
   ism+telefon dedupe, N ta qarz · faol) `#ehqShaxsPickList` da — tanlansa ism+telefon to'ldiriladi. Yangi SQL yo'q. Ro'yxatdagi
   qidiruv (`#ehqQ`) avvaldan bor edi.
+
+### Ehson KONVERT ($ ↔ so'm) + qarzlar QARZDOR BO'YICHA BITTA umumiy (2026-10-26, `PROVODKA_EHSON_KONVERT_QARZ_GURUH.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «avval qarz bergan odamga yana qarz berish — yangi qarz o'z muddati bilan yoziladi, lekin 1 ta umumiy bo'lib saqlanadi,
+ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert — kassadagi $ ni so'mga qilish».
+- **Konvert — alohida jadval YO'Q**: `ehson_transfer` ga ustunlar `turi` (transfer|konvert), `kurs`, `to_valyuta`, `to_summa`,
+  `to_fc_summa` (+ check'lar). Chiqqan tomon avvalgidek (`valyuta/summa/fc_summa`), kirgan tomon to_*. Faqat USD ↔ UZS, kursni
+  foydalanuvchi kiritadi (sukut `ehson_kurs_usd()` = `conv_baza_kurs('USD')`), so'm ekvivalenti ikkala tomonda BIR XIL →
+  umumiy Ehson so'm jami o'zgarmaydi. 🔴 Pul Ehson ICHIDA — `entry`/`accounts` ga TEGILMAYDI (kompaniya konverti `konvert.html`
+  bu emas). Bir kassa ichida (dollar → naqd) ham, kassalar aro ham.
+- **View'lar** `v_ehson_kassa_pul`/`v_ehson_kassa` qayta e'lon (ustunlar O'ZGARMAGAN): kirgan tomon `coalesce(to_valyuta,valyuta)`,
+  `coalesce(to_summa,summa)`, `to_fc_summa`. `ehson_transfer_bekor` (kirgan tomon to_* bilan `qoldiq_manfiy`) va
+  `ehson_transfer_royxat` (+`turi,kurs,to_valyuta,to_summa,to_fc_summa`, filtr `turi?`) qayta e'lon. RPC `ehson_konvert_yoz(p)`
+  (`summa` = CHIQQAN valyutada; kodlar `valyuta_bir_xil` → o'tkazma kerak, `valyuta_qollanmaydi`, `kurs_notogri`, `qoldiq_yetmaydi`…).
+- **Qarz guruh — jadval o'zgarmaydi**: har qarz o'z qatori (muddat, grafik, to'lovlar). RPC `ehson_qarz_guruh_royxat(p)` —
+  qarzdor kaliti (`oila:<id>` | `shaxs:<ism kichik harf>`) + valyuta kesimida: berildi/tolandi/qoldi jami, keyingi_sana, kechikkan,
+  holat (kechikkan > faol > yopildi > bekor), `qarzlar[]` (har qarz `_ehson_qarz_qator`). Bir qarzdorda USD va so'm bo'lsa — 2 guruh.
+  Bekor qarzlar jami'ga kirmaydi, `qarzlar`da bor. `holat='faol'` filtri kechikkanlarni ham oladi (eski bilan bir xil). Stat guruh
+  darajasida (qarzdorlar soni). `ehson_qarz_guruh_tolov(p)` — umumiy qarzga to'lov: faol qarzlarga ENG ESKI SANADAN (FIFO), har
+  biri `ehson_qarz_tolov` (ext_ref `asosiy:qarz_id`), biri yiqilsa hammasi qaytadi (`raise` P0001 → `{ok:false,kod,qarz_id}`).
+- **UI `ehson-dev.html`**: Kirim tabi «Konvert» tugmasi `#ehkCvBtn` (USD va UZS pul turi bor bo'lsa) → modal `#ehkCvModal`
+  (`ehkCv*`: Qayerga pul turlari QARAMA-QARSHI valyutaga filtrlanadi, sukut o'sha kassa + dollar; kurs `ehson_kurs_usd`dan;
+  «Olinadi: …» hisob). O'tkazmalar kartasi «O'tkazmalar va konvertlar» — konvert qatori «Konvert» belgisi, `100 $ → 1 270 000 so'm
+  · kurs`. Qarz tabi ro'yxati endi GURUH (`loadQarz` → `ehson_qarz_guruh_royxat`; RPC yo'q → `ehqGuruhYoq`, eski ro'yxat), qator
+  «N ta qarz» chip; bosilsa 1 qarz → eski karta, 2+ → `#ehqGuruhModal` (`renderEhqGuruh`: jami + har qarz sana/jamg'arma/berildi/
+  qoldi/MUDDAT/holat, bosilsa karta; «Umumiy qarzga to'lov» `ehqGt*` → `ehson_qarz_guruh_tolov`; `ehqGuruhSync` ro'yxat yangilansa
+  modalni qayta chizadi). Qarz berish formasida tanlangan oila/shaxsda faol qarz bo'lsa `#ehqQarzdorHint` eslatma. Excel eksport
+  eski RPC (har qarz alohida qator) — o'zgarmagan. Escape: ehqGuruhModal/ehkTrModal/ehkCvModal qo'shildi.
+- 🔴 Ma'lum xususiyatlar (tester 26.10): USD pul turining SO'M `qoldiq`i kirim kursida, konvert esa foydalanuvchi kursida → dollar
+  to'liq konvert qilinsa `fc_qoldiq`=0, so'm `qoldiq` kurs farqicha qolishi mumkin (haqiqiy = fc_qoldiq; umumiy so'm jami to'g'ri).
+  Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
+  `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
