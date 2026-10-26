@@ -1157,6 +1157,28 @@ ko'rsatadi (`ehqMuddatsiz`). Idempotent: `ext_ref 'excel_qarz_20261017:<kassa>:<
 `balans_togrilandi_20261017b` bilan maqsadga qaytariladi. Yangi RPC **`ehson_qarz_muddat_set(p)`** + Qarz kartasida «Muddatni belgilash»
 (deadline yoki oyma-oy; oyma-oy faqat to'lov yo'q bo'lganda). Natija jadvali: `_ehson_qarz_royxat_20261017()`.
 
+### Ehson kassalari ORASIDA o'tkazma + «Dilnoza Nazarova» kassasi + shaxs qidiruvi (2026-10-26, `PROVODKA_EHSON_TRANSFER.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «Ehson soliqdan Ehson zakotga pul o'tkazish imkoni; yangi kassa Dilnoza Nazarova; qarz berishda search».
+- **Jadval `ehson_transfer`** (from/to kassa + pul turi, `valyuta`, `summa` so'm ekv., `fc_summa` USD, `ext_ref` unique, soft-bekor
+  `is_deleted/bekor_sabab`). 🔴 Pul Ehson ICHIDA — `entry`/`accounts` ga TEGILMAYDI, umumiy Ehson jami o'zgarmaydi. **Faqat bir xil
+  valyuta** (naqd→naqd, dollar→dollar; konvert yo'q). RLS select `ehson_page_ok()`, yozish faqat RPC. `ehson_tarix.obyekt` +`transfer`.
+- 🔴 **`v_ehson_kassa_pul` / `v_ehson_kassa` qoldiq = kirim − berildi − qarz_berildi + qarz_qaytdi − tr_chiqdi + tr_kirdi** (yangi
+  ustunlar OXIRIGA: `tr_chiqdi, tr_kirdi, fc_tr_chiqdi, fc_tr_kirdi`) → `ehson_dash`/`ehson_ber`/`ehson_qarz_ber`/`ehson_kassa_daraxt`/
+  `ehson_kassa_saqla` avtomat. Ikkala view'ning ENG OXIRGI versiyasi endi SHU faylda (avval PROVODKA_EHSON_QARZ.sql).
+- **RPC**: `ehson_transfer_yoz(p)` (ruxsat `ehson_page_ok` — berish kim qilsa o'tkazmani ham u; ikkala kassa advisory lock id tartibida;
+  qoldiq `v_ehson_kassa_pul` kesimida, USD `fc_qoldiq` + `conv_baza_kurs`; kodlar `bir_xil`/`valyuta_mos_emas`/`qoldiq_yetmaydi`…),
+  `ehson_transfer_bekor(id, sabab)` (faqat admin; qabul qilgan kassa qoldig'i manfiy bo'lsa `qoldiq_manfiy`), `ehson_transfer_royxat(p)`.
+- **Yangi kassa «Dilnoza Nazarova»** — SQL 7-bo'lim, `ehson_kassa_saqla` bilan BIR XIL shakl (ildiz child, `_ehson_xarajat_modda` 94xx,
+  naqd/dollar/karta/click), idempotent nom bo'yicha. Keyingi kassalar — admin UI «Jamg'arma kassalari» → «Kassa qo'shish».
+- **UI** `ehson-dev.html` Kirim tabi: «O'tkazma» tugmasi (`#ehkTrBtn`, `ehHasZakot` + RPC bor) → modal `#ehkTrModal` (`ehkTr*`: Qayerdan
+  kassa+pul turi (qoldiq), Qayerga — pul turlari chiqqan VALYUTAGA filtrlanadi, sukut bir xil kod; USD → `fc_summa`), karta «Kassalar
+  aro o'tkazmalar» (`#ehkTrCard`, `loadTransfer`, swr `transfer`, admin inline bekor). RPC yo'q (PGRST202/42883) → tugma+karta yashirin.
+  Dash Kirim tabidan KEYIN kelsa `renderDash` → `loadTransfer()` (`ehkTr.started`).
+- **Qarz berish → «Boshqa shaxs»**: ism yozilganda avval qarz olgan shaxslar (`ehson_qarz_royxat {q,limit:50}`, `qarzdor_turi='shaxs'`,
+  ism+telefon dedupe, N ta qarz · faol) `#ehqShaxsPickList` da — tanlansa ism+telefon to'ldiriladi. Yangi SQL yo'q. Ro'yxatdagi
+  qidiruv (`#ehqQ`) avvaldan bor edi.
+
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
 `tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +
