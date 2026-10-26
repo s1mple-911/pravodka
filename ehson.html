@@ -682,9 +682,11 @@
         </div>
         <div id="ehqShaxsBox" style="display:none">
           <div class="ehk-frow">
-            <div class="ehk-field"><label>Ism <span class="ehb-req">*</span></label><input class="ehk-input" id="ehqIsm" placeholder="F.I.Sh."></div>
+            <div class="ehk-field"><label>Ism <span class="ehb-req">*</span></label><input class="ehk-input" id="ehqIsm" placeholder="F.I.Sh. (yozing — avvalgi qarzdorlar chiqadi)" oninput="ehqOnShaxsQ()" autocomplete="off"></div>
             <div class="ehk-field"><label>Telefon</label><input class="ehk-input" id="ehqTel" placeholder="+998 90 123 45 67"></div>
           </div>
+          <!-- Avval qarz olgan shaxslar (ehson_qarz, qarzdor_turi='shaxs') — tanlansa ism+telefon to'ldiriladi -->
+          <div class="ehb-picklist" id="ehqShaxsPickList" style="margin-top:0"></div>
         </div>
 
         <div class="ehb-qoldiq" id="ehqQoldiq" style="margin-top:14px">Jamg'arma: —</div>
@@ -785,9 +787,19 @@
     <div class="eh-tabpanel" id="eh-tab-kirim">
       <div class="eh-card" style="margin-bottom:16px">
         <div class="eh-card-head"><h3>Jamg'arma</h3>
-          <button type="button" class="btn" id="ehkInBtn" style="display:none" onclick="ehkInOpen()"><i data-lucide="plus"></i>Kirim qilish</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button type="button" class="btn ghost" id="ehkTrBtn" style="display:none" onclick="ehkTrOpen()"><i data-lucide="arrow-left-right"></i>O'tkazma</button>
+            <button type="button" class="btn" id="ehkInBtn" style="display:none" onclick="ehkInOpen()"><i data-lucide="plus"></i>Kirim qilish</button>
+          </div>
         </div>
         <div class="ehk-kassas" id="ehkKassas"><div class="empty">Yuklanmoqda…</div></div>
+      </div>
+
+      <!-- Kassalar aro o'tkazmalar (PROVODKA_EHSON_TRANSFER.sql) — faqat zakot tuzilmasi + RPC bor bo'lsa ko'rinadi -->
+      <div class="eh-card" id="ehkTrCard" style="display:none;margin-bottom:16px">
+        <div class="eh-card-head"><h3>Kassalar aro o'tkazmalar</h3><div class="ehk-stat" id="ehkTrStat" style="margin:0"></div></div>
+        <div id="ehkTrListWrap"><div class="empty">Yuklanmoqda…</div></div>
+        <button class="btn ghost" id="ehkTrMore" style="display:none;width:100%;justify-content:center;margin-top:12px" onclick="ehkTrLoadMore()">Yana 50 ta</button>
       </div>
 
       <!-- Admin: Jamg'arma kassalari boshqaruvi (faqat zakot tuzilmasi bo'lganda ko'rinadi) -->
@@ -926,6 +938,35 @@
     </div>
   </div>
   <!-- /Ehson qo'lda kirim modali -->
+
+  <!-- Ehson kassalari orasida o'tkazma (PROVODKA_EHSON_TRANSFER.sql) -->
+  <div class="eh-modal" id="ehkTrModal" onclick="if(event.target===this)ehkTrClose()">
+    <div class="eh-modal-box">
+      <h3 style="margin:0 0 4px;font-size:17px;font-weight:800">Kassalar aro o'tkazma</h3>
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px">Pul Ehson ichida bir kassadan ikkinchisiga o'tadi. Umumiy jamg'arma o'zgarmaydi. Faqat bir xil valyuta (naqd → naqd, dollar → dollar).</div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label>Qayerdan</label><select class="ehk-input" id="ehkTrFrom" onchange="ehkTrFromChange()"></select></div>
+        <div class="ehk-field"><label>Pul turi</label><select class="ehk-input" id="ehkTrFromPul" onchange="ehkTrFromPulChange()"></select></div>
+      </div>
+      <div class="ehk-pulq" id="ehkTrQoldiq" style="margin:-8px 0 12px"></div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label>Qayerga</label><select class="ehk-input" id="ehkTrTo" onchange="ehkTrToChange()"></select></div>
+        <div class="ehk-field"><label>Pul turi</label><select class="ehk-input" id="ehkTrToPul" onchange="ehkTrToPulChange()"></select></div>
+      </div>
+      <div class="ehk-pulq" id="ehkTrToQoldiq" style="margin:-8px 0 12px"></div>
+      <div class="ehk-frow">
+        <div class="ehk-field"><label id="ehkTrSummaLbl">Summa (so'm)</label><input class="ehk-input ehk-input-lg" id="ehkTrSumma" inputmode="decimal" placeholder="0" oninput="ehkTrSumma(this)"></div>
+        <div class="ehk-field"><label>Sana</label><input class="ehk-input" id="ehkTrSana" type="date"></div>
+      </div>
+      <div class="ehk-field"><label>Izoh</label><input class="ehk-input" id="ehkTrIzoh" maxlength="300" placeholder="Ixtiyoriy"></div>
+      <div id="ehkTrMsg" class="ehk-msg"></div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn" id="ehkTrSave" style="flex:1;justify-content:center" onclick="ehkTrSave()"><i data-lucide="arrow-left-right"></i>O'tkazish</button>
+        <button class="btn ghost" style="flex:1;justify-content:center" onclick="ehkTrClose()">Yopish</button>
+      </div>
+    </div>
+  </div>
+  <!-- /Ehson o'tkazma modali -->
 
   <!-- Ehson berish: bekor qilish modali (4-bosqich) -->
   <div class="eh-modal" id="ehbBekorModal" onclick="if(event.target===this)ehbBekorClose()">
@@ -1195,6 +1236,9 @@ window.ehTab=name=>{
     // qat'i nazar) loadDash() shart: kesh bo'lsa renderDash darrov, fonda yangilanadi.
     if(!ehLoaded.bosh){ ehLoaded.bosh=true; loadDash(); }
     loadKirim();
+    // Kassalar aro o'tkazmalar ro'yxati (ehson_transfer_royxat) — ehHasZakot kesh/dash'dan kelgach ham
+    // chaqiriladi (renderDash -> ehkTrAfterDash); bu yerda kesh bor holat uchun.
+    loadTransfer();
     // Zakot: "Jamg'arma kassalari" admin panel (ehson_kassa_daraxt) — faqat admin, lazy.
     if(isAdmin && !ehLoaded.zakotAdmin){ ehLoaded.zakotAdmin=true; $('ehzAdminCard').style.display='block'; loadZakotAdmin(); }
   }
@@ -1220,7 +1264,7 @@ window.ehTab=name=>{
   }
 };
 // Sarlavhadagi "Yangilash" tugmasi — joriy ochiq tabga qarab yangilaydi.
-window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim) loadKirim(true); if(ehLoaded.oilalar) loadOilalar(true); if(ehLoaded.berish) loadBerishRecent(true); if(ehLoaded.qarz) loadQarz(true); if(ehLoaded.oy) loadOy(true); if(ehLoaded.tarix) loadTarix(true); if(ehLoaded.zakotAdmin) loadZakotAdmin(true); };
+window.ehRefresh=()=>{ loadDash(true); if(ehLoaded.kirim){ loadKirim(true); loadTransfer(true); } if(ehLoaded.oilalar) loadOilalar(true); if(ehLoaded.berish) loadBerishRecent(true); if(ehLoaded.qarz) loadQarz(true); if(ehLoaded.oy) loadOy(true); if(ehLoaded.tarix) loadTarix(true); if(ehLoaded.zakotAdmin) loadZakotAdmin(true); };
 
 // ---- Bosh: ehson_dash() -------------------------------------------------
 // ehson_dash() javob shakli (PROVODKA_EHSON.sql): {kassalar:[{id,nom,kirim,berildi,qoldiq}],
@@ -1299,6 +1343,8 @@ function renderDash(d){
   d=d||{};
   const kass=Array.isArray(d.kassalar)?d.kassalar:[];
   window.ehHasZakot = kass.some(k=>k.parent_id!=null || k.is_container===true);
+  // Kirim tabi dash'dan OLDIN ochilgan bo'lsa (kesh yo'q) — o'tkazmalar ro'yxati endi yuklanadi
+  if(window.ehHasZakot && ehLoaded.kirim && !ehkTr.started) loadTransfer();
   const qoldiq = kass.reduce((s,k)=>s+n0(k.qoldiq),0);
   const reja   = n0(d.bu_oy_reja);
   const fakt   = n0(d.bu_oy_fakt);
@@ -1441,7 +1487,7 @@ function renderKirimKassa(kass, moddalar){
   kass=Array.isArray(kass)?kass:[];
   moddalar=Array.isArray(moddalar)?moddalar:[];
   const box=$('ehkKassas'); if(!box) return;
-  ehkInSyncBtn();
+  ehkInSyncBtn(); ehkTrSyncBtn();
   if(!kass.length){ box.innerHTML='<div class="empty">Jamg\'arma topilmadi</div>'; return; }
   if(!window.ehHasZakot){
     box.innerHTML=kass.map(k=>`<div class="ehk-kcard${n0(k.qoldiq)<0?' eh-neg':''}">
@@ -1649,6 +1695,219 @@ window.ehkInSave=async()=>{
     window.ehkInClose();
     window.ehRefresh();
   } finally { btn.disabled=false; }
+};
+
+// ---- Kassalar aro o'tkazma (PROVODKA_EHSON_TRANSFER.sql) — .eh-modal#ehkTrModal ------------------
+// RPC ehson_transfer_yoz(p): {from_kassa_id,from_pul_turi,to_kassa_id,to_pul_turi,summa|fc_summa,sana,izoh,ext_ref}
+// -> {ok,id}|{ok:false,kod}. Pul Ehson ICHIDA qoladi (ehson_transfer), entry yo'q — jurnal/hisobot ko'rmaydi.
+// Faqat BIR XIL valyuta: «Qayerga» pul turlari «Qayerdan» valyutasiga filtrlanadi. Ruxsat — ehson sahifasi
+// (serverda ehson_page_ok). Kassa/pul turi ehson_dash().kassalar dan (window.ehZakotKassalar).
+// Ro'yxat: ehson_transfer_royxat(p) -> {rows,jami}; RPC yo'q (PGRST202/42883) -> karta va tugma yashirin.
+let ehkTrExtRef=null, ehkTrRpcYoq=false;
+const ehkTr={rows:[],jami:0,offset:0,started:false};
+const EHK_TR_LIMIT=50;
+const EHK_TR_XATO={ kassa_kerak:"Ikkala kassani tanlang", kassa_topilmadi:"Kassa topilmadi yoki nofaol", kassa_konteyner:"Umumiy jamg'arma tanlanmaydi — ichidagi kassani tanlang",
+  pul_turi_kerak:"Pul turini tanlang", bir_xil:"Qayerdan va qayerga bir xil — boshqa kassa yoki pul turini tanlang",
+  valyuta_mos_emas:"Valyuta mos emas: faqat naqd → naqd, dollar → dollar", summa_notogri:"Summa noto'g'ri",
+  kurs_yoq:"USD kursi yo'q — avval Valyuta bo'limida kursni kiriting", sana_notogri:"Sana kelajakda bo'lishi mumkin emas",
+  qoldiq_yetmaydi:"Chiqqan kassada mablag' yetarli emas" };
+function ehkTrCanUse(){ return !!(window.ehHasZakot && !ehkTrRpcYoq && (window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length).length>=1); }
+function ehkTrSyncBtn(){ const b=$('ehkTrBtn'); if(b) b.style.display=ehkTrCanUse()?'':'none'; }
+function ehkTrKassa(sel){ return (window.ehZakotKassalar||[]).find(k=>String(k.id)===String($(sel).value))||null; }
+function ehkTrPul(kSel,pSel){ const k=ehkTrKassa(kSel); if(!k) return null; return (k.pul_turlari||[]).find(t=>t.kod===$(pSel).value)||null; }
+function ehkTrFromPulObj(){ return ehkTrPul('ehkTrFrom','ehkTrFromPul'); }
+function ehkTrToPulObj(){ return ehkTrPul('ehkTrTo','ehkTrToPul'); }
+function ehkTrIsUsd(){ const t=ehkTrFromPulObj(); return !!(t && t.valyuta==='USD'); }
+function ehkTrQoldiqTxt(t){ if(!t) return ''; return t.valyuta==='USD' ? (money(n0(t.fc_qoldiq))+' $') : (money(n0(t.qoldiq))+" so'm"); }
+window.ehkTrOpen=()=>{
+  if(!ehkTrCanUse()) return;
+  const ks=(window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length);
+  const msg=$('ehkTrMsg'); msg.className='ehk-msg';
+  if(ks.length<1){ showErr("O'tkazma uchun faol jamg'arma / pul turi topilmadi"); return; }
+  const opts=ks.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
+  $('ehkTrFrom').innerHTML=opts; $('ehkTrTo').innerHTML=opts;
+  if(ks.length>1) $('ehkTrTo').value=ks[1].id;   // sukut: boshqa kassa
+  $('ehkTrSumma').value=''; $('ehkTrIzoh').value='';
+  const today=todayUz(); $('ehkTrSana').value=today; $('ehkTrSana').max=today;
+  if(!ehkTrExtRef){ try{ ehkTrExtRef='ehson_tr:'+crypto.randomUUID(); }catch(e){ ehkTrExtRef='ehson_tr:'+Date.now()+'-'+Math.random().toString(36).slice(2); } }
+  window.ehkTrFromChange();
+  $('ehkTrModal').classList.add('open');
+  icons();
+};
+window.ehkTrClose=()=>{ $('ehkTrModal').classList.remove('open'); };
+window.ehkTrFromChange=()=>{
+  const k=ehkTrKassa('ehkTrFrom');
+  const puls=k?(k.pul_turlari||[]):[];
+  $('ehkTrFromPul').innerHTML=puls.map(t=>`<option value="${escapeHtml(t.kod)}">${escapeHtml(t.nom||ehzTuriLabel(t.kod))} · ${ehkTrQoldiqTxt(t)}</option>`).join('');
+  window.ehkTrFromPulChange();
+};
+window.ehkTrFromPulChange=()=>{
+  const t=ehkTrFromPulObj(), usd=ehkTrIsUsd();
+  $('ehkTrSummaLbl').textContent = usd ? 'Summa (USD)' : "Summa (so'm)";
+  $('ehkTrQoldiq').textContent = t ? ('Qoldiq: '+ehkTrQoldiqTxt(t)) : '';
+  $('ehkTrSumma').value='';   // valyuta almashsa eski son boshqa birlikda qolib ketmasin
+  window.ehkTrToChange();     // qayerga pul turlari — shu valyutaga filtrlanadi
+};
+window.ehkTrToChange=()=>{
+  const k=ehkTrKassa('ehkTrTo'), fp=ehkTrFromPulObj();
+  const val=(fp&&fp.valyuta)||'UZS';
+  const puls=(k?(k.pul_turlari||[]):[]).filter(t=>(t.valyuta||'UZS')===val);
+  const sel=$('ehkTrToPul');
+  sel.innerHTML=puls.map(t=>`<option value="${escapeHtml(t.kod)}">${escapeHtml(t.nom||ehzTuriLabel(t.kod))} · ${ehkTrQoldiqTxt(t)}</option>`).join('');
+  // sukut: chiqqan pul turi bilan bir xil kod (naqd→naqd), bo'lmasa birinchisi
+  if(fp && puls.some(t=>t.kod===fp.kod)) sel.value=fp.kod;
+  window.ehkTrToPulChange();
+};
+window.ehkTrToPulChange=()=>{
+  const t=ehkTrToPulObj();
+  $('ehkTrToQoldiq').textContent = t ? ('Qoldiq: '+ehkTrQoldiqTxt(t)) : "Bu kassada shu valyutada pul turi yo'q";
+};
+window.ehkTrSumma=el=>{
+  if(ehkTrIsUsd()){
+    let raw=el.value.replaceAll(' ','').replace(',','.').replace(/[^0-9.]/g,'');
+    const p=raw.split('.'); raw=p.shift()+(p.length?'.'+p.join('').slice(0,2):'');
+    el.value=raw;
+  }else{ window.ehFmtAmt(el); }
+};
+window.ehkTrSave=async()=>{
+  const msg=$('ehkTrMsg'); msg.className='ehk-msg';
+  const fail=t=>{ msg.classList.add('err'); msg.textContent=t; };
+  const usd=ehkTrIsUsd();
+  const raw=String($('ehkTrSumma').value||'');
+  const val = usd ? (Number(raw.replace(',','.'))||0) : (Number(raw.replace(/\D/g,''))||0);
+  const fromId=$('ehkTrFrom').value, fromPul=$('ehkTrFromPul').value, toId=$('ehkTrTo').value, toPul=$('ehkTrToPul').value;
+  if(!fromId || !fromPul) return fail("Qayerdan: kassa va pul turini tanlang");
+  if(!toId || !toPul) return fail("Qayerga: shu valyutada pul turi bor kassani tanlang");
+  if(fromId===toId && fromPul===toPul) return fail(EHK_TR_XATO.bir_xil);
+  if(!(val>0)) return fail('Summani kiriting');
+  const fp=ehkTrFromPulObj();
+  const qoldiq = fp ? (usd?n0(fp.fc_qoldiq):n0(fp.qoldiq)) : 0;
+  if(val>qoldiq) return fail(EHK_TR_XATO.qoldiq_yetmaydi+' (qoldiq '+(usd?(money(qoldiq)+' $'):(money(qoldiq)+" so'm"))+')');
+  const p={ from_kassa_id:fromId, from_pul_turi:fromPul, to_kassa_id:toId, to_pul_turi:toPul,
+            sana:$('ehkTrSana').value||undefined, izoh:($('ehkTrIzoh').value||'').trim()||undefined, ext_ref:ehkTrExtRef };
+  if(usd) p.fc_summa=val; else p.summa=val;
+  const btn=$('ehkTrSave'); btn.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('ehson_transfer_yoz',{p});
+    if(error){
+      fail((error.code==='PGRST202'||error.code==='42883') ? "SQL hali RUN qilinmagan (PROVODKA_EHSON_TRANSFER.sql)" : (window.permErr?window.permErr(error):error.message));
+      return;
+    }
+    if(!data) return fail("Bo'sh javob");
+    if(data.ok===false && data.kod!=='takror'){
+      let t=EHK_TR_XATO[data.kod]||('Xato: '+(data.kod||"noma'lum"));
+      if(data.kod==='qoldiq_yetmaydi' && data.qoldiq!=null) t+=' (qoldiq '+(data.valyuta==='USD'?(money(n0(data.qoldiq))+' $'):(money(n0(data.qoldiq))+" so'm"))+')';
+      return fail(t);
+    }
+    // 'takror' = shu forma avval saqlangan (qayta yuborish xavfsiz) — muvaffaqiyat deb olinadi
+    ehkTrExtRef=null;
+    window.ehkTrClose();
+    window.ehRefresh();
+  } finally { btn.disabled=false; }
+};
+// ---- O'tkazmalar ro'yxati (Kirim tabi kartasi) ----
+async function loadTransfer(fresh){
+  if(!window.ehHasZakot || ehkTrRpcYoq) return;
+  const card=$('ehkTrCard'); if(!card) return;
+  ehkTr.started=true;
+  if(fresh) ehkTr.offset=0;
+  const isFirstPage=(ehkTr.offset===0);
+  if(isFirstPage){
+    const cached=fresh?null:swrGet('transfer');
+    if(cached){ ehkTr.rows=cached.rows||[]; ehkTr.jami=n0(cached.jami); renderTransferList(); }
+  }
+  const {data,error}=await sb.rpc('ehson_transfer_royxat',{p:{limit:EHK_TR_LIMIT, offset:ehkTr.offset}});
+  if(error){
+    if(!isFirstPage) ehkTr.offset=Math.max(0,ehkTr.offset-EHK_TR_LIMIT);
+    if(error.code==='PGRST202' || error.code==='42883'){ ehkTrRpcYoq=true; card.style.display='none'; ehkTrSyncBtn(); }
+    else if(!ehkTr.rows.length){ card.style.display='block'; $('ehkTrListWrap').innerHTML='<div class="empty">Xato: '+escapeHtml(error.message)+'</div>'; }
+    return;
+  }
+  if(!data || data.ok===false){ card.style.display='none'; return; }
+  const rows=Array.isArray(data.rows)?data.rows:[];
+  if(isFirstPage){ ehkTr.rows=rows; swrSet('transfer',{rows, jami:n0(data.jami)}); }
+  else ehkTr.rows=ehkTr.rows.concat(rows);
+  ehkTr.jami=n0(data.jami);
+  renderTransferList();
+}
+window.ehkTrLoadMore=async()=>{
+  if(ehkTr.busy) return;   // ikki marta bosilsa sahifa o'tkazib yuborilmasin
+  ehkTr.busy=true; ehkTr.offset+=EHK_TR_LIMIT;
+  try{ await loadTransfer(); } finally { ehkTr.busy=false; }
+};
+function ehkTrAmt(r){
+  return r.valyuta==='USD' ? (money(n0(r.fc_summa))+' $<small>'+money(n0(r.summa))+" so'm</small>") : (money(n0(r.summa))+" so'm");
+}
+function ehkTrYonalish(r){
+  return `${escapeHtml(r.from_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.from_pul_nom||ehzTuriLabel(r.from_pul_turi))}</span>
+    <span style="color:var(--muted);margin:0 6px">→</span>
+    ${escapeHtml(r.to_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.to_pul_nom||ehzTuriLabel(r.to_pul_turi))}</span>`;
+}
+function ehkTrBekorNote(r){
+  return `<div class="ehk-cancelnote">${escapeHtml(r.bekor_sabab||'Bekor qilindi')} · ${escapeHtml(r.bekor_kim||'')} · ${fmtDate(r.deleted_at)}</div>`;
+}
+function ehkTrBekorBtn(r){
+  if(!isAdmin || r.is_deleted) return '';
+  return `<button type="button" class="eh-more-link" style="color:var(--red)" onclick="ehkTrBekorAsk('${escapeHtml(r.id)}')">Bekor</button>`;
+}
+function renderTransferList(){
+  const card=$('ehkTrCard'); card.style.display='block';
+  const rows=ehkTr.rows;
+  $('ehkTrStat').textContent = ehkTr.jami ? (ehkTr.jami+" ta o'tkazma") : '';
+  const wrap=$('ehkTrListWrap');
+  if(!rows.length){ wrap.innerHTML='<div class="empty">Hali o\'tkazma yo\'q</div>'; $('ehkTrMore').style.display='none'; return; }
+  wrap.innerHTML = `<div class="ehk-dtbl-wrap"><table class="ehk-dtbl"><thead><tr>
+      <th>Sana</th><th>Qayerdan → Qayerga</th><th>Izoh</th><th>Kim</th><th style="text-align:right">Summa</th><th></th>
+    </tr></thead><tbody>${rows.map(r=>{ const del=!!r.is_deleted; return `<tr class="${del?'del':''}" id="ehkTrRow-${escapeHtml(r.id)}">
+      <td>${fmtDate(r.sana)}</td>
+      <td class="${del?'strike':''}">${ehkTrYonalish(r)}</td>
+      <td>${escapeHtml(r.izoh||'')}${del?ehkTrBekorNote(r):''}</td>
+      <td>${escapeHtml(r.kim||'')}</td>
+      <td class="ehk-amt${del?' strike':''}">${ehkTrAmt(r)}</td>
+      <td style="text-align:right">${ehkTrBekorBtn(r)}</td>
+    </tr>`; }).join('')}</tbody></table></div>
+    <div class="ehk-mlist">${rows.map(r=>{ const del=!!r.is_deleted; return `<div class="ehk-row${del?' del':''}">
+      <div class="ehk-row-top">
+        <div class="ehk-row-meta">${fmtDate(r.sana)} · ${escapeHtml(r.kim||'')}</div>
+        <div class="ehk-amt${del?' strike':''}">${ehkTrAmt(r)}</div>
+      </div>
+      <div class="ehk-row-manba${del?' strike':''}">${ehkTrYonalish(r)}</div>
+      ${r.izoh?`<div class="ehk-row-izoh">${escapeHtml(r.izoh)}</div>`:''}
+      ${del?ehkTrBekorNote(r):''}
+      ${ehkTrBekorBtn(r)?`<div style="margin-top:6px">${ehkTrBekorBtn(r)}</div>`:''}
+    </div>`; }).join('')}</div>`;
+  $('ehkTrMore').style.display = (ehkTr.rows.length < ehkTr.jami) ? 'block' : 'none';
+  icons();
+}
+// Admin bekor — inline sabab (confirm() yo'q): tugma bosilsa qatorning o'rniga sabab maydoni.
+window.ehkTrBekorAsk=id=>{
+  const r=ehkTr.rows.find(x=>String(x.id)===String(id)); if(!r) return;
+  const box=document.createElement('div'); box.className='ehk-row'; box.id='ehkTrBekorBox';
+  box.innerHTML=`<div style="font-weight:600;margin-bottom:8px">O'tkazmani bekor qilish: ${ehkTrYonalish(r)} — ${ehkTrAmt(r)}</div>
+    <input class="ehk-input" id="ehkTrBekorSabab" placeholder="Sabab (kamida 3 belgi)">
+    <div id="ehkTrBekorMsg" class="ehk-msg" style="margin-top:8px"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+      <button class="btn ghost" onclick="ehkTrBekorCancel()">Yopish</button>
+      <button class="btn" style="background:var(--red)" onclick="ehkTrBekorDo('${escapeHtml(r.id)}')">Bekor qilish</button>
+    </div>`;
+  const old=$('ehkTrBekorBox'); if(old) old.remove();
+  $('ehkTrListWrap').prepend(box);
+  $('ehkTrBekorSabab').focus();
+};
+window.ehkTrBekorCancel=()=>{ const b=$('ehkTrBekorBox'); if(b) b.remove(); };
+window.ehkTrBekorDo=async id=>{
+  const msg=$('ehkTrBekorMsg'); msg.className='ehk-msg';
+  const sabab=($('ehkTrBekorSabab').value||'').trim();
+  if(sabab.length<3){ msg.classList.add('err'); msg.textContent='Sabab kamida 3 belgi'; return; }
+  const {data,error}=await sb.rpc('ehson_transfer_bekor',{p_id:id, p_sabab:sabab});
+  if(error){ msg.classList.add('err'); msg.textContent=window.permErr?window.permErr(error):error.message; return; }
+  if(data && data.ok===false){
+    const m={sabab_kerak:'Sabab kamida 3 belgi', topilmadi:'Topilmadi', allaqachon:'Allaqachon bekor qilingan',
+             qoldiq_manfiy:"Qabul qilgan kassa bu pulni allaqachon ishlatgan — bekor qilib bo'lmaydi"};
+    msg.classList.add('err'); msg.textContent=m[data.kod]||('Xato: '+data.kod); return;
+  }
+  window.ehkTrBekorCancel();
+  window.ehRefresh();
 };
 
 // ---- Admin: "Jamg'arma kassalari" boshqaruvi (ehson_kassa_daraxt) — .ehz-* -----------------
@@ -3669,6 +3928,7 @@ window.ehqTurPick=v=>{
   document.querySelectorAll('#ehqTurSeg [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   $('ehqOilaBox').style.display = v==='oila' ? 'block':'none';
   $('ehqShaxsBox').style.display = v==='shaxs' ? 'block':'none';
+  const spl=$('ehqShaxsPickList'); if(spl) spl.innerHTML='';
 };
 // Oila qidiruv — ehbQ/ehbPickList (~4-bosqich) bilan bir xil chaqiruv (ehson_royxat), faqat
 // natija shu yerda (ehqOilaRowsCache) saqlanadi — qayta RPC chaqirmasdan chipni to'ldirish uchun.
@@ -3707,6 +3967,39 @@ window.ehqOilaPick=id=>{
   icons();
 };
 window.ehqOilaClear=()=>{ ehqOilaId=null; ehqOilaRow=null; $('ehqOilaSel').style.display='none'; $('ehqOilaSel').innerHTML=''; };
+// Shaxs qidiruv (2026-10-26, Asilbek: «qarz berish qismida search kerak») — avval qarz olgan shaxslar
+// ehson_qarz_royxat({q, limit:50}) dan (qarzdor_turi='shaxs', ism+telefon bo'yicha dedupe). Tanlansa ism va
+// telefon to'ldiriladi; yangi ism yozilsa — avvalgidek qo'lda. Yangi RPC/SQL YO'Q.
+let ehqShaxsQTimer=null, ehqShaxsRows=[];
+window.ehqOnShaxsQ=()=>{ clearTimeout(ehqShaxsQTimer); ehqShaxsQTimer=setTimeout(ehqShaxsSearch,300); };
+async function ehqShaxsSearch(){
+  const q=($('ehqIsm').value||'').trim();
+  const box=$('ehqShaxsPickList'); if(!box) return;
+  if(q.length<2){ box.innerHTML=''; return; }
+  const {data,error}=await sb.rpc('ehson_qarz_royxat',{p:{q,limit:50}});
+  if(error){ box.innerHTML=''; return; }   // qidiruv yordamchi — xato bo'lsa jim (forma ishlayveradi)
+  if(($('ehqIsm').value||'').trim()!==q) return;   // eskirgan javob
+  // faqat ISMDA moslik (server izohda ham qidiradi) · dedupe faqat ism bo'yicha (telefoni bor/yo'q bir odam ikki marta chiqmasin)
+  const ql=q.toLowerCase();
+  const rows=(Array.isArray(data&&data.rows)?data.rows:[]).filter(r=>r.qarzdor_turi==='shaxs' && r.qarzdor_nom && String(r.qarzdor_nom).toLowerCase().includes(ql));
+  const seen={}; ehqShaxsRows=[];
+  rows.forEach(r=>{
+    const key=String(r.qarzdor_nom).trim().toLowerCase();
+    if(seen[key]) { seen[key].soni++; if(r.holat==='faol') seen[key].faol++; if(!seen[key].telefon && r.telefon) seen[key].telefon=r.telefon; return; }
+    seen[key]={ism:String(r.qarzdor_nom).trim(), telefon:r.telefon||'', soni:1, faol:(r.holat==='faol'?1:0)};
+    ehqShaxsRows.push(seen[key]);
+  });
+  if(!ehqShaxsRows.length){ box.innerHTML=''; return; }
+  box.innerHTML='<div style="font-size:12px;color:var(--muted);margin:4px 0 2px">Avval qarz olganlar:</div>'+ehqShaxsRows.slice(0,10).map((r,i)=>`<div class="ehb-pick" onclick="ehqShaxsPick(${i})">
+      <div><div class="fio">${escapeHtml(r.ism)}</div>${r.telefon?`<div class="kod">${escapeHtml(r.telefon)}</div>`:''}</div>
+      <div class="r"><span class="ehb-pick-sum">${r.soni} ta qarz${r.faol?(' · '+r.faol+' faol'):''}</span></div>
+    </div>`).join('');
+}
+window.ehqShaxsPick=i=>{
+  const r=ehqShaxsRows[i]; if(!r) return;
+  $('ehqIsm').value=r.ism; if(r.telefon) $('ehqTel').value=r.telefon;
+  $('ehqShaxsPickList').innerHTML='';
+};
 
 // ---- Forma: muddat (bir martalik / oylik) ----------------------------------------------
 let ehqMuddat='bir_martalik';
