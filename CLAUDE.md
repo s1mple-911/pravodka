@@ -1219,6 +1219,14 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
 - **Filial filtri** (`loadFilSel`): `v_filial_royxat` FAQAT Aros filiallari (warehouse_id) — «Yunusobod oshxona» (PROVODKA_OSHXONA_KASSA.sql,
   `accounts.kassa_turi='filial'`, warehouse yo'q) chiqmasdi. Endi warehouse'ga bog'lanmagan filial kassalari ro'yxat oxiriga `acc:<id>`
   qiymati bilan qo'shiladi; `onFil` `acc:` → `filAllow` = kassa + bola pul-turi hisoblari; `xlsTargetFilials` `acc:` ni hisob bo'yicha topadi.
+- **Filial filtri TEG bo'yicha ham (`PROVODKA_JURNAL_FILIAL_FILTR.sql`, RUN kutilmoqda).** Asilbek: oshxonani tanlasa yozuv chiqmadi —
+  yozuv hodim kartasidan (5392) to'langan, faqat Maqsad TEGI «Yunusobod oshxona» (`entry.filial_ids`); jurnal filial filtri esa
+  FAQAT hisob (p_accounts) bo'yicha edi (Aros filiallarida ham shunday). `jurnal_v2_baza` (TEXNIK tanasi + ) `p_turlar`da
+  **`filial:<uuid>` tokenlari**: yozuv (p_accounts satri bor) YOKI (`filial_ids && token id'lari`); `jurnal_dash` 'texnik' bilan
+  birga `filial:` tokenlarini ham o'tkazadi; `jurnal_v2`/`_count` (SABAB) p_turlar'ni o'zgarishsiz uzatadi. Bo'sh `p_turlar='{}'`
+  (tokensiz) = HECH NARSA saqlangan (`v_tok_olindi` bayrog'i). Probe `jurnal_filial_filtr_ok()`; GIN `entry_filial_ids_gin`.
+  Klient: `useFilialF`/`loadUseFilialF()`, `filTeg` (ildiz filial kassa id'lari: `acc:` → kassa; Aros filial → `v_filial_hisob`
+  hisoblarining `rootOf` ildizlari, `kassa_turi='filial'`), `args().p_filial_teg` (kesh kalitida), `argsV2` → `'filial:'+id`.
 - **Chek / Tablo ko'rinishi (tekshiruv xulosasi):** «Chek/Hujjat» tugmasi — `xarajat-cheklari` bucket select policy = hamma authenticated,
   ya'ni yozuvni ko'rgan har kim ko'radi. «AI chek»/«Tablo» tugmasi `entry.rasm_tahlil_id/spidometr_tahlil_id` dan chiqadi, lekin FAYL
   (`rasm_tahlil`/`mashina_km` RLS + `rasm-tahlil` bucket) `PROVODKA_RASM_JURNAL_RUXSAT.sql` RUN qilinmaguncha faqat egasi/admin'ga.

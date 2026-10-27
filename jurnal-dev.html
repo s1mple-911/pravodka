@@ -1655,6 +1655,20 @@ async function loadUseSavdosiz(){
 //              SERVER kursfarq: yozuvlarni sukut bo'yicha chiqarmaydi (ro'yxat, sanoq, dashboard, Excel —
 //              bitta manba) va «Texnik yozuvlar» belgisi yoqilganda argsV2() 'texnik' tokenini yuboradi.
 //              false (SQL RUN qilinmagan) — eski klient filtri (isTexnikRow) ishlayveradi, dashboard eskicha.
+// --- Filial TEGI bo'yicha filtr — PROVODKA_JURNAL_FILIAL_FILTR.sql (2026-10-27) ---
+// useFilialF : jurnal_v2_baza 'filial:<id>' tokenini tushunadimi. true bo'lsa filial tanlanganda argsV2
+//              p_turlar'ga 'filial:<filial kassa id>' qo'shadi — hisob bo'yicha YOKI teg (entry.filial_ids) bo'yicha.
+//              Asilbek: «Yunusobod oshxona» tegli, hodim kartasidan to'langan xarajat filtrda chiqmasdi.
+let useFilialF=false, filTeg=[];   // filTeg — tanlangan filialning ILDIZ kassa id'lari (teg = accounts.id)
+async function loadUseFilialF(){
+  const cached=swrGet('filialfok',86400000);
+  if(cached===true){ useFilialF=true; return; }
+  try{
+    const {data,error}=await sb.rpc('jurnal_filial_filtr_ok');
+    if(!error&&data===true){ useFilialF=true; swrSet('filialfok',true); }
+    else if(error) console.warn('jurnal: PROVODKA_JURNAL_FILIAL_FILTR.sql RUN qilinmagan — filial filtri teg bo\'yicha ishlamaydi', error.message||error);
+  }catch(e){}
+}
 let useTexnikF=false;
 async function loadUseTexnikF(){
   const cached=swrGet('texnikok',86400000);
@@ -2138,18 +2152,20 @@ async function loadFilSel(){
 function note(m){ const n=$('filNote'); n.style.display=m?'block':'none'; n.textContent=m||''; }
 async function onFil(){
   const w=$('fil').value;
-  if(!w){ filAllow=null; note(''); buildAccSel(); await load(); return; }
+  if(!w){ filAllow=null; filTeg=[]; note(''); buildAccSel(); await load(); return; }
   if(w.startsWith('acc:')){
-    // Provodka filial kassasi (oshxona): kassa + uning pul turi bola-hisoblari
+    // Provodka filial kassasi (oshxona): kassa + uning pul turi bola-hisoblari; teg = kassa id
     const kid=w.slice(4);
     const {data:ch,error:e2}=await sb.from('accounts').select('id').eq('parent_id',kid);
     if(e2){ note('Kassa hisoblari: '+e2.message); return; }
-    filAllow=new Set([kid,...(ch||[]).map(r=>r.id)]); buildAccSel(); note(''); await load(); return;
+    filAllow=new Set([kid,...(ch||[]).map(r=>r.id)]); filTeg=[kid]; buildAccSel(); note(''); await load(); return;
   }
   const {data,error}=await sb.from('v_filial_hisob').select('*').eq('warehouse_id',w);
   if(error){ note('Filial hisoblari: '+error.message); return; }
   const ids=[...new Set((data||[]).map(r=>r.account_id).filter(Boolean))];
   filAllow=new Set(ids); buildAccSel();
+  // Teg id'lari = filial KASSA ildizlari (xarajat filial multiselect accounts.id yozadi) — bola hisob emas
+  filTeg=[...new Set(ids.map(id=>rootOf(id)))].filter(id=>{ const a=(accounts||[]).find(x=>x.id===id); return a&&a.kassa_turi==='filial'; });
   if(!ids.length){
     note('Bu filialga hisob bog\'lanmagan — Sozlamalar → "Filiallarni bog\'lash".');
     // 🔴 render() EMAS, load(): args() bo'sh p_accounts beradi va load() ichidagi
@@ -3641,6 +3657,8 @@ const argsV2=a=>{
   if(useSavdosiz) turlar = turlar ? [...turlar,'savdosiz'] : ['savdosiz'];
   // 🔴 'texnik' tokeni — «Texnik yozuvlar» belgisi yoqilganda (va server tushunsa): avto kurs farqi ko'rsatiladi.
   if(useTexnikF && texnikOn) turlar = turlar ? [...turlar,'texnik'] : ['texnik'];
+  // 🔴 'filial:<id>' tokenlari — filial tanlanganda (PROVODKA_JURNAL_FILIAL_FILTR.sql): hisob YOKI teg bo'yicha.
+  if(useFilialF && a.p_filial_teg && a.p_filial_teg.length){ const ft=a.p_filial_teg.map(id=>'filial:'+id); turlar = turlar ? [...turlar,...ft] : ft; }
   const o={p_from:a.p_from,p_to:a.p_to,
     p_accounts:a.p_account?[a.p_account]:a.p_accounts,
     p_moddalar:a.p_moddalar,p_turlar:turlar,p_q:a.p_q};
@@ -4177,6 +4195,7 @@ function args(){
       if(permAccIds){ const ok=new Set(permAccIds); const f=accs.filter(id=>ok.has(id)); if(f.length) accs=f; }
     }
   }
+  const filialTeg=(!acc&&filAllow&&useFilialF&&filTeg.length)?filTeg.slice():null;   // → argsV2 'filial:<id>' (kesh kalitiga ham kiradi)
   if(!acc&&!accs){
     if(filAllow){
       accs=[...filAllow];
@@ -4199,7 +4218,9 @@ function args(){
     // tagSel ikki xil: maxsus maydon elementi (uuid) va 's:<id>' — tovar tannarxi to'lov turi.
     p_elementlar:(()=>{ const x=tagSel.filter(v=>!String(v).startsWith('s:')); return x.length?x:null; })(),
     p_sabablar:(()=>{ const x=tagSel.filter(v=>String(v).startsWith('s:')).map(v=>Number(String(v).slice(2))).filter(n=>Number.isInteger(n)); return x.length?x:null; })(),
-    p_q:($('q').value||'').trim()||null};
+    p_q:($('q').value||'').trim()||null,
+    // Filial TEGI (entry.filial_ids) — serverga argsV2 'filial:<id>' tokeni sifatida ketadi (useFilialF bo'lsa).
+    p_filial_teg:filialTeg};
 }
 async function load(){
   offset=0; rows=[]; const my=++loadSeq;
@@ -4799,7 +4820,7 @@ async function init(){
   //    tanlaganda TUR_SRV.kv orqali keladi) — faqat chipni ko'rsatish/yashirish uchun.
   //    loadUseMaydonF() ham shu Promise.all'da: useMaydonF load()'dan OLDIN aniq bo'lsin
   //    (aks holda #fldTag/argsV2 sovuq keshda "yo'q" holatda qotib qolardi).
-  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF(), loadUseSababF(), loadUseTexnikF() ]);
+  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF(), loadUseSababF(), loadUseTexnikF(), loadUseFilialF() ]);
   if(useKonvertF){ const b=$('turKv'); if(b) b.style.display=''; }
   if(window.permScope && window.permScope()==='list'){
     await loadAccounts();
