@@ -784,6 +784,13 @@
     <div class="page-head">
       <h1>Yuklar</h1>
       <div class="head-actions">
+        <select class="datepick" id="davr" aria-label="Davr" onchange="setDavr(this.value)">
+          <option value="30">Oxirgi 30 kun</option>
+          <option value="90">Oxirgi 3 oy</option>
+          <option value="180">Oxirgi 6 oy</option>
+          <option value="365">Oxirgi 1 yil</option>
+          <option value="">Boshqa davr</option>
+        </select>
         <input class="datepick" id="from" type="date" aria-label="Boshi">
         <span class="head-sep" aria-hidden="true">—</span>
         <input class="datepick" id="to" type="date" aria-label="Oxiri">
@@ -1348,6 +1355,47 @@ function renderError(msg){
   icons();
 }
 
+/* Aros product-incomes bitta sahifada eng ko'pi 500 yuk qaytaradi (n8n page_size=500, ordering=-1 —
+   yangilari birinchi). Davr keng bo'lsa (masalan 6 oy) 500 dan keyingi ENG ESKI yuklar jimgina
+   tushib qolardi — 2026-10-27: Asilbek 2600–2700 yuklarga tannarx/muddat qo'ya olmadi. Shuning
+   uchun davr ≤45 kunlik bo'laklarga bo'lib PARALLEL o'qiladi (date_from/date_to ikkala uchi ham
+   inklyuziv — 2026-10-27 tekshirildi), bo'lak 500 ga to'lsa yana ikkiga bo'linadi. id bo'yicha dedupe. */
+const YUK_CHUNK_DAYS=45, AROS_PAGE_MAX=500, DAY_MS=86400000;
+async function fetchYukChunk(df,dt){
+  const res=await fetch(N8N+'?date_from='+encodeURIComponent(df)+'&date_to='+encodeURIComponent(dt),{headers:{'Accept':'application/json'}});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const j=await res.json();
+  if(!j || j.ok===false || !Array.isArray(j.yuklar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
+  if(j.yuklar.length>=AROS_PAGE_MAX && df<dt){
+    const a=Date.parse(df+'T00:00:00Z'), b=Date.parse(dt+'T00:00:00Z');
+    const mid=new Date(a+Math.floor((b-a)/DAY_MS/2)*DAY_MS), m1=isoDay(mid), m2=isoDay(new Date(mid.getTime()+DAY_MS));
+    if(m2>dt) return j.yuklar;
+    const [x,y]=await Promise.all([fetchYukChunk(df,m1),fetchYukChunk(m2,dt)]);
+    return x.concat(y);
+  }
+  return j.yuklar;
+}
+async function fetchYuklarRange(from,to){
+  const a=Date.parse(from+'T00:00:00Z'), b=Date.parse(to+'T00:00:00Z');
+  if(!isFinite(a)||!isFinite(b)||b<a) return fetchYukChunk(from,to);
+  const parts=[]; let st=a;
+  while(st<=b){ const en=Math.min(b,st+(YUK_CHUNK_DAYS-1)*DAY_MS); parts.push([isoDay(new Date(st)),isoDay(new Date(en))]); st=en+DAY_MS; }
+  const res=await Promise.all(parts.map(pr=>fetchYukChunk(pr[0],pr[1])));
+  const seen=new Set(), out=[];
+  res.flat().forEach(y=>{ const k=String(y&&y.id); if(!y||seen.has(k)) return; seen.add(k); out.push(y); });
+  return out;
+}
+/* Tez davr: 30/90/180/365 kun — «Boshi» ni o'zgartiradi, «Oxiri» bugun. '' = qo'lda. */
+window.setDavr=(v)=>{
+  const d=Number(v); if(!d) return;
+  const t=nowUz(); $('to').value=isoDay(t); $('from').value=isoDay(new Date(t.getTime()-d*DAY_MS));
+  window.loadYuklar('fresh');
+};
+function davrSync(){ const d=$('davr'); if(!d) return; const t=nowUz();
+  const diff=Math.round((Date.parse($('to').value+'T00:00:00Z')-Date.parse($('from').value+'T00:00:00Z'))/DAY_MS);
+  const v=($('to').value===isoDay(t)&&[30,90,180,365].includes(diff))?String(diff):'';
+  if(d.value!==v) d.value=v; }
+
 /* Asosiy o'qish. mode='fresh' — yozuvdan keyin keshdan bermaydi. */
 window.loadYuklar=async(mode)=>{
   const from=$('from').value, to=$('to').value;
@@ -1358,15 +1406,11 @@ window.loadYuklar=async(mode)=>{
     if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; paidMap=c.paidMap||{}; dlMap=c.dlMap||{}; yopiqMap=c.yopiqMap||{}; fillOmbor(); renderYuklar(); }
     else $('yukBody').innerHTML=LOADSKEL;
   }
+  davrSync();
   let arr;
   const qoldaP=loadQolda();
-  try{
-    const res=await fetch(N8N+'?date_from='+encodeURIComponent(from)+'&date_to='+encodeURIComponent(to),{headers:{'Accept':'application/json'}});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const j=await res.json();
-    if(!j || j.ok===false || !Array.isArray(j.yuklar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
-    arr=j.yuklar;
-  }catch(e){ if(!yuklar.length) renderError(e.message||String(e)); return; }
+  try{ arr=await fetchYuklarRange(from,to); }
+  catch(e){ if(!yuklar.length) renderError(e.message||String(e)); return; }
   // Boshlang'ich (qo'lda) qarz hujjatlari — tanlangan davrdan qat'i nazar har doim qo'shiladi.
   yuklar=arr.concat(await qoldaP);
   const ids=yuklar.map(y=>Number(y.id)).filter(x=>Number.isFinite(x));

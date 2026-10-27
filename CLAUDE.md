@@ -1211,6 +1211,23 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
   Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
   `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
+### Yuklar — eski yuklar (2600–2700) ko'rinmasligi: 30 kunlik davr + Aros 500 sahifa chegarasi (2026-10-27, faqat dev)
+
+Asilbek: «transferlar 2901 dan qilingan ekan, 2600–2700 ga ham tannarx/muddat kerak». Tekshiruv: 2901 = 2026-09-27 — bu
+hech qanday cutoff EMAS, sahifa `init()` da «Boshi» = bugun−30 kun, n8n `Yuklar API` (`BlFQu0QZ0JH9pqek`) Aros
+`product-incomes/?page=1&page_size=500&ordering=-1&date_from..date_to` dan o'qiydi. **Kesh/snapshot kerak emas** —
+tannarx (`yuk_tannarx_qosh`), muddat (`yuk_grafik_saqla`/`yuk_deadline`), bojxona hech biri `aros_yuk_snapshot`ga
+qaramaydi, yuk_id bilan ishlaydi (bojxona qatori yo'q eski yuk → limit «yo'q», tannarx baribir qo'shiladi, `bojCheck`
+`missing++`). `aros_yuk_snapshot` (Yuk Snapshot Sync, 90 kun) faqat o'zgarish jurnali uchun.
+- 🔴 **Yashirin yo'qotish:** davr keng bo'lsa Aros 1 sahifa = 500 → ENG ESKI yuklar jimgina tushib qolardi (2026-01-01..10-27
+  bitta so'rov: 500, min id 2557 = 30-aprel; yanvar–aprel yo'q). `yuklar-dev.html` endi `fetchYuklarRange(from,to)`:
+  ≤45 kunlik bo'laklar PARALLEL (`fetchYukChunk`), bo'lak 500 ga to'lsa ikkiga bo'linib qayta o'qiladi, id dedupe.
+  Aros `date_from/date_to` ikkala uchi inklyuziv (26..26 → 2896–2900, 27..27 → 2901–2902 — tekshirildi), bo'laklar
+  `en+1 kun` dan boshlanadi. Sinov: Jan–Oct bo'lib = 908 yuk (min 2149), bitta so'rov = 500.
+- UI: `#davr` select (Oxirgi 30 kun / 3 oy / 6 oy / 1 yil / Boshqa davr) sana maydonlari oldida, `setDavr(v)` «Boshi»ni
+  qo'yadi va `loadYuklar('fresh')`; `davrSync()` qo'lda sana o'zgarsa select'ni moslaydi. Default 30 kun o'zgarmadi.
+- n8n'ga tegilmadi (Yuklar API o'sha-o'sha). 1 yil ≈ 9 parallel so'rov, ~5 s.
+
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
 `tannarx-dev.html` dagi HAMMA feature `yuklar-dev.html` ga ko'chirildi (ikkalasi Aros yuklar ro'yxati edi): qator tanlash +
