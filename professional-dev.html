@@ -914,15 +914,16 @@
       </div>
       <div id="yukBojWarn" class="pendnote" style="display:none"></div>
       <div class="yukfilt">
-        <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan<span class="n" id="yfN0"></span></button>
+        <button type="button" class="fchip on" data-yf="all" onclick="setYukFilt('all')">Hammasi<span class="n" id="yfN2"></span></button>
+        <button type="button" class="fchip" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan<span class="n" id="yfN0"></span></button>
         <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman<span class="n" id="yfN1"></span></button>
-        <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi<span class="n" id="yfN2"></span></button>
         <select class="txt" id="yukDavr" aria-label="Davr" onchange="renderYukList()">
+          <option value="oy" selected>Bu oy</option>
           <option value="30">Oxirgi 30 kun</option>
           <option value="90">Oxirgi 3 oy</option>
           <option value="180">Oxirgi 6 oy</option>
           <option value="365">Oxirgi 1 yil</option>
-          <option value="730" selected>Oxirgi 2 yil</option>
+          <option value="730">Oxirgi 2 yil</option>
         </select>
         <select class="txt" id="yukYetk" aria-label="Yetkazib beruvchi" onchange="renderYukList()"><option value="">Barcha yetkazuvchilar</option></select>
         <input class="txt" id="yukSearch" placeholder="Qidirish: ID / ombor / yetkazuvchi" autocomplete="off" oninput="renderYukList()">
@@ -2613,7 +2614,7 @@ const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
 // Modda 9110 ga qo'yiladi, summa to'ldiriladi; yuk modali ochilganda o'sha yuk
 // avtomat tanlanadi (afterYukLoad). Kassani foydalanuvchi tanlaydi (bitta bo'lsa avtomat).
 let preYuk=null;
-let yukList=[], yukPaidMap={}, yukTanMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='unpaid', yukLoaded=false;
+let yukList=[], yukPaidMap={}, yukTanMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='all', yukLoaded=false;   // 2026-10-27 (Asilbek): sukut «Hammasi» — user o'zi toraytiradi
 let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0, yukSaveMode='simple';
 // --- To'lov turi (0-ekran, 2026-09-15, Asilbek talabi) ---
 // yukTur: null (hali tanlanmagan) | 'tovar' (sababsiz, eski xatti-harakat) | number (yuk_tannarx_sabab.id — xizmat).
@@ -2984,8 +2985,11 @@ window.renderYukList=()=>{
   const q=($('yukSearch').value||'').trim().toLowerCase();
   // Davr (yuklar-dev.html «Davr» tanlovi bilan bir xil) + yetkazuvchi — 2026-10-27 (Asilbek: yuklar sahifasida
   // «Oxirgi 3 oy» bilan ko'ringan hujjat modalda topilmasdi — davr/yetkazuvchi filtri va chip sanoqlari qo'shildi).
-  const davr=Number(($('yukDavr')&&$('yukDavr').value)||730), yetk=($('yukYetk')&&$('yukYetk').value)||'';
-  const chegara=_isoY(new Date(Date.now()+5*3600*1000-davr*86400000));
+  const dv=($('yukDavr')&&$('yukDavr').value)||'oy', yetk=($('yukYetk')&&$('yukYetk').value)||'';
+  const nowU=new Date(Date.now()+5*3600*1000);
+  // 'oy' = joriy oy boshidan (sukut, Asilbek 2026-10-27); raqam = oxirgi N kun; 730 = hammasi (kesh 2 yil)
+  const davr=dv==='oy'?0:Number(dv)||730;
+  const chegara=dv==='oy'?_isoY(nowU).slice(0,8)+'01':_isoY(new Date(nowU.getTime()-davr*86400000));
   let base=yukList.filter(y=>{
     if(davr<730 && String(y.sana||'').slice(0,10)<chegara) return false;
     if(yetk && y.yetkazuvchi!==yetk) return false;
@@ -3027,7 +3031,7 @@ window.renderYukList=()=>{
       +'<span class="yl2">'+arosTxt+(tn>0?' + tannarx '+money(tn):'')+' '+rem+'</span>'
       +sabRow+'</span>'
       +'<span class="ynarx">'+jamiTxt+'</span></div>'+inp+'</div>';
-  }).join('') : '<div class="yukempty">Yuk topilmadi.'+(bq.length&&yukFilt!=='all'?'<br><span style="font-weight:500">Bu davrda '+bq.length+' ta hujjat bor, lekin «'+(yukFilt==='unpaid'?'To\'lanmagan':'Qisman')+'» emas — <button type="button" class="ylink" onclick="setYukFilt(\'all\')">Hammasini ko\'rsatish</button></span>':(davr<730?'<br><span style="font-weight:500">Davrni kengaytirib ko\'ring (hozir oxirgi '+davr+' kun).</span>':''))+'</div>';
+  }).join('') : '<div class="yukempty">Yuk topilmadi.'+(bq.length&&yukFilt!=='all'?'<br><span style="font-weight:500">Bu davrda '+bq.length+' ta hujjat bor, lekin «'+(yukFilt==='unpaid'?'To\'lanmagan':'Qisman')+'» emas — <button type="button" class="ylink" onclick="setYukFilt(\'all\')">Hammasini ko\'rsatish</button></span>':(davr<730?'<br><span style="font-weight:500">Davrni kengaytirib ko\'ring (hozir '+(dv==='oy'?'bu oy':'oxirgi '+davr+' kun')+').</span>':''))+'</div>';
 };
 
 /* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================
