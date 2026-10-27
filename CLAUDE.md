@@ -1211,7 +1211,7 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
   Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
   `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
-### Jurnal: Excel «Hammasi» varag'i + filial filtrida oshxona kassalari (2026-10-27, faqat dev)
+### Jurnal: Excel «Hammasi» varag'i + filial filtrida oshxona kassalari + teg bo'yicha filtr (2026-10-27, prod'ga chiqdi 27.10; `PROVODKA_JURNAL_FILIAL_FILTR.sql` RUN ✅)
 
 - **Excel** (`exportExcel`): «Xulosa»dan keyin yangi **«Hammasi»** varag'i — eksportga kirgan HAMMA yozuv bitta joyda («Filial(lar)»
   ustuni bilan, `xlsEntrySheet(sp.exported)`); filial bo'yicha alohida varaqlar va «Filialsiz»/«Satrlar» saqlanadi. `XLS_FIL_RESERVED`
@@ -1219,7 +1219,7 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
 - **Filial filtri** (`loadFilSel`): `v_filial_royxat` FAQAT Aros filiallari (warehouse_id) — «Yunusobod oshxona» (PROVODKA_OSHXONA_KASSA.sql,
   `accounts.kassa_turi='filial'`, warehouse yo'q) chiqmasdi. Endi warehouse'ga bog'lanmagan filial kassalari ro'yxat oxiriga `acc:<id>`
   qiymati bilan qo'shiladi; `onFil` `acc:` → `filAllow` = kassa + bola pul-turi hisoblari; `xlsTargetFilials` `acc:` ni hisob bo'yicha topadi.
-- **Filial filtri TEG bo'yicha ham (`PROVODKA_JURNAL_FILIAL_FILTR.sql`, RUN kutilmoqda).** Asilbek: oshxonani tanlasa yozuv chiqmadi —
+- **Filial filtri TEG bo'yicha ham (`PROVODKA_JURNAL_FILIAL_FILTR.sql`, RUN ✅ 27.10).** Asilbek: oshxonani tanlasa yozuv chiqmadi —
   yozuv hodim kartasidan (5392) to'langan, faqat Maqsad TEGI «Yunusobod oshxona» (`entry.filial_ids`); jurnal filial filtri esa
   FAQAT hisob (p_accounts) bo'yicha edi (Aros filiallarida ham shunday). `jurnal_v2_baza` (TEXNIK tanasi + ) `p_turlar`da
   **`filial:<uuid>` tokenlari**: yozuv (p_accounts satri bor) YOKI (`filial_ids && token id'lari`); `jurnal_dash` 'texnik' bilan

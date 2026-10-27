@@ -1655,6 +1655,20 @@ async function loadUseSavdosiz(){
 //              SERVER kursfarq: yozuvlarni sukut bo'yicha chiqarmaydi (ro'yxat, sanoq, dashboard, Excel —
 //              bitta manba) va «Texnik yozuvlar» belgisi yoqilganda argsV2() 'texnik' tokenini yuboradi.
 //              false (SQL RUN qilinmagan) — eski klient filtri (isTexnikRow) ishlayveradi, dashboard eskicha.
+// --- Filial TEGI bo'yicha filtr — PROVODKA_JURNAL_FILIAL_FILTR.sql (2026-10-27) ---
+// useFilialF : jurnal_v2_baza 'filial:<id>' tokenini tushunadimi. true bo'lsa filial tanlanganda argsV2
+//              p_turlar'ga 'filial:<filial kassa id>' qo'shadi — hisob bo'yicha YOKI teg (entry.filial_ids) bo'yicha.
+//              Asilbek: «Yunusobod oshxona» tegli, hodim kartasidan to'langan xarajat filtrda chiqmasdi.
+let useFilialF=false, filTeg=[];   // filTeg — tanlangan filialning ILDIZ kassa id'lari (teg = accounts.id)
+async function loadUseFilialF(){
+  const cached=swrGet('filialfok',86400000);
+  if(cached===true){ useFilialF=true; return; }
+  try{
+    const {data,error}=await sb.rpc('jurnal_filial_filtr_ok');
+    if(!error&&data===true){ useFilialF=true; swrSet('filialfok',true); }
+    else if(error) console.warn('jurnal: PROVODKA_JURNAL_FILIAL_FILTR.sql RUN qilinmagan — filial filtri teg bo\'yicha ishlamaydi', error.message||error);
+  }catch(e){}
+}
 let useTexnikF=false;
 async function loadUseTexnikF(){
   const cached=swrGet('texnikok',86400000);
@@ -2120,21 +2134,38 @@ function onHodim(){ if($('hodim').value) $('acc').value=''; load(); }
 function onAcc(){ if($('acc').value) $('hodim').value=''; load(); }
 // Filial ro'yxati. View hali yo'q bo'lsa filtrni butunlay yashiramiz.
 async function loadFilSel(){
-  const {data,error}=await sb.from('v_filial_royxat').select('*').order('filial');
+  const [{data,error},kq]=await Promise.all([
+    sb.from('v_filial_royxat').select('*').order('filial'),
+    // 2026-10-27 (Asilbek: «Yunusobod oshxona filiallar ichida chiqmayapti»): v_filial_royxat FAQAT Aros
+    // filiallari (warehouse_id). Oshxonalar — Provodka'ning o'z filial kassalari (PROVODKA_OSHXONA_KASSA.sql,
+    // kassa_turi='filial', warehouse yo'q) — ular ro'yxatga `acc:<id>` qiymati bilan qo'shiladi.
+    sb.from('accounts').select('id,name,code,warehouse_id').eq('kassa_turi','filial').is('parent_id',null).eq('is_active',true).order('name')
+  ]);
   if(error||!data){ $('fil').closest('.fld').style.display='none'; return; }
+  const bogsiz=(kq&&!kq.error&&Array.isArray(kq.data))?kq.data.filter(a=>a.warehouse_id==null):[];
   $('fil').innerHTML='<option value="">Barcha filiallar</option>'
-    +data.map(f=>`<option value="${esc(f.warehouse_id)}">${esc(f.filial)}</option>`).join('');
+    +data.map(f=>`<option value="${esc(f.warehouse_id)}">${esc(f.filial)}</option>`).join('')
+    +bogsiz.map(a=>`<option value="acc:${esc(a.id)}">${esc(a.name)}</option>`).join('');
   $('fil').onchange=onFil;
   sselSync('fil');
 }
 function note(m){ const n=$('filNote'); n.style.display=m?'block':'none'; n.textContent=m||''; }
 async function onFil(){
   const w=$('fil').value;
-  if(!w){ filAllow=null; note(''); buildAccSel(); await load(); return; }
+  if(!w){ filAllow=null; filTeg=[]; note(''); buildAccSel(); await load(); return; }
+  if(w.startsWith('acc:')){
+    // Provodka filial kassasi (oshxona): kassa + uning pul turi bola-hisoblari; teg = kassa id
+    const kid=w.slice(4);
+    const {data:ch,error:e2}=await sb.from('accounts').select('id').eq('parent_id',kid);
+    if(e2){ note('Kassa hisoblari: '+e2.message); return; }
+    filAllow=new Set([kid,...(ch||[]).map(r=>r.id)]); filTeg=[kid]; buildAccSel(); note(''); await load(); return;
+  }
   const {data,error}=await sb.from('v_filial_hisob').select('*').eq('warehouse_id',w);
   if(error){ note('Filial hisoblari: '+error.message); return; }
   const ids=[...new Set((data||[]).map(r=>r.account_id).filter(Boolean))];
   filAllow=new Set(ids); buildAccSel();
+  // Teg id'lari = filial KASSA ildizlari (xarajat filial multiselect accounts.id yozadi) — bola hisob emas
+  filTeg=[...new Set(ids.map(id=>rootOf(id)))].filter(id=>{ const a=(accounts||[]).find(x=>x.id===id); return a&&a.kassa_turi==='filial'; });
   if(!ids.length){
     note('Bu filialga hisob bog\'lanmagan — Sozlamalar → "Filiallarni bog\'lash".');
     // 🔴 render() EMAS, load(): args() bo'sh p_accounts beradi va load() ichidagi
@@ -3626,6 +3657,8 @@ const argsV2=a=>{
   if(useSavdosiz) turlar = turlar ? [...turlar,'savdosiz'] : ['savdosiz'];
   // 🔴 'texnik' tokeni — «Texnik yozuvlar» belgisi yoqilganda (va server tushunsa): avto kurs farqi ko'rsatiladi.
   if(useTexnikF && texnikOn) turlar = turlar ? [...turlar,'texnik'] : ['texnik'];
+  // 🔴 'filial:<id>' tokenlari — filial tanlanganda (PROVODKA_JURNAL_FILIAL_FILTR.sql): hisob YOKI teg bo'yicha.
+  if(useFilialF && a.p_filial_teg && a.p_filial_teg.length){ const ft=a.p_filial_teg.map(id=>'filial:'+id); turlar = turlar ? [...turlar,...ft] : ft; }
   const o={p_from:a.p_from,p_to:a.p_to,
     p_accounts:a.p_account?[a.p_account]:a.p_accounts,
     p_moddalar:a.p_moddalar,p_turlar:turlar,p_q:a.p_q};
@@ -4162,6 +4195,7 @@ function args(){
       if(permAccIds){ const ok=new Set(permAccIds); const f=accs.filter(id=>ok.has(id)); if(f.length) accs=f; }
     }
   }
+  const filialTeg=(!acc&&filAllow&&useFilialF&&filTeg.length)?filTeg.slice():null;   // → argsV2 'filial:<id>' (kesh kalitiga ham kiradi)
   if(!acc&&!accs){
     if(filAllow){
       accs=[...filAllow];
@@ -4184,7 +4218,9 @@ function args(){
     // tagSel ikki xil: maxsus maydon elementi (uuid) va 's:<id>' — tovar tannarxi to'lov turi.
     p_elementlar:(()=>{ const x=tagSel.filter(v=>!String(v).startsWith('s:')); return x.length?x:null; })(),
     p_sabablar:(()=>{ const x=tagSel.filter(v=>String(v).startsWith('s:')).map(v=>Number(String(v).slice(2))).filter(n=>Number.isInteger(n)); return x.length?x:null; })(),
-    p_q:($('q').value||'').trim()||null};
+    p_q:($('q').value||'').trim()||null,
+    // Filial TEGI (entry.filial_ids) — serverga argsV2 'filial:<id>' tokeni sifatida ketadi (useFilialF bo'lsa).
+    p_filial_teg:filialTeg};
 }
 async function load(){
   offset=0; rows=[]; const my=++loadSeq;
@@ -4570,7 +4606,7 @@ function xlsLineRows(list){
    🔴 Bir yozuv ikki filialga tegilgan bo'lsa ikkala varaqda ham turadi — varaqlar yig'indisi
    umumiy summadan katta bo'lishi mumkin; "Xulosa"dagi "Jami (takrorsiz)" haqiqiy jami.
    🔴 Server filtri (args) O'ZGARMAGAN: filial tanlanganda ekranda nima bo'lsa, shu keladi. */
-const XLS_FIL_RESERVED=['Xulosa','Filialsiz','Satrlar'];
+const XLS_FIL_RESERVED=['Xulosa','Hammasi','Filialsiz','Satrlar'];
 const XLS_COLS=[{wch:5},{wch:16},{wch:11},{wch:9},{wch:10},{wch:26},{wch:10},{wch:26},{wch:15},{wch:8},{wch:13},{wch:34},
   {wch:11},{wch:11},{wch:20},{wch:10},{wch:20},{wch:12},{wch:16},{wch:10},{wch:8},{wch:11},{wch:12},{wch:16},{wch:17},
   {wch:16},{wch:17},{wch:17},{wch:38},{wch:34}];
@@ -4596,7 +4632,8 @@ function xlsTargetFilials(){
   if(w){
     const opt=fil.options&&fil.options[fil.selectedIndex];
     const label=(opt&&opt.textContent)||'Filial';
-    const hit=fa.filter(a=>a.warehouse_id!=null&&String(a.warehouse_id)===String(w));
+    // `acc:<id>` — warehouse'siz Provodka filial kassasi (oshxona), to'g'ridan-to'g'ri hisob bo'yicha
+    const hit=w.startsWith('acc:')?fa.filter(a=>a.id===w.slice(4)):fa.filter(a=>a.warehouse_id!=null&&String(a.warehouse_id)===String(w));
     if(!hit.length&&filAllow){
       const byId=new Map(fa.map(a=>[a.id,a]));
       [...filAllow].forEach(id=>{ const r=byId.get(rootOf(id)); if(r&&!hit.includes(r)) hit.push(r); });
@@ -4690,6 +4727,7 @@ window.exportExcel=async()=>{
     const sumOf=arr=>arr.reduce((s,e)=>s+(klass(e).chala?0:sumDt(e)),0);
     const xul=[['Davr',(a.p_from||'')+' — '+(a.p_to||'')],['Filial rejimi',sp.t.label],[],
       ['Varaq','Yozuvlar','Summa (so\'m)']];
+    xul.push(['Hammasi (umumiy)',sp.exported.length,sumOf(sp.exported)]);
     named.forEach(sh=>xul.push([sh.sheet,sh.rows.length,sumOf(sh.rows)]));
     if(sp.yoq.length) xul.push(['Filialsiz',sp.yoq.length,sumOf(sp.yoq)]);
     xul.push(['Jami (takrorsiz)',sp.exported.length,sumOf(sp.exported)]);
@@ -4698,6 +4736,9 @@ window.exportExcel=async()=>{
     ws0['!cols']=[{wch:34},{wch:12},{wch:18}];
     xlsNumFmt(X,ws0,{2:'#,##0'},xul.length);
     X.utils.book_append_sheet(wb,ws0,'Xulosa');
+    // 1.5) «Hammasi» — 2026-10-27 (Asilbek): hamma yozuv BITTA umumiy varaqda («Filial(lar)» ustuni bilan),
+    //      filial bo'yicha alohida varaqlar ham saqlanadi.
+    X.utils.book_append_sheet(wb,xlsEntrySheet(X,sp.exported,meta,ey,cheks,mx),'Hammasi');
     // 2) Har filial ALOHIDA varaq (+ "Filialsiz")
     named.forEach(sh=>X.utils.book_append_sheet(wb,xlsEntrySheet(X,sh.rows,meta,ey,cheks,mx),sh.sheet));
     if(sp.yoq.length) X.utils.book_append_sheet(wb,xlsEntrySheet(X,sp.yoq,meta,ey,cheks,mx),'Filialsiz');
@@ -4779,7 +4820,7 @@ async function init(){
   //    tanlaganda TUR_SRV.kv orqali keladi) — faqat chipni ko'rsatish/yashirish uchun.
   //    loadUseMaydonF() ham shu Promise.all'da: useMaydonF load()'dan OLDIN aniq bo'lsin
   //    (aks holda #fldTag/argsV2 sovuq keshda "yo'q" holatda qotib qolardi).
-  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF(), loadUseSababF(), loadUseTexnikF() ]);
+  await Promise.all([ loadUsePul(), loadUseSavdosiz(), loadUseKonvertF(), loadUseMaydonF(), loadUseSababF(), loadUseTexnikF(), loadUseFilialF() ]);
   if(useKonvertF){ const b=$('turKv'); if(b) b.style.display=''; }
   if(window.permScope && window.permScope()==='list'){
     await loadAccounts();
