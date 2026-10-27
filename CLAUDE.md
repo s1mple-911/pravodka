@@ -1211,6 +1211,19 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
   Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
   `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
+### Jurnal: Excel «Hammasi» varag'i + filial filtrida oshxona kassalari (2026-10-27, faqat dev)
+
+- **Excel** (`exportExcel`): «Xulosa»dan keyin yangi **«Hammasi»** varag'i — eksportga kirgan HAMMA yozuv bitta joyda («Filial(lar)»
+  ustuni bilan, `xlsEntrySheet(sp.exported)`); filial bo'yicha alohida varaqlar va «Filialsiz»/«Satrlar» saqlanadi. `XLS_FIL_RESERVED`
+  ga 'Hammasi' qo'shildi. Asilbek: «filial-filial alohida sheet, menga umumiy bitta joyda kerak».
+- **Filial filtri** (`loadFilSel`): `v_filial_royxat` FAQAT Aros filiallari (warehouse_id) — «Yunusobod oshxona» (PROVODKA_OSHXONA_KASSA.sql,
+  `accounts.kassa_turi='filial'`, warehouse yo'q) chiqmasdi. Endi warehouse'ga bog'lanmagan filial kassalari ro'yxat oxiriga `acc:<id>`
+  qiymati bilan qo'shiladi; `onFil` `acc:` → `filAllow` = kassa + bola pul-turi hisoblari; `xlsTargetFilials` `acc:` ni hisob bo'yicha topadi.
+- **Chek / Tablo ko'rinishi (tekshiruv xulosasi):** «Chek/Hujjat» tugmasi — `xarajat-cheklari` bucket select policy = hamma authenticated,
+  ya'ni yozuvni ko'rgan har kim ko'radi. «AI chek»/«Tablo» tugmasi `entry.rasm_tahlil_id/spidometr_tahlil_id` dan chiqadi, lekin FAYL
+  (`rasm_tahlil`/`mashina_km` RLS + `rasm-tahlil` bucket) `PROVODKA_RASM_JURNAL_RUXSAT.sql` RUN qilinmaguncha faqat egasi/admin'ga.
+  Yozuv umuman ko'rinmasa — `user_perms.allowed_pages` da 'jurnal' yo'q yoki `kassa_scope='list'` va `view_kassa_ids` da o'sha kassa yo'q.
+
 ### Yuklar KESHI — sahifa Aros'ga bormaydi + ID/yetkazuvchi qidiruv + eski yuklar (2600–2700) (2026-10-27, `PROVODKA_YUK_KESH.sql`, `N8N_YUK_SNAPSHOT_V2.sh`; SQL RUN ✅, n8n V2 Publish ✅, backfill 2024–2026 ✅ (~3 050 yuk), prod'ga chiqdi 27.10)
 
 Asilbek: «transferlar 2901 dan qilingan ekan, 2600–2700 ga ham tannarx/muddat kerak». Tekshiruv: 2901 = 2026-09-27 — bu
