@@ -2671,7 +2671,9 @@ function yukRow(y){
   if(!u.cc){ const j=yukJami(y); return {err:j==null, jami:j, qoldi:yukQoldiq(y), approx:false}; }
   const ry=curRate(y.valyuta);
   if(u.rate==null||ry==null) return {err:true, jami:null, qoldi:null, approx:false};
-  const same=y.valyuta===u.cur, narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
+  // Aros yuk valyutasi 'CHY' (Aros kodi), kassa bolasi 'CNY' yoki 'CHY' bo'lishi mumkin — ikkisi bitta yuan (yuk_kurslar ham shunday).
+  const normC=c=>{ const v=String(c||'UZS').toUpperCase(); return v==='CHY'?'CNY':v; };
+  const same=normC(y.valyuta)===normC(u.cur), narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
   return {err:false, jami:narx, qoldi:Math.max(0,u.rnd(narx-yukTolangan(y.id)/u.rate)), approx:!same};
 }
 function yukSelectable(y){ const q=yukRow(y).qoldi; return q!=null && q>0; }   // kurs bor va qarzi bor
