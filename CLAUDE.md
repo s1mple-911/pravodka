@@ -1211,7 +1211,7 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
   Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
   `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
-### Yuklar KESHI — sahifa Aros'ga bormaydi + ID/yetkazuvchi qidiruv + eski yuklar (2600–2700) (2026-10-27, `PROVODKA_YUK_KESH.sql`, `N8N_YUK_SNAPSHOT_V2.sh`, faqat dev, RUN/deploy kutilmoqda)
+### Yuklar KESHI — sahifa Aros'ga bormaydi + ID/yetkazuvchi qidiruv + eski yuklar (2600–2700) (2026-10-27, `PROVODKA_YUK_KESH.sql`, `N8N_YUK_SNAPSHOT_V2.sh`; SQL RUN ✅, n8n V2 Publish ✅, backfill 2024–2026 ✅ (~3 050 yuk), prod'ga chiqdi 27.10)
 
 Asilbek: «transferlar 2901 dan qilingan ekan, 2600–2700 ga ham tannarx/muddat kerak». Tekshiruv: 2901 = 2026-09-27 — bu
 hech qanday cutoff EMAS, sahifa `init()` da «Boshi» = bugun−30 kun, n8n `Yuklar API` (`BlFQu0QZ0JH9pqek`) Aros
