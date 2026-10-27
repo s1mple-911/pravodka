@@ -227,6 +227,8 @@
   #yukTypeBar,#yukPickIzohWrap,#yukBojWarn,#yukPendLockNote,#yukTypeChips{flex:0 0 auto}
   .yukfilt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .yukfilt .txt{flex:1;min-width:150px;height:40px;margin:0}
+  .yukfilt select.txt{flex:0 1 170px;min-width:140px;cursor:pointer}
+  .yukfilt .fchip .n{opacity:.7;font-weight:600;margin-left:3px}
   .yuklist{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .yuklist::-webkit-scrollbar{width:6px}
   .yuklist::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
@@ -912,9 +914,17 @@
       </div>
       <div id="yukBojWarn" class="pendnote" style="display:none"></div>
       <div class="yukfilt">
-        <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
-        <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman</button>
-        <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
+        <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan<span class="n" id="yfN0"></span></button>
+        <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman<span class="n" id="yfN1"></span></button>
+        <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi<span class="n" id="yfN2"></span></button>
+        <select class="txt" id="yukDavr" aria-label="Davr" onchange="renderYukList()">
+          <option value="30">Oxirgi 30 kun</option>
+          <option value="90">Oxirgi 3 oy</option>
+          <option value="180">Oxirgi 6 oy</option>
+          <option value="365">Oxirgi 1 yil</option>
+          <option value="730" selected>Oxirgi 2 yil</option>
+        </select>
+        <select class="txt" id="yukYetk" aria-label="Yetkazib beruvchi" onchange="renderYukList()"><option value="">Barcha yetkazuvchilar</option></select>
         <input class="txt" id="yukSearch" placeholder="Qidirish: ID / ombor / yetkazuvchi" autocomplete="off" oninput="renderYukList()">
         <button type="button" class="ylink" id="yukArosBtn" onclick="reloadYuk(true)" title="Keshni Aros'dan yangilab qayta o'qish">↻ Aros'dan yangilash</button>
       </div>
@@ -2953,7 +2963,13 @@ async function loadYukList(){
   }catch(e){ $('yukList').innerHTML='<div class="yukempty">Yuklar ulanmadi: '+esc(e.message||'')+'<br><button class="ylink" onclick="reloadYuk()">Qaytadan urinish</button></div>'; return; }
   afterYukLoad();
 }
+function fillYukYetk(){
+  const s=$('yukYetk'); if(!s) return; const cur=s.value;
+  const arr=[...new Set(yukList.map(y=>y.yetkazuvchi).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  s.innerHTML='<option value="">Barcha yetkazuvchilar</option>'+arr.map(o=>'<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>').join('');
+}
 function afterYukLoad(){
+  fillYukYetk();
   const r=curRate(yukSaveCur); yukSaveUzs=(r==null)?0:Math.round(yukSaveRaw*r);
   // V8: qarzdor-dev.html'dan kelgan yuk avtomat tanlanadi (bir marta).
   if(preYuk && !selYuk.size){
@@ -2966,7 +2982,21 @@ function afterYukLoad(){
 window.renderYukList=()=>{
   if(!yukLoaded) return;
   const q=($('yukSearch').value||'').trim().toLowerCase();
-  let rows=yukList.filter(y=>{ const pct=yukPct(y);
+  // Davr (yuklar-dev.html «Davr» tanlovi bilan bir xil) + yetkazuvchi — 2026-10-27 (Asilbek: yuklar sahifasida
+  // «Oxirgi 3 oy» bilan ko'ringan hujjat modalda topilmasdi — davr/yetkazuvchi filtri va chip sanoqlari qo'shildi).
+  const davr=Number(($('yukDavr')&&$('yukDavr').value)||730), yetk=($('yukYetk')&&$('yukYetk').value)||'';
+  const chegara=_isoY(new Date(Date.now()+5*3600*1000-davr*86400000));
+  let base=yukList.filter(y=>{
+    if(davr<730 && String(y.sana||'').slice(0,10)<chegara) return false;
+    if(yetk && y.yetkazuvchi!==yetk) return false;
+    return true; });
+  // Chip sanoqlari — davr/yetkazuvchi/qidiruvdan keyin, to'lov holatidan OLDIN (hujjat qaysi chipda turganini ko'rsatadi)
+  const qf=y=>!q || (/^\d+$/.test(q) ? (String(y.id)===q||String(y.id).startsWith(q))
+                     : ((y.ombor||'')+' '+(y.yetkazuvchi||'')+' '+(y.yetkazuvchi_tel||'')).toLowerCase().includes(q));
+  const bq=base.filter(qf);
+  const n0=bq.filter(y=>yukPct(y)===0).length, n1=bq.filter(y=>{const p=yukPct(y);return p>0&&p<100;}).length;
+  if($('yfN0')){ $('yfN0').textContent=n0?'('+n0+')':''; $('yfN1').textContent=n1?'('+n1+')':''; $('yfN2').textContent=bq.length?'('+bq.length+')':''; }
+  let rows=base.filter(y=>{ const pct=yukPct(y);
     if(yukFilt==='unpaid') return pct===0;
     if(yukFilt==='qisman') return pct>0&&pct<100;
     if(yukFilt==='tolangan') return pct>=100;
@@ -2997,7 +3027,7 @@ window.renderYukList=()=>{
       +'<span class="yl2">'+arosTxt+(tn>0?' + tannarx '+money(tn):'')+' '+rem+'</span>'
       +sabRow+'</span>'
       +'<span class="ynarx">'+jamiTxt+'</span></div>'+inp+'</div>';
-  }).join('') : '<div class="yukempty">Yuk topilmadi.</div>';
+  }).join('') : '<div class="yukempty">Yuk topilmadi.'+(bq.length&&yukFilt!=='all'?'<br><span style="font-weight:500">Bu davrda '+bq.length+' ta hujjat bor, lekin «'+(yukFilt==='unpaid'?'To\'lanmagan':'Qisman')+'» emas — <button type="button" class="ylink" onclick="setYukFilt(\'all\')">Hammasini ko\'rsatish</button></span>':(davr<730?'<br><span style="font-weight:500">Davrni kengaytirib ko\'ring (hozir oxirgi '+davr+' kun).</span>':''))+'</div>';
 };
 
 /* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================

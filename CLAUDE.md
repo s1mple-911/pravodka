@@ -1274,6 +1274,10 @@ qaramaydi, yuk_id bilan ishlaydi (bojxona qatori yo'q eski yuk → limit «yo'q�
     topilganlar `_tashqari:true` bilan ro'yxatga qo'shiladi + `loadAux(hamma id)`. Bo'sh natijada ID uchun maslahat matni.
   - **`professional-dev.html`** (9110 modal): `yukKeshOqi(2 yil)` → RPC, bo'lmasa eski webhook (30 kun / preYuk 730);
     `yukSearch` ID bo'yicha ham; «↻ Aros'dan yangilash» (`reloadYuk(true)` → `?days=7` → qayta o'qish).
+    **2026-10-27 (2):** Asilbek «keshdagi hujjat modalda chiqmayapti, yuklar sahifasida 3 oy filtri bilan bor» — modal sukutda
+    «To'lanmagan» chipida (to'langan/qisman hujjat yashirin). Qo'shildi: `#yukDavr` (30 kun/3 oy/6 oy/1 yil/2 yil, sukut 2 yil —
+    yuklar-dev «Davr» bilan bir xil), `#yukYetk` yetkazuvchi tanlovi (`fillYukYetk`), chip sanoqlari `#yfN0/1/2` (davr+yetkazuvchi+
+    qidiruvdan keyin, to'lov holatidan oldin), bo'sh holatda maslahat: «N ta hujjat bor, lekin To'lanmagan emas — Hammasini ko'rsatish».
   - 🔴 Qolgan webhook iste'molchilari (hali Aros'ga boradi, 500 chegarasi bor): `jurnal-dev.html` (`ensureYukCache`, 180 kun),
     `qarzdor-dev.html` (yuk qarzlari), `5kunlik-dev.html` (`loadMuddatsizSummary`, 30 kun) — keyingi bosqichda `yuk_kesh_royxat`ga
     o'tkazish mumkin (shakl bir xil, 1 qator o'zgarish).
