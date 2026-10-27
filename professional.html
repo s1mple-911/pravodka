@@ -2616,6 +2616,26 @@ const N8N_YUK='https://n8n.arosmarket.com/webhook/aros-provodka-yuklar';
 let preYuk=null;
 let yukList=[], yukPaidMap={}, yukTanMap={}, rateMap={}, selYuk=new Set(), alloc={}, yukFilt='all', yukLoaded=false;   // 2026-10-27 (Asilbek): sukut «Hammasi» — user o'zi toraytiradi
 let yukSaveCb=null, yukSaveCur='UZS', yukSaveRaw=0, yukSaveUzs=0, yukSaveMode='simple';
+/* --- VALYUTA REJIMI (2026-10-27, Asilbek: «1600 yuan tanlasam yuan bo'yicha hisoblasin, yuklar Aros valyutasida»).
+   Kassa valyutali (CNY/USD...) bo'lsa modal TO'LOV VALYUTASIDA ishlaydi: summa, taqsimot (allocC), qoldiq — shu valyutada.
+   Server o'zgarmagan: saqlashda allocC -> so'm (alloc) ga o'tkaziladi (syncAllocUzs), Σ aynan yukSaveUzs.
+   UZS rejimi AVVALGIDEK (alloc to'g'ridan-to'g'ri so'mda). Hamma o'zgarish yukUnit() orqali. */
+let allocC={};
+function yukUnit(){
+  const cc=yukSaveCur!=='UZS';
+  if(!cc) return {cc:false, cur:'UZS', rate:1, total:Math.round(yukSaveUzs), rnd:Math.round,
+    n:x=>money(x), f:x=>money(x)+' so\'m', get:id=>Number(alloc[id])||0};
+  return {cc:true, cur:yukSaveCur, rate:curRate(yukSaveCur), total:Math.round(yukSaveRaw*100)/100, rnd:x=>Math.round(x*100)/100,
+    n:x=>yPriceF(x,yukSaveCur), f:x=>yPriceF(x,yukSaveCur), get:id=>Number(allocC[id])||0};
+}
+// Valyuta rejimida: allocC (to'lov valyutasi) -> alloc (so'm). Σ so'm AYNAN yukSaveUzs bo'lishi uchun (taqsimot to'liq bo'lsa)
+// yaxlitlash qoldig'i oxirgi yukka qo'yiladi. UZS rejimida hech narsa qilmaydi.
+function syncAllocUzs(){
+  const u=yukUnit(); if(!u.cc||u.rate==null) return;
+  const ids=[...selYuk]; let sum=0, sumC=0;
+  ids.forEach(id=>{ const a=Math.round(u.get(id)*u.rate); alloc[id]=a; sum+=a; sumC+=u.get(id); });
+  if(ids.length && u.rnd(sumC-u.total)===0){ const last=ids[ids.length-1]; alloc[last]=Math.max(0,(alloc[last]||0)+(Math.round(yukSaveUzs)-sum)); }
+}
 // --- To'lov turi (0-ekran, 2026-09-15, Asilbek talabi) ---
 // yukTur: null (hali tanlanmagan) | 'tovar' (sababsiz, eski xatti-harakat) | number (yuk_tannarx_sabab.id — xizmat).
 // yukTypeStepOn: shu ochilishda 0-ekran haqiqatan ko'rsatilganmi (fail-open: sabablar yo'q/bo'sh bo'lsa false).
@@ -2644,7 +2664,19 @@ function yukTanSabab(id,lim=2){ const q=yukTanQatorlar(id); if(!q.length) return
 function yukJami(y){ const n=yukNarxUzs(y); if(n==null) return null; return n + yukTannarx(y.id); }   // JAMI TANNARX
 function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; return Math.max(0, n - yukTolangan(y.id)); }  // qolgan qarz (UZS)
 function yukPct(y){ const n=yukJami(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
-function yukSelectable(y){ const q=yukQoldiq(y); return q!=null && q>0; }   // kurs bor va qarzi bor
+// Yuk qiymati to'lov birligida (UZS rejimi: eski jami/qoldiq; valyuta rejimi: Aros narxi YAXLIT, tannarx qo'shilmaydi).
+// tolangan_uzs serverda so'mda — qaytarib JORIY kurs bilan bo'linadi (taxminiy, kurs o'zgargan bo'lsa ozgina farq bo'lishi mumkin).
+function yukRow(y){
+  const u=yukUnit();
+  if(!u.cc){ const j=yukJami(y); return {err:j==null, jami:j, qoldi:yukQoldiq(y), approx:false}; }
+  const ry=curRate(y.valyuta);
+  if(u.rate==null||ry==null) return {err:true, jami:null, qoldi:null, approx:false};
+  // Aros yuk valyutasi 'CHY' (Aros kodi), kassa bolasi 'CNY' yoki 'CHY' bo'lishi mumkin — ikkisi bitta yuan (yuk_kurslar ham shunday).
+  const normC=c=>{ const v=String(c||'UZS').toUpperCase(); return v==='CHY'?'CNY':v; };
+  const same=normC(y.valyuta)===normC(u.cur), narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
+  return {err:false, jami:narx, qoldi:Math.max(0,u.rnd(narx-yukTolangan(y.id)/u.rate)), approx:!same};
+}
+function yukSelectable(y){ const q=yukRow(y).qoldi; return q!=null && q>0; }   // kurs bor va qarzi bor
 // Xizmat (yo'l puli/bojxona/...) qarz TO'LAMAYDI, tannarxni OSHIRADI — shuning uchun
 // "qarzi bor" cheklovi olib tashlanadi, faqat kurs borligi kifoya.
 function selectableFor(y){ if(curRate(yukSaveCur)==null) return false; return isXizmat() ? true : yukSelectable(y); }
@@ -2696,7 +2728,7 @@ window.onModda=()=>{
 
 function openYukSave(rawAmount, cur, cb, mode){
   yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; yukSaveMode=mode||'simple';
-  selYuk.clear(); alloc={}; yukTur=null; yukSababTanlangan=null; bojMap={};
+  selYuk.clear(); alloc={}; allocC={}; yukTur=null; yukSababTanlangan=null; bojMap={};
   $('yukPendIzoh').value=($('izoh').value||'').trim();
   $('yukModal').classList.add('open');
   // Tur qadami (0-ekran) faqat ODDIY rejimda va sabablar mavjud bo'lsa (fail-open) — band 6:
@@ -2844,57 +2876,68 @@ window.confirmYukSave=()=>{
 // Tanlash/bekor — tovarda qolgan qarz bo'yicha, xizmatda teng ulushda avtomatik taqsimlanadi.
 window.toggleYuk=id=>{ id=Number(id);
   const y=yukList.find(x=>Number(x.id)===id); if(!y) return;
-  if(selYuk.has(id)){ selYuk.delete(id); delete alloc[id]; }
+  if(selYuk.has(id)){ selYuk.delete(id); delete alloc[id]; delete allocC[id]; }
   else { if(!selectableFor(y)) return; selYuk.add(id); }
   autoAlloc(); renderYukList(); refreshBojWarn();
 };
 function autoAlloc(){
-  const ids=[...selYuk];
-  if(!ids.length){ alloc={}; return; }
+  const u=yukUnit(), A=u.cc?allocC:alloc, ids=[...selYuk];
+  if(!ids.length){ alloc={}; allocC={}; return; }
   if(isXizmat()){
     // Xizmat — qarz cheklovisiz teng taqsimlash (yuklar.html "Tannarx qo'shish" naqshi, band 1).
-    let left=Math.round(yukSaveUzs); const base=Math.floor(left/ids.length);
-    ids.forEach((id,i)=>{ alloc[id]=(i===ids.length-1)?left:base; left-=alloc[id]; });
+    let left=u.total; const base=u.cc?Math.floor(left/ids.length*100)/100:Math.floor(left/ids.length);
+    ids.forEach((id,i)=>{ A[id]=(i===ids.length-1)?left:base; left=u.rnd(left-A[id]); });
+    syncAllocUzs();
     return;
   }
   const rem={}; let totRem=0;
-  ids.forEach(id=>{ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukQoldiq(y)||0):0; rem[id]=q; totRem+=q; });
-  let left=Math.round(yukSaveUzs);
+  ids.forEach(id=>{ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukRow(y).qoldi||0):0; rem[id]=q; totRem+=q; });
+  let left=u.total;
   ids.forEach((id,i)=>{
-    let a = (i===ids.length-1) ? left : (totRem>0?Math.round(yukSaveUzs*rem[id]/totRem):0);
-    a=Math.min(Math.max(a,0), rem[id]); alloc[id]=a; left-=a;
+    let a = (i===ids.length-1) ? left : (totRem>0?u.rnd(u.total*rem[id]/totRem):0);
+    a=Math.min(Math.max(a,0), rem[id]); A[id]=a; left=u.rnd(left-a);
   });
+  syncAllocUzs();
 }
-window.setAlloc=(id,el)=>{ id=Number(id); const raw=el.value.replace(/\D/g,''); alloc[id]=Number(raw)||0; el.value=raw?money(raw):''; renderYukSum(); updateYukSaveBtn(); refreshBojWarn(); };
-function allocSum(){ return [...selYuk].reduce((s,id)=>s+(Number(alloc[id])||0),0); }
+window.setAlloc=(id,el)=>{ id=Number(id);
+  if(yukUnit().cc){
+    // valyuta rejimi: o'nlik kasr (2 xona) ruxsat — raqam va bitta nuqta/vergul
+    let v=el.value.replace(',','.').replace(/[^\d.]/g,''); const i=v.indexOf('.');
+    if(i>=0) v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'').slice(0,2);
+    allocC[id]=Number(v)||0; el.value=v; syncAllocUzs();
+  } else { const raw=el.value.replace(/\D/g,''); alloc[id]=Number(raw)||0; el.value=raw?money(raw):''; }
+  renderYukSum(); updateYukSaveBtn(); refreshBojWarn(); };
+function allocSum(){ const u=yukUnit(); return u.rnd([...selYuk].reduce((s,id)=>s+u.get(id),0)); }
 function allocOk(){
+  const u=yukUnit();
   if(!selYuk.size) return {ok:false,msg:'Kamida bitta yuk tanlang'};
   if(curRate(yukSaveCur)==null) return {ok:false,msg:yukSaveCur+' kursi yo\'q'};
   if(isXizmat()){
     // Xizmat tannarxni OSHIRADI (qarz to'lamaydi) — "qoldiqdan oshmasin" cheklovi yo'q,
     // faqat Aros bojxona limiti ogohlantiradi (refreshBojWarn, bloklamaydi — Asilbek qarori 2).
-    for(const id of selYuk){ if((Number(alloc[id])||0)<=0) return {ok:false,msg:'Har yukka summa yozing'}; }
+    for(const id of selYuk){ if(u.get(id)<=0) return {ok:false,msg:'Har yukka summa yozing'}; }
   } else {
-    for(const id of selYuk){ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukQoldiq(y)||0):0;
-      if((Number(alloc[id])||0)<=0) return {ok:false,msg:'Har yukka summa yozing'};
-      if((Number(alloc[id])||0)>q) return {ok:false,msg:'#'+id+' uchun faqat '+money(q)+' qoldi'}; }
+    for(const id of selYuk){ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukRow(y).qoldi||0):0;
+      if(u.get(id)<=0) return {ok:false,msg:'Har yukka summa yozing'};
+      if(u.rnd(u.get(id)-q)>0) return {ok:false,msg:'#'+id+' uchun faqat '+u.n(q)+' qoldi'}; }
   }
-  const diff=allocSum()-Math.round(yukSaveUzs);
-  if(diff!==0) return {ok:false,msg:diff<0?('Taqsimlanmagan: '+money(-diff)):('Ortiqcha: '+money(diff))};
+  const diff=u.rnd(allocSum()-u.total);
+  if(diff!==0) return {ok:false,msg:diff<0?('Taqsimlanmagan: '+u.n(-diff)):('Ortiqcha: '+u.n(diff))};
   return {ok:true};
 }
 function renderYukSum(){
   const box=$('yukSum'); if(!box) return;
-  const rateErr=curRate(yukSaveCur)==null, s=allocSum(), diff=s-Math.round(yukSaveUzs);
+  const u=yukUnit(), rateErr=curRate(yukSaveCur)==null, s=allocSum(), diff=u.rnd(s-u.total);
   let l3='';
   if(rateErr) l3='<div class="ysrow ysmatch"><span class="ymatch no">'+esc(yukSaveCur)+' kursi kiritilmagan — Valyuta bo\'limida qo\'shing</span></div>';
   else if(!selYuk.size) l3='';
-  else if(diff<0) l3='<div class="ysrow ysmatch"><span class="ymatch no">Taqsimlanmagan qoldi: '+money(-diff)+' so\'m</span></div>';
-  else if(diff>0) l3='<div class="ysrow ysmatch"><span class="ymatch no">Ortiqcha: '+money(diff)+' so\'m</span></div>';
+  else if(diff<0) l3='<div class="ysrow ysmatch"><span class="ymatch no">Taqsimlanmagan qoldi: '+u.f(-diff)+'</span></div>';
+  else if(diff>0) l3='<div class="ysrow ysmatch"><span class="ymatch no">Ortiqcha: '+u.f(diff)+'</span></div>';
   else l3='<div class="ysrow ysmatch"><span class="ymatch ok">✓ to\'liq taqsimlandi</span></div>';
   box.innerHTML=
-    '<div class="ysrow"><span>Xarajat summasi</span><b>'+money(Math.round(yukSaveUzs))+' so\'m'+(yukSaveCur!=='UZS'?' <span class="ysc">('+yPriceF(yukSaveRaw,yukSaveCur)+')</span>':'')+'</b></div>'
-    +'<div class="ysrow"><span>Taqsimlangan ('+selYuk.size+')</span><b>'+money(s)+' so\'m</b></div>'+l3;
+    '<div class="ysrow"><span>Xarajat summasi</span><b>'+(u.cc?u.f(u.total)+' <span class="ysc">(≈ '+money(Math.round(yukSaveUzs))+' so\'m)</span>'
+      :money(Math.round(yukSaveUzs))+' so\'m')+'</b></div>'
+    +'<div class="ysrow"><span>Taqsimlangan ('+selYuk.size+')</span><b>'+u.f(s)+'</b></div>'+l3;
 }
 function updateYukSaveBtn(){
   const st=allocOk(), izohOk=!!izohPickVal(), b=$('yukSaveBtn');
@@ -3012,16 +3055,16 @@ window.renderYukList=()=>{
   rows.sort((a,b)=>(selectableFor(b)-selectableFor(a))||String(b.sana||'').localeCompare(String(a.sana||'')));
   renderYukSum(); updateYukSaveBtn();
   $('yukList').innerHTML= rows.length ? rows.map(y=>{
-    const id=Number(y.id), on=selYuk.has(id), nUzs=yukNarxUzs(y), jami=yukJami(y), q2=yukQoldiq(y), pct=yukPct(y), rateErr=nUzs==null;
-    const tn=yukTannarx(id), sabab=yukTanSabab(id);
+    const id=Number(y.id), on=selYuk.has(id), nUzs=yukNarxUzs(y), pct=yukPct(y), U=yukUnit(), R=yukRow(y), jami=R.jami, q2=R.qoldi, rateErr=R.err;
+    const tn=U.cc?0:yukTannarx(id), sabab=tn>0?yukTanSabab(id):'';   // valyuta rejimida tannarx qo'shilmaydi (yaxlit Aros narxi)
     // O'ngdagi katta son — JAMI TANNARX (Aros narxi + qo'shimcha xarajatlar), Aros narxi emas.
-    const jamiTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':money(jami)+' so\'m';
+    const jamiTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':(U.cc?(R.approx?'≈ ':'')+U.f(jami):money(jami)+' so\'m');
     // Chap ustun: Aros narxi qanday jami bo'lganini ochib beradi.
-    const arosTxt=rateErr?yPriceF(y.narx,y.valyuta):(yPriceF(y.narx,y.valyuta)+(y.valyuta&&y.valyuta!=='UZS'?' ≈ '+money(nUzs)+' so\'m':''));
+    const arosTxt=rateErr?yPriceF(y.narx,y.valyuta):(U.cc?(R.approx?'Aros: '+yPriceF(y.narx,y.valyuta):'Aros narxi'):yPriceF(y.narx,y.valyuta)+(y.valyuta&&y.valyuta!=='UZS'?' ≈ '+money(nUzs)+' so\'m':''));
     const badge=rateErr?'':(pct>=100?'<span class="pill g">to\'langan</span>':(pct>0?'<span class="pill y">qisman '+pct+'%</span>':''));
-    const rem=rateErr?'':(q2>0?'<span class="yrem">qoldi '+money(q2)+'</span>':'');
+    const rem=rateErr?'':(q2>0?'<span class="yrem">qoldi '+U.n(q2)+'</span>':'');
     const dis=(!selectableFor(y)&&!on)?' dis':'';
-    const inp=on?'<div class="yalloc" onclick="event.stopPropagation()"><span>summa (so\'m)</span><input inputmode="numeric" value="'+(alloc[id]?money(alloc[id]):'')+'" oninput="setAlloc('+id+',this)"></div>':'';
+    const inp=on?'<div class="yalloc" onclick="event.stopPropagation()"><span>summa ('+(U.cc?esc(U.cur):'so\'m')+')</span><input inputmode="'+(U.cc?'decimal':'numeric')+'" value="'+(U.get(id)?(U.cc?U.get(id):money(U.get(id))):'')+'" oninput="setAlloc('+id+',this)"></div>':'';
     // Nega qiymat oshgani — kichik harflarda, sabablar bilan. Tannarx so'mda bo'lgani uchun
     // kurs bo'lmasa ham ko'rinadi (faqat jami hisoblanmaydi).
     const sabRow=tn>0?'<span class="yl2">'+esc(sabab)+'</span>':'';
