@@ -915,7 +915,8 @@
         <button type="button" class="fchip on" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan</button>
         <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman</button>
         <button type="button" class="fchip" data-yf="all" onclick="setYukFilt('all')">Hammasi</button>
-        <input class="txt" id="yukSearch" placeholder="Qidirish (ombor / yetkazuvchi)" autocomplete="off" oninput="renderYukList()">
+        <input class="txt" id="yukSearch" placeholder="Qidirish: ID / ombor / yetkazuvchi" autocomplete="off" oninput="renderYukList()">
+        <button type="button" class="ylink" id="yukArosBtn" onclick="reloadYuk(true)" title="Keshni Aros'dan yangilab qayta o'qish">↻ Aros'dan yangilash</button>
       </div>
       <div id="yukList" class="yuklist"></div>
       <div class="yukacts">
@@ -2802,7 +2803,16 @@ window.confirmYukPending=()=>{ const izoh=($('yukPendIzoh').value||'').trim(); i
   const sabId = yukTypeStepOn ? (yukTur==='tovar'?null:Number(yukTur))
     : (($('yukPendSabab')&&$('yukPendSabab').value)?Number($('yukPendSabab').value):null);
   yukSaveCb=null; closeYuk(); doSavePending(izoh, sabId, null); };
-window.reloadYuk=()=>{ yukLoaded=false; loadYukList(); };
+/* aros=true — avval kesh refresh webhooki (oxirgi 7 kun), keyin qayta o'qish (yangi yuk Aros'da hozir yaratilgan bo'lsa). */
+window.reloadYuk=async(aros)=>{
+  if(aros){ const b=$('yukArosBtn'); if(b){ b.disabled=true; b.textContent='↻ yangilanmoqda…'; }
+    let ok=false;
+    try{ const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),60000);
+      const r=await fetch(N8N_YUK_REFRESH+'?days=7',{headers:{'Accept':'application/json'},signal:ac.signal}); clearTimeout(tm);
+      const j=await r.json().catch(()=>null); ok=!!(r.ok&&j&&j.ok); }catch(e){ console.warn('yuk refresh:',e); }
+    if(b){ b.disabled=false; b.textContent=ok?'↻ Aros\'dan yangilash':'↻ Yangilash bo\'lmadi — qayta'; } }
+  yukLoaded=false; loadYukList();
+};
 window.setYukFilt=k=>{ yukFilt=k; document.querySelectorAll('#yukModal [data-yf]').forEach(b=>b.classList.toggle('on',b.dataset.yf===k)); renderYukList(); };
 function izohPickVal(){ const el=$('yukPickIzoh'); return el?(el.value||'').trim():''; }
 window.confirmYukSave=()=>{
@@ -2884,19 +2894,39 @@ function updateYukSaveBtn(){
 //    module ichidagi funksiya window'da bo'lmasa ReferenceError bo'lib, izoh yozilganda
 //    tugma holati yangilanmasdi (2026-09-15 tuzatildi).
 window.updateYukSaveBtn=updateYukSaveBtn;
+const N8N_YUK_REFRESH='https://n8n.arosmarket.com/webhook/aros-provodka-yuk-refresh';
+/* KESH (2026-10-27, PROVODKA_YUK_KESH.sql): yuk_kesh_royxat — aros_yuk_snapshot, Aros'ga bormaydi, 2 YIL
+   (eski hujjat — Asilbek: «tovar tannarxi deb qidirganda hujjat chiqmayapti» — 30 kunlik oyna sababi edi).
+   RPC yo'q yoki kesh bo'sh bo'lsa — eski yo'l (webhook, 30 kun / preYuk 730). Shakl bir xil. */
+async function yukKeshOqi(from,to){
+  try{
+    const {data,error}=await sb.rpc('yuk_kesh_royxat',{p:{from,to,limit:5000}});
+    if(error){ console.warn('yuk_kesh_royxat:',error.message); return null; }
+    if(!data||data.ok===false||!Array.isArray(data.rows)) return null;
+    if(!data.rows.length && !(data.holat&&Number(data.holat.jami)>0)) return null;   // kesh bo'sh — zaxira yo'l
+    const minS=data.holat&&data.holat.min_sana?String(data.holat.min_sana).slice(0,10):null;
+    return {rows:data.rows, toliq: !(minS && from<minS)};   // toliq=false — kesh `from` gacha yetmaydi (backfill yo'q)
+  }catch(e){ console.warn('yuk_kesh_royxat istisno:',e); return null; }
+}
 async function loadYukList(){
   if(yukLoaded){ afterYukLoad(); return; }
   $('yukList').innerHTML='<div class="yukempty">Yuklanmoqda…</div>';
-  // Odatda oxirgi 30 kun yetadi. Qarz sahifasidan kelinganda (preYuk) esa
-  // hujjat ancha eski bo'lishi mumkin — oynani 2 yilga kengaytiramiz.
-  const DAYS=preYuk?730:30;
-  const t=new Date(Date.now()+5*3600*1000), from=new Date(t.getTime()-DAYS*86400000);
+  const t=new Date(Date.now()+5*3600*1000);
   try{
-    const res=await fetch(N8N_YUK+'?date_from='+_isoY(from)+'&date_to='+_isoY(t),{headers:{'Accept':'application/json'}});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const j=await res.json();
-    if(!j||j.ok===false||!Array.isArray(j.yuklar)) throw new Error('javob kutilmagan');
-    yukList=j.yuklar; yukLoaded=true;
+    const k=await yukKeshOqi(_isoY(new Date(t.getTime()-730*86400000)),_isoY(t));
+    let rows=k?k.rows:[];
+    if(!k || !k.toliq){
+      // Zaxira / to'ldirish: kesh yo'q yoki to'liq emas — eski yo'l (odatda 30 kun; preYuk — 2 yil), id bo'yicha birlashtiriladi.
+      const DAYS=preYuk?730:30, from=new Date(t.getTime()-DAYS*86400000);
+      const res=await fetch(N8N_YUK+'?date_from='+_isoY(from)+'&date_to='+_isoY(t),{headers:{'Accept':'application/json'}});
+      if(!res.ok){ if(!k) throw new Error('HTTP '+res.status); }
+      else{
+        const j=await res.json();
+        if(!j||j.ok===false||!Array.isArray(j.yuklar)){ if(!k) throw new Error('javob kutilmagan'); }
+        else{ const bor=new Set(rows.map(y=>String(y.id))); rows=rows.concat(j.yuklar.filter(y=>!bor.has(String(y.id)))); }
+      }
+    }
+    yukList=rows; yukLoaded=true;
     const ids=yukList.map(y=>Number(y.id)).filter(Number.isFinite);
     const curs=[...new Set(yukList.map(y=>y.valyuta).filter(Boolean).concat([yukSaveCur]))];
     // rateMap'ni ALMASHTIRMAYMIZ, ustiga qo'shamiz: loadKassaRate() qo'ygan kassa
@@ -2941,7 +2971,10 @@ window.renderYukList=()=>{
     if(yukFilt==='qisman') return pct>0&&pct<100;
     if(yukFilt==='tolangan') return pct>=100;
     return true; });
-  if(q) rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')).toLowerCase().includes(q));
+  if(q){
+    if(/^\d+$/.test(q)) rows=rows.filter(y=>String(y.id)===q||String(y.id).startsWith(q));   // ID bo'yicha
+    else rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')+' '+(y.yetkazuvchi_tel||'')).toLowerCase().includes(q));
+  }
   rows.sort((a,b)=>(selectableFor(b)-selectableFor(a))||String(b.sana||'').localeCompare(String(a.sana||'')));
   renderYukSum(); updateYukSaveBtn();
   $('yukList').innerHTML= rows.length ? rows.map(y=>{

@@ -118,7 +118,12 @@
     border-radius:999px;padding:1px 7px;min-width:22px;text-align:center;line-height:1.5}
   .fchip span:empty{display:none}
   .fchip.on span{background:var(--primary-chip);color:var(--primary-ink)}
-  .filtbar select.datepick{margin-left:auto;min-width:200px}
+  .filtbar .fright{display:flex;gap:var(--s2);margin-left:auto;flex-wrap:wrap;align-items:center}
+  .filtbar .fright .datepick{min-width:170px;height:36px}
+  .filtbar .fright input.datepick{min-width:230px}
+  .keshline{font-size:12px;opacity:.72;margin:-6px 0 var(--s3);display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
+  .keshline b{font-weight:600}
+  @media(max-width:760px){.filtbar .fright{margin-left:0;width:100%}.filtbar .fright .datepick{flex:1 1 140px;min-width:0}}
   /* ===== tugmalar ===== */
   .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:40px;border:none;
     border-radius:var(--r-md);background:var(--primary-strong);color:var(--on-primary);font-size:14px;font-weight:600;
@@ -796,7 +801,7 @@
         <input class="datepick" id="to" type="date" aria-label="Oxiri">
         <button class="btn-ghost" id="sababBtn" style="display:none" onclick="openSabab()"><i data-lucide="tag"></i>Sabablar</button>
         <button class="btn-ghost" id="qhBtn" style="display:none" onclick="openQh()"><i data-lucide="scale"></i>Qoldiqni to'g'irlash</button>
-        <button class="icon-btn" onclick="loadYuklar('fresh')" title="Yangilash" aria-label="Yangilash"><i data-lucide="refresh-cw"></i></button>
+        <button class="icon-btn" onclick="loadYuklar('aros')" title="Aros'dan yangilash" aria-label="Aros'dan yangilash"><i data-lucide="refresh-cw"></i></button>
         <div class="mobile-only" style="display:flex;gap:var(--s1)">
           <button class="icon-btn" onclick="toggleTheme()" aria-label="Mavzu"><i data-lucide="moon"></i></button>
           <button class="icon-btn" onclick="logout()" aria-label="Chiqish"><i data-lucide="log-out"></i></button>
@@ -804,6 +809,7 @@
       </div>
     </div>
     <div id="banner" class="banner"></div>
+    <div id="keshInfo" class="keshline" style="display:none"></div>
 
     <div class="ytabs">
       <button type="button" class="ytab on" id="tabBtnYuklar" onclick="setTab('yuklar')"><i data-lucide="package"></i>Aros yuklari</button>
@@ -847,7 +853,11 @@
         <div class="chips">
           <button type="button" class="fchip" id="dlChip" onclick="toggleFiltDl()">Muddat qo'yilmagan <span id="cDlUnset"></span></button>
         </div>
-        <select class="datepick" id="omborFilt" onchange="renderYuklar()"><option value="">Barcha omborlar</option></select>
+        <div class="fright">
+          <input class="datepick" id="yukQ" type="search" placeholder="Qidirish: ID, ombor, yetkazuvchi…" autocomplete="off" oninput="yukQInput()" aria-label="Qidirish">
+          <select class="datepick" id="yetkFilt" onchange="renderYuklar()"><option value="">Barcha yetkazuvchilar</option></select>
+          <select class="datepick" id="omborFilt" onchange="renderYuklar()"><option value="">Barcha omborlar</option></select>
+        </div>
       </div>
 
       <div class="card"><div id="yukBody" aria-live="polite">
@@ -1396,35 +1406,129 @@ function davrSync(){ const d=$('davr'); if(!d) return; const t=nowUz();
   const v=($('to').value===isoDay(t)&&[30,90,180,365].includes(diff))?String(diff):'';
   if(d.value!==v) d.value=v; }
 
-/* Asosiy o'qish. mode='fresh' — yozuvdan keyin keshdan bermaydi. */
+/* KESH (2026-10-27, PROVODKA_YUK_KESH.sql): yuk_kesh_royxat — aros_yuk_snapshot'dan o'qiydi, Aros'ga
+   bormaydi. n8n «Yuk Snapshot Sync» har soat oxirgi 90 kunni yangilaydi; «Aros'dan yangilash» tugmasi
+   (mode='aros') avval YUK_REFRESH webhookini chaqiradi (tanlangan oraliq), keyin keshdan o'qiydi.
+   RPC yo'q (SQL RUN qilinmagan) yoki kesh BO'SH (backfill bo'lmagan) bo'lsa — eski yo'l: webhook
+   bo'laklab (fetchYuklarRange). Natija shakli ikkalasida BIR XIL (rows[] = webhook yuklar[]). */
+const YUK_REFRESH='https://n8n.arosmarket.com/webhook/aros-provodka-yuk-refresh';
+let keshHolat=null, keshManba='';   // holat: {jami,min_sana,max_sana,synced_at}; manba: 'kesh'|'aros'
+let yetkList=[];
+async function keshOqi(p){
+  const {data,error}=await sb.rpc('yuk_kesh_royxat',{p});
+  if(error){
+    // RPC yo'q (PGRST202/42883) ham, boshqa xato (sessiya tugadi 42501 va h.k.) ham — zaxira yo'lga (Aros), xabar konsolda
+    console.warn('yuk_kesh_royxat:',error.code,error.message);
+    return null;
+  }
+  if(!data||data.ok===false||!Array.isArray(data.rows)) return null;
+  return data;
+}
+async function keshYangila(from,to){
+  const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),90000);
+  try{
+    const res=await fetch(YUK_REFRESH+'?date_from='+encodeURIComponent(from)+'&date_to='+encodeURIComponent(to),{headers:{'Accept':'application/json'},signal:ac.signal});
+    const j=await res.json().catch(()=>null);
+    if(!res.ok||!j||j.ok===false){ console.warn('yuk refresh:',res.status,j); showBanner('Aros\'dan yangilash bo\'lmadi (n8n '+res.status+') — kesh ko\'rsatilyapti.'); return false; }
+    showBanner('Aros\'dan yangilandi: '+(j.korildi||0)+' yuk ko\'rildi, '+(j.yozildi||0)+' yangi.',true);
+    return true;
+  }catch(e){ console.warn('yuk refresh istisno:',e); showBanner('Aros\'dan yangilash bo\'lmadi — kesh ko\'rsatilyapti.'); return false; }
+  finally{ clearTimeout(tm); }
+}
+function tF2(s){ if(!s) return '—'; try{ const d=new Date(s); return d.toISOString().slice(0,10)+' '+new Date(d.getTime()+5*3600*1000).toISOString().slice(11,16); }catch(e){ return '—'; } }
+function renderKeshInfo(){
+  const el=$('keshInfo'); if(!el) return;
+  if((keshManba==='kesh'||keshManba==='kesh+aros')&&keshHolat){
+    el.innerHTML='<i data-lucide="database" style="width:14px;height:14px"></i><span>Kesh: <b>'+esc(String(keshHolat.jami||0))+'</b> yuk'
+      +(keshHolat.min_sana?' · '+esc(String(keshHolat.min_sana).slice(0,10))+' → '+esc(String(keshHolat.max_sana||'').slice(0,10)):'')
+      +' · yangilangan <b>'+esc(tF2(keshHolat.synced_at))+'</b></span>'
+      +(keshManba==='kesh+aros'?'<span>· eski qism Aros\'dan to\'ldirildi (backfill kutilmoqda)</span>':'')
+      +'<span>· ID bo\'yicha qidiruv davrdan tashqari yuklarni ham topadi</span>';
+    el.style.display='flex';
+  }else if(keshManba==='aros'){
+    el.innerHTML='<i data-lucide="cloud" style="width:14px;height:14px"></i><span>Aros\'dan to\'g\'ridan-to\'g\'ri (kesh hali yo\'q — SQL RUN / backfill kutilmoqda)</span>';
+    el.style.display='flex';
+  }else el.style.display='none';
+}
+/* Yordamchi ma'lumotlar (kurs, tannarx, bojxona, to'lov, muddat, yopiq) — ro'yxatdagi HAMMA id uchun.
+   Qaytishi: tanOk (keshga yozsa bo'ladimi). */
+async function loadAux(ids){
+  const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
+  rateMap={}; tanMap={}; bojxonaMap={}; paidMap={}; dlMap={}; yopiqMap={};
+  if(curs.length){ const {data:kr,error}=await sb.rpc('yuk_kurslar',{p_curs:curs});
+    if(!error) rateMap=kr||{}; }
+  const [tanOk]=ids.length?await Promise.all([loadTannarx(ids),loadBojxona(ids),loadPaid(ids),loadDeadline(ids),loadYopiq(ids)]):[true];
+  return tanOk;
+}
+/* Asosiy o'qish. mode='fresh' — yozuvdan keyin keshdan bermaydi; 'aros' — avval Aros'dan keshni yangilaydi. */
 window.loadYuklar=async(mode)=>{
   const from=$('from').value, to=$('to').value;
   if(!from||!to) return;
   const key='yukq:'+from+':'+to;
   if(mode!=='fresh'){
     const c=swrGet(key);
-    if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; paidMap=c.paidMap||{}; dlMap=c.dlMap||{}; yopiqMap=c.yopiqMap||{}; fillOmbor(); renderYuklar(); }
+    if(c&&Array.isArray(c.yuklar)){ yuklar=c.yuklar; rateMap=c.rateMap||{}; tanMap=c.tanMap||{}; bojxonaMap=c.bojxonaMap||{}; paidMap=c.paidMap||{}; dlMap=c.dlMap||{}; yopiqMap=c.yopiqMap||{};
+      keshHolat=c.keshHolat||null; keshManba=c.keshManba||''; yetkList=c.yetkList||[]; fillOmbor(); fillYetk(); renderKeshInfo(); renderYuklar(); }
     else $('yukBody').innerHTML=LOADSKEL;
   }
   davrSync();
+  if(mode==='aros'){ $('yukBody').innerHTML=LOADSKEL; await keshYangila(from,to); }
   let arr;
   const qoldaP=loadQolda();
-  try{ arr=await fetchYuklarRange(from,to); }
+  try{
+    const k=await keshOqi({from,to});
+    if(k && (k.rows.length || (k.holat&&Number(k.holat.jami)>0))){
+      arr=k.rows; keshHolat=k.holat||null; keshManba='kesh'; yetkList=Array.isArray(k.yetkazuvchilar)?k.yetkazuvchilar:[];
+      // Kesh hali backfill qilinmagan (eng eski yuk `min_sana` dan keyin) — undan OLDINGI qismni Aros'dan bo'laklab o'qib qo'shamiz.
+      const minS=keshHolat&&keshHolat.min_sana?String(keshHolat.min_sana).slice(0,10):null;
+      if(minS && from<minS){
+        try{
+          const eskiTo=isoDay(new Date(Date.parse(minS+'T00:00:00Z')-DAY_MS));
+          const eski=await fetchYuklarRange(from, eskiTo<to?eskiTo:to);
+          const bor=new Set(arr.map(y=>String(y.id)));
+          arr=arr.concat(eski.filter(y=>!bor.has(String(y.id))));
+          keshManba='kesh+aros';
+        }catch(e){ console.warn('eski qism Aros:',e); showBanner('Kesh '+minS+' dan boshlanadi; undan oldingi yuklar Aros\'dan o\'qilmadi.'); }
+      }
+    }else{
+      // RPC yo'q yoki kesh bo'sh — Aros'dan bo'laklab (sekinroq, lekin to'liq)
+      arr=await fetchYuklarRange(from,to); keshHolat=null; keshManba='aros'; yetkList=[];
+    }
+  }
   catch(e){ if(!yuklar.length) renderError(e.message||String(e)); return; }
   // Boshlang'ich (qo'lda) qarz hujjatlari — tanlangan davrdan qat'i nazar har doim qo'shiladi.
   yuklar=arr.concat(await qoldaP);
   const ids=yuklar.map(y=>Number(y.id)).filter(x=>Number.isFinite(x));
-  const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
-  rateMap={}; tanMap={}; bojxonaMap={}; paidMap={}; dlMap={}; yopiqMap={};
-  if(curs.length){ const {data:kr,error}=await sb.rpc('yuk_kurslar',{p_curs:curs});
-    if(!error) rateMap=kr||{}; }
   // ⚠️ Tannarx XATO bergan bo'lsa keshga YOZMAYMIZ: bo'sh tanMap keshlansa keyingi ochilishda
   // "Qo'shilgan" ustuni bannersiz "—" bo'lib chiqardi. Xato bo'lsa kesh eskiligicha qoladi.
-  // Bojxona (yuk_bojxona_jami), to'lov (yuk_tolangan_summa), muddat (yuk_deadline) va
-  // yopiq (yuk_yopiq_jami) parallel — jim (konsol warn).
-  const [tanOk]=ids.length?await Promise.all([loadTannarx(ids),loadBojxona(ids),loadPaid(ids),loadDeadline(ids),loadYopiq(ids)]):[true];
-  if(tanOk) swrSet(key,{yuklar,rateMap,tanMap,bojxonaMap,paidMap,dlMap,yopiqMap});
-  fillOmbor(); renderYuklar();
+  const tanOk=await loadAux(ids);
+  if(tanOk) swrSet(key,{yuklar,rateMap,tanMap,bojxonaMap,paidMap,dlMap,yopiqMap,keshHolat,keshManba,yetkList});
+  fillOmbor(); fillYetk(); renderKeshInfo(); renderYuklar();
+  // Qidiruv maydonida ID turgan bo'lsa — yangi ro'yxatda yo'q bo'lishi mumkin, qayta izlaymiz.
+  yukQSoralgan=''; if($('yukQ')&&$('yukQ').value.trim()) window.yukQInput();
+};
+/* Qidiruv: ID raqami davrda topilmasa — keshdan davrdan TASHQARI ham izlaydi (yuk 2700 ni 30 kunlik
+   oynada turib topish mumkin). Topilgan yuk ro'yxatga qo'shiladi (yordamchi ma'lumotlari bilan). */
+let yukQTimer=null, yukQSoralgan='';
+window.yukQInput=()=>{
+  renderYuklar();
+  const q=($('yukQ').value||'').trim();
+  clearTimeout(yukQTimer);
+  if(!/^\d{3,9}$/.test(q)) return;
+  if(yuklar.some(y=>String(y.id)===q)) return;
+  yukQTimer=setTimeout(async()=>{
+    if(yukQSoralgan===q) return; yukQSoralgan=q;
+    try{
+      const k=await keshOqi({q, limit:50});
+      if(!k||!k.rows.length){ yukQSoralgan=''; return; }   // topilmadi/xato — keyingi urinishga ruxsat
+      const bor=new Set(yuklar.map(y=>String(y.id)));
+      const yangi=k.rows.filter(y=>!bor.has(String(y.id))).map(y=>Object.assign({},y,{_tashqari:true}));
+      if(!yangi.length) return;
+      yuklar=yuklar.concat(yangi);
+      await loadAux(yuklar.map(y=>Number(y.id)).filter(Number.isFinite));
+      fillOmbor(); fillYetk(); renderYuklar();
+    }catch(e){ console.warn('yuk ID qidiruv:',e); yukQSoralgan=''; }
+  },350);
 };
 
 /* Qo'shilgan tannarx. RPC yo'q bo'lsa (hali RUN qilinmagan) jimgina bo'sh qoladi.
@@ -1549,6 +1653,12 @@ function fillOmbor(){
   const oms=[...new Set(yuklar.map(y=>y.ombor).filter(Boolean))].sort();
   s.innerHTML='<option value="">Barcha omborlar</option>'+oms.map(o=>'<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>').join('');
 }
+function fillYetk(){
+  const s=$('yetkFilt'); if(!s) return; const cur=s.value;
+  const set=new Set((yetkList||[]).concat(yuklar.map(y=>y.yetkazuvchi)).filter(Boolean));
+  const arr=[...set].sort((a,b)=>a.localeCompare(b));
+  s.innerHTML='<option value="">Barcha yetkazuvchilar</option>'+arr.map(o=>'<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>').join('');
+}
 
 function visibleRows(){
   const omb=$('omborFilt').value;
@@ -1561,6 +1671,13 @@ function visibleRows(){
   else if(filtPay==='yopiq') rows=rows.filter(y=>!!yopiqOf(y));
   if(filtDl) rows=rows.filter(dlUnset);
   if(omb) rows=rows.filter(y=>y.ombor===omb);
+  const yetk=$('yetkFilt')?$('yetkFilt').value:'';
+  if(yetk) rows=rows.filter(y=>y.yetkazuvchi===yetk);
+  const q=($('yukQ')?$('yukQ').value:'').trim().toLowerCase();
+  if(q){
+    if(/^\d+$/.test(q)) rows=rows.filter(y=>String(y.id)===q||String(y.id).startsWith(q));
+    else rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')+' '+(y.yetkazuvchi_tel||'')).toLowerCase().includes(q));
+  }
   return rows;
 }
 
@@ -1658,8 +1775,9 @@ function renderYuklar(){
   $('cYopiq').textContent=all.filter(y=>!!yopiqOf(y)).length;
   $('cDlUnset').textContent=all.filter(dlUnset).length;
   const rows=visibleRows();
-  if(!rows.length){ $('yukBody').innerHTML='<div class="empty none">Bu shartlarga mos yuk yo\'q.'
-    +'<span>Sana oralig\'ini kengaytiring yoki filtrni o\'zgartiring.</span></div>';
+  if(!rows.length){ const qq=($('yukQ')?$('yukQ').value:'').trim();
+    $('yukBody').innerHTML='<div class="empty none">Bu shartlarga mos yuk yo\'q.'
+    +'<span>'+(/^\d{3,}$/.test(qq)?'Yuk #'+esc(qq)+' keshda topilmadi — davrni kengaytiring (kesh qamrab olmagan qism Aros\'dan o\'qiladi).':'Sana oralig\'ini kengaytiring yoki filtrni o\'zgartiring.')+'</span></div>';
     renderSelbar(); icons(); return; }   // icons() erta return'dan OLDIN — aks holda ikonkalar chizilmay qoladi
   const allOn=rows.length>0 && rows.every(y=>sel.has(Number(y.id)));
   const body=rows.map(y=>{

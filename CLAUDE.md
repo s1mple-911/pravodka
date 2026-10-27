@@ -1211,7 +1211,7 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
   Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
   `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
-### Yuklar — eski yuklar (2600–2700) ko'rinmasligi: 30 kunlik davr + Aros 500 sahifa chegarasi (2026-10-27, faqat dev)
+### Yuklar KESHI — sahifa Aros'ga bormaydi + ID/yetkazuvchi qidiruv + eski yuklar (2600–2700) (2026-10-27, `PROVODKA_YUK_KESH.sql`, `N8N_YUK_SNAPSHOT_V2.sh`, faqat dev, RUN/deploy kutilmoqda)
 
 Asilbek: «transferlar 2901 dan qilingan ekan, 2600–2700 ga ham tannarx/muddat kerak». Tekshiruv: 2901 = 2026-09-27 — bu
 hech qanday cutoff EMAS, sahifa `init()` da «Boshi» = bugun−30 kun, n8n `Yuklar API` (`BlFQu0QZ0JH9pqek`) Aros
@@ -1227,6 +1227,38 @@ qaramaydi, yuk_id bilan ishlaydi (bojxona qatori yo'q eski yuk → limit «yo'q�
 - UI: `#davr` select (Oxirgi 30 kun / 3 oy / 6 oy / 1 yil / Boshqa davr) sana maydonlari oldida, `setDavr(v)` «Boshi»ni
   qo'yadi va `loadYuklar('fresh')`; `davrSync()` qo'lda sana o'zgarsa select'ni moslaydi. Default 30 kun o'zgarmadi.
 - n8n'ga tegilmadi (Yuklar API o'sha-o'sha). 1 yil ≈ 9 parallel so'rov, ~5 s.
+- **2-bosqich (shu kun, Asilbek: «har safar Aros'ga borib kelmasin, ID bilan qidiruv / yetkazuvchi filtri kerak;
+  professional «Tovar tannarxi»da eski hujjat chiqmayapti»).** `aros_yuk_snapshot` endi TO'LIQ KESH:
+  - **SQL `PROVODKA_YUK_KESH.sql`** (RUN kutilmoqda; OLD SHART GURUH_OZGARISH): ustunlar `ombor_id, yetkazuvchi_tel,
+    delivery_status, post_at, sana_vaqt`; `sync_aros_yuk_snapshot` QAYTA (yangi maydonlar, `coalesce` eski qiymat;
+    `yuklar=0 → payload_bosh`, `<10` faqat oyna >14 kun bo'lsa `payload_kichik`; **kichik oyna (≤14 kun) va <10 yukda SWEEP
+    (`ochirildi`) qilinmaydi** — qisman Aros javobi yuklarni o'chirib qo'ymasin; javobda `manba`); `q` da `%`/`_` escape; **`yuk_kesh_royxat(p)`**
+    (login kerak, authenticated) `{from,to | ids | q | yetkazuvchi | ombor | limit}` → `{ok, rows[], jami, yetkazuvchilar[],
+    holat{jami,min_sana,max_sana,synced_at}}`; `rows[]` webhook `yuklar[]` bilan BIR XIL shakl (+`kesh:true`, `narx` matn,
+    `sana` Toshkent ISO). `q` raqam (≤9 xona) → `yuk_id` teng yoki shu bilan boshlanadi, **sana oynasidan tashqari ham**.
+  - **n8n `N8N_YUK_SNAPSHOT_V2.sh`** (ssh `bash -s` <, `--rollback`; keyin Publish): «Yuk Snapshot Sync» (`CBRqq1bF6e2RcC6Q`)
+    → `Oraliq` oynani ≤20 kunlik bo'laklarga bo'ladi (30 kunda ~155 yuk), `Aros Yuklar` batch 2/1000ms, `Payload` har bo'lak ≥500 bo'lsa XATO
+    (yo'qotish yo'q), yangi maydonlar; RPC timeout 300 s; 2 trigger: `Har Soat` (90 kun) + **webhook `aros-provodka-yuk-refresh`**
+    (`?days=7` default | `?date_from&date_to`, max 1100 kun; **>400 kun faqat `&key=`** bilan — kalit skript ishga tushganda
+    yaratilib `Oraliq` kodiga yoziladi (`// REFRESH_KEY`), qayta ishga tushirishda saqlanadi, ekranga chiqadi) → `Webhook'mi?`
+    (IF `$('Webhook Refresh').isExecuted`) → `Respond Refresh` (CORS). **BACKFILL bir marta, YIL-YIL** (Publish'dan keyin):
+    `…/aros-provodka-yuk-refresh?date_from=2024-01-01&date_to=2024-12-31&key=…`, 2025, 2026 (har biri ~18 bo'lak, ~30 s). 🔴 Eski 90 kunlik sync ~450 yuk — 500 chegarasiga yaqin edi, V2 shuni ham yopadi.
+  - **`yuklar-dev.html`**: `keshOqi({from,to})` → RPC; RPC xatosi (yo'q/sessiya) YOKI kesh bo'sh (`holat.jami=0`) → eski yo'l
+    `fetchYuklarRange` (webhook bo'laklab); kesh bor, lekin `from < holat.min_sana` (backfill qilinmagan) → faqat ESKI qism
+    Aros'dan bo'laklab o'qilib qo'shiladi (`keshManba='kesh+aros'`); professional'da ham shu (`toliq=false` → webhook birlashtiriladi); `#keshInfo` satri manbani ko'rsatadi («Kesh: N yuk · … → … · yangilangan» /
+    «Aros'dan to'g'ridan-to'g'ri»). «Yangilash» ikonkasi = `loadYuklar('aros')`: avval `YUK_REFRESH` webhook (tanlangan davr),
+    keyin kesh. `loadAux(ids)` — kurs/tannarx/bojxona/to'lov/muddat/yopiq yuklash bitta funksiyaga yig'ildi. Filtr paneli
+    o'ng guruh `.fright`: `#yukQ` (ID → `id===q||startsWith`, matn → ombor/yetkazuvchi/tel), `#yetkFilt` (RPC `yetkazuvchilar`
+    ∪ ro'yxat), `#omborFilt`. `yukQInput()`: 3–9 xonali ID ro'yxatda yo'q bo'lsa 350 ms debounce → `keshOqi({q,limit:50})` →
+    topilganlar `_tashqari:true` bilan ro'yxatga qo'shiladi + `loadAux(hamma id)`. Bo'sh natijada ID uchun maslahat matni.
+  - **`professional-dev.html`** (9110 modal): `yukKeshOqi(2 yil)` → RPC, bo'lmasa eski webhook (30 kun / preYuk 730);
+    `yukSearch` ID bo'yicha ham; «↻ Aros'dan yangilash» (`reloadYuk(true)` → `?days=7` → qayta o'qish).
+  - 🔴 Qolgan webhook iste'molchilari (hali Aros'ga boradi, 500 chegarasi bor): `jurnal-dev.html` (`ensureYukCache`, 180 kun),
+    `qarzdor-dev.html` (yuk qarzlari), `5kunlik-dev.html` (`loadMuddatsizSummary`, 30 kun) — keyingi bosqichda `yuk_kesh_royxat`ga
+    o'tkazish mumkin (shakl bir xil, 1 qator o'zgarish).
+  - Chegaralar: kesh soatlik → Aros'da hozir yaratilgan yuk 1 soatgacha ko'rinmasligi mumkin (shuning uchun «Aros'dan
+    yangilash»); `yetkazuvchilar[]` faqat tanlangan oynadan; `aros_yuk_ozgarish` hodisalari backfill'da eski yuklar uchun
+    yozilmaydi (birinchi ko'rish = insert, hodisa yo'q).
 
 ### Yuklar + Tannarx — BITTA sahifa (2026-09-07, Asilbek qarori, faqat dev)
 
