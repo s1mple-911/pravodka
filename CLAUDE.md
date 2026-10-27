@@ -1538,6 +1538,18 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   ✅ **2026-10-22: to'g'ri nom `warehouse`** (`…&warehouse=61`). Yoqish: `N8N_AYLANMA_PROFIT_API_V2.sh --wh-param warehouse` → Publish → qo'lda ishga
   tushirish (backfill bilan per-filial tarix 03.10 dan) → `--backfill-off` → Publish. Shundan keyin [1]/[5] per-ombor, foyda modali per-filial.
   `N8N_AYLANMA_SNAPSHOT.js` eskirgan (live'dan orqada).
+- 🔴 **Per-ombor tovar yo'qolishi — TIMEOUT (2026-10-27, `N8N_AYLANMA_TOVAR_QISMAN.sh`, server'da ishga tushirish + Publish kutilmoqda).**
+  `--wh-param warehouse` yoqilgach (17.10) per-ombor profit-summary so'rovlarining ~16 tasi Aros'da 60 s ichida javob bermadi (AxiosError
+  timeout) → Build Payload «hammasi yoki hech biri» (`whBad.length === 0`) qoidasi bilan har kuni umumiy javobga qaytdi: [1] tovar faqat
+  «Barcha omborlar (umumiy)» bitta qator, filial kesimi yo'q; muvaffaqiyatli 24 ombor yig'indisi umumiy bilan aynan teng edi. Skript: Get Profit
+  WH/Foyda timeout 150 s + batch 2/1500ms; Build Payload QISMAN per-ombor (oddiy omborlar yig'indisi umumiyga ±1% mos bo'lsa saqlanadi,
+  brak farqi sintetik «Brak (javobsiz omborlar, umumiy farq)» qatori id -1), javobsizlar ogohlantirishda. `--rollback`.
+  **Aylanma «raznitsa» tahlili (27.10)**: SAK 15.7 mlrd (30.09) → −1.2 mlrd (27.10). Tovar JAMI o'zgarmagan (~29–31 mlrd). Asosiy
+  sabablar: (1) Toshkent/Qashqadaryo kassadan 21–27.10 da 15.5 mlrd chiqqan, shundan 8.4 mlrd Dt «5669 G'iyos · USD» — hodim xarajat
+  kassasi (5400 ostidagi 54xx, `kassa_turi='xarajat'`) A bo'limiga KIRMAYDI (formula qarori), G'iyos kassalarida ~17 mlrd (1.21M USD +
+  1.6M CHY) turibdi; (2) Q2b «biz qarzdormiz» 29.8 → 41.3 mlrd (118 yangi yuk 11.7 mlrd, eski 168 yuk deyarli to'lanmagan — to'lovlar
+  G'iyos orqali keyin). Filial Aros kassalari 03:00 da 0 — kassa kechqurun yopilib pul jo'natilgan (kassa_history_daily bilan mos), bu xato emas.
+  Qaror kerak: hodim/xaridor (G'iyos) kassalarini SAK'ga qo'shish (yangi bo'lim yoki A ga) — Asilbek.
 
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
 
