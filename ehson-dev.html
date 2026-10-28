@@ -379,6 +379,15 @@
   .ehz-newpul input{width:150px}
   .ehk-kcard.ehz-head{background:var(--primary-soft)}
   .ehk-kcard.ehz-head .nom,.ehk-kcard.ehz-head .v{color:var(--primary)}
+  /* ---- Ko'p darajali daraxt (Dilnoza Nazarova jamg'armasi): konteyner guruh + ichki kassalar ---- */
+  .ehz-grp{display:flex;flex-direction:column;gap:10px}
+  .ehk-kcard.ehz-ghead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--primary-soft);border-left:3px solid var(--primary);padding:14px 18px}
+  .ehk-kcard.ehz-ghead .nom{margin:0;color:var(--primary)}
+  .ehk-kcard.ehz-ghead .v{font-size:22px;color:var(--primary)}
+  .ehk-kcard.ehz-ghead .stats{width:100%;margin-top:0}
+  .ehz-gkids{margin-left:14px;padding-left:12px;border-left:2px solid var(--line)}
+  .ehz-sub{margin:10px 0 0 14px;padding-left:12px;border-left:2px solid var(--line)}
+  .ehz-item.cont{background:var(--primary-soft)}
 
   /* ---- Bu oy tab (.ehm-*) — 5-bosqich ---- */
   .ehm-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
@@ -823,6 +832,12 @@
           <div class="ehk-frow">
             <div class="ehk-field"><label>Nomi</label><input class="ehk-input" id="ehzNewKassaNom" placeholder="Masalan: Ramazon fondi"></div>
             <div class="ehk-field"><label>Izoh (ixtiyoriy)</label><input class="ehk-input" id="ehzNewKassaIzoh"></div>
+          </div>
+          <div class="ehk-frow" id="ehzNewKassaDaraxt" style="display:none">
+            <div class="ehk-field"><label>Qayerga (ota jamg'arma)</label><select class="ehk-input" id="ehzNewKassaParent"></select></div>
+            <div class="ehk-field"><label>Turi</label>
+              <label style="display:flex;align-items:center;gap:8px;height:40px;font-size:13.5px;cursor:pointer"><input type="checkbox" id="ehzNewKassaCont"> Konteyner (ichida alohida kassalar bo'ladi)</label>
+            </div>
           </div>
           <div id="ehzNewKassaMsg" class="ehk-msg"></div>
           <div class="ehk-actions">
@@ -1341,6 +1356,29 @@ function ehzTuriLabel(kod){
   if(known[kod]) return known[kod];
   return String(kod||'').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
 }
+// Ko'p darajali daraxt (PROVODKA_EHSON_DILNOZA_JAMGARMA.sql): dash kassalarida `yol` («Dilnoza Nazarova › 1») va
+// `daraja` bor. SQL RUN bo'lmasa yo'q -> faqat `nom` va tekis ro'yxat: AYNAN eski ko'rinish.
+function ehzKassaLabel(k){ return (k&&(k.yol||k.nom))||''; }
+function ehzKassaShort(k){ const y=(k&&k.yol)||''; return y ? y.split(' › ').pop() : ((k&&k.nom)||''); }
+// Kassa <option>lari: chuqurligi 2+ kassalar ota-konteyner nomli <optgroup>da, matn to'liq yo'l bilan.
+// o.suf(k) — matn oxiriga qo'shimcha (qoldiq); o.konteyner — filtr: optgroup boshiga «<konteyner> (hammasi)».
+function ehzKassaOptHtml(list, o){
+  o=o||{}; list=Array.isArray(list)?list:[];
+  const byId=new Map((window.ehzKassaAll||[]).map(k=>[String(k.id),k]));
+  const opt=k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(ehzKassaLabel(k)+(o.suf?o.suf(k):''))}</option>`;
+  const grpOf=k=>{ const p=k.parent_id==null?null:byId.get(String(k.parent_id)); return (p && p.parent_id!=null) ? p : null; };
+  const done=new Set(); let html='';
+  list.forEach(k=>{
+    const g=grpOf(k);
+    if(!g){ html+=opt(k); return; }
+    const gid=String(g.id); if(done.has(gid)) return; done.add(gid);
+    html+=`<optgroup label="${escapeHtml(ehzKassaLabel(g))}">`
+      +(o.konteyner?`<option value="${escapeHtml(g.id)}">${escapeHtml(ehzKassaLabel(g))} (hammasi)</option>`:'')
+      +list.filter(x=>{ const gg=grpOf(x); return gg && String(gg.id)===gid; }).map(opt).join('')
+      +'</optgroup>';
+  });
+  return html;
+}
 // Kirim/Tarix tablaridagi jamg'arma filtri selectlarini to'ldiradi — dash yuklanganda
 // (kesh yoki fonda yangi) har doim chaqiriladi, tanlangan qiymat saqlanadi.
 // 🔴 Filtr/select'lar — faqat FAOL kassalar (nofaolga yangi yozuv/filtr tanlanmaydi; nofaol
@@ -1348,24 +1386,19 @@ function ehzTuriLabel(kod){
 function ehzPopulateKassaFiltri(kass){
   const children = window.ehHasZakot ? kass.filter(k=>!k.is_container && k.is_active!==false) : [];
   window.ehZakotKassalar = children;
-  const ks=$('ehkKassaSel');
-  if(ks){
+  window.ehzKassaAll = kass;
+  // konteyner=true: kirim/berish tarixi serveri konteyner berilsa barcha avlodlarni oladi; qarz filtri — yo'q (aniq kassa)
+  const fillSel=(id,konteyner)=>{
+    const el=$(id); if(!el) return;
     if(children.length){
-      const cur=ks.value;
-      ks.style.display='';
-      ks.innerHTML='<option value="">Jamg\'arma (hammasi)</option>'+children.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
-      if(cur && children.some(k=>String(k.id)===String(cur))) ks.value=cur;
-    }else{ ks.style.display='none'; ks.innerHTML=''; }
-  }
-  const ts=$('ehtKassaSel');
-  if(ts){
-    if(children.length){
-      const cur=ts.value;
-      ts.style.display='';
-      ts.innerHTML='<option value="">Jamg\'arma (hammasi)</option>'+children.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
-      if(cur && children.some(k=>String(k.id)===String(cur))) ts.value=cur;
-    }else{ ts.style.display='none'; ts.innerHTML=''; }
-  }
+      const cur=el.value;
+      el.style.display='';
+      el.innerHTML='<option value="">Jamg\'arma (hammasi)</option>'+ehzKassaOptHtml(children,{konteyner});
+      if(cur && Array.from(el.options).some(o=>o.value===cur)) el.value=cur;
+    }else{ el.style.display='none'; el.innerHTML=''; }
+  };
+  fillSel('ehkKassaSel',true);
+  fillSel('ehtKassaSel',true);
   const tp=$('ehtPulSel');
   if(tp){
     const map={};
@@ -1378,15 +1411,7 @@ function ehzPopulateKassaFiltri(kass){
       if(cur && kods.includes(cur)) tp.value=cur;
     }else{ tp.style.display='none'; tp.innerHTML=''; }
   }
-  const qs=$('ehqKassaFiltSel');
-  if(qs){
-    if(children.length){
-      const cur=qs.value;
-      qs.style.display='';
-      qs.innerHTML='<option value="">Jamg\'arma (hammasi)</option>'+children.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
-      if(cur && children.some(k=>String(k.id)===String(cur))) qs.value=cur;
-    }else{ qs.style.display='none'; qs.innerHTML=''; }
-  }
+  fillSel('ehqKassaFiltSel',false);
 }
 // Bosh tab "Jamg'arma qoldig'i" kartasi — child kesimida 3 kichik satr. Nofaol kassa (admin
 // deaktivatsiya qilgan — server qoldig'i bor kassani deaktivatsiya qilishga yo'l qo'ymaydi,
@@ -1395,7 +1420,7 @@ function renderDashChildren(kass){
   const el=$('ehCardChildren'); if(!el) return;
   if(!window.ehHasZakot){ el.innerHTML=''; return; }
   const children=kass.filter(k=>!k.is_container && k.is_active!==false);
-  el.innerHTML = children.map(k=>`<div>${escapeHtml(k.nom||'')}: <b>${money(n0(k.qoldiq))}</b></div>`).join('');
+  el.innerHTML = children.map(k=>`<div>${escapeHtml(ehzKassaLabel(k))}: <b>${money(n0(k.qoldiq))}</b></div>`).join('');
 }
 function renderDash(d){
   d=d||{};
@@ -1555,24 +1580,43 @@ function renderKirimKassa(kass, moddalar){
     return;
   }
   // Zakot: ildiz (konteyner) sarlavha + har child (naqd/dollar/karta/click pul turlari bilan).
-  const root=kass.find(k=>k.is_container) || null;
-  const children=kass.filter(k=>!k.is_container);
-  const jami=children.reduce((s,k)=>s+n0(k.qoldiq),0) + (root?n0(root.qoldiq):0);
+  // Ko'p daraja: child konteyner bo'lsa (Dilnoza Nazarova) — guruh sarlavhasi (jami) + ichidagi kassalar, rekursiv.
+  const kidsOf=new Map();
+  kass.forEach(k=>{ const pid=k.parent_id==null?'':String(k.parent_id); if(!kidsOf.has(pid)) kidsOf.set(pid,[]); kidsOf.get(pid).push(k); });
+  const root=kass.find(k=>k.is_container && k.parent_id==null) || kass.find(k=>k.is_container) || null;
+  const top=root ? (kidsOf.get(String(root.id))||[]) : kass.filter(k=>!k.is_container);
+  const kidsFor=k=>kidsOf.get(String(k.id))||[];
+  const sub=(k,d)=>n0(k.qoldiq)+(d>8?0:kidsFor(k).reduce((x,c)=>x+sub(c,d+1),0));
+  const subUsd=(k,d)=>(Array.isArray(k.pul_turlari)?k.pul_turlari:[]).reduce((x,t)=>x+(t.valyuta==='USD'?n0(t.fc_qoldiq):0),0)+(d>8?0:kidsFor(k).reduce((x,c)=>x+subUsd(c,d+1),0));
+  const jami=top.reduce((x,k)=>x+sub(k,0),0) + (root?n0(root.qoldiq):0);
   const headHtml = `<div class="ehk-kcard ehz-head" style="grid-column:1/-1">
       <div class="nom">${escapeHtml((root&&root.nom)||"Ehson jamg'armasi")}</div>
       <div class="v">${money(jami)}</div>
     </div>`;
-  const cardsHtml = children.map(k=>{
-    const puls=Array.isArray(k.pul_turlari)?k.pul_turlari:[];
+  const nofaolBadge=k=>k.is_active===false ? ' <span class="eho-badge yopildi" style="font-size:10px;padding:2px 7px">Nofaol</span>' : '';
+  const leafCard=(k,sarlavha)=>{
+    const puls = Array.isArray(k.pul_turlari)?k.pul_turlari:[];
     const pulRows = puls.map(t=>`<span class="ehk-mstat">${escapeHtml(t.nom||t.kod)}: <b>${t.valyuta==='USD'?(money(n0(t.fc_qoldiq))+' $'):(money(n0(t.qoldiq))+" so'm")}</b></span>`).join('');
-    const nofaol = k.is_active===false ? ' <span class="eho-badge yopildi" style="font-size:10px;padding:2px 7px">Nofaol</span>' : '';
     return `<div class="ehk-kcard${n0(k.qoldiq)<0?' eh-neg':''}">
-      <div class="nom">${escapeHtml(k.nom||'')}${nofaol}</div>
+      <div class="nom">${escapeHtml(sarlavha)}${nofaolBadge(k)}</div>
       <div class="v">${money(n0(k.qoldiq))}</div>
       ${pulRows?`<div class="stats" style="margin-top:6px">${pulRows}</div>`:''}
     </div>`;
-  }).join('');
-  box.innerHTML = headHtml + cardsHtml;
+  };
+  const card=(k,d,ichki)=>{
+    if(!k.is_container) return leafCard(k, ichki ? ehzKassaShort(k) : (k.nom||''));
+    if(d>8) return '';
+    const j=sub(k,0), usd=subUsd(k,0), kids=kidsFor(k);
+    return `<div class="ehz-grp" style="grid-column:1/-1">
+      <div class="ehk-kcard ehz-ghead${j<0?' eh-neg':''}">
+        <div class="nom">${escapeHtml(k.nom||'')}${nofaolBadge(k)}</div>
+        <div class="v">${money(j)}</div>
+        ${usd?`<div class="stats"><span class="ehk-mstat">Dollar: <b>${money(usd)} $</b></span></div>`:''}
+      </div>
+      <div class="ehk-kassas ehz-gkids">${kids.length?kids.map(c=>card(c,d+1,true)).join(''):'<div class="empty">Ichida kassa yo\'q</div>'}</div>
+    </div>`;
+  };
+  box.innerHTML = headHtml + top.map(k=>card(k,0,false)).join('');
 }
 
 const EHK_LIMIT=50;
@@ -1624,7 +1668,7 @@ function ehkCancelNote(r){
 function ehkKassaHtml(r){
   let html = r.pul_kassa_nom ? `${escapeHtml(r.pul_kassa_nom)} <span style="color:var(--muted);font-size:11.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${escapeHtml(r.pul_kassa_kod||'')}</span>` : escapeHtml(r.manba||'');
   if(r.kassa_nom){
-    html += `<div style="font-size:11.5px;color:var(--muted);margin-top:2px">${escapeHtml(r.kassa_nom)}${r.pul_turi?(' · '+escapeHtml(ehzTuriLabel(r.pul_turi))):''}</div>`;
+    html += `<div style="font-size:11.5px;color:var(--muted);margin-top:2px">${escapeHtml(r.kassa_yol||r.kassa_nom)}${r.pul_turi?(' · '+escapeHtml(ehzTuriLabel(r.pul_turi))):''}</div>`;
   }
   return html;
 }
@@ -1698,7 +1742,7 @@ window.ehkInOpen=()=>{
   const ks=(window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length);
   const msg=$('ehkInMsg'); msg.className='ehk-msg';
   if(!ks.length){ showErr("Kirim uchun faol jamg'arma / pul turi topilmadi"); return; }
-  $('ehkInKassa').innerHTML=ks.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
+  $('ehkInKassa').innerHTML=ehzKassaOptHtml(ks);
   $('ehkInSumma').value=''; $('ehkInIzoh').value='';
   const today=new Date(Date.now()+5*3600*1000).toISOString().slice(0,10);   // Toshkent sanasi (UTC+5)
   $('ehkInSana').value=today; $('ehkInSana').max=today;
@@ -1782,7 +1826,7 @@ window.ehkTrOpen=()=>{
   const ks=(window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length);
   const msg=$('ehkTrMsg'); msg.className='ehk-msg';
   if(ks.length<1){ showErr("O'tkazma uchun faol jamg'arma / pul turi topilmadi"); return; }
-  const opts=ks.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
+  const opts=ehzKassaOptHtml(ks);
   $('ehkTrFrom').innerHTML=opts; $('ehkTrTo').innerHTML=opts;
   if(ks.length>1) $('ehkTrTo').value=ks[1].id;   // sukut: boshqa kassa
   $('ehkTrSumma').value=''; $('ehkTrIzoh').value='';
@@ -1903,9 +1947,9 @@ function ehkTrAmt(r){
   return r.valyuta==='USD' ? (money(n0(r.fc_summa))+' $<small>'+money(n0(r.summa))+" so'm</small>") : (money(n0(r.summa))+" so'm");
 }
 function ehkTrYonalish(r){
-  return `${r.turi==='konvert'?'<span class="eho-badge kuzatuv" style="margin-right:6px">Konvert</span>':''}${escapeHtml(r.from_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.from_pul_nom||ehzTuriLabel(r.from_pul_turi))}</span>
+  return `${r.turi==='konvert'?'<span class="eho-badge kuzatuv" style="margin-right:6px">Konvert</span>':''}${escapeHtml(r.from_kassa_yol||r.from_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.from_pul_nom||ehzTuriLabel(r.from_pul_turi))}</span>
     <span style="color:var(--muted);margin:0 6px">→</span>
-    ${escapeHtml(r.to_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.to_pul_nom||ehzTuriLabel(r.to_pul_turi))}</span>`;
+    ${escapeHtml(r.to_kassa_yol||r.to_kassa_nom||'')} <span style="color:var(--muted)">· ${escapeHtml(r.to_pul_nom||ehzTuriLabel(r.to_pul_turi))}</span>`;
 }
 function ehkTrBekorNote(r){
   return `<div class="ehk-cancelnote">${escapeHtml(r.bekor_sabab||'Bekor qilindi')} · ${escapeHtml(r.bekor_kim||'')} · ${fmtDate(r.deleted_at)}</div>`;
@@ -2007,7 +2051,7 @@ window.ehkCvOpen=async()=>{
   if(!ehkCvCanUse()) return;
   const ks=(window.ehZakotKassalar||[]).filter(k=>Array.isArray(k.pul_turlari)&&k.pul_turlari.length);
   const msg=$('ehkCvMsg'); msg.className='ehk-msg'; msg.textContent='';
-  const opts=ks.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||'')}</option>`).join('');
+  const opts=ehzKassaOptHtml(ks);
   $('ehkCvFrom').innerHTML=opts; $('ehkCvTo').innerHTML=opts;   // sukut: ikkalasi ham birinchi kassa (bir kassa ichida $ -> so'm)
   // sukut chiqish pul turi — USD bo'lgani (odatda dollarni so'mga qilishadi)
   $('ehkCvSumma').value=''; $('ehkCvKurs').value=''; $('ehkCvIzoh').value=''; $('ehkCvNatija').textContent='';
@@ -2106,8 +2150,15 @@ window.ehkCvSave=async()=>{
 // ko'rsatadi, sahifa buzilmaydi. Tahrirda (toggle) serverga TO'LIQ obyekt yuboriladi — Oila/A'zo
 // saqlash naqshi bilan bir xil (qisman patch emas).
 let ehzAdmin=null;
-const EHZ_KASSA_XATO={ takror:'Bu nom bilan kassa allaqachon mavjud', qoldiq_bor:"Qoldiq bor — avval bo'shatilsin" };
-const EHZ_PUL_XATO={ takror:'Bu kod bilan pul turi allaqachon mavjud', qoldiq_bor:"Qoldiq bor — avval bo'shatilsin" };
+const EHZ_KASSA_XATO={ takror:'Bu nom bilan kassa allaqachon mavjud', qoldiq_bor:"Qoldiq bor — avval bo'shatilsin",
+  nom_kerak:'Nomni kiriting', parent_konteyner_emas:"Ota jamg'arma konteyner emas (avval uni konteyner qiling)", parent_topilmadi:"Ota jamg'arma topilmadi",
+  parent_nofaol:"Ota jamg'arma nofaol", sikl:"Kassani o'z ichiga ko'chirib bo'lmaydi", ildiz_ozgarmaydi:"Umumiy jamg'armani o'zgartirib bo'lmaydi",
+  chuqurlik:"Daraxt juda chuqur", kassa_konteyner:"Umumiy jamg'armani faolsizlantirib bo'lmaydi", farzand_faol:"Ichida faol kassa bor — avval ularni faolsizlantiring",
+  farzand_bor:"Ichida kassa bor — oddiy kassaga aylantirib bo'lmaydi", pul_turi_faol:"Faol pul turlari bor — avval ularni faolsizlantiring",
+  qarz_bor:"Faol qarz bor", modda_yozuv_bor:"Moddada jurnal yozuvi bor", ildiz_topilmadi:"Umumiy jamg'arma topilmadi" };
+const EHZ_PUL_XATO={ takror:'Bu kod bilan pul turi allaqachon mavjud', qoldiq_bor:"Qoldiq bor — avval bo'shatilsin",
+  kassa_konteyner:"Konteynerga pul turi qo'shib bo'lmaydi — ichidagi kassani tanlang", kassa_topilmadi:'Kassa topilmadi' };
+let ehzEditId=null;
 async function loadZakotAdmin(fresh){
   const cached=fresh?null:swrGet('zakot:admin');
   if(cached){ ehzAdmin=cached; renderZakotAdmin(cached); }
@@ -2123,10 +2174,87 @@ async function loadZakotAdmin(fresh){
   ehzAdmin=data;
   renderZakotAdmin(data);
 }
+// Daraxt tugunini topish (ehson_kassa_daraxt().daraxt — konteynerlar ham shu yerda; eski shaklda faqat kassalar[]).
+function ehzFindNode(id){
+  const walk=(n)=>{ if(String(n.id)===String(id)) return n; for(const c of (n.children||[])){ const r=walk(c); if(r) return r; } return null; };
+  const t=ehzAdmin&&ehzAdmin.daraxt;
+  return (t && walk(t)) || (ehzAdmin&&ehzAdmin.kassalar||[]).find(x=>String(x.id)===String(id)) || null;
+}
+// Konteynerlar ro'yxati (ota tanlash uchun): ildiz + ichidagi konteynerlar, yo'l bilan.
+function ehzContainers(){
+  const out=[]; const t=ehzAdmin&&ehzAdmin.daraxt; if(!t) return out;
+  const walk=(n,d)=>{ if(n.is_container){ out.push({id:n.id,label:(d===0?n.nom:(n.yol||n.nom))}); (n.children||[]).forEach(c=>walk(c,d+1)); } };
+  walk(t,0);
+  return out;
+}
+function ehzPulChipsHtml(k){
+  const puls=Array.isArray(k.pul_turlari)?k.pul_turlari:[];
+  return `<div class="ehz-pulrow">
+        ${puls.map(t=>`<span class="ehz-pulchip${t.is_active===false?' off':''}">${escapeHtml(t.nom||t.kod)} (${t.valyuta==='USD'?'$':"so'm"})
+          <button type="button" title="${t.is_active===false?'Faollashtirish':'Faolsizlantirish'}" onclick="ehzPulToggle('${escapeHtml(t.id)}','${escapeHtml(k.id)}',${t.is_active===false})"><i data-lucide="${t.is_active===false?'rotate-ccw':'x'}"></i></button>
+        </span>`).join('')}
+      </div>
+      <div class="ehz-newpul">
+        <input type="text" id="ehzNewPulNom-${escapeHtml(k.id)}" placeholder="Yangi pul turi nomi">
+        <select id="ehzNewPulVal-${escapeHtml(k.id)}"><option value="UZS">so'm</option><option value="USD">$</option></select>
+        <button class="btn ghost" style="height:34px;padding:0 12px;font-size:12.5px" onclick="ehzPulSaveNew('${escapeHtml(k.id)}')"><i data-lucide="plus"></i>Pul turi</button>
+      </div>
+      <div class="ehk-msg" id="ehzPulMsg-${escapeHtml(k.id)}"></div>`;
+}
+function ehzNomHtml(k){
+  const id=escapeHtml(k.id);
+  if(ehzEditId!==String(k.id)){
+    return `<div class="ehz-item-nom">${escapeHtml(k.nom||'')}${k.is_container?' <span class="eho-badge kuzatuv" style="font-size:10px;padding:2px 7px">Konteyner</span>':''}
+      <button type="button" class="ehz-pulchip" style="padding:3px 8px;margin-left:6px;cursor:pointer" title="Nomini o'zgartirish" onclick="ehzEditOpen('${id}')"><i data-lucide="pencil" style="width:12px;height:12px"></i></button></div>`;
+  }
+  return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input class="ehk-input" id="ehzEditNom" value="${escapeHtml(k.nom||'')}" style="height:34px;max-width:280px" onkeydown="if(event.key==='Enter')ehzKassaRename('${id}')">
+      <button class="btn" style="height:34px;padding:0 12px;font-size:12.5px" onclick="ehzKassaRename('${id}')">Saqlash</button>
+      <button class="btn ghost" style="height:34px;padding:0 12px;font-size:12.5px" onclick="ehzEditCancel()">Bekor</button>
+    </div>`;
+}
+// Daraxt (SQL: PROVODKA_EHSON_DILNOZA_JAMGARMA.sql): konteyner -> ichma-ich; barg -> pul turlari. Faqat ildiz ostidagilar.
+function ehzNodeHtml(k, d){
+  const id=escapeHtml(k.id);
+  const off=k.is_active===false;
+  const toggleBtn=`<button class="btn ghost" style="height:30px;padding:0 10px;font-size:12px" onclick="ehzKassaToggle('${id}',${off})">${off?'Faollashtirish':'Faolsizlantirish'}</button>`;
+  if(k.is_container){
+    const kids=Array.isArray(k.children)?k.children:[];
+    return `<div class="ehz-item cont${off?' off':''}">
+      <div class="ehz-item-top">
+        <div>${ehzNomHtml(k)}${k.izoh?`<div class="ehz-item-izoh">${escapeHtml(k.izoh)}</div>`:''}</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="ehz-item-izoh">Jami ${money(n0(k.jami_qoldiq))} so'm${n0(k.jami_fc_qoldiq)?(' · '+money(n0(k.jami_fc_qoldiq))+' $'):''}</span>
+          <button class="btn ghost" style="height:30px;padding:0 10px;font-size:12px" onclick="ehzAdminNewKassaToggle('${id}')"><i data-lucide="plus"></i>Ichiga kassa</button>
+          ${toggleBtn}
+        </div>
+      </div>
+      <div class="ehz-sub">${kids.length?kids.map(c=>ehzNodeHtml(c,d+1)).join(''):'<div class="ehz-item-izoh">Ichida kassa yo\'q</div>'}</div>
+    </div>`;
+  }
+  return `<div class="ehz-item${off?' off':''}">
+      <div class="ehz-item-top">
+        <div>${ehzNomHtml(k)}${k.yol&&k.yol!==k.nom?`<div class="ehz-item-izoh">${escapeHtml(k.yol)}</div>`:''}${k.izoh?`<div class="ehz-item-izoh">${escapeHtml(k.izoh)}</div>`:''}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="ehz-item-izoh">${money(n0(k.qoldiq))} so'm</span>
+          ${toggleBtn}
+        </div>
+      </div>
+      ${ehzPulChipsHtml(k)}
+    </div>`;
+}
 function renderZakotAdmin(d){
   const wrap=$('ehzAdminList'); if(!wrap) return;
   const kassalar=Array.isArray(d&&d.kassalar)?d.kassalar:[];
   if(!kassalar.length){ wrap.innerHTML='<div class="empty">Jamg\'arma kassasi hali yo\'q</div>'; return; }
+  const daraxtBor = !!(d && d.daraxt && Array.isArray(d.daraxt.children));
+  const nf=$('ehzNewKassaDaraxt'); if(nf) nf.style.display = daraxtBor ? '' : 'none';
+  if(daraxtBor){
+    wrap.innerHTML = d.daraxt.children.length ? d.daraxt.children.map(c=>ehzNodeHtml(c,0)).join('') : '<div class="empty">Jamg\'arma kassasi hali yo\'q</div>';
+    icons();
+    return;
+  }
+  // eski shakl (SQL hali RUN qilinmagan) — tekis ro'yxat, o'zgarmagan
   wrap.innerHTML = kassalar.map(k=>{
     const puls=Array.isArray(k.pul_turlari)?k.pul_turlari:[];
     return `<div class="ehz-item${k.is_active===false?' off':''}">
@@ -2137,33 +2265,53 @@ function renderZakotAdmin(d){
           <button class="btn ghost" style="height:30px;padding:0 10px;font-size:12px" onclick="ehzKassaToggle('${escapeHtml(k.id)}',${k.is_active===false})">${k.is_active===false?'Faollashtirish':'Faolsizlantirish'}</button>
         </div>
       </div>
-      <div class="ehz-pulrow">
-        ${puls.map(t=>`<span class="ehz-pulchip${t.is_active===false?' off':''}">${escapeHtml(t.nom||t.kod)} (${t.valyuta==='USD'?'$':"so'm"})
-          <button type="button" title="${t.is_active===false?'Faollashtirish':'Faolsizlantirish'}" onclick="ehzPulToggle('${escapeHtml(t.id)}','${escapeHtml(k.id)}',${t.is_active===false})"><i data-lucide="${t.is_active===false?'rotate-ccw':'x'}"></i></button>
-        </span>`).join('')}
-      </div>
-      <div class="ehz-newpul">
-        <input type="text" id="ehzNewPulNom-${escapeHtml(k.id)}" placeholder="Yangi pul turi nomi">
-        <select id="ehzNewPulVal-${escapeHtml(k.id)}"><option value="UZS">so'm</option><option value="USD">$</option></select>
-        <button class="btn ghost" style="height:34px;padding:0 12px;font-size:12.5px" onclick="ehzPulSaveNew('${escapeHtml(k.id)}')"><i data-lucide="plus"></i>Pul turi</button>
-      </div>
-      <div class="ehk-msg" id="ehzPulMsg-${escapeHtml(k.id)}"></div>
+      ${ehzPulChipsHtml(k)}
     </div>`;
   }).join('');
   icons();
 }
-window.ehzAdminNewKassaToggle=()=>{
+window.ehzEditOpen=id=>{ ehzEditId=String(id); if(ehzAdmin) renderZakotAdmin(ehzAdmin); const el=$('ehzEditNom'); if(el){ el.focus(); el.select(); } };
+window.ehzEditCancel=()=>{ ehzEditId=null; if(ehzAdmin) renderZakotAdmin(ehzAdmin); };
+window.ehzKassaRename=async(id)=>{
+  const k=ehzFindNode(id); const el=$('ehzEditNom');
+  if(!k || !el) return;
+  const nom=(el.value||'').trim();
+  if(nom.length<2){ showErr('Nomni kiriting (kamida 2 belgi)'); return; }
+  if(nom===k.nom){ window.ehzEditCancel(); return; }
+  const p={ id, nom, izoh:k.izoh||null, tartib:n0(k.tartib), is_active:k.is_active!==false };
+  if('is_container' in k){ p.parent_id=k.parent_id||null; p.is_container=!!k.is_container; }
+  const {data,error}=await sb.rpc('ehson_kassa_saqla',{p});
+  if(error){ showErr(window.permErr?window.permErr(error):error.message); return; }
+  if(!data || data.ok===false){ showErr(EHZ_KASSA_XATO[data&&data.kod]||('Xato: '+((data&&data.kod)||"noma'lum"))); return; }
+  showErr('');
+  ehzEditId=null;
+  loadZakotAdmin(true); window.ehRefresh();
+};
+window.ehzAdminNewKassaToggle=(parentId)=>{
   const box=$('ehzNewKassaForm'); if(!box) return;
-  const show=box.style.display==='none';
+  const show = parentId ? true : box.style.display==='none';
   box.style.display=show?'block':'none';
-  if(show){ $('ehzNewKassaNom').value=''; $('ehzNewKassaIzoh').value=''; $('ehzNewKassaMsg').className='ehk-msg'; $('ehzNewKassaMsg').textContent=''; }
+  if(show){
+    $('ehzNewKassaNom').value=''; $('ehzNewKassaIzoh').value=''; $('ehzNewKassaMsg').className='ehk-msg'; $('ehzNewKassaMsg').textContent='';
+    const ps=$('ehzNewKassaParent');
+    if(ps){
+      ps.innerHTML=ehzContainers().map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.label)}</option>`).join('');
+      if(parentId) ps.value=String(parentId);
+      $('ehzNewKassaCont').checked=false;
+    }
+    if(parentId){ box.scrollIntoView({behavior:'smooth',block:'center'}); $('ehzNewKassaNom').focus(); }
+  }
 };
 window.ehzKassaSaveNew=async()=>{
   const nom=($('ehzNewKassaNom').value||'').trim();
   const izoh=($('ehzNewKassaIzoh').value||'').trim();
   const msg=$('ehzNewKassaMsg'); msg.className='ehk-msg'; msg.textContent='';
   if(nom.length<2){ msg.classList.add('err'); msg.textContent='Nomni kiriting (kamida 2 belgi)'; return; }
-  const {data,error}=await sb.rpc('ehson_kassa_saqla',{p:{nom, izoh:izoh||null}});
+  const pp={nom, izoh:izoh||null};
+  const ps=$('ehzNewKassaParent'), daraxtForm=$('ehzNewKassaDaraxt');
+  // ota/konteyner faqat daraxt (yangi SQL) bo'lganda yuboriladi — aks holda AYNAN eski chaqiruv
+  if(ps && daraxtForm && daraxtForm.style.display!=='none' && ps.value){ pp.parent_id=ps.value; pp.is_container=!!$('ehzNewKassaCont').checked; }
+  const {data,error}=await sb.rpc('ehson_kassa_saqla',{p:pp});
   if(error){ msg.classList.add('err'); msg.textContent=window.permErr?window.permErr(error):error.message; return; }
   if(!data || data.ok===false){ msg.classList.add('err'); msg.textContent=EHZ_KASSA_XATO[data&&data.kod]||('Xato: '+((data&&data.kod)||"noma'lum")); return; }
   msg.classList.add('ok'); msg.textContent="Kassa qo'shildi";
@@ -2171,9 +2319,10 @@ window.ehzKassaSaveNew=async()=>{
   loadZakotAdmin(true); window.ehRefresh();
 };
 window.ehzKassaToggle=async(id,makeActive)=>{
-  const k=(ehzAdmin&&ehzAdmin.kassalar||[]).find(x=>String(x.id)===String(id));
+  const k=ehzFindNode(id);
   if(!k) return;
   const p={ id, nom:k.nom, izoh:k.izoh||null, tartib:n0(k.tartib), is_active:!!makeActive };
+  if('is_container' in k){ p.parent_id=k.parent_id||null; p.is_container=!!k.is_container; }
   const {data,error}=await sb.rpc('ehson_kassa_saqla',{p});
   if(error){ showErr(window.permErr?window.permErr(error):error.message); return; }
   if(!data || data.ok===false){ showErr(EHZ_KASSA_XATO[data&&data.kod]||('Xato: '+((data&&data.kod)||"noma'lum"))); return; }
@@ -3050,7 +3199,7 @@ function renderBerishQoldiq(kass){
     if(wrap && sel){
       wrap.style.display = children.length ? 'block' : 'none';
       const cur=sel.value;
-      sel.innerHTML=children.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||"Jamg'arma")} · ${money(n0(k.qoldiq))}</option>`).join('');
+      sel.innerHTML=ehzKassaOptHtml(children,{suf:k=>' · '+money(n0(k.qoldiq))});
       if(cur && children.some(k=>String(k.id)===String(cur))) sel.value=cur;
     }
     window.ehbKassaChange();
@@ -3766,7 +3915,7 @@ function ehtBekorNote(b){
 }
 function ehtRowDesktop(b,zk){
   const bekor=b.holat==='bekor';
-  const kassaCell = zk ? `<td>${b.kassa_nom?escapeHtml(b.kassa_nom):''}${b.pul_turi?(' · '+escapeHtml(ehzTuriLabel(b.pul_turi))):''}</td>` : '';
+  const kassaCell = zk ? `<td>${(b.kassa_yol||b.kassa_nom)?escapeHtml(b.kassa_yol||b.kassa_nom):''}${b.pul_turi?(' · '+escapeHtml(ehzTuriLabel(b.pul_turi))):''}</td>` : '';
   return `<tr class="${bekor?'del':''}">
     <td>${fmtDate(b.sana)}</td>
     <td class="${bekor?'strike':''}"><span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(b.oila_id)}')">${escapeHtml(b.fio||'')}</span><br><span class="eho-kod">${escapeHtml(b.oila_kod||'')}</span></td>
@@ -3787,7 +3936,7 @@ function ehtRowMobile(b){
       <div class="ehk-amt${bekor?' strike':''}">${money(n0(b.summa))}</div>
     </div>
     <div class="ehk-row-manba${bekor?' strike':''}"><span class="ehm-fio-link" onclick="ehoOpen('${escapeHtml(b.oila_id)}')">${escapeHtml(b.fio||'')}</span> <span class="eho-kod">(${escapeHtml(b.oila_kod||'')})</span></div>
-    ${b.kassa_nom?`<div class="ehk-row-meta">${escapeHtml(b.kassa_nom)}${b.pul_turi?(' · '+escapeHtml(ehzTuriLabel(b.pul_turi))):''}</div>`:''}
+    ${(b.kassa_yol||b.kassa_nom)?`<div class="ehk-row-meta">${escapeHtml(b.kassa_yol||b.kassa_nom)}${b.pul_turi?(' · '+escapeHtml(ehzTuriLabel(b.pul_turi))):''}</div>`:''}
     ${b.izoh?`<div class="ehk-row-izoh">${escapeHtml(b.izoh)}</div>`:''}
     <div class="ehk-row-meta">Mas'ul: ${escapeHtml(b.kim||'')}${b.reja_id?' · <span class="eho-reja-chip sm">reja</span>':''}</div>
     ${bekor?ehtBekorNote(b):''}
@@ -3846,7 +3995,7 @@ window.ehtExport=async()=>{
       aoa.push([
         i+1, b.oila_kod||'', b.fio||'', fmtDate(b.sana), EHB_TUR[b.tur]||b.tur||'',
         Number(b.summa)||0, b.izoh||'', b.holat==='bekor'?'Bekor qilingan':'Berildi',
-        b.kim||'', b.kassa_nom||'', b.pul_turi?ehzTuriLabel(b.pul_turi):'',
+        b.kim||'', b.kassa_yol||b.kassa_nom||'', b.pul_turi?ehzTuriLabel(b.pul_turi):'',
         b.keyingi_korib_chiqish?fmtDate(b.keyingi_korib_chiqish):'',
         b.holat==='bekor'?('Bekor: '+(b.bekor_sabab||'')):''
       ]);
@@ -4104,7 +4253,7 @@ function renderQarzFormKassa(kass){
     if(wrap && sel){
       wrap.style.display = children.length ? 'block' : 'none';
       const cur=sel.value;
-      sel.innerHTML=children.map(k=>`<option value="${escapeHtml(k.id)}">${escapeHtml(k.nom||"Jamg'arma")} · ${money(n0(k.qoldiq))}</option>`).join('');
+      sel.innerHTML=ehzKassaOptHtml(children,{suf:k=>' · '+money(n0(k.qoldiq))});
       if(cur && children.some(k=>String(k.id)===String(cur))) sel.value=cur;
     }
     window.ehqKassaChange();

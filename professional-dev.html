@@ -1340,7 +1340,7 @@ window.renderAccList=()=>{
 };
 window.openAccModal=i=>{
   accModalIdx=i;
-  ehsonAccView=null; ehsonAccKassa=null;
+  ehsonAccView=null; ehsonAccKassa=null; ehsonAccNode=null; ehsonAccQ=[];
   const s=$('accSearch'); if(s) s.value='';
   window.renderAccList();
   $('accModal').classList.add('open');
@@ -2193,7 +2193,10 @@ function moddaOptions(){
 // Ehson jamg'armasi kaskadi (2026-09-07, ARX_PROVODKA_EHSON_ZAKOT.md 3-bo'lim)
 // RPC ehson_kassa_daraxt(): {ildiz:{id,nom}, kassalar:[{id,nom,izoh,is_active,tartib,
 //   modda:{id,code,name}, pul_turlari:[{id,kod,nom,valyuta,is_active,tartib,qoldiq,fc_qoldiq}],
-//   qoldiq}]}. RPC yo'q/xato/ruxsat yo'q -> ehsonDaraxt=null -> ESKI XATTI-HARAKAT: ehson
+//   qoldiq}]}. Ko'p daraja (2026-10-28, PROVODKA_EHSON_DILNOZA_JAMGARMA.sql): kassalar[] endi HAR darajadagi
+//   faol BARG kassalar (+parent_id, daraja, yol «Dilnoza Nazarova › 1»), `daraxt` = ildiz tugun, ichma-ich
+//   children[] (konteyner: is_container, jami_qoldiq). Eski shaklda (`daraxt` yo'q) ildiz -> kassalar[] -> pul turi.
+//   RPC yo'q/xato/ruxsat yo'q -> ehsonDaraxt=null -> ESKI XATTI-HARAKAT: ehson
 // bola moddalari (accounts.ehson_kassa_id) oddiy "Xarajatlar" ro'yxatida qoladi, kaskad
 // chizilmaydi (moddaGroups/accGroups shartida ehsonOn=false).
 // ============================================================================
@@ -2203,6 +2206,8 @@ let ehsonDaraxt=null;
 let ehsonPulTuri=null, ehsonPulTuriModdaId=null;
 let ehsonModalView=null, ehsonModalKassa=null;   // #moddaModal kaskad qadami: null|'kassa'|'pul'
 let ehsonAccView=null, ehsonAccKassa=null;       // #accModal kaskad qadami (kengaytirilgan rejim)
+// Ko'p daraja: 'kassa' qadamida hozir ochiq konteyner (null = ildiz) va qidiruv so'zlari (>1 mos barg -> tekis ro'yxat).
+let ehsonModalNode=null, ehsonModalQ=[], ehsonAccNode=null, ehsonAccQ=[];
 function ehsonSwrGet(){
   try{ const raw=sessionStorage.getItem('prov-swr:professional:ehsonDaraxt'); if(!raw) return null;
     const o=JSON.parse(raw); if(!o||(Date.now()-o.t)>300000) return null; return o.v; }catch(e){ return null; }
@@ -2227,7 +2232,7 @@ function ehsonChildOf(moddaId){
 function ehsonChipLbl(moddaId,pulKod){
   const k=ehsonChildOf(moddaId); if(!k) return '';
   const pt=(k.pul_turlari||[]).find(p=>p.kod===pulKod);
-  return ehsonDaraxt.ildiz.nom+' › '+k.nom+(pt?(' › '+pt.nom):'');
+  return ehsonDaraxt.ildiz.nom+' › '+(k.yol||k.nom)+(pt?(' › '+pt.nom):'');
 }
 function ehsonPulQd(p){ return (p&&p.valyuta&&p.valyuta!=='UZS') ? (money(p.fc_qoldiq)+' '+p.valyuta) : money(p?p.qoldiq:0); }
 // Qidiruv (Tester #2, 2026-09-07): kaskad guruhi ehson child moddalarini ro'yxatdan
@@ -2241,13 +2246,61 @@ function ehsonCascadeVisible(words){
   if(!ehsonDaraxt||!ehsonDaraxt.ildiz) return false;
   if(!words.length) return true;
   if(ehsonWordsMatch(ehsonDaraxt.ildiz.nom,words)) return true;
-  return (ehsonDaraxt.kassalar||[]).some(k=>k.is_active!==false&&ehsonWordsMatch(k.nom,words));
+  return (ehsonDaraxt.kassalar||[]).some(k=>k.is_active!==false&&ehsonWordsMatch(ehsonKassaTxt(k),words));
 }
 // Qidiruv aynan BITTA child'ga mos kelsa (ildiz mos kelmasa) — to'g'ridan pul turi
 // qadamiga o'tiladi, aks holda oddiy 'kassa' qadami.
 function ehsonMatchedKids(words){
   if(!words.length||ehsonWordsMatch(ehsonDaraxt.ildiz.nom,words)) return null;
-  return (ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false&&ehsonWordsMatch(k.nom,words));
+  return (ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false&&ehsonWordsMatch(ehsonKassaTxt(k),words));
+}
+// Qidiruv matni: nom + butun yo'l (konteyner nomi ham: «Dilnoza» -> uning hamma childlari).
+function ehsonKassaTxt(k){ return (k.yol||'')+' '+(k.nom||''); }
+// Ko'p daraja: ildiz tugun (yangi `daraxt`), eski shaklda kassalar[] dan yasaladi.
+function ehsonTree(){
+  if(!ehsonDaraxt||!ehsonDaraxt.ildiz) return null;
+  if(ehsonDaraxt.daraxt) return ehsonDaraxt.daraxt;
+  return {id:ehsonDaraxt.ildiz.id,nom:ehsonDaraxt.ildiz.nom,is_container:true,children:ehsonDaraxt.kassalar||[]};
+}
+function ehsonNodeById(id,n){
+  n=n||ehsonTree(); if(!n) return null;
+  if(String(n.id)===String(id)) return n;
+  for(const c of (n.children||[])){ const r=ehsonNodeById(id,c); if(r) return r; }
+  return null;
+}
+function ehsonLeafIn(n,modId){
+  if(!n.is_container) return !!(n.modda&&n.modda.id===modId);
+  return (n.children||[]).some(c=>ehsonLeafIn(c,modId));
+}
+// Konteyner bir daraja yuqorisi: ota ildiz bo'lsa null (= ildiz ro'yxati).
+function ehsonUpId(n){
+  const r=ehsonTree();
+  return (n&&n.parent_id&&r&&String(n.parent_id)!==String(r.id)) ? n.parent_id : null;
+}
+// 'kassa' qadami qatorlari (modal va accModal uchun umumiy). fnPick/fnEnter/fnBack — window funksiya nomlari.
+function ehsonKassaRows(nodeId,words,curModda,fnPick,fnEnter,fnBack){
+  const root=ehsonTree();
+  const node=(nodeId&&ehsonNodeById(nodeId))||root;
+  const mk=(words&&words.length)?ehsonMatchedKids(words):null;
+  const flat=!!(mk&&mk.length>1);
+  const kids=flat ? mk : (node.children||[]).filter(k=>k.is_active!==false);
+  const rows=kids.length?kids.map(k=>{
+    if(k.is_container){
+      const on=ehsonLeafIn(k,curModda);
+      const n=(k.children||[]).filter(c=>c.is_active!==false).length;
+      return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="'+fnEnter+'(\''+k.id+'\')">'
+        +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+        +'<span class="mdl-l1">'+esc(k.nom)+'</span>'
+        +'<span class="mdl-l2">'+n+" ta kassa · jami "+money(k.jami_qoldiq)+" so'm</span></span><span class=\"mdl-tick\">›</span></button>";
+    }
+    const on=!!(k.modda&&k.modda.id===curModda);
+    return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="'+fnPick+'(\''+k.id+'\')">'
+      +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
+      +'<span class="mdl-l1">'+esc(flat?(k.yol||k.nom):(k.yol?k.yol.split(' › ').pop():k.nom))+'</span>'
+      +'<span class="mdl-l2">'+money(k.qoldiq)+" so'm"+(k.izoh?(' · '+esc(k.izoh)):'')+'</span></span></button>';
+  }).join(''):'<div class="mdl-empty">Kichik jamg\'arma yo\'q</div>';
+  return {flat,node,html:'<button type="button" class="mdl-row" onclick="'+fnBack+'()">'
+    +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'+rows};
 }
 
 // -- SIMPLE rejim (#moddaModal) -- 2-qadam: child kassa, 3-qadam: pul turi -----
@@ -2255,11 +2308,20 @@ window.ehsonOpenKassa=()=>{
   const q=($('moddaSearch')?$('moddaSearch').value:'')||'';
   const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const mk=ehsonMatchedKids(words);
-  if(mk&&mk.length===1){ ehsonModalKassa=mk[0]; ehsonModalView='pul'; window.renderModdaList(); return; }
+  ehsonModalNode=null; ehsonModalQ=[];
+  if(mk&&mk.length===1){ ehsonModalKassa=mk[0]; ehsonModalNode=ehsonUpId(mk[0]); ehsonModalView='pul'; window.renderModdaList(); return; }
+  if(mk&&mk.length>1) ehsonModalQ=words;
   ehsonModalView='kassa'; ehsonModalKassa=null; window.renderModdaList();
 };
-window.ehsonBackToRoot=()=>{ ehsonModalView=null; ehsonModalKassa=null; window.renderModdaList(); };
+window.ehsonBackToRoot=()=>{ ehsonModalView=null; ehsonModalKassa=null; ehsonModalNode=null; ehsonModalQ=[]; window.renderModdaList(); };
 window.ehsonBackToKassa=()=>{ ehsonModalView='kassa'; ehsonModalKassa=null; window.renderModdaList(); };
+// 'kassa' qadamida «Orqaga»: ichki konteynerdan bir daraja yuqoriga, ildizda — modda ro'yxatiga.
+window.ehsonKassaUp=()=>{
+  const n=(!ehsonModalQ.length&&ehsonModalNode)?ehsonNodeById(ehsonModalNode):null;
+  if(!n) return window.ehsonBackToRoot();
+  ehsonModalNode=ehsonUpId(n); window.renderModdaList();
+};
+window.ehsonEnter=id=>{ ehsonModalNode=id; window.renderModdaList(); };
 window.ehsonPickKassa=id=>{
   const k=(ehsonDaraxt.kassalar||[]).find(x=>x.id===id); if(!k) return;
   ehsonModalKassa=k; ehsonModalView='pul'; window.renderModdaList();
@@ -2275,25 +2337,17 @@ window.ehsonPickPul=kod=>{
 function ehsonRenderModal(box){
   const t=$('moddaModalTitle'), s=$('moddaSearch');
   if(ehsonModalView==='kassa'){
-    if(t) t.textContent=ehsonDaraxt.ildiz.nom; if(s) s.style.display='none';
+    if(s) s.style.display='none';
     const curModda=$('modda').value, curA=accounts.find(x=>x.id===curModda);
     const cur=(curA&&isEhsonAcc(curA))?curModda:'';
-    const kids=(ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false);
-    box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonBackToRoot()">'
-        +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'
-      +(kids.length?kids.map(k=>{
-          const on=!!(k.modda&&k.modda.id===cur);
-          return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="ehsonPickKassa(\''+k.id+'\')">'
-            +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
-            +'<span class="mdl-l1">'+esc(k.nom)+'</span>'
-            +'<span class="mdl-l2">'+money(k.qoldiq)+" so'm"+(k.izoh?(' · '+esc(k.izoh)):'')+'</span></span></button>';
-        }).join('')
-        :'<div class="mdl-empty">Kichik jamg\'arma yo\'q</div>');
+    const r=ehsonKassaRows(ehsonModalQ.length?null:ehsonModalNode,ehsonModalQ,cur,'ehsonPickKassa','ehsonEnter','ehsonKassaUp');
+    if(t) t.textContent=(r.flat||!ehsonModalNode)?ehsonDaraxt.ildiz.nom:r.node.nom;
+    box.innerHTML=r.html;
     icons(); return;
   }
   if(ehsonModalView==='pul'){
     const k=ehsonModalKassa; if(!k){ ehsonModalView='kassa'; return ehsonRenderModal(box); }
-    if(t) t.textContent=k.nom; if(s) s.style.display='none';
+    if(t) t.textContent=k.yol||k.nom; if(s) s.style.display='none';
     const cur=($('modda').value===((k.modda||{}).id))?ehsonPulTuri:'';
     const list=(k.pul_turlari||[]).filter(p=>p.is_active!==false);
     box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonBackToKassa()">'
@@ -2320,11 +2374,19 @@ window.ehsonAccOpenKassa=()=>{
   const q=($('accSearch')?$('accSearch').value:'')||'';
   const words=q.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const mk=ehsonMatchedKids(words);
-  if(mk&&mk.length===1){ ehsonAccKassa=mk[0]; ehsonAccView='pul'; window.renderAccList(); return; }
+  ehsonAccNode=null; ehsonAccQ=[];
+  if(mk&&mk.length===1){ ehsonAccKassa=mk[0]; ehsonAccNode=ehsonUpId(mk[0]); ehsonAccView='pul'; window.renderAccList(); return; }
+  if(mk&&mk.length>1) ehsonAccQ=words;
   ehsonAccView='kassa'; ehsonAccKassa=null; window.renderAccList();
 };
-window.ehsonAccBackToRoot=()=>{ ehsonAccView=null; ehsonAccKassa=null; window.renderAccList(); };
+window.ehsonAccBackToRoot=()=>{ ehsonAccView=null; ehsonAccKassa=null; ehsonAccNode=null; ehsonAccQ=[]; window.renderAccList(); };
 window.ehsonAccBackToKassa=()=>{ ehsonAccView='kassa'; ehsonAccKassa=null; window.renderAccList(); };
+window.ehsonAccKassaUp=()=>{
+  const n=(!ehsonAccQ.length&&ehsonAccNode)?ehsonNodeById(ehsonAccNode):null;
+  if(!n) return window.ehsonAccBackToRoot();
+  ehsonAccNode=ehsonUpId(n); window.renderAccList();
+};
+window.ehsonAccEnter=id=>{ ehsonAccNode=id; window.renderAccList(); };
 window.ehsonAccPickKassa=id=>{
   const k=(ehsonDaraxt.kassalar||[]).find(x=>x.id===id); if(!k) return;
   ehsonAccKassa=k; ehsonAccView='pul'; window.renderAccList();
@@ -2342,25 +2404,17 @@ window.ehsonAccPickPul=kod=>{
 function ehsonRenderAcc(box){
   const t=$('accModalTitle'), s=$('accSearch'), ln=lines[accModalIdx];
   if(ehsonAccView==='kassa'){
-    if(t) t.textContent=ehsonDaraxt.ildiz.nom; if(s) s.style.display='none';
+    if(s) s.style.display='none';
     const curId=ln?(ln.root_id||ln.account_id):'', curA=accounts.find(x=>x.id===curId);
     const cur=(curA&&isEhsonAcc(curA))?curId:'';
-    const kids=(ehsonDaraxt.kassalar||[]).filter(k=>k.is_active!==false);
-    box.innerHTML='<button type="button" class="mdl-row" onclick="ehsonAccBackToRoot()">'
-        +'<span class="mdl-tick">‹</span><span class="mdl-main"><span class="mdl-l1">Orqaga</span></span></button>'
-      +(kids.length?kids.map(k=>{
-          const on=!!(k.modda&&k.modda.id===cur);
-          return '<button type="button" class="mdl-row'+(on?' on':'')+'" onclick="ehsonAccPickKassa(\''+k.id+'\')">'
-            +'<span class="mdl-tick">'+(on?'✓':'')+'</span><span class="mdl-main">'
-            +'<span class="mdl-l1">'+esc(k.nom)+'</span>'
-            +'<span class="mdl-l2">'+money(k.qoldiq)+" so'm"+(k.izoh?(' · '+esc(k.izoh)):'')+'</span></span></button>';
-        }).join('')
-        :'<div class="mdl-empty">Kichik jamg\'arma yo\'q</div>');
+    const r=ehsonKassaRows(ehsonAccQ.length?null:ehsonAccNode,ehsonAccQ,cur,'ehsonAccPickKassa','ehsonAccEnter','ehsonAccKassaUp');
+    if(t) t.textContent=(r.flat||!ehsonAccNode)?ehsonDaraxt.ildiz.nom:r.node.nom;
+    box.innerHTML=r.html;
     icons(); return;
   }
   if(ehsonAccView==='pul'){
     const k=ehsonAccKassa; if(!k){ ehsonAccView='kassa'; return ehsonRenderAcc(box); }
-    if(t) t.textContent=k.nom; if(s) s.style.display='none';
+    if(t) t.textContent=k.yol||k.nom; if(s) s.style.display='none';
     const curId=ln?(ln.root_id||ln.account_id):'';
     const cur=(curId===((k.modda||{}).id))?(ln&&ln.ehson_pul_turi):'';
     const list=(k.pul_turlari||[]).filter(p=>p.is_active!==false);
@@ -2477,7 +2531,7 @@ function syncModdaBtn(){
   b.classList.toggle('empty', !m);
 }
 window.openModda=()=>{
-  ehsonModalView=null; ehsonModalKassa=null;
+  ehsonModalView=null; ehsonModalKassa=null; ehsonModalNode=null; ehsonModalQ=[];
   const s=$('moddaSearch'); if(s) s.value='';
   window.renderModdaList();
   $('moddaModal').classList.add('open');

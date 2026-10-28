@@ -1211,6 +1211,23 @@ ustiga bosganda qaysi qarz muddati qachon chiqadi; ehson kassalari uchun konvert
   Guruh holati BITTA (faol+yopilgan qarzdor «Yopilgan» tabida chiqmaydi); «Faol qarzlar» kartasi endi qarzdorlar soni.
   `#ehqGuruhModal` DOM'da `#ehqKartModal`dan OLDIN turishi shart (z-index teng — karta guruh ustida ochilsin).
 
+### Ehson jamg'armasi KO'P DARAJALI daraxt — «Dilnoza Nazarova» 3 ta child (2026-10-28, `PROVODKA_EHSON_DILNOZA_JAMGARMA.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «Dilnoza Nazarova uchun 3 ta child kassa, har biriga naqd/karta/$ — Dilnoza Nazarovaning o'zi jamg'arma bo'lsin».
+- **Model**: `ehson_kassa.is_container` har darajada (ildiz -> konteyner child -> barg). Kirim/berish/qarz/o'tkazma/konvert FAQAT barg: `ehson_ber`,
+  `ehson_kirim_qolda`, `ehson_qarz_ber`, `ehson_transfer_yoz`, `ehson_konvert_yoz` AVVAL ham `is_container` tekshirardi (`kassa_konteyner`) — TEGILMADI.
+- **SQL (additive, idempotent)**: ichki yordamchilar `_ehson_kassa_yol` / `_yol_matn` / `_avlod` / `_json` / `_ehson_daraxt_tugun`; `_ehson_xarajat_modda`
+  (konteynerga modda ochilmaydi; chuqurligi 2+ nom butun yo'l «Ehson jamg'armasi · Dilnoza Nazarova · 1»); `ehson_kassa_daraxt()` (eski `ildiz`/`kassalar[]` +
+  `parent_id,daraja,yol`; yangi `daraxt` ichma-ich `children[]`, `jami_qoldiq`, `versiya`=2); `ehson_kassa_saqla` (`parent_id`, `is_container`, sikl/ildiz himoyasi,
+  kodlar `parent_konteyner_emas·sikl·pul_turi_faol·qoldiq_bor·farzand_bor·farzand_faol…`); `ehson_dash().kassalar[]` + `yol,daraja`; `ehson_pul_turi_saqla`
+  (konteynerga -> `kassa_konteyner`); `ehson_kirim/berish/transfer_royxat` (kassa filtri konteyner bo'lsa avlodlari + `kassa_yol`).
+- 🔴 **Migratsiya (7-bo'lim)**: Dilnoza -> konteyner; ostida **«Dilnoza Nazarova · 1/2/3» (VAQTINCHA nom — Asilbek aytmadi, admin UI «Jamg'arma kassalari»da ✎ bilan
+  qayta nomlanadi; moddasi ham o'zi yangilanadi)**. Dilnozaning mavjud yozuvlari (FK bo'yicha avtomatik: kirim, berish, qarz, to'lov, o'tkazma, pul turlari) va eski
+  moddasi (94xx) **1-childga ko'chadi**; konteynerda modda/faol pul turi qolmaydi. Qayta RUN childlarni tiklamaydi. ZAKOT/TRANSFER fayllari qayta RUN qilinsa shu fayl ham qayta RUN.
+- **UI** `ehson-dev.html` (`ehzKassaLabel/OptHtml`, yo'l «Dilnoza Nazarova › 1», optgroup; Kirim kartasi guruh+childlar; tarix/o'tkazma yo'l; admin panel daraxt:
+  ✎ nom, «Ichiga kassa», ota + «Konteyner» belgisi) va `professional-dev.html` (`ehsonKassaRows/ehsonTree`: konteyner bosilsa ichiga kiradi, chip «Ehson jamg'armasi › Dilnoza
+  Nazarova › 1 › Naqd», qidiruv yo'l bo'yicha). SQL RUN bo'lmasa (`daraxt`/`yol` yo'q) — AYNAN eski ko'rinish. Qarz filtri/ro'yxati konteyner bo'yicha EMAS (aniq kassa).
+
 ### Jurnal: Excel «Hammasi» varag'i + filial filtrida oshxona kassalari + teg bo'yicha filtr (2026-10-27, prod'ga chiqdi 27.10; `PROVODKA_JURNAL_FILIAL_FILTR.sql` RUN ✅)
 
 - **Excel** (`exportExcel`): «Xulosa»dan keyin yangi **«Hammasi»** varag'i — eksportga kirgan HAMMA yozuv bitta joyda («Filial(lar)»
