@@ -1550,6 +1550,25 @@ daftar) faqat ma'lumot. Kurs snapshot paytida muhrlanadi.
   1.6M CHY) turibdi; (2) Q2b «biz qarzdormiz» 29.8 → 41.3 mlrd (118 yangi yuk 11.7 mlrd, eski 168 yuk deyarli to'lanmagan — to'lovlar
   G'iyos orqali keyin). Filial Aros kassalari 03:00 da 0 — kassa kechqurun yopilib pul jo'natilgan (kassa_history_daily bilan mos), bu xato emas.
   Qaror kerak: hodim/xaridor (G'iyos) kassalarini SAK'ga qo'shish (yangi bo'lim yoki A ga) — Asilbek.
+- 🔴 **H — HODIM KASSALARI SAK'GA QO'SHILDI + BACKFILL (2026-10-28, `PROVODKA_AYLANMA_HODIM_KASSA.sql`, RUN kutilmoqda).**
+  Asilbek: «G'iyosni kassasini ham asosiy qilish kerak va barcha hodim kassalarni ham aylanmada ko'rsatishimiz kerak, keyin
+  oldingi sanalarni ham to'g'irlash kerak». Qaror: **alohida bo'lim `H`** «Hodim kassalari (xaridor/hodim pullari)» (A ichiga
+  emas — A ning markaziy+filial ma'nosi buzilmasin, zinapoyada alohida ko'rinsin), SAK = **A+H**+B+T1+T5+Y3a+K3b+K4+B6+Q2a−Q2b.
+  Manba Supabase daftari — **n8n payload/patch KERAK EMAS**. `aylanma_hodim_kassa(p_sana, p_vaqt)`: 5400 (`kassa_turi='xarajat_guruh'`)
+  konteynerining bevosita bolalari = hodim kassalari (45 ta, 2 nofaol), har biri REKURSIV avlodlari bilan (110 bola: USD/CHY/CNY/AED
+  valyuta + naqd/click/payme tur hisoblari; nabira yo'q); `p_sana` null = jonli (`v_hisob_bal` semantikasi), berilsa tarixiy
+  (`entry_date < sana` yoki `= sana and created_at <= hisoblangan_at`). `uzs` tarixiy kursdagi so'm (A daftar bilan bir xil), `usd` = USD
+  bolalar fc; qator `ref` = accounts.id, `meta` {kod, subtitle, valyutalar{USD,CHY,…}, asosiy, nofaol, manfiy, bola_n}. `sync_aylanma_snapshot`
+  tanasi PROFIT_API dan verbatim + 4 hunk ([H] bloki A dan keyin, alohida exception, manfiy → xatolar[]). **Backfill**
+  `aylanma_hodim_kassa_backfill(p_from,p_to)` fayl oxirida bir marta chaqiriladi: har snapshot `bolimlar.H` (`manba='backfill'`),
+  `jami_uzs` (eski H ayirilib — idempotent), `jami_usd`=jami/kurs, `aylanma_qator` faqat H qatorlari almashadi. Live tekshiruv (28.10):
+  H jonli 17 586 mln (G'iyos 5415: 17 310 mln = 1 211 364 USD + 1 600 000 CHY + 2 mln UZS, `asosiy=true` ALLAQACHON); backfill'dan keyin
+  SAK 28.10 −1 161 → ≈16 425 mln, 27.10 −259 → ≈17 332 mln, 30.09 16 268 → ≈18 513 mln; sentyabr 8–19 da hodim kassalarida 12–15 mlrd
+  bo'lgan (SAK ≈23–29 mlrd), 20.09 da 0,6 mlrd ga tushgan — daftar hodisasi, tekshirilmagan. Kunlik hisobot: raznitsa H(kun)−H(boshlanish)
+  ga siljiydi (Toshkent→hodim o'tkazmasi endi farq bermaydi); hodim kassasidan XARAJAT `kerak`ga faqat `asosiy` kassada kiradi
+  (`aylanma_kun_xarajat`) — qolgan 43 kassa (~0,28 mlrd) emas. UI `aylanma-dev.html`: `BOLIM_ORDER` A→**H**→B, kalit umuman yo'q bo'lsa
+  «hali hisoblanmagan» (null = «manba yo'q» qoladi), drill-down ostki satr `meta.kod · subtitle` (uuid emas), chiplar valyutalar/asosiy/nofaol,
+  Excel/CSV ref ustunida kod. 🔴 `sync_aylanma_snapshot` ning ENG OXIRGI versiyasi endi SHU faylda.
 
 ### Yo'ldagi pul — transit REGISTRI (2026-09-06, `PROVODKA_YOLDA.sql`, faqat dev, RUN kutilmoqda)
 
