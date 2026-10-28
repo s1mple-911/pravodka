@@ -1414,6 +1414,39 @@ limiti YANGI yo'lda faqat **ogohlantiradi**; (3) «tannarx» ruxsati yo'q user'n
   `yuk_boglash_taqsim`) o'zgarmadi. Server qorovuli YO'Q — faqat klient (kesh soatlik: Aros'da hozir nashr qilingan yuk 1 soatgacha
   `created` ko'rinishi mumkin → «↻ Aros'dan yangilash»).
 
+### Bog'lanmagan to'lovni QISMAN bog'lash — qoldiq ro'yxatda qoladi (2026-10-28, `PROVODKA_YUK_BOGLASH_QISMAN.sql`, faqat `yuklar-dev`, RUN kutilmoqda)
+
+Asilbek: «tiyin-tiyin to'g'ri kelishi shart bo'lmasin: 30 ming bilan 20 minglik yukni yopib 10 ming bog'lanmagan qolsin,
+yoki 50 minglik yukning 30 mingini yopsin». Yechim — **Dt satrini IKKIGA bo'lish, yangi entry YO'Q**: Dt 9110 (Σ bog'langan,
+yangi satr) + Dt 9110-1 (qoldiq, eski satr kamaytiriladi), Kt kassa tegilmaydi, yozuv jami/Dt=Kt saqlanadi, `yuk_kutilmoqda=true`
+qoladi. Yangi entry yo'li rad etildi: Kt kassa satrini bo'lish perm_guard (bog'lovchining kassa ruxsati), bal_guard, kurs_farqi,
+hodim_notify qorovullaridan o'tishi kerak edi — bu pul harakati emas. 9110 satr insert'i bugungi `9110-1→9110` update'i bilan
+bir xil rbac_guard talabini qo'yadi (yangi talab yo'q); 9110-1 `debit` kamayishi guard'larni ishga tushirmaydi (ular
+`update of account_id`); `check_entry_balanced` DEFERRED.
+- **SQL (additive, nomli teglar, overload YO'Q):** ichki `_yuk_boglash_satr` (bo'lish/o'tkazish), `_yuk_tannarx_kalit` (takror
+  bog'lashda `entry:<id>:2`, `:3` — aks holda `yuk_tannarx_qosh` idempotentligi ikkinchi qismni yozmasdi), `_yuk_qoldiq_summa`.
+  **YANGI `yuk_boglash_qisman(p_entry, p_taqsim, p_qoldiq, p_limit_ogoh)`** — `yuk_boglash_taqsim` nusxasi, farq: «summa» =
+  9110-1 qoldig'i, Σ < qoldiq → qisman, Σ > → `summa_notogri`, 0.01<qoldiq<1 → `qoldiq_kichik`. **YANGI `yuk_boglash_koplik_qisman`**
+  (koplik imzosi) — to'lovlar berilgan tartibda, byudjet tugagan to'lov qisman, keyingilari `boglanmadi[]`. **QAYTA (imzo o'sha):**
+  `yuk_boglash_koplik` (summa = 9110-1 qoldig'i; xatti-harakat eskicha), `yuk_boglash` V7 (p_summa < qoldiq → bo'linadi; oldin
+  butun satr 9110 ga o'tib farq jimgina yo'qolardi — jurnal ⏳ modali HTML'siz qisman-to'g'ri bo'ldi), `yuk_kutayotgan`/`_v2`
+  (summa = 9110-1 qoldig'i; v2 ga `summa_jami`, `boglangan_uzs`, `qisman`, top-level **`qisman:true`** bayrog'i — klient shu
+  bilan RPC borligini biladi), `yuk_boglash_bekor` (9110 satrlari bitta 9110-1 ga QO'SHILADI, ortiqcha texnik satrlar
+  o'chiriladi — yozuv 2 satrli holiga qaytadi; tannarx kalit `entry:<id>` va `:N`). `yuk_boglash_taqsim`, `professional-dev`
+  TEGILMAGAN. Lokal PG17 fixture: 20 000/10 000 bo'linish, ikkinchi 10 000 → ro'yxatdan chiqdi, bekor → 2 satr 30 000,
+  koplik_qisman C10k+D15k+E8k/qoldiq 20k → C to'liq, D 10k qisman, E yo'q; balans 0 nomuvofiq.
+- **UI `yuklar-dev.html` `#linkModal`:** `qismanOk` bayrog'i; Σ < to'lov → sariq «✓ 20 000 bog'lanadi, 10 000 so'm bog'lanmagan
+  qoladi», tugma faol; **«Qoldiqqa ko'ra»** (`splitByQoldiq`: tanlash tartibida har yukka qoldig'i, kurs yo'q yuk → qolgani);
+  summa qoldiqdan oshsa «N qo'yish» tugmasi (`linkSetMax`); har qatorda «qoldi 50 000 → 30 000 bog'lanadi, yukda 20 000 qoladi».
+  Bitta to'lov rejimi endi HAR DOIM `yuk_boglash_qisman` (1 yuk ham — sababli to'lovda tannarx yoziladi; oldin `yuk_boglash`
+  tannarxsiz edi); RPC yo'q (42883/PGRST202) → eski yo'l faqat Σ = to'lov, aks holda «SQL RUN qilinmagan». Ko'p-to'lov: tovar Σ >
+  qoldiq → `yuk_boglash_koplik_qisman`, `p_entries` ESKI→YANGI (`multiRowsOrdered`), oldindan ko'rish `multiPreview` server bilan
+  bir xil. Pending ro'yxatda qisman yozuv: «qisman · jami X · bog'langan Y».
+- ⚠️ Qisman bog'langan yozuv 3+ satrli → jurnalda «ko'p satrli» ko'rinish, qalam (2 satr qoidasi) yo'q — bekor qilinsa qaytadi.
+  Rolida 9110 moddasi bo'lmagan user uchun 9110 insert'i rbac_guard'da to'xtaydi (`kod:'xato'`, 42501 matni) — bu bugun
+  ham `9110-1→9110` update'ida shunday. `rbac_limit_entry_line` (AFTER INSERT) endi 9110 insert'ida ham ishlaydi — 9110 ga
+  oylik limit qo'yilgan bo'lsa (hozir yo'q) tekshiradi.
+
 ### Jurnalda TAG filtri (maxsus maydon elementi) (2026-09-15, `PROVODKA_JURNAL_MAYDON.sql`, faqat dev, RUN kutilmoqda)
 
 Asilbek: «Gaz moddasiga tracker/damas qo'shilgan, jurnalda aralash chiqadi — xarajat turi tanlanganda tag ham tanlansin».
