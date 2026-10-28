@@ -2575,11 +2575,13 @@ function splitByQoldiq(){
     const y=linkYuklar.find(x=>Number(x.id)===Number(id));
     const q=y?lQoldiq(y):null;
     const take=Math.max(0, Math.min(left, q==null?left:Math.floor(q)));
-    linkSels.set(id, take); left-=take;
+    // pul yetmagan yuk (0) tanlovdan chiqariladi — aks holda «Har bir yukka summa kiriting» bilan tugma yopilib qolardi
+    if(take>0) linkSels.set(id, take); else linkSels.delete(id);
+    left-=take;
   });
   renderLinkSplit();
 }
-window.linkSplitQoldiq=()=>{ splitByQoldiq(); validateLink(); };
+window.linkSplitQoldiq=()=>{ splitByQoldiq(); renderLinkList(); };
 // Summa yuk qoldig'idan oshganda xabardagi tugma: shu yukka max = qoldiq qo'yadi.
 window.linkSetMax=id=>{ const y=linkYuklar.find(x=>Number(x.id)===Number(id)); const q=y?lQoldiq(y):null;
   if(q==null) return; linkSels.set(Number(id), Math.floor(q)); validateLink(); };
