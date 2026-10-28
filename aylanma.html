@@ -821,6 +821,8 @@ window.aylDrill=async(bolim)=>{
   $('ddPanel').style.display='block';
   $('ddTitle').textContent='Tafsilot: '+(BOLIM_LABEL[bolim]||bolim);
   $('ddBody').innerHTML='<tr><td colspan="5" class="empty">Yuklanmoqda...</td></tr>';
+  // 2026-10-28: panel ro'yxat OSTIDA (11 qator pastda) — ekrandan tashqarida ochilib «ochilmayapti» deb tuyulardi; ko'rinadigan joyga keltiramiz
+  try{ $('ddPanel').scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
   const {data,error}=await sb.rpc('aylanma_qatorlar',{p_id:curSnap.id, p_bolim:bolim});
   if(error){
     $('ddBody').innerHTML='<tr><td colspan="5">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
