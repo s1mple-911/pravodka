@@ -337,7 +337,7 @@
           <tbody id="ddBody"><tr><td colspan="5" class="empty">—</td></tr></tbody>
         </table></div>
       </div>
-      <div class="note">Qatorga bosilsa tafsilot ochiladi. Q2b (Biz qarzdormiz) formuladan AYIRILADI (qizil, minus).</div>
+      <div class="note">Qatorga bosilsa tafsilot ochiladi. Q2b (Biz qarzdormiz) formuladan AYIRILADI (qizil, minus). <b>Hodim kassalari</b> — 5400 ostidagi barcha xodim/xaridor kassalari (G'iyos va boshqalar, valyuta hisoblari bilan, Provodka daftari) — 28.10.2026 dan jamiga QO'SHILADI; eski kunlar o'sha sanadagi qoldiq bilan to'ldirilgan.</div>
     </div>
 
     <div class="card">
@@ -389,7 +389,7 @@
         </div>
       </div>
       </div>
-      <div class="note" id="hisNote"><b>Fakt</b> — ertasi kun snapshot (kun oxiri haqiqiy jami). <b>Reja</b> — uzluksiz: boshlang'ich kundagi haqiqiy jami + shu kungacha barcha foyda − barcha xarajat (faktga qaytib tozalanmaydi). <b>Raznitsa</b> = Fakt − Reja (yig'ilib boradi). <b>Kunlik farq</b> — raznitsaning kechagiga nisbatan o'zgarishi, ya'ni shu kunning o'zida paydo bo'lgan farq. Foyda — Metabase (filiallar bo'yicha), so'mga snapshot kursi bilan; foyda yo'q kun 0 deb olinadi. Xarajat — faqat asosiy kassalardan chiqqan xarajatlar.<span id="hisBoshNote"></span></div>
+      <div class="note" id="hisNote"><b>Fakt</b> — ertasi kun snapshot (kun oxiri haqiqiy jami). <b>Reja</b> — uzluksiz: boshlang'ich kundagi haqiqiy jami + shu kungacha barcha foyda − barcha xarajat (faktga qaytib tozalanmaydi). <b>Raznitsa</b> = Fakt − Reja (yig'ilib boradi). <b>Kunlik farq</b> — raznitsaning kechagiga nisbatan o'zgarishi, ya'ni shu kunning o'zida paydo bo'lgan farq. Foyda — Aros API profit-summary (filiallar bo'yicha), so'mga snapshot kursi bilan; foyda yo'q kun 0 deb olinadi. Xarajat — faqat asosiy kassalardan chiqqan xarajatlar.<span id="hisBoshNote"></span></div>
     </div>
 
   </main>
@@ -541,9 +541,11 @@ function shortMoney(n){
 }
 
 /* ---- bo'limlar — zinapoya tartibi va yorliqlar (ARX_PROVODKA_AYLANMA.md) ---- */
-const BOLIM_ORDER=['A','B','T1','T5','Y3a','K3b','K4','B6','Q2a','Q2b'];
+// 2026-10-28 (Asilbek): H — hodim kassalari (5400 ostidagi 54xx, G'iyos va boshqalar) alohida bo'lim, SAK ga PLYUS
+// (PROVODKA_AYLANMA_HODIM_KASSA.sql). Eski snapshotlarda kalit umuman bo'lmasa — «hali hisoblanmagan» (backfill kutilmoqda).
+const BOLIM_ORDER=['A','H','B','T1','T5','Y3a','K3b','K4','B6','Q2a','Q2b'];
 const BOLIM_LABEL={
-  A:'Pul (kassalar)', B:"Yo'ldagi pul", T1:'Tovar omborlarda (tannarx)', T5:'Brak tovar',
+  A:'Pul (kassalar)', H:'Hodim kassalari (xaridor/hodim pullari)', B:"Yo'ldagi pul", T1:'Tovar omborlarda (tannarx)', T5:'Brak tovar',
   Y3a:"Yo'ldagi yuklar", K3b:"Ko'chirish yo'lda", K4:"Ko'chirish yaratilgan",
   B6:'Ochiq buyurtmalar (sotuv narxida)', Q2a:'Bizdan qarzdor', Q2b:'Biz qarzdormiz'
 };
@@ -649,7 +651,7 @@ function renderHero(){
    `snapshot.bolimlar` ham, `oldingi.bolimlar` ham bor — ikkalasini
    ayirsak bo'lim kesimidagi harakat chiqadi.
 
-   🔴 ISHORA QOIDASI: SAK = A+B+T1+T5+Y3a+K3b+K4+B6+Q2a − Q2b.
+   🔴 ISHORA QOIDASI: SAK = A+H+B+T1+T5+Y3a+K3b+K4+B6+Q2a − Q2b (H — hodim kassalari, 2026-10-28, plyus).
       Ya'ni Q2b (biz qarzdormiz) O'SSA — SAK KAMAYADI. Shuning uchun
       "hissa" (SAK ga ta'siri) Q2b uchun teskari ishora bilan olinadi.
       Jadvaldagi «Farq» esa bo'limning O'Z harakati (xom ayirma). */
@@ -693,8 +695,10 @@ function renderOzg(){
   rows.forEach(r=>{
     const isNeg=(r.k==='Q2b');
     if(r.farq==null){
+      // kalit umuman yo'q (bo'lim keyin qo'shilgan, masalan H) — «hali hisoblanmagan»; null — manba xatosi
+      const yoq=!(r.k in b)||!(r.k in ob);
       html+='<tr><td>'+esc(BOLIM_LABEL[r.k])+(isNeg?' (−)':'')+'</td>'
-        +'<td colspan="5" class="empty">manba yo\'q</td></tr>';
+        +'<td colspan="5" class="empty">'+(yoq?'hali hisoblanmagan (backfill kutilmoqda)':'manba yo\'q')+'</td></tr>';
       return;
     }
     const pct=(r.oldin!==0)?(r.farq/Math.abs(r.oldin)*100):null;
@@ -736,7 +740,9 @@ function renderWaterfall(){
     const v=b[k];
     const isNeg=(k==='Q2b');
     if(!v || v.uzs==null){
-      html+='<div class="wfrow" data-bolim="'+k+'"><span class="wf-lbl">'+esc(BOLIM_LABEL[k])+'</span><span class="wf-na">manba yo\'q</span></div>';
+      // kalit umuman yo'q — eski snapshot, bo'lim keyin qo'shilgan (H, 2026-10-28): «manba yo'q» EMAS
+      const yoq=!(k in b);
+      html+='<div class="wfrow" data-bolim="'+k+'"><span class="wf-lbl">'+esc(BOLIM_LABEL[k])+'</span><span class="wf-na">'+(yoq?'hali hisoblanmagan':'manba yo\'q')+'</span></div>';
       return;
     }
     const uzs=Number(v.uzs);
@@ -792,6 +798,15 @@ function metaChipsHtml(meta){
     if(meta.daftar_jami!=null) parts.push('daftar '+money(meta.daftar_jami)+(Math.abs(Number(meta.farq)||0)>=1?(' (farq '+(Number(meta.farq)>0?'+':'−')+money(Math.abs(Number(meta.farq)))+')'):''));
   }
   if(meta.manba==='daftar') parts.push('Provodka daftari');
+  // H (hodim kassalari): valyutalar bo'yicha qoldiq, asosiy/nofaol/konteyner belgilari
+  if(meta.valyutalar && typeof meta.valyutalar==='object'){
+    const vs=Object.keys(meta.valyutalar).filter(c=>c!=='UZS').map(c=>esc(c)+' '+money(meta.valyutalar[c]));
+    if(meta.valyutalar.UZS!=null && Object.keys(meta.valyutalar).length>1) vs.unshift("so'm "+money(meta.valyutalar.UZS));
+    if(vs.length) parts.push(vs.join(' · '));
+  }
+  if(meta.asosiy) parts.push('asosiy kassa');
+  if(meta.nofaol) parts.push('nofaol kassa');
+  if(meta.konteyner) parts.push('⚠ konteynerda pul (bo\'lmasligi kerak)');
   if(meta.hamyon) parts.push('mijozlar hamyonidagi pul — qarzdan ayirildi');
   if(meta.manfiy) parts.push('⚠ manfiy');
   if(meta.tr_yolda_uzs!=null) parts.push("yo'lda: "+money(meta.tr_yolda_uzs));
@@ -832,8 +847,10 @@ function renderDrill(){
   if(!rows.length){ $('ddBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Qator yo'q")+'</td></tr>'+toggle; return; }
   $('ddBody').innerHTML=toggle+rows.map(r=>{
     const nom=r.nom||r.ref||'—';
+    // H qatorlarida ref = accounts.id (uuid) — ostida kod + subtitle (Filial · Lavozim) ko'rsatiladi
+    const sub=(r.meta&&r.meta.kod)?(String(r.meta.kod)+(r.meta.subtitle?(' · '+r.meta.subtitle):'')):r.ref;
     return '<tr>'
-      + '<td class="f">'+esc(nom)+(r.ref?('<div class="c">'+esc(r.ref)+'</div>'):'')+'</td>'
+      + '<td class="f">'+esc(nom)+(sub?('<div class="c">'+esc(sub)+'</div>'):'')+'</td>'
       + '<td class="n">'+money(r.uzs)+'</td>'
       + '<td class="n">'+(r.usd!=null?('$'+money(r.usd)):'—')+'</td>'
       + '<td class="n">'+(r.soni!=null?money(r.soni):'—')+'</td>'
@@ -861,7 +878,7 @@ function aylLoadXlsx(){
 }
 function aylCsvFallback(){
   const head=['Nomi','Ref',"So'm",'Dollar','Soni'];
-  const rows=[head].concat(ddRows.map(r=>[r.nom||'', r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'']));
+  const rows=[head].concat(ddRows.map(r=>[r.nom||'', (r.meta&&r.meta.kod)||r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'']));
   const csv=rows.map(r=>r.map(v=>String(v).replace(/;/g,',')).join(';')).join('\r\n');
   const blob=new Blob(['﻿sep=;\r\n'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -873,7 +890,7 @@ window.aylExcelDrill=async()=>{
   try{
     const X=await aylLoadXlsx();
     const aoa=[['Nomi','Ref',"So'm",'Dollar','Soni']];
-    ddRows.forEach(r=>aoa.push([r.nom||'', r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'']));
+    ddRows.forEach(r=>aoa.push([r.nom||'', (r.meta&&r.meta.kod)||r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'']));
     const ws=X.utils.aoa_to_sheet(aoa);
     const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'Tafsilot');
     X.writeFile(wb,'aylanma_'+(ddBolim||'tafsilot')+(curSnap&&curSnap.sana?('_'+curSnap.sana):'')+'.xlsx');
