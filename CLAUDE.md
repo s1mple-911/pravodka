@@ -1402,6 +1402,17 @@ limiti YANGI yo'lda faqat **ogohlantiradi**; (3) «tannarx» ruxsati yo'q user'n
   o'zgarmagan. `adv` (ko'p satrli) rejimda tur qadami YO'Q. Ruxsatsiz user xizmatni tanlasa to'g'ridan Ekran 2 (`🔒` izoh bilan).
 - ⚠️ Ma'lum chegara: taqsimlangan (bir nechta yukli) to'lovni `yuk_boglash_bekor` bekor QILMAYDI (`kod:'kop_yuk'` —
   u faqat bitta yukli to'lov uchun). Kerak bo'lsa alohida bosqich.
+- **2026-10-28 — FAQAT nashr qilingan yukka pul (Asilbek).** Aros `status` qiymatlari keshda (3 057 yuk, 2024-04..2026-10):
+  `created` 2 610 · `posted` 371 · `canceled` 76; `delivery_status`: `accepted` 3 029 / `on_way` 28; `post_at` null 105 (created 29 +
+  canceled 76 — ya'ni `created` bo'lsa ham `post_at` to'lgan bo'lishi mumkin, shuning uchun mezon FAQAT `status==='posted'`).
+  `professional-dev.html` 9110 modali (simple/adv, tovar/xizmat, preYuk): `yukPosted(y)` (`status` yo'q/bo'sh → `true`, eski webhook
+  javobi bloklanmaydi) → `yukSelectable`/`selectableFor` false, `toggleYuk` kirmaydi, `afterYukLoad` tanlovdan tozalaydi, `autoAlloc`ga
+  tushmaydi. Ro'yxatda nashr qilinmaganlar **sukutda yashirin**, chip «Nashr qilinmagan (N)» (`#yfNPBtn`, `yukShowUnposted`) kulrang +
+  `pill.r` «nashr qilinmagan (yaratilgan|bekor qilingan)» belgisi bilan ko'rsatadi (to'lov holati filtri ularga qo'llanmaydi, saralashda
+  pastda); bo'sh holatda «N ta nashr qilinmagan hujjat yashirin — Ko'rsatish». preYuk nashr qilinmagan bo'lsa auto tanlanmaydi, chip
+  o'zi yoqiladi. `status` ham, `post_at` ham umuman kelmasa `#yukPostWarn` ogohlantiradi. Saqlash yo'li (`openYukSave` cb,
+  `yuk_boglash_taqsim`) o'zgarmadi. Server qorovuli YO'Q — faqat klient (kesh soatlik: Aros'da hozir nashr qilingan yuk 1 soatgacha
+  `created` ko'rinishi mumkin → «↻ Aros'dan yangilash»).
 
 ### Jurnalda TAG filtri (maxsus maydon elementi) (2026-09-15, `PROVODKA_JURNAL_MAYDON.sql`, faqat dev, RUN kutilmoqda)
 

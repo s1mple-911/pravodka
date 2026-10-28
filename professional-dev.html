@@ -246,6 +246,7 @@
   .pill.g{background:var(--green-soft);color:var(--green);border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   .pill.y{background:#fdf3d6;color:#a9791b;border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   [data-theme="dark"] .pill.y{background:#3a2f14;color:#e6b84a}
+  .pill.r{background:var(--red-soft);color:var(--red);border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700}
   /* Ehson kaskadi: bloklamaydigan valyuta ogohlantirishi — qizil emas, sariq (--pill.y bilan bir xil tus) */
   .ehwarn{color:#a9791b;font-weight:600}
   [data-theme="dark"] .ehwarn{color:#e6b84a}
@@ -913,10 +914,12 @@
         <input class="txt" id="yukPickIzoh" placeholder="masalan: Akmal aka — 200 dona plitka" autocomplete="off" oninput="updateYukSaveBtn()" style="margin-bottom:10px">
       </div>
       <div id="yukBojWarn" class="pendnote" style="display:none"></div>
+      <div id="yukPostWarn" class="pendnote" style="display:none"></div>
       <div class="yukfilt">
         <button type="button" class="fchip on" data-yf="all" onclick="setYukFilt('all')">Hammasi<span class="n" id="yfN2"></span></button>
         <button type="button" class="fchip" data-yf="unpaid" onclick="setYukFilt('unpaid')">To'lanmagan<span class="n" id="yfN0"></span></button>
         <button type="button" class="fchip" data-yf="qisman" onclick="setYukFilt('qisman')">Qisman<span class="n" id="yfN1"></span></button>
+        <button type="button" class="fchip" id="yfNPBtn" style="display:none" onclick="toggleYukUnposted()" title="Aros'da nashr qilinmagan (status ≠ posted) hujjatlar — ularga pul to'lab bo'lmaydi, faqat ko'rish uchun">Nashr qilinmagan<span class="n" id="yfNP"></span></button>
         <select class="txt" id="yukDavr" aria-label="Davr" onchange="renderYukList()">
           <option value="oy" selected>Bu oy</option>
           <option value="30">Oxirgi 30 kun</option>
@@ -2730,10 +2733,20 @@ function yukRow(y){
   const same=normC(y.valyuta)===normC(u.cur), narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
   return {err:false, jami:narx, qoldi:Math.max(0,u.rnd(narx-yukTolangan(y.id)/u.rate)), approx:!same};
 }
-function yukSelectable(y){ const q=yukRow(y).qoldi; return q!=null && q>0; }   // kurs bor va qarzi bor
+/* 2026-10-28 (Asilbek): FAQAT nashr qilingan (`status==='posted'`) yukka pul to'lash mumkin. Aros statuslari:
+   created (hali nashr qilinmagan, ko'pi) | posted | canceled. `status` maydoni yo'q/bo'sh (eski webhook javobi) → bloklanmaydi
+   (eski xatti-harakat); `status` ham, `post_at` ham umuman kelmasa — `#yukPostWarn` ogohlantiradi (afterYukLoad). Nashr qilinmagan
+   yuklar sukutda YASHIRIN, «Nashr qilinmagan (N)» chipi (`yukShowUnposted`) kulrang + belgi bilan ko'rsatadi, tanlab bo'lmaydi. */
+const YUK_ST_LBL={created:'yaratilgan',canceled:'bekor qilingan',cancelled:'bekor qilingan',posted:'nashr qilingan'};
+function yukStatus(y){ const s=y&&y.status; return (s==null||s==='')?null:String(s).toLowerCase(); }
+function yukPosted(y){ const s=yukStatus(y); return s==null ? true : s==='posted'; }
+function yukPostLbl(y){ const s=yukStatus(y); return 'nashr qilinmagan ('+(YUK_ST_LBL[s]||s)+')'; }
+let yukShowUnposted=false;
+window.toggleYukUnposted=()=>{ yukShowUnposted=!yukShowUnposted; renderYukList(); };
+function yukSelectable(y){ if(!yukPosted(y)) return false; const q=yukRow(y).qoldi; return q!=null && q>0; }   // nashr qilingan, kurs bor va qarzi bor
 // Xizmat (yo'l puli/bojxona/...) qarz TO'LAMAYDI, tannarxni OSHIRADI — shuning uchun
 // "qarzi bor" cheklovi olib tashlanadi, faqat kurs borligi kifoya.
-function selectableFor(y){ if(curRate(yukSaveCur)==null) return false; return isXizmat() ? true : yukSelectable(y); }
+function selectableFor(y){ if(!yukPosted(y) || curRate(yukSaveCur)==null) return false; return isXizmat() ? true : yukSelectable(y); }
 // yuk_bojxona_jami: {"<id>": {bojxona_uzs,fare_uzs,limit_uzs,qoshilgan_uzs,qoldi_uzs,...}} — yuklar-dev.html naqshi.
 function bojOf(id){ const b=bojMap&&bojMap[String(id)]; return (b&&typeof b==='object')?b:null; }
 function bojQoldi(b){ if(!b||b.limit_uzs==null) return null; const lim=Number(b.limit_uzs); if(!isFinite(lim)) return null;
@@ -2782,7 +2795,8 @@ window.onModda=()=>{
 
 function openYukSave(rawAmount, cur, cb, mode){
   yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; yukSaveMode=mode||'simple';
-  selYuk.clear(); alloc={}; allocC={}; yukTur=null; yukSababTanlangan=null; bojMap={};
+  selYuk.clear(); alloc={}; allocC={}; yukTur=null; yukSababTanlangan=null; bojMap={}; yukShowUnposted=false;
+  { const w=$('yukPostWarn'); if(w){ w.style.display='none'; w.innerHTML=''; } }
   $('yukPendIzoh').value=($('izoh').value||'').trim();
   $('yukModal').classList.add('open');
   // Tur qadami (0-ekran) faqat ODDIY rejimda va sabablar mavjud bo'lsa (fail-open) — band 6:
@@ -3068,12 +3082,19 @@ function fillYukYetk(){
 }
 function afterYukLoad(){
   fillYukYetk();
+  // 2026-10-28: nashr qilinmagan yuk tanlovda qolmasin (↻ qayta o'qishdan keyin status o'zgargan bo'lishi mumkin).
+  for(const id of [...selYuk]){ const y=yukList.find(x=>Number(x.id)===id); if(!y||!yukPosted(y)){ selYuk.delete(id); delete alloc[id]; delete allocC[id]; } }
+  { const w=$('yukPostWarn');
+    if(w){ const yoq=yukList.length>0 && yukList.every(y=>!('status' in y)&&!('post_at' in y));
+      w.style.display=yoq?'block':'none';
+      w.innerHTML=yoq?'⚠️ Yuk holati (status/post_at) kelmadi — nashr qilinganini tekshirib bo\'lmaydi, hamma yuk tanlanadi.':''; } }
   const r=curRate(yukSaveCur); yukSaveUzs=(r==null)?0:Math.round(yukSaveRaw*r);
   // V8: qarzdor-dev.html'dan kelgan yuk avtomat tanlanadi (bir marta).
   if(preYuk && !selYuk.size){
     const y=yukList.find(x=>Number(x.id)===preYuk);
     if(y && yukSelectable(y)) selYuk.add(preYuk);
-    else $('yukList').innerHTML='';   // topilmasa quyida "Yuk topilmadi" chiqadi
+    else { if(y && !yukPosted(y)) yukShowUnposted=true;   // nashr qilinmagan — kulrang ko'rinsin, sababi bilan
+      $('yukList').innerHTML=''; }   // topilmasa quyida "Yuk topilmadi" chiqadi
   }
   autoAlloc(); renderYukList();
 }
@@ -3087,13 +3108,18 @@ window.renderYukList=()=>{
   // 'oy' = joriy oy boshidan (sukut, Asilbek 2026-10-27); raqam = oxirgi N kun; 730 = hammasi (kesh 2 yil)
   const davr=dv==='oy'?0:Number(dv)||730;
   const chegara=dv==='oy'?_isoY(nowU).slice(0,8)+'01':_isoY(new Date(nowU.getTime()-davr*86400000));
-  let base=yukList.filter(y=>{
+  const base0=yukList.filter(y=>{
     if(davr<730 && String(y.sana||'').slice(0,10)<chegara) return false;
     if(yetk && y.yetkazuvchi!==yetk) return false;
     return true; });
+  // 2026-10-28: nashr qilinmagan (status≠posted) yuklar alohida — sukutda yashirin, chip bilan kulrang ko'rinadi, tanlanmaydi.
+  const unp=base0.filter(y=>!yukPosted(y));
+  let base=base0.filter(yukPosted);
   // Chip sanoqlari — davr/yetkazuvchi/qidiruvdan keyin, to'lov holatidan OLDIN (hujjat qaysi chipda turganini ko'rsatadi)
   const qf=y=>!q || (/^\d+$/.test(q) ? (String(y.id)===q||String(y.id).startsWith(q))
                      : ((y.ombor||'')+' '+(y.yetkazuvchi||'')+' '+(y.yetkazuvchi_tel||'')).toLowerCase().includes(q));
+  const nP=unp.filter(qf).length;
+  { const b=$('yfNPBtn'); if(b){ b.style.display=nP?'':'none'; b.classList.toggle('on',yukShowUnposted&&nP>0); if($('yfNP')) $('yfNP').textContent=nP?'('+nP+')':''; } }
   const bq=base.filter(qf);
   const n0=bq.filter(y=>yukPct(y)===0).length, n1=bq.filter(y=>{const p=yukPct(y);return p>0&&p<100;}).length;
   if($('yfN0')){ $('yfN0').textContent=n0?'('+n0+')':''; $('yfN1').textContent=n1?'('+n1+')':''; $('yfN2').textContent=bq.length?'('+bq.length+')':''; }
@@ -3102,6 +3128,7 @@ window.renderYukList=()=>{
     if(yukFilt==='qisman') return pct>0&&pct<100;
     if(yukFilt==='tolangan') return pct>=100;
     return true; });
+  if(yukShowUnposted) rows=rows.concat(unp);   // to'lov holati filtri qo'llanmaydi — faqat ko'rish uchun, saralashda pastga tushadi
   if(q){
     if(/^\d+$/.test(q)) rows=rows.filter(y=>String(y.id)===q||String(y.id).startsWith(q));   // ID bo'yicha
     else rows=rows.filter(y=>((y.ombor||'')+' '+(y.yetkazuvchi||'')+' '+(y.yetkazuvchi_tel||'')).toLowerCase().includes(q));
@@ -3115,7 +3142,9 @@ window.renderYukList=()=>{
     const jamiTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':(U.cc?(R.approx?'≈ ':'')+U.f(jami):money(jami)+' so\'m');
     // Chap ustun: Aros narxi qanday jami bo'lganini ochib beradi.
     const arosTxt=rateErr?yPriceF(y.narx,y.valyuta):(U.cc?(R.approx?'Aros: '+yPriceF(y.narx,y.valyuta):'Aros narxi'):yPriceF(y.narx,y.valyuta)+(y.valyuta&&y.valyuta!=='UZS'?' ≈ '+money(nUzs)+' so\'m':''));
-    const badge=rateErr?'':(pct>=100?'<span class="pill g">to\'langan</span>':(pct>0?'<span class="pill y">qisman '+pct+'%</span>':''));
+    const np=!yukPosted(y);
+    const badge=(np?'<span class="pill r" title="Aros\'da nashr qilinmagan — pul to\'lab bo\'lmaydi">'+esc(yukPostLbl(y))+'</span> ':'')
+      +(rateErr?'':(pct>=100?'<span class="pill g">to\'langan</span>':(pct>0?'<span class="pill y">qisman '+pct+'%</span>':'')));
     const rem=rateErr?'':(q2>0?'<span class="yrem">qoldi '+U.n(q2)+'</span>':'');
     const dis=(!selectableFor(y)&&!on)?' dis':'';
     const inp=on?'<div class="yalloc" onclick="event.stopPropagation()"><span>summa ('+(U.cc?esc(U.cur):'so\'m')+')</span><input inputmode="'+(U.cc?'decimal':'numeric')+'" value="'+(U.get(id)?(U.cc?U.get(id):money(U.get(id))):'')+'" oninput="setAlloc('+id+',this)"></div>':'';
@@ -3128,7 +3157,9 @@ window.renderYukList=()=>{
       +'<span class="yl2">'+arosTxt+(tn>0?' + tannarx '+money(tn):'')+' '+rem+'</span>'
       +sabRow+'</span>'
       +'<span class="ynarx">'+jamiTxt+'</span></div>'+inp+'</div>';
-  }).join('') : '<div class="yukempty">Yuk topilmadi.'+(bq.length&&yukFilt!=='all'?'<br><span style="font-weight:500">Bu davrda '+bq.length+' ta hujjat bor, lekin «'+(yukFilt==='unpaid'?'To\'lanmagan':'Qisman')+'» emas — <button type="button" class="ylink" onclick="setYukFilt(\'all\')">Hammasini ko\'rsatish</button></span>':(davr<730?'<br><span style="font-weight:500">Davrni kengaytirib ko\'ring (hozir '+(dv==='oy'?'bu oy':'oxirgi '+davr+' kun')+').</span>':''))+'</div>';
+  }).join('') : '<div class="yukempty">Yuk topilmadi.'
+    +(nP&&!yukShowUnposted?'<br><span style="font-weight:500">'+nP+' ta nashr qilinmagan hujjat yashirin (ularga pul to\'lab bo\'lmaydi) — <button type="button" class="ylink" onclick="toggleYukUnposted()">Ko\'rsatish</button></span>':'')
+    +(bq.length&&yukFilt!=='all'?'<br><span style="font-weight:500">Bu davrda '+bq.length+' ta hujjat bor, lekin «'+(yukFilt==='unpaid'?'To\'lanmagan':'Qisman')+'» emas — <button type="button" class="ylink" onclick="setYukFilt(\'all\')">Hammasini ko\'rsatish</button></span>':(davr<730?'<br><span style="font-weight:500">Davrni kengaytirib ko\'ring (hozir '+(dv==='oy'?'bu oy':'oxirgi '+davr+' kun')+').</span>':''))+'</div>';
 };
 
 /* ===================== ATOMIK YOZUV (provodka_yoz RPC) =====================
