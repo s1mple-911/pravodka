@@ -1228,6 +1228,23 @@ Asilbek: «Dilnoza Nazarova uchun 3 ta child kassa, har biriga naqd/karta/$ — 
   ✎ nom, «Ichiga kassa», ota + «Konteyner» belgisi) va `professional-dev.html` (`ehsonKassaRows/ehsonTree`: konteyner bosilsa ichiga kiradi, chip «Ehson jamg'armasi › Dilnoza
   Nazarova › 1 › Naqd», qidiruv yo'l bo'yicha). SQL RUN bo'lmasa (`daraxt`/`yol` yo'q) — AYNAN eski ko'rinish. Qarz filtri/ro'yxati konteyner bo'yicha EMAS (aniq kassa).
 
+### Ehson: USD qoldig'i to'g'rilandi + konteyner jami + oila tarixi + pul maydonlari + Berish ro'yxati (2026-10-28, `PROVODKA_EHSON_USD_QOLDIQ.sql`, faqat dev, RUN kutilmoqda)
+
+- 🔴 **USD pul turi so'm «qoldiq»i = `fc_qoldiq` × JORIY kurs** (fc 0 -> so'm 0). Sabab: dollar kirimlari turli kursda (11 900/11 850), tuzatish yana boshqasida
+  -> dollar 0 $, lekin so'mda −950 000 -> Zakot jami −474 000 (naqd 476 000 to'g'ri). `v_ehson_kassa_pul` (qoldiq ifodasi + OXIRGI ustun `kurs_yoq`) va
+  `v_ehson_kassa` (qoldiq = pul turi qatorlari yig'indisi) qayta e'lon; ustun nomi/tartibi o'zgarmagan -> ehson_dash/ber/kassa_daraxt/qarz_ber/transfer_yoz/
+  konvert_yoz/kirim_qolda/kassa_saqla avtomat. USD tekshiruvlari (`qoldiq_yetmaydi`) AVVAL HAM fc_qoldiq bilan. `ehson_dash` statlari ehson_berish dan — tegilmagan.
+  Kurs manbai ichki `_ehson_kurs_usd_ich()` (conv_baza_kurs, auth tekshiruvisiz — view SQL editor/service_role/`ehson_kirim` bayrog'li userda ham bir xil);
+  kurs null -> eski so'm yig'indisi + `kurs_yoq=true`. 🔴 `v_ehson_kassa_pul`/`v_ehson_kassa` ning ENG OXIRGI versiyasi endi SHU faylda — KONVERT_QARZ_GURUH/
+  TRANSFER/QARZ/ZAKOT qayta RUN qilinsa shu faylni ham qayta RUN. Postgres 17 fixture bilan tekshirilgan (Zakot 476 000, Ehson soliq dollar 0; kurs null -> eski).
+- **`ehson-dev.html`**: (2) konteyner qatori childlar YIG'INDISI — Kirim kartasi guruh sarlavhasi + ildiz, admin «Jamg'arma kassalari» (ildiz qatori ham), Kirim/Tarix
+  filtridagi «(hammasi)» optionlari: `Jami X so'm · Y $` (`ehzJamiTxt`, `ehzSubTotals` yassi dash'dan, `ehzNodeJami` daraxtdan: `jami_qoldiq` yo'q bo'lsa childlardan);
+  (3) Oila formasi: har matn maydoni (manzil/tavsiya/oilaviy/uy-joy/yordam turi/miqdori/hudud/tekshirgan) `<datalist>`, textarea (sabab/izoh) pastida «Avval
+  yozilganlardan» select — qiymatlar `ehson_oila` dan klientda distinct+chastota, max 30 (`ehoHistLoad`; yangi SQL YO'Q, RLS select ruxsat beradi); A'zo formasi tegilmagan;
+  (4) pul inputlari — `ehMoneyInput(el,usd)` (bo'sh joy ajratgich, kursor saqlanadi, USD 2 kasr) va `ehNum(el|str,usd)` (yagona o'qish) hamma 11 pul maydonida
+  (Berish/Reja/Qarz berish/To'lov/Guruh to'lov/Kirim/O'tkazma/Konvert summa+kurs/Oila va a'zo daromadi), `type="text" inputmode="decimal"`;
+  (5) Ehson berish: forma ochilganda darhol oilalar ro'yxati (`ehbShowDefault`, `ehson_royxat {limit:200}`, yopilganlarsiz, 50 ta, scroll), qidiruv yozilsa server qidiruvi.
+
 ### Jurnal: Excel «Hammasi» varag'i + filial filtrida oshxona kassalari + teg bo'yicha filtr (2026-10-27, prod'ga chiqdi 27.10; `PROVODKA_JURNAL_FILIAL_FILTR.sql` RUN ✅)
 
 - **Excel** (`exportExcel`): «Xulosa»dan keyin yangi **«Hammasi»** varag'i — eksportga kirgan HAMMA yozuv bitta joyda («Filial(lar)»
