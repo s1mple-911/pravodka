@@ -214,7 +214,7 @@
   .hismodal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
   .hismodal.open{display:flex}
   .hismodal .dd{display:block;margin:0;border-top:none;padding:18px 20px 16px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-hover);width:min(1120px,100%);max-height:88vh;overflow:auto}
-  .hismodal.m-foyda .dd{width:min(720px,100%)}
+  .hismodal.m-foyda .dd{width:min(980px,100%)}   /* 2026-11-02: +2 ustun (tovar, yo'ldagi yuk) */
   .hismodal .dd-hd h3{font-size:16px}
   .hismodal .dd .scroll{max-height:min(60vh,520px)}
   @media(max-width:600px){.hismodal{padding:0;align-items:flex-end}.hismodal .dd{border-radius:20px 20px 0 0;max-height:90vh;padding:16px 14px calc(16px + env(safe-area-inset-bottom))}}
@@ -366,9 +366,10 @@
           <div id="hisFoydaPane">
             <h4>Foyda — filiallar bo'yicha</h4>
             <div class="scroll"><table>
-              <thead><tr><th>Filial</th><th>Sotilgan</th><th>Qaytarilgan</th><th>$</th><th>So'm</th></tr></thead>
-              <tbody id="hisFoydaBody"><tr><td colspan="5" class="empty">—</td></tr></tbody>
-            </table></div>
+              <thead><tr><th>Filial</th><th>Sotilgan</th><th>Qaytarilgan</th><th>$</th><th>So'm</th><th title="Fakt snapshotidagi ombordagi tovar (tannarx)">Ombordagi tovar</th><th title="Shu filialga kelayotgan: yo'ldagi yuklar + ko'chirish (yo'lda)">Yo'ldagi yuk</th></tr></thead>
+              <tbody id="hisFoydaBody"><tr><td colspan="7" class="empty">—</td></tr></tbody>
+            </table>
+            <div class="note" id="hisYukNote" style="display:none;margin-top:8px"></div></div>
           </div>
           <div id="hisXarajatPane">
             <h4>Xarajat — asosiy kassadan</h4>
@@ -1125,19 +1126,19 @@ window.hisDrill=async(kun,mode)=>{
   hisModalOpen(mode);
   if(cached){ renderHisDrill(); return; }
   $('hisDdTitle').textContent=hisDrillTitle(mode,kun,null);
-  $('hisFoydaBody').innerHTML='<tr><td colspan="5" class="empty">Yuklanmoqda...</td></tr>';
+  $('hisFoydaBody').innerHTML='<tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr>';
   $('hisXarajatBody').innerHTML='<tr><td colspan="4" class="empty">Yuklanmoqda...</td></tr>';
   $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7" class="empty">Yuklanmoqda...</td></tr>';
   const {data,error}=await sb.rpc('aylanma_hisobot_tafsilot',{p_sana:kun});
   if(error){
-    const m='<tr><td colspan="5">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
+    const m='<tr><td colspan="7">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
     $('hisFoydaBody').innerHTML=m;
     $('hisXarajatBody').innerHTML='<tr><td colspan="4">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
     $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7">'+estateHtml(rpcMissing(error)?ICON_DB:ICON_INBOX,rpcMissing(error)?"SQL hali RUN qilinmagan":error.message)+'</td></tr>';
     return;
   }
   if(data && data.ok===false){
-    $('hisFoydaBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
+    $('hisFoydaBody').innerHTML='<tr><td colspan="7">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
     $('hisXarajatBody').innerHTML='<tr><td colspan="4">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
     $('hisXarajatRoyxatBody').innerHTML='<tr><td colspan="7">'+estateHtml(ICON_LOCK,"Ruxsat yo'q")+'</td></tr>';
     return;
@@ -1174,16 +1175,40 @@ function renderHisDrill(){
   $('hisXarajatPane').classList.toggle('full', mode==='xarajat');
   $('hisDdTitle').textContent=hisDrillTitle(mode,hisOpenKun,hasRoyxat?royxat.length:null);
 
+  /* 2026-11-02 (Asilbek): har filial yonida ombordagi tovar (T1) va yo'ldagi yuk (Y3a + K3b) — Fakt snapshotidan.
+     Eski RPC (kalit yo'q) → «—». 0 = snapshot bor, lekin shu filialga yuk yo'q. */
+  const yukBor=foyda.some(r=>('tovar_uzs' in r)||('yolda_uzs' in r));
   $('hisFoydaBody').innerHTML = foyda.length ? foyda.map(r=>{
     const jami=(r.filial==='JAMI');
+    const tovar=(r.tovar_uzs==null)?'—':(money(r.tovar_uzs)+(r.tovar_usd!=null?'<div class="c">$'+money(r.tovar_usd)+'</div>':''));
+    let yolda='—';
+    if(r.yolda_uzs!=null){
+      const ys=r.yolda_yuk_soni||0, ks=r.yolda_kochirish_soni||0;
+      yolda=money(r.yolda_uzs)+((ys||ks)?'<div class="c">'+(ys?'yuk '+ys+' ta · '+money(r.yolda_yuk_uzs||0):'')+(ys&&ks?' · ':'')+(ks?"ko'chirish "+ks+' ta · '+money(r.yolda_kochirish_uzs||0):'')+'</div>':'');
+    }
     return '<tr'+(jami?' style="font-weight:700;border-top:2px solid var(--line)"':'')+'>'
       +'<td class="f">'+(jami?'JAMI':esc(r.filial))+'</td>'
       +'<td class="n">'+(r.sotilgan==null?'—':money(r.sotilgan))+'</td>'
       +'<td class="n">'+(r.qaytarilgan==null?'—':money(r.qaytarilgan))+'</td>'
       +'<td class="n">'+(r.foyda_usd==null?'—':'$'+money(r.foyda_usd))+'</td>'
       +'<td class="n">'+(r.foyda_uzs==null?'—':money(r.foyda_uzs))+'</td>'
+      +'<td class="n">'+tovar+'</td>'
+      +'<td class="n">'+yolda+'</td>'
       +'</tr>';
-  }).join('') : '<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+  }).join('') : '<tr><td colspan="7">'+estateHtml(ICON_INBOX,"Ma'lumot yo'q")+'</td></tr>';
+  const yn=$('hisYukNote');
+  if(yn){
+    const yj=hisDetail&&hisDetail.yuk_jami;
+    if(yukBor && hisDetail && hisDetail.yuk_snapshot_sana){
+      const t1=yj&&yj.T1, y3=yj&&yj.Y3a, k3=yj&&yj.K3b;
+      yn.style.display='';
+      yn.innerHTML='Tovar va yo\'ldagi yuk — '+esc(fmtDateShort(hisDetail.yuk_snapshot_sana))+' snapshotidan (Fakt bilan bir xil). '
+        +'Hamma omborlar (markaziy bilan): tovar '+(t1&&t1.uzs!=null?money(t1.uzs)+' so\'m':'—')
+        +' · yo\'ldagi yuklar '+(y3&&y3.uzs!=null?money(y3.uzs)+' ('+(y3.soni||0)+' ta)':'—')
+        +' · ko\'chirish yo\'lda '+(k3&&k3.uzs!=null?money(k3.uzs)+' ('+(k3.soni||0)+' ta)':'—')+'.';
+    } else if(yukBor){ yn.style.display=''; yn.textContent="Bu kun uchun snapshot yo'q — tovar/yo'ldagi yuk ko'rsatilmaydi."; }
+    else { yn.style.display='none'; yn.textContent=''; }
+  }
 
   $('hisXarajatBody').innerHTML = xarajat.length ? xarajat.map(r=>
     '<tr><td class="f">'+esc(r.modda)+'</td><td>'+esc(r.kassa)+'</td><td class="n">'+money(r.summa)+'</td><td class="n">'+(r.soni==null?'—':money(r.soni))+'</td></tr>'
@@ -1216,8 +1241,8 @@ function hisExcelSheets(){
   const royxat=Array.isArray(hisDetail&&hisDetail.xarajat_royxat)?hisDetail.xarajat_royxat:null;
   const sheets=[];
   if(mode==='foyda' || mode==='all'){
-    const aoa=[['Filial','Sotilgan','Qaytarilgan','Foyda $',"Foyda so'm"]];
-    foyda.forEach(r=>aoa.push([r.filial||'', r.sotilgan??'', r.qaytarilgan??'', r.foyda_usd??'', r.foyda_uzs??'']));
+    const aoa=[['Filial','Sotilgan','Qaytarilgan','Foyda $',"Foyda so'm","Ombordagi tovar so'm","Ombordagi tovar $","Yo'ldagi yuk so'm","Yo'ldagi yuklar soni","Ko'chirish yo'lda so'm","Ko'chirish soni"]];
+    foyda.forEach(r=>aoa.push([r.filial||'', r.sotilgan??'', r.qaytarilgan??'', r.foyda_usd??'', r.foyda_uzs??'', r.tovar_uzs??'', r.tovar_usd??'', r.yolda_uzs??'', r.yolda_yuk_soni??'', r.yolda_kochirish_uzs??'', r.yolda_kochirish_soni??'']));
     sheets.push(['Foyda',aoa]);
   }
   if(mode==='xarajat' || mode==='all'){
