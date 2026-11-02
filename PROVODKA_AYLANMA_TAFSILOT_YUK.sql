@@ -16,7 +16,7 @@
 -- ADDITIVE: imzo o'zgarmagan (`aylanma_hisobot_tafsilot(date)`), eski kalitlar (foyda[].*, xarajat, xarajat_royxat,
 -- xarajat_jami, kurs) aynan saqlanadi — prod `aylanma.html` ham shu funksiyani chaqiradi, unga yangi kalitlar zarar qilmaydi.
 -- 🔴 Tana PROVODKA_PUL_USTI.sql dagi versiyadan verbatim + yuk bloki. ENG OXIRGI versiya endi SHU faylda.
--- Qayta RUN xavfsiz. Dollar-teg: $fn$ (izohda yonma-yon belgi yo'q).
+-- Qayta RUN xavfsiz. Funksiya tanasi nomlangan dollar-teg bilan (izohda teg YOZILMAYDI — editor parity buziladi).
 -- =====================================================================
 
 create or replace function aylanma_hisobot_tafsilot(p_sana date)
