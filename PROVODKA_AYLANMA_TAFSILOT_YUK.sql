@@ -11,7 +11,8 @@
 -- juftlash. Javobga `yuk_snapshot_sana`/`yuk_snapshot_id`/`yuk_jami` qo'shiladi. Filial ↔ ombor: aylanma_foyda.warehouse_id
 -- = T1.ref (Aros ombor id); Y3a/K3b qatorlarida id yo'q — ombor NOMI bo'yicha (Y3a nom = «Ombor · yetkazuvchi»,
 -- K3b nom = «From -> To»; nomlar bitta manbadan — Aros warehouse name_uz/name — 01.11 snapshotida 21/21 mos).
--- Snapshot/qator yo'q bo'lsa maydonlar null (0 emas) — «—» ko'rinadi.
+-- Snapshot/qator yo'q bo'lsa maydonlar null (0 emas) — «—» ko'rinadi. Snapshotda bo'lim hisoblanmagan bo'lsa
+-- (bolimlar.K3b/Y3a null — manba.transfers/incomes xato, masalan 02.11 03:00) o'sha qism null, `yolda_toliq=false`.
 --
 -- ADDITIVE: imzo o'zgarmagan (`aylanma_hisobot_tafsilot(date)`), eski kalitlar (foyda[].*, xarajat, xarajat_royxat,
 -- xarajat_jami, kurs) aynan saqlanadi — prod `aylanma.html` ham shu funksiyani chaqiradi, unga yangi kalitlar zarar qilmaydi.
@@ -31,6 +32,7 @@ declare
   v_foyda jsonb; v_xarajat jsonb; v_royxat jsonb;
   v_snap_id uuid; v_snap_sana date;
   v_yuk_jami jsonb := null;
+  v_y3_bor boolean := false; v_k3_bor boolean := false;   -- snapshotda bo'lim hisoblanganmi (manba xato bo'lsa null → «—»)
 begin
   if not aylanma_page_ok() then
     return jsonb_build_object('ok', false, 'kod', 'ruxsat');
@@ -40,7 +42,10 @@ begin
    order by (sana = p_sana + 1) desc, (rejim = 'cron') desc, hisoblangan_at desc limit 1;
 
   -- 2026-11-02: Fakt snapshoti (ertasi kun; bo'lmasa o'sha kun) — filial tovar / yo'ldagi yuk shu yerdan
-  select id, sana into v_snap_id, v_snap_sana from aylanma_snapshot
+  select id, sana, (bolimlar -> 'Y3a') is not null and jsonb_typeof(bolimlar -> 'Y3a') <> 'null',
+                   (bolimlar -> 'K3b') is not null and jsonb_typeof(bolimlar -> 'K3b') <> 'null'
+    into v_snap_id, v_snap_sana, v_y3_bor, v_k3_bor
+    from aylanma_snapshot
    where sana in (p_sana + 1, p_sana)
    order by (sana = p_sana + 1) desc, (rejim = 'cron') desc, hisoblangan_at desc limit 1;
 
@@ -89,19 +94,20 @@ begin
                              when tovar_bor then tovar_usd end,
            'tovar_uzs', case when filial = 'JAMI' then (select sum(tovar_uzs) from r where filial <> 'JAMI' and tovar_bor)
                              when tovar_bor then tovar_uzs end,
-           'yolda_uzs', case when v_snap_id is null then null
+           'yolda_uzs', case when v_snap_id is null or (not v_y3_bor and not v_k3_bor) then null
                              when filial = 'JAMI' then (select sum(coalesce(yuk_uzs, 0) + coalesce(koch_uzs, 0)) from r where filial <> 'JAMI')
                              else coalesce(yuk_uzs, 0) + coalesce(koch_uzs, 0) end,
-           'yolda_yuk_uzs', case when v_snap_id is null then null
+           'yolda_toliq', case when v_snap_id is null then null else (v_y3_bor and v_k3_bor) end,   -- false = bir manba xato (qisman)
+           'yolda_yuk_uzs', case when v_snap_id is null or not v_y3_bor then null
                                  when filial = 'JAMI' then (select sum(coalesce(yuk_uzs, 0)) from r where filial <> 'JAMI')
                                  else coalesce(yuk_uzs, 0) end,
-           'yolda_yuk_soni', case when v_snap_id is null then null
+           'yolda_yuk_soni', case when v_snap_id is null or not v_y3_bor then null
                                   when filial = 'JAMI' then (select sum(coalesce(yuk_soni, 0)) from r where filial <> 'JAMI')
                                   else coalesce(yuk_soni, 0) end,
-           'yolda_kochirish_uzs', case when v_snap_id is null then null
+           'yolda_kochirish_uzs', case when v_snap_id is null or not v_k3_bor then null
                                        when filial = 'JAMI' then (select sum(coalesce(koch_uzs, 0)) from r where filial <> 'JAMI')
                                        else coalesce(koch_uzs, 0) end,
-           'yolda_kochirish_soni', case when v_snap_id is null then null
+           'yolda_kochirish_soni', case when v_snap_id is null or not v_k3_bor then null
                                         when filial = 'JAMI' then (select sum(coalesce(koch_soni, 0)) from r where filial <> 'JAMI')
                                         else coalesce(koch_soni, 0) end
          ) order by (filial = 'JAMI'), foyda_usd desc), '[]'::jsonb)
@@ -113,7 +119,8 @@ begin
     select jsonb_build_object(
              'T1',  (select jsonb_build_object('usd', sum(usd), 'uzs', sum(uzs), 'soni', count(*)) from aylanma_qator where snapshot_id = v_snap_id and bolim = 'T1'),
              'Y3a', (select jsonb_build_object('uzs', sum(uzs), 'soni', count(*)) from aylanma_qator where snapshot_id = v_snap_id and bolim = 'Y3a' and hisobga),
-             'K3b', (select jsonb_build_object('uzs', sum(uzs), 'soni', count(*)) from aylanma_qator where snapshot_id = v_snap_id and bolim = 'K3b' and hisobga))
+             'K3b', (select jsonb_build_object('uzs', sum(uzs), 'soni', count(*)) from aylanma_qator where snapshot_id = v_snap_id and bolim = 'K3b' and hisobga),
+             'y3a_bor', v_y3_bor, 'k3b_bor', v_k3_bor)
       into v_yuk_jami;
   end if;
 

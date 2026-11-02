@@ -1195,8 +1195,10 @@ function renderHisDrill(){
     let yolda='—';
     if(r.yolda_uzs!=null){
       const ys=r.yolda_yuk_soni||0, ks=r.yolda_kochirish_soni||0;
-      yolda=money(r.yolda_uzs)+((ys||ks)?'<div class="c">'+(ys?'yuk '+ys+' ta · '+money(r.yolda_yuk_uzs||0):'')+(ys&&ks?' · ':'')+(ks?"ko'chirish "+ks+' ta · '+money(r.yolda_kochirish_uzs||0):'')+'</div>':'');
-    }
+      const parts=[]; if(ys) parts.push('yuk '+ys+' ta · '+money(r.yolda_yuk_uzs||0)); if(ks) parts.push("ko'chirish "+ks+' ta · '+money(r.yolda_kochirish_uzs||0));
+      if(r.yolda_toliq===false) parts.push(r.yolda_kochirish_uzs==null?"ko'chirish: manba yo'q":"yuklar: manba yo'q");   // bir manba xato — qisman
+      yolda=money(r.yolda_uzs)+(r.yolda_toliq===false?' <span class="c" title="Snapshotda bir manba xato — qisman">⚠</span>':'')+(parts.length?'<div class="c">'+parts.join(' · ')+'</div>':'');
+    } else if(hisDetail&&hisDetail.yuk_snapshot_sana&&('yolda_uzs' in r)) yolda='<span class="c" title="Snapshotda transferlar/yuklar manbasi xato (K3b/Y3a null)">manba yo\'q</span>';
     return '<tr'+(jami?' style="font-weight:700;border-top:2px solid var(--line)"':'')+'>'
       +'<td class="f">'+(jami?'JAMI':esc(r.filial))+'</td>'
       +'<td class="n">'+(r.sotilgan==null?'—':money(r.sotilgan))+'</td>'
@@ -1215,8 +1217,8 @@ function renderHisDrill(){
       yn.style.display='';
       yn.innerHTML='Tovar va yo\'ldagi yuk — '+esc(fmtDateShort(hisDetail.yuk_snapshot_sana))+' snapshotidan (Fakt bilan bir xil). '
         +'Hamma omborlar (markaziy bilan): tovar '+(t1&&t1.uzs!=null?money(t1.uzs)+' so\'m':'—')
-        +' · yo\'ldagi yuklar '+(y3&&y3.uzs!=null?money(y3.uzs)+' ('+(y3.soni||0)+' ta)':'—')
-        +' · ko\'chirish yo\'lda '+(k3&&k3.uzs!=null?money(k3.uzs)+' ('+(k3.soni||0)+' ta)':'—')+'.';
+        +' · yo\'ldagi yuklar '+(yj&&yj.y3a_bor===false?'manba xato':(y3&&y3.uzs!=null?money(y3.uzs)+' ('+(y3.soni||0)+' ta)':'0'))
+        +' · ko\'chirish yo\'lda '+(yj&&yj.k3b_bor===false?'manba xato (snapshotda transferlar kelmagan)':(k3&&k3.uzs!=null?money(k3.uzs)+' ('+(k3.soni||0)+' ta)':'0'))+'.';
     } else if(yukBor){ yn.style.display=''; yn.textContent="Bu kun uchun snapshot yo'q — tovar/yo'ldagi yuk ko'rsatilmaydi."; }
     else { yn.style.display='none'; yn.textContent=''; }
   }
