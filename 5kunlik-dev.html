@@ -229,6 +229,9 @@
   .rj-info{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:4px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:9px;font-weight:700;line-height:1;cursor:pointer;vertical-align:1px;padding:0;font-family:Georgia,serif}
   .rj-info:hover{color:var(--ink);border-color:var(--muted)}
   .bkp-prof{display:flex;justify-content:space-between;gap:10px;margin:8px 0 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .bkpop.rj{min-width:380px;max-width:min(460px,94vw)}
+  .bkpop.rj .bkp-name{white-space:nowrap}
+  .bkp-kun{display:block;text-align:right;color:var(--muted);font-size:11px;font-weight:500;white-space:nowrap}
   .uz-reset:hover{background:var(--red-soft);color:var(--red)}
   .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);background:var(--ink);color:var(--surface);font-size:13.5px;font-weight:500;padding:10px 16px;border-radius:11px;box-shadow:var(--shadow-hover);z-index:260;opacity:0;pointer-events:none;transition:opacity .18s ease-out,transform .18s ease-out;max-width:90vw;text-align:center}
   [data-theme="dark"] .toast{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
@@ -672,7 +675,7 @@ function bkBindScrollSync(){
 let popOpenKey=null;                 // click(touch)-rejimida ochiq popover kaliti
 let POP_HIDE_TIMER=null;
 function popCancelHide(){ if(POP_HIDE_TIMER){ clearTimeout(POP_HIDE_TIMER); POP_HIDE_TIMER=null; } }
-function popHideNow(){ popCancelHide(); $('bkPop').classList.remove('open'); popOpenKey=null; }
+function popHideNow(){ popCancelHide(); $('bkPop').classList.remove('open','rj'); popOpenKey=null; }
 window.bkPopKeepOpen=()=>{ popCancelHide(); };
 window.bkPopHide=()=>{ popCancelHide(); POP_HIDE_TIMER=setTimeout(popHideNow,200); };
 /* Popover katakka 2px USTMA-UST yopishadi (bo'shliq YO'Q). Avval rect.bottom+8 edi —
@@ -2396,15 +2399,15 @@ function renderRejaPop(iso,rect){
     body+=`<div class="bkp-prof"><span>${esc(p)} — ${rows.length} filial</span><span>${money(sum)} so'm</span></div>`;
     body+=rows.map(f=>{ const pl=Number(f.plan_uzs)||0;
       return `<div class="bkp-row"><span class="bkp-name">${esc(f.filial||f.warehouse_id||'—')}</span>`
-        +`<span>${money(pl)}<span class="bkp-usd">kuniga ${money(pl/ar.kunlar)} · ${usdOf(pl/ar.kunlar)}</span></span></div>`; }).join('');
+        +`<span>${money(pl)}<span class="bkp-kun">kuniga ${money(pl/ar.kunlar)} · ${usdOf(pl/ar.kunlar)}</span></span></div>`; }).join('');
   });
   if(!fil.length) body=`<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Filial kesimi yo'q</span></div>`;
-  const total=`<div class="bkp-total"><span>Jami ${ar.yarim}-yarim</span><span>${money(ar.yarim_uzs)} so'm<span class="bkp-usd">kuniga ${money(ar.uzs)} · ${usdOf(ar.uzs)}</span></span></div>`;
+  const total=`<div class="bkp-total"><span>Jami ${ar.yarim}-yarim</span><span>${money(ar.yarim_uzs)} so'm<span class="bkp-kun">kuniga ${money(ar.uzs)} · ${usdOf(ar.uzs)}</span></span></div>`;
   const sub=`<div class="bkp-summary">${esc(OY_QISQA[mo-1])} ${y}, ${ar.yarim}-yarim oy (${ar.yarim===1?'1–15':'16–'+daysInMonth(y,mo-1)}) · ${ar.kunlar} kun · kurs ${kurs?rate2(kurs):'—'} · manba: Aros kesh (filial_plan_half)</div>`;
   const pop=$('bkPop');
   pop.dataset.popKey='rj|'+iso;
   pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)} — reja, filiallar kesimi</div>${sub}${body}${total}`;
-  pop.classList.add('open');
+  pop.classList.add('open','rj');
   positionPop(rect);
 }
 window.bkRejaPopShow=(ev,iso)=>{ popCancelHide(); renderRejaPop(iso,ev.currentTarget.getBoundingClientRect()); };
@@ -2480,7 +2483,7 @@ function renderKassaPop(iso,rect){
   const total=`<div class="bkp-total"><span>Jami kassa</span><span>${money(k.kassa_uzs)} so'm<span class="bkp-usd">≈ $${usd==null?'—':money(usd)}</span></span></div>`;
   const sot=k.sotuvchi_uzs?`<div class="bkp-summary">Sotuvchi jami ${money(k.sotuvchi_uzs)} so'm · yopgan ${k.yopgan}/${k.kutilgan}${k.bugun?' · bugun, davom etmoqda':''}</div>`:'';
   const pop=$('bkPop');
-  pop.dataset.popKey='ks|'+iso;
+  pop.dataset.popKey='ks|'+iso; pop.classList.remove('rj');
   pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)} — yopilgan kassalar</div>${sot}<h4>Yopgan — ${d.yopgan.length} ta</h4>${yop}${yopmagan}${total}`;
   pop.classList.add('open');
   positionPop(rect);
@@ -2702,7 +2705,7 @@ function renderPop(iso,rect){
   };
   const total=`<div class="bkp-total"><span>Jami</span><span>${money(d.uzs)} so'm<span class="bkp-usd">≈ $${d.usd==null?'—':money(d.usd)}</span></span></div>`;
   const pop=$('bkPop');
-  pop.dataset.popKey='fk|'+iso;   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
+  pop.dataset.popKey='fk|'+iso; pop.classList.remove('rj');   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
   pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)}</div>${summary}${section('aksessuar')}${section('zapchast')}${total}`;
   pop.classList.add('open');
   positionPop(rect);
