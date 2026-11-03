@@ -20,12 +20,17 @@
   'use strict';
 
   var KEY = 'prov-perms';
-  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (23 ta: 20 sahifa + 3 bayroq).
+  // Sahifa kalitlari — SQL dagi perm_pages() = PAGES + FLAGS (24 ta: 21 sahifa + 3 bayroq).
   // 'hodim' bu yerda YO'Q va bo'lmasligi kerak: hodim sahifasi hech qachon
   // cheklanmaydi (userlarning ~80% i faqat o'shani ishlatadi).
   var PAGES = ['kassa', 'jurnal', 'professional', 'hisobot', 'balans', 'cashflow',
                'qarzdor', 'filial', 'valyuta', 'konvert', 'sozlama', 'provodka', 'yuklar', 'standart',
-               'tannarx', 'ai', 'sorovlar', 'ehson', 'aylanma', 'beshkunlik'];
+               'tannarx', 'ai', 'sorovlar', 'ehson', 'aylanma', 'beshkunlik', 'qarz_ob'];
+  /* Fayl asosi kalitdan farq qiladigan sahifalar: fayl asosi -> ruxsat kaliti. «Qarz oldi-berdi»
+     (qarz-oldi-berdi-dev.html) kaliti `qarz_ob` — page()/hrefKey() shu orqali kalitga o'giradi,
+     firstAllowed()/denyScreen() esa fileOf() bilan teskari (kalit -> fayl asosi). */
+  var FILEKEY = { 'qarz-oldi-berdi': 'qarz_ob' };
+  function fileOf(k) { for (var f in FILEKEY) { if (FILEKEY[f] === k) return f; } return k; }
   /* BAYROQLAR (2026-09-06): allowed_pages ichida saqlanadigan, lekin SAHIFA BO'LMAGAN
      kalitlar. PAGES ga QO'SHILMAYDI — aks holda firstAllowed()/gate() ularni sahifa deb
      `ehson_kirim-dev.html` ga yo'naltirardi (404). Nav/karta/promote'da yo'q.
@@ -126,6 +131,7 @@
   function page() {
     var f = (location.pathname.split('/').pop() || '').replace('.html', '');
     f = f.replace(/-dev$/, '');
+    f = FILEKEY[f] || f;
     /* Ildiz "/" endi index.html ni beradi (login + dashboard hub), shuning uchun
        bo'sh nom HOME emas, 'index' kaliti. 'index' PAGES da yo'q => gate() uni
        cheklamaydi (hub o'zi ruxsatli bo'limlarni chizadi) va login guard uni
@@ -250,7 +256,8 @@
 
   /* Havoladan sahifa kalitini oladi: ".html" va "-dev" qo'shimchasi kesiladi. */
   function hrefKey(a) {
-    return (a.getAttribute('href') || '').replace('.html', '').replace(/-dev$/, '');
+    var f = (a.getAttribute('href') || '').replace('.html', '').replace(/-dev$/, '');
+    return FILEKEY[f] || f;
   }
 
   /* Nav'dan ruxsatsiz sahifalarni olib tashlaydi (sidebar + bnav + "Ko'proq" sheet).
@@ -299,7 +306,7 @@
         '<div style="font-size:44px;line-height:1;margin-bottom:14px">&#128274;</div>' +
         '<h2 style="margin:0 0 8px;font-size:20px;font-weight:800">Ruxsat yo\'q</h2>' +
         '<p style="margin:0 0 18px;color:var(--muted,#888);font-size:14px">' + txt + '</p>' +
-        (to ? '<a href="' + to + suf() + '" style="' + btn + ';background:var(--primary,#2563eb);color:#fff">' +
+        (to ? '<a href="' + fileOf(to) + suf() + '" style="' + btn + ';background:var(--primary,#2563eb);color:#fff">' +
               'Ochiq bo\'limga o\'tish</a>'
             : '<a href="' + hodimUrl() + '" style="' + btn + ';background:var(--primary,#2563eb);color:#fff">' +
               'Xarajat kiritish</a>') +
@@ -342,7 +349,7 @@
          Sikl xavfi yo'q: `to !== HOME` va o'sha sahifada pageOk() true bo'ladi. */
       if (k === HOME) {
         var to = firstAllowed();
-        if (to && to !== HOME) { location.replace(to + suf()); return false; }
+        if (to && to !== HOME) { location.replace(fileOf(to) + suf()); return false; }
       }
       /* Sahifa yopiq -> "Ruxsat yo'q" ekrani o'rniga DASHBOARD (index).
          Sabab: index endi hub — user o'ziga OCHIQ bo'limlar ro'yxatini darrov

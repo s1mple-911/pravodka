@@ -1245,6 +1245,36 @@ Asilbek: «Dilnoza Nazarova uchun 3 ta child kassa, har biriga naqd/karta/$ — 
   (Berish/Reja/Qarz berish/To'lov/Guruh to'lov/Kirim/O'tkazma/Konvert summa+kurs/Oila va a'zo daromadi), `type="text" inputmode="decimal"`;
   (5) Ehson berish: forma ochilganda darhol oilalar ro'yxati (`ehbShowDefault`, `ehson_royxat {limit:200}`, yopilganlarsiz, 50 ta, scroll), qidiruv yozilsa server qidiruvi.
 
+### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
+
+Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson
+«Qarz» tabi (`PROVODKA_EHSON_QARZ.sql`, `ehq*`) bilan bir xil, lekin pul harakati HAQIQIY provodka.
+- **Yozuvlar** (`entry.source='qarz'`, ext_ref `qarz_ob:<id>` / `qarz_ob_tolov:<id>`; hammasi FAQAT RPC ichida, user JWT bilan — `trg_perm_guard_entry_line` avtomat):
+  berdik: Dt 4720 / Kt kassa, qaytarish Dt kassa / Kt 4720 · oldik: Dt kassa / Kt **6820 «Olingan qarzlar»** (yangi, passiv, section 6010 niki), qaytarish
+  Dt 6820 / Kt kassa (kassa MAJBURIY, qoldiq tekshiriladi) · **oldik + «eski qarz»** (pul kassaga kirmagan, kassa YO'Q): Dt «Boshlang'ich qoldiq — olingan qarzlar»
+  (yangi kapital hisob) / Kt 6820 — 6820 qoldig'i to'g'ri chiqadi. Eski qarzda valyuta qo'lda (UZS/USD).
+- 🔴 **Kapital hisob kodi 8710 EMAS.** Topshiriqda 8710 edi, lekin `balans()` 8710 ni «Yigilgan sof foyda» SINTETIK qatori uchun ishlatadi — haqiqiy hisob shu kod bilan
+  ochilsa balansda ikki 8710 chiqardi. Hisob NOM bo'yicha topiladi/ochiladi, kodi 8730 dan birinchi bo'sh 87xx (`_qarz_ob_kapital_id()`); section mavjud kapital hisobdan,
+  bo'lmasa 6010 nikidan.
+- **Valyuta**: kassa hisobining `currency` si qarz valyutasi. `summa` = so'm ekvivalenti (`conv_baza_kurs`), `fc_summa` = valyuta miqdori, entry_line.fc_amount faqat valyutali
+  KASSA satrida; grafik/to'lov/qoldi/oylik qarz valyutasi birligida. 🔴 QAYTARISHDA so'm ekvivalenti qarz berilgan kurs bo'yicha proporsional (oxirgi to'lov qoldiq so'mni oladi) —
+  4720/6820 aniq nolga tushadi; kurs farqini mavjud avtomat qayta baholash (`trg_kurs_farqi_entry_line`) o'zi yozadi.
+- **Jadvallar** `qarz_ob`, `qarz_ob_jadval`, `qarz_ob_tolov`, `qarz_ob_tarix`; RLS select `qarz_ob_page_ok()` (admin YOKI `allowed_pages ∋ 'qarz_ob'`, fail-closed — `perm_has_page`
+  ishlatilmaydi: kalit `perm_pages()` da bo'lmasa u hammaga true beradi), yozish faqat RPC. **RPC**: `qarz_ob_kassalar()` (ruxsat doirasidagi kassalar + qoldiq: `sorov_kassa_bal`/
+  `acc_fc_balance` authenticated'ga yopiq, shuning uchun alohida RPC), `qarz_ob_yarat(p)`, `qarz_ob_tolov(p)`, `qarz_ob_bekor(id,sabab)`, `qarz_ob_royxat(p)`, `qarz_ob_kart(id)`,
+  `qarz_ob_dash()`. Kodlar: `takror` (= muvaffaqiyat), `qoldiq_yetmadi`, `kassa_ruxsat`, `valyuta_mos_emas`, `kop`, `tolov_bor`… `holat='kechikkan'` = faol va keyingi sana < bugun.
+- **Bekor** faqat to'lov bo'lmasa (admin yoki yaratgan); pul harakati ham qaytariladi — entry soft-delete (`entry_history` 'delete' izi bilan, jurnal naqshi).
+- **Ruxsat kaliti 3 joyda + promote**: `perm_pages()` (SQL dinamik qo'shadi) = `perms-dev.js` PAGES = `index-dev.html` CARDS; `promote.sh` PAGES da `qarz-oldi-berdi` (FAYL asosi).
+  🔴 Fayl asosi (`qarz-oldi-berdi`) kalitdan (`qarz_ob`) farq qiladi → `perms-dev.js` da `FILEKEY` xaritasi: `page()`/`hrefKey()` fayl → kalit, `fileOf()` kalit → fayl
+  (`firstAllowed()` yo'naltirishi, `denyScreen()`). Yangi sahifa kaliti fayl nomidan farq qilsa shu xaritaga qo'shiladi.
+  admin-dev `PVS_PAGES` (TaskFix repo) ga `{key:'qarz_ob', label:'Qarz oldi-berdi'}` qo'shilishi SHART — Asilbek.
+- **UI**: stat kartalar (Oldik qoldiq · Berdik qoldiq · Kechikkan soni/summa; valyuta kesimida), «Yangi qarz» formasi (yo'nalish segmenti; oldik'da «eski qarz» belgisi — kassa yashirinadi,
+  valyuta tanlanadi; kassa qidiruvli ro'yxat, qoldiq bilan; berdik'da summa > qoldiq → tugma o'chiq), filtr (yo'nalish/holat/qidiruv), ro'yxat (jadval ≥760px / kartalar), kart modali
+  (grafik holatlari, to'lovlar, qaytarish formasi, bekor, tarix). Nav: 19 dev faylda Aylanma'dan keyin (`handshake`); `hodim-dev`/`tannarx-dev` tegilmagan. RPC yo'q → banner.
+- Qarzlar 5 kunlik va boshqa jadvallarga TA'SIR QILMAYDI; jurnalda entry sifatida o'zi ko'rinadi (section=pul -> Kirim/Chiqim).
+- Lokal PG17 fixture (accounts/entry/entry_line + perm funksiya stublari) bilan sinalgan: ikki marta RUN (idempotent), berdik/oldik/eski qarz UZS+USD, FIFO, yopilish, bekor, takror ext_ref,
+  begona kassa (guard), ruxsatsiz user, Dt=Kt, 4720/6820 qoldig'i nolga tushishi.
+
 ### Jurnal: Excel «Hammasi» varag'i + filial filtrida oshxona kassalari + teg bo'yicha filtr (2026-10-27, prod'ga chiqdi 27.10; `PROVODKA_JURNAL_FILIAL_FILTR.sql` RUN ✅)
 
 - **Excel** (`exportExcel`): «Xulosa»dan keyin yangi **«Hammasi»** varag'i — eksportga kirgan HAMMA yozuv bitta joyda («Filial(lar)»
