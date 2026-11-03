@@ -18,6 +18,7 @@
 <link rel="prefetch" href="sozlama.html">
 <link rel="prefetch" href="ehson.html">
 <link rel="prefetch" href="aylanma.html">
+<link rel="prefetch" href="qarz-oldi-berdi.html">
 <link rel="prefetch" href="5kunlik.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
@@ -564,6 +565,7 @@
       <a class="nav-item" href="ai.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
       <a class="nav-item" href="ehson.html"><i data-lucide="heart-handshake"></i><span>Ehson</span></a>
       <a class="nav-item" href="aylanma.html"><i data-lucide="trending-up"></i><span>Aylanma</span></a>
+      <a class="nav-item" href="qarz-oldi-berdi.html"><i data-lucide="handshake"></i><span>Qarz oldi-berdi</span></a>
       <a class="nav-item" href="5kunlik.html"><i data-lucide="calendar-range"></i><span>5 kunlik</span></a>
     </nav>
     <div class="side-foot">
@@ -895,6 +897,7 @@
       <a href="ai.html"><i data-lucide="sparkles"></i>AI yordamchi</a>
       <a href="ehson.html"><i data-lucide="heart-handshake"></i>Ehson</a>
       <a href="aylanma.html"><i data-lucide="trending-up"></i>Aylanma</a>
+      <a href="qarz-oldi-berdi.html"><i data-lucide="handshake"></i>Qarz oldi-berdi</a>
       <a href="5kunlik.html"><i data-lucide="calendar-range"></i>5 kunlik</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
@@ -1042,7 +1045,26 @@ const curRate=cur=>{ if(!cur||cur==='UZS') return 1; const r=rateMap[cur]; retur
 const rateOfYuk=y=>{ const raw=y.valyuta; if(!raw||String(raw).toUpperCase()==='UZS') return 1;
   const r=(rateMap[raw]!=null)?rateMap[raw]:rateMap[String(raw).toUpperCase()];
   return (r==null?null:Number(r)); };
-const tolangan=y=>{ const s=paidMap[y.id]; return s?Number(s.tolangan_uzs)||0:0; };
+// 2026-11-03 (Asilbek): to'lov paytida VALYUTADA to'liq to'langan hujjat keyin kurs o'zgargani uchun
+// qayta ochilmaydi. Server yuk_tolangan_fc tolangan_fc (yuk valyutasida) beradi — so'mga JORIY kurs bilan
+// qaytariladi, shunda narx×kurs − tolangan_fc×kurs = (narx − tolangan_fc)×kurs → to'liq to'langan = 0.
+// tolangan_fc yo'q (eski RPC / kurs topilmadi) → eski so'm formulasi.
+const tolangan=y=>{ const s=paidMap[y.id]; if(!s) return 0;
+  const r=rateOfYuk(y);
+  if(s.tolangan_fc!=null && r!=null && r!==1) return Number(s.tolangan_fc)*r;
+  return Number(s.tolangan_uzs)||0; };
+// yuk_tolangan_fc (valyuta bilan) → bazada yo'q bo'lsa (PGRST202/42883) eski yuk_tolangan_summa.
+async function tolanganSorov(list){
+  const rows=list.map(y=>({id:Number(y.id),valyuta:y.valyuta||'UZS'})).filter(r=>Number.isFinite(r.id));
+  const r=await sb.rpc('yuk_tolangan_fc',{p_rows:rows});
+  if(!r.error) return r;
+  const code=r.error.code||'', m=r.error.message||'';
+  if(code==='PGRST202'||code==='42883'||/could not find the function|schema cache/i.test(m)){
+    console.warn('yuk_tolangan_fc yo\'q — yuk_tolangan_summa (so\'m) ishlatildi');
+    return await sb.rpc('yuk_tolangan_summa',{p_ids:rows.map(x=>x.id)});
+  }
+  return r;
+}
 function narxUzs(y){ const r=rateOfYuk(y); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
 // Qo'shilgan tannarx (yuk_tannarx_jami) — xizmat to'lovlari (bojxona, yo'l puli) entry_yuk orqali shu yukka
 // bog'lanadi va tannarx bilan yopiladi. Tannarx qo'shilmasa ular yetkazuvchi qarzidan ayirilib ketardi
@@ -1050,7 +1072,10 @@ function narxUzs(y){ const r=rateOfYuk(y); if(r==null) return null; return Math.
 const qoshilgan=y=>{ const t=tanMap[y.id]||tanMap[String(y.id)]; return t?(Number(t.jami_uzs)||0):0; };
 function jamiUzs(y){ const n=narxUzs(y); return (n==null)?null:n+qoshilgan(y); }
 // Qoldiq 1 so'mdan kam bo'lsa 0 — yopiq/kurs yaxlitlash qoldig'i "to'lanmagan hujjat" bo'lib sanalmasin.
-function qoldiqUzs(y){ const n=jamiUzs(y); if(n==null) return null; const q=n-tolangan(y); return q<1?0:q; }
+// Valyutali hujjatda 1.5% gacha qoldiq = kurs/yaxlitlash farqi (eski to'lovlarda kurs currency_rate dan
+// taxminiy) → yopiq deb sanaladi; UZS hujjatda avvalgidek 1 so'm.
+function qoldiqUzs(y){ const n=jamiUzs(y); if(n==null) return null; const q=n-tolangan(y);
+  const lim=(rateOfYuk(y)===1)?1:Math.max(1,n*0.015); return q<lim?0:q; }
 function qoldiqFc(y){ const q=qoldiqUzs(y), r=rateOfYuk(y); if(q==null||!r) return null; return q/r; }
 function pct(y){ const n=jamiUzs(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
 
@@ -1266,7 +1291,7 @@ window.load=async(force)=>{
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
   const [krQ,stQ,tnQ,usdQ]=await Promise.all([
     curs.length?sb.rpc('yuk_kurslar',{p_curs:curs}):Promise.resolve({data:{}}),
-    ids.length ?sb.rpc('yuk_tolangan_summa',{p_ids:ids}):Promise.resolve({data:[]}),
+    ids.length ?tolanganSorov(yuklar):Promise.resolve({data:[]}),
     ids.length ?sb.rpc('yuk_tannarx_jami',{p_ids:ids}):Promise.resolve({data:{}}),
     (async()=>{ try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); return data; }catch(e){ return null; } })()
   ]);

@@ -19,6 +19,7 @@
 <link rel="prefetch" href="sozlama.html">
 <link rel="prefetch" href="ehson.html">
 <link rel="prefetch" href="aylanma.html">
+<link rel="prefetch" href="qarz-oldi-berdi.html">
 <script src="vendor/lucide-1.24.0.js" defer></script>
 <script src="vendor/supabase-2.110.6.js" defer></script>
 <script src="perms.js" defer></script>
@@ -115,6 +116,13 @@
   .fk-usd{white-space:nowrap}
   .fk-sub{font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
   .fk-lock{margin-left:4px;font-size:10px;cursor:help}
+  /* ---- Kassa ustuni (2026-11-03): yopilgan kassalar, badge = yopgan/kutilgan filial soni ---- */
+  .ks-cell{cursor:pointer;color:var(--ink);font-weight:600}
+  .ks-badge{display:inline-block;margin-left:5px;padding:0 5px;border-radius:9px;font-size:10px;font-weight:600;line-height:15px;background:var(--surface-2);color:var(--muted);vertical-align:1px;white-space:nowrap}
+  .ks-badge.kam{background:rgba(var(--red-rgb),.14);color:var(--red)}
+  .ks-badge.toliq{background:rgba(var(--green-rgb),.16);color:var(--green)}
+  .bkp-row.yopmagan .bkp-name{color:var(--red)}
+  .bkp-vaqt{color:var(--muted);font-size:11px;margin-left:6px}
   .uzsbtn{margin-left:4px;height:auto;text-transform:none;letter-spacing:0;font-size:9px;font-weight:600;padding:1px 5px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;vertical-align:middle}
   .uzsbtn.on{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
   /* 7-bosqich: max-height kattalashtirildi (ikki bo'lim — Aksessuar/Zapchast — endi bitta popover'da),
@@ -217,6 +225,13 @@
   .ed-err{position:absolute;top:100%;left:0;min-width:120px;background:var(--red);color:#fff;font-size:11.5px;font-weight:600;padding:4px 8px;border-radius:7px;margin-top:3px;z-index:6;white-space:nowrap;box-shadow:var(--shadow-hover)}
   .uz-reset{display:none;position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;border:none;background:var(--surface-2);color:var(--muted);font-size:10px;line-height:1;cursor:pointer;align-items:center;justify-content:center;padding:0}
   .ed-cell:hover .uz-reset{display:flex}
+  /* Aros reja katagidagi ⓘ — filiallar rejasi popoveri (2026-11-03) */
+  .rj-info{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:4px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:9px;font-weight:700;line-height:1;cursor:pointer;vertical-align:1px;padding:0;font-family:Georgia,serif}
+  .rj-info:hover{color:var(--ink);border-color:var(--muted)}
+  .bkp-prof{display:flex;justify-content:space-between;gap:10px;margin:8px 0 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .bkpop.rj{min-width:380px;max-width:min(460px,94vw)}
+  .bkpop.rj .bkp-name{white-space:nowrap}
+  .bkp-kun{display:block;text-align:right;color:var(--muted);font-size:11px;font-weight:500;white-space:nowrap}
   .uz-reset:hover{background:var(--red-soft);color:var(--red)}
   .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);background:var(--ink);color:var(--surface);font-size:13.5px;font-weight:500;padding:10px 16px;border-radius:11px;box-shadow:var(--shadow-hover);z-index:260;opacity:0;pointer-events:none;transition:opacity .18s ease-out,transform .18s ease-out;max-width:90vw;text-align:center}
   [data-theme="dark"] .toast{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
@@ -254,6 +269,7 @@
       <a class="nav-item" href="ai.html"><i data-lucide="sparkles"></i><span>AI yordamchi</span></a>
       <a class="nav-item" href="ehson.html"><i data-lucide="heart-handshake"></i><span>Ehson</span></a>
       <a class="nav-item" href="aylanma.html"><i data-lucide="trending-up"></i><span>Aylanma</span></a>
+      <a class="nav-item" href="qarz-oldi-berdi.html"><i data-lucide="handshake"></i><span>Qarz oldi-berdi</span></a>
       <a class="nav-item active" href="5kunlik.html"><i data-lucide="calendar-range"></i><span>5 kunlik</span></a>
     </nav>
     <div class="role-badge" id="roleBadge"></div>
@@ -338,6 +354,7 @@
       <a href="ai.html"><i data-lucide="sparkles"></i>AI yordamchi</a>
       <a href="ehson.html"><i data-lucide="heart-handshake"></i>Ehson</a>
       <a href="aylanma.html"><i data-lucide="trending-up"></i>Aylanma</a>
+      <a href="qarz-oldi-berdi.html"><i data-lucide="handshake"></i>Qarz oldi-berdi</a>
       <a href="5kunlik.html" class="active"><i data-lucide="calendar-range"></i>5 kunlik</a>
       <button class="close" onclick="closeMore()">Yopish</button>
     </div>
@@ -520,8 +537,9 @@ const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
    (Asilbek: "Reja/Uzga/Fakt ikki marta bo'lib qolgan" — takroriy ko'rinishning sababi). */
 const GROUPS=[
   {name:'Savdo', cols:[
-    {id:'sv_reja', label:'Reja', title:"Kunlik reja — oylik reja / oy kunlari (hamma kunga teng, yakshanba ham)"},
+    {id:'sv_reja', label:'Reja', title:"Kunlik reja — Aros keshidagi yarim oylik filial rejasi (Aksessuar+Zapchast) / yarim oy kunlari; kesh bo'lmasa qo'lda kiritilgan oylik reja / oy kunlari"},
     {id:'sv_uzga', label:'Uzgaradi', title:"Prognoz: o'tgan kun — Fakt'ga teng, bugun/kelajak — so'nggi 10 kunlik savdo o'rtachasi (qo'lda ustidan yozib bo'ladi)"},
+    {id:'sv_kassa', label:'Kassa', title:"Shu kuni YOPILGAN kassalar — kassaga topshiriladigan summa (Aros filial hujjatlari, n8n keshi). Bosilsa: qaysi filial yopgan / yopmagan"},
     {id:'sv_fakt', label:'Fakt', title:"Aros'dan — kunlik haqiqiy savdo (Aksessuar+Zapchast yig'indisi)"},
   ]},
   {name:"Yig'ilma", hiddenDefault:true, cols:[
@@ -657,7 +675,7 @@ function bkBindScrollSync(){
 let popOpenKey=null;                 // click(touch)-rejimida ochiq popover kaliti
 let POP_HIDE_TIMER=null;
 function popCancelHide(){ if(POP_HIDE_TIMER){ clearTimeout(POP_HIDE_TIMER); POP_HIDE_TIMER=null; } }
-function popHideNow(){ popCancelHide(); $('bkPop').classList.remove('open'); popOpenKey=null; }
+function popHideNow(){ popCancelHide(); $('bkPop').classList.remove('open','rj'); popOpenKey=null; }
 window.bkPopKeepOpen=()=>{ popCancelHide(); };
 window.bkPopHide=()=>{ popCancelHide(); POP_HIDE_TIMER=setTimeout(popHideNow,200); };
 /* Popover katakka 2px USTMA-UST yopishadi (bo'shliq YO'Q). Avval rect.bottom+8 edi —
@@ -675,7 +693,7 @@ function positionPop(rect){
 }
 document.addEventListener('click',e=>{
   if(!popOpenKey) return;
-  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.qarz-cell')) return;
+  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.ks-cell')||e.target.closest('.qarz-cell')) return;
   popHideNow();
 });
 
@@ -795,7 +813,7 @@ function ediTd(iso, val, col, meta, todayIso){
   const isSel=SELECTED && SELECTED.c===col && SELECTED.i===iso;
   const inRange=!isSel && inSelRange(col,iso);
   const attrs=`data-c="${col}" data-i="${iso}"`;
-  const editable = col!=='uzgardi' || iso>=todayIso;
+  const editable = (col==='uzgardi') ? iso>=todayIso : !(col==='reja' && arosRejaOn(iso));
   if(isEditing){
     const startVal = (col==='uzgardi')
       ? ((meta && meta.manual && meta.raw!=null) ? meta.raw : '')
@@ -820,13 +838,18 @@ function ediTd(iso, val, col, meta, todayIso){
   // O'tgan kundagi Uzgaradi — faqat o'qiladi, sababi title'da (spec: tahrirga
   // urinilganda ham toast chiqadi — startEdit() ichida).
   if(col==='uzgardi' && !editable) title=' title="O\'tgan kun — Fakt\'ga teng, tahrirlanmaydi"';
+  if(col==='reja' && !editable){ const ar=AROS_REJA[iso]; extraCls=' auto';
+    title=` title="Aros reja (kesh, ${ar.yarim}-yarim oy filial rejasi ${money(ar.yarim_uzs)} so'm / ${ar.kunlar} kun = ${money(ar.uzs)} so'm/kun${ar.kurs?' × '+rate2(ar.kurs):''}) — tahrirlanmaydi"`; }
   const cls='num ed-cell'+extraCls+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'')+(!editable?' ro':'');
   const handle=(canEdit && editable && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${col}','${iso}')"></span>` : '';
   // tanlash/klaviatura navigatsiyasi hamma katakda ishlaydi (Uzgaradi'ning o'tgan
   // kunidan ham chiqib ketish kerak) — haqiqiy edit'ga kirish startEdit() ichida bloklanadi.
   const tab=canEdit?'0':'-1';
   const cursorHint=canEdit&&!editable?' style="cursor:not-allowed"':'';
-  return `<td class="${cls}" ${attrs} tabindex="${tab}"${title}${cursorHint} onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${dot}${handle}</td>`;
+  // Aros reja katagi: hover — filiallar rejasi popoveri; ⓘ tugma — bosganda (mobil/klaviatura) ham ochiladi.
+  const rejaHover=(col==='reja' && !editable && HOVER_OK) ? ` onmouseenter="window.bkRejaPopShow(event,'${iso}')" onmouseleave="window.bkPopHide()"` : '';
+  const rejaInfo=(col==='reja' && !editable) ? `<button type="button" class="rj-info" title="Qaysi filialga qancha reja" onclick="window.bkRejaPopToggle(event,'${iso}')">i</button>` : '';
+  return `<td class="${cls}" ${attrs} tabindex="${tab}"${title}${cursorHint}${rejaHover} onclick="window.bkCellClick(event,this)" ondblclick="window.bkCellDbl(this)" onkeydown="window.bkCellKey(event,this)">${val==null?'—':esc(money(val))}${rejaInfo}${dot}${handle}</td>`;
 }
 function buildRowCells(row, todayIso){
   let s='';
@@ -838,6 +861,7 @@ function buildRowCells(row, todayIso){
       else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi',
         {manual:row.uzgardiKind==='manual', kind:row.uzgardiKind, count:row.uzgardiCount, raw:row.uzgardiRaw},
         todayIso);
+      else if(k===2) s+=kassaTd(row.iso,todayIso);
       else s+=faktTd(row.iso,row.reja);
     }else if(g==="Yig'ilma"){
       s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
@@ -862,6 +886,7 @@ function colValue(row,colId){
   switch(colId){
     case 'sv_reja': return row.reja;
     case 'sv_uzga': return row.uzgardi;
+    case 'sv_kassa': return kassaUsd(row.iso);
     case 'sv_fakt': { const d=combineFakt(row.iso); return (d&&d.usd!=null)?d.usd:null; }
     case 'yg_reja': return row.yigReja;
     case 'yg_uzga': return row.yigUzga;
@@ -915,7 +940,7 @@ function avgFakt(x){
    yo'q bo'lsa Reja(D). A_TODAY — loadA10() bilan bir marta hisoblanadi. */
 function effectiveUzgaradi(iso,todayIso){
   const rj=REJA_MAP[iso]||{};
-  const rejaVal=rj.reja!=null?Number(rj.reja):null;
+  const rejaVal=rejaOf(iso);
   if(iso<todayIso){
     const fd=combineFakt(iso);
     if(fd && fd.usd!=null) return {val:fd.usd, kind:'fakt'};
@@ -934,7 +959,7 @@ function buildRun(startIso,hIso){
   let prevReja=SOZLAMA.boshlangich_usd||0, prevUzga=SOZLAMA.boshlangich_usd||0, prevFakt=SOZLAMA.boshlangich_usd||0;
   isoRange(startIso,hIso).forEach(iso=>{
     const rj=REJA_MAP[iso]||{};
-    const reja=rj.reja!=null?Number(rj.reja):null;
+    const reja=rejaOf(iso);
     const eff=effectiveUzgaradi(iso,todayIso);
     const uzgardi=eff.val;
     const fd=(iso<=todayIso)?combineFakt(iso):null;   // kelajakda Fakt yo'q — Prognoz Uzgaradi ishlatadi
@@ -1241,6 +1266,7 @@ function commitEditIfAny(){
 }
 function startEdit(c,iso,initialChar,selectAll){
   if(c==='uzgardi' && iso<isoDay(nowUz())){ showToast("O'tgan kun — Fakt'ga teng, tahrirlanmaydi"); return; }
+  if(c==='reja' && arosRejaOn(iso)){ showToast("Reja Aros keshidan (yarim oylik filial rejasi) — tahrirlanmaydi"); return; }
   if(IS_MOBILE()){ window.bkCellSheetOpen(c,iso); return; }
   commitEditIfAny();
   EDITING={c,i:iso}; SELECTED={c,i:iso}; RANGE_ANCHOR=iso;
@@ -1266,6 +1292,7 @@ window.bkCellSheetOpen=(c,iso)=>{
   // Himoya shu yerda — sheet qaysi yo'l bilan ochilmasin (dblclick, startEdit), o'tgan
   // kun Uzgaradi'si uchun "saqlandi"dek ko'rinib, aslida yozilmaydigan oyna ochilmasin.
   if(c==='uzgardi' && iso<isoDay(nowUz())){ showToast("O'tgan kun — Fakt'ga teng, tahrirlanmaydi"); return; }
+  if(c==='reja' && arosRejaOn(iso)){ showToast("Reja Aros keshidan (yarim oylik filial rejasi) — tahrirlanmaydi"); return; }
   CELL_SHEET={c,iso};
   const col=c==='reja'?'Reja':'Uzgaradi';
   const rj=REJA_MAP[iso]||{};
@@ -2244,7 +2271,7 @@ window.bk5kFilter=f=>{
 /* ---- Jami qatori (sticky bottom) — FAQAT ko'rinadigan (VISIBLE_ROWS) qatorlar bo'yicha.
    Savdo/Qarz — yig'indi; Qoldi pul/Prognoz/Yig'ilma — oxirgi ko'rinadigan (kalendar bo'yicha
    eng so'nggi) kun qiymati. Ko'rinish/jami — hisob mantiqiga TEGMAYDI. */
-const TOTAL_SUM_COLS=new Set(['sv_reja','sv_uzga','sv_fakt','qz_qarzmiz','qz_berdik','qz_raz']);
+const TOTAL_SUM_COLS=new Set(['sv_reja','sv_uzga','sv_kassa','sv_fakt','qz_qarzmiz','qz_berdik','qz_raz']);
 function renderTotals(){
   const tf=$('tfoot5k'); if(!tf) return;
   if(!VISIBLE_ROWS.length){ tf.innerHTML=''; return; }
@@ -2317,6 +2344,159 @@ let FAKT_TOKEN=0;                         // oy/oyna tez almashtirilganda eski j
 window.bkToggleUzs=()=>{ SHOW_UZS=!SHOW_UZS; try{ localStorage.setItem('prov-5k-uzs',SHOW_UZS?'1':'0'); }catch(e){} buildHeader(); renderTable(); };
 window.bk5kRetry=()=>{ loadFakt(); };
 
+/* =====================================================================
+   KASSA ustuni (2026-11-03, Asilbek): o'sha kuni YOPILGAN kassalar — n8n keshi
+   (aros bazasi: filial_documents 90 kun + kassa_history_daily), Aros'ga bormaydi.
+   Summa = plan_to_cachier (kassaga topshiriladigan), kun = kassa yopilgan sana.
+   USD — Fakt bilan BIR XIL kurs (muhrlangan kurs, bo'lmasa beshkunlik_kurslar).
+   Jadval hisobiga (rekursiya, qoldi, prognoz) TA'SIR QILMAYDI — faqat ko'rsatish.
+   ===================================================================== */
+const WEBHOOK_5K_KASSA='https://n8n.arosmarket.com/webhook/aros-provodka-5kunlik-kassa';
+let YOP_KASSA_MAP={}, YOP_KASSA_DETAL={};   // sana -> {kassa_uzs,sotuvchi_uzs,yopgan,kutilgan,bugun} / sana -> {yopgan:[...],yopmagan:[...]}
+let YOP_KASSA_ERR='';
+let KURS_DAY={};                    // sana -> kurs (beshkunlik_kurslar) — Fakt muhrlanmagan kunlar uchun
+let USD_NOW=null;                   // conv_baza_kurs('USD') — kelajak kunlar (kurs tarixi yo'q) uchun
+function kursFor(iso){ const d=combineFakt(iso); if(d&&d.kurs!=null) return d.kurs; const k=KURS_DAY[iso]; return (k!=null&&k>0)?Number(k):null; }
+/* ---- REJA Aros keshidan (2026-11-03, Asilbek): filial_plan_half (yarim oylik reja, filial kesimida, kundalik bot
+   bilan bir xil manba) — Aksessuar+Zapchast yig'indisi. Kunlik reja = yarim oy rejasi / yarim oy kunlari
+   (1–15 → 15 kun, 16–oxiri → qolgan kunlar), USD — kun kursi (Fakt kursi), kelajakda USD_NOW.
+   Bor bo'lsa beshkunlik_reja (qo'lda) o'rniga ISHLATILADI va katak tahrirlanmaydi; yo'q bo'lsa eski qo'lda reja. ---- */
+let AROS_REJA={};                   // iso -> {uzs, yarim, yarim_uzs, kunlar, kurs?}
+function arosRejaOn(iso){ return !!AROS_REJA[iso]; }
+function rejaOf(iso){
+  const ar=AROS_REJA[iso];
+  if(ar){ const kurs=kursFor(iso)||USD_NOW; ar.kurs=kurs||null; return (kurs&&kurs>0)?Math.round(ar.uzs/kurs):null; }
+  const rj=REJA_MAP[iso]||{}; return rj.reja!=null?Number(rj.reja):null;
+}
+let AROS_REJA_FIL={};               // 'YYYY-MM' -> [{warehouse_id, filial, profil, oy_yarim, plan_uzs}]
+function applyArosReja(j){
+  AROS_REJA={}; AROS_REJA_FIL={};
+  const r=(j&&j.reja)||{};
+  Object.keys(r).forEach(ym=>{ const m=r[ym]||{}; const [y,mo]=ym.split('-').map(Number); if(!y||!mo) return;
+    AROS_REJA_FIL[ym]=Array.isArray(m.filiallar)?m.filiallar:[];
+    const dim=daysInMonth(y,mo-1);
+    const y1=Number(m.yarim1_uzs)||0, y2=Number(m.yarim2_uzs)||0;
+    for(let d=1; d<=dim; d++){
+      const yarim=d<=15?1:2, kunlar=yarim===1?15:(dim-15), yuzs=yarim===1?y1:y2;
+      if(!(yuzs>0)) continue;
+      AROS_REJA[`${y}-${pad2(mo)}-${pad2(d)}`]={uzs:yuzs/kunlar, yarim, yarim_uzs:yuzs, kunlar};
+    } });
+}
+/* ---- Reja katagi popoveri (Asilbek, 03.11): o'sha yarim oyda qaysi filialga qancha reja qo'yilgan —
+   profil bo'yicha (Aksessuar / Zapchast), har filial: yarim oy rejasi so'm + kunlik (so'm va $). ---- */
+function renderRejaPop(iso,rect){
+  const ar=AROS_REJA[iso]; if(!ar) return;
+  const ym=iso.slice(0,7), [y,mo]=ym.split('-').map(Number);
+  const fil=(AROS_REJA_FIL[ym]||[]).filter(f=>Number(f.oy_yarim)===ar.yarim);
+  const kurs=ar.kurs||kursFor(iso)||USD_NOW;
+  const usdOf=uzs=>(kurs&&kurs>0)?('$'+money(uzs/kurs)):'—';
+  const byProf={};
+  fil.forEach(f=>{ const p=f.profil||'—'; (byProf[p]=byProf[p]||[]).push(f); });
+  let body='';
+  Object.keys(byProf).sort().forEach(p=>{
+    const rows=byProf[p].sort((a,b)=>Number(b.plan_uzs)-Number(a.plan_uzs));
+    const sum=rows.reduce((s,f)=>s+(Number(f.plan_uzs)||0),0);
+    body+=`<div class="bkp-prof"><span>${esc(p)} — ${rows.length} filial</span><span>${money(sum)} so'm</span></div>`;
+    body+=rows.map(f=>{ const pl=Number(f.plan_uzs)||0;
+      return `<div class="bkp-row"><span class="bkp-name">${esc(f.filial||f.warehouse_id||'—')}</span>`
+        +`<span>${money(pl)}<span class="bkp-kun">kuniga ${money(pl/ar.kunlar)} · ${usdOf(pl/ar.kunlar)}</span></span></div>`; }).join('');
+  });
+  if(!fil.length) body=`<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Filial kesimi yo'q</span></div>`;
+  const total=`<div class="bkp-total"><span>Jami ${ar.yarim}-yarim</span><span>${money(ar.yarim_uzs)} so'm<span class="bkp-kun">kuniga ${money(ar.uzs)} · ${usdOf(ar.uzs)}</span></span></div>`;
+  const sub=`<div class="bkp-summary">${esc(OY_QISQA[mo-1])} ${y}, ${ar.yarim}-yarim oy (${ar.yarim===1?'1–15':'16–'+daysInMonth(y,mo-1)}) · ${ar.kunlar} kun · kurs ${kurs?rate2(kurs):'—'} · manba: Aros kesh (filial_plan_half)</div>`;
+  const pop=$('bkPop');
+  pop.dataset.popKey='rj|'+iso;
+  pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)} — reja, filiallar kesimi</div>${sub}${body}${total}`;
+  pop.classList.add('open','rj');
+  positionPop(rect);
+}
+window.bkRejaPopShow=(ev,iso)=>{ popCancelHide(); renderRejaPop(iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkRejaPopToggle=(ev,iso)=>{
+  ev.stopPropagation(); ev.preventDefault();
+  const key='rj|'+iso;
+  if(popOpenKey===key){ popHideNow(); return; }
+  renderRejaPop(iso,ev.currentTarget.closest('td').getBoundingClientRect());
+  popOpenKey=key;
+};
+function kassaUsd(iso){ const k=YOP_KASSA_MAP[iso]; if(!k) return null; const kurs=kursFor(iso); return kurs?Math.round(k.kassa_uzs/kurs):null; }
+function applyKassaJson(j){
+  YOP_KASSA_MAP={}; YOP_KASSA_DETAL={};
+  (j.kunlar||[]).forEach(k=>{ if(!k||!k.sana) return;
+    YOP_KASSA_MAP[k.sana]={kassa_uzs:Number(k.kassa_uzs)||0, sotuvchi_uzs:Number(k.sotuvchi_uzs)||0,
+      yopgan:Number(k.yopgan)||0, kutilgan:Number(k.kutilgan)||0, bugun:!!k.bugun}; });
+  const d=j.detal||{};
+  Object.keys(d).forEach(s=>{ YOP_KASSA_DETAL[s]={yopgan:(d[s]&&d[s].yopgan)||[], yopmagan:(d[s]&&d[s].yopmagan)||[]}; });
+  applyArosReja(j);
+}
+async function ensureUsdNow(){
+  if(USD_NOW) return;
+  try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); const v=Number(data); if(v>0) USD_NOW=v; }catch(e){}
+}
+/* Kesh (5kunlik-kassa:<yyyy-mm>) darrov, fonda webhook; xato bo'lsa ustun «—» (jadval buzilmaydi). */
+async function loadKassa(dispFirst,dispLast,token){
+  const key='5kunlik-kassa:'+dispFirst.slice(0,7);
+  const cached=swrGet(key);
+  await ensureUsdNow();
+  if(token!==FAKT_TOKEN) return;
+  if(cached){ applyKassaJson(cached); buildRun(RUN_START,RUN_H); renderTable(); }
+  try{
+    const res=await fetch(WEBHOOK_5K_KASSA+'?date_from='+encodeURIComponent(dispFirst)+'&date_to='+encodeURIComponent(dispLast),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j || j.ok===false || !Array.isArray(j.kunlar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
+    if(token!==FAKT_TOKEN) return;
+    swrSet(key,j); applyKassaJson(j); YOP_KASSA_ERR='';
+  }catch(e){
+    if(token!==FAKT_TOKEN) return;
+    YOP_KASSA_ERR=e.message||String(e);
+    console.warn('5kunlik kassa webhook:',YOP_KASSA_ERR);
+  }
+  buildRun(RUN_START,RUN_H);   // Reja (Aros keshi) rekursiyaga kiradi — qayta quriladi
+  renderTable();
+}
+function kassaTd(iso,todayIso){
+  const k=YOP_KASSA_MAP[iso];
+  if(!k){ const t=YOP_KASSA_ERR?` title="Kassa ma'lumoti ulanmadi: ${esc(YOP_KASSA_ERR)}"`:(iso<=todayIso?' title="Bu kun uchun yopilgan kassa yo\'q"':''); return `<td class="num muted"${t}>—</td>`; }
+  const usd=kassaUsd(iso), kurs=kursFor(iso);
+  const usdTxt=usd==null?'—':money(usd);
+  const kam=k.kutilgan>0 && k.yopgan<k.kutilgan;
+  const badgeCls=k.bugun?'':(kam?' kam':' toliq');
+  const badge=`<span class="ks-badge${badgeCls}" title="${k.yopgan} ta filial yopgan, ${k.kutilgan} ta kutilgan${k.bugun?' (bugun — hali davom etmoqda)':''}">${k.yopgan}/${k.kutilgan}</span>`;
+  const inner=SHOW_UZS
+    ? `<div class="fk-usd">${usdTxt}${badge}</div><div class="fk-sub">${money(k.kassa_uzs)}</div><div class="fk-sub">${kurs!=null?('× '+rate2(kurs)):'—'}</div>`
+    : `<span class="fk-usd">${usdTxt}</span>${badge}`;
+  const handlers=HOVER_OK
+    ? `onmouseenter="window.bkKassaPopShow(event,'${iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkKassaPopToggle(event,'${iso}')"`;
+  return `<td class="num ks-cell" ${handlers}>${inner}</td>`;
+}
+function fmtVaqt(v){ if(!v) return ''; const m=String(v).match(/T(\d{2}:\d{2})/); return m?m[1]:''; }
+function renderKassaPop(iso,rect){
+  const k=YOP_KASSA_MAP[iso], d=YOP_KASSA_DETAL[iso]||{yopgan:[],yopmagan:[]};
+  if(!k) return;
+  const usd=kassaUsd(iso);
+  const yop=d.yopgan.map(r=>`<div class="bkp-row"><span class="bkp-name">${esc(r.title||'—')}<span class="bkp-vaqt">${esc(fmtVaqt(r.vaqt))}${(Number(r.doc_count)||0)>1?' · '+r.doc_count+' hujjat':''}</span></span><span>${money(Number(r.kassa_uzs)||0)}</span></div>`).join('')
+    || `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yopilgan kassa yo'q</span></div>`;
+  const yopmagan=d.yopmagan.length
+    ? `<h4 style="margin-top:8px">${k.bugun?'Hali yopmagan':'Yopmagan'} — ${d.yopmagan.length} ta</h4>`+d.yopmagan.map(r=>`<div class="bkp-row yopmagan"><span class="bkp-name">${esc(r.title||'—')}</span><span>—</span></div>`).join('')
+    : (k.kutilgan?`<h4 style="margin-top:8px;color:var(--green)">Hamma filial yopgan ✓</h4>`:'');
+  const total=`<div class="bkp-total"><span>Jami kassa</span><span>${money(k.kassa_uzs)} so'm<span class="bkp-usd">≈ $${usd==null?'—':money(usd)}</span></span></div>`;
+  const sot=k.sotuvchi_uzs?`<div class="bkp-summary">Sotuvchi jami ${money(k.sotuvchi_uzs)} so'm · yopgan ${k.yopgan}/${k.kutilgan}${k.bugun?' · bugun, davom etmoqda':''}</div>`:'';
+  const pop=$('bkPop');
+  pop.dataset.popKey='ks|'+iso; pop.classList.remove('rj');
+  pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)} — yopilgan kassalar</div>${sot}<h4>Yopgan — ${d.yopgan.length} ta</h4>${yop}${yopmagan}${total}`;
+  pop.classList.add('open');
+  positionPop(rect);
+}
+window.bkKassaPopShow=(ev,iso)=>{ popCancelHide(); renderKassaPop(iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkKassaPopToggle=(ev,iso)=>{
+  ev.stopPropagation();
+  const key='ks|'+iso;
+  if(popOpenKey===key){ popHideNow(); return; }
+  renderKassaPop(iso,ev.currentTarget.getBoundingClientRect());
+  popOpenKey=key;
+};
+
 function applyWebJson(j){
   WEB_MAP={}; WEB_DETAL={};
   (j.kunlar||[]).forEach(k=>{ if(!k||!k.sana) return;
@@ -2361,6 +2541,7 @@ async function computeAndFreeze(dispFirst,dispLast,todayIso,token){
       const {data,error}=await sb.rpc('beshkunlik_kurslar',{p_sanalar:[...neededDates]});
       if(error) throw error;
       kursMap=data||{};
+      Object.assign(KURS_DAY,kursMap);   // Kassa ustuni ham shu kurs bilan (Fakt bilan bir xil)
     }catch(e){ console.warn('beshkunlik_kurslar xato:',e.message); }
   }
   if(token!==FAKT_TOKEN) return;
@@ -2404,6 +2585,8 @@ async function loadFakt(){
   await loadFrozenWindow();
   if(token!==FAKT_TOKEN) return;
   buildRun(RUN_START,RUN_H); renderTable();
+
+  loadKassa(dispFirst,dispLast,token);   // Kassa ustuni — parallel, o'zi renderTable() qiladi (jadval hisobiga ta'sir qilmaydi)
 
   let webJson=swrGet(key);
   if(webJson){ applyWebJson(webJson); buildRun(RUN_START,RUN_H); renderTable(); }
@@ -2499,8 +2682,7 @@ function renderPop(iso,rect){
   let summary='';
   const a=avgFakt(iso);
   if(a){
-    const rj=REJA_MAP[iso]||{};
-    const rejaVal=rj.reja!=null?Number(rj.reja):null;
+    const rejaVal=rejaOf(iso);
     const parts=[`Reja ${rejaVal!=null?('$'+money(rejaVal)):'—'}`,
       `Ertalabki prognoz $${money(a.avg)} (${a.count} kun o'rtachasi)`,
       `Fakt ${d.usd!=null?('$'+money(d.usd)):'—'}`];
@@ -2523,7 +2705,7 @@ function renderPop(iso,rect){
   };
   const total=`<div class="bkp-total"><span>Jami</span><span>${money(d.uzs)} so'm<span class="bkp-usd">≈ $${d.usd==null?'—':money(d.usd)}</span></span></div>`;
   const pop=$('bkPop');
-  pop.dataset.popKey='fk|'+iso;   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
+  pop.dataset.popKey='fk|'+iso; pop.classList.remove('rj');   // qarz popoveri (async) o'zining javobi eskirganini shu bilan biladi
   pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)}</div>${summary}${section('aksessuar')}${section('zapchast')}${total}`;
   pop.classList.add('open');
   positionPop(rect);
