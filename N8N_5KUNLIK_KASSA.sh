@@ -61,9 +61,10 @@ conn = json.load(open(os.environ["K5_CONN"]))
 by = {n["name"]: n for n in nodes}
 for t in ["Webhook 5kunlik", "Prep Dates", "Get Kunlik Savdo", "Build Javob", "Respond 5kunlik"]:
     assert t in by, "node yo'q: " + t
-if "Webhook Kassa" in by:
-    print("allaqachon qo'llangan (Webhook Kassa bor)")
+if "Get Reja" in by:
+    print("allaqachon qo'llangan (Webhook Kassa + Get Reja bor)")
     sys.exit(3)
+UPGRADE = "Webhook Kassa" in by   # 03.11 birinchi versiya (5 node, rejasiz) qo'llangan — faqat Get Reja qo'shiladi
 
 PREP = r'''// Sana oralig'i — 5kunlik savdo bilan bir xil (UTC+5)
 const q = $('Webhook Kassa').first().json.query || {};
@@ -184,14 +185,24 @@ def clone(src_name, new_name, dx=0, dy=420):
     n["position"] = [pos[0] + dx, pos[1] + dy]
     return n
 
-wh = clone("Webhook 5kunlik", "Webhook Kassa")
-wh["parameters"]["path"] = "aros-provodka-5kunlik-kassa"
-wh["webhookId"] = str(uuid.uuid4())
-prep = clone("Prep Dates", "Prep Dates Kassa")
-prep["parameters"]["jsCode"] = PREP
-get = clone("Get Kunlik Savdo", "Get Kunlik Kassa")
-get["parameters"]["query"] = SQL
-assert "queryReplacement" in (get["parameters"].get("options") or {}), "Get Kunlik Savdo: queryReplacement yo'q"
+if UPGRADE:
+    for t in ["Prep Dates Kassa", "Get Kunlik Kassa", "Build Kassa", "Respond Kassa"]:
+        assert t in by, "upgrade: node yo'q: " + t
+    get = by["Get Kunlik Kassa"]
+    build = by["Build Kassa"]
+    yangi = []
+else:
+    wh = clone("Webhook 5kunlik", "Webhook Kassa")
+    wh["parameters"]["path"] = "aros-provodka-5kunlik-kassa"
+    wh["webhookId"] = str(uuid.uuid4())
+    prep = clone("Prep Dates", "Prep Dates Kassa")
+    prep["parameters"]["jsCode"] = PREP
+    get = clone("Get Kunlik Savdo", "Get Kunlik Kassa")
+    get["parameters"]["query"] = SQL
+    build = clone("Build Javob", "Build Kassa", dx=440)
+    resp = clone("Respond 5kunlik", "Respond Kassa", dx=440)
+    yangi = [wh, prep, get, build, resp]
+assert "queryReplacement" in (get["parameters"].get("options") or {}), "Get Kunlik Kassa: queryReplacement yo'q"
 assert get.get("credentials", {}).get("postgres", {}).get("name") == "Postgres account 3", "kredit nomi o'zgargan"
 get["alwaysOutputData"] = True            # qator chiqmasa ham zanjir uzilmasin (Build Kassa javob bersin)
 reja = clone("Get Kunlik Savdo", "Get Reja", dx=220)
@@ -199,11 +210,10 @@ reja["parameters"]["query"] = REJA_SQL
 reja["parameters"]["options"]["queryReplacement"] = "={{ $('Prep Dates Kassa').first().json.date_from }},{{ $('Prep Dates Kassa').first().json.date_to }}"
 reja["executeOnce"] = True                 # kiruvchi N qator uchun BIR MARTA (Aylanma 53× saboqi)
 reja["alwaysOutputData"] = True
-build = clone("Build Javob", "Build Kassa", dx=440)
-build["parameters"]["jsCode"] = BUILD
-resp = clone("Respond 5kunlik", "Respond Kassa", dx=440)
+build["parameters"]["jsCode"] = BUILD      # upgrade'da ham: Get Kunlik Kassa + Get Reja ni birlashtiradigan yangi kod
+yangi.append(reja)
 
-for n in [wh, prep, get, reja, build, resp]:
+for n in yangi:
     assert n["name"] not in by
     nodes.append(n)
 conn["Webhook Kassa"]     = {"main": [[{"node": "Prep Dates Kassa", "type": "main", "index": 0}]]}
