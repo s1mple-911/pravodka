@@ -2704,7 +2704,37 @@ function yPriceF(n,cur){ const v=Number(n),c=cur?(' '+esc(cur)):''; return isFin
 // Kurs: valyuta → UZS (1 birlik necha so'm). UZS=1, topilmasa null (CHY=CNY mapping serverda).
 function curRate(cur){ if(!cur||String(cur).toUpperCase()==='UZS') return 1; const r=rateMap[cur]; return (r==null?null:Number(r)); }
 function yukNarxUzs(y){ const r=curRate(y.valyuta); if(r==null) return null; return Math.round(Number(y.narx||0)*r); }
-function yukTolangan(id){ const s=yukPaidMap[id]; return s?Number(s.tolangan_uzs)||0:0; }
+// 2026-11-03 (Asilbek): to'lov paytida VALYUTADA to'liq to'langan hujjat kurs o'zgarsa qayta ochilmaydi —
+// server yuk_tolangan_fc tolangan_fc (yuk valyutasida) beradi, so'mga JORIY kurs bilan qaytariladi
+// (qarzdor-dev bilan bir xil). tolangan_fc yo'q bo'lsa eski so'm qiymati.
+function yukTolangan(id){ const s=yukPaidMap[id]; if(!s) return 0;
+  if(s.tolangan_fc!=null){ const y=yukList.find(x=>Number(x.id)===Number(id)); const r=y?curRate(y.valyuta):null;
+    if(r!=null&&r!==1) return Number(s.tolangan_fc)*r; }
+  return Number(s.tolangan_uzs)||0; }
+// Valyutali hujjatda narxning 1.5% gacha qoldiq = kurs/yaxlitlash farqi → yopiq (qarzdor-dev bilan bir xil qoida).
+function yukKursFarqiLim(y,jami){ return (curRate(y.valyuta)===1)?1:Math.max(1,(Number(jami)||0)*0.015); }
+async function yukTolanganSorov(ids){
+  const rows=yukList.filter(y=>ids.includes(Number(y.id))).map(y=>({id:Number(y.id),valyuta:y.valyuta||'UZS'}));
+  const r=await sb.rpc('yuk_tolangan_fc',{p_rows:rows});
+  if(!r.error) return r;
+  if(rpcYoq(r.error)){ console.warn('yuk_tolangan_fc yo\'q — yuk_tolangan_summa ishlatildi'); return await sb.rpc('yuk_tolangan_summa',{p_ids:ids}); }
+  return r;
+}
+// Saqlashdan KEYIN fonda: entry_yuk.summa_fc/kurs/valyuta (yuk valyutasida qancha to'landi). Xato bloklamaydi.
+function yukValyutaQatorlar(eyRows){
+  const u=yukUnit(); const normC=c=>{ const v=String(c||'UZS').toUpperCase(); return v==='CHY'?'CNY':v; };
+  return eyRows.map(r=>{ const y=yukList.find(x=>Number(x.id)===Number(r.yuk_id)); if(!y) return null;
+    const cur=y.valyuta||'UZS', k=curRate(cur); if(k==null) return null;
+    const fc=(u.cc&&normC(u.cur)===normC(cur)&&Number(allocC[r.yuk_id])>0)?Number(allocC[r.yuk_id]):(r.summa_uzs/k);
+    return {yuk_id:Number(r.yuk_id), summa_fc:Math.round(fc*10000)/10000, kurs:k, valyuta:cur}; }).filter(Boolean);
+}
+async function yukValyutaYoz(extRef,qatorlar){
+  if(!extRef||!qatorlar||!qatorlar.length) return;
+  try{ const {data,error}=await sb.rpc('entry_yuk_valyuta_yoz',{p_ext_ref:extRef,p_rows:qatorlar});
+    if(error){ if(!rpcYoq(error)) console.warn('entry_yuk_valyuta_yoz:',error.message); return; }
+    if(data&&data.ok===false) console.warn('entry_yuk_valyuta_yoz:',data.kod);
+  }catch(e){ console.warn('entry_yuk_valyuta_yoz:',e.message||e); }
+}
 /* --- Yuk tannarxi (qiymat qatlami) ---
    Aros narxi ustiga Provodka tomonida qo'shilgan xarajatlar (yo'l puli, bojxona,
    valyuta farqi, abusaxiy). Pul harakati YO'Q — faqat yuk qiymatini oshiradi,
@@ -2719,7 +2749,7 @@ function yukTanSabab(id,lim=2){ const q=yukTanQatorlar(id); if(!q.length) return
   const bosh=q.slice(0,lim).map(r=>(r.ikonka?r.ikonka+' ':'')+(r.sabab||'—')+' '+money(r.summa_uzs)).join(' · ');
   return bosh+(q.length>lim?' · va yana '+(q.length-lim)+' ta':''); }
 function yukJami(y){ const n=yukNarxUzs(y); if(n==null) return null; return n + yukTannarx(y.id); }   // JAMI TANNARX
-function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; return Math.max(0, n - yukTolangan(y.id)); }  // qolgan qarz (UZS)
+function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; const q=n - yukTolangan(y.id); return q<yukKursFarqiLim(y,n)?0:q; }  // qolgan qarz (UZS)
 function yukPct(y){ const n=yukJami(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
 // Yuk qiymati to'lov birligida (UZS rejimi: eski jami/qoldiq; valyuta rejimi: Aros narxi YAXLIT, tannarx qo'shilmaydi).
 // tolangan_uzs serverda so'mda — qaytarib JORIY kurs bilan bo'linadi (taxminiy, kurs o'zgargan bo'lsa ozgina farq bo'lishi mumkin).
@@ -2731,7 +2761,8 @@ function yukRow(y){
   // Aros yuk valyutasi 'CHY' (Aros kodi), kassa bolasi 'CNY' yoki 'CHY' bo'lishi mumkin — ikkisi bitta yuan (yuk_kurslar ham shunday).
   const normC=c=>{ const v=String(c||'UZS').toUpperCase(); return v==='CHY'?'CNY':v; };
   const same=normC(y.valyuta)===normC(u.cur), narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
-  return {err:false, jami:narx, qoldi:Math.max(0,u.rnd(narx-yukTolangan(y.id)/u.rate)), approx:!same};
+  let qoldi=u.rnd(narx-yukTolangan(y.id)/u.rate); if(qoldi<narx*0.015) qoldi=0;   // kurs/yaxlitlash farqi → yopiq
+  return {err:false, jami:narx, qoldi:Math.max(0,qoldi), approx:!same};
 }
 /* 2026-10-28 (Asilbek): FAQAT nashr qilingan (`status==='posted'`) yukka pul to'lash mumkin. Aros statuslari:
    created (hali nashr qilinmagan, ko'pi) | posted | canceled. `status` maydoni yo'q/bo'sh (eski webhook javobi) → bloklanmaydi
@@ -3061,7 +3092,7 @@ async function loadYukList(){
       yukPaidMap={}; yukTanMap={};
       try{
         const [st,tn]=await Promise.all([
-          sb.rpc('yuk_tolangan_summa',{p_ids:ids}),
+          yukTolanganSorov(ids),
           sb.rpc('yuk_tannarx_jami',{p_ids:ids})
         ]);
         if(st.error) console.warn('yuk_tolangan_summa:',st.error.message);
@@ -3457,8 +3488,10 @@ async function doSaveSimple(){
   // Qisman to'lov: har yukka taqsimlangan summa (UZS) → entry_yuk.
   // Atomik yo'lda u ham AYNI tranzaksiyada yoziladi (kompensatsiya kerak emas).
   const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
+  const valQ=yukValyutaQatorlar(eyRows);   // 🔴 snapshot SAQLASHDAN OLDIN — pastda alloc/allocC tozalanadi
   const res=await yozBir(entryPayload,rows,eyRows);
   if(!res.ok){ btn.textContent='Saqlash'; updateSimple(); return; }
+  yukValyutaYoz(res.ext_ref, valQ);   // fonda: entry_yuk.summa_fc/kurs/valyuta (kursga qaytmaydigan qoldiq uchun)
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   if(chekBlob) chekYukla(res, kassa.id);
   aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
