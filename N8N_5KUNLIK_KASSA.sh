@@ -8,8 +8,11 @@
 # Manba — n8n `aros` bazasi (Aros'ga qayta BORMAYDI): filial_documents (Bugalter Sync, 90 kun) +
 # kassa_history_daily (eski kunlar, documents jsonb ichida plan_to_cachier). Kun = stopped_at sanasi (Toshkent).
 #
+# + REJA (Asilbek, 03.11): 5 kunlik Reja ustuni ham shu keshdan — `filial_plan_half` (yarim oylik filial rejasi,
+#   kundalik bot manbasi, plan_source=sheets) Aksessuar+Zapchast; javobda `reja: {"YYYY-MM": {yarim1_uzs, yarim2_uzs, filiallar}}`.
+#
 # Mavjud 5 ta node NUSXALANADI (typeVersion/sozlamalar mos bo'lsin): Webhook Kassa → Prep Dates Kassa →
-# Get Kunlik Kassa (Postgres account 3, aros) → Build Kassa → Respond Kassa. Eski oqim tegilmaydi.
+# Get Kunlik Kassa (Postgres account 3, aros) → Get Reja (executeOnce) → Build Kassa → Respond Kassa. Eski oqim tegilmaydi.
 #
 #   ssh root@37.27.15.184 'bash -s' < /Users/s1mple/Projects/pravodka/N8N_5KUNLIK_KASSA.sh
 #   ssh root@37.27.15.184 'bash -s -- --rollback' < ...        (oxirgi zaxiradan qaytarish)
@@ -110,10 +113,35 @@ SELECT 'kutilgan', NULL, k.cachier_id, k.title, k.warehouse_id, NULL, NULL, NULL
   FROM kutilgan k
 ORDER BY 1, 2, 4'''
 
+REJA_SQL = r'''WITH prof AS (
+  SELECT DISTINCT ON (warehouse_id) warehouse_id::text AS wid, data->>'profil' AS profil,
+         COALESCE(data->>'filial', warehouse_id::text) AS filial
+    FROM cache_filial ORDER BY warehouse_id, updated_at DESC
+)
+SELECT p.yil, p.oy, p.oy_yarim, p.warehouse_id, pr.filial, pr.profil, COALESCE(p.plan,0)::numeric AS plan
+  FROM filial_plan_half p
+  JOIN prof pr ON pr.wid = p.warehouse_id::text
+ WHERE pr.profil IN ('Aksessuar','Zapchast')
+   AND make_date(p.yil, p.oy, 1) <= $2::date
+   AND (make_date(p.yil, p.oy, 1) + interval '1 month')::date > $1::date
+ ORDER BY 1, 2, 3, 6, 5'''
+
 BUILD = r'''// Kunlik yopilgan kassa: sana -> jami + filial kesimi (yopgan / yopmagan). Summalar SO'MDA —
-// dollarga o'girish Provodka tomonida (Fakt bilan bir xil kurs).
-const rows = $input.all().map(function(i){ return i.json; }).filter(function(r){ return r && r.tur; });
+// dollarga o'girish Provodka tomonida (Fakt bilan bir xil kurs). + reja: oy -> yarim oylik Aks+Zap rejasi.
+const rows = $('Get Kunlik Kassa').all().map(function(i){ return i.json; }).filter(function(r){ return r && r.tur; });
+const rejaRows = $input.all().map(function(i){ return i.json; }).filter(function(r){ return r && r.yil && r.oy; });
 const d = $('Prep Dates Kassa').first().json;
+const reja = {};
+for (let i = 0; i < rejaRows.length; i++) {
+  const r = rejaRows[i];
+  const ym = String(r.yil) + '-' + (Number(r.oy) < 10 ? '0' : '') + String(Number(r.oy));
+  if (!reja[ym]) reja[ym] = { yarim1_uzs: 0, yarim2_uzs: 0, filiallar: [] };
+  const plan = Number(r.plan || 0);
+  if (Number(r.oy_yarim) === 1) reja[ym].yarim1_uzs += plan; else reja[ym].yarim2_uzs += plan;
+  reja[ym].filiallar.push({ warehouse_id: Number(r.warehouse_id), filial: String(r.filial || ''), profil: String(r.profil || ''),
+    oy_yarim: Number(r.oy_yarim), plan_uzs: plan });
+}
+Object.keys(reja).forEach(function(k){ reja[k].yarim1_uzs = Math.round(reja[k].yarim1_uzs); reja[k].yarim2_uzs = Math.round(reja[k].yarim2_uzs); });
 const kutilgan = [];
 const kutMap = {};
 const kun = {};
@@ -146,7 +174,7 @@ Object.keys(kun).sort().forEach(function(s){
   detal[s] = { yopgan: k.yopgan.sort(function(a, b){ return b.kassa_uzs - a.kassa_uzs; }), yopmagan: yopmagan };
 });
 return [{ json: { ok: true, date_from: d.date_from, date_to: d.date_to, bugun: d.bugun, valyuta: 'UZS',
-  kutilgan: kutilgan, kunlar: kunlar, detal: detal, count: kunlar.length } }];'''
+  kutilgan: kutilgan, kunlar: kunlar, detal: detal, reja: reja, count: kunlar.length } }];'''
 
 def clone(src_name, new_name, dx=0, dy=420):
     n = copy.deepcopy(by[src_name])
@@ -165,16 +193,23 @@ get = clone("Get Kunlik Savdo", "Get Kunlik Kassa")
 get["parameters"]["query"] = SQL
 assert "queryReplacement" in (get["parameters"].get("options") or {}), "Get Kunlik Savdo: queryReplacement yo'q"
 assert get.get("credentials", {}).get("postgres", {}).get("name") == "Postgres account 3", "kredit nomi o'zgargan"
-build = clone("Build Javob", "Build Kassa")
+get["alwaysOutputData"] = True            # qator chiqmasa ham zanjir uzilmasin (Build Kassa javob bersin)
+reja = clone("Get Kunlik Savdo", "Get Reja", dx=220)
+reja["parameters"]["query"] = REJA_SQL
+reja["parameters"]["options"]["queryReplacement"] = "={{ $('Prep Dates Kassa').first().json.date_from }},{{ $('Prep Dates Kassa').first().json.date_to }}"
+reja["executeOnce"] = True                 # kiruvchi N qator uchun BIR MARTA (Aylanma 53× saboqi)
+reja["alwaysOutputData"] = True
+build = clone("Build Javob", "Build Kassa", dx=440)
 build["parameters"]["jsCode"] = BUILD
-resp = clone("Respond 5kunlik", "Respond Kassa")
+resp = clone("Respond 5kunlik", "Respond Kassa", dx=440)
 
-for n in [wh, prep, get, build, resp]:
+for n in [wh, prep, get, reja, build, resp]:
     assert n["name"] not in by
     nodes.append(n)
 conn["Webhook Kassa"]     = {"main": [[{"node": "Prep Dates Kassa", "type": "main", "index": 0}]]}
 conn["Prep Dates Kassa"]  = {"main": [[{"node": "Get Kunlik Kassa", "type": "main", "index": 0}]]}
-conn["Get Kunlik Kassa"]  = {"main": [[{"node": "Build Kassa", "type": "main", "index": 0}]]}
+conn["Get Kunlik Kassa"]  = {"main": [[{"node": "Get Reja", "type": "main", "index": 0}]]}
+conn["Get Reja"]          = {"main": [[{"node": "Build Kassa", "type": "main", "index": 0}]]}
 conn["Build Kassa"]       = {"main": [[{"node": "Respond Kassa", "type": "main", "index": 0}]]}
 
 names = [n["name"] for n in nodes]
@@ -186,7 +221,7 @@ for src, v in conn.items():
             assert x["node"] in names, "connections: nishon node yo'q: " + x["node"]
 json.dump(nodes, open(os.environ["K5_NODES_OUT"], "w"), ensure_ascii=False)
 json.dump(conn, open(os.environ["K5_CONN_OUT"], "w"), ensure_ascii=False)
-print("patch tayyor: +5 node (Webhook Kassa → Prep Dates Kassa → Get Kunlik Kassa → Build Kassa → Respond Kassa)")
+print("patch tayyor: +6 node (Webhook Kassa → Prep Dates Kassa → Get Kunlik Kassa → Get Reja → Build Kassa → Respond Kassa)")
 PYEOF
   RC=$?
   set -e

@@ -530,7 +530,7 @@ const PROFIL_LABEL={aksessuar:'Aksessuar',zapchast:'Zapchast'};
    (Asilbek: "Reja/Uzga/Fakt ikki marta bo'lib qolgan" — takroriy ko'rinishning sababi). */
 const GROUPS=[
   {name:'Savdo', cols:[
-    {id:'sv_reja', label:'Reja', title:"Kunlik reja — oylik reja / oy kunlari (hamma kunga teng, yakshanba ham)"},
+    {id:'sv_reja', label:'Reja', title:"Kunlik reja — Aros keshidagi yarim oylik filial rejasi (Aksessuar+Zapchast) / yarim oy kunlari; kesh bo'lmasa qo'lda kiritilgan oylik reja / oy kunlari"},
     {id:'sv_uzga', label:'Uzgaradi', title:"Prognoz: o'tgan kun — Fakt'ga teng, bugun/kelajak — so'nggi 10 kunlik savdo o'rtachasi (qo'lda ustidan yozib bo'ladi)"},
     {id:'sv_kassa', label:'Kassa', title:"Shu kuni YOPILGAN kassalar — kassaga topshiriladigan summa (Aros filial hujjatlari, n8n keshi). Bosilsa: qaysi filial yopgan / yopmagan"},
     {id:'sv_fakt', label:'Fakt', title:"Aros'dan — kunlik haqiqiy savdo (Aksessuar+Zapchast yig'indisi)"},
@@ -806,7 +806,7 @@ function ediTd(iso, val, col, meta, todayIso){
   const isSel=SELECTED && SELECTED.c===col && SELECTED.i===iso;
   const inRange=!isSel && inSelRange(col,iso);
   const attrs=`data-c="${col}" data-i="${iso}"`;
-  const editable = col!=='uzgardi' || iso>=todayIso;
+  const editable = (col==='uzgardi') ? iso>=todayIso : !(col==='reja' && arosRejaOn(iso));
   if(isEditing){
     const startVal = (col==='uzgardi')
       ? ((meta && meta.manual && meta.raw!=null) ? meta.raw : '')
@@ -831,6 +831,8 @@ function ediTd(iso, val, col, meta, todayIso){
   // O'tgan kundagi Uzgaradi — faqat o'qiladi, sababi title'da (spec: tahrirga
   // urinilganda ham toast chiqadi — startEdit() ichida).
   if(col==='uzgardi' && !editable) title=' title="O\'tgan kun — Fakt\'ga teng, tahrirlanmaydi"';
+  if(col==='reja' && !editable){ const ar=AROS_REJA[iso]; extraCls=' auto';
+    title=` title="Aros reja (kesh, ${ar.yarim}-yarim oy filial rejasi ${money(ar.yarim_uzs)} so'm / ${ar.kunlar} kun = ${money(ar.uzs)} so'm/kun${ar.kurs?' × '+rate2(ar.kurs):''}) — tahrirlanmaydi"`; }
   const cls='num ed-cell'+extraCls+(val==null?' muted':'')+(isSel?' sel':'')+(inRange?' inrange':'')+(!editable?' ro':'');
   const handle=(canEdit && editable && isSel && val!=null) ? `<span class="fill-handle" onmousedown="window.bkFillStart(event,'${col}','${iso}')"></span>` : '';
   // tanlash/klaviatura navigatsiyasi hamma katakda ishlaydi (Uzgaradi'ning o'tgan
@@ -928,7 +930,7 @@ function avgFakt(x){
    yo'q bo'lsa Reja(D). A_TODAY — loadA10() bilan bir marta hisoblanadi. */
 function effectiveUzgaradi(iso,todayIso){
   const rj=REJA_MAP[iso]||{};
-  const rejaVal=rj.reja!=null?Number(rj.reja):null;
+  const rejaVal=rejaOf(iso);
   if(iso<todayIso){
     const fd=combineFakt(iso);
     if(fd && fd.usd!=null) return {val:fd.usd, kind:'fakt'};
@@ -946,8 +948,7 @@ function buildRun(startIso,hIso){
   const todayIso=isoDay(nowUz());
   let prevReja=SOZLAMA.boshlangich_usd||0, prevUzga=SOZLAMA.boshlangich_usd||0, prevFakt=SOZLAMA.boshlangich_usd||0;
   isoRange(startIso,hIso).forEach(iso=>{
-    const rj=REJA_MAP[iso]||{};
-    const reja=rj.reja!=null?Number(rj.reja):null;
+    const reja=rejaOf(iso);
     const eff=effectiveUzgaradi(iso,todayIso);
     const uzgardi=eff.val;
     const fd=(iso<=todayIso)?combineFakt(iso):null;   // kelajakda Fakt yo'q — Prognoz Uzgaradi ishlatadi
@@ -1254,6 +1255,7 @@ function commitEditIfAny(){
 }
 function startEdit(c,iso,initialChar,selectAll){
   if(c==='uzgardi' && iso<isoDay(nowUz())){ showToast("O'tgan kun — Fakt'ga teng, tahrirlanmaydi"); return; }
+  if(c==='reja' && arosRejaOn(iso)){ showToast("Reja Aros keshidan (yarim oylik filial rejasi) — tahrirlanmaydi"); return; }
   if(IS_MOBILE()){ window.bkCellSheetOpen(c,iso); return; }
   commitEditIfAny();
   EDITING={c,i:iso}; SELECTED={c,i:iso}; RANGE_ANCHOR=iso;
@@ -1279,6 +1281,7 @@ window.bkCellSheetOpen=(c,iso)=>{
   // Himoya shu yerda — sheet qaysi yo'l bilan ochilmasin (dblclick, startEdit), o'tgan
   // kun Uzgaradi'si uchun "saqlandi"dek ko'rinib, aslida yozilmaydigan oyna ochilmasin.
   if(c==='uzgardi' && iso<isoDay(nowUz())){ showToast("O'tgan kun — Fakt'ga teng, tahrirlanmaydi"); return; }
+  if(c==='reja' && arosRejaOn(iso)){ showToast("Reja Aros keshidan (yarim oylik filial rejasi) — tahrirlanmaydi"); return; }
   CELL_SHEET={c,iso};
   const col=c==='reja'?'Reja':'Uzgaradi';
   const rj=REJA_MAP[iso]||{};
@@ -2341,7 +2344,31 @@ const WEBHOOK_5K_KASSA='https://n8n.arosmarket.com/webhook/aros-provodka-5kunlik
 let YOP_KASSA_MAP={}, YOP_KASSA_DETAL={};   // sana -> {kassa_uzs,sotuvchi_uzs,yopgan,kutilgan,bugun} / sana -> {yopgan:[...],yopmagan:[...]}
 let YOP_KASSA_ERR='';
 let KURS_DAY={};                    // sana -> kurs (beshkunlik_kurslar) — Fakt muhrlanmagan kunlar uchun
+let USD_NOW=null;                   // conv_baza_kurs('USD') — kelajak kunlar (kurs tarixi yo'q) uchun
 function kursFor(iso){ const d=combineFakt(iso); if(d&&d.kurs!=null) return d.kurs; const k=KURS_DAY[iso]; return (k!=null&&k>0)?Number(k):null; }
+/* ---- REJA Aros keshidan (2026-11-03, Asilbek): filial_plan_half (yarim oylik reja, filial kesimida, kundalik bot
+   bilan bir xil manba) — Aksessuar+Zapchast yig'indisi. Kunlik reja = yarim oy rejasi / yarim oy kunlari
+   (1–15 → 15 kun, 16–oxiri → qolgan kunlar), USD — kun kursi (Fakt kursi), kelajakda USD_NOW.
+   Bor bo'lsa beshkunlik_reja (qo'lda) o'rniga ISHLATILADI va katak tahrirlanmaydi; yo'q bo'lsa eski qo'lda reja. ---- */
+let AROS_REJA={};                   // iso -> {uzs, yarim, yarim_uzs, kunlar, kurs?}
+function arosRejaOn(iso){ return !!AROS_REJA[iso]; }
+function rejaOf(iso){
+  const ar=AROS_REJA[iso];
+  if(ar){ const kurs=kursFor(iso)||USD_NOW; ar.kurs=kurs||null; return (kurs&&kurs>0)?Math.round(ar.uzs/kurs):null; }
+  const rj=REJA_MAP[iso]||{}; return rj.reja!=null?Number(rj.reja):null;
+}
+function applyArosReja(j){
+  AROS_REJA={};
+  const r=(j&&j.reja)||{};
+  Object.keys(r).forEach(ym=>{ const m=r[ym]||{}; const [y,mo]=ym.split('-').map(Number); if(!y||!mo) return;
+    const dim=daysInMonth(y,mo-1);
+    const y1=Number(m.yarim1_uzs)||0, y2=Number(m.yarim2_uzs)||0;
+    for(let d=1; d<=dim; d++){
+      const yarim=d<=15?1:2, kunlar=yarim===1?15:(dim-15), yuzs=yarim===1?y1:y2;
+      if(!(yuzs>0)) continue;
+      AROS_REJA[`${y}-${pad2(mo)}-${pad2(d)}`]={uzs:yuzs/kunlar, yarim, yarim_uzs:yuzs, kunlar};
+    } });
+}
 function kassaUsd(iso){ const k=YOP_KASSA_MAP[iso]; if(!k) return null; const kurs=kursFor(iso); return kurs?Math.round(k.kassa_uzs/kurs):null; }
 function applyKassaJson(j){
   YOP_KASSA_MAP={}; YOP_KASSA_DETAL={};
@@ -2350,12 +2377,19 @@ function applyKassaJson(j){
       yopgan:Number(k.yopgan)||0, kutilgan:Number(k.kutilgan)||0, bugun:!!k.bugun}; });
   const d=j.detal||{};
   Object.keys(d).forEach(s=>{ YOP_KASSA_DETAL[s]={yopgan:(d[s]&&d[s].yopgan)||[], yopmagan:(d[s]&&d[s].yopmagan)||[]}; });
+  applyArosReja(j);
+}
+async function ensureUsdNow(){
+  if(USD_NOW) return;
+  try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); const v=Number(data); if(v>0) USD_NOW=v; }catch(e){}
 }
 /* Kesh (5kunlik-kassa:<yyyy-mm>) darrov, fonda webhook; xato bo'lsa ustun «—» (jadval buzilmaydi). */
 async function loadKassa(dispFirst,dispLast,token){
   const key='5kunlik-kassa:'+dispFirst.slice(0,7);
   const cached=swrGet(key);
-  if(cached){ applyKassaJson(cached); if(token===FAKT_TOKEN) renderTable(); }
+  await ensureUsdNow();
+  if(token!==FAKT_TOKEN) return;
+  if(cached){ applyKassaJson(cached); buildRun(RUN_START,RUN_H); renderTable(); }
   try{
     const res=await fetch(WEBHOOK_5K_KASSA+'?date_from='+encodeURIComponent(dispFirst)+'&date_to='+encodeURIComponent(dispLast),{headers:{'Accept':'application/json'}});
     if(!res.ok) throw new Error('HTTP '+res.status);
@@ -2368,6 +2402,7 @@ async function loadKassa(dispFirst,dispLast,token){
     YOP_KASSA_ERR=e.message||String(e);
     console.warn('5kunlik kassa webhook:',YOP_KASSA_ERR);
   }
+  buildRun(RUN_START,RUN_H);   // Reja (Aros keshi) rekursiyaga kiradi — qayta quriladi
   renderTable();
 }
 function kassaTd(iso,todayIso){
@@ -2598,8 +2633,7 @@ function renderPop(iso,rect){
   let summary='';
   const a=avgFakt(iso);
   if(a){
-    const rj=REJA_MAP[iso]||{};
-    const rejaVal=rj.reja!=null?Number(rj.reja):null;
+    const rejaVal=rejaOf(iso);
     const parts=[`Reja ${rejaVal!=null?('$'+money(rejaVal)):'—'}`,
       `Ertalabki prognoz $${money(a.avg)} (${a.count} kun o'rtachasi)`,
       `Fakt ${d.usd!=null?('$'+money(d.usd)):'—'}`];

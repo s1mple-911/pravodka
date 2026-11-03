@@ -1920,3 +1920,7 @@ kursi bilan (`kursFor`: muhrlangan kurs → `KURS_DAY`), badge `yopgan/kutilgan`
 Manba — n8n `aros` bazasi, Aros'ga bormaydi: webhook **`aros-provodka-5kunlik-kassa`** (workflow `Prov5KunlikSavdo` ga 5 node nusxa: filial_documents
 90 kun + kassa_history_daily `documents` jsonb; kutilgan = oxirgi 30 kunda yopgan kassirlar, is_kassa=false). Jadval hisobiga TA'SIR QILMAYDI.
 🔴 `KASSA_MAP` sahifada allaqachon haqiqiy kassa qoldig'i — yangi ustun `YOP_KASSA_MAP/YOP_KASSA_DETAL`. Deploy: skript `bash -s` + Publish (Asilbek).
+- **Reja ham Aros keshidan (2026-11-03, Asilbek):** `filial_plan_half` (yarim oylik filial rejasi, kundalik bot manbasi) Aks+Zap yig'indisi —
+  shu kassa webhook javobida `reja:{"YYYY-MM":{yarim1_uzs,yarim2_uzs,filiallar}}` (`Get Reja` node, executeOnce). Sahifada `AROS_REJA`/`rejaOf(iso)`:
+  kunlik = yarim oy rejasi / yarim oy kunlari (1–15 → 15, 16–oxiri → qolgani), USD kun kursi (`kursFor`) yoki `USD_NOW` (conv_baza_kurs).
+  Bor bo'lsa `beshkunlik_reja` o'rniga ishlatiladi va Reja katagi tahrirlanmaydi (`.auto`, toast); yo'q oyda eski qo'lda reja.
