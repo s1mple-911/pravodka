@@ -1874,3 +1874,19 @@ ataylab bo'sh qoldiradi, bo'sh bo'lsa xabar faqat adminlarga ketadi.
   izohdagi belgi parityga ta'sir qilmaydi.
   Tekshiruv: har dollar-teg soni JUFT va funksiya soniga mos bo'lsin — izohlarni
   **hisobga olib** sana (to'g'ri lekser bilan sanasang muammoni ko'rmaysan).
+
+### Yuk to'lovi VALYUTADA (2026-11-03, `PROVODKA_YUK_TOLOV_VALYUTA.sql`, faqat dev, RUN kutilmoqda)
+Asilbek: «to'lov paytida to'liq to'landimi — bo'ldi, qaytib kursga cho'qmasin» (130-Do'kon #2969 441 USD 11 850 da to'liq to'langan,
+sahifa 12 000 kursida $5.51 «qisman 99%» ko'rsatardi). `entry_yuk` + `summa_fc/kurs/valyuta`; `_yuk_kurs_sanada(cur,sana)` (currency_rate);
+`yuk_tolangan_fc(p_rows [{id,valyuta}])` = yuk_tolangan_summa + `tolangan_fc` (yuk valyutasida; eski qatorlar to'lov kuni kursi bilan);
+`entry_yuk_valyuta_yoz(ext_ref, rows)` — Professional 9110 saqlashdan keyin fonda (egalik/30 daqiqa/bir marta). qarzdor-dev + professional-dev:
+`tolangan = tolangan_fc × joriy kurs`, valyutali hujjatda **1.5% gacha qoldiq = kurs farqi → yopiq**. `yuk_tolangan_summa` o'zgarmagan
+(5 kunlik/jurnal/yuklar eski formula). Qarz sahifasi manbasi — n8n `aros-provodka-yuklar` (jonli Aros, eng yangi 500 hujjat; 19.05.2026 gacha
+posted hujjat yo'q, lekin ~500 dan oshsa eskisi tushib qoladi — 2 sahifa kerak bo'ladi).
+
+### 5 kunlik — «Kassa» ustuni (2026-11-03, `N8N_5KUNLIK_KASSA.sh`, faqat dev)
+Savdo guruhida Fakt oldida **Kassa**: o'sha kuni YOPILGAN kassalar (Aros filial hujjatlari `plan_to_cachier`, kun = `stopped_at` sanasi), USD Fakt
+kursi bilan (`kursFor`: muhrlangan kurs → `KURS_DAY`), badge `yopgan/kutilgan`, hover/klik popover (yopgan: summa+vaqt, yopmagan ro'yxati).
+Manba — n8n `aros` bazasi, Aros'ga bormaydi: webhook **`aros-provodka-5kunlik-kassa`** (workflow `Prov5KunlikSavdo` ga 5 node nusxa: filial_documents
+90 kun + kassa_history_daily `documents` jsonb; kutilgan = oxirgi 30 kunda yopgan kassirlar, is_kassa=false). Jadval hisobiga TA'SIR QILMAYDI.
+🔴 `KASSA_MAP` sahifada allaqachon haqiqiy kassa qoldig'i — yangi ustun `YOP_KASSA_MAP/YOP_KASSA_DETAL`. Deploy: skript `bash -s` + Publish (Asilbek).
