@@ -115,6 +115,13 @@
   .fk-usd{white-space:nowrap}
   .fk-sub{font-size:11px;font-weight:500;color:var(--muted);margin-top:1px}
   .fk-lock{margin-left:4px;font-size:10px;cursor:help}
+  /* ---- Kassa ustuni (2026-11-03): yopilgan kassalar, badge = yopgan/kutilgan filial soni ---- */
+  .ks-cell{cursor:pointer;color:var(--ink);font-weight:600}
+  .ks-badge{display:inline-block;margin-left:5px;padding:0 5px;border-radius:9px;font-size:10px;font-weight:600;line-height:15px;background:var(--surface-2);color:var(--muted);vertical-align:1px;white-space:nowrap}
+  .ks-badge.kam{background:rgba(var(--red-rgb),.14);color:var(--red)}
+  .ks-badge.toliq{background:rgba(var(--green-rgb),.16);color:var(--green)}
+  .bkp-row.yopmagan .bkp-name{color:var(--red)}
+  .bkp-vaqt{color:var(--muted);font-size:11px;margin-left:6px}
   .uzsbtn{margin-left:4px;height:auto;text-transform:none;letter-spacing:0;font-size:9px;font-weight:600;padding:1px 5px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;font-family:inherit;vertical-align:middle}
   .uzsbtn.on{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
   /* 7-bosqich: max-height kattalashtirildi (ikki bo'lim — Aksessuar/Zapchast — endi bitta popover'da),
@@ -522,6 +529,7 @@ const GROUPS=[
   {name:'Savdo', cols:[
     {id:'sv_reja', label:'Reja', title:"Kunlik reja — oylik reja / oy kunlari (hamma kunga teng, yakshanba ham)"},
     {id:'sv_uzga', label:'Uzgaradi', title:"Prognoz: o'tgan kun — Fakt'ga teng, bugun/kelajak — so'nggi 10 kunlik savdo o'rtachasi (qo'lda ustidan yozib bo'ladi)"},
+    {id:'sv_kassa', label:'Kassa', title:"Shu kuni YOPILGAN kassalar — kassaga topshiriladigan summa (Aros filial hujjatlari, n8n keshi). Bosilsa: qaysi filial yopgan / yopmagan"},
     {id:'sv_fakt', label:'Fakt', title:"Aros'dan — kunlik haqiqiy savdo (Aksessuar+Zapchast yig'indisi)"},
   ]},
   {name:"Yig'ilma", hiddenDefault:true, cols:[
@@ -675,7 +683,7 @@ function positionPop(rect){
 }
 document.addEventListener('click',e=>{
   if(!popOpenKey) return;
-  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.qarz-cell')) return;
+  if(e.target.closest('#bkPop')||e.target.closest('.fk-cell')||e.target.closest('.ks-cell')||e.target.closest('.qarz-cell')) return;
   popHideNow();
 });
 
@@ -838,6 +846,7 @@ function buildRowCells(row, todayIso){
       else if(k===1) s+=ediTd(row.iso,row.uzgardi,'uzgardi',
         {manual:row.uzgardiKind==='manual', kind:row.uzgardiKind, count:row.uzgardiCount, raw:row.uzgardiRaw},
         todayIso);
+      else if(k===2) s+=kassaTd(row.iso,todayIso);
       else s+=faktTd(row.iso,row.reja);
     }else if(g==="Yig'ilma"){
       s+=numTd(k===0?row.yigReja:(k===1?row.yigUzga:row.yigFakt));
@@ -862,6 +871,7 @@ function colValue(row,colId){
   switch(colId){
     case 'sv_reja': return row.reja;
     case 'sv_uzga': return row.uzgardi;
+    case 'sv_kassa': return kassaUsd(row.iso);
     case 'sv_fakt': { const d=combineFakt(row.iso); return (d&&d.usd!=null)?d.usd:null; }
     case 'yg_reja': return row.yigReja;
     case 'yg_uzga': return row.yigUzga;
@@ -2244,7 +2254,7 @@ window.bk5kFilter=f=>{
 /* ---- Jami qatori (sticky bottom) — FAQAT ko'rinadigan (VISIBLE_ROWS) qatorlar bo'yicha.
    Savdo/Qarz — yig'indi; Qoldi pul/Prognoz/Yig'ilma — oxirgi ko'rinadigan (kalendar bo'yicha
    eng so'nggi) kun qiymati. Ko'rinish/jami — hisob mantiqiga TEGMAYDI. */
-const TOTAL_SUM_COLS=new Set(['sv_reja','sv_uzga','sv_fakt','qz_qarzmiz','qz_berdik','qz_raz']);
+const TOTAL_SUM_COLS=new Set(['sv_reja','sv_uzga','sv_kassa','sv_fakt','qz_qarzmiz','qz_berdik','qz_raz']);
 function renderTotals(){
   const tf=$('tfoot5k'); if(!tf) return;
   if(!VISIBLE_ROWS.length){ tf.innerHTML=''; return; }
@@ -2317,6 +2327,89 @@ let FAKT_TOKEN=0;                         // oy/oyna tez almashtirilganda eski j
 window.bkToggleUzs=()=>{ SHOW_UZS=!SHOW_UZS; try{ localStorage.setItem('prov-5k-uzs',SHOW_UZS?'1':'0'); }catch(e){} buildHeader(); renderTable(); };
 window.bk5kRetry=()=>{ loadFakt(); };
 
+/* =====================================================================
+   KASSA ustuni (2026-11-03, Asilbek): o'sha kuni YOPILGAN kassalar — n8n keshi
+   (aros bazasi: filial_documents 90 kun + kassa_history_daily), Aros'ga bormaydi.
+   Summa = plan_to_cachier (kassaga topshiriladigan), kun = kassa yopilgan sana.
+   USD — Fakt bilan BIR XIL kurs (muhrlangan kurs, bo'lmasa beshkunlik_kurslar).
+   Jadval hisobiga (rekursiya, qoldi, prognoz) TA'SIR QILMAYDI — faqat ko'rsatish.
+   ===================================================================== */
+const WEBHOOK_5K_KASSA='https://n8n.arosmarket.com/webhook/aros-provodka-5kunlik-kassa';
+let YOP_KASSA_MAP={}, YOP_KASSA_DETAL={};   // sana -> {kassa_uzs,sotuvchi_uzs,yopgan,kutilgan,bugun} / sana -> {yopgan:[...],yopmagan:[...]}
+let YOP_KASSA_ERR='';
+let KURS_DAY={};                    // sana -> kurs (beshkunlik_kurslar) — Fakt muhrlanmagan kunlar uchun
+function kursFor(iso){ const d=combineFakt(iso); if(d&&d.kurs!=null) return d.kurs; const k=KURS_DAY[iso]; return (k!=null&&k>0)?Number(k):null; }
+function kassaUsd(iso){ const k=YOP_KASSA_MAP[iso]; if(!k) return null; const kurs=kursFor(iso); return kurs?Math.round(k.kassa_uzs/kurs):null; }
+function applyKassaJson(j){
+  YOP_KASSA_MAP={}; YOP_KASSA_DETAL={};
+  (j.kunlar||[]).forEach(k=>{ if(!k||!k.sana) return;
+    YOP_KASSA_MAP[k.sana]={kassa_uzs:Number(k.kassa_uzs)||0, sotuvchi_uzs:Number(k.sotuvchi_uzs)||0,
+      yopgan:Number(k.yopgan)||0, kutilgan:Number(k.kutilgan)||0, bugun:!!k.bugun}; });
+  const d=j.detal||{};
+  Object.keys(d).forEach(s=>{ YOP_KASSA_DETAL[s]={yopgan:(d[s]&&d[s].yopgan)||[], yopmagan:(d[s]&&d[s].yopmagan)||[]}; });
+}
+/* Kesh (5kunlik-kassa:<yyyy-mm>) darrov, fonda webhook; xato bo'lsa ustun «—» (jadval buzilmaydi). */
+async function loadKassa(dispFirst,dispLast,token){
+  const key='5kunlik-kassa:'+dispFirst.slice(0,7);
+  const cached=swrGet(key);
+  if(cached){ applyKassaJson(cached); if(token===FAKT_TOKEN) renderTable(); }
+  try{
+    const res=await fetch(WEBHOOK_5K_KASSA+'?date_from='+encodeURIComponent(dispFirst)+'&date_to='+encodeURIComponent(dispLast),{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    if(!j || j.ok===false || !Array.isArray(j.kunlar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
+    if(token!==FAKT_TOKEN) return;
+    swrSet(key,j); applyKassaJson(j); YOP_KASSA_ERR='';
+  }catch(e){
+    if(token!==FAKT_TOKEN) return;
+    YOP_KASSA_ERR=e.message||String(e);
+    console.warn('5kunlik kassa webhook:',YOP_KASSA_ERR);
+  }
+  renderTable();
+}
+function kassaTd(iso,todayIso){
+  const k=YOP_KASSA_MAP[iso];
+  if(!k){ const t=YOP_KASSA_ERR?` title="Kassa ma'lumoti ulanmadi: ${esc(YOP_KASSA_ERR)}"`:(iso<=todayIso?' title="Bu kun uchun yopilgan kassa yo\'q"':''); return `<td class="num muted"${t}>—</td>`; }
+  const usd=kassaUsd(iso), kurs=kursFor(iso);
+  const usdTxt=usd==null?'—':money(usd);
+  const kam=k.kutilgan>0 && k.yopgan<k.kutilgan;
+  const badgeCls=k.bugun?'':(kam?' kam':' toliq');
+  const badge=`<span class="ks-badge${badgeCls}" title="${k.yopgan} ta filial yopgan, ${k.kutilgan} ta kutilgan${k.bugun?' (bugun — hali davom etmoqda)':''}">${k.yopgan}/${k.kutilgan}</span>`;
+  const inner=SHOW_UZS
+    ? `<div class="fk-usd">${usdTxt}${badge}</div><div class="fk-sub">${money(k.kassa_uzs)}</div><div class="fk-sub">${kurs!=null?('× '+rate2(kurs)):'—'}</div>`
+    : `<span class="fk-usd">${usdTxt}</span>${badge}`;
+  const handlers=HOVER_OK
+    ? `onmouseenter="window.bkKassaPopShow(event,'${iso}')" onmouseleave="window.bkPopHide()"`
+    : `onclick="window.bkKassaPopToggle(event,'${iso}')"`;
+  return `<td class="num ks-cell" ${handlers}>${inner}</td>`;
+}
+function fmtVaqt(v){ if(!v) return ''; const m=String(v).match(/T(\d{2}:\d{2})/); return m?m[1]:''; }
+function renderKassaPop(iso,rect){
+  const k=YOP_KASSA_MAP[iso], d=YOP_KASSA_DETAL[iso]||{yopgan:[],yopmagan:[]};
+  if(!k) return;
+  const usd=kassaUsd(iso);
+  const yop=d.yopgan.map(r=>`<div class="bkp-row"><span class="bkp-name">${esc(r.title||'—')}<span class="bkp-vaqt">${esc(fmtVaqt(r.vaqt))}${(Number(r.doc_count)||0)>1?' · '+r.doc_count+' hujjat':''}</span></span><span>${money(Number(r.kassa_uzs)||0)}</span></div>`).join('')
+    || `<div class="bkp-row"><span class="bkp-name" style="color:var(--muted)">Yopilgan kassa yo'q</span></div>`;
+  const yopmagan=d.yopmagan.length
+    ? `<h4 style="margin-top:8px">${k.bugun?'Hali yopmagan':'Yopmagan'} — ${d.yopmagan.length} ta</h4>`+d.yopmagan.map(r=>`<div class="bkp-row yopmagan"><span class="bkp-name">${esc(r.title||'—')}</span><span>—</span></div>`).join('')
+    : (k.kutilgan?`<h4 style="margin-top:8px;color:var(--green)">Hamma filial yopgan ✓</h4>`:'');
+  const total=`<div class="bkp-total"><span>Jami kassa</span><span>${money(k.kassa_uzs)} so'm<span class="bkp-usd">≈ $${usd==null?'—':money(usd)}</span></span></div>`;
+  const sot=k.sotuvchi_uzs?`<div class="bkp-summary">Sotuvchi jami ${money(k.sotuvchi_uzs)} so'm · yopgan ${k.yopgan}/${k.kutilgan}${k.bugun?' · bugun, davom etmoqda':''}</div>`:'';
+  const pop=$('bkPop');
+  pop.dataset.popKey='ks|'+iso;
+  pop.innerHTML=`<div style="font-weight:700;margin-bottom:6px">${fmtDayShort(iso)} — yopilgan kassalar</div>${sot}<h4>Yopgan — ${d.yopgan.length} ta</h4>${yop}${yopmagan}${total}`;
+  pop.classList.add('open');
+  positionPop(rect);
+}
+window.bkKassaPopShow=(ev,iso)=>{ popCancelHide(); renderKassaPop(iso,ev.currentTarget.getBoundingClientRect()); };
+window.bkKassaPopToggle=(ev,iso)=>{
+  ev.stopPropagation();
+  const key='ks|'+iso;
+  if(popOpenKey===key){ popHideNow(); return; }
+  renderKassaPop(iso,ev.currentTarget.getBoundingClientRect());
+  popOpenKey=key;
+};
+
 function applyWebJson(j){
   WEB_MAP={}; WEB_DETAL={};
   (j.kunlar||[]).forEach(k=>{ if(!k||!k.sana) return;
@@ -2361,6 +2454,7 @@ async function computeAndFreeze(dispFirst,dispLast,todayIso,token){
       const {data,error}=await sb.rpc('beshkunlik_kurslar',{p_sanalar:[...neededDates]});
       if(error) throw error;
       kursMap=data||{};
+      Object.assign(KURS_DAY,kursMap);   // Kassa ustuni ham shu kurs bilan (Fakt bilan bir xil)
     }catch(e){ console.warn('beshkunlik_kurslar xato:',e.message); }
   }
   if(token!==FAKT_TOKEN) return;
@@ -2404,6 +2498,8 @@ async function loadFakt(){
   await loadFrozenWindow();
   if(token!==FAKT_TOKEN) return;
   buildRun(RUN_START,RUN_H); renderTable();
+
+  loadKassa(dispFirst,dispLast,token);   // Kassa ustuni — parallel, o'zi renderTable() qiladi (jadval hisobiga ta'sir qilmaydi)
 
   let webJson=swrGet(key);
   if(webJson){ applyWebJson(webJson); buildRun(RUN_START,RUN_H); renderTable(); }
