@@ -2754,8 +2754,12 @@ function yukTanSabab(id,lim=2){ const q=yukTanQatorlar(id); if(!q.length) return
 function yukJami(y){ const n=yukNarxUzs(y); if(n==null) return null; return n + yukTannarx(y.id); }   // JAMI TANNARX
 function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; const q=n - yukTolangan(y.id); return q<yukKursFarqiLim(y,n)?0:q; }  // qolgan qarz (UZS)
 function yukPct(y){ const n=yukJami(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
-// Yuk qiymati to'lov birligida (UZS rejimi: eski jami/qoldiq; valyuta rejimi: Aros narxi YAXLIT, tannarx qo'shilmaydi).
+// Yuk qiymati to'lov birligida (UZS rejimi: eski jami/qoldiq; valyuta rejimi: Aros narxi YAXLIT + tannarx joriy kursda).
 // tolangan_uzs serverda so'mda — qaytarib JORIY kurs bilan bo'linadi (taxminiy, kurs o'zgargan bo'lsa ozgina farq bo'lishi mumkin).
+// 🔴 2026-11-05 (Asilbek, #2886/#2769 AED, G'iyos·USD kassadan): valyuta rejimida tannarx (bojxona/yo'l puli) JAMIga
+// qo'shilmasdi, lekin yukTolangan() ga o'sha tannarx uchun qilingan to'lovlar kirardi → qoldiq Aros narxidan kam hisoblanib
+// (2769: 59 971 $ o'rniga 65 815 $), keyin qoldiq 0 bo'lib hujjat tanlanmay qolardi (UZS rejimida esa 70 mln qarz ko'rinardi).
+// Endi ikkala rejim bir xil: jami = Aros narxi + tannarx/kurs, qoldiq = jami − to'langan/kurs.
 function yukRow(y){
   const u=yukUnit();
   if(!u.cc){ const j=yukJami(y); return {err:j==null, jami:j, qoldi:yukQoldiq(y), approx:false}; }
@@ -2764,8 +2768,10 @@ function yukRow(y){
   // Aros yuk valyutasi 'CHY' (Aros kodi), kassa bolasi 'CNY' yoki 'CHY' bo'lishi mumkin — ikkisi bitta yuan (yuk_kurslar ham shunday).
   const normC=c=>{ const v=String(c||'UZS').toUpperCase(); return v==='CHY'?'CNY':v; };
   const same=normC(y.valyuta)===normC(u.cur), narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
-  let qoldi=u.rnd(narx-yukTolangan(y.id)/u.rate); if(qoldi<narx*0.015) qoldi=0;   // kurs/yaxlitlash farqi → yopiq
-  return {err:false, jami:narx, qoldi:Math.max(0,qoldi), approx:!same};
+  const tanC=yukTannarx(y.id)/u.rate;                       // tannarx so'mda saqlanadi → to'lov valyutasiga joriy kursda
+  const jami=u.rnd(narx+tanC);
+  let qoldi=u.rnd(jami-yukTolangan(y.id)/u.rate); if(qoldi<jami*0.015) qoldi=0;   // kurs/yaxlitlash farqi → yopiq
+  return {err:false, jami:jami, qoldi:Math.max(0,qoldi), approx:!same||tanC>0};
 }
 /* 2026-10-28 (Asilbek): FAQAT nashr qilingan (`status==='posted'`) yukka pul to'lash mumkin. Aros statuslari:
    created (hali nashr qilinmagan, ko'pi) | posted | canceled. `status` maydoni yo'q/bo'sh (eski webhook javobi) → bloklanmaydi
@@ -3171,7 +3177,7 @@ window.renderYukList=()=>{
   renderYukSum(); updateYukSaveBtn();
   $('yukList').innerHTML= rows.length ? rows.map(y=>{
     const id=Number(y.id), on=selYuk.has(id), nUzs=yukNarxUzs(y), pct=yukPct(y), U=yukUnit(), R=yukRow(y), jami=R.jami, q2=R.qoldi, rateErr=R.err;
-    const tn=U.cc?0:yukTannarx(id), sabab=tn>0?yukTanSabab(id):'';   // valyuta rejimida tannarx qo'shilmaydi (yaxlit Aros narxi)
+    const tn=yukTannarx(id), sabab=tn>0?yukTanSabab(id):'';   // 2026-11-05: valyuta rejimida ham tannarx JAMIda (yukRow) va satrda ko'rinadi
     // O'ngdagi katta son — JAMI TANNARX (Aros narxi + qo'shimcha xarajatlar), Aros narxi emas.
     const jamiTxt=rateErr?'<span class="yerr">kurs yo\'q</span>':(U.cc?(R.approx?'≈ ':'')+U.f(jami):money(jami)+' so\'m');
     // Chap ustun: Aros narxi qanday jami bo'lganini ochib beradi.
