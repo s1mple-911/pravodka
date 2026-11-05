@@ -2715,7 +2715,9 @@ function yukTolangan(id){ const s=yukPaidMap[id]; if(!s) return 0;
     if(r!=null&&r!==1) return Number(s.tolangan_fc)*r; }
   return Number(s.tolangan_uzs)||0; }
 // Valyutali hujjatda narxning 1.5% gacha qoldiq = kurs/yaxlitlash farqi → yopiq (qarzdor-dev bilan bir xil qoida).
-function yukKursFarqiLim(y,jami){ return (curRate(y.valyuta)===1)?1:Math.max(1,(Number(jami)||0)*0.015); }
+// 2026-11-05 (Asilbek): chegara eng ko'pi 10 $ (joriy USD kursida) — ataylab qoldirilgan 205 AED yashirinmasin.
+function yukKursFarqiCapUzs(){ const r=curRate('USD'); return (r&&r>0)?r*10:120000; }
+function yukKursFarqiLim(y,jami){ return (curRate(y.valyuta)===1)?1:Math.min(Math.max(1,(Number(jami)||0)*0.015),yukKursFarqiCapUzs()); }
 async function yukTolanganSorov(ids){
   const rows=yukList.filter(y=>ids.includes(Number(y.id))).map(y=>({id:Number(y.id),valyuta:y.valyuta||'UZS'}));
   const r=await sb.rpc('yuk_tolangan_fc',{p_rows:rows});
@@ -2770,7 +2772,8 @@ function yukRow(y){
   const same=normC(y.valyuta)===normC(u.cur), narx=same?Number(y.narx||0):Number(y.narx||0)*ry/u.rate;
   const tanC=yukTannarx(y.id)/u.rate;                       // tannarx so'mda saqlanadi → to'lov valyutasiga joriy kursda
   const jami=u.rnd(narx+tanC);
-  let qoldi=u.rnd(jami-yukTolangan(y.id)/u.rate); if(qoldi<jami*0.015) qoldi=0;   // kurs/yaxlitlash farqi → yopiq
+  let qoldi=u.rnd(jami-yukTolangan(y.id)/u.rate);
+  if(qoldi<Math.min(jami*0.015, yukKursFarqiCapUzs()/u.rate)) qoldi=0;   // kurs/yaxlitlash farqi → yopiq (1.5% VA ≤10 $, 2026-11-05)
   return {err:false, jami:jami, qoldi:Math.max(0,qoldi), approx:!same||tanC>0};
 }
 /* 2026-10-28 (Asilbek): FAQAT nashr qilingan (`status==='posted'`) yukka pul to'lash mumkin. Aros statuslari:

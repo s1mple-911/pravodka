@@ -1074,8 +1074,11 @@ function jamiUzs(y){ const n=narxUzs(y); return (n==null)?null:n+qoshilgan(y); }
 // Qoldiq 1 so'mdan kam bo'lsa 0 — yopiq/kurs yaxlitlash qoldig'i "to'lanmagan hujjat" bo'lib sanalmasin.
 // Valyutali hujjatda 1.5% gacha qoldiq = kurs/yaxlitlash farqi (eski to'lovlarda kurs currency_rate dan
 // taxminiy) → yopiq deb sanaladi; UZS hujjatda avvalgidek 1 so'm.
+// 2026-11-05 (Asilbek): 1.5% qoidasi ATAYLAB qoldirilgan qarzni ham yashirardi (332 505 AED hujjatda 205 AED
+// ko'rinmadi) — endi chegara eng ko'pi 10 $ (joriy USD kursida): 1.5% VA ≤10 $ bo'lsagina 0 deb sanaladi.
+function kursFarqiCapUzs(){ const r=curRate('USD'); return (r&&r>0)?r*10:120000; }
 function qoldiqUzs(y){ const n=jamiUzs(y); if(n==null) return null; const q=n-tolangan(y);
-  const lim=(rateOfYuk(y)===1)?1:Math.max(1,n*0.015); return q<lim?0:q; }
+  const lim=(rateOfYuk(y)===1)?1:Math.min(Math.max(1,n*0.015),kursFarqiCapUzs()); return q<lim?0:q; }
 function qoldiqFc(y){ const q=qoldiqUzs(y), r=rateOfYuk(y); if(q==null||!r) return null; return q/r; }
 function pct(y){ const n=jamiUzs(y); if(!n) return 0; return Math.min(100,Math.round(tolangan(y)/n*100)); }
 
