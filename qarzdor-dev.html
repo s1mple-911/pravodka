@@ -1211,6 +1211,10 @@ function supRowHtml(g,i){
   let bigTxt=usdEq!=null ? `$ ${money2(usdEq)}` : (net>0?`${money(net)} so'm`:'—');
   // avans qarzdan oshsa — yetkazuvchi BIZGA qarzdor (manfiy qoldiq)
   if(net<0) bigTxt='− '+usdTxt(-net);
+  // Asilbek 06.11.2026: yuk qarzi = avans (sof 0) bo'lsa ham yetkazuvchi RO'YXATDAN CHIQMAYDI — bog'lanmagan
+  // to'lov yukka biriktirilmaguncha turadi; «0» va sariq pill bilan ko'rsatiladi (tirkash kerakligi ko'rinsin).
+  if(net===0 && avans>0) bigTxt='$ 0.00';
+  const avPill=g.avansSoni?`<span class="pill y" title="Yukka bog'lanmagan to'lov bor — Yuklar → Bog'lanmagan">bog'lanmagan: ${g.avansSoni}</span>`:'';
   // butun qarzi kurs yo'q valyutada bo'lsa (uzsTotal=0) — pastga tushadi, alohida pill bilan
   const noRatePill=(g.docCount>0&&g.uzsTotal<=0)?'<span class="pill y">kurs yo\'q</span>':'';
   const boshqaPill=g.boshqa?'<span class="pill y">boshqa nom</span>':'';
@@ -1219,7 +1223,7 @@ function supRowHtml(g,i){
   const metaTxt=`${g.docCount} hujjat`+(g.qismanCount?` · qisman: ${g.qismanCount}`:'')+(g.avansSoni?` · avans: ${g.avansSoni} ta to'lov`:'');
   const qoldaPill=g.allQolda?'<span class="pill" style="background:var(--surface-2);color:var(--muted)">boshlang\'ich</span>':'';
   return `<button type="button" class="suprow" onclick="openSupIdx(${i})">`
-    +`<div class="supmain"><div class="supname">${esc(g.sup)}${qoldaPill}${noRatePill}${boshqaPill}${bizgaPill}</div>`
+    +`<div class="supmain"><div class="supname">${esc(g.sup)}${qoldaPill}${noRatePill}${boshqaPill}${bizgaPill}${avPill}</div>`
     +`<div class="supnat">${nativeTxt}</div>`
     +`<div class="supmeta">${metaTxt}</div></div>`
     +`<div class="supusd">${bigTxt}</div>`
