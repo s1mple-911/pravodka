@@ -1277,6 +1277,25 @@ RUN tartibi: EHSON → ZAKOT → QARZ → KIRIM → TRANSFER → KONVERT_QARZ_GU
 - Tekshirish: lokal PG 17 minimal fixture bilan (SQL ikki marta RUN, olish/qaytarish/bekor/takror/valyuta/kimdan-izoh/manfiy qoldiq view) — o'tdi. Patchlangan 5 funksiya va brauzer UI to'liq
   ehson sxemasida/brauzerda TEKSHIRILMAGAN (faqat `node --check` va compile).
 
+### Yetkazuvchi AVANSI — bog'lanmagan tovar to'lovi kimga berilgani (2026-11-06, `PROVODKA_YUK_AVANS_YETKAZUVCHI.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «9110 Tovar tannarxi'ni yuksiz to'laganda yetkazuvchi so'ralsin — yuk kelguncha pul shu yetkazuvchi ustida avans bo'lib tursin, qarzdor sahifasida qarzidan ayirilsin».
+- **SQL (additive)**: `entry.yetkazuvchi text` (+ qisman indeks); **`entry_yetkazuvchi_yoz(p_ext_ref, p_yetkazuvchi)`** (`entry_yuk_sabab_yoz` naqshi: egalik, 30 daqiqa,
+  bir marta, `yuk_kutilmoqda=true`; `provodka_yoz` TEGILMAGAN); `yuk_kutayotgan_v2()` QAYTA (QISMAN.sql nusxasi AYNAN + `yetkazuvchi`; eski `yuk_kutayotgan()` tegilmagan);
+  **`yetkazuvchi_avans_royxat()`** → `{ok, soni, jami_uzs, rows[entry_id, ext_ref, entry_date, yetkazuvchi, summa_uzs, fc_summa, valyuta, kurs, izoh, sabab_*, boglangan_uzs, kassa_name, kim]}`.
+  Faqat `yuk_kutilmoqda=true`, sababsiz (tovar), nomi bor, o'chirilmagan yozuvlar; `summa_uzs` = 9110-1 QOLDIG'I (qisman bog'langan bo'lsa faqat bog'lanmagan qism),
+  `fc_summa` qoldiqqa mutanosib. Ruxsat: `is_admin()` yoki `perm_has_page('qarzdor'|'yuklar')`, security definer. Bog'lash mantig'i o'zgarmadi:
+  `yuk_boglash`/`_koplik`/`_taqsim` to'liq bog'langanda `yuk_kutilmoqda=false` (avansdan chiqadi), `yuk_boglash_bekor` true qiladi (avans qaytadi).
+- **`professional-dev.html`**: Ekran 2 («Hujjat hali yo'q», `doSavePending`) da **«Yetkazuvchi — kimga berildi (majburiy)»**: qidiruv + chiplar (Aros keshi:
+  `yuk_kesh_royxat.yetkazuvchilar[]` + `yukList` nomlari, `yukYetkKesh`) + «➕ Boshqa…» (erkin nom, bo'shliqlar siqiladi). Tanlamasdan Saqlash bloklangan.
+  Faqat TOVAR to'lovida (`sababId===null`); xizmat (yo'l puli/bojxona) yetkazuvchi avansi emas. Saqlashdan keyin fonda `yukYetkYoz` → `entry_yetkazuvchi_yoz`;
+  RPC yo'q (PGRST202) → to'lov saqlanadi, nom jim; boshqa xatoda alert. Nom Aros matni AYNAN saqlanadi (qarzdor sahifasi shu bo'yicha moslaydi).
+- **`qarzdor-dev.html`** («Biz qarzdor»): `loadAvans()` (RPC yo'q/ruxsatsiz → bo'sh, jim). Yetkazuvchi ichida TEPADA ikki blok: «Yuklar (qarz)» va «Berilgan pullar (avans)»,
+  ostida avans ro'yxati. Qoldiq = yuklar qarzi − avans; manfiy → «bizga qarzdor» (yashil pill, `− $X`). Ro'yxat qatori va «Jami qarz» kartasi ham avansni hisobga oladi.
+  Aros yuklarida uchramaydigan nom («Boshqa») — alohida karta, «boshqa nom» pill. Valyuta chipi tanlansa avans qoldiqqa KIRMAYDI (faqat ko'rsatiladi).
+- **`yuklar-dev.html`** Bog'lanmagan tab: har to'lovda yetkazuvchi nomi chip (`r.yetkazuvchi`, v2 bo'lsa).
+- ⚠️ Eski (nomsiz) bog'lanmagan to'lovlar avansga tushmaydi — nom faqat yangi to'lovda yoziladi (orqaga qarab to'ldirish yo'q).
+
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson

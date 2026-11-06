@@ -150,6 +150,16 @@
   .supdetname{font-size:17px;font-weight:800}
   .supdetusd{font-size:26px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
   .supdetnat{font-size:13px;color:var(--muted);margin-top:4px}
+  .pill.g{background:var(--green-soft);color:var(--green)}
+  .supdetblocks{margin-bottom:14px}
+  .supdetblocks .bcard .sub2{margin-top:4px}
+  .avtitle{font-size:13px;font-weight:700;color:var(--muted);margin:4px 2px 8px}
+  .avlist{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .avrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 14px;box-shadow:var(--shadow)}
+  .avrow .avl{min-width:0;font-size:13px}
+  .avrow .avl .avs{font-size:12px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+  .avrow .avr{flex:none;text-align:right;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .avrow .avr small{display:block;font-size:11.5px;font-weight:500;color:var(--muted)}
 
   .empty{color:var(--muted);text-align:center;padding:26px;font-size:14px}
   .okempty{background:var(--green-soft);color:var(--green);border-radius:16px;padding:26px;text-align:center;font-size:15px;font-weight:700}
@@ -1033,6 +1043,25 @@ async function loadQolda(){
        return Array.isArray(data)?data:[]; }catch(e){ console.warn('yuk_qolda_royxat:',e); return []; }
 }
 let yuklar=[], paidMap={}, rateMap={}, tanMap={}, usdRate=null;
+// Yetkazuvchiga berilgan, hali yukka bog'lanmagan pullar (avans) — yetkazuvchi_avans_royxat (PROVODKA_YUK_AVANS_YETKAZUVCHI.sql).
+// Nom Aros keshidagi `yetkazuvchi` matni bilan AYNAN mos (Professional shu nomni saqlaydi). RPC yo'q / ruxsat yo'q → bo'sh.
+let avansRows=[];
+async function loadAvans(){
+  try{
+    const {data,error}=await sb.rpc('yetkazuvchi_avans_royxat');
+    if(error){ console.warn('yetkazuvchi_avans_royxat:',error.message); return []; }
+    if(!data||data.ok===false||!Array.isArray(data.rows)) return [];
+    return data.rows;
+  }catch(e){ console.warn('yetkazuvchi_avans_royxat:',e); return []; }
+}
+const avUzs=a=>Number(a.summa_uzs)||0;
+function avansBySup(){
+  const m={};
+  avansRows.forEach(a=>{ const nom=String(a.yetkazuvchi||'').trim(); if(!nom) return;
+    const g=m[nom]||(m[nom]={rows:[],uzs:0}); g.rows.push(a); g.uzs+=avUzs(a); });
+  return m;
+}
+const usdTxt=uzs=>(usdRate&&usdRate>0)?`$ ${money2(uzs/usdRate)}`:`${money(uzs)} so'm`;
 // selSup — tanlangan yetkazuvchi (detal ko'rinishi), selCurChip — valyuta chipi ('' = hammasi), q — qidiruv matni.
 let selSup=null, selCurChip='', q='';
 let curSupRows=[]; // renderSupplierList() to'ldiradi, suprow onclick shu bo'yicha ishlaydi (ism apostrofsiz xavfsiz bo'lsin)
@@ -1117,6 +1146,15 @@ function bySupplier(list){
     if(qv===null){ cg.kursYoq=true; return; }
     cg.uzs+=qv; cg.fc+=(qoldiqFc(y)||0); g.uzsTotal+=qv;
   });
+  // Avans (yukka bog'lanmagan pul) — yetkazuvchi qarzidan ayriladi. Valyuta chipi tanlansa avans hisobga olinmaydi
+  // (avans yuk valyutasiga bog'lanmagan). Nomi Aros yuklarida uchramasa — «boshqa» (erkin kiritilgan) alohida karta.
+  const bor=new Set(yuklar.map(y=>y.yetkazuvchi||'—'));
+  const av=selCurChip?{}:avansBySup();
+  Object.keys(av).forEach(nom=>{
+    const g=m[nom]||(m[nom]={sup:nom,byCur:{},uzsTotal:0,docCount:0,qismanCount:0,allQolda:false});
+    g.avansUzs=av[nom].uzs; g.avansSoni=av[nom].rows.length;
+    if(g.docCount===0 && !bor.has(nom)) g.boshqa=true;
+  });
   return Object.values(m);
 }
 // Valyutaning bitta yozuvi so'zga aylanadi: "¥5 673 333 CNY" / "$663 USD" / "106 392 500 so'm"
@@ -1153,7 +1191,9 @@ function renderTotCard(list){
   const totUzs=list.reduce((a,y)=>{ const qv=qoldiqUzs(y); return qv==null?a:a+qv; },0);
   const usdTot=(usdRate&&usdRate>0)?(totUzs/usdRate):null;
   const v=usdTot!=null ? `$ ${money2(usdTot)}` : `${money(totUzs)}<span class="cur">so'm</span>`;
-  const s=usdTot!=null ? `≈ ${money(totUzs)} so'm (1 USD = ${money(usdRate)} so'm)` : '';
+  let s=usdTot!=null ? `≈ ${money(totUzs)} so'm (1 USD = ${money(usdRate)} so'm)` : '';
+  const avTot=avansRows.reduce((a,x)=>a+avUzs(x),0);
+  if(avTot>0) s+=(s?'<br>':'')+`Yetkazuvchilarga berilgan avans: − ${usdTxt(avTot)} · sof: ${usdTxt(totUzs-avTot)}`;
   $('totCard').innerHTML=`<div class="cap">Jami qarz</div><div class="v">${v}</div>`+(s?`<div class="s">${s}</div>`:'');
 }
 // Valyuta chiplari — "Hammasi" + har valyuta (CNY/CHY bitta chip sifatida ko'rinadi, filtr xom kod bo'yicha)
@@ -1166,15 +1206,20 @@ function renderChips(list){
 // Yetkazuvchi qatori — kurs yo'q bo'lgan (uzsTotal=0) supplierlar pastga tushadi
 function supRowHtml(g,i){
   const cats=Object.values(g.byCur).sort((a,b)=>b.uzs-a.uzs);
-  const usdEq=(usdRate&&g.uzsTotal>0)?g.uzsTotal/usdRate:null;
-  const bigTxt=usdEq!=null ? `$ ${money2(usdEq)}` : (g.uzsTotal>0?`${money(g.uzsTotal)} so'm`:'—');
+  const avans=g.avansUzs||0, net=g.uzsTotal-avans;
+  const usdEq=(usdRate&&net>0)?net/usdRate:null;
+  let bigTxt=usdEq!=null ? `$ ${money2(usdEq)}` : (net>0?`${money(net)} so'm`:'—');
+  // avans qarzdan oshsa — yetkazuvchi BIZGA qarzdor (manfiy qoldiq)
+  if(net<0) bigTxt='− '+usdTxt(-net);
   // butun qarzi kurs yo'q valyutada bo'lsa (uzsTotal=0) — pastga tushadi, alohida pill bilan
-  const noRatePill=(g.uzsTotal<=0)?'<span class="pill y">kurs yo\'q</span>':'';
-  const nativeTxt=cats.map(nativeStr).join(' + ');
-  const metaTxt=`${g.docCount} hujjat`+(g.qismanCount?` · qisman: ${g.qismanCount}`:'');
+  const noRatePill=(g.docCount>0&&g.uzsTotal<=0)?'<span class="pill y">kurs yo\'q</span>':'';
+  const boshqaPill=g.boshqa?'<span class="pill y">boshqa nom</span>':'';
+  const bizgaPill=net<0?'<span class="pill g">bizga qarzdor</span>':'';
+  const nativeTxt=cats.map(nativeStr).join(' + ')+(avans>0?((cats.length?' · ':'')+`avans −${usdTxt(avans)}`):'');
+  const metaTxt=`${g.docCount} hujjat`+(g.qismanCount?` · qisman: ${g.qismanCount}`:'')+(g.avansSoni?` · avans: ${g.avansSoni} ta to'lov`:'');
   const qoldaPill=g.allQolda?'<span class="pill" style="background:var(--surface-2);color:var(--muted)">boshlang\'ich</span>':'';
   return `<button type="button" class="suprow" onclick="openSupIdx(${i})">`
-    +`<div class="supmain"><div class="supname">${esc(g.sup)}${qoldaPill}${noRatePill}</div>`
+    +`<div class="supmain"><div class="supname">${esc(g.sup)}${qoldaPill}${noRatePill}${boshqaPill}${bizgaPill}</div>`
     +`<div class="supnat">${nativeTxt}</div>`
     +`<div class="supmeta">${metaTxt}</div></div>`
     +`<div class="supusd">${bigTxt}</div>`
@@ -1186,8 +1231,10 @@ function renderSupplierList(box,list){
   const qn=normSup(q);
   if(qn) sups=sups.filter(g=>normSup(g.sup).includes(qn));
   if(!sups.length){ box.innerHTML='<div class="empty">Yetkazuvchi topilmadi.</div>'; return; }
-  const priced=sups.filter(g=>g.uzsTotal>0).sort((a,b)=>b.uzsTotal-a.uzsTotal);
-  const noRate=sups.filter(g=>g.uzsTotal<=0).sort((a,b)=>a.sup.localeCompare(b.sup));
+  const netOf=g=>g.uzsTotal-(g.avansUzs||0);
+  const isNoRate=g=>g.docCount>0&&g.uzsTotal<=0;
+  const priced=sups.filter(g=>!isNoRate(g)).sort((a,b)=>netOf(b)-netOf(a));
+  const noRate=sups.filter(isNoRate).sort((a,b)=>a.sup.localeCompare(b.sup));
   curSupRows=priced.concat(noRate);
   const docTotal=curSupRows.reduce((a,g)=>a+g.docCount,0);
   box.innerHTML=`<div class="suplist">${curSupRows.map(supRowHtml).join('')}</div>`
@@ -1201,16 +1248,38 @@ function renderSupplierDetail(box,list,sup){
   docs.forEach(y=>{ const c=curOf(y), cg=cats[c]||(cats[c]={cur:c,fc:0,uzs:0,kursYoq:false});
     const qv=qoldiqUzs(y); if(qv===null){ cg.kursYoq=true; return; } cg.uzs+=qv; cg.fc+=(qoldiqFc(y)||0); uzsTotal+=qv; });
   const catList=Object.values(cats).sort((a,b)=>b.uzs-a.uzs);
-  const usdEq=(usdRate&&uzsTotal>0)?uzsTotal/usdRate:null;
-  const bigTxt=usdEq!=null ? `$ ${money2(usdEq)}` : (uzsTotal>0?`${money(uzsTotal)} so'm`:'—');
+  // Avans: yukka bog'lanmagan berilgan pullar (nom AYNAN mos). Chip tanlansa qoldiqqa kirmaydi, faqat ko'rsatiladi.
+  const avG=avansBySup()[sup]||{rows:[],uzs:0};
+  const avUsed=selCurChip?0:avG.uzs;
+  const net=uzsTotal-avUsed;
+  const usdEq=(usdRate&&net>0)?net/usdRate:null;
+  let bigTxt=usdEq!=null ? `$ ${money2(usdEq)}` : (net>0?`${money(net)} so'm`:'—');
+  if(net<0) bigTxt='− '+usdTxt(-net);
   const nativeTxt=catList.length?catList.map(nativeStr).join(' + '):'';
   const head=`<div class="crumb"><button type="button" onclick="backToSup()"><i data-lucide="arrow-left"></i>Barcha yetkazuvchilar</button></div>`
-    +`<div class="supdethead"><div class="supdetname">${esc(sup)}</div>`
+    +`<div class="supdethead"><div class="supdetname">${esc(sup)}${net<0?' <span class="pill g">bizga qarzdor</span>':''}</div>`
     +`<div class="supdetusd">${bigTxt}</div>`
-    +(nativeTxt?`<div class="supdetnat">${nativeTxt}</div>`:'')+`</div>`;
-  if(!docs.length){ box.innerHTML=head+'<div class="empty">Bu valyuta bo\'yicha hujjat yo\'q.</div>'; return; }
+    +(nativeTxt?`<div class="supdetnat">${nativeTxt}</div>`:'')
+    +(net<0?`<div class="supdetnat">Avans yuk qarzidan katta — yetkazuvchi bizga qarzdor.</div>`:'')+`</div>`;
+  const yukUsd=uzsTotal>0?usdTxt(uzsTotal):'—';
+  const blocks=`<div class="two supdetblocks">`
+    +`<div class="bcard neg"><div class="n">Yuklar (qarz)</div><div class="v">${yukUsd}</div><div class="sub2">${docs.length} hujjat · to'lanmagan qoldiq</div></div>`
+    +`<div class="bcard pos"><div class="n">Berilgan pullar (avans)</div><div class="v">${avG.uzs>0?'− '+usdTxt(avG.uzs):'—'}</div>`
+    +`<div class="sub2">${avG.rows.length?avG.rows.length+' ta to\'lov · yukka bog\'lanmagan':'yukka bog\'lanmagan to\'lov yo\'q'}${selCurChip&&avG.rows.length?' · valyuta filtri tanlangan — qoldiqqa kirmadi':''}</div></div>`
+    +`</div>`;
+  const avList=avG.rows.length
+    ?`<div class="avtitle">Berilgan pullar (avans) — hujjat kelgach «Bog'lanmagan to'lovlar»dan yukka bog'lanadi</div><div class="avlist">`
+      +avG.rows.slice().sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))).map(a=>{
+        const fc=(a.fc_summa!=null&&a.valyuta)?`<small>${money2(a.fc_summa)} ${esc(a.valyuta)}</small>`:'';
+        const qis=(Number(a.boglangan_uzs)>0)?' · qisman bog\'langan':'';
+        return `<div class="avrow"><div class="avl"><b>${esc(qzFmtDate(a.entry_date))}</b>${a.izoh?' · '+esc(a.izoh):''}`
+          +`<div class="avs">${esc([a.kassa_name,a.kim].filter(Boolean).join(' · '))}${qis}</div></div>`
+          +`<div class="avr">− ${money(avUzs(a))} so'm${fc}</div></div>`;
+      }).join('')+`</div>`
+    :'';
+  if(!docs.length){ box.innerHTML=head+blocks+avList+'<div class="empty">'+(selCurChip?'Bu valyuta bo\'yicha hujjat yo\'q.':'To\'lanmagan hujjat yo\'q.')+'</div>'; return; }
   const docsSorted=docs.slice().sort((a,b)=>String(b.sana||'').localeCompare(String(a.sana||'')));
-  box.innerHTML=head+`<div class="doclist">`+docsSorted.map(y=>{
+  box.innerHTML=head+blocks+avList+`<div class="doclist">`+docsSorted.map(y=>{
     const cur=curOf(y), qv=qoldiqUzs(y), qf=qoldiqFc(y), p=pct(y), tol=tolangan(y);
     const badge=qv===null?'<span class="pill y">kurs yo\'q</span>':(p>0?`<span class="pill y">qisman ${p}%</span>`:'<span class="pill r">to\'lanmagan</span>');
     const qTxt=qv===null?'—':(cur==='UZS'?money(qf)+' so\'m':money2(qf)+' '+esc(cur));
@@ -1245,8 +1314,8 @@ function render(){
   renderTotCard(list);
   renderChips(list);
 
-  if(!yuklar.length){ box.innerHTML='<div class="empty">Yuk topilmadi.</div>'; icons(); return; }
-  if(!list.length){
+  if(!yuklar.length && !avansRows.length){ box.innerHTML='<div class="empty">Yuk topilmadi.</div>'; icons(); return; }
+  if(!list.length && !avansRows.length){
     box.innerHTML='<div class="okempty"><span class="oi">✓</span>Qarzdorlik yo\'q<div style="font-weight:500;font-size:13px;margin-top:6px;color:var(--muted)">Hech bir yetkazuvchida to\'lanmagan yuk qolmadi.</div></div>';
     icons(); return;
   }
@@ -1271,7 +1340,7 @@ window.load=async(force)=>{
   const t=nowUz(), from=new Date(t.getTime()-kun*86400000);
   const ck='qarz:s:730';
   const cached=force?null:swrGet(ck);
-  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; tanMap=cached.tanMap||{}; usdRate=cached.usdRate??null;
+  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; tanMap=cached.tanMap||{}; usdRate=cached.usdRate??null; avansRows=cached.avansRows||[];
     render(); }
   else { $('body').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
   $('banner').style.display='none';
@@ -1292,12 +1361,14 @@ window.load=async(force)=>{
   yuklar=arr.filter(y=>y.status==='posted').concat(await qoldaP);
   const ids=yuklar.map(y=>Number(y.id)).filter(Number.isFinite);
   const curs=[...new Set(yuklar.map(y=>y.valyuta).filter(Boolean))];
-  const [krQ,stQ,tnQ,usdQ]=await Promise.all([
+  const [krQ,stQ,tnQ,usdQ,avQ]=await Promise.all([
     curs.length?sb.rpc('yuk_kurslar',{p_curs:curs}):Promise.resolve({data:{}}),
     ids.length ?tolanganSorov(yuklar):Promise.resolve({data:[]}),
     ids.length ?sb.rpc('yuk_tannarx_jami',{p_ids:ids}):Promise.resolve({data:{}}),
-    (async()=>{ try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); return data; }catch(e){ return null; } })()
+    (async()=>{ try{ const {data}=await sb.rpc('conv_baza_kurs',{p_cur:'USD'}); return data; }catch(e){ return null; } })(),
+    loadAvans()
   ]);
+  avansRows=avQ||[];
   rateMap=krQ.data||{};
   paidMap={}; (stQ.data||[]).forEach(s=>{ paidMap[s.yuk_id]=s; });
   // Tannarx RPC xato bersa (ruxsat yo'q / RPC yo'q) — formula narx − to'langan ga tushadi, banner bilan aytiladi.
@@ -1306,7 +1377,7 @@ window.load=async(force)=>{
     const bn=$('banner'); bn.textContent="Tannarx olinmadi — qoldiq tannarxsiz hisoblandi: "+(tnQ.error.message||''); bn.style.display='block'; }
   usdRate=(usdQ===null||usdQ===undefined)?null:Number(usdQ);
   if(!(usdRate>0)) usdRate=null;
-  swrSet(ck,{yuklar,paidMap,rateMap,tanMap,usdRate});
+  swrSet(ck,{yuklar,paidMap,rateMap,tanMap,usdRate,avansRows});
   render();
 };
 

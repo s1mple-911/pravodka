@@ -226,6 +226,8 @@
   #yukPendScreen,#yukTypeScreen{overflow-y:auto}
   #yukSum,.yukfilt,.yukacts,.pendlink,.pendnote,#yukPendScreen label,#yukPendIzoh,#yukPendSababWrap,
   #yukTypeBar,#yukPickIzohWrap,#yukBojWarn,#yukPendLockNote,#yukTypeChips{flex:0 0 auto}
+  #yukPendYetkWrap{flex:0 0 auto}
+  .yetklist{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto;margin-top:8px;padding:2px}
   .yukfilt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .yukfilt .txt{flex:1;min-width:150px;height:40px;margin:0}
   .yukfilt select.txt{flex:0 1 170px;min-width:140px;cursor:pointer}
@@ -949,9 +951,17 @@
       <div id="yukPendLockNote" class="pendnote" style="display:none">🔒 Yukka bog'lash uchun <b>Tannarx</b> ruxsati kerak — to'lov <b>Bog'lanmaganlar</b> ro'yxatiga tushadi, ruxsatli xodim keyin bog'laydi.</div>
       <label style="margin-top:2px">Izoh — kimdan / nima olindi <span style="color:var(--red);font-weight:700">(majburiy)</span></label>
       <input class="txt" id="yukPendIzoh" placeholder="masalan: Akmal aka — 200 dona plitka" autocomplete="off" oninput="updateYukPendBtn()" style="margin-bottom:0">
+      <!-- Yetkazuvchi (avans) — faqat TOVAR to'lovi (sababsiz) uchun majburiy; ro'yxat Aros keshidan -->
+      <div id="yukPendYetkWrap" style="display:none">
+        <label style="margin-top:8px">Yetkazuvchi — kimga berildi <span style="color:var(--red);font-weight:700">(majburiy)</span></label>
+        <input class="txt" id="yukPendYetkQ" placeholder="Qidirish: yetkazuvchi nomi" autocomplete="off" oninput="renderYukPendYetk()" style="margin-bottom:0">
+        <div class="yetklist" id="yukPendYetkList"></div>
+        <input class="txt" id="yukPendYetkOwn" placeholder="Yetkazuvchi nomini yozing" autocomplete="off" oninput="yukPendYetkOwnIn()" style="display:none;margin:8px 0 0">
+        <div class="pendnote" style="margin-top:6px;margin-bottom:0">Hujjat kelib yukka bog'lanmaguncha bu pul yetkazuvchi ustida <b>avans</b> bo'lib turadi.</div>
+      </div>
       <div id="yukPendSababWrap" style="display:none">
         <label style="margin-top:8px">Xizmat turi <span class="ymuted">(ixtiyoriy)</span></label>
-        <select class="txt" id="yukPendSabab" style="margin-bottom:0"><option value="">Tovar narxi (hujjat) — sababsiz</option></select>
+        <select class="txt" id="yukPendSabab" onchange="yukPendSababChange()" style="margin-bottom:0"><option value="">Tovar narxi (hujjat) — sababsiz</option></select>
         <div class="pendnote" style="margin-top:6px;margin-bottom:0">Yo'l puli/bojxona kabi xizmat to'lovi bo'lsa turini tanlang — yukka bog'langanda tannarxga qo'shiladi.</div>
       </div>
       <div class="yukacts">
@@ -2839,6 +2849,7 @@ window.onModda=()=>{
 function openYukSave(rawAmount, cur, cb, mode){
   yukSaveRaw=Number(rawAmount)||0; yukSaveCur=cur||'UZS'; yukSaveCb=cb; yukSaveMode=mode||'simple';
   selYuk.clear(); alloc={}; allocC={}; yukTur=null; yukSababTanlangan=null; bojMap={}; yukShowUnposted=false;
+  yukYetkSel=''; yukYetkBoshqa=false; if($('yukPendYetkQ')) $('yukPendYetkQ').value=''; if($('yukPendYetkOwn')) $('yukPendYetkOwn').value='';
   { const w=$('yukPostWarn'); if(w){ w.style.display='none'; w.innerHTML=''; } }
   $('yukPendIzoh').value=($('izoh').value||'').trim();
   $('yukModal').classList.add('open');
@@ -2892,6 +2903,18 @@ async function yukSababYoz(extRef,sababId){
     return true;
   }catch(e){ alert('To\'lov saqlandi, lekin xizmat turi yozilmadi (server bilan qayta bog\'lang).'); return false; }
 }
+// Yetkazuvchi (avans) nomi: saqlashdan KEYIN fonda (provodka_yoz tegilmaydi). RPC yo'q bazada (PGRST202) jim —
+// to'lov baribir saqlangan; boshqa xatoda ogohlantiriladi (nom yozilmasa avans yetkazuvchiga tushmaydi).
+async function yukYetkYoz(extRef,nom){
+  if(!extRef||!nom) return false;
+  try{
+    const {data,error}=await sb.rpc('entry_yetkazuvchi_yoz',{p_ext_ref:extRef,p_yetkazuvchi:nom});
+    if(error){ if(error.code==='PGRST202') return false;
+      alert('To\'lov saqlandi, lekin yetkazuvchi nomi yozilmadi (server bilan qayta bog\'lang).'); return false; }
+    if(!(data&&data.ok)){ alert('To\'lov saqlandi, lekin yetkazuvchi nomi yozilmadi ('+((data&&data.kod)||'?')+').'); return false; }
+    return true;
+  }catch(e){ alert('To\'lov saqlandi, lekin yetkazuvchi nomi yozilmadi (server bilan qayta bog\'lang).'); return false; }
+}
 // --- Ekran 0: to'lov turi (📦 tovar narxi | xizmat sababi) ---
 function tanAllowedNow(){ return !!((window.permIsAdmin&&window.permIsAdmin())||(window.permPageOk&&window.permPageOk('tannarx'))); }
 function openYukTypeScreen(){
@@ -2944,6 +2967,7 @@ function openYukPendScreen(locked){
   // Yangi oqim: tur 0-ekranda allaqachon tanlangan — eski erkin select qayta so'ralmaydi.
   // Fail-open (yukTypeStepOn=false): eskicha ixtiyoriy select ko'rsatiladi.
   if(yukTypeStepOn){ $('yukPendSababWrap').style.display='none'; } else { ensureYukSabab(); }
+  yukPendYetkSync();
   setTimeout(()=>{ try{ $('yukPendIzoh').focus(); }catch(e){} },50);
 }
 window.yukPendOpen=()=>{ openYukPendScreen(false); };
@@ -2951,12 +2975,51 @@ window.yukPendBack=()=>{
   if(yukTypeStepOn && yukTur!=='tovar' && !tanAllowedNow()){ openYukTypeScreen(); return; }
   openYukPickScreen();
 };
-window.updateYukPendBtn=()=>{ const b=$('yukPendSaveBtn'); if(b) b.disabled=!$('yukPendIzoh').value.trim(); };
-window.confirmYukPending=()=>{ const izoh=($('yukPendIzoh').value||'').trim(); if(!izoh) return;
-  // Yangi oqim: sabab 0-ekranda allaqachon tanlangan (yukTur). Fail-open: eski select'dan.
-  const sabId = yukTypeStepOn ? (yukTur==='tovar'?null:Number(yukTur))
+// Yangi oqim: sabab 0-ekranda allaqachon tanlangan (yukTur). Fail-open: eski select'dan.
+function yukPendSabId(){
+  return yukTypeStepOn ? (yukTur==='tovar'?null:Number(yukTur))
     : (($('yukPendSabab')&&$('yukPendSabab').value)?Number($('yukPendSabab').value):null);
-  yukSaveCb=null; closeYuk(); doSavePending(izoh, sabId, null); };
+}
+// Yetkazuvchi (avans) FAQAT tovar to'lovida (sababsiz) so'raladi — xizmat (yo'l puli/bojxona) yetkazuvchiga avans emas.
+let yukYetkSel='', yukYetkBoshqa=false, yukYetkKesh=[];
+function yukPendYetkKerak(){ return yukPendSabId()===null; }
+function yukPendYetkVal(){ return yukYetkBoshqa ? ($('yukPendYetkOwn').value||'').trim().replace(/\s+/g,' ') : yukYetkSel; }
+function yukPendYetkNomlar(){
+  // Aros keshidagi `yetkazuvchi` matni AYNAN (qarzdor sahifasi shu nom bilan moslaydi) — trim/registr o'zgartirilmaydi.
+  const set=new Set((yukYetkKesh||[]).concat((yukList||[]).map(y=>y.yetkazuvchi)).filter(v=>v&&String(v).trim()));
+  return [...set].sort((a,b)=>String(a).localeCompare(String(b)));
+}
+function renderYukPendYetk(){
+  const box=$('yukPendYetkList'); if(!box) return;
+  const q=($('yukPendYetkQ').value||'').trim().toLowerCase();
+  const arr=yukPendYetkNomlar().filter(n=>!q||String(n).toLowerCase().includes(q));
+  const MAX=80, show=arr.slice(0,MAX);
+  box.innerHTML=show.map((n,i)=>'<button type="button" class="fchip'+(!yukYetkBoshqa&&yukYetkSel===n?' on':'')+'" data-i="'+i+'">'+esc(n)+'</button>').join('')
+    +(arr.length>MAX?'<span class="ymuted" style="align-self:center">…yana '+(arr.length-MAX)+' ta — qidiring</span>':'')
+    +(!arr.length?'<span class="ymuted" style="align-self:center">Topilmadi — «Boshqa…» ni tanlang</span>':'')
+    +'<button type="button" class="fchip'+(yukYetkBoshqa?' on':'')+'" data-boshqa="1">➕ Boshqa…</button>';
+  box.querySelectorAll('button[data-i]').forEach(b=>{ b.onclick=()=>{ yukYetkSel=show[Number(b.dataset.i)]; yukYetkBoshqa=false; $('yukPendYetkOwn').style.display='none'; renderYukPendYetk(); updateYukPendBtn(); }; });
+  const bb=box.querySelector('button[data-boshqa]');
+  if(bb) bb.onclick=()=>{ yukYetkBoshqa=true; yukYetkSel=''; const o=$('yukPendYetkOwn'); o.style.display='block'; renderYukPendYetk(); updateYukPendBtn(); try{ o.focus(); }catch(e){} };
+}
+window.renderYukPendYetk=renderYukPendYetk;
+window.yukPendYetkOwnIn=()=>{ updateYukPendBtn(); };
+function yukPendYetkSync(){
+  const w=$('yukPendYetkWrap'); if(!w) return;
+  const on=yukPendYetkKerak();
+  w.style.display=on?'block':'none';
+  if(on) renderYukPendYetk();
+  updateYukPendBtn();
+}
+window.yukPendSababChange=()=>{ yukPendYetkSync(); };
+window.updateYukPendBtn=()=>{ const b=$('yukPendSaveBtn'); if(!b) return;
+  const yetkOk=!yukPendYetkKerak() || !!yukPendYetkVal();
+  b.disabled=!($('yukPendIzoh').value.trim() && yetkOk); };
+window.confirmYukPending=()=>{ const izoh=($('yukPendIzoh').value||'').trim(); if(!izoh) return;
+  const sabId=yukPendSabId();
+  const yetk=sabId===null ? yukPendYetkVal() : '';
+  if(sabId===null && !yetk){ alert('Yetkazuvchini tanlang yoki «Boshqa…» orqali yozing'); return; }
+  yukSaveCb=null; closeYuk(); doSavePending(izoh, sabId, null, yetk); };
 /* aros=true — avval kesh refresh webhooki (oxirgi 7 kun), keyin qayta o'qish (yangi yuk Aros'da hozir yaratilgan bo'lsa). */
 window.reloadYuk=async(aros)=>{
   if(aros){ const b=$('yukArosBtn'); if(b){ b.disabled=true; b.textContent='↻ yangilanmoqda…'; }
@@ -3070,6 +3133,7 @@ async function yukKeshOqi(from,to){
     if(!data||data.ok===false||!Array.isArray(data.rows)) return null;
     if(!data.rows.length && !(data.holat&&Number(data.holat.jami)>0)) return null;   // kesh bo'sh — zaxira yo'l
     const minS=data.holat&&data.holat.min_sana?String(data.holat.min_sana).slice(0,10):null;
+    yukYetkKesh=Array.isArray(data.yetkazuvchilar)?data.yetkazuvchilar:[];
     return {rows:data.rows, toliq: !(minS && from<minS)};   // toliq=false — kesh `from` gacha yetmaydi (backfill yo'q)
   }catch(e){ console.warn('yuk_kesh_royxat istisno:',e); return null; }
 }
@@ -3125,6 +3189,7 @@ function fillYukYetk(){
 }
 function afterYukLoad(){
   fillYukYetk();
+  if($('yukPendScreen').style.display!=='none') renderYukPendYetk();
   // 2026-10-28: nashr qilinmagan yuk tanlovda qolmasin (↻ qayta o'qishdan keyin status o'zgargan bo'lishi mumkin).
   for(const id of [...selYuk]){ const y=yukList.find(x=>Number(x.id)===id); if(!y||!yukPosted(y)){ selYuk.delete(id); delete alloc[id]; delete allocC[id]; } }
   { const w=$('yukPostWarn');
@@ -3382,7 +3447,7 @@ async function yukBoglashTaqsim(res,taqsim){
 // sababId — null=tovar (sababsiz), yoki yuk_tannarx_sabab.id — tanlansa saqlashdan KEYIN entry_yuk_sabab_yoz bilan yoziladi.
 // taqsim — ixtiyoriy [{yuk_id,summa}] (Ekran 1'da xizmat uchun tanlangan yuklar) — saqlangach
 // darhol yuk_boglash_taqsim bilan bog'lanadi; muvaffaqiyatsiz bo'lsa to'lov bog'lanmagan qoladi.
-async function doSavePending(izohP,sababId,taqsim){
+async function doSavePending(izohP,sababId,taqsim,yetkazuvchi){
   // FON BLOK: fonda saqlash ketayotgan bo'lsa ikkinchi urish to'siladi (pul ikki marta chiqmasin).
   if(!bandBoshla()){ alert('Oldingi yozuv saqlanmoqda — biroz kuting.'); return; }
   try{
@@ -3420,6 +3485,7 @@ async function doSavePending(izohP,sababId,taqsim){
   //    yuk_boglash_taqsim entry.yuk_sabab_id ni null ko'rib to'lovni "tovar narxi" deb
   //    bog'lardi va tannarx qatori umuman yozilmasdi. Bog'lashsiz yo'lda eskicha fonda.
   let boglanmadiXabar='', sababOk=true;
+  if(yetkazuvchi && !sababId) yukYetkYoz(res.ext_ref, yetkazuvchi);   // fonda, entry_jadval_yoz naqshi
   if(sababId){
     if(taqsim && taqsim.length) sababOk = await yukSababYoz(res.ext_ref, sababId);
     else yukSababYoz(res.ext_ref, sababId);   // fonda, entry_jadval_yoz naqshi
