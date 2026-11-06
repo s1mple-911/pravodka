@@ -1296,6 +1296,10 @@ Asilbek: «9110 Tovar tannarxi'ni yuksiz to'laganda yetkazuvchi so'ralsin — yu
 - **`yuklar-dev.html`** Bog'lanmagan tab: har to'lovda yetkazuvchi nomi chip (`r.yetkazuvchi`, v2 bo'lsa).
 - ⚠️ Eski (nomsiz) bog'lanmagan to'lovlar avansga tushmaydi — nom faqat yangi to'lovda yoziladi (orqaga qarab to'ldirish yo'q).
 
+- **06.11.2026 qo'shimcha (Asilbek):** yetkazuvchi «Boshqa» (yuk_tannarx_sabab nom='Boshqa') turida HAM so'raladi
+  (`yukPendSabBoshqa`, `yukPendYetkKerak`); `yetkazuvchi_avans_royxat` sabab filtrisiz (nom yozilgan bo'lsa avans).
+  `yuklar-dev` Bog'lanmagan tab: **«O'chirish» faqat admin** (`pendDelOk`, `deletePending`) — jurnal softDelete naqshi
+  (entry_history 'delete' + `is_deleted=true`), pul kassaga o'zi qaytadi; qisman bog'langan (entry_yuk bor) o'chirilmaydi.
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson

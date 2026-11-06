@@ -338,6 +338,9 @@
   .prow .pm .ps{font-size:12.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .prow .pm .pk{font-size:12.5px;color:var(--ink);font-weight:600}
   .prow .plink{flex:none;display:inline-flex;align-items:center;gap:7px;border:none;border-radius:var(--r-md);background:var(--primary-strong);color:var(--on-primary);font-size:13.5px;font-weight:700;font-family:inherit;padding:10px 15px;cursor:pointer;transition:background .13s}
+  /* Bog'lanmagan to'lovni O'CHIRISH — faqat admin (06.11.2026); soft delete, pul kassaga qaytadi */
+  .prow .pdel{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--red);border-radius:var(--r-md);background:transparent;color:var(--red);font-size:13px;font-weight:700;font-family:inherit;padding:9px 12px;cursor:pointer}
+  .prow .pdel:disabled{opacity:.45;cursor:not-allowed}
   @media(hover:hover){.prow .plink:hover{background:var(--primary-press)}}
   .prow .plink svg{width:15px;height:15px}
   .pendctl{padding:10px var(--s1) 6px;border-bottom:1px solid var(--line)}
@@ -348,6 +351,7 @@
   @media(max-width:560px){
     .prow{flex-wrap:wrap}
     .prow .plink{width:100%;justify-content:center;margin-top:4px}
+    .prow .pdel{width:100%;justify-content:center;margin-top:4px}
   }
   /* ===== telefon (≤720px) — faqat o'lchov/joylashuv mayda-chuydasi ===== */
   @media(max-width:720px){
@@ -1310,6 +1314,7 @@ let tanRpcErr='', sababRpcErr='';
    bu yerda faqat tugmalarning ko'rinishi boshqariladi. */
 function computeTanAllowed(){
   tanAllowed=!!((window.permIsAdmin&&window.permIsAdmin())||(window.permPageOk&&window.permPageOk('tannarx')));
+  computePendDelOk();   // bog'lanmagan to'lovni o'chirish — faqat admin
 }
 /* «Qoldiqni to'g'irlash» (yuk_yopiq) — server guardi bilan bir xil: admin YOKI
    'yuklar' sahifa ruxsati (yuk_yopish_toplam/yuk_yopiq_bekor shu bilan tekshiradi). */
@@ -2413,10 +2418,45 @@ function renderPending(){
       +'<div class="pm"><div class="pt">'+money(r.summa)+' so\'m'+(sab?' '+sab:'')+(yet?' '+yet:'')+pq+'</div>'
       +'<div class="pk">'+kassa+'</div>'
       +'<div class="ps">'+dF(r.entry_date)+' · '+izoh+kim+'</div></div>'
-      +'<button class="plink" onclick="openLink(\''+r.entry_id+'\')"><i data-lucide="link"></i>Yukka bog\'lash</button></div>';
+      +'<button class="plink" onclick="openLink(\''+r.entry_id+'\')"><i data-lucide="link"></i>Yukka bog\'lash</button>'
+      +(pendDelOk?('<button class="pdel" onclick="deletePending(\''+r.entry_id+'\')"'+(bogl>0?' disabled title="Qisman yukka bog\'langan — avval bog\'lashni bekor qiling"':' title="O\'chirish — pul kassaga qaytadi"')+'><i data-lucide="trash-2"></i>O\'chirish</button>'):'')
+      +'</div>';
   }).join('');
   icons(); renderPendSelbar();
 }
+// ===== Bog'lanmagan to'lovni O'CHIRISH — FAQAT admin (Asilbek, 06.11.2026) =====
+// Jurnal softDelete naqshi: entry_history 'delete' snapshot + entry.is_deleted=true (RLS: faqat admin update qila oladi).
+// Yozuv o'chgach kassa qoldig'i o'zi tiklanadi (balans entry_line'dan hisoblanadi). Qisman bog'langan (entry_yuk bor)
+// to'lov o'chirilmaydi — avval yuk_boglash_bekor. Jismonan o'chirilmaydi: jurnalda usti chizilib qoladi.
+let pendDelOk=false, pendDelBand=false;
+function computePendDelOk(){ pendDelOk=!!(window.permIsAdmin&&window.permIsAdmin()); }
+window.deletePending=async id=>{
+  if(!pendDelOk){ alert('Faqat admin o\'chira oladi'); return; }
+  if(pendDelBand){ alert('Oldingi amal bajarilmoqda — biroz kuting.'); return; }
+  const r=pendingRows.find(x=>x.entry_id===id);
+  if(!r){ return; }
+  if((Number(r.boglangan_uzs)||0)>0){ alert('Bu to\'lov qisman yukka bog\'langan — avval bog\'lashni bekor qiling.'); return; }
+  if(!confirm('Bog\'lanmagan to\'lov o\'chirilsinmi?\n'+money(r.summa)+' so\'m · '+(r.kassa_name||'')+'\n'+(r.izoh||'')+'\n\nPul kassaga qaytadi, jurnalda usti chizilib qoladi.')) return;
+  pendDelBand=true;
+  try{
+    const {data:e,error:e1}=await sb.from('entry').select('*,entry_line(*)').eq('id',id).single();
+    if(e1||!e){ alert('Yozuv topilmadi: '+(e1?e1.message:'')); return; }
+    if(e.is_deleted){ alert('Bu yozuv allaqachon o\'chirilgan.'); await loadPending(); return; }
+    if(!e.yuk_kutilmoqda){ alert('Bu to\'lov allaqachon yukka bog\'langan — o\'chirib bo\'lmaydi.'); await loadPending(); return; }
+    const {count:eyN}=await sb.from('entry_yuk').select('entry_id',{count:'exact',head:true}).eq('entry_id',id);
+    if(eyN&&eyN>0){ alert('Bu to\'lovda yuk taqsimoti bor — avval bog\'lashni bekor qiling.'); return; }
+    let myName='';
+    try{ const {data:{session}}=await sb.auth.getSession(); myName=(session&&session.user&&session.user.email)||'';
+      if(session&&session.user){ const {data:p}=await sb.from('profiles').select('full_name').eq('id',session.user.id).single(); if(p&&(p.full_name||'').trim()) myName=p.full_name.trim(); } }catch(_){ }
+    await sb.from('entry_history').insert({entry_id:id,action:'delete',snapshot:e,changed_by_name:myName||'admin'});
+    const {data:upd,error}=await sb.from('entry').update({is_deleted:true,deleted_at:new Date().toISOString(),deleted_by_name:myName||'admin'}).eq('id',id).select('id');
+    if(error){ alert(window.permErr?window.permErr(error):error.message); return; }
+    if(!upd||!upd.length){ alert('O\'chirilmadi: bu yozuvni o\'chirishga ruxsat yo\'q.'); return; }
+    pendSel.delete(id);
+    showBanner('To\'lov o\'chirildi — '+money(r.summa)+' so\'m kassaga qaytdi.',true);
+    await loadPending();
+  }finally{ pendDelBand=false; }
+};
 
 // ===== Yukka bog'lash modali (bog'lanmagan to'lov(lar)ni yukka biriktirish) =====
 // linkEntry — bitta to'lov rejimi (eski). linkMulti — ko'p tanlash rejimi (pendSel dan kelgan

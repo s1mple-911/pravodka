@@ -247,7 +247,7 @@ begin
         left join profiles pr on pr.id::text = e.created_by::text
         left join yuk_tannarx_sabab s on s.id = e.yuk_sabab_id
        where e.yuk_kutilmoqda = true and e.is_deleted = false and e.status = 'posted'
-         and e.yuk_sabab_id is null
+         -- sabab filtri YO'Q (06.11.2026): nom faqat tovar va «Boshqa» turida so'raladi, yozilgan bo'lsa avans
          and nullif(btrim(coalesce(e.yetkazuvchi, '')), '') is not null
     ) r;
 

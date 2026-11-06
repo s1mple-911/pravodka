@@ -2980,9 +2980,11 @@ function yukPendSabId(){
   return yukTypeStepOn ? (yukTur==='tovar'?null:Number(yukTur))
     : (($('yukPendSabab')&&$('yukPendSabab').value)?Number($('yukPendSabab').value):null);
 }
-// Yetkazuvchi (avans) FAQAT tovar to'lovida (sababsiz) so'raladi — xizmat (yo'l puli/bojxona) yetkazuvchiga avans emas.
+// Yetkazuvchi (avans) tovar to'lovida (sababsiz) VA «Boshqa» turida so'raladi (Asilbek 06.11.2026) —
+// yo'l puli/bojxona/Abusaxiy kabi xizmat to'lovi yetkazuvchiga avans emas, u yerda so'ralmaydi.
 let yukYetkSel='', yukYetkBoshqa=false, yukYetkKesh=[];
-function yukPendYetkKerak(){ return yukPendSabId()===null; }
+function yukPendSabBoshqa(id){ const s=(yukSababList||[]).find(x=>Number(x.id)===Number(id)); return !!(s && /^boshqa$/i.test(String(s.nom||'').trim())); }
+function yukPendYetkKerak(){ const id=yukPendSabId(); return id===null || yukPendSabBoshqa(id); }
 function yukPendYetkVal(){ return yukYetkBoshqa ? ($('yukPendYetkOwn').value||'').trim().replace(/\s+/g,' ') : yukYetkSel; }
 function yukPendYetkNomlar(){
   // Aros keshidagi `yetkazuvchi` matni AYNAN (qarzdor sahifasi shu nom bilan moslaydi) — trim/registr o'zgartirilmaydi.
@@ -3017,8 +3019,8 @@ window.updateYukPendBtn=()=>{ const b=$('yukPendSaveBtn'); if(!b) return;
   b.disabled=!($('yukPendIzoh').value.trim() && yetkOk); };
 window.confirmYukPending=()=>{ const izoh=($('yukPendIzoh').value||'').trim(); if(!izoh) return;
   const sabId=yukPendSabId();
-  const yetk=sabId===null ? yukPendYetkVal() : '';
-  if(sabId===null && !yetk){ alert('Yetkazuvchini tanlang yoki «Boshqa…» orqali yozing'); return; }
+  const yetk=yukPendYetkKerak() ? yukPendYetkVal() : '';
+  if(yukPendYetkKerak() && !yetk){ alert('Yetkazuvchini tanlang yoki «Boshqa…» orqali yozing'); return; }
   yukSaveCb=null; closeYuk(); doSavePending(izoh, sabId, null, yetk); };
 /* aros=true — avval kesh refresh webhooki (oxirgi 7 kun), keyin qayta o'qish (yangi yuk Aros'da hozir yaratilgan bo'lsa). */
 window.reloadYuk=async(aros)=>{
@@ -3485,7 +3487,7 @@ async function doSavePending(izohP,sababId,taqsim,yetkazuvchi){
   //    yuk_boglash_taqsim entry.yuk_sabab_id ni null ko'rib to'lovni "tovar narxi" deb
   //    bog'lardi va tannarx qatori umuman yozilmasdi. Bog'lashsiz yo'lda eskicha fonda.
   let boglanmadiXabar='', sababOk=true;
-  if(yetkazuvchi && !sababId) yukYetkYoz(res.ext_ref, yetkazuvchi);   // fonda, entry_jadval_yoz naqshi
+  if(yetkazuvchi) yukYetkYoz(res.ext_ref, yetkazuvchi);   // fonda, entry_jadval_yoz naqshi (tovar yoki «Boshqa» turi)
   if(sababId){
     if(taqsim && taqsim.length) sababOk = await yukSababYoz(res.ext_ref, sababId);
     else yukSababYoz(res.ext_ref, sababId);   // fonda, entry_jadval_yoz naqshi
