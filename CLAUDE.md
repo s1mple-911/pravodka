@@ -1245,6 +1245,38 @@ Asilbek: «Dilnoza Nazarova uchun 3 ta child kassa, har biriga naqd/karta/$ — 
   (Berish/Reja/Qarz berish/To'lov/Guruh to'lov/Kirim/O'tkazma/Konvert summa+kurs/Oila va a'zo daromadi), `type="text" inputmode="decimal"`;
   (5) Ehson berish: forma ochilganda darhol oilalar ro'yxati (`ehbShowDefault`, `ehson_royxat {limit:200}`, yopilganlarsiz, 50 ta, scroll), qidiruv yozilsa server qidiruvi.
 
+### Ehson: QARZ OLISH (jamg'arma kimdandir qarz oladi) + kassalar MANFIYDA yurishi mumkin (2026-11-06, `PROVODKA_EHSON_QARZ_OLISH_MANFIY_20261106.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: Ehson'da faqat qarz BERISH bor edi — endi jamg'arma qarz OLADI (pul ehson kassasiga KIRADI), kimdan + izoh majburiy; ehson kassalari manfiyda ham yursin.
+RUN tartibi: EHSON → ZAKOT → QARZ → KIRIM → TRANSFER → KONVERT_QARZ_GURUH → DILNOZA → USD_QOLDIQ → shu fayl (old shart yo'q bo'lsa aniq xato). Idempotent.
+- 🔴 **Dizayn: ALOHIDA jadvallar, `ehson_qarz.yonalish` ustuni EMAS.** `ehson_qarz` va uning hisoblari (`v_ehson_kassa_pul.qarz_berildi`, `ehson_qarz_royxat`,
+  `ehson_qarz_guruh_royxat/_tolov`, kechikkan, Excel, `ehson_qarz_muddat_set`) hammasi «berilgan qarz» deb yozilgan; ustun qo'shilsa har birini filtrlash kerak bo'lardi va
+  «qarz berish» regressiya xavfi tug'ilardi. Alohida jadval = berish tomoni o'zgarmaydi. `ehson_qarz_olingan` (kassa+pul turi, valyuta, `summa` so'm ekv., `fc_summa`,
+  `ism` NOT NULL ≥2 / `telefon`, `muddat` ixtiyoriy, `izoh` NOT NULL ≥3, holat faol→yopildi|bekor, `ext_ref` unique) + `ehson_qarz_olingan_tolov` (qaytarish). Grafik YO'Q
+  (olingan qarzda muddat bitta ixtiyoriy sana, qoldi = olingan − qaytarilgan, qarz valyutasi birligida). RLS ehson naqshi (select `ehson_page_ok()`, yozish faqat RPC);
+  `ehson_tarix.obyekt` +`qarz_olingan`,`qarz_olingan_tolov` (mavjud ro'yxat constraint tanasidan o'qiladi).
+- 🔴 **`v_ehson_kassa_pul` / `v_ehson_kassa`**: qoldiq += `qarz_olindi` − `qarz_olingan_qaytdi` (yangi ustunlar OXIRIGA: `qarz_olindi, qarz_olingan_qaytdi, fc_*`) → `ehson_dash`/
+  `ehson_kassa_daraxt`/UI kassa qoldig'i avtomat. USD qatorda so'm qoldiq = `fc_qoldiq` × joriy kurs (USD_QOLDIQ naqshi saqlangan). 🔴 Ikkala view'ning ENG OXIRGI versiyasi
+  endi SHU faylda — USD_QOLDIQ / KONVERT_QARZ_GURUH / TRANSFER / QARZ / ZAKOT qayta RUN qilinsa shu faylni ham qayta RUN qiling.
+  `ehson_dash` O'ZGARTIRILMADI (kassalar[].qoldiq olingan qarzni o'z ichiga oladi); olingan qarz yig'indisi `ehson_qarz_olish_royxat().stat` da.
+- **RPC**: `ehson_qarz_olish(p)` (kassa faqat `ehson_kassa` barg — `kassa_tanlanmagan/_topilmadi/_konteyner`, pul turi/valyuta/kurs `ehson_qarz_ber` bilan bir xil; kodlar
+  `kimdan_kerak`, `izoh_kerak`, `muddat_notogri`, `takror`…; **kimdan/izoh serverda ham tekshiriladi**, jadvalda ham check), `ehson_qarz_olish_qaytar(p)` (pul ehson kassasidan CHIQADI;
+  sukut o'sha kassa+pul turi, valyuta qarzga teng bo'lishi shart `valyuta_mos_emas`, `kop` = qoldidan ko'p, to'liq → yopildi), `ehson_qarz_olish_bekor(id, sabab)` (admin yoki
+  yaratgan, qaytarish yo'q bo'lsa), `ehson_qarz_olish_royxat(p)` (`{rows[+tolovlar[]],jami,stat}`; `holat='kechikkan'` = faol va muddat < bugun). Ruxsat: `ehson_page_ok()`.
+- 🔴 **MANFIY QOLDIQ**: ehson ichida bloklovchi joylar — SQL: `ehson_ber`, `ehson_qarz_ber` (`qoldiq_yetmadi`), `ehson_transfer_yoz`, `ehson_konvert_yoz` (`qoldiq_yetmaydi`),
+  `ehson_transfer_bekor` (`qoldiq_manfiy`) — shu faylda `create or replace` (imzo o'zgarmagan, oxirgi versiyadan verbatim, faqat qoldiq bloki izohga almashtirilgan; advisory lock saqlangan).
+  `ehson_kirim_bekor` allaqachon o'chirilgan, `ehson_kirim_qolda` tuzatish manfiy mumkin edi. `qoldiq_bor` (kassa/pul turini o'chirish, `<> 0`) tegilmadi. **`bal_guard`
+  (`PROVODKA_BAL_GUARD_VALYUTA.sql`) ehson kassalariga TEGISHLI EMAS**: u `entry_line`/`accounts` da `kassa_turi in ('xarajat','markaziy')` hisoblarni tekshiradi, ehson balansi esa
+  `entry/accounts` da yozilmaydi (faqat `ehson_*`) → tegilmadi. UI: Ehson berish va Qarz berish formasida qoldiqdan ortiq summa endi faqat sariq/qizil ogohlantirish
+  (saqlash tugmasi bloklanmaydi), O'tkazma va Konvert modalida klient tekshiruvi olib tashlandi. Eski server (SQL RUN bo'lmasa) baribir `qoldiq_yetmadi` qaytaradi — xato xabari mavjud.
+- **UI** `ehson-dev.html` «Qarz» tabi OXIRIDA «Olingan qarzlar» bloki (`#eholSec`, prefiks `ehol*`; RPC yo'q — PGRST202/42883 — `eholYoq=true`, blok va dash kartasi yashirin, sahifa sinmaydi):
+  «Qarz olish» formasi (Kimdan* + telefon, shaxs qidiruvi = avval qarz berilgan `ehson_qarz_royxat` + avval qarz olingan shaxslar, jamg'arma + pul turi `ehqKassalarCache` dan, summa,
+  sana, ixtiyoriy muddat, Izoh*), ro'yxat (kimdan, jamg'arma, olindi/qaytarildi/qoldi, muddat, holat, izoh; filtr Faol/Kechikkan/Yopilgan/Bekor/Hammasi), karta modali `#eholKartModal`
+  (qaytarishlar, «Qarzni qaytarish» — jamg'arma/pul turi qarz valyutasiga filtrlanadi, «Hammasini qaytarish», bekor), dash kartasi «Olingan qarzlar (ochiq)» (`#ehCardOl`, Bosh tab).
+  `loadDash` → `loadOlingan`. Olingan qarz uchun Excel eksport YO'Q (keyingi bosqich).
+- Tekshirish: lokal PG 17 minimal fixture bilan (SQL ikki marta RUN, olish/qaytarish/bekor/takror/valyuta/kimdan-izoh/manfiy qoldiq view) — o'tdi. Patchlangan 5 funksiya va brauzer UI to'liq
+  ehson sxemasida/brauzerda TEKSHIRILMAGAN (faqat `node --check` va compile).
+
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson
