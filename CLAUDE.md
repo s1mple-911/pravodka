@@ -1300,6 +1300,19 @@ Asilbek: «9110 Tovar tannarxi'ni yuksiz to'laganda yetkazuvchi so'ralsin — yu
   (`yukPendSabBoshqa`, `yukPendYetkKerak`); `yetkazuvchi_avans_royxat` sabab filtrisiz (nom yozilgan bo'lsa avans).
   `yuklar-dev` Bog'lanmagan tab: **«O'chirish» faqat admin** (`pendDelOk`, `deletePending`) — jurnal softDelete naqshi
   (entry_history 'delete' + `is_deleted=true`), pul kassaga o'zi qaytadi; qisman bog'langan (entry_yuk bor) o'chirilmaydi.
+### Yopilgan filiallarni olib tashlash (2026-11-06, `PROVODKA_FILIAL_YOPISH_20261106.sql` + `N8N_FILIAL_YOP_20261106.sh`, RUN kutilmoqda)
+
+Asilbek: Aviasozlar Bozori (65), Farhod bozori (67), Kattaqorgon Eski shahar (81), Nukus (25), Nukus Markaziy bozori (69), Fargona
+Oltiariq (85), Chorsu Bozori (79), Buyuk Ipak Yoli metro (83), Buxoro Kitoblar Olami (77) — «Pravodka'dan ham, dashboard/bot'dan ham
+o'chirilsin, API so'rov ketmasin». Dashboard'da nom hardkod YO'Q; filial ro'yxati manbalari: **Cache Builder** → `warehouse_contacts`
+(Admin Warehouses Sync «Link» shu jadvalga yozadi), **Debtors Cache / Calendar / MML / SLA / 5 kunlik / Tovar Sync** → `cache_filial`,
+**bot «Get Branches»** → `users` (status filtrisiz!). Pravodka: `v_filial_sync_mapping`/`v_filial_tanlov`/`v_filial_royxat` `is_active`
+bilan filtrlaydi → kassalar (filial_ref 21 22 23 27 29 30 31 7 + bolalari) va tovar hisoblari (2922, 2933–2940) `is_active=false`
+(yozuvlar bor, jismonan o'chirilmaydi; zaxira `accounts_filial_yopish_20261106_zaxira`). Server: `warehouse_contacts`, `cache_filial`,
+`cache_debtors`, `filial_location`, `filial_plan_half` o'chiriladi, 8 user `rejected` + warehouse NULL; arxivlar tegilmaydi;
+`*_bak_20261106` + pg_dump; `--rollback`. ⚠️ 69 Nukus Markaziy Aros'da 05.11 gacha faol (84 hujjat, noyabr reja 250M) — Asilbek tasdiqlasin.
+`cachiers` (Aros mirror, Bugalter Sync upsert) tegilmaydi; Cache Builder `FRANCHISE_MAP` lug'ati qoladi (zararsiz).
+
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson
