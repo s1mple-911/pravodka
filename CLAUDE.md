@@ -1422,6 +1422,40 @@ A·Hozirgi | B·IAS 7, `.cfb-*`/`--cb-*`, `cbModel()` (ekran + Excel), 6 ustunli
 7-ustun «Ichki»), 3 ustunli jadval (joriy / oldingi shuncha kunlik davr), tekshiruv qatori ✓/✗; ixtiyoriy Dan/Gacha B da yo'q (A da bor).
 Screenshot'lar scratchpad `bx/`, `cfb/`.
 
+### Balans B/C — qator TARKIBI (drill-down) (2026-11-07, `PROVODKA_BALANS_B_DETAL_20261107.sql`, faqat `balans-dev.html`, RUN kutilmoqda)
+
+Asilbek: «har bir qatorga bosilganda uning tarkibi aniq ko'rinsin — oldin 5 kunlik/aylanmada shunday qilgan edik». Old shart: `PROVODKA_BALANS_B_CASHFLOW_B_20261107.sql`
+(`_bb_*`, `balans_b`); `PROVODKA_YUK_YOLDA_QARZ_20261107.sql` va qolgan manbalar bo'lmasa tegishli qator bo'sh qoladi (funksiya yiqilmaydi). Additive: faqat YANGI funksiyalar
+(`_bbd_row/_cap/_fc/_daftar/_hodim/_snap/_qarz_ob/_sum/_kurs`, `balans_b_detal`), jadval/ustun/trigger YO'Q. ROLLBACK fayl oxirida. Idempotent (ikki marta RUN sinalgan).
+- **`balans_b_detal(p_kod text, p_sana date default null)`** → jsonb `{ok, kod, sarlavha, sana, manba (matn), manba_tur (daftar|jonli|snapshot|joriy|kiritilmagan|yoq), jami, qator_summa,
+  ustunlar[{k,t}], qatorlar[{nom, qism, summa_uzs, fc, valyuta, izoh, havola}], qoshimcha[{sarlavha, izoh, jami, qatorlar[]}], ogoh[text]}`. Kalit = `balans_b` qator `kod`i (+ `jami_aktiv`, `jami_majburiyat`).
+  🔴 `jami` = `balans_b(p_sana, null)` ning shu qatori AYNAN (funksiya uni ichidan chaqiradi — formula takrorlanmaydi); qatorlar yig'indisi unga teng bo'lmasa `ogoh` da «farq X so'm».
+  Ruxsat `balans_b` bilan BIR XIL (`_bb_ok()`, 42501). `qoshimcha` — ma'lumot uchun bo'limlar, jamiga KIRMAYDI. Daftar qatorlari `entry_date <= p_sana` (tarixiy aniq); Aros/registr qatorlarida
+  tarixiy sana + `manba='joriy'` bo'lsa ogohda «joriy qiymat» deyiladi. Ro'yxat 1500 qatordan oshsa eng kattalari + «Qolgan N ta qator» (yig'indi saqlanadi).
+- **Qaysi qator qaysi manbadan:**
+  · `pul` — daftar, section=pul (hodim kassalarisiz), HAR hisob (kassa, naqd/click/payme, USD bolalari; valyutali hisobda `fc`+valyuta) · `hodim_pul` — daftar, 5400 konteynerning bevosita bolalari
+    (avlodlari bilan yig'ilgan; `qism` = «Filial · lavozim» (subtitle), izohda boshqa valyutalar) · `tovar` — daftar 29xx hisoblari (ombor/filial; izohda bog'langan filial kassa); qo'shimcha: snapshot T1 (Aros ombori kesimi, tannarx) ·
+    `berilgan_qarz`/`olingan_qarz` — `qarz_ob` faol qarzlar (kontragent, qoldiq so'mda, muddat) + «ro'yxatga kirmagan qoldiq» farq qatori; tarixiy sanada daftar hisoblari (4710/4720, 6820) asosiy, ro'yxat qo'shimcha ·
+    `boshqa_aktiv`, `uzoq_aktiv`, `ish_soliq`, `uzoq_majb`, `boshqa_majb` — daftar hisoblari (filtrlar `_bb_val` agregatlari bilan bir xil).
+  · `yolda_pul` — `aros_transfer_yolda` status=sent: kimdan → kimga, sana, naqd/click/payme/$ (snapshot sanasida B qatorlari) · `mijoz_qarz` — `aros_qarzdor` (faol, total_debt): mijoz, filial (warehouse_nom), telefon, muddati o'tgan;
+    qo'shimcha: daftar 4010 («QO'SHILMAGAN»); snapshot sanasida faqat Q2a «aros» qatori (mijoz kesimi snapshotda saqlanmaydi); Aros manbasi yo'q bo'lsa daftar 4010 · `mijoz_avans` — `aros_qarzdor.wallet_balance` ·
+    `yetk_qarz` — Q2b formulasi (`aros_yuk_snapshot` posted 365 kun, narx×`yuk_kurslar` − `yuk_tolangan_fc`, 1.5% qoldiq yopiq) YETKAZUVCHI kesimida (yuklar soni, valyuta qoldig'i); snapshot sanasida Q2b yuk qatorlari yetkazuvchi bo'yicha guruhlanadi;
+    qo'shimcha: daftar 6010 (QO'SHILMAGAN) va `yetkazuvchi_avans_royxat()` (avanslar — Qarz sahifasida qarzdan ayiriladi, Balans B formulasida YO'Q) ·
+    `yolda_yuk` = `kelmagan_qarz` — `yuk_yolda_jami` bilan bir xil so'rov (on_way, posted/canceled emas, joriy kurs, CHY=CNY), HAR YUK: yetkazuvchi, #id, narx valyutada, so'm, ombor/sana, «90 kundan eski»; qo'shimcha: yetkazuvchi kesimi (`by_yetk`) ·
+    `yolda_yuk_posted` Y3a, `ochiq_buyurtma` B6, `brak` T5, `kochirish` K3b+K4 — `aylanma_qator` (n8n snapshot; sana uchun aniq snapshot bo'lsa SHU, bo'lmasa eng oxirgisi «joriy»; `hisobga=false` qatorlar chiqarilmaydi, soni ogohda) ·
+    `kapital` — balans_b qatorlari: aktiv (+) va majburiyat (−), qo'shimcha: daftar kapital hisoblari (type=kapital + 8900) faqat ma'lumot; `jami_aktiv`/`jami_majburiyat` — tegishli qatorlar.
+- **UI (`balans-dev.html`, faqat `#viewBX`: B jadval + C yonma-yon):** qatorning o'zi tafsilotni ochadi (`tr.bx-clk[data-k]` B, `.bx-it.bx-clk[data-k]` C; Enter/Space ham). 🔴 Eski `›` jurnal havolasi SAQLANDI, lekin endi faqat
+  `›` belgisi havola (`a.bx-jr`) — nom tafsilotni ochadi (oldin butun nom havola edi); panel ichida har qatorda `havola` bo'lsa `›`, pastda «Jurnalda ko'rish ›». Panel `#bxDet` (oq karta, 16px, Inter, `--bx-*` tokenlar — dark ham):
+  desktopda o'ngdan 620px drawer, ≤640px pastdan chiqadigan sheet (jadval qatorlari grid'ga aylanadi, gorizontal skroll yo'q); sarlavha = qator nomi + katta summa (so'm/mln/$ birligiga bo'ysunadi) + sana + manba tegi;
+  `ogoh` sariq kartalar; qidiruv (nom/kod/izoh; «Ko'rsatilgan N / M»); jadval sarlavhasi bosilsa saralash (sukut summa kamayish); bo'sh ustunlar yashirin; qo'shimcha bo'limlar alohida jadval. Esc / tashqariga bosish / × yopadi,
+  fokus qatorga qaytadi, Tab panel ichida aylanadi, body skroll bloklanadi. Kesh `bxdCache` (`kod|sana`, 5 daqiqa; «Yangilash»/sana o'zgarsa tozalanadi). RPC yo'q (PGRST202/42883) — panel «SQL RUN kutilmoqda» deydi, balans ishlayveradi;
+  boshqa xato — xabar + «Qayta urinish». `</script>` soni 5, module `node --check` toza.
+- **Sinov:** lokal PG17 fixture (B fayli + aros_*/aylanma/qarz_ob/currency_rate + haqiqiy `yuk_yolda_jami` tanasi): hamma 23 kod uchun `jami == qator_summa` (bugun); tarixiy sana (daftar / snapshot / joriy); ruxsat (admin ok, ruxsatsiz va
+  `kassa_scope='list'` 42501, noma'lum kod `ok:false`); Aros/aylanma/qarz_ob jadvallarisiz minimal baza (yiqilmaydi, `jami=null` → ogoh); ikki marta RUN. UI: playwright (node, headless) + mock supabase: B/C ochish, qidiruv, saralash, Esc/backdrop/fokus,
+  birlik almashuvi, mobil sheet (390px), dark, RPC yo'q, RPC xato; sahifa xatosi yo'q.
+- ⚠️ Tekshirilmagan: haqiqiy bazadagi hajm (aros_qarzdor ~2459 qator, 1500 limit), real n8n `aylanma_qator` meta maydonlari (faqat HODIM_KASSA.sql dagi shaklga tayanilgan: status/to_brak/tr_yolda_uzs/kurs_yoq),
+  `accounts.pul_turi/filial_ref/linked_kassa_id/subtitle` ustun nomlari (`to_jsonb(a)->>` orqali — yo'q bo'lsa jim bo'sh), `yetkazuvchi_avans_royxat()` haqiqiy javobi.
+
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson
