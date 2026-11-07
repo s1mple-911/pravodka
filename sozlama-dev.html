@@ -73,6 +73,19 @@
   .item:last-child{border-bottom:none}
   .item-head{display:flex;align-items:center;gap:12px;flex:1 1 100%;min-width:0}
   .item .mid{flex:1;min-width:0}
+  .hm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;flex:1 1 100%}
+  .hm-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+  .hm-grid select{height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 10px;font-size:14px;font-family:inherit;outline:none}
+  .hm-grid select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .hm-save{height:40px;align-self:end;border:none;border-radius:10px;background:var(--primary);color:#fff;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;padding:0 16px}
+  .kuz-bar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .kuz-bar select{height:38px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:0 10px;font-family:inherit;font-size:14px}
+  .kuz-bar button{height:38px;padding:0 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .kuz-cnt{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .kuz-cnt span{background:var(--surface-2);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
+  .kuz-row{padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.5}
+  .kuz-row:last-child{border-bottom:none}
+  .kuz-row .q{font-weight:700}.kuz-row .m{color:var(--muted)}
   .item .mid .t{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .item .mid .c{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .item.off .mid{opacity:.4}
@@ -746,6 +759,8 @@
         <input id="newName" placeholder="Nomi (masalan: Giyos kassa)">
         <button onclick="addAcc()"><i data-lucide="plus"></i>Qo'shish</button>
       </div>
+      <!-- Hisob maydonlari (PROVODKA_HISOB_MAYDONLAR_20261107.sql) — ustun bazada bo'lmasa yashirin -->
+      <div class="hm-grid" id="hmNew" style="display:none"></div>
     </div>
 
     <!-- Ro'yxat tanlangan tabga (Kassa/Xarajat/Daromad) qarab filtrlanadi -->
@@ -876,6 +891,22 @@
     </div>
 
     <div class="card"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
+
+    <!-- Kuzatuv — provodka_kuzatuv logi (faqat kuzatadi, yozuvni rad ETMAYDI), admin -->
+    <div class="card" id="kuzCard" style="display:none">
+      <div class="sec">Kuzatuv</div>
+      <div class="hint">Yangi yozuvlarda qoidalar tekshiriladi (qulflangan hisob, kassa↔kassa turi, 9110 yuksiz, balans bo'limi yo'q, 6010/4010 to'g'ridan).
+        Hozircha faqat log — hech narsa rad etilmaydi.</div>
+      <div class="kuz-bar">
+        <select id="kuzKun" onchange="kuzLoad()">
+          <option value="1">Bugun</option><option value="7" selected>7 kun</option>
+          <option value="30">30 kun</option><option value="90">90 kun</option>
+        </select>
+        <button onclick="kuzLoad()">Yangilash</button>
+      </div>
+      <div id="kuzCnt" class="kuz-cnt"></div>
+      <div id="kuzList"></div>
+    </div>
 
     <!-- Xarajat filiallari — savdo qilmaydigan, lekin xarajati bor filiallar (admin) -->
     <div class="card" id="filCard" style="display:none">
@@ -1219,7 +1250,13 @@ window.addAcc=async()=>{
   if(curType==='kassa'){ dbType='aktiv'; code=nextCode('50',5011); section='pul'; }
   if(curType==='xarajat'){ dbType='xarajat'; code=nextCode('94',9421); section='operatsion'; }
   if(curType==='daromad'){ dbType='daromad'; code=nextCode('90',9011); section='tushum'; }
-  const {error}=await sb.from('accounts').insert({code,name,type:dbType,section});
+  const row={code,name,type:dbType,section};
+  const hm=hmHas()?hmReadNew():null;
+  let {error}=await sb.from('accounts').insert(hm?{...row,...hm}:row);
+  // 42703 = ustun yo'q (SQL RUN qilinmagan) → forma eskicha ishlayveradi
+  if(error&&hm&&(error.code==='42703'||/column .* does not exist/i.test(error.message||''))){
+    ({error}=await sb.from('accounts').insert(row));
+  }
   if(error){ alert(error.message); return; } $('newName').value=''; await load();
 };
 window.renameAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
@@ -1229,15 +1266,62 @@ window.renameAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
 window.toggleAcc=async id=>{ const a=accounts.find(x=>x.id===id); if(!a) return;
   const {error}=await sb.from('accounts').update({is_active:!a.is_active}).eq('id',id); if(error){ alert(error.message); } await load();
 };
+// ===== Hisob maydonlari (balans bo'limi / Cashflow moddasi / faoliyat turi / qulf) =====
+const HM_BB=[['joriy_aktiv','Joriy aktiv'],['uzoq_aktiv','Uzoq muddatli aktiv'],['joriy_majburiyat','Joriy majburiyat'],
+  ['uzoq_majburiyat','Uzoq muddatli majburiyat'],['kapital','Kapital'],['daromad','Daromad'],['xarajat','Xarajat']];
+const HM_CF=[['mijoz_tushum','Mijozdan tushum'],['boshqa_tushum','Boshqa tushum'],['mijoz_qaytarish','Mijozga qaytarish'],
+  ['yetkazuvchi_tolov','Yetkazuvchiga to\'lov'],['ish_haqi','Ish haqi'],['ijara','Ijara'],['xayriya','Xayriya'],
+  ['boshqa_operatsion','Boshqa operatsion'],['soliq','Soliq'],['asosiy_vosita','Asosiy vosita'],['qarz_berildi','Qarz berildi'],
+  ['qarz_olindi','Qarz olindi'],['qarz_qaytarildi','Qarz qaytarildi'],['egasi','Egasi'],['ichki','Ichki o\'tkazma']];
+const HM_FT=[['operatsion','Operatsion'],['investitsiya','Investitsiya'],['moliyaviy','Moliyaviy']];
+let hmOpenId=null;
+// ustun bazada bormi: accounts select('*') qatorida kalit bor (SQL RUN qilinmagan bo'lsa yo'q)
+function hmHas(){ return accounts.length>0 && Object.prototype.hasOwnProperty.call(accounts[0],'balans_bolimi'); }
+function hmSel(id,label,opts,val){
+  return `<label>${label}<select id="${id}"><option value="">—</option>${opts.map(o=>`<option value="${o[0]}" ${val===o[0]?'selected':''}>${esc(o[1])}</option>`).join('')}</select></label>`;
+}
+function hmFields(pfx,a){
+  a=a||{};
+  return hmSel(pfx+'Bb','Balans bo\'limi',HM_BB,a.balans_bolimi)
+    +hmSel(pfx+'Cf','Cashflow moddasi',HM_CF,a.cf_modda)
+    +hmSel(pfx+'Ft','Faoliyat turi',HM_FT,a.faoliyat_turi)
+    +`<label>Qulf<select id="${pfx}Lk"><option value="0">Ochiq</option><option value="1" ${a.is_locked?'selected':''}>Qulflangan (kuzatuv)</option></select></label>`;
+}
+function hmRead(pfx){
+  return {balans_bolimi:$(pfx+'Bb').value||null, cf_modda:$(pfx+'Cf').value||null,
+          faoliyat_turi:$(pfx+'Ft').value||null, is_locked:$(pfx+'Lk').value==='1'};
+}
+function hmReadNew(){
+  const r=hmRead('hmN');
+  // hech narsa tanlanmagan bo'lsa ustunlarni umuman yubormaymiz
+  return (r.balans_bolimi||r.cf_modda||r.faoliyat_turi||r.is_locked)?r:null;
+}
+function hmRenderNew(){
+  const el=$('hmNew'); if(!el) return;
+  if(!hmHas()){ el.style.display='none'; return; }
+  if(el.dataset.ready!=='1'){ el.innerHTML=hmFields('hmN',null); el.dataset.ready='1'; }
+  el.style.display='grid';
+}
+function hmEditor(a){
+  return `<div class="hm-grid">${hmFields('hmE',a)}<button class="hm-save" onclick="hmSave('${a.id}')">Saqlash</button></div>`;
+}
+window.hmToggle=id=>{ hmOpenId=(hmOpenId===id)?null:id; renderAll(); };
+window.hmSave=async id=>{
+  const {error}=await sb.from('accounts').update(hmRead('hmE')).eq('id',id);
+  if(error){ alert((error.code==='42703')?'Ustunlar bazada yo\'q — PROVODKA_HISOB_MAYDONLAR_20261107.sql RUN qilinmagan':(window.permErr?window.permErr(error):error.message)); return; }
+  hmOpenId=null; await load();
+};
 function renderList(elId,arr,showChek){
   // showChek → Xarajat ro'yxatida "Chek" checkbox (admin chek majburiyligini boshqaradi)
   $(elId).innerHTML=arr.length?arr.map(a=>`
     <div class="item ${a.is_active?'':'off'}">
       <div class="item-head">
         <div class="mid"><div class="t">${esc(a.name)}</div><div class="c">${esc(a.code)}${a.subtitle?' · '+esc(a.subtitle):''}</div></div>
+        ${hmHas()?`<button class="edit" title="Balans / Cashflow maydonlari" onclick="hmToggle('${a.id}')"><i data-lucide="sliders-horizontal"></i></button>`:''}
         <button class="edit" onclick="renameAcc('${a.id}')"><i data-lucide="pencil"></i></button>
         <label class="sw"><input type="checkbox" ${a.is_active?'checked':''} onchange="toggleAcc('${a.id}')"><span></span></label>
       </div>
+      ${hmOpenId===a.id&&hmHas()?hmEditor(a):''}
       ${showChek?`<div class="item-chips">
       <label class="chekopt ${a.chek_majburiy?'on':''}" title="Chek majburiy"><input type="checkbox" ${a.chek_majburiy?'checked':''} onchange="setFlag('${a.id}','chek',this.checked)">Chek</label>
       <label class="chekopt ${a.izoh_majburiy?'on':''}" title="Izoh majburiy"><input type="checkbox" ${a.izoh_majburiy?'checked':''} onchange="setFlag('${a.id}','izoh',this.checked)">Izoh</label>
@@ -1263,6 +1347,7 @@ window.setFlag=async(id,flag,val)=>{
 function renderAll(){
   renderCur();   // joriy tab (Kassa/Xarajat/Daromad)
   renderList('listBoshqa',accounts.filter(a=>!(a.type==='aktiv'&&a.code.startsWith('5'))&&a.type!=='xarajat'&&a.type!=='daromad'));
+  hmRenderNew();
   icons();
 }
 async function load(){
@@ -1275,6 +1360,20 @@ async function load(){
   renderAll();
 }
 
+// ===== Kuzatuv (provodka_kuzatuv_hisobot RPC, admin) =====
+const KUZ_NOM={is_locked_hisob:'Qulflangan hisob',kassa_kassa_tur:'Kassa↔kassa tur',yuk_boglanmagan:'9110 yuksiz',
+  balans_bolimi_yoq:'Balans bo\'limi yo\'q',qarz_hisob_togri:'6010/4010 to\'g\'ridan'};
+window.kuzLoad=async()=>{
+  const cnt=$('kuzCnt'),list=$('kuzList'); if(!cnt||!list) return;
+  const {data,error}=await sb.rpc('provodka_kuzatuv_hisobot',{p_kun:Number($('kuzKun').value)||7});
+  if(error){ cnt.innerHTML=''; list.innerHTML='<div class="empty">Kuzatuv yuklanmadi: '+esc(error.message)+' (PROVODKA_HISOB_MAYDONLAR_20261107.sql RUN qilinganmi?)</div>'; return; }
+  if(!data||!data.ok){ cnt.innerHTML=''; list.innerHTML='<div class="empty">Ruxsat yo\'q</div>'; return; }
+  cnt.innerHTML=(data.sanoq||[]).map(x=>`<span>${esc(KUZ_NOM[x.qoida]||x.qoida)}: ${x.soni}</span>`).join('')||'<span>Buzilish yo\'q</span>';
+  list.innerHTML=(data.oxirgi||[]).map(r=>`<div class="kuz-row"><span class="q">${esc(KUZ_NOM[r.qoida]||r.qoida)}</span>
+    · <span class="m">${esc(String(r.created_at||'').slice(0,16).replace('T',' '))}${r.entry_date?' · yozuv '+esc(r.entry_date):''}</span><br>
+    ${esc(r.xabar||'')}${r.description?' <span class="m">— '+esc(r.description)+'</span>':''}</div>`).join('')||'<div class="empty">—</div>';
+};
+
 async function loadRole(){
   const {data:{user}}=await sb.auth.getUser(); if(!user) return;
   const {data:p}=await sb.from('profiles').select('role').eq('id',user.id).maybeSingle();
@@ -1282,7 +1381,8 @@ async function loadRole(){
   $('linkCard').style.display=isAdmin?'block':'none';
   $('korCard').style.display=isAdmin?'block':'none';
   $('filCard').style.display=isAdmin?'block':'none';
-  if(isAdmin) loadKoridor();
+  $('kuzCard').style.display=isAdmin?'block':'none';
+  if(isAdmin){ loadKoridor(); kuzLoad(); }
 }
 
 // ===== Xarajat filiallari (savdo qilmaydi, lekin xarajati bor) =====

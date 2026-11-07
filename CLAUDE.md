@@ -1313,6 +1313,102 @@ bilan filtrlaydi → kassalar (filial_ref 21 22 23 27 29 30 31 7 + bolalari) va 
 `*_bak_20261106` + pg_dump; `--rollback`. ⚠️ 69 Nukus Markaziy Aros'da 05.11 gacha faol (84 hujjat, noyabr reja 250M) — Asilbek tasdiqlasin.
 `cachiers` (Aros mirror, Bugalter Sync upsert) tegilmaydi; Cache Builder `FRANCHISE_MAP` lug'ati qoladi (zararsiz).
 
+### Hisob maydonlari + yozuv turi + kuzatuv rejimi (2026-11-07, `PROVODKA_HISOB_MAYDONLAR_20261107.sql`, `sozlama-dev.html`, faqat dev, RUN kutilmoqda)
+
+Asilbek: kassalar, jurnal va ESKI yozuvlar O'ZGARMAYDI — hammasi additive, default'li. Balans/Cashflow keyingi bosqichlari uchun ma'lumot modeli.
+- **`accounts` yangi ustunlar**: `balans_bolimi` (joriy_aktiv|uzoq_aktiv|joriy_majburiyat|uzoq_majburiyat|kapital|daromad|xarajat), `cf_modda` (mijoz_tushum … ichki, 15 qiymat),
+  `faoliyat_turi` (operatsion|investitsiya|moliyaviy), `is_locked boolean default false`. Inline CHECK, null o'tadi. `is_cash` YO'Q (pul hisobi = `section='pul'`), `currency` bor.
+  Backfill faqat NULL ustunlarga (qo'lda qo'yilganni bosmaydi): type kapital/daromad/xarajat → shu; `section='pul'` → joriy_aktiv + cf `ichki`; 4xxx, 29xx/`section='tovar'` → joriy_aktiv;
+  6xxx → joriy_majburiyat; 8xxx → kapital; 9110/6010 → yetkazuvchi_tolov, 4010/9010 → mijoz_tushum (operatsion); 4720 → qarz_berildi/investitsiya; 6820 → qarz_olindi/moliyaviy;
+  xarajat nomidan: ish haqi/oylik/maosh, ijara, xayriya/ehson/zakot, soliq. Aniq bo'lmasa NULL — ro'yxat SQL oxiridagi 9.3/9.4 so'rovlarda.
+- **`entry.entry_type text not null default 'oddiy'`** (oddiy|ichki_otkazma|konvert|qayta_baholash|tuzatish|boshlangich_qoldiq|aros_sync|qarz|ehson). Backfill — bitta idempotent UPDATE:
+  `source='aros_auto'` → aros_sync; `source='qarz'` → qarz; ext_ref `kursfarq:%` → qayta_baholash; ext_ref `convxy:%` yoki izoh `Konvert: %` → konvert; izoh `Boshlang'ich qoldiq%` → boshlangich_qoldiq;
+  faqat pul hisoblari satrlari → ichki_otkazma. `ehson` backfill QILINMAGAN (aniq belgi yo'q). **`entry_turi(uuid)` + `v_entry_turi(entry_id, entry_type, hosila_turi)`** — saqlangan tur 'oddiy' bo'lsa ham
+  satrlardan hosila; Cashflow B `hosila_turi` dan o'qiydi.
+- 🔴 **konvert-dev.html TEGILMAGAN**: u `provodka_yoz` ishlatmaydi, server RPC'lar (`convert_start_v3`/`convert_valyuta_v4` → `do_convert_v2`) entry'ni o'zi insert qiladi. Shuning uchun yangi yozuvlarda tur
+  BEFORE INSERT triggeri `trg_entry_turi_default` bilan beriladi (faqat entry_type hali 'oddiy' bo'lsa; RPC tanalari tegilmagan). `provodka_yoz` ixtiyoriy `entry_type` berilsa shuni yozadi.
+- **`entry.source_id text`** + qisman unique `entry_source_sid_uniq (source, source_id) where source_id is not null and is_deleted=false`. HOZIR HECH KIM YOZMAYDI (Aros hodisa id'si uchun joy).
+- **`provodka_yoz(jsonb)`**: `create or replace`, imzo/huquq/xato matnlari bir xil, tana ATOMIK.sql dan AYNAN + ixtiyoriy `p_data.entry_type` (ro'yxatda bo'lmasa 22000) va `p_data.source_id`.
+- **KUZATUV**: jadval `provodka_kuzatuv` (RLS, policy yo'q; (entry_id, qoida) unique), `entry_line` ustida DEFERRED constraint trigger `trg_provodka_kuzatuv` (COMMIT'da, yozuvning hamma satri ko'rinadi), security definer,
+  tana `begin … exception when others then null end` — HECH QACHON rad etmaydi. Qoidalar: `is_locked_hisob`, `kassa_kassa_tur` (faqat pul satrlari, tur ichki_otkazma/konvert/aros_sync emas), `yuk_boglanmagan` (9110, yuk_ids ham
+  yuk_kutilmoqda ham yo'q), `balans_bolimi_yoq`, `qarz_hisob_togri` (6010/4010). RPC `provodka_kuzatuv_hisobot(p_kun int default 7)` (admin) → `{ok, kun, sanoq[], oxirgi[50]}`.
+- **`sozlama-dev.html`**: «Yangi qo'shish»da 4 select (`#hmNew`), har hisobda sliders ikonkasi → inline tahrir (`hmEditor`/`hmSave`); ustun yo'q bo'lsa (accounts qatorida kalit yo'q yoki 42703) forma eskicha.
+  Admin «Kuzatuv» kartasi (`#kuzCard`, `kuzLoad`).
+- Lokal PG17 fixture'da sinalgan: ikki marta RUN, backfill, provodka_yoz (entry_type/source_id, takror source_id, noto'g'ri tur), trigger loglari, log jadvali buzilganda yozuv saqlanishi.
+
+### Balans B + Cashflow B — A/B ko'rinish (2026-11-07, `PROVODKA_BALANS_B_CASHFLOW_B_20261107.sql`, faqat `balans-dev.html` + `cashflow-dev.html`, RUN kutilmoqda)
+
+Asosiy qoida (Asilbek): eski Balans/Cashflow, jurnal, kassalar, eski yozuvlar O'ZGARMAYDI. Yangi ko'rinish eskisining YONIDA: sahifa tepasida segment
+«A · Hozirgi» | «B · Yangi» (`#abSeg`, default A, tanlov `localStorage`: `prov-balans-rejim` / `prov-cashflow-rejim`). A kodi tegilmagan (faqat `init()` ichidagi
+oxirgi `load()`/`setRange('oy')` chaqiruvi `bbApplyRejim()`/`cbApplyRejim()` ga almashdi — A rejimda aynan o'sha chaqiruv). B rejimi RPC yo'q bo'lsa
+(`PGRST202`/`42883`) sariq «SQL RUN kutilmoqda» banner (`.ab-wait`), A ishlayveradi. `</script>` soni 5 (o'zgarmagan).
+**RUN tartibi:** 1) `PROVODKA_HISOB_MAYDONLAR_20261107.sql` (balans_bolimi/cf_modda/entry_type/provodka_kuzatuv) · 2) `PROVODKA_YUK_YOLDA_QARZ_20261107.sql` (`yuk_yolda_jami`) · 3) shu fayl.
+Fayl A1/A2 siz ham yiqilmaydi: ustun (`balans_bolimi`, `cf_modda`, `entry.entry_type`) va funksiya/jadval (`yuk_yolda_jami`, `aylanma_snapshot`, `aros_*`, `provodka_kuzatuv`)
+mavjudligi har chaqiruvda tekshiriladi (`_bb_col`, `_bb_fn`, `to_regclass`), yetishmagan qator `manba='yoq'` (sahifada «—» + «manba yo'q» tegi).
+Additive: faqat yangi funksiyalar (`_bb_*`, `_cfb_*`, `balans_b`, `balans_soglik`, `cashflow_b`), jadval/ustun/trigger YO'Q; `balans()`/`cashflow()`/`cashflow_kassa()` tegilmagan. ROLLBACK fayl oxirida (faqat `drop function`).
+
+**`balans_b(p_sana, p_solishtir)`** (SECURITY DEFINER; ruxsat `_bb_ok()`: `auth.uid()` null yoki `perm_has_page('balans')` VA `kassa_scope<>'list'` — butun kompaniya raqami).
+Qator: `ord, bolim (AKTIV|MAJBURIYAT|KAPITAL), guruh (joriy|uzoq|jami), kod, nom, summa, solishtir, manba, solishtir_manba, teglar[], izoh, hisoblar`.
+`manba`: `daftar` (entry_date<=sana, tarixiy aniq) · `jonli` · `snapshot` (shu sanadagi `aylanma_snapshot`) · `joriy` (tarixiy manba yo'q — hozirgi qiymat, «joriy» tegi) · `kiritilmagan` (hisob ochilmagan, 0) · `yoq` (null).
+- Daftar: `pul` (section=pul, hodim kassalarisiz) · `hodim_pul` (5400 konteyner avlodlari) · `tovar` (section=tovar/29xx) · `berilgan_qarz` (4710/4720) · `boshqa_aktiv` ·
+  `uzoq_aktiv` (balans_bolimi=uzoq_aktiv, bo'lmasa section asosiy_vosita/amortizatsiya) · `olingan_qarz` (6820) · `ish_soliq` (soliq_majb/oylik_majb) · `uzoq_majb` · `boshqa_majb` (6010/6820/8900 dan boshqa).
+- «Aros» tegi: `yolda_pul` (aros_transfer_yolda sent, Aylanma B formulasi; s_terminal QO'SHILMAGAN — Aylanma bilan bir xil) · `mijoz_qarz` (Aros total_debt, Aylanma Q2a manbasi; **4010 daftari
+  QO'SHILMAYDI** — izohda; Aros manbasi yo'q bo'lsa 4010) · `mijoz_avans` (Aros hamyon) · `yetk_qarz` (Q2b: `aros_yuk_snapshot` posted 365 kun, narx×`yuk_kurslar` − `yuk_tolangan_fc` (yo'q bo'lsa
+  `yuk_tolangan_summa`), valyutali yukda 1.5% gacha qoldiq yopiq; 6010 izohda) · `yolda_yuk` = `kelmagan_qarz` = `yuk_yolda_jami().jami_uzs` · `yolda_yuk_posted` (Y3a) · `kochirish` (K3b+K4) · `brak` (T5) ·
+  `ochiq_buyurtma` (B6, «sotuv narxida» tegi). Tarixiy sanada: aniq snapshot bo'lsa SHU (snapshot), bo'lmasa live/oxirgi snapshot («joriy» tegi). n8n-only qatorlar (B6/T5/Y3a/K) snapshot yo'q bo'lsa «—».
+- **KAPITAL = Aktiv − Majburiyat** («hisoblangan» tegi — daftar to'liq emas). 8900 «Tovar kirimi (vaqtinchalik)» majburiyatga QO'SHILMAYDI (kodi repoda yo'q: `code='8900'` yoki nomida «vaqtinchalik»).
+**`balans_soglik()`** → `{kod, daraja ok|ogoh|xato, sarlavha, matn, summa}`: `dt_kt` (Σ(Dt−Kt)=0, xato) · `vaqtinchalik` · `qarz_6010` (6010 ↔ Q2b) · `qarz_4010` (4010 ↔ Aros) · `manfiy_kassa` ·
+`marja` (so'nggi 3 oy 9010 vs 9110/9110-1: yalpi marja ≥90% → «tannarx yozilmayapti») · `tovar_aros` (29xx ↔ snapshot T1, >0.5%) · `uzoq_aktiv` · `bolim_null` · `kuzatuv` (provodka_kuzatuv 7 kun; jadval yo'q bo'lsa qator yo'q). Qarz farqi chegarasi: max(1 mln, 2%).
+**UI (`balans-dev.html`)**: `#viewA` (eski, o'zgarmagan) / `#viewB`: sana + solishtirish (kecha/oy boshi/yil boshi/ixtiyoriy/yo'q), birlik so'm|mln|$ (kurs `aros_usd_rate`, yo'q bo'lsa `$` o'chiq), 4 KPI (jami aktiv, majburiyat, kapital,
+aylanma kapital = joriy aktiv − joriy majburiyat) + koeffitsientlar (joriy likvidlik, tez likvidlik = pul+yo'ldagi pul+mijoz qarzi+hodim pul+berilgan qarz / joriy majburiyat, qarz/kapital), tablar «Moddalar» ·
+«Filiallar» (`balans()`+`accounts`: filial kassa + ombor `linked_kassa_id`→`warehouse_id`→`filial_ref`, markaziy/hodim/boshqa guruhlar) · «1-shakl» (o'chiq, «tez orada»), O'ZGARISH ustuni (majburiyat kamaysa yashil),
+o'ng ustunda «Balans sog'ligi» kartasi, Excel (`vendor/xlsx` lazy + CSV zaxira). swr `bb:<sana>:<cmp>`.
+🔴 `›` tugma `jurnal-dev.html?hisob=<kodlar>&gacha=<sana>` ga olib boradi, lekin **`jurnal-dev.html` hozir hech qanday URL parametrini O'QIMAYDI** (grep: `location.search` yo'q) — jurnalga ~10 qatorli param o'quvchi kerak (alohida ish).
+
+**`cashflow_b(p_from, p_to, p_kassa default null)`** (SECURITY INVOKER — RLS saqlanadi): qator `ord, guruh, kod, nom, summa, oldingi, teglar[], izoh, soni`; `oldingi` = bir xil uzunlikdagi oldingi davr.
+Pul = `section='pul'` (p_kassa bo'lsa kassa + tur/valyuta bolalari, `kassa_oila` qoidasi). Faqat posted, `is_deleted=false`. Yozuv turi: `entry.entry_type` (ustun yo'q bo'lsa `v_entry_turi` bilan AYNAN bir xil hosila qoida):
+`ichki_otkazma`/`konvert` pul oqimi EMAS (sof ta'siri `ichki_kassa` qatorida: hamma kassada ≈0, konvert ustamasi/farqi shu yerda), `qayta_baholash` → «Kurs ta'siri». Qolgan yozuvlarda har QARSHI satr (pul bo'lmagan) `_cfb_kod()` bilan:
+`cf_modda` (yo'q bo'lsa kod/nom/tur: 9010/4010→mijoz, 9110/9110-1/6010→yetkazuvchi, 4710/4720, 6820, 944x→xayriya, nomdan ish haqi/ijara/soliq, tur kapital→egasi, daromad→boshqa_tushum, xarajat→boshqa_operatsion).
+Qatorlar: operatsion (mijoz_tushum, boshqa_tushum «tekshirish kerak», mijoz_qaytarish, yetkazuvchi_tolov, ish_haqi, ijara, xayriya, boshqa_operatsion, soliq), investitsiya (asosiy_vosita, qarz_berildi 4720 Dt, qarz_qaytdi 4720 Kt),
+moliyaviy (qarz_olindi 6820 Kt, qarz_qaytarildi 6820 Dt, egasi), `ichki_kassa`, `sof_ozgarish`, `kurs`, `boshi`/`oxiri`, `tekshiruv` (boshi + sof + kurs − oxiri, ±1 so'm), `fcf` (operatsion + asosiy vositalar).
+Og'ish: kanvasda «qaytarilgan (6820 Dt / 4720 Kt)» moliyaviyda edi — 4720 Kt (berilgan qarz qaytdi) IAS 7 bo'yicha INVESTITSIYA qatoriga qo'yildi.
+**UI (`cashflow-dev.html`)**: Dan/Gacha + kassa (A bilan bir xil ro'yxat) + tezkor davr (bugun/hafta/oy/chorak/yil), 4 KPI (operatsion oqim, FCF, davr oxiri qoldiq, kurs ta'siri; oldingi davrga farq),
+«Pul qoldig'i qayerga ketdi» waterfall (oddiy div-bar, kutubxona yo'q), jadval (davr/oldingi/o'zgarish/soni), tekshiruv ✓/✗, Excel. swr `cb:`.
+**Sinov:** lokal Postgres 17 fixture (accounts/entry/entry_line + auth.uid/perm stublari): ikki marta RUN (idempotent), A1 ustunlarisiz va ustunlar bilan, Aros jadvallarisiz fallback, ruxsat (admin/ruxsatsiz/list scope),
+kassa filtri va tekshiruv=0. UI headless Chrome + mock supabase (B/A/missing-RPC/filial tab/mln/mobil).
+
+### Ehson → Cashflow B «Xayriya» belgilari (2026-11-07, `PROVODKA_EHSON_XAYRIYA_944X_20261107.sql`, faqat dev, RUN kutilmoqda)
+
+Reja 12-band. DALIL: Ehson jamg'armasiga kompaniya pulini Professional'dagi oddiy provodka o'tkazadi (Dt `accounts.ehson_kassa_id is not null` 94xx xarajat / Kt kassa,
+`_ehson_kirim_sync` ehson_kirim'ni avtomat hosil qiladi) — kompaniya kitobida allaqachon bor, YANGI HISOB (9440) OCHILMADI, `ehson_kirim_provodka` RPC YO'Q, ehson-dev.html
+TEGILMADI. Ehson «qo'lda kirim» (`ehson_kirim_qolda`, `tur='qolda'`) `entry`/`accounts`ga umuman yozilmaydi (kompaniya kassasidan kelmaydi) — ikki marta hisoblanmaydi.
+- Fayl additive/idempotent; old shart `PROVODKA_EHSON.sql` + `PROVODKA_EHSON_ZAKOT.sql`. `accounts.cf_modda/faoliyat_turi/balans_bolimi` va `entry.entry_type` ustunlari BOSHQA
+  SQL'da qo'shiladi: bo'lmasa jim o'tadi (backfill NOTICE bilan skip) — o'sha SQL'dan KEYIN shu faylni qayta RUN qiling.
+- `trg_accounts_ehson_cf` (BEFORE insert/update of ehson_kassa_id): ehson moddasiga `cf_modda='xayriya'`, `faoliyat_turi='operatsion'`, `balans_bolimi='xarajat'` (faqat bo'sh
+  bo'lsa; `jsonb_populate_record`, ustun yo'q bo'lsa e'tiborsiz) — yangi child jamg'arma moddasi ham avtomat. Mavjud moddalar no-op update bilan to'ldiriladi.
+- `_entry_type_ehson_belgila(entry_id)` (ichki): `entry.entry_type='ehson'`, FAQAT NULL yoki ustun sukut qiymatiga teng bo'lsa; xato → `raise warning` (provodkani to'smaydi).
+  Chaqiruvchi: `trg_entry_line_ehson_tur` (entry_line AFTER INSERT, Dt ehson moddasi) + `entry_ehson_pul_turi_yoz` (imzo bir xil, +1 qator) + eski yozuvlar backfill
+  (`ehson_pul_turi not null` yoki Dt ehson satri). Summa/kassa/jurnal o'zgarmaydi.
+- Sinov: lokal PG17 fixture (eski/yangi entry, boshqa entry_type tegilmaydi, ustun yo'q holat, ikki marta RUN).
+
+### Yo'ldagi yuklar (on_way) HAM yetkazuvchi qarzi (2026-11-07, `PROVODKA_YUK_YOLDA_QARZ_20261107.sql`, faqat dev, RUN kutilmoqda)
+
+Asilbek: «yo'ldagi yuk (hali nashr qilinmagan) ham yetkazuvchiga qarz — kelmagan yukdan qarz». Yo'lda = `status` posted/canceled EMAS va `delivery_status='on_way'`.
+- **Kesh fakti:** Yuk Snapshot Sync (`CBRqq1bF6e2RcC6Q`) Aros webhook'idan HAMMA yukni oladi (status filtri yo'q; kesh: created/posted/canceled, delivery on_way 28 ta) —
+  on_way yuklar `aros_yuk_snapshot.delivery_status` da allaqachon bor. **n8n O'ZGARMADI** (skript yo'q). Chegara: soatlik sync 90 kunlik oyna — 90 kundan eski yo'ldagi yuk
+  yangilanmaydi (nashr qilinsa ham «yo'lda» qolib ketishi mumkin) → `yuk_yolda_jami().eski_soni`; tuzatish: refresh webhook `?date_from=…&key=…`.
+- **SQL (additive):** `aros_yuk_ozgarish.tur` CHECK ga `yolda_narx`, `yolda_posted` (CHECK qayta tuziladi). `sync_aros_yuk_snapshot` QAYTA (KESH.sql nusxasi AYNAN + 2 hodisa):
+  yo'ldagi (eski yoki yangi surat) yukda narx o'zgarsa `yolda_narx` (narx_oshdi/kamaydi O'RNIGA); yo'lda yuk posted bo'lsa `yolda_posted` (eski = oxirgi yo'lda narx,
+  yangi = YAKUNIY narx; narx o'zgarmagan bo'lsa `korildi=true` — faqat tarix, banner to'lmasin). `yuk_kesh_royxat(p)` rows[] ga `yolda` (boolean) qo'shildi.
+  **`yuk_yolda_jami()`** (security definer, stable; admin yoki `perm_has_page('qarzdor'|'balans')`, aks holda `{ok:false,kod:'ruxsat_yoq'}`) →
+  `{ok, soni, jami_uzs, by_cur:[{valyuta,narx,uzs}], by_yetk:[{yetkazuvchi,soni,uzs}], kurs_sana, kurs_yoq:[valyuta], eski_soni}`. 🔴 Imzo/maydonlar Balans B bilan kelishilgan.
+  Kurs = `conv_baza_kurs` (yuk_kurslar bilan bir xil; CHY=CNY); kursi yo'q valyuta jamiga QO'SHILMAYDI (`kurs_yoq`). `kurs_sana` — currency_rate dagi eng yangi sana.
+- **`qarzdor-dev.html`** («Biz qarzdor»): `yoldaOf(y)`; `load()` posted + yo'lda yuklarni oladi (`yuk_tolangan_fc`/tannarx ular uchun ham so'raladi). Jami kartada «shundan yo'lda»;
+  yetkazuvchi qatorida «yo'lda: N · $X» pill + meta; ichkarida alohida «Kelmagan yuklar (yo'lda)» guruhi (punktir karta, to'lov tugmasi YO'Q, `toPay` ham bloklaydi).
+  Yangi Excel tugmasi (`ykExportExcel`): «Yetkazuvchilar» (yo'lda soni/summa alohida) + «Hujjatlar» (Holat: Yo'lda/Nashr qilingan/Boshlang'ich).
+- **`yuklar-dev.html`:** «Yo'lda (N)» chipi (`filtYolda`, `yukYolda`); `AO_TUR` ga yangi turlar. **`professional-dev.html` TEGILMADI** — yo'ldagi yukka pul to'lash hali ham taqiqlangan.
+- 5 kunlik va Aylanma tegilmadi (yo'lda qarz ularga kirmaydi).
+
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson
