@@ -1245,7 +1245,7 @@ Asilbek: «Dilnoza Nazarova uchun 3 ta child kassa, har biriga naqd/karta/$ — 
   (Berish/Reja/Qarz berish/To'lov/Guruh to'lov/Kirim/O'tkazma/Konvert summa+kurs/Oila va a'zo daromadi), `type="text" inputmode="decimal"`;
   (5) Ehson berish: forma ochilganda darhol oilalar ro'yxati (`ehbShowDefault`, `ehson_royxat {limit:200}`, yopilganlarsiz, 50 ta, scroll), qidiruv yozilsa server qidiruvi.
 
-### Ehson: QARZ OLISH (jamg'arma kimdandir qarz oladi) + kassalar MANFIYDA yurishi mumkin (2026-11-06, `PROVODKA_EHSON_QARZ_OLISH_MANFIY_20261106.sql`, faqat dev, RUN kutilmoqda)
+### Ehson: QARZ OLISH (jamg'arma kimdandir qarz oladi) + kassalar MANFIYDA yurishi mumkin (2026-11-06, `PROVODKA_EHSON_QARZ_OLISH_MANFIY_20261106.sql`, faqat dev, RUN ✅ 07.11)
 
 Asilbek: Ehson'da faqat qarz BERISH bor edi — endi jamg'arma qarz OLADI (pul ehson kassasiga KIRADI), kimdan + izoh majburiy; ehson kassalari manfiyda ham yursin.
 RUN tartibi: EHSON → ZAKOT → QARZ → KIRIM → TRANSFER → KONVERT_QARZ_GURUH → DILNOZA → USD_QOLDIQ → shu fayl (old shart yo'q bo'lsa aniq xato). Idempotent.
@@ -1277,7 +1277,7 @@ RUN tartibi: EHSON → ZAKOT → QARZ → KIRIM → TRANSFER → KONVERT_QARZ_GU
 - Tekshirish: lokal PG 17 minimal fixture bilan (SQL ikki marta RUN, olish/qaytarish/bekor/takror/valyuta/kimdan-izoh/manfiy qoldiq view) — o'tdi. Patchlangan 5 funksiya va brauzer UI to'liq
   ehson sxemasida/brauzerda TEKSHIRILMAGAN (faqat `node --check` va compile).
 
-### Yetkazuvchi AVANSI — bog'lanmagan tovar to'lovi kimga berilgani (2026-11-06, `PROVODKA_YUK_AVANS_YETKAZUVCHI.sql`, faqat dev, RUN kutilmoqda)
+### Yetkazuvchi AVANSI — bog'lanmagan tovar to'lovi kimga berilgani (2026-11-06, `PROVODKA_YUK_AVANS_YETKAZUVCHI.sql`, faqat dev, RUN ✅ 07.11)
 
 Asilbek: «9110 Tovar tannarxi'ni yuksiz to'laganda yetkazuvchi so'ralsin — yuk kelguncha pul shu yetkazuvchi ustida avans bo'lib tursin, qarzdor sahifasida qarzidan ayirilsin».
 - **SQL (additive)**: `entry.yetkazuvchi text` (+ qisman indeks); **`entry_yetkazuvchi_yoz(p_ext_ref, p_yetkazuvchi)`** (`entry_yuk_sabab_yoz` naqshi: egalik, 30 daqiqa,
@@ -1313,7 +1313,7 @@ bilan filtrlaydi → kassalar (filial_ref 21 22 23 27 29 30 31 7 + bolalari) va 
 `*_bak_20261106` + pg_dump; `--rollback`. ⚠️ 69 Nukus Markaziy Aros'da 05.11 gacha faol (84 hujjat, noyabr reja 250M) — Asilbek tasdiqlasin.
 `cachiers` (Aros mirror, Bugalter Sync upsert) tegilmaydi; Cache Builder `FRANCHISE_MAP` lug'ati qoladi (zararsiz).
 
-### Hisob maydonlari + yozuv turi + kuzatuv rejimi (2026-11-07, `PROVODKA_HISOB_MAYDONLAR_20261107.sql`, `sozlama-dev.html`, faqat dev, RUN kutilmoqda)
+### Hisob maydonlari + yozuv turi + kuzatuv rejimi (2026-11-07, `PROVODKA_HISOB_MAYDONLAR_20261107.sql`, `sozlama-dev.html`, faqat dev, RUN ✅ 07.11)
 
 Asilbek: kassalar, jurnal va ESKI yozuvlar O'ZGARMAYDI — hammasi additive, default'li. Balans/Cashflow keyingi bosqichlari uchun ma'lumot modeli.
 - **`accounts` yangi ustunlar**: `balans_bolimi` (joriy_aktiv|uzoq_aktiv|joriy_majburiyat|uzoq_majburiyat|kapital|daromad|xarajat), `cf_modda` (mijoz_tushum … ichki, 15 qiymat),
@@ -1336,7 +1336,7 @@ Asilbek: kassalar, jurnal va ESKI yozuvlar O'ZGARMAYDI — hammasi additive, def
   Admin «Kuzatuv» kartasi (`#kuzCard`, `kuzLoad`).
 - Lokal PG17 fixture'da sinalgan: ikki marta RUN, backfill, provodka_yoz (entry_type/source_id, takror source_id, noto'g'ri tur), trigger loglari, log jadvali buzilganda yozuv saqlanishi.
 
-### Balans B + Cashflow B — A/B ko'rinish (2026-11-07, `PROVODKA_BALANS_B_CASHFLOW_B_20261107.sql`, faqat `balans-dev.html` + `cashflow-dev.html`, RUN kutilmoqda)
+### Balans B + Cashflow B — A/B ko'rinish (2026-11-07, `PROVODKA_BALANS_B_CASHFLOW_B_20261107.sql`, faqat `balans-dev.html` + `cashflow-dev.html`, RUN ✅ 07.11)
 
 Asosiy qoida (Asilbek): eski Balans/Cashflow, jurnal, kassalar, eski yozuvlar O'ZGARMAYDI. Yangi ko'rinish eskisining YONIDA: sahifa tepasida segment
 «A · Hozirgi» | «B · Yangi» (`#abSeg`, default A, tanlov `localStorage`: `prov-balans-rejim` / `prov-cashflow-rejim`). A kodi tegilmagan (faqat `init()` ichidagi
@@ -1377,7 +1377,7 @@ Og'ish: kanvasda «qaytarilgan (6820 Dt / 4720 Kt)» moliyaviyda edi — 4720 Kt
 **Sinov:** lokal Postgres 17 fixture (accounts/entry/entry_line + auth.uid/perm stublari): ikki marta RUN (idempotent), A1 ustunlarisiz va ustunlar bilan, Aros jadvallarisiz fallback, ruxsat (admin/ruxsatsiz/list scope),
 kassa filtri va tekshiruv=0. UI headless Chrome + mock supabase (B/A/missing-RPC/filial tab/mln/mobil).
 
-### Ehson → Cashflow B «Xayriya» belgilari (2026-11-07, `PROVODKA_EHSON_XAYRIYA_944X_20261107.sql`, faqat dev, RUN kutilmoqda)
+### Ehson → Cashflow B «Xayriya» belgilari (2026-11-07, `PROVODKA_EHSON_XAYRIYA_944X_20261107.sql`, faqat dev, RUN ✅ 07.11)
 
 Reja 12-band. DALIL: Ehson jamg'armasiga kompaniya pulini Professional'dagi oddiy provodka o'tkazadi (Dt `accounts.ehson_kassa_id is not null` 94xx xarajat / Kt kassa,
 `_ehson_kirim_sync` ehson_kirim'ni avtomat hosil qiladi) — kompaniya kitobida allaqachon bor, YANGI HISOB (9440) OCHILMADI, `ehson_kirim_provodka` RPC YO'Q, ehson-dev.html
@@ -1391,7 +1391,7 @@ TEGILMADI. Ehson «qo'lda kirim» (`ehson_kirim_qolda`, `tur='qolda'`) `entry`/`
   (`ehson_pul_turi not null` yoki Dt ehson satri). Summa/kassa/jurnal o'zgarmaydi.
 - Sinov: lokal PG17 fixture (eski/yangi entry, boshqa entry_type tegilmaydi, ustun yo'q holat, ikki marta RUN).
 
-### Yo'ldagi yuklar (on_way) HAM yetkazuvchi qarzi (2026-11-07, `PROVODKA_YUK_YOLDA_QARZ_20261107.sql`, faqat dev, RUN kutilmoqda)
+### Yo'ldagi yuklar (on_way) HAM yetkazuvchi qarzi (2026-11-07, `PROVODKA_YUK_YOLDA_QARZ_20261107.sql`, faqat dev, RUN ✅ 07.11)
 
 Asilbek: «yo'ldagi yuk (hali nashr qilinmagan) ham yetkazuvchiga qarz — kelmagan yukdan qarz». Yo'lda = `status` posted/canceled EMAS va `delivery_status='on_way'`.
 - **Kesh fakti:** Yuk Snapshot Sync (`CBRqq1bF6e2RcC6Q`) Aros webhook'idan HAMMA yukni oladi (status filtri yo'q; kesh: created/posted/canceled, delivery on_way 28 ta) —
