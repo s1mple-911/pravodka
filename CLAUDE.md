@@ -1607,6 +1607,22 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
   (eski mantiq). `aros_qarzdor_royxat`: filial filtri `filial_qarz`ni ham qamraydi, `filiallar` har qarzdor filialda sanaydi,
   rows da `filial_soni`/`filial_qarz`. `aros_qarzdor_num(text)` xavfsiz numeric. UI: filial katagida «+N filial» (title=taqsimot),
   kartada filial bo'yicha qatorlar. n8n'ga tegilmagan. Lokal PG 17 da real 2827 qatorlik payload bilan sinalgan (Σ aynan summary).
+
+### Balans B tuzatishlari (2026-11-07 kech, `PROVODKA_BALANS_B_TUZATISH_20261107.sql`, RUN ✅ 07.11; commit 0973cf3)
+- **Yetkazuvchilarga qarz** = `yetk_qarz_hisob(p_sana)` — qarzdor-dev `qoldiqUzs()` bilan AYNAN: nashr qilingan yuklar
+  (`aros_yuk_snapshot.mavjud`, 365 kun chegarasi YO'Q) + `yuk_qolda` hujjatlari; `round(narx×kurs) + tannarx(yuk_tannarx) − to'langan`
+  (`yuk_tolangan_fc`: valyutada bo'lsa `tfc×kurs`), qoldiq < `min(max(1, jami×1.5%), 10 $)` → 0. `_bb_val` va `balans_b_detal`
+  shu funksiyadan (tarixiy sana/snapshot mantiqi o'zgarmagan). Tekshiruv: Ace/Zahra = Qarz sahifasi «nashr qilingan» qismi.
+- **Ochiq buyurtmalar** — `balans_b` guruh `'malumot'`: ko'rinadi, Jami aktiv/Kapitalga KIRMAYDI (tovar omborda, ikki marta sanash
+  edi). balans-dev: B jadvalda «Ma'lumot (jamiga kirmaydi)» bo'limi, C da Debitorlar ichida teg `jamiga kirmaydi`, `gsum`/`bbTotals` chiqaradi.
+- **6310 −53.6 mln** — avans emas edi: 05.09 (31.5M) va 17.09 (22.1M) fransheza depoziti qaytarilgan, depozit daftarda yo'q edi.
+  Yozuv `ext_ref='bq:6310:20261107'` (2026-09-01, Dt 8720 Boshlang'ich kapital / Kt 6310, 53 600 000, izoh «Boshlang'ich qoldiq: …»
+  → entry_type boshlangich_qoldiq). 6310 = 0. Qaytarish: shu entry soft-delete.
+- 🔴 **Tovar 29xx ≠ Aros (2.75 mlrd)** — sabab Pravodka'da EMAS: dashboard «Aros Market - Cache Builder» (`xgfB2F52mXZ5tJJk`)
+  Metabase stock kartasi ishlamay `fallback_cache` (cache_filial+history bo'yicha tarixiy **MAX**) beradi, Pravodka «Tovar Sync»
+  (`DkIxfOW2kLs0tpIe`, `sync_tovar_balances`) shu keshga tenglaydi. Yechim `N8N_CACHE_BUILDER_STOCK_API.sh` (server'da Asilbek):
+  «Get Metabase Stock» → «Get Stock API» (profit-summary `total_stock_value`, Aylanma Snapshot T1 bilan bir manba), Build Cache
+  `ombor_source='profit_api'`, `ombor_brak_usd`. Keyin Publish; Tovar Sync 1 soatda daftarni o'zi to'g'rilaydi.
 - 🔴 **n8n HTTP Request «Items per Batch = 1» ABADIY osiladi** (2026-09-07, Yuk Bojxona Sync 15 soatlik executionlar
   sababi). Batching kerak bo'lsa `batchSize ≥ 2`. Yuk Bojxona Sync 5/2500ms ga o'tkazildi.
 - 🔴 `Yuk Detail API` (`yZkGLRDs1ujk8EFo`) ga `?path=` qo'shildi — Aros admin API'ga OCHIQ proxy, **NOFAOL qolsin**,
