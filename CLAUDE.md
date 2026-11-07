@@ -1598,6 +1598,15 @@ tegilmaydi**; `aros_qarzdor` Provodka `qarzdor` jadvaliga QO'SHILMAYDI (boshqa o
 - **UI** `qarzdor-dev.html`: umumiy strip (`#qzUmumiy`, faqat «Bizdan qarzdor»), sub-tab «Aros mijozlar» (`#tab-aros`,
   `aq*`/`.artbl`: dash + kechikish stacked bar, qidiruv/filial/holat/saralash, jadval ≥1301px (`body.aq-wide .main
   {max-width:none}` — raqam kesilmasin) / karta ≤1300px, `#arosKartModal`, Excel ≤5000). RPC yo'q → banner.
+- 🔴 **Bir mijoz — bir nechta filial** (2026-11-07, `PROVODKA_AROS_QARZDOR_FILIAL_BIRLASHTIR_20261107.sql`, RUN ✅ 07.11):
+  Aros debtors-list bir mijozni HAR filial uchun alohida qator beradi (07.11: 2827 qator / 2728 mijoz, 92 mijoz 2–4 filialda);
+  `user_id` PK upsert oxirgi qatorni qoldirib 982 730 200 so'm yo'qotardi (jadval 6.86 mlrd vs summary 7.84 mlrd).
+  Endi `sync_aros_qarzdor` payloadni mijoz bo'yicha YIG'ADI (qarz ustunlari sum, hamyon/keshbek max — mijoz darajasida,
+  `balance = wallet+cashback−Σdebt`, asosiy filial = eng katta qarzli, `wallet_status` blocked ustun), yangi ustunlar
+  `filial_soni`/`filial_qarz` ([{warehouse_id, warehouse_nom, total_debt, total_outdated}]); sweep/`soni` XOM qator soni bilan
+  (eski mantiq). `aros_qarzdor_royxat`: filial filtri `filial_qarz`ni ham qamraydi, `filiallar` har qarzdor filialda sanaydi,
+  rows da `filial_soni`/`filial_qarz`. `aros_qarzdor_num(text)` xavfsiz numeric. UI: filial katagida «+N filial» (title=taqsimot),
+  kartada filial bo'yicha qatorlar. n8n'ga tegilmagan. Lokal PG 17 da real 2827 qatorlik payload bilan sinalgan (Σ aynan summary).
 - 🔴 **n8n HTTP Request «Items per Batch = 1» ABADIY osiladi** (2026-09-07, Yuk Bojxona Sync 15 soatlik executionlar
   sababi). Batching kerak bo'lsa `batchSize ≥ 2`. Yuk Bojxona Sync 5/2500ms ga o'tkazildi.
 - 🔴 `Yuk Detail API` (`yZkGLRDs1ujk8EFo`) ga `?path=` qo'shildi — Aros admin API'ga OCHIQ proxy, **NOFAOL qolsin**,

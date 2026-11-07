@@ -2964,6 +2964,15 @@ function aqStickH(){
   if(s&&p) p.style.setProperty('--aq-stick-h', (s.offsetHeight||0)+'px');
 }
 window.addEventListener('resize',()=>{ try{ aqStickH(); }catch(e){} });
+function aqFilialHtml(r){
+  // 2026-11-07: Aros bir mijozni har filial uchun alohida qator beradi — sync mijozga yig'adi (filial_qarz taqsimot)
+  const fq=Array.isArray(r.filial_qarz)?r.filial_qarz:[];
+  const n=Number(r.filial_soni)||fq.length||1;
+  const main=esc(r.warehouse_nom||'—');
+  if(n<=1||!fq.length) return main;
+  const tip=fq.map(f=>`${f.warehouse_nom||('#'+f.warehouse_id)}: ${money(f.total_debt)}`).join('\n');
+  return `${main} <span class="aq-sub" title="${esc(tip)}" style="white-space:nowrap">+${n-1} filial</span>`;
+}
 function aqRow(r){
   const rolT=AQ_ROL[r.rol]||r.rol||'—';
   const blocked=r.wallet_status==='blocked';
@@ -2971,7 +2980,7 @@ function aqRow(r){
   return `<tr onclick="aqOpenKart(${Number(r.user_id)})">
     <td data-l="Mijoz"><div class="aq-name">${esc(r.ism||'')} ${esc(r.familya||'')}</div>
       <div class="aq-sub">${esc(r.telefon||'—')} · ${esc(rolT)}</div></td>
-    <td data-l="Filial">${esc(r.warehouse_nom||'—')}</td>
+    <td data-l="Filial">${aqFilialHtml(r)}</td>
     <td data-l="Jami qarz" class="num">${money(r.total_debt)}</td>
     <td data-l="Muddati o'tmagan" class="num">${money(r.clean_debt)}</td>
     <td data-l="Muddati o'tgan" class="num"><span class="aq-amt ${aqKechCls(r.kechikish_daraja)}">${money(r.total_outdated)}</span>${aqBucketMini(r)}</td>
@@ -3019,7 +3028,8 @@ window.aqOpenKart=userId=>{
       <div><div class="qz-kl">Telefon</div><div class="qz-kv">${r.telefon?`<a href="tel:${esc(r.telefon)}" style="color:inherit;text-decoration:none">${esc(r.telefon)}</a>`:'—'}</div></div>
       <div><div class="qz-kl">Rol</div><div class="qz-kv">${esc(rolT)}</div></div>
     </div>
-    <div class="qz-kmuddat">${esc(r.warehouse_nom||'—')}</div>
+    <div class="qz-kmuddat">${aqFilialHtml(r)}</div>
+    ${(Array.isArray(r.filial_qarz)&&r.filial_qarz.length>1)?`<div class="qz-ksum3" style="grid-template-columns:1fr">${r.filial_qarz.map(f=>`<div><div class="qz-kl">${esc(f.warehouse_nom||('#'+f.warehouse_id))}</div><div class="qz-kv">${money(f.total_debt)} so'm${Number(f.total_outdated)>0?` · muddati o'tgan ${money(f.total_outdated)}`:''}</div></div>`).join('')}</div>`:''}
     <div class="qz-ksum3">
       <div><div class="qz-kl">Jami qarz</div><div class="qz-kv">${money(r.total_debt)} so'm</div></div>
       <div><div class="qz-kl">Muddati o'tmagan</div><div class="qz-kv">${money(r.clean_debt)} so'm</div></div>
