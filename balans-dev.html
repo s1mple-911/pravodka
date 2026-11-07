@@ -827,6 +827,7 @@ const BX_TAG={'sotuv narxida':'amb','joriy':'amb','kiritilmagan':'gray','hisobla
 function bbTagList(r,side){
   const t=(r.teglar||[]).filter(x=>x!=='Aros');
   if(r.manba==='kiritilmagan' && !t.includes('kiritilmagan')) t.push('kiritilmagan');
+  if(r.guruh==='malumot' && !t.includes('jamiga kirmaydi')) t.push('jamiga kirmaydi');   // 2026-11-07: ochiq buyurtmalar — ma'lumot qatori
   const out=t.map(x=>({t:x,c:BX_TAG[x]||'gray'}));
   const p=(r.manba!=='kiritilmagan')?bbPct(r.summa,r.solishtir):null;
   if(p!=null && Math.abs(p)>=50 && Math.abs(Number(r.summa)-Number(r.solishtir))>=1e6) out.unshift({t:pctTxt(p),c:(side==='l'?p<0:p>0)?'grn':'red'});
@@ -898,7 +899,7 @@ window.bbRetry=()=>bbLoad(true);
 const bbSum=(rows,pred,f)=>rows.filter(pred).reduce((a,r)=>a+(Number(r[f])||0),0);
 function bbTotals(f){   // f = 'summa' | 'solishtir'
   const R=bbRows, joriyA=bbSum(R,r=>r.bolim==='AKTIV'&&r.guruh==='joriy',f), joriyM=bbSum(R,r=>r.bolim==='MAJBURIYAT'&&r.guruh==='joriy',f);
-  const a=bbSum(R,r=>r.bolim==='AKTIV'&&r.guruh!=='jami',f), m=bbSum(R,r=>r.bolim==='MAJBURIYAT'&&r.guruh!=='jami',f);
+  const a=bbSum(R,r=>r.bolim==='AKTIV'&&r.guruh!=='jami'&&r.guruh!=='malumot',f), m=bbSum(R,r=>r.bolim==='MAJBURIYAT'&&r.guruh!=='jami'&&r.guruh!=='malumot',f);
   const g=k=>{ const r=R.find(x=>x.kod===k); return r&&r[f]!=null?Number(r[f]):0; };
   const tez=g('pul')+g('yolda_pul')+g('mijoz_qarz')+g('hodim_pul')+g('berilgan_qarz');
   return {aktiv:a, maj:m, kap:a-m, joriyA, joriyM, aylanma:joriyA-joriyM,
@@ -966,6 +967,8 @@ function bbRender(){
   H('AKTIVLAR');
   if(aj.length){ G('Joriy aktivlar'); aj.forEach(r=>L(r,'a')); if(au.length) ST('s','Jami joriy aktivlar',sumF(aj,'summa'),sumF(aj,'solishtir'),'a'); }
   if(au.length){ G('Uzoq muddatli aktivlar'); au.forEach(r=>L(r,'a')); }
+  const am=R.filter(r=>r.bolim==='AKTIV'&&r.guruh==='malumot');
+  if(am.length){ G("Ma'lumot (jamiga kirmaydi)"); am.forEach(r=>L(r,'a')); }
   const ta=totRow('jami_aktiv'), aCur=ta?Number(ta.summa):sumF(aj.concat(au),'summa'), aPrev=ta&&ta.solishtir!=null?Number(ta.solishtir):sumF(aj.concat(au),'solishtir');
   ST('t','JAMI AKTIVLAR',aCur,aPrev,'a');
   H('MAJBURIYATLAR VA KAPITAL');
@@ -1075,12 +1078,12 @@ function bcRender(){
       +`<div class="bx-trk"><i style="width:${share.toFixed(1)}%;background:${color}"></i></div>${items}</div>`; };
   const used=new Set();
   const aGroups=BC_AKTIV.map(g=>{
-    const rs=R.filter(r=>r.bolim==='AKTIV' && (g.uzoq?r.guruh==='uzoq':(r.guruh==='joriy' && g.kods.includes(r.kod))));
+    const rs=R.filter(r=>r.bolim==='AKTIV' && (g.uzoq?r.guruh==='uzoq':((r.guruh==='joriy'||r.guruh==='malumot') && g.kods.includes(r.kod))));
     rs.forEach(r=>used.add(r.kod)); return {g,rs};
   });
   // Ro'yxatda yo'q yangi joriy aktiv kodi — Debitorlarga (yo'qolib qolmasin)
   R.filter(r=>r.bolim==='AKTIV'&&r.guruh==='joriy'&&!used.has(r.kod)).forEach(r=>aGroups.find(x=>x.g.fallback).rs.push(r));
-  const gsum=rs=>rs.reduce((a,r)=>a+(bbNoVal(r)?0:Number(r.summa)||0),0);
+  const gsum=rs=>rs.reduce((a,r)=>a+((bbNoVal(r)||r.guruh==='malumot')?0:Number(r.summa)||0),0);
   const aHtml=aGroups.map(({g,rs})=>grp(g.name,g.color,gsum(rs),rs.map(r=>it(r,'a')).join(''))).join('');
   const mj=R.filter(r=>r.bolim==='MAJBURIYAT'&&r.guruh==='joriy'), mu=R.filter(r=>r.bolim==='MAJBURIYAT'&&r.guruh==='uzoq'), kap=R.find(r=>r.kod==='kapital');
   const pHtml=grp('Joriy majburiyatlar','var(--bx-c5)',gsum(mj),mj.map(r=>it(r,'l')).join(''))
