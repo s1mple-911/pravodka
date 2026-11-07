@@ -1409,6 +1409,19 @@ Asilbek: «yo'ldagi yuk (hali nashr qilinmagan) ham yetkazuvchiga qarz — kelma
 - **`yuklar-dev.html`:** «Yo'lda (N)» chipi (`filtYolda`, `yukYolda`); `AO_TUR` ga yangi turlar. **`professional-dev.html` TEGILMADI** — yo'ldagi yukka pul to'lash hali ham taqiqlangan.
 - 5 kunlik va Aylanma tegilmadi (yo'lda qarz ularga kirmaydi).
 
+### Balans B/C va Cashflow B — dizayn kanvasi bilan 1:1 (2026-11-07, faqat dev)
+
+Asilbek: «men tashlagan dizayn bilan 1ga 1 bo'lsin». Dizayn: https://claude.ai/artifact/D57GoWyvc3bXp5frDrWWfP (`BalansTaklif`=B Jadval,
+`BalansYonma`=C Yonma-yon, `CashflowB`=IAS 7, `DizaynTizimi`). `balans-dev.html`: eski segment o'rnida pill-nav A·Hozirgi | B·Jadval |
+C·Yonma-yon (`#abSeg`, `prov-balans-rejim`), `#viewA` o'zgarmagan (`#headA` B/C da yashirin); B/C `#viewBX`, ranglar `--bx-*` (dark juftligi);
+B: sana + «bilan solishtirish» (Kecha/Oy boshi/Yil boshi/Ixtiyoriy), so'm/mln/$ (`aros_usd_rate`), Eksport menyu (XLSX/CSV), Moddalar/Filiallar/
+1-shakl (tez orada), 4 KPI (Kapital yashil), jadval H/G/L/S/T + teglar (|o'zgarish|≥50% va ≥1 mln bo'lsa foiz tegi), `›` → jurnal-dev
+`?hisob=&gacha=` (jurnal hali o'qimaydi), Moliyaviy ko'rsatkichlar, Balans sog'ligi; C: ‹sana›, Solishtirish checkbox, ulush-barlar, AKTIV/PASSIV
+ustunlari, filial kartalari. «Aros»/izoh teglari tooltip'da. Inter `vendor/inter.woff2` (Google Fonts yo'q). `cashflow-dev.html`: pill-nav
+A·Hozirgi | B·IAS 7, `.cfb-*`/`--cb-*`, `cbModel()` (ekran + Excel), 6 ustunli vertikal waterfall (240px, dizayn formulasi; kassa tanlansa
+7-ustun «Ichki»), 3 ustunli jadval (joriy / oldingi shuncha kunlik davr), tekshiruv qatori ✓/✗; ixtiyoriy Dan/Gacha B da yo'q (A da bor).
+Screenshot'lar scratchpad `bx/`, `cfb/`.
+
 ### Qarz oldi-berdi — alohida sahifa (2026-11-03, `PROVODKA_QARZ_OB.sql`, `qarz-oldi-berdi-dev.html`, kalit `qarz_ob`, faqat dev, RUN kutilmoqda)
 
 Asilbek: ruxsati bor odam ISTALGAN Provodka kassasidan qarz BERA oladi (`berdik`) yoki istalgan kassaga qarz OLA oladi (`oldik`). Model va UX — Ehson
