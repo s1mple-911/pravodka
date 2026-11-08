@@ -606,10 +606,9 @@
       </div>
     </div>
     <!-- 2026-11-09 (Asilbek): «Qarz sahifasiga kirganda eng tepada yo'ldagi pullar jami — dollarda, yuanda, so'mda — va
-         oxirgi yangilanish sanasi». Yo'ldagi pullar = «yo'lda» (status=sent) holatidagi BARCHA transfer pullari
-         (aros_transfer_yolda, yolda_royxat RPC — 5 kunlik/Balans bilan bir manba; ruxsatga qarab ko'rinadi).
-         Ikkala yuqori segmentda ham ko'rinadi (qzTop() unga tegmaydi). loadYoldaTop() to'ldiradi. -->
-    <div class="bigcard yolda-top" id="yoldaTop" style="display:none"><div class="cap">Yo'ldagi pullar (transferlar)</div><div class="v">—</div></div>
+         oxirgi yangilanish sanasi». Manba: Biz qarzdor ro'yxatidagi yo'ldagi (on_way, nashr qilinmagan) yuklar — yoldaOf(y).
+         Ikkala yuqori segmentda ham ko'rinadi (qzTop() unga tegmaydi). renderYoldaTop() to'ldiradi. -->
+    <div class="bigcard yolda-top" id="yoldaTop" style="display:none"><div class="cap">Yo'ldagi pullar — yo'ldagi (on_way, nashr qilinmagan) yuklar</div><div class="v">—</div></div>
 
     <!-- ============ QARZ — yuqori segment (4-BOSQICH, katta o'zgarish): "Bizdan qarzdor"
          (yangi qarz tizimi) vs "Biz qarzdor" (eski #tab-kontr — 4010/6010+yuklar, mantiq
@@ -1210,50 +1209,47 @@ window.toPay=id=>{
 };
 
 // =====================================================================
-// 2026-11-09 (Asilbek): eng tepadagi «Yo'ldagi pullar» kartasi — «yo'lda» (status=sent) holatidagi BARCHA transfer
-// pullari: jami so'mda (≈ USD), tagida valyuta kesimi — dollar (transfer usd), yuan (transferda yo'q — 0 ko'rsatiladi),
-// so'm (naqd + click + payme) — transfer soni va oxirgi sinxron vaqti (aros_transfer_yolda.synced_at).
-// Manba yolda_royxat() — 5 kunlik «yo'ldagi pul» va Balans bilan BIR XIL; ruxsat (admin/all/list) RPC ichida.
-// RPC yo'q yoki xato — karta yashirin qoladi (yashirin nol bo'lmasin). Kurs — rows[].dollar_rate (transfer kuni), bo'lmasa usdRate.
-async function loadYoldaTop(){
-  const el=$('yoldaTop'); if(!el) return;
-  let d=null;
-  try{ const r=await sb.rpc('yolda_royxat'); if(r.error){ console.warn('yolda_royxat:',r.error.message); return; } d=r.data; }
-  catch(e){ console.warn('yolda_royxat:',e); return; }
-  if(!d||!Array.isArray(d.rows)) return;
-  renderYoldaTop(d);
+// 2026-11-09 (Asilbek): eng tepadagi «Yo'ldagi pullar» kartasi — yo'ldagi (kelmagan, on_way) yuklar uchun
+// to'lanadigan pul: jami USD'da (usdTxt), tagida har valyuta O'Z kesimida (CNY/CHY bitta), hujjat soni va
+// oxirgi yangilanish vaqti. Chip/qidiruv ta'sir qilmaydi (to'liq rasm). Kursi yo'q valyuta o'z valyutasida
+// ko'rsatiladi, lekin jamiga kirmaydi (yashirin nol bo'lmasin). Vaqt — Aros'dan oxirgi o'qilgan payt
+// (sessionStorage keshidan chiqsa — kesh olingan payt).
+let yoldaTs=null;
+function yoldaUpdTxt(){
+  if(!yoldaTs) return '';
+  const d=new Date(yoldaTs), p=n=>String(n).padStart(2,'0');
+  return `Oxirgi yangilanish: ${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())} (Aros'dan)`;
 }
-function yoldaUpdTxt(ts){
-  if(!ts) return 'Oxirgi yangilanish: —';
-  const d=new Date(ts); if(isNaN(d)) return 'Oxirgi yangilanish: —';
-  const p=n=>String(n).padStart(2,'0');
-  return `Oxirgi yangilanish: ${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())} (Aros transferlari)`;
-}
-function renderYoldaTop(d){
+function renderYoldaTop(){
   const el=$('yoldaTop'); if(!el) return;
-  const rows=d.rows||[]; const n=Number(d.soni)||rows.length;
+  const docs=yuklar.filter(yoldaOf);
   el.style.display='block';
-  if(!n){
-    el.innerHTML=`<div class="cap">Yo'ldagi pullar (transferlar)</div><div class="v" style="color:var(--green)">0</div><div class="s">Hozir yo'lda pul yo'q</div><div class="yt-upd">${yoldaUpdTxt(d.synced_at)}</div>`;
+  if(!docs.length){
+    el.innerHTML=`<div class="cap">Yo'ldagi pullar — yo'ldagi (on_way, nashr qilinmagan) yuklar</div><div class="v" style="color:var(--green)">0</div><div class="s">Hozir yo'lda yuk yo'q</div><div class="yt-upd">${yoldaUpdTxt()}</div>`;
     return;
   }
-  let usd=0, usdN=0, usdUzs=0, cash=0, click=0, payme=0, uzsN=0;
-  rows.forEach(r=>{
-    const u=Number(r.usd)||0, c=Number(r.cash)||0, k=Number(r.click)||0, pm=Number(r.payme)||0;
-    if(u>0){ usd+=u; usdN++; const k2=Number(r.dollar_rate)||usdRate||0; usdUzs+=u*k2; }
-    if(c+k+pm>0){ cash+=c; click+=k; payme+=pm; uzsN++; }
+  const by={}; let totUzs=0;
+  docs.forEach(y=>{
+    const c=labelCur(curOf(y)); const g=by[c]||(by[c]={fc:0,uzs:0,n:0,noRate:false}); g.n++;
+    const q=qoldiqUzs(y), f=qoldiqFc(y);
+    if(q==null||f==null){ g.noRate=true; g.fc+=Number(y.narx)||0; return; }
+    g.fc+=f; g.uzs+=q; totUzs+=q;
   });
-  const som=cash+click+payme;
-  const jamiUzs=Number(d.jami_uzs)||(som+usdUzs);
-  const v=`${money(jamiUzs)}<span class="cur">so'm</span>`;
-  const row=[
-    `<span class="yt-cur"><b>$ ${money2(usd)}</b><span class="c"> · ${usdN} transfer${usdUzs>0?` ≈ ${money(usdUzs)} so'm`:''}</span></span>`,
-    `<span class="yt-cur"><b>¥ 0.00</b><span class="c"> · transferda yuan yo'q</span></span>`,
-    `<span class="yt-cur"><b>${money(som)} so'm</b><span class="c"> · ${uzsN} transfer · naqd ${money(cash)} · click ${money(click)} · payme ${money(payme)}</span></span>`
-  ].join('');
-  el.innerHTML=`<div class="cap">Yo'ldagi pullar (transferlar, holati «yo'lda») — jami</div><div class="v">${v}</div>`
-    +`<div class="s">${(usdRate&&usdRate>0)?`≈ $ ${money2(jamiUzs/usdRate)} · `:''}${n} ta transfer yo'lda</div>`
-    +`<div class="yt-row">${row}</div><div class="yt-upd">${yoldaUpdTxt(d.synced_at)}</div>`;
+  const sym={USD:'$',CNY:'¥',EUR:'€',RUB:'₽'};
+  const order=['USD','CNY','UZS'];
+  const rank=c=>{ const i=order.indexOf(c); return i<0?99:i; };
+  // USD / CNY / UZS har doim ko'rinadi (0 bo'lsa ham) — Asilbek: «shunchasi dollarda, shuncha yuan, shunchasi so'mda».
+  order.forEach(c=>{ if(!by[c]) by[c]={fc:0,uzs:0,n:0,noRate:false}; });
+  const curs=Object.keys(by).sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b));
+  const row=curs.map(c=>{
+    const g=by[c];
+    const txt=c==='UZS'?`${money(g.fc)} so'm`:`${sym[c]||c} ${money2(g.fc)}`;
+    const extra=(c!=='USD'&&c!=='UZS'&&!g.noRate&&usdRate)?` ≈ ${usdTxt(g.uzs)}`:'';
+    return `<span class="yt-cur"><b>${txt}</b><span class="c"> · ${g.n} hujjat${g.noRate?' · kurs yo\'q, jamiga kirmadi':''}${extra}</span></span>`;
+  }).join('');
+  el.innerHTML=`<div class="cap">Yo'ldagi pullar — yo'ldagi (on_way, nashr qilinmagan) yuklar — jami</div><div class="v">${usdTxt(totUzs)}</div>`
+    +`<div class="s">${usdRate?`≈ ${money(totUzs)} so'm · `:''}${docs.length} hujjat · yetkazuvchi qarziga qo'shilgan</div>`
+    +`<div class="yt-row">${row}</div><div class="yt-upd">${yoldaUpdTxt()}</div>`;
 }
 // Jami qarz kartasi — HAR DOIM to'liq rasm (chip/qidiruv unga ta'sir qilmaydi).
 function renderTotCard(list){
@@ -1397,6 +1393,7 @@ function render(){
   } else $('rateWarn').style.display='none';
 
   renderTotCard(list);
+  renderYoldaTop();
   renderChips(list);
 
   if(!yuklar.length && !avansRows.length){ box.innerHTML='<div class="empty">Yuk topilmadi.</div>'; icons(); return; }
@@ -1421,12 +1418,11 @@ function renderError(msg){
 // Davr endi tanlanmaydi — hujjat emas, yetkazuvchi kesimi bo'lgani uchun har doim 2 yillik oyna
 // (n8n proxy baribir eng yangi 500 tasi bilan cheklaydi — yetarli, 2 yildan eski to'lanmagan qarz kam bo'ladi).
 window.load=async(force)=>{
-  loadYoldaTop();   // 2026-11-09: tepadagi yo'ldagi pullar kartasi (kutilmaydi, mustaqil)
   const kun=730;
   const t=nowUz(), from=new Date(t.getTime()-kun*86400000);
   const ck='qarz:s:730';
   const cached=force?null:swrGet(ck);
-  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; tanMap=cached.tanMap||{}; usdRate=cached.usdRate??null; avansRows=cached.avansRows||[];
+  if(cached){ yuklar=cached.yuklar||[]; paidMap=cached.paidMap||{}; rateMap=cached.rateMap||{}; tanMap=cached.tanMap||{}; usdRate=cached.usdRate??null; avansRows=cached.avansRows||[]; yoldaTs=cached.ts||null;
     render(); }
   else { $('body').innerHTML='<div class="empty">Yuklanmoqda…</div>'; }
   $('banner').style.display='none';
@@ -1438,7 +1434,7 @@ window.load=async(force)=>{
     if(!res.ok) throw new Error('HTTP '+res.status);
     const j=await res.json();
     if(!j||j.ok===false||!Array.isArray(j.yuklar)) throw new Error((j&&j.error)||'javob formati kutilmagan');
-    arr=j.yuklar;
+    arr=j.yuklar; yoldaTs=Date.now();
   }catch(e){ if(!cached) renderError(e.message||String(e)); return; }
 
   // Faqat NASHR QILINGAN (posted) hujjatlar qarz — Yuklar/5 kunlik/Aylanma bilan bir xil qoida.
@@ -1464,7 +1460,7 @@ window.load=async(force)=>{
     const bn=$('banner'); bn.textContent="Tannarx olinmadi — qoldiq tannarxsiz hisoblandi: "+(tnQ.error.message||''); bn.style.display='block'; }
   usdRate=(usdQ===null||usdQ===undefined)?null:Number(usdQ);
   if(!(usdRate>0)) usdRate=null;
-  swrSet(ck,{yuklar,paidMap,rateMap,tanMap,usdRate,avansRows});
+  swrSet(ck,{yuklar,paidMap,rateMap,tanMap,usdRate,avansRows,ts:yoldaTs});
   render();
 };
 
