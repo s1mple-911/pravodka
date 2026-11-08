@@ -3157,6 +3157,13 @@ async function loadYukList(){
         else{ const bor=new Set(rows.map(y=>String(y.id))); rows=rows.concat(j.yuklar.filter(y=>!bor.has(String(y.id)))); }
       }
     }
+    // 2026-11-09 (Asilbek: «bu qarz uchun ham to'lov qilishda hujjatlar ichidan chiqishi kerak»): qo'lda (boshlang'ich)
+    //   qarz hujjatlari — yuk_qolda (masalan Xinbo 1C qarzi) — to'lov ro'yxatida ham ko'rinsin. yuklar-dev/qarzdor-dev
+    //   bilan bir xil manba (yuk_qolda_royxat), shakli yuk qatori bilan bir xil (status posted, qolda:true). RPC yo'q bo'lsa jim.
+    try{ const {data:qd,error:qe}=await sb.rpc('yuk_qolda_royxat');
+      if(qe) console.warn('yuk_qolda_royxat:',qe.message);
+      else if(Array.isArray(qd)&&qd.length){ const bor=new Set(rows.map(y=>String(y.id))); rows=rows.concat(qd.filter(y=>!bor.has(String(y.id)))); }
+    }catch(e){ console.warn('yuk_qolda_royxat:',e.message||e); }
     yukList=rows; yukLoaded=true;
     const ids=yukList.map(y=>Number(y.id)).filter(Number.isFinite);
     const curs=[...new Set(yukList.map(y=>y.valyuta).filter(Boolean).concat([yukSaveCur]))];
