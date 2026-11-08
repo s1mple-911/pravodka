@@ -863,6 +863,7 @@
         </div>
         <div class="chips">
           <button type="button" class="fchip" id="dlChip" onclick="toggleFiltDl()">Muddat qo'yilmagan <span id="cDlUnset"></span></button>
+          <button type="button" class="fchip" id="yoldaChip" onclick="toggleFiltYolda()" title="Yo'ldagi (kelmagan), hali nashr qilinmagan yuklar — yetkazuvchi qarziga kiradi, to'lov taqiqlangan">Yo'lda <span id="cYolda"></span></button>
         </div>
         <div class="fright">
           <input class="datepick" id="yukQ" type="search" placeholder="Qidirish: ID, ombor, yetkazuvchi…" autocomplete="off" oninput="yukQInput()" aria-label="Qidirish">
@@ -1305,7 +1306,7 @@ async function loadQolda(){
 const ST_LBL={posted:'Nashr qilingan',created:'Yaratilgan'};
 const DS_LBL={accepted:'Qabul qilingan',on_way:"Yo'lda"};
 let yuklar=[], rateMap={}, tanMap={}, bojxonaMap={}, paidMap={}, dlMap={}, yopiqMap={}, sabablar=[];
-let sel=new Set(), openDet=new Set(), filtTan='all', filtPay='all', filtDl=false, tanAllowed=false, yopiqAllowed=false;
+let sel=new Set(), openDet=new Set(), filtTan='all', filtPay='all', filtDl=false, filtYolda=false, tanAllowed=false, yopiqAllowed=false;
 // RPC hali bazada bo'lmasligi mumkin — sahifa shundan sinmasin, faqat ustun "—" bo'ladi.
 let tanRpcErr='', sababRpcErr='';
 
@@ -1369,6 +1370,7 @@ window.setFiltTan=k=>{ filtTan=k; document.querySelectorAll('.fchip[data-f]').fo
 window.setFiltPay=k=>{ filtPay=k; document.querySelectorAll('.fchip[data-fp]').forEach(b=>b.classList.toggle('on',b.dataset.fp===k)); renderYuklar(); };
 // "Muddat qo'yilmagan" — qarzi bor, lekin deadline yo'q yuklar (asosiy ish oqimi).
 window.toggleFiltDl=()=>{ filtDl=!filtDl; $('dlChip').classList.toggle('on',filtDl); renderYuklar(); };
+window.toggleFiltYolda=()=>{ filtYolda=!filtYolda; $('yoldaChip').classList.toggle('on',filtYolda); renderYuklar(); };
 
 function renderError(msg){
   $('yukBody').innerHTML='<div class="errbox"><i data-lucide="cloud-off"></i>'
@@ -1659,6 +1661,8 @@ function grafMuddatCell(y,rows){
 function hasDeadlineSet(y){ return grafOk ? (grafRowsFor(y.id).length>0) : !!dlOf(y); }
 /* Qarzi bor (qoldiq>0), lekin muddat/grafik UMUMAN yo'q — "Muddat qo'yilmagan" chipi VA
    qator qizil foni (Asilbek talabi 2026-09-14) shu bittadan hisoblanadi. */
+/* Yo'lda = nashr qilinmagan (posted/canceled emas) va delivery_status=on_way (kesh yuk_kesh_royxat.yolda bilan bir xil). */
+function yukYolda(y){ return y.status!=='posted' && y.status!=='canceled' && y.delivery_status==='on_way'; }
 function dlUnset(y){ const q=qoldiq(y); return q!=null && q>0 && !hasDeadlineSet(y); }
 
 function fillOmbor(){
@@ -1683,6 +1687,7 @@ function visibleRows(){
   else if(filtPay==='tolangan') rows=rows.filter(y=>pct(y)>=100);
   else if(filtPay==='yopiq') rows=rows.filter(y=>!!yopiqOf(y));
   if(filtDl) rows=rows.filter(dlUnset);
+  if(filtYolda) rows=rows.filter(yukYolda);
   if(omb) rows=rows.filter(y=>y.ombor===omb);
   const yetk=$('yetkFilt')?$('yetkFilt').value:'';
   if(yetk) rows=rows.filter(y=>y.yetkazuvchi===yetk);
@@ -1787,6 +1792,7 @@ function renderYuklar(){
   $('cPaid').textContent=all.filter(y=>pct(y)>=100).length;
   $('cYopiq').textContent=all.filter(y=>!!yopiqOf(y)).length;
   $('cDlUnset').textContent=all.filter(dlUnset).length;
+  $('cYolda').textContent=all.filter(yukYolda).length;
   const rows=visibleRows();
   if(!rows.length){ const qq=($('yukQ')?$('yukQ').value:'').trim();
     $('yukBody').innerHTML='<div class="empty none">Bu shartlarga mos yuk yo\'q.'
@@ -3435,7 +3441,9 @@ const AO_TUR={
   qaytdi:{ic:'rotate-ccw',lbl:'Qaytarildi'},
   narx_kamaydi:{ic:'trending-down',lbl:'Narxi kamaydi'},
   narx_oshdi:{ic:'trending-up',lbl:'Narxi oshdi'},
-  valyuta:{ic:'banknote',lbl:"Valyutasi o'zgardi"}
+  valyuta:{ic:'banknote',lbl:"Valyutasi o'zgardi"},
+  yolda_narx:{ic:'truck',lbl:"Yo'ldagi yuk narxi o'zgardi"},
+  yolda_posted:{ic:'package-check',lbl:"Yo'ldagi yuk nashr qilindi (yakuniy narx)"}
 };
 async function loadAros(){
   try{
@@ -3468,7 +3476,7 @@ function renderArosBanner(){
 }
 function aoTurTxt(r){
   const t=AO_TUR[r.tur]||{lbl:r.tur||"O'zgarish"};
-  if(r.tur==='narx_kamaydi'||r.tur==='narx_oshdi') return t.lbl+': '+money(r.eski_narx)+' → '+money(r.yangi_narx)+(r.valyuta?' '+esc(r.valyuta):'');
+  if(r.tur==='narx_kamaydi'||r.tur==='narx_oshdi'||r.tur==='yolda_narx'||r.tur==='yolda_posted') return t.lbl+': '+money(r.eski_narx)+' → '+money(r.yangi_narx)+(r.valyuta?' '+esc(r.valyuta):'');
   if(r.tur==='valyuta') return t.lbl+((r.eski_narx!=null&&r.yangi_narx!=null)?(': '+esc(r.eski_narx)+' → '+esc(r.yangi_narx)):'');
   return t.lbl;
 }

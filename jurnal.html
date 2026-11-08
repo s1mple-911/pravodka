@@ -4831,6 +4831,19 @@ async function init(){
   } else {
     await Promise.all([ loadRole(), loadAccounts(), loadAccSel(), loadFilSel(), load() ]);
   }
+  // 2026-11-07 (Balans B «›» havolasi): ?hisob=<kod[,kod…]>&gacha=<YYYY-MM-DD> — hisob filtri (ro'yxatdagi
+  // birinchi mos kod) va davr (yil boshi → gacha). Parametr bo'lmasa hech narsa o'zgarmaydi.
+  try{
+    const q=new URLSearchParams(location.search);
+    const hk=(q.get('hisob')||'').split(',').map(x=>x.trim()).filter(Boolean);
+    const g=q.get('gacha');
+    if(hk.length||(g&&/^\d{4}-\d{2}-\d{2}$/.test(g))){
+      if(g&&/^\d{4}-\d{2}-\d{2}$/.test(g)){ $('to').value=g; $('from').value=g.slice(0,4)+'-01-01'; davSet('custom'); }
+      if(hk.length){ const a=(accounts||[]).find(x=>hk.includes(String(x.code))); const sel=$('acc');
+        if(a&&sel&&[...sel.options].some(o=>o.value===a.id)){ sel.value=a.id; $('hodim').value=''; try{ sselSync('acc'); }catch(e){} } }
+      await load();
+    }
+  }catch(e){ console.warn('URL filtr:',e); }
 }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
