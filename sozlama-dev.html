@@ -549,6 +549,12 @@
     box-shadow:var(--shadow-hover);animation:mxdIn .16s cubic-bezier(.22,.61,.36,1)}
   .rb-modal-txt{font-size:14.5px;line-height:1.55;color:var(--ink)}
   .rb-modal-acts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+  /* Parol o'rnatish modali (admin): parol maydoni monospace — telefonda aytish/ko'chirish oson */
+  .rb-pw-row{display:flex;gap:8px;align-items:center;margin-top:14px}
+  .rb-pw-row .rb-pw-in{flex:1 1 auto;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;letter-spacing:.6px}
+  .rb-pw-row .mxd-btn{height:44px;width:44px;justify-content:center;padding:0;flex:0 0 44px}
+  .rb-pwbtn{margin-right:6px}
+  #rbPwRes{font-size:13px;font-weight:600;line-height:1.45}
   .rb-modal-acts .mxd-save,.rb-modal-acts .mxd-cancel{flex:1 1 120px;min-width:0}
   .rb-modal-acts .mxd-save{background:var(--red)}
   .rb-modal-acts .mxd-save:hover{background:var(--red);opacity:.88}
@@ -1107,6 +1113,26 @@
           <button type="button" class="mxd-cancel" onclick="rbDelCancel()">Bekor</button>
           <button type="button" class="mxd-save" id="rbDelBtn" style="background:var(--red)" onclick="rbDelConfirm()">
             <i data-lucide="trash-2"></i>O'chirish</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parol o'rnatish (admin) — n8n «Aros Provodka - Parol Set» → Supabase admin API.
+         Email/SMTP kerak emas: admin yangi parolni yozadi va foydalanuvchiga o'zi aytadi. -->
+    <div class="rb-modal" id="rbPwModal">
+      <div class="rb-modal-box">
+        <div class="rb-modal-txt" id="rbPwTitle">Parol o'rnatish</div>
+        <div class="rb-note" style="margin:8px 0 0">Yangi parol tayyor — xohlasangiz o'zgartiring. Saqlangach
+          foydalanuvchiga aytib qo'ying: u keyingi kirishda shu parol bilan kiradi (eski parol ishlamaydi).</div>
+        <div class="rb-pw-row">
+          <input class="mxd-in rb-pw-in" id="rbPwIn" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="72">
+          <button type="button" class="mxd-btn" id="rbPwNew" title="Boshqa parol" onclick="rbPwNewClick()"><i data-lucide="refresh-cw"></i></button>
+          <button type="button" class="mxd-btn" title="Nusxalash" onclick="rbPwCopy()"><i data-lucide="copy"></i></button>
+        </div>
+        <div class="rb-res" id="rbPwRes" style="display:block;margin:10px 0 0"></div>
+        <div class="rb-modal-acts">
+          <button type="button" class="mxd-cancel" id="rbPwCancel" onclick="rbPwClose()">Bekor</button>
+          <button type="button" class="mxd-save" id="rbPwSave" onclick="rbPwSaveClick()"><i data-lucide="key"></i>Saqlash</button>
         </div>
       </div>
     </div>
@@ -2969,7 +2995,7 @@ function rbUserRowHtml(u){
     <td><div class="rb-uinfo"><span class="rb-avatar">${initial}</span><span class="rb-uname">${name}</span></div></td>
     <td><span class="rb-urole${isUserAdmin?' adm':''}">${isUserAdmin?'Admin — cheklanmaydi':esc(u.role||'user')}</span></td>
     <td>${dd}</td>
-    <td>${isUserAdmin?'':`<button type="button" class="mxd-btn" id="rbUserSave_${u.id}" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbUserRes_${u.id}"></span>`}</td>
+    <td><button type="button" class="mxd-btn rb-pwbtn" title="Parol o'rnatish" onclick="rbPwOpen('${u.id}')"><i data-lucide="key"></i>Parol</button>${isUserAdmin?'':`<button type="button" class="mxd-btn" id="rbUserSave_${u.id}" ${dirty?'':'disabled'} onclick="rbSaveUserRoles('${u.id}')"><i data-lucide="save"></i>Saqlash</button><span class="rb-res" id="rbUserRes_${u.id}"></span>`}</td>
   </tr>`;
 }
 window.rbSaveUserRoles=async uid=>{
@@ -2997,6 +3023,62 @@ window.rbSaveUserRoles=async uid=>{
   }
 };
 window.rbFilterUsers=()=>rbRenderUsers();
+
+// ===== Parol o'rnatish (admin) — n8n «Aros Provodka - Parol Set» (N8N_PAROL_SET.sh) → Supabase admin API.
+//       Oqim: admin sessiya tokeni + user_id + yangi parol POST qilinadi; n8n tokenni Supabase'da tekshiradi,
+//       profiles.role='admin' bo'lsa PUT /auth/v1/admin/users/{id}. Email/SMTP kerak emas.
+const PAROL_SET_URL='https://n8n.arosmarket.com/webhook/aros-provodka-parol-set';
+let rbPwUid=null;
+function rbPwYarat(){
+  // Kbvt-4827 shaklida: o'xshash harf/raqamlar (i l o 0 1) yo'q — telefonda aytish oson
+  const A='abcdefghjkmnpqrstuvwxyz', D='23456789', r=new Uint32Array(8); crypto.getRandomValues(r);
+  let s=''; for(let i=0;i<4;i++) s+=A[r[i]%A.length];
+  let d=''; for(let i=4;i<8;i++) d+=D[r[i]%D.length];
+  return s.charAt(0).toUpperCase()+s.slice(1)+'-'+d;
+}
+window.rbPwOpen=uid=>{
+  const u=rbUsers.find(x=>String(x.id)===String(uid)); if(!u) return;
+  rbPwUid=uid;
+  $('rbPwTitle').textContent='Parol o\'rnatish — '+(u.full_name||('#'+String(u.id).slice(0,8)));
+  $('rbPwIn').value=rbPwYarat(); $('rbPwIn').disabled=false;
+  const res=$('rbPwRes'); res.className='rb-res'; res.textContent='';
+  const btn=$('rbPwSave'); btn.style.display=''; btn.disabled=false; btn.innerHTML='<i data-lucide="key"></i>Saqlash';
+  $('rbPwNew').style.display=''; $('rbPwCancel').textContent='Bekor';
+  $('rbPwModal').style.display='flex'; icons();
+  setTimeout(()=>{ try{ $('rbPwIn').focus(); $('rbPwIn').select(); }catch(e){} },30);
+};
+window.rbPwClose=()=>{ rbPwUid=null; $('rbPwModal').style.display='none'; };
+window.rbPwNewClick=()=>{ if(!$('rbPwIn').disabled) $('rbPwIn').value=rbPwYarat(); };
+window.rbPwCopy=async()=>{
+  const v=$('rbPwIn').value;
+  try{ await navigator.clipboard.writeText(v); toast('ok','Nusxalandi'); }
+  catch(e){ try{ $('rbPwIn').disabled=false; $('rbPwIn').select(); document.execCommand('copy'); toast('ok','Nusxalandi'); }
+            catch(e2){ toast('err','Nusxalab bo\'lmadi — qo\'lda ko\'chiring'); } }
+};
+window.rbPwSaveClick=async()=>{
+  const uid=rbPwUid; if(!uid) return;
+  const pw=$('rbPwIn').value, res=$('rbPwRes'), btn=$('rbPwSave');
+  if(pw.length<6){ res.className='rb-res err'; res.textContent='Parol kamida 6 belgi bo\'lsin'; return; }
+  if(/\s/.test(pw)){ res.className='rb-res err'; res.textContent='Parolda bo\'sh joy bo\'lmasin'; return; }
+  btn.disabled=true; btn.innerHTML='Saqlanmoqda…'; res.className='rb-res'; res.textContent='';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session) throw new Error('Sessiya yo\'q — qayta kiring');
+    const r=await fetch(PAROL_SET_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:session.access_token,user_id:uid,password:pw})});
+    let j=null; try{ j=await r.json(); }catch(e){}
+    if(!r.ok||!j||!j.ok) throw new Error((j&&j.error)||('Server xatosi '+r.status));
+    res.className='rb-res ok';
+    res.textContent='Saqlandi · '+hhmm()+'. Yangi parolni foydalanuvchiga ayting — oyna yopilgach u ko\'rinmaydi.';
+    $('rbPwIn').disabled=true; btn.style.display='none'; $('rbPwNew').style.display='none'; $('rbPwCancel').textContent='Yopish';
+    toast('ok','Parol o\'rnatildi ✓');
+  }catch(e){
+    const msg=(e&&e.message)||String(e);
+    res.className='rb-res err';
+    res.textContent='Xato: '+(/failed to fetch|networkerror|load failed/i.test(msg)?'n8n javob bermadi (workflow Active emasmi?)':msg);
+    btn.disabled=false; btn.innerHTML='<i data-lucide="key"></i>Saqlash'; icons();
+  }
+};
 
 // ===== Rol tanlash — kompakt multi-select dropdown (.rb-dd), foydalanuvchi VA hodim
 //       qatorlarida bir xil ishlatiladi. ddId shakli "<kind>_<key>" (masalan "user_<uuid>",
