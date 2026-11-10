@@ -3064,7 +3064,9 @@ window.rbPwSaveClick=async()=>{
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session) throw new Error('Sessiya yo\'q — qayta kiring');
-    const r=await fetch(PAROL_SET_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+    // text/plain — preflight (OPTIONS) bo'lmasin: n8n.arosmarket.com OPTIONS'ga ACAO=o'z domeni qaytaradi,
+    // POST javobi esa ACAO:* (Respond node). n8n text/plain tanani satr beradi, Tekshir JSON.parse qiladi.
+    const r=await fetch(PAROL_SET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},
       body:JSON.stringify({token:session.access_token,user_id:uid,password:pw})});
     let j=null; try{ j=await r.json(); }catch(e){}
     if(!r.ok||!j||!j.ok) throw new Error((j&&j.error)||('Server xatosi '+r.status));
