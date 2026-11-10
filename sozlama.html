@@ -57,6 +57,48 @@
   .page-head h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}.head-actions{display:flex;gap:4px}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
   .sec{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+
+  /* ===== Sozlamalar qobig'i (2026-11-10, Asilbek: «rollarga tushish uchun juda ko'p scroll, topish mushkul») —
+     chap bo'lim menyusi + qidiruv, bir vaqtda BITTA bo'lim (#hash). Kartalar va ularning JS'i eski;
+     qobiq faqat .soz-hide (ko'rinish) bilan boshqaradi, kartalarning o'z style.display shartlariga tegmaydi.
+     Dizayn: https://claude.ai/artifact/CKHeHpQ3NT2HWkDGdLsmWU ===== */
+  @media(min-width:900px){.main.soz-main{max-width:1140px}}
+  .soz-shell{display:flex;gap:22px;align-items:flex-start}
+  .soz-nav{flex:0 0 228px;position:sticky;top:18px;display:flex;flex-direction:column;gap:14px;background:var(--surface);
+    border:1px solid var(--line);border-radius:18px;padding:14px 10px;box-shadow:var(--shadow)}
+  .soz-body{flex:1 1 auto;min-width:0;max-width:760px}
+  .soz-q{position:relative;display:block;margin:0 4px}
+  .soz-q svg{position:absolute;left:10px;top:10px;width:16px;height:16px;color:var(--muted);pointer-events:none}
+  .soz-q input{width:100%;box-sizing:border-box;height:36px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);
+    color:var(--ink);font:inherit;font-size:13px;padding:0 10px 0 32px}
+  .soz-q input:focus{outline:2px solid var(--primary);outline-offset:1px;background:var(--surface)}
+  .soz-grp{display:flex;flex-direction:column;gap:2px}
+  .soz-grp-t{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:4px 10px 6px}
+  .soz-item{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:10px;border:none;background:transparent;
+    color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer;width:100%;transition:background .13s}
+  .soz-item svg{width:17px;height:17px;flex:0 0 auto;color:var(--muted)}
+  .soz-item .l{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .soz-item:hover{background:var(--surface-2)}
+  .soz-item.on{background:var(--primary-soft);color:var(--primary);font-weight:600}.soz-item.on svg{color:var(--primary)}
+  .soz-badge{font-size:11.5px;font-weight:700;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:1px 8px;flex:0 0 auto}
+  .soz-item.on .soz-badge{color:var(--primary);background:var(--surface)}
+  .soz-badge.warn{color:var(--amber);background:var(--amber-soft)}
+  .soz-item[hidden],.soz-grp[hidden],.soz-badge[hidden],.soz-empty[hidden]{display:none!important}
+  .card.soz-hide{display:none!important}
+  .soz-head{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+  .soz-head h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.02em}
+  .soz-head .rb-back{display:none}
+  .soz-empty{color:var(--muted);font-size:13.5px;padding:14px 16px;background:var(--surface);border:1px dashed var(--line);border-radius:14px}
+  @media(max-width:899px){
+    .soz-shell{display:block}
+    .soz-nav{position:static;border:none;background:transparent;box-shadow:none;padding:0;gap:16px}
+    .soz-grp{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px;box-shadow:var(--shadow)}
+    .soz-grp-t{padding:8px 10px 4px}
+    .soz-item{min-height:48px;font-size:15px}
+    body.soz-open .soz-nav{display:none}
+    body:not(.soz-open) .soz-body{display:none}
+    .soz-head .rb-back{display:inline-flex}
+  }
   .seg{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;margin-bottom:14px;gap:2px}
   .seg button{flex:1;border:none;background:transparent;color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;padding:9px 0;border-radius:9px;cursor:pointer;transition:background .13s,color .13s}
   .seg button:hover{color:var(--ink)}.seg button.on{background:var(--primary);color:#fff}
@@ -698,7 +740,7 @@
     </div>
   </aside>
 
-  <main class="main">
+  <main class="main soz-main">
     <div class="page-head">
       <h1>Sozlamalar</h1>
       <!-- «Hodim → Telegram» kartasi sahifaning eng pastida (uzun kassalar ro'yxatidan keyin) —
@@ -710,9 +752,39 @@
       </div>
     </div>
     <div id="banner" class="banner"></div>
+    <!-- Sozlamalar qobig'i: chap menyu (bo'limlar) + o'ng tarafda faqat tanlangan bo'lim kartalari.
+         Har karta data-soz="<bo'lim>" bilan belgilangan; ruxsat/RPC yo'qligi sabab yashirin kartalar
+         (style.display=none) menyuda ham chiqmaydi (sozNavRefresh). Telefon: avval ro'yxat, keyin bo'lim + orqaga. -->
+    <div class="soz-shell">
+      <nav class="soz-nav" id="sozNav" aria-label="Sozlamalar bo'limlari">
+        <label class="soz-q"><i data-lucide="search"></i><input id="sozQ" type="search" placeholder="Bo'lim qidirish…" aria-label="Sozlamalardan bo'lim qidirish" autocomplete="off" oninput="sozFilter(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();sozGoFirst();}"></label>
+        <div class="soz-grp"><div class="soz-grp-t">Hodimlar</div>
+          <button type="button" class="soz-item" data-soz-go="rollar" onclick="sozGo('rollar')"><i data-lucide="users"></i><span class="l">Rollar va foydalanuvchilar</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="hodimfilial" onclick="sozGo('hodimfilial')"><i data-lucide="building-2"></i><span class="l">Hodim → Filial</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="telegram" onclick="sozGo('telegram')"><i data-lucide="send"></i><span class="l">Hodim → Telegram</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="ovqat" onclick="sozGo('ovqat')"><i data-lucide="utensils"></i><span class="l">Ovqat narxlari</span><span class="soz-badge" hidden></span></button>
+        </div>
+        <div class="soz-grp"><div class="soz-grp-t">Hisoblar</div>
+          <button type="button" class="soz-item" data-soz-go="kassalar" onclick="sozGo('kassalar')"><i data-lucide="wallet"></i><span class="l">Kassalar</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="boshqa" onclick="sozGo('boshqa')"><i data-lucide="list"></i><span class="l">Boshqa hisoblar</span><span class="soz-badge" hidden></span></button>
+        </div>
+        <div class="soz-grp"><div class="soz-grp-t">Filiallar</div>
+          <button type="button" class="soz-item" data-soz-go="filiallar" onclick="sozGo('filiallar')"><i data-lucide="store"></i><span class="l">Filiallar</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="boglash" onclick="sozGo('boglash')"><i data-lucide="link-2"></i><span class="l">Filiallarni bog'lash</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="moslashtirish" onclick="sozGo('moslashtirish')"><i data-lucide="folder-sync"></i><span class="l">Filial moslashtirish</span><span class="soz-badge" hidden></span></button>
+          <button type="button" class="soz-item" data-soz-go="koridor" onclick="sozGo('koridor')"><i data-lucide="arrow-right-left"></i><span class="l">Konvert koridori</span><span class="soz-badge" hidden></span></button>
+        </div>
+        <div class="soz-grp"><div class="soz-grp-t">Tizim</div>
+          <button type="button" class="soz-item" data-soz-go="kuzatuv" onclick="sozGo('kuzatuv')"><i data-lucide="eye"></i><span class="l">Kuzatuv</span><span class="soz-badge" hidden></span></button>
+        </div>
+        <div class="soz-empty" id="sozNoMatch" hidden>Hech narsa topilmadi</div>
+      </nav>
+      <div class="soz-body" id="sozBody">
+        <div class="soz-head"><button type="button" class="rb-back" aria-label="Sozlamalar ro'yxatiga qaytish" onclick="sozBack()"><i data-lucide="arrow-left"></i></button><h2 id="sozTitle">Sozlamalar</h2></div>
+        <div class="soz-empty" id="sozEmpty" hidden>Bu bo'lim siz uchun mavjud emas yoki hali yoqilmagan.</div>
     <!-- «Hodim → Telegram» — 2026-09-13: sahifaning ENG TEPASIGA ko'chirildi (pastda, uzun kassalar
          ro'yxatidan keyin Asilbek topa olmadi) va endi HECH QACHON yashirinmaydi — xato bo'lsa sababini yozadi. -->
-    <div class="card" id="htgCard">
+    <div class="card" id="htgCard" data-soz="telegram">
       <div class="sec">Hodim → Telegram</div>
       <div class="hint">Hodim xarajat kassasida harakat bo'lganda Telegram xabari hodimning
         o'ziga borishi uchun kassa Aros foydalanuvchisiga bog'langan bo'lishi kerak.
@@ -733,7 +805,7 @@
     <!-- «Hodim → Filial» — aros_staff a'zoligi odatda Aros importidan keladi; bu yerda
          qo'lda ustidan yozish (override) mumkin. HECH QACHON yashirinmaydi (htg naqshi:
          ko'rinish admin YOKI "Sozlamalar" sahifasi ruxsati, server o'zi hal qiladi). -->
-    <div class="card" id="hfCard">
+    <div class="card" id="hfCard" data-soz="hodimfilial">
       <div class="sec">Hodim → Filial</div>
       <div class="hint">Hodim qaysi filial(lar)ga tegishli ekanligi odatda Aros hodimlar
         katalogidan keladi. Mos kelmasa shu yerdan qo'lda ustidan yozish mumkin — hech qaysi
@@ -754,7 +826,7 @@
       <div id="hfRes" class="res"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-soz="kassalar">
       <div class="sec">Yangi qo'shish</div>
       <div class="seg">
         <button id="tKassa" class="on" onclick="setType('kassa')">Kassa</button>
@@ -770,14 +842,14 @@
     </div>
 
     <!-- Ro'yxat tanlangan tabga (Kassa/Xarajat/Daromad) qarab filtrlanadi -->
-    <div class="card"><div class="sec" id="listTitle">KASSALAR</div><div id="list"></div></div>
+    <div class="card" data-soz="kassalar"><div class="sec" id="listTitle">KASSALAR</div><div id="list"></div></div>
 
     <!-- ===== MAXSUS MAYDON KONSTRUKTORI (.mxd-*) — admin, xarajat moddasiga biriktiriladi.
          🔴 Bir vaqtda FAQAT BITTA modda ochiq. Modal EMAS: ichida ikkinchi daraja
          (ro'yxat elementlari + rasm yuklash) bor, modal-ichida-modal taqiqlangan.
          🔴 UNIVERSAL: bu yerda birorta modda/soha nomi qattiq yozilmagan — maydon
          nomi ham, turi ham, variantlari ham faqat admin kiritganidan keladi. -->
-    <div class="card mxd-card" id="mxdCard" style="display:none">
+    <div class="card mxd-card" id="mxdCard" data-soz="kassalar" style="display:none">
       <div class="mxd-hd">
         <div class="mxd-ht">
           <div class="sec mxd-sec">Maxsus maydonlar</div>
@@ -896,10 +968,10 @@
       <div id="mxdRes" class="res"></div>
     </div>
 
-    <div class="card"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
+    <div class="card" data-soz="boshqa"><div class="sec">Boshqa hisoblar</div><div id="listBoshqa"></div></div>
 
     <!-- Kuzatuv — provodka_kuzatuv logi (faqat kuzatadi, yozuvni rad ETMAYDI), admin -->
-    <div class="card" id="kuzCard" style="display:none">
+    <div class="card" id="kuzCard" data-soz="kuzatuv" style="display:none">
       <div class="sec">Kuzatuv</div>
       <div class="hint">Yangi yozuvlarda qoidalar tekshiriladi (qulflangan hisob, kassa↔kassa turi, 9110 yuksiz, balans bo'limi yo'q, 6010/4010 to'g'ridan).
         Hozircha faqat log — hech narsa rad etilmaydi.</div>
@@ -915,7 +987,7 @@
     </div>
 
     <!-- Xarajat filiallari — savdo qilmaydigan, lekin xarajati bor filiallar (admin) -->
-    <div class="card" id="filCard" style="display:none">
+    <div class="card" id="filCard" data-soz="filiallar" style="display:none">
       <div class="sec">Filiallar</div>
       <div class="hint">Bu ro'yxat xarajat kiritishda "Filial" tanlagichida ko'rinadi (Hodim / Professional / Standart).
         Aros'da kassasi bo'lmagan, ya'ni <b>savdo qilmaydigan lekin xarajati bor</b> filialni shu yerdan qo'shing.
@@ -932,7 +1004,7 @@
     </div>
 
     <!-- V8 (7-ish): konvert koridori — admin sozlaydi (provodka_config.konvert_koridor_foiz) -->
-    <div class="card" id="korCard" style="display:none">
+    <div class="card" id="korCard" data-soz="koridor" style="display:none">
       <div class="sec">Konvert koridori</div>
       <div class="hint">Konvert kursi tayanch kursdan shu foizdan ko'p farq qilsa — so'rov <b>admin tasdig'iga</b> tushadi
         va pul harakat qilmaydi. Kichik foiz = qattiqroq nazorat (ko'proq so'rov tasdiqqa tushadi).
@@ -946,7 +1018,7 @@
     </div>
 
     <!-- Ovqat narxlari — 5401+ "Ovqat" moddasiga yozilganda zavtrak/obed/kechki necha so'mligi -->
-    <div class="card" id="ovqNarxCard" style="display:none">
+    <div class="card" id="ovqNarxCard" data-soz="ovqat" style="display:none">
       <div class="sec">Ovqat narxlari</div>
       <div class="hint">Hodimga bir zavtrak/obed/kechki necha so'm hisoblanishi. "Xarajat" tabida
         modda ustidagi <b>Ovqat</b> belgisi bilan biriktiriladi — o'sha modda uchun xarajat faqat
@@ -965,7 +1037,7 @@
     </div>
 
     <!-- Filial moslashtirish — aros_staff.branch_id ni Provodka xarajat filialiga bog'laydi -->
-    <div class="card" id="staffMapCard" style="display:none">
+    <div class="card" id="staffMapCard" data-soz="moslashtirish" style="display:none">
       <div class="sec">Filial moslashtirish (aros-staff ↔ Provodka)</div>
       <div class="hint">Aros hodimlar katalogidagi filial nomi Provodka filialiga avtomatik
         moslashtiriladi. Nom mos kelmasa (sariq qator) — qo'lda tanlang. "↺" tugmasi qo'lda
@@ -973,7 +1045,7 @@
       <div id="staffMapList"></div>
     </div>
 
-    <div class="card" id="linkCard" style="display:none">
+    <div class="card" id="linkCard" data-soz="boglash" style="display:none">
       <div class="sec">Filiallarni bog'lash</div>
       <div class="hint">Aros'dagi filiallarni Provodka hisoblariga bog'laydi — filial bo'yicha foyda shundan hisoblanadi.
         Bir martalik amal, lekin qayta bosish zarar qilmaydi.</div>
@@ -1057,7 +1129,7 @@
 
     <!-- ===== RBAC — Rollar va foydalanuvchilar (PROVODKA_RBAC.sql). Admin-only,
          RPC yo'q bo'lsa (SQL RUN qilinmagan) rpcMissing() bilan jimgina yashirinadi. ===== -->
-    <div class="card" id="rollarCard" style="display:none">
+    <div class="card" id="rollarCard" data-soz="rollar" style="display:none">
       <div class="rb-headrow">
         <button type="button" class="rb-back" id="rbBackBtn" style="display:none"
           onclick="rbBackToSozlama()" aria-label="Sozlamalarga qaytish"><i data-lucide="chevron-left"></i></button>
@@ -1136,6 +1208,8 @@
         </div>
       </div>
     </div>
+      </div><!-- /soz-body -->
+    </div><!-- /soz-shell -->
   </main>
 
   <nav class="bnav mobile-only">
@@ -2421,7 +2495,7 @@ function htgUserRowHtml(u,ball){
 // oninput="htgRender()" / "htgRenderUsers()" (HTML atributi) module ichidagi funksiyani
 // ko'rmaydi — window'ga chiqariladi (tester topdi: qidiruv ReferenceError berardi).
 window.htgRender=()=>htgRender();
-window.htgJump=()=>{ const c=$('htgCard'); if(c) c.scrollIntoView({behavior:'smooth',block:'start'}); };
+window.htgJump=()=>{ sozGo('telegram'); const c=$('htgCard'); if(c) c.scrollIntoView({behavior:'smooth',block:'start'}); };
 window.htgRenderUsers=()=>htgRenderUsers();
 function htgRenderUsers(){
   const box=$('htgUList'); if(!box||!htgModalKassa) return;
@@ -2496,6 +2570,7 @@ async function hfLoad(){
   }
   $('hfRes').className='res'; $('hfRes').textContent='';
   hfData=data||{filiallar:[],hodimlar:[],loginlar:[]};
+  try{ const n=(hfData.hodimlar||[]).filter(h=>h&&!h.ochirilgan&&!(h.login_id||h.user_id)).length; if(window.sozBadge) sozBadge('hodimfilial', n||'', true); }catch(e){}
   hfRenderTop();
   hfRender();
 }
@@ -2791,6 +2866,7 @@ async function rbLoadUsers(){
   if(error){ if(rpcMissing(error)) return;
     rbBanner('err',"Foydalanuvchilar o'qilmadi: "+(window.permErr?window.permErr(error):error.message)); return; }
   rbUsers=Array.isArray(data)?data:[];
+  if(window.sozBadge) sozBadge('rollar', rbUsers.length);
   rbUserPending={};
   rbUsers.forEach(u=>{ rbUserPending[u.id]=new Set((u.roles||[]).map(r=>r.id)); });
   rbRenderUsers();
@@ -3339,33 +3415,64 @@ window.rbSaveStaffRoles=async sid=>{
   }
 };
 
-// ===== "Rollar" bo'limi alohida ko'rinish (hash #rollar) — Asilbek so'rovi: bo'lim
-//       ochilganda boshqa sozlama kartalari skroll qilinmasin, faqat Rollar ko'rinsin.
-//       Kartalarning avvalgi inline `display` qiymati dataset'ga saqlanadi va qaytariladi —
-//       ular o'z holatini (mxdCard/filCard/... ko'rinish shartlari) yo'qotmasligi uchun. =====
-function sozApplyRollarFocus(){
-  const card=$('rollarCard');
-  const on=location.hash==='#rollar'&&isAdmin&&!rbOff&&card&&card.style.display!=='none';
-  document.querySelectorAll('.main > .card').forEach(c=>{
-    if(c.id==='rollarCard') return;
-    if(on){
-      if(c.dataset.sozPrevDisplay===undefined) c.dataset.sozPrevDisplay=c.style.display||'';
-      c.style.display='none';
-    }else if(c.dataset.sozPrevDisplay!==undefined){
-      c.style.display=c.dataset.sozPrevDisplay;
-      delete c.dataset.sozPrevDisplay;
-    }
+// ===== Sozlamalar qobig'i — bo'limlar (#hash), 2026-11-10. Eski «#rollar alohida ko'rinish» (2026-10)
+//       shu umumiy mexanizmga singdi: har bo'lim o'z hash'i bilan ochiladi (#rollar, #kassalar, …),
+//       boshqa bo'lim kartalari .soz-hide bilan yashirinadi. Kartalarning o'z style.display qiymatiga
+//       TEGILMAYDI (ruxsat/RPC shartlari o'z joyida) — yashirin kartali bo'lim menyuda ham chiqmaydi.
+//       Desktop: hash yo'q → «Kassalar». Telefon: hash yo'q → bo'limlar ro'yxati, bo'lim ichida «orqaga». =====
+const SOZ_SECTIONS={rollar:'Rollar va foydalanuvchilar',hodimfilial:'Hodim → Filial',telegram:'Hodim → Telegram',ovqat:'Ovqat narxlari',
+  kassalar:'Kassalar',boshqa:'Boshqa hisoblar',filiallar:'Filiallar',boglash:"Filiallarni bog'lash",moslashtirish:'Filial moslashtirish',
+  koridor:'Konvert koridori',kuzatuv:'Kuzatuv'};
+const SOZ_DEFAULT='kassalar';
+let sozReady=false, sozQ='';
+const sozIsMobile=()=>window.matchMedia('(max-width:899px)').matches;
+const sozCards=id=>Array.from(document.querySelectorAll('#sozBody .card[data-soz="'+id+'"]'));
+const sozSecVisible=id=>sozCards(id).some(c=>c.style.display!=='none');
+function sozCurrent(){ const h=(location.hash||'').replace(/^#/,''); return SOZ_SECTIONS[h]?h:null; }
+function sozNavRefresh(){
+  const q=sozQ.trim().toLowerCase();
+  document.querySelectorAll('.soz-item').forEach(b=>{
+    const id=b.dataset.sozGo, lbl=(SOZ_SECTIONS[id]||'').toLowerCase();
+    b.hidden=!sozSecVisible(id) || (q && lbl.indexOf(q)<0);
   });
-  const back=$('rbBackBtn'); if(back) back.style.display=on?'inline-flex':'none';
-  const nav=document.getElementById('navRollar'); if(nav) nav.classList.toggle('active',on);
-  const sozNav=document.querySelector('.nav-item[href="sozlama.html"]');
-  if(sozNav) sozNav.classList.toggle('active',!on);
+  let any=false;
+  document.querySelectorAll('.soz-grp').forEach(g=>{ const on=Array.from(g.querySelectorAll('.soz-item')).some(b=>!b.hidden); g.hidden=!on; any=any||on; });
+  const nm=$('sozNoMatch'); if(nm) nm.hidden=any;
 }
-window.rbBackToSozlama=()=>{
-  history.replaceState(null,'',location.pathname+location.search);
-  sozApplyRollarFocus();
+function sozRoute(){
+  let cur=sozCurrent();
+  if(!cur && !sozIsMobile()) cur=SOZ_DEFAULT;
+  document.body.classList.toggle('soz-open',!!cur);
+  document.querySelectorAll('#sozBody .card[data-soz]').forEach(c=>c.classList.toggle('soz-hide',!!cur && c.dataset.soz!==cur));
+  document.querySelectorAll('.soz-item').forEach(b=>b.classList.toggle('on',b.dataset.sozGo===cur));
+  const t=$('sozTitle'); if(t) t.textContent=cur?SOZ_SECTIONS[cur]:'Sozlamalar';
+  const e=$('sozEmpty'); if(e) e.hidden=!(cur && sozReady && !sozSecVisible(cur));
+  // Chap global menyuda «Rollar» alohida punkt (navRollar) — faqat shu bo'limda yonadi
+  const nav=document.getElementById('navRollar'); if(nav) nav.classList.toggle('active',cur==='rollar');
+  const sozNav=document.querySelector('.nav-item[href="sozlama.html"]'); if(sozNav) sozNav.classList.toggle('active',cur!=='rollar');
+  sozNavRefresh();
+}
+window.sozGo=id=>{
+  if(!SOZ_SECTIONS[id]) return;
+  if(location.hash==='#'+id) sozRoute(); else location.hash='#'+id;   // hashchange → sozRoute
+  if(sozIsMobile()) window.scrollTo({top:0,behavior:'instant'});
+  else{ const c=sozCards(id).find(x=>x.style.display!=='none'); if(c&&c.getBoundingClientRect().top<0) c.scrollIntoView({block:'start'}); }
 };
-window.addEventListener('hashchange',sozApplyRollarFocus);
+window.sozBack=()=>{ history.replaceState(null,'',location.pathname+location.search); sozRoute(); window.scrollTo({top:0,behavior:'instant'}); };
+window.rbBackToSozlama=window.sozBack;      // eski Rollar «orqaga» tugmasi (yashirin) — mos qolsin
+window.sozFilter=v=>{ sozQ=String(v||''); sozNavRefresh(); };
+window.sozGoFirst=()=>{ const b=Array.from(document.querySelectorAll('.soz-item')).find(x=>!x.hidden); if(b){ sozGo(b.dataset.sozGo); const q=$('sozQ'); if(q){ q.value=''; sozFilter(''); } } };
+// Menyu belgisi (son): rollar — foydalanuvchilar soni, hodimfilial — login bog'lanmaganlar
+window.sozBadge=(id,txt,warn)=>{ const b=document.querySelector('.soz-item[data-soz-go="'+id+'"] .soz-badge'); if(!b) return;
+  b.hidden=!(txt||txt===0); b.textContent=txt==null?'':String(txt); b.classList.toggle('warn',!!warn); };
+// Kartalar ko'rinishi keyinroq o'zgaradi (ruxsat, RPC yo'q, mxdCard ochish) — menyu shunga ergashadi
+new MutationObserver(()=>{ if(sozRouteT) return; sozRouteT=requestAnimationFrame(()=>{ sozRouteT=0; sozRoute(); }); })
+  .observe($('sozBody'),{attributes:true,attributeFilter:['style'],subtree:true});
+let sozRouteT=0;
+window.addEventListener('hashchange',sozRoute);
+window.matchMedia('(max-width:899px)').addEventListener('change',sozRoute);
+function sozApplyRollarFocus(){ sozRoute(); }   // eski nom — boshqa joylardan chaqiruvlar buzilmasin
+sozRoute();
 
 // loadFilials() Promise.all'dan KEYIN: u `accounts` (filial_ref) va isAdmin
 // tayyor bo'lishiga tayanadi — aks holda "Aros sinxroni" belgisi noto'g'ri chiqadi.
@@ -3373,7 +3480,7 @@ window.addEventListener('hashchange',sozApplyRollarFocus);
 // isAdmin tayyor bo'lishiga tayanadi. RPC yo'q bo'lsa (SQL RUN qilinmagan) —
 // mxdOff bo'ladi va konstruktor umuman chizilmaydi, sahifa avvalgidek ishlaydi.
 // rbLoad() ham xuddi shunday — RPC yo'q bo'lsa rbOff bo'ladi va bo'lim yashirin qoladi.
-async function init(){ await Promise.all([loadRole(), load(), htgLoad(), hfLoad()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } }
+async function init(){ await Promise.all([loadRole(), load(), htgLoad(), hfLoad()]); if(isAdmin){ await loadFilials(); await mxdLoad(); await loadOvqNarx(); await loadStaffMap(); await rbLoad(); } sozReady=true; sozRoute(); }
 
 // boot() ataylab eng oxirida — modul tanasi to'liq baholanib bo'lsin.
 // Yuqorida chaqirilsa enterApp()→init()→render SINXRON ishga tushadi va pastdagi
