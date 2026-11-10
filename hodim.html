@@ -2516,9 +2516,22 @@ window.ovqatToggle=(staffId,tur)=>{
 };
 // "Mening filialim": tanlangan kassa subtitle'ining ' · ' gacha bo'lgan qismi ↔
 // staff_branch_map.provodka_filial. Mos kelmasa (fail-safe) — hammasi "Boshqalar".
+// 2026-11-10: filial nomi — kassa subtitle'i, u BO'SH bo'lsa ILDIZ kassa nomining ' · ' gacha qismi
+// (Navoiy: «Navoiy» 5445 subtitle'siz, bolalari «Navoiy · Naqd» — avval nom bo'sh ketib server
+// «kassa_filialsiz» derdi, hodim ro'yxati bo'sh qolardi; «Navoiy» nomi bilan 6 hodim keladi).
+let ovqatFilNomiManba='';   // 'subtitle' | 'nom' — bo'sh ro'yxat sababini to'g'ri aytish uchun
+function kassaFilNomi(k){
+  if(!k) return '';
+  let n=String(k.subtitle||'').split(' · ')[0].trim();
+  if(n){ ovqatFilNomiManba='subtitle'; return n; }
+  const root=accounts.find(a=>a.id===selKassa)||k;
+  n=String(root.name||'').split(' · ')[0].trim();
+  ovqatFilNomiManba=n?'nom':'';
+  return n;
+}
 function ovqatMeningBranchIds(){
   const k=effKassa(); if(!k) return null;
-  const filNomi=String(k.subtitle||'').split(' · ')[0].trim();
+  const filNomi=kassaFilNomi(k);
   if(!filNomi) return null;
   const ids=ovqatBranchMap.filter(m=>m&&m.provodka_filial===filNomi).map(m=>Number(m.branch_id)).filter(n=>!isNaN(n));
   return ids.length ? new Set(ids) : null;
@@ -2536,7 +2549,7 @@ let ovqatMeningSet=null, ovqatMeningSetName=undefined, ovqatMeningInfo=null;
 const ovqatMeningCache=new Map();
 function ovqatMeningFilNomi(){
   const k=effKassa(); if(!k) return '';
-  return String(k.subtitle||'').split(' · ')[0].trim();
+  return kassaFilNomi(k);
 }
 async function ovqatMeningSetFetch(filNomi){
   // 2026-10-04: nom bo'sh bo'lsa ham so'raladi — server yozuvchi HODIM bo'lsa uning o'z filiallari
@@ -2566,6 +2579,7 @@ function ovqatBoshSabab(filialNomi){
     if(i.sabab==='filialda_hodim_yoq') return 'Filialingizda («'+esc(fil)+'») boshqa hodim topilmadi — Aros bo\'limi shu filialga bog\'lanmagan bo\'lishi mumkin (Standart → Bo\'limlarni bog\'lash).';
     if(i.sabab==='hodim_filialsiz') return 'Siz («'+esc(i.staff_nom||'')+'») hech qaysi filialga biriktirilmagansiz — Sozlamalar → Hodim → Filial.';
     if(i.sabab==='kassa_filialsiz') return 'Hisobingiz Aros hodimiga bog\'lanmagan va kassangizda filial yo\'q — Sozlamalar → Rollar va foydalanuvchilar → hodimni bog\'lang.';
+    if(i.sabab==='nom_topilmadi' && ovqatFilNomiManba==='nom') return '«'+esc(i.filial_nom||'')+'» (kassa nomi) bo\'yicha filial topilmadi — hisobingizni Aros hodimiga bog\'lang (Sozlamalar → Rollar va foydalanuvchilar) yoki kassaga filial nomini (subtitle) qo\'ying.';
     if(i.sabab==='nom_topilmadi') return '«'+esc(i.filial_nom||'')+'» filiali uchun hodim topilmadi — Sozlamalar → Filial moslashtirish.';
     if(i.sabab==='xato') return 'Server xatosi: '+esc(i.xato||'');
   }
