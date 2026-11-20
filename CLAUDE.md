@@ -2036,6 +2036,17 @@ kassa + tur-bolalari; `sorov_tasdiq` oila chegarasi 'all' uchun o'tkaziladi (per
 avvalgidek chiqmaydi. 🔴 To'rttala funksiyaning ENG OXIRGI versiyasi SHU faylda (avval PROVODKA_SOROVLAR.sql / SOROV_KASSA.sql).
 DIAG_SOROV_KIMDAN.sql dagi «2) kassa_scope='list'» sharti ESKIRGAN.
 
+### Aylanma Q2b = Qarz sahifasidagi «JAMI QARZ» (2026-11-20, `PROVODKA_BIZ_QARZ_YAGONA_20261120.sql` + `PROVODKA_Q2B_QARZ_SAHIFA_20261120.sql`, faqat dev)
+Asilbek (qaror o'zgardi): «Qarz sahifasiga UMUMAN tegma; Aylanma Q2b Qarz sahifasidan o'qisin». **`qarzdor-dev.html` O'ZGARMAGAN** (n8n `aros-provodka-yuklar`, eng yangi 500, klient formulasi, brutto «JAMI QARZ»).
+Q2b 71 mlrd vs Qarz 25,8 mlrd sababi: oyna (365 kun vs eng yangi 500), tarkib (yo'lda/yuk_qolda), ichki yetkazuvchilar. Endi:
+- **`_biz_qarz_hisob_impl(p_yuklar, p_kurs_usd, p_opts)`** (ichki) — formula qarzdor-dev AYNAN: narx×kurs + `yuk_tannarx_jami` − `yuk_tolangan_fc`×kurs; posted + yo'lda + `yuk_qolda` (jadvaldan);
+  yaroqsiz element o'tkaziladi (`otkazildi`); chegara `q <= lim`. opts: `top_n` (raw massivdan sana desc, id desc eng yangi N — status filtridan OLDIN), `eski_chegara`, `ichki_chiqar`.
+- **`biz_qarz_qarz_sahifa(p_yuklar, p_kurs_usd default null)`** = Qarz sahifasi rejimi: top 500, eski chegara (UZS 1 so'm; valyutali min(max(1,1,5%),10$)), ichki CHIQARILMAYDI, brutto. **Aylanma Q2b shuni chaqiradi** (p_kurs_usd berilmaydi).
+- `biz_qarz_hisob(jsonb, numeric)` — impl ga yo'naltirilgan (top_n yo'q, `yaxlitlash_chegara` bor bo'lsa ishlatiladi, ichki chiqariladi, `sof_uzs`). `yuk_ichki_yetkazuvchi` jadvali qoladi, Q2b da ishlatilmaydi.
+- **`sync_aylanma_snapshot`** [Q2b]: `bolimlar.Q2b.uzs` = BRUTTO jami; `manba:'qarz_sahifa'`, `jami_uzs/avans_uzs/yolda_uzs/top_n`. Avans va «shundan ichki» qatorlari `hisobga=false` (faqat ma'lumot; avans uzs manfiy).
+  ⚠️ Payload `yuklar` hamma statusni (jumladan on_way) bermasa yo'lda hujjatlar Q2b ga tushmaydi (Qarz sahifasida bor) — tekshirish: `bolimlar.Q2b.yolda_uzs` ≈ sahifadagi «shundan yo'lda».
+- **`aylanma-dev.html`**: Q2b izohi «Qarz sahifasi JAMI QARZ bilan bir xil (eng yangi 500, brutto)», avans/ichki chiplari «ma'lumot», Excel «Hisobga» ustuni + Jami faqat hisobga kiradiganlardan.
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:
