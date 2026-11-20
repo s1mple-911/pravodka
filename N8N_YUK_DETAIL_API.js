@@ -1,3 +1,4 @@
+// ESLATMA: Deploy qilingan versiya query.path ni ham qo'llaydi (Get Product Income URL ifodasi), bu nusxa eskirgan.
 // «Aros Provodka - Yuk Detail API» — n8n Workflow SDK kodi (2026-09-06)
 // n8n'da YARATILGAN: yZkGLRDs1ujk8EFo — https://n8n.arosmarket.com/workflow/yZkGLRDs1ujk8EFo
 // GET /webhook/aros-provodka-yuk-detail?id=2794 → {ok:true, detail:{…Aros product-incomes/{id}/ xom javobi…}}

@@ -4234,6 +4234,30 @@ function ehqMissingFn(error){
   return false;
 }
 function ehqFmtLoanAmt(valyuta,v){ return money(n0(v)) + (valyuta==='USD' ? ' $' : " so'm"); }
+
+// Yaxlitlash chegarasi (PROVODKA_YAXLITLASH_20261120.sql): to'lov qoldiqdan shuncha kam/ko'p bo'lsa qarz to'liq yopiladi.
+// RPC yo'q bo'lsa (SQL RUN qilinmagan) null → chegara 0, eski qoida (ko'p to'lov rad etiladi) aynan saqlanadi.
+let ehYaxl=null;
+async function ehYaxlLoad(){
+  try{
+    const {data,error}=await sb.rpc('yaxlitlash_chegara_royxat');
+    if(error||!Array.isArray(data)) return;
+    ehYaxl={}; data.forEach(r=>{ ehYaxl[String(r.valyuta).toUpperCase()]=Number(r.chegara)||0; });
+  }catch(e){ console.warn('yaxlitlash_chegara_royxat:',e.message||e); }
+}
+const ehYaxlLim=val=>{ if(!ehYaxl) return 0; const k=String(val||'UZS').toUpperCase(); return ehYaxl[k==='CNY'?'CHY':k]||0; };
+// Server (_yaxlit_mos) bilan bir xil: to'lov qoldiqni chegara bo'yicha PASTGA yoki YUQORIGA yaxlitlagan bo'lsagina (45,5 → 45/46; 5 → faqat 5)
+const ehYaxlOk=(val,qoldi,summa)=>{ const c=ehYaxlLim(val), q=n0(qoldi);
+  return c>0 && summa>0 && q>0 && Math.abs(q-summa)>0.009 && (Math.abs(summa-Math.floor(q/c)*c)<=0.009 || Math.abs(summa-Math.ceil(q/c)*c)<=0.009); };
+// Qoldiq kasr bo'lsa yordam matni: «Qoldiq 45,5 $ — 45 yoki 46 kiriting, farq yaxlitlanadi (chegara 1 $)»
+function ehYaxlHint(id,q){
+  const h=$(id); if(!h) return;
+  const lim=ehYaxlLim(q.valyuta), qd=n0(q.qoldi);
+  const lo=Math.floor(qd/lim)*lim, hi=Math.ceil(qd/lim)*lim;
+  if(lim<=0 || Math.abs(qd-lo)<=0.009 || Math.abs(qd-hi)<=0.009){ h.style.display='none'; return; }
+  h.textContent='Qoldiq '+ehqFmtLoanAmt(q.valyuta,qd)+' — '+money(lo)+' yoki '+money(hi)+' kiriting, farq yaxlitlanadi (chegara '+ehqFmtLoanAmt(q.valyuta,lim)+')';
+  h.style.display='block';
+}
 const EHQ_HOLAT={faol:'Faol',kechikkan:'Kechikkan',yopildi:'Yopildi',bekor:'Bekor qilingan'};
 function ehqHolatChipHtml(r){
   const cls=r.holat||'faol';
@@ -5081,6 +5105,7 @@ function eholKartRender(){
       <div class="ehk-field"><label>${q.valyuta==='USD'?'Summa ($)':"Summa (so'm)"}</label><input class="ehk-input" id="eholTSumma" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="eholTSummaInput(this)"></div>
       <div class="ehk-field"><label>Sana</label><input class="ehk-input" id="eholTSana" type="date"></div>
     </div>
+    <div class="ehk-hint" id="eholTYaxHint" style="display:none;margin:-4px 0 10px;font-size:12px;color:var(--muted)"></div>
     <div class="ehk-field"><label>Izoh</label><input class="ehk-input" id="eholTIzoh" placeholder="Ixtiyoriy"></div>
     <div id="eholTMsg" class="ehk-msg"></div>
     <div class="ehk-actions" style="gap:8px">
@@ -5105,6 +5130,7 @@ function eholKartRender(){
     $('eholTSana').value=(keep&&keep.d)||todayUz(); $('eholTSana').max=todayUz();
     eholTKassaPopulate(keep);
     if(keep){ $('eholTSumma').value=keep.s; $('eholTIzoh').value=keep.z; }
+    ehYaxlHint('eholTYaxHint',q);
   }
   icons();
 }
@@ -5135,6 +5161,7 @@ window.eholTKassaChange=(wantPul)=>{
 window.eholTSummaInput=el=>{
   const q=eholKartRow()||{};
   if(q.valyuta==='USD') window.ehMoneyInput(el,true); else window.ehFmtAmt(el);
+  ehYaxlHint('eholTYaxHint',q);
 };
 window.eholTHammasi=()=>{
   const q=eholKartRow(); if(!q) return;
@@ -5153,7 +5180,7 @@ window.eholTSave=async()=>{
   if(!usd && /[.,]/.test(raw)) return fail('Summani qayta kiriting');
   const val=usd?ehNum(raw,true):ehNum(raw,false);
   if(!(val>0)) return fail(EHOL_T_XATO.summa_notogri);
-  if(val>n0(q.qoldi)+0.009) return fail(EHOL_T_XATO.kop+' (qoldi '+ehqFmtLoanAmt(q.valyuta,q.qoldi)+')');
+  if(val>n0(q.qoldi)+0.009 && !ehYaxlOk(q.valyuta,q.qoldi,val)) return fail(EHOL_T_XATO.kop+' (qoldi '+ehqFmtLoanAmt(q.valyuta,q.qoldi)+')');
   const p={ olingan_id:q.id, sana:$('eholTSana').value||todayUz() };
   const izoh=($('eholTIzoh').value||'').trim(); if(izoh) p.izoh=izoh;
   if(usd) p.fc_summa=val; else p.summa=val;
@@ -5471,6 +5498,7 @@ function renderEhqKart(){
       <div class="ehk-field"><label id="ehqTolSummaLbl">Summa</label><input class="ehk-input" id="ehqTolSumma" type="text" inputmode="decimal" autocomplete="off" oninput="ehqTolSummaInput(this)"></div>
       <div class="ehk-field"><label>Sana</label><input class="ehk-input" id="ehqTolSana" type="date"></div>
     </div>
+    <div class="ehk-hint" id="ehqTolYaxHint" style="display:none;margin:-4px 0 10px;font-size:12px;color:var(--muted)"></div>
     <div class="ehk-field"><label>Izoh</label><input class="ehk-input" id="ehqTolIzoh" placeholder="Ixtiyoriy"></div>
     <div id="ehqTolMsg" class="ehk-msg"></div>
     <div class="ehk-actions"><button class="btn" id="ehqTolSaveBtn" onclick="ehqTolSave()"><i data-lucide="hand-coins"></i>To'lovni saqlash</button></div>
@@ -5541,7 +5569,8 @@ window.ehqTolCheck=()=>{
   const isUsd=q.valyuta==='USD';
   const raw=String(($('ehqTolSumma')&&$('ehqTolSumma').value)||'');
   const summa = isUsd ? (ehNum(raw,true)) : (ehNum(raw,false));
-  const bad = summa>0 && summa>n0(q.qoldi);
+  const bad = summa>0 && summa>n0(q.qoldi) && !ehYaxlOk(q.valyuta,q.qoldi,summa);
+  ehYaxlHint('ehqTolYaxHint',q);
   const btn=$('ehqTolSaveBtn'); if(btn) btn.disabled=bad;
 };
 const EHQ_TOL_XATO={ ruxsat:"Ruxsat yo'q", topilmadi:'Qarz topilmadi', holat:'Qarz holati mos emas',
@@ -5696,7 +5725,7 @@ document.addEventListener('keydown',e=>{
 async function init(){
   let saved='bosh'; try{ saved=localStorage.getItem('eh-tab')||'bosh'; }catch(e){}
   wireKirim();
-  await Promise.all([ loadRole() ]);
+  await Promise.all([ loadRole(), ehYaxlLoad() ]);
   window.ehTab(saved);
 }
 

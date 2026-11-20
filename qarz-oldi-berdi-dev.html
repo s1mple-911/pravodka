@@ -542,6 +542,21 @@ const qobUnit=v=>(!v||v==='UZS')?"so'm":(v==='USD'?'$':v);
 const qobAmt=(val,x)=>money(n0(x))+' '+qobUnit(val);
 const qobDec=val=>!!val && val!=='UZS';   // valyutada kasr bor, so'mda yo'q
 
+// Yaxlitlash chegarasi (PROVODKA_YAXLITLASH_20261120.sql): to'lov qoldiqdan shuncha kam/ko'p bo'lsa qarz to'liq yopiladi.
+// RPC yo'q bo'lsa (SQL RUN qilinmagan) null → chegara 0, eski qoida (ko'p to'lov rad etiladi) aynan saqlanadi.
+let qobYaxl=null;
+async function qobYaxlLoad(){
+  try{
+    const {data,error}=await sb.rpc('yaxlitlash_chegara_royxat');
+    if(error||!Array.isArray(data)) return;
+    qobYaxl={}; data.forEach(r=>{ qobYaxl[String(r.valyuta).toUpperCase()]=Number(r.chegara)||0; });
+  }catch(e){ console.warn('yaxlitlash_chegara_royxat:',e.message||e); }
+}
+const qobYaxlLim=val=>{ if(!qobYaxl) return 0; const k=String(val||'UZS').toUpperCase(); return qobYaxl[k==='CNY'?'CHY':k]||0; };
+// Server (_yaxlit_mos) bilan bir xil: to'lov qoldiqni chegara bo'yicha PASTGA yoki YUQORIGA yaxlitlagan bo'lsagina (45,5 → 45/46; 5 → faqat 5)
+const qobYaxlOk=(val,qoldi,summa)=>{ const c=qobYaxlLim(val), q=n0(qoldi);
+  return c>0 && summa>0 && q>0 && Math.abs(q-summa)>0.009 && (Math.abs(summa-Math.floor(q/c)*c)<=0.009 || Math.abs(summa-Math.ceil(q/c)*c)<=0.009); };
+
 function qobMissing(error){
   if(error && (error.code==='PGRST202' || error.code==='42883' || /function .* does not exist/i.test(error.message||''))){
     showInfo("Qarz oldi-berdi SQL hali RUN qilinmagan (PROVODKA_QARZ_OB.sql)"); return true;
@@ -933,6 +948,7 @@ function renderKart(){
           <input class="qob-input qob-input-lg" id="qobTolSumma" type="text" inputmode="${qobDec(q.valyuta)?'decimal':'numeric'}" autocomplete="off" placeholder="0" oninput="qobTolSummaInput()"></div>
         <div class="qob-field"><label>Sana</label><input class="qob-input" id="qobTolSana" type="date"></div>
       </div>
+      <div class="qob-hint" id="qobTolYaxHint" style="display:none;margin:-4px 0 10px"></div>
       <div class="qob-field"><label>Izoh</label><input class="qob-input" id="qobTolIzoh" maxlength="300" placeholder="Ixtiyoriy"></div>
       <div id="qobTolMsg" class="qob-msg"></div>
       <div class="qob-actions"><button class="btn" id="qobTolBtn" onclick="qobTolSave()"><i data-lucide="check"></i>${berdik?'Qabul qilish':"To'lash"}</button></div>
@@ -969,11 +985,21 @@ window.qobTolFull=()=>{
   qobMoney(el,qobDec(q.valyuta)); qobTolCheck();
 };
 window.qobTolSummaInput=()=>{ qobMoney($('qobTolSumma'),qobDec(qobKartQ().valyuta)); qobTolCheck(); };
+// Qoldiq kasr bo'lsa yordam matni: «Qoldiq 45,5 $ — 45 yoki 46 kiriting, farq yaxlitlanadi (chegara 1 $)»
+function qobTolYaxHint(q){
+  const h=$('qobTolYaxHint'); if(!h) return;
+  const val=q.valyuta||'UZS', lim=qobYaxlLim(val), qd=n0(q.qoldi);
+  const lo=Math.floor(qd/lim)*lim, hi=Math.ceil(qd/lim)*lim;
+  if(lim<=0 || Math.abs(qd-lo)<=0.009 || Math.abs(qd-hi)<=0.009){ h.style.display='none'; return; }
+  h.textContent='Qoldiq '+qobAmt(val,qd)+' — '+money(lo)+' yoki '+money(hi)+' kiriting, farq yaxlitlanadi (chegara '+qobAmt(val,lim)+')';
+  h.style.display='block';
+}
 function qobTolCheck(){
   const q=qobKartQ(); const btn=$('qobTolBtn'), box=$('qobTolQoldiq'); if(!btn||!box) return;
   const dec=qobDec(q.valyuta), val=q.valyuta||'UZS';
   const summa=qobNum($('qobTolSumma'),dec);
-  const kop=summa>0 && summa>n0(q.qoldi)+0.009;
+  const kop=summa>0 && summa>n0(q.qoldi)+0.009 && !qobYaxlOk(val,q.qoldi,summa);
+  qobTolYaxHint(q);
   let kam=false;
   if(q.yonalish==='oldik' && qobTolSel){
     const have=qobKassaHave(qobTolSel);
@@ -996,7 +1022,7 @@ window.qobTolSave=async()=>{
   const summa=qobNum($('qobTolSumma'),dec);
   if(!qobTolSel) return err(QOB_XATO.kassa_kerak);
   if(!(summa>0)) return err(QOB_XATO.summa_notogri);
-  if(summa>n0(q.qoldi)+0.009) return err(QOB_XATO.kop);
+  if(summa>n0(q.qoldi)+0.009 && !qobYaxlOk(q.valyuta||'UZS',q.qoldi,summa)) return err(QOB_XATO.kop);
   if(q.yonalish==='oldik' && summa>qobKassaHave(qobTolSel)+0.0001) return err(QOB_XATO.qoldiq_yetmadi);
   const p={ qarz_id:qobKartId, kassa_id:qobTolSel.id, sana:$('qobTolSana').value||todayUz() };
   const izoh=($('qobTolIzoh').value||'').trim(); if(izoh) p.izoh=izoh;
@@ -1010,7 +1036,7 @@ window.qobTolSave=async()=>{
     if(!data){ err("Bo'sh javob"); return; }
     if(data.ok===false && data.kod!=='takror'){ err(qobKod(data)); return; }
     qobTolExt=null; qobTolFp=null;
-    qobFlash(data.holat==='yopildi'?'Qarz to\'liq yopildi':"To'lov saqlandi");
+    qobFlash(data.yaxlitlandi?'Qarz yopildi (yaxlitlash farqi '+qobAmt(q.valyuta||'UZS',Math.abs(n0(data.farq)))+')':(data.holat==='yopildi'?'Qarz to\'liq yopildi':"To'lov saqlandi"));
     loadQarz(true); qobLoadKassalar();
     qobTolBusy=false;
     await qobKartLoad();   // yangilangan holat/grafik bilan qayta chizadi
@@ -1041,7 +1067,7 @@ document.addEventListener('keydown',e=>{
 
 async function init(){
   qobFormReset();
-  await Promise.all([ loadRole() ]);
+  await Promise.all([ loadRole(), qobYaxlLoad() ]);
   loadQarz();
   qobLoadKassalar();
 }
