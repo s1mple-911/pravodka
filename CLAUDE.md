@@ -2047,6 +2047,23 @@ Q2b 71 mlrd vs Qarz 25,8 mlrd sababi: oyna (365 kun vs eng yangi 500), tarkib (y
   ⚠️ Payload `yuklar` hamma statusni (jumladan on_way) bermasa yo'lda hujjatlar Q2b ga tushmaydi (Qarz sahifasida bor) — tekshirish: `bolimlar.Q2b.yolda_uzs` ≈ sahifadagi «shundan yo'lda».
 - **`aylanma-dev.html`**: Q2b izohi «Qarz sahifasi JAMI QARZ bilan bir xil (eng yangi 500, brutto)», avans/ichki chiplari «ma'lumot», Excel «Hisobga» ustuni + Jami faqat hisobga kiradiganlardan.
 
+### Yaxlitlash chegarasi — to'lovda 45,5 $ → 45 yoki 46 (2026-11-20, `PROVODKA_YAXLITLASH_20261120.sql` + `PROVODKA_YAXLITLASH_KASSA_VALYUTA_20261120.sql`, RUN ✅ 20.11, faqat dev)
+Asilbek: qarz/yuk to'lovida kasr qoldiq (45,5 $) butun pul bilan yopilsin, chegaralar Sozlamalarda dinamik.
+- **Jadval `yaxlitlash_chegara(valyuta pk, chegara)`** — default USD 1, EUR 1, AED 1, CHY 100 (CNY=CHY), UZS 10 000. RPC `yaxlitlash_chegara(text)` (yo'q valyuta → 0),
+  `yaxlitlash_chegara_royxat()` (authenticated), `yaxlitlash_chegara_yoz(valyuta, chegara)` (faqat admin; NaN/0/manfiy/bo'sh valyuta rad; UZS ≤ 100 000, boshqa ≤ 1 000).
+  `sozlama-dev.html` «Yaxlitlash chegarasi» kartasi (Tizim guruhi, admin).
+- **Qoida `_yaxlit_mos(qoldi, tolov, chegara)`**: to'lov = qoldiqning chegara bo'yicha floor YOKI ceil qiymati bo'lsa (va qoldi o'zi shu emas) → to'liq yopiladi. 45,5 → 45/46 ✓, 47 ✗;
+  5 $ → faqat 5 (4 ✗, qisman to'lov yopmaydi); 95 500 so'm → 90 000/100 000. Farq avto yozuv `_yaxlit_yoz` (ext_ref `yaxlit:<entry>`, `provodka.avto_kurs=1` bayrog'i, RBAC/bal_guard
+  chetlab o'tadi): hisoblar **9021 «Yaxlitlash foydasi»** / **9451 «Yaxlitlash xarajati»**. Tomon: biz TO'LAYOTGANDA kam = foyda, ko'p = xarajat; biz QABUL qilayotganda teskari.
+  Asl yozuv o'chirilsa/tiklansa avto yozuv (va `yuk_yopiq` 'yaxlitlash' qatori) ham (`trg_yaxlit_entry`).
+- **Qayta e'lon (imzo bir xil):** `qarz_ob_tolov(jsonb)`, `qarz_tolov(uuid,uuid,numeric,date,text)`, `ehson_qarz_tolov(jsonb)`, `ehson_qarz_olish_qaytar(jsonb)` — javobda `yaxlitlandi:true, farq`.
+  Yuk: **`yuk_yaxlitlash_yop(p_ext_ref)`** — Professional 9110 saqlashdan KEYIN fonda (`yukValyutaYoz(...).then(yukYaxlitYop)`, xizmat to'lovida emas; egalik/30 daqiqa):
+  qoldiq ≤ chegara → `yuk_yopiq` (sabab `yaxlitlash`, kalit `yaxlit:<entry>:<yuk>`), ortiqcha → avto yozuv.
+- 🔴 **KASSA valyutasi bo'yicha** (`…_KASSA_VALYUTA_…`, ENG OXIRGI `yuk_yaxlitlash_yop` shu faylda): hujjat so'mda (650 000), to'lov USD kassadan 54 $ — hujjat valyutasi chegarasi
+  (10 000 so'm) bo'yicha 54 $ rad etilardi. Kassa valyutasi (yozuvning eng katta Kt satri hisobi, kursi credit/fc_amount) hujjatnikidan farq qilsa chegara va floor/ceil KASSA
+  valyutasida (53,94 $ → 53 yoki 54 $). Klient: `professional-dev` `yukOrtiqLim` = `yukYaxlLimVal(to'lov birligi valyutasi)`; `qarz-oldi-berdi-dev`/`ehson-dev` `*YaxlOk`,
+  `qarzdor-dev` TEGILMAGAN (Asilbek: Qarz sahifasiga tegilmasin).
+
 ## Avtomatik sinxron (n8n)
 
 `Aros Provodka - Auto Sync` (`7MSHrXnz9cGAFBTh`), har 30 daqiqada:
