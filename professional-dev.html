@@ -3085,10 +3085,14 @@ window.toggleYuk=id=>{ id=Number(id);
 // Server _yaxlit_mos bilan bir xil: to'lov qoldiqni chegara (c) bo'yicha pastga yoki yuqoriga yaxlitlagan (45,5 → 45/46; 5 → faqat 5)
 function yukYaxlMos(q,t,c){ return c>0 && t>0 && q>0 && Math.abs(q-t)>0.009
   && (Math.abs(t-Math.floor(q/c)*c)<=0.009 || Math.abs(t-Math.ceil(q/c)*c)<=0.009); }
+// 2026-11-20 (Asilbek, #3201 holati): yaxlitlash birligi — TO'LOV (kassa) valyutasining chegarasi, to'lov birligida.
+// Hujjat so'mda (650 000), to'lov dollarda (54 $) bo'lsa 53 yoki 54 $ qabul qilinadi (USD chegarasi 1), hujjat valyutasi
+// bo'yicha emas (10 000 so'm = 0,83 $ karrali bo'lishi talab qilinmaydi — naqd pul dollar birligida beriladi).
+// Server (yuk_yaxlitlash_yop) ham kassa valyutasi bo'yicha tekshiradi — PROVODKA_YAXLITLASH_KASSA_VALYUTA_20261120.sql.
 function yukOrtiqLim(id){
-  const y=yukList.find(x=>Number(x.id)===Number(id)); if(!y) return 0;
-  const l=yukYaxlLimUzs(y), u=yukUnit(); if(l==null||!u.rate) return 0;
-  return u.rnd(l/u.rate);
+  const y=yukList.find(x=>Number(x.id)===Number(id)); if(!y||!yukYaxl) return 0;
+  const u=yukUnit(); if(u.cc&&!u.rate) return 0;
+  return u.rnd(yukYaxlLimVal(u.cur)||0);
 }
 // Qoldiq kasr bo'lsa yordam matni (tanlangan yuklar bo'yicha)
 function yukYaxlHintHtml(){
