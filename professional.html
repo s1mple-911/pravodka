@@ -2727,7 +2727,21 @@ function yukTolangan(id){ const s=yukPaidMap[id]; if(!s) return 0;
 // Valyutali hujjatda narxning 1.5% gacha qoldiq = kurs/yaxlitlash farqi → yopiq (qarzdor-dev bilan bir xil qoida).
 // 2026-11-05 (Asilbek): chegara eng ko'pi 10 $ (joriy USD kursida) — ataylab qoldirilgan 205 AED yashirinmasin.
 function yukKursFarqiCapUzs(){ const r=curRate('USD'); return (r&&r>0)?r*10:120000; }
-function yukKursFarqiLim(y,jami){ return (curRate(y.valyuta)===1)?1:Math.min(Math.max(1,(Number(jami)||0)*0.015),yukKursFarqiCapUzs()); }
+// 2026-11-20: qoldiq chegarasi — yaxlitlash_chegara_royxat() (PROVODKA_YAXLITLASH_20261120.sql; valyuta birligida: USD 1, CHY 100, UZS 10000),
+// so'mga hujjat kursi bilan o'giriladi. RPC yo'q bo'lsa (yukYaxl=null) eski qoida (1,5% va ≤10 $) qoladi — fallback.
+let yukYaxl=null;
+async function yukYaxlLoad(){
+  try{
+    const {data,error}=await sb.rpc('yaxlitlash_chegara_royxat');
+    if(error||!Array.isArray(data)) return;
+    yukYaxl={}; data.forEach(r=>{ yukYaxl[String(r.valyuta).toUpperCase()]=Number(r.chegara)||0; });
+    if(yukLoaded&&typeof renderYukList==='function'){ try{ renderYukList(); }catch(e){} }
+  }catch(e){ console.warn('yaxlitlash_chegara_royxat:',e.message||e); }
+}
+function yukYaxlLimVal(val){ if(!yukYaxl) return 0; const k=String(val||'UZS').toUpperCase(); return yukYaxl[k==='CNY'?'CHY':k]||0; }
+// null = chegara jadvali yo'q (eski qoida); aks holda so'mda (kamida 1 so'm)
+function yukYaxlLimUzs(y){ if(!yukYaxl) return null; const r=curRate(y.valyuta); return Math.max(1,yukYaxlLimVal(y.valyuta)*(r||1)); }
+function yukKursFarqiLim(y,jami){ const l=yukYaxlLimUzs(y); if(l!=null) return l; return (curRate(y.valyuta)===1)?1:Math.min(Math.max(1,(Number(jami)||0)*0.015),yukKursFarqiCapUzs()); }
 async function yukTolanganSorov(ids){
   const rows=yukList.filter(y=>ids.includes(Number(y.id))).map(y=>({id:Number(y.id),valyuta:y.valyuta||'UZS'}));
   const r=await sb.rpc('yuk_tolangan_fc',{p_rows:rows});
@@ -2742,6 +2756,16 @@ function yukValyutaQatorlar(eyRows){
     const cur=y.valyuta||'UZS', k=curRate(cur); if(k==null) return null;
     const fc=(u.cc&&normC(u.cur)===normC(cur)&&Number(allocC[r.yuk_id])>0)?Number(allocC[r.yuk_id]):(r.summa_uzs/k);
     return {yuk_id:Number(r.yuk_id), summa_fc:Math.round(fc*10000)/10000, kurs:k, valyuta:cur}; }).filter(Boolean);
+}
+// Saqlash + yukValyutaYoz'dan KEYIN fonda: qoldiq ≤ yaxlitlash chegarasi bo'lsa hujjat yopiladi (yuk_yopiq), ortiqcha to'langan
+// qism avto yozuvga. Xato bloklamaydi; RPC yo'q (SQL RUN qilinmagan) bo'lsa jim.
+async function yukYaxlitYop(extRef){
+  if(!extRef) return;
+  try{ const {data,error}=await sb.rpc('yuk_yaxlitlash_yop',{p_ext_ref:extRef});
+    if(error){ if(!rpcYoq(error)) console.warn('yuk_yaxlitlash_yop:',error.message); return; }
+    if(data&&data.ok===false){ console.warn('yuk_yaxlitlash_yop:',data.kod); return; }
+    if(data&&(Number(data.yopildi)>0||Number(data.ortiqcha_uzs)>0)){ yukLoaded=false; }   // keyingi ochilishda qoldiq yangidan o'qiladi
+  }catch(e){ console.warn('yuk_yaxlitlash_yop:',e.message||e); }
 }
 async function yukValyutaYoz(extRef,qatorlar){
   if(!extRef||!qatorlar||!qatorlar.length) return;
@@ -2764,7 +2788,7 @@ function yukTanSabab(id,lim=2){ const q=yukTanQatorlar(id); if(!q.length) return
   const bosh=q.slice(0,lim).map(r=>(r.ikonka?r.ikonka+' ':'')+(r.sabab||'—')+' '+money(r.summa_uzs)).join(' · ');
   return bosh+(q.length>lim?' · va yana '+(q.length-lim)+' ta':''); }
 function yukJami(y){ const n=yukNarxUzs(y); if(n==null) return null; return n + yukTannarx(y.id); }   // JAMI TANNARX
-function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; const q=n - yukTolangan(y.id); return q<yukKursFarqiLim(y,n)?0:q; }  // qolgan qarz (UZS)
+function yukQoldiq(y){ const n=yukJami(y); if(n==null) return null; const q=n - yukTolangan(y.id); return q<=yukKursFarqiLim(y,n)?0:q; }  // qolgan qarz (UZS)
 function yukPct(y){ const n=yukJami(y); if(!n) return 0; return Math.min(100, Math.round(yukTolangan(y.id)/n*100)); }
 // Yuk qiymati to'lov birligida (UZS rejimi: eski jami/qoldiq; valyuta rejimi: Aros narxi YAXLIT + tannarx joriy kursda).
 // tolangan_uzs serverda so'mda — qaytarib JORIY kurs bilan bo'linadi (taxminiy, kurs o'zgargan bo'lsa ozgina farq bo'lishi mumkin).
@@ -2783,7 +2807,7 @@ function yukRow(y){
   const tanC=yukTannarx(y.id)/u.rate;                       // tannarx so'mda saqlanadi → to'lov valyutasiga joriy kursda
   const jami=u.rnd(narx+tanC);
   let qoldi=u.rnd(jami-yukTolangan(y.id)/u.rate);
-  if(qoldi<Math.min(jami*0.015, yukKursFarqiCapUzs()/u.rate)) qoldi=0;   // kurs/yaxlitlash farqi → yopiq (1.5% VA ≤10 $, 2026-11-05)
+  { const yl=yukYaxlLimUzs(y); if(qoldi<=(yl!=null?yl/u.rate:Math.min(jami*0.015, yukKursFarqiCapUzs()/u.rate))) qoldi=0; }   // yaxlitlash chegarasi (2026-11-20); jadval yo'q bo'lsa eski: 1.5% VA ≤10 $
   return {err:false, jami:jami, qoldi:Math.max(0,qoldi), approx:!same||tanC>0};
 }
 /* 2026-10-28 (Asilbek): FAQAT nashr qilingan (`status==='posted'`) yukka pul to'lash mumkin. Aros statuslari:
@@ -3056,6 +3080,31 @@ window.toggleYuk=id=>{ id=Number(id);
   else { if(!selectableFor(y)) return; selYuk.add(id); }
   autoAlloc(); renderYukList(); refreshBojWarn();
 };
+// Yaxlitlash: qoldiqdan chegaragacha ORTIQ to'lashga ruxsat (to'lov ko'rsatilgan birlikda, u.rate bo'yicha so'mdan o'giriladi).
+// Chegaradan ko'pi eski xato bilan rad etiladi. Server (yuk_yaxlitlash_yop) ortiqcha qismni avto yozuvga o'tkazadi.
+// Server _yaxlit_mos bilan bir xil: to'lov qoldiqni chegara (c) bo'yicha pastga yoki yuqoriga yaxlitlagan (45,5 → 45/46; 5 → faqat 5)
+function yukYaxlMos(q,t,c){ return c>0 && t>0 && q>0 && Math.abs(q-t)>0.009
+  && (Math.abs(t-Math.floor(q/c)*c)<=0.009 || Math.abs(t-Math.ceil(q/c)*c)<=0.009); }
+// 2026-11-20 (Asilbek, #3201 holati): yaxlitlash birligi — TO'LOV (kassa) valyutasining chegarasi, to'lov birligida.
+// Hujjat so'mda (650 000), to'lov dollarda (54 $) bo'lsa 53 yoki 54 $ qabul qilinadi (USD chegarasi 1), hujjat valyutasi
+// bo'yicha emas (10 000 so'm = 0,83 $ karrali bo'lishi talab qilinmaydi — naqd pul dollar birligida beriladi).
+// Server (yuk_yaxlitlash_yop) ham kassa valyutasi bo'yicha tekshiradi — PROVODKA_YAXLITLASH_KASSA_VALYUTA_20261120.sql.
+function yukOrtiqLim(id){
+  const y=yukList.find(x=>Number(x.id)===Number(id)); if(!y||!yukYaxl) return 0;
+  const u=yukUnit(); if(u.cc&&!u.rate) return 0;
+  return u.rnd(yukYaxlLimVal(u.cur)||0);
+}
+// Qoldiq kasr bo'lsa yordam matni (tanlangan yuklar bo'yicha)
+function yukYaxlHintHtml(){
+  if(!yukYaxl||isXizmat()) return '';
+  const u=yukUnit(), out=[];
+  for(const id of selYuk){ const y=yukList.find(x=>Number(x.id)===id); if(!y) continue;
+    const q=yukRow(y).qoldi||0, lim=yukOrtiqLim(id);
+    const lo=lim>0?Math.floor(q/lim)*lim:q, hi=lim>0?Math.ceil(q/lim)*lim:q;
+    if(lim<=0||q<=0||Math.abs(q-lo)<=0.009||Math.abs(q-hi)<=0.009) continue;
+    out.push('<div class="ysrow ysmatch"><span class="ymatch">#'+id+': qoldiq '+u.f(q)+' — '+u.n(lo)+' yoki '+u.n(hi)+' kiriting, farq yaxlitlanadi (chegara '+u.f(lim)+')</span></div>'); }
+  return out.slice(0,3).join('');
+}
 function autoAlloc(){
   const u=yukUnit(), A=u.cc?allocC:alloc, ids=[...selYuk];
   if(!ids.length){ alloc={}; allocC={}; return; }
@@ -3071,7 +3120,8 @@ function autoAlloc(){
   let left=u.total;
   ids.forEach((id,i)=>{
     let a = (i===ids.length-1) ? left : (totRem>0?u.rnd(u.total*rem[id]/totRem):0);
-    a=Math.min(Math.max(a,0), rem[id]); A[id]=a; left=u.rnd(left-a);
+    a=Math.max(a,0); if(a>rem[id] && !(i===ids.length-1 && yukYaxlMos(rem[id],a,yukOrtiqLim(id)))) a=rem[id];   // ortiqcha faqat yuqoriga yaxlitlangan qiymat bo'lsa
+    A[id]=a; left=u.rnd(left-a);
   });
   syncAllocUzs();
 }
@@ -3095,7 +3145,7 @@ function allocOk(){
   } else {
     for(const id of selYuk){ const y=yukList.find(x=>Number(x.id)===id); const q=y?(yukRow(y).qoldi||0):0;
       if(u.get(id)<=0) return {ok:false,msg:'Har yukka summa yozing'};
-      if(u.rnd(u.get(id)-q)>0) return {ok:false,msg:'#'+id+' uchun faqat '+u.n(q)+' qoldi'}; }
+      if(u.rnd(u.get(id)-q)>0 && !yukYaxlMos(q,u.get(id),yukOrtiqLim(id))) return {ok:false,msg:'#'+id+' uchun faqat '+u.n(q)+' qoldi'}; }
   }
   const diff=u.rnd(allocSum()-u.total);
   if(diff!==0) return {ok:false,msg:diff<0?('Taqsimlanmagan: '+u.n(-diff)):('Ortiqcha: '+u.n(diff))};
@@ -3113,7 +3163,7 @@ function renderYukSum(){
   box.innerHTML=
     '<div class="ysrow"><span>Xarajat summasi</span><b>'+(u.cc?u.f(u.total)+' <span class="ysc">(≈ '+money(Math.round(yukSaveUzs))+' so\'m)</span>'
       :money(Math.round(yukSaveUzs))+' so\'m')+'</b></div>'
-    +'<div class="ysrow"><span>Taqsimlangan ('+selYuk.size+')</span><b>'+u.f(s)+'</b></div>'+l3;
+    +'<div class="ysrow"><span>Taqsimlangan ('+selYuk.size+')</span><b>'+u.f(s)+'</b></div>'+l3+yukYaxlHintHtml();
 }
 function updateYukSaveBtn(){
   const st=allocOk(), izohOk=!!izohPickVal(), b=$('yukSaveBtn');
@@ -3576,9 +3626,10 @@ async function doSaveSimple(){
   // Atomik yo'lda u ham AYNI tranzaksiyada yoziladi (kompensatsiya kerak emas).
   const eyRows=[...selYuk].map(id=>({yuk_id:id,summa_uzs:Number(alloc[id])||0})).filter(r=>r.summa_uzs>0);
   const valQ=yukValyutaQatorlar(eyRows);   // 🔴 snapshot SAQLASHDAN OLDIN — pastda alloc/allocC tozalanadi
+  const yaxOk=!isXizmat();   // xizmat to'lovi (tannarx) hujjat qoldig'ini yopmaydi — yaxlitlash faqat tovar to'lovida
   const res=await yozBir(entryPayload,rows,eyRows);
   if(!res.ok){ btn.textContent='Saqlash'; updateSimple(); return; }
-  yukValyutaYoz(res.ext_ref, valQ);   // fonda: entry_yuk.summa_fc/kurs/valyuta (kursga qaytmaydigan qoldiq uchun)
+  yukValyutaYoz(res.ext_ref, valQ).then(()=>{ if(eyRows.length&&yaxOk) yukYaxlitYop(res.ext_ref); });   // fonda: entry_yuk.summa_fc/kurs/valyuta (kursga qaytmaydigan qoldiq uchun), keyin yaxlitlash
   // Chek — entry saqlangach fonda yuklanadi (yozuvni bloklamaydi).
   if(chekBlob) chekYukla(res, kassa.id);
   aiBind(res.entry_id, aiSn);   // AI bog'lash — saqlashni kutmagan, fonda
@@ -3869,6 +3920,7 @@ async function init(){
   $('izoh').addEventListener('input',updateSimple);
   renderChips(); fetchSubBal(); fetchSimpleBal();   // bitta kassa avtomat tanlansa qoldig'i darrov yuklanadi
   loadLimits();                      // Stage 4: standart limitlar (fon)
+  yukYaxlLoad();                     // yaxlitlash chegarasi (fon; RPC yo'q bo'lsa eski qoida)
   myFilsLoad();                      // men hodimi bo'lgan filiallar (mening_filiallarim, fon)
   mxdLoad();                         // maxsus maydon ta'riflari (fon, fail-closed/fail-open)
   // Ehson kaskadi — fon (RPC yo'q/xato bo'lsa jimgina eski ko'rinishda qoladi).

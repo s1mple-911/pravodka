@@ -349,7 +349,7 @@
           <tbody id="ddBody"><tr><td colspan="5" class="empty">—</td></tr></tbody>
         </table></div>
       </div>
-      <div class="note">Qatorga bosilsa tafsilot ochiladi. Q2b (Biz qarzdormiz) formuladan AYIRILADI (qizil, minus). <b>Hodim kassalari</b> — 5400 ostidagi barcha xodim/xaridor kassalari (G'iyos va boshqalar, valyuta hisoblari bilan, Provodka daftari) — 28.10.2026 dan jamiga QO'SHILADI; eski kunlar o'sha sanadagi qoldiq bilan to'ldirilgan.</div>
+      <div class="note">Qatorga bosilsa tafsilot ochiladi. Q2b (Biz qarzdormiz) formuladan AYIRILADI (qizil, minus). Q2b — Qarz sahifasidagi «JAMI QARZ» bilan bir xil (eng yangi 500 hujjat, brutto, yo'ldagi yuklar va boshlang'ich qarz kiradi); avans va ichki yetkazuvchilar tafsilotda faqat ma'lumot satri. <b>Hodim kassalari</b> — 5400 ostidagi barcha xodim/xaridor kassalari (G'iyos va boshqalar, valyuta hisoblari bilan, Provodka daftari) — 28.10.2026 dan jamiga QO'SHILADI; eski kunlar o'sha sanadagi qoldiq bilan to'ldirilgan.</div>
     </div>
 
     <div class="card">
@@ -822,6 +822,9 @@ function metaChipsHtml(meta){
   if(meta.nofaol) parts.push('nofaol kassa');
   if(meta.konteyner) parts.push('⚠ konteynerda pul (bo\'lmasligi kerak)');
   if(meta.hamyon) parts.push('mijozlar hamyonidagi pul — qarzdan ayirildi');
+  if(meta.yolda) parts.push("yo'lda (kelmagan yuk)");
+  if(meta.avans) parts.push("ma'lumot: yukka bog'lanmagan to'lov — Q2b dan ayirilmaydi");
+  if(meta.ichki) parts.push("ma'lumot: ichki yetkazuvchi hujjatlari jami ICHIDA");
   if(meta.manfiy) parts.push('⚠ manfiy');
   if(meta.tr_yolda_uzs!=null) parts.push("yo'lda: "+money(meta.tr_yolda_uzs));
   if(meta.status) parts.push(esc(String(meta.status)));
@@ -854,14 +857,19 @@ let ddShowAll=false; // hisobga olinmagan qatorlar sukutda YASHIRIN (Asilbek 202
 window.aylDrillToggle=()=>{ ddShowAll=!ddShowAll; renderDrill(); };
 function renderDrill(){
   if(!ddRows.length){ $('ddBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Qator yo'q")+'</td></tr>'; return; }
-  const yashirin=ddRows.filter(r=>r.hisobga===false).length;
-  const rows=ddShowAll?ddRows:ddRows.filter(r=>r.hisobga!==false);
+  // Q2b «ichki»/«avans» ma'lumot qatorlari hisobga olinmaydi, lekin YASHIRILMAYDI (Asilbek 2026-11-20) — har doim ko'rinadi
+  const ichkiQ=r=>!!(r.meta&&(r.meta.ichki||r.meta.avans));
+  const yashirin=ddRows.filter(r=>r.hisobga===false&&!ichkiQ(r)).length;
+  const rows=ddShowAll?ddRows:ddRows.filter(r=>r.hisobga!==false||ichkiQ(r));
   const toggle=yashirin
     ? '<tr><td colspan="5" class="c" style="text-align:center;padding:8px"><a href="#" onclick="aylDrillToggle();return false;">'
       +(ddShowAll?'Hisobga olinmaganlarni yashirish':yashirin+" ta qator hisobga olinmagan (ko'rsatish)")+'</a></td></tr>'
     : '';
   if(!rows.length){ $('ddBody').innerHTML='<tr><td colspan="5">'+estateHtml(ICON_INBOX,"Qator yo'q")+'</td></tr>'+toggle; return; }
-  $('ddBody').innerHTML=toggle+rows.map(r=>{
+  const q2bNote=ddBolim==='Q2b'
+    ? '<tr><td colspan="5" class="c" style="padding:8px 12px">Qarz sahifasi «JAMI QARZ» bilan bir xil (eng yangi 500 hujjat, brutto): posted + yo\'ldagi yuklar + boshlang\'ich qarz, valyutada to\'langani ayirilgan. Avans va ichki yetkazuvchilar qatori — faqat ma\'lumot (jamiga ta\'sir qilmaydi).</td></tr>'
+    : '';
+  $('ddBody').innerHTML=q2bNote+toggle+rows.map(r=>{
     const nom=r.nom||r.ref||'—';
     // H qatorlarida ref = accounts.id (uuid) — ostida kod + subtitle (Filial · Lavozim) ko'rsatiladi
     const sub=(r.meta&&r.meta.kod)?(String(r.meta.kod)+(r.meta.subtitle?(' · '+r.meta.subtitle):'')):r.ref;
@@ -870,7 +878,7 @@ function renderDrill(){
       + '<td class="n">'+money(r.uzs)+'</td>'
       + '<td class="n">'+(r.usd!=null?('$'+money(r.usd)):'—')+'</td>'
       + '<td class="n">'+(r.soni!=null?money(r.soni):'—')+'</td>'
-      + '<td>'+(r.hisobga===false?'<span class="badge mut">hisobga olinmagan</span>':'')+metaChipsHtml(r.meta)+'</td>'
+      + '<td>'+(r.hisobga===false&&!ichkiQ(r)?'<span class="badge mut">hisobga olinmagan</span>':'')+metaChipsHtml(r.meta)+'</td>'
       + '</tr>';
   }).join('');
 }
@@ -892,9 +900,12 @@ function aylLoadXlsx(){
   _aylXlsx=p;
   return p;
 }
+// Hisobga olinmagan qatorlar (masalan Q2b «ichki») alohida belgi bilan chiqadi va «Jami» satriga KIRMAYDI
+const drillXlsRow=r=>[r.nom||'', (r.meta&&r.meta.kod)||r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'', r.hisobga===false?'Hisobga kirmaydi':'Hisobga kiradi'];
+const drillXlsJami=()=>['Jami (faqat hisobga kiradiganlar)','',ddRows.filter(r=>r.hisobga!==false).reduce((a,r)=>a+(Number(r.uzs)||0),0),'','',''];
 function aylCsvFallback(){
-  const head=['Nomi','Ref',"So'm",'Dollar','Soni'];
-  const rows=[head].concat(ddRows.map(r=>[r.nom||'', (r.meta&&r.meta.kod)||r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'']));
+  const head=['Nomi','Ref',"So'm",'Dollar','Soni','Hisobga'];
+  const rows=[head].concat(ddRows.map(drillXlsRow),[drillXlsJami()]);
   const csv=rows.map(r=>r.map(v=>String(v).replace(/;/g,',')).join(';')).join('\r\n');
   const blob=new Blob(['﻿sep=;\r\n'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -905,8 +916,9 @@ window.aylExcelDrill=async()=>{
   if(!ddRows.length) return;
   try{
     const X=await aylLoadXlsx();
-    const aoa=[['Nomi','Ref',"So'm",'Dollar','Soni']];
-    ddRows.forEach(r=>aoa.push([r.nom||'', (r.meta&&r.meta.kod)||r.ref||'', Number(r.uzs)||0, r.usd!=null?Number(r.usd):'', r.soni!=null?Number(r.soni):'']));
+    const aoa=[['Nomi','Ref',"So'm",'Dollar','Soni','Hisobga']];
+    ddRows.forEach(r=>aoa.push(drillXlsRow(r)));
+    aoa.push(drillXlsJami());
     const ws=X.utils.aoa_to_sheet(aoa);
     const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'Tafsilot');
     X.writeFile(wb,'aylanma_'+(ddBolim||'tafsilot')+(curSnap&&curSnap.sana?('_'+curSnap.sana):'')+'.xlsx');

@@ -775,6 +775,7 @@
           <button type="button" class="soz-item" data-soz-go="koridor" onclick="sozGo('koridor')"><i data-lucide="arrow-right-left"></i><span class="l">Konvert koridori</span><span class="soz-badge" hidden></span></button>
         </div>
         <div class="soz-grp"><div class="soz-grp-t">Tizim</div>
+          <button type="button" class="soz-item" data-soz-go="yaxlitlash" onclick="sozGo('yaxlitlash')"><i data-lucide="scale"></i><span class="l">Yaxlitlash chegarasi</span><span class="soz-badge" hidden></span></button>
           <button type="button" class="soz-item" data-soz-go="kuzatuv" onclick="sozGo('kuzatuv')"><i data-lucide="eye"></i><span class="l">Kuzatuv</span><span class="soz-badge" hidden></span></button>
         </div>
         <div class="soz-empty" id="sozNoMatch" hidden>Hech narsa topilmadi</div>
@@ -1001,6 +1002,21 @@
       </div>
       <div id="filRes" class="res"></div>
       <div id="filList"></div>
+    </div>
+
+    <!-- Yaxlitlash chegarasi (PROVODKA_YAXLITLASH_20261120.sql): qarz/yuk to'lovi qoldiqdan shuncha kam/ko'p bo'lsa
+         qarz to'liq yopiladi, farq «Yaxlitlash foydasi/xarajati»ga tushadi. RPC yo'q bo'lsa karta yashirinadi. -->
+    <div class="card" id="yaxCard" data-soz="yaxlitlash" style="display:none">
+      <div class="sec">Yaxlitlash chegarasi</div>
+      <div class="hint">To'lov summasi qarz qoldig'idan shu chegaragacha <b>kam yoki ko'p</b> bo'lsa, qarz (yoki yuk hujjati) <b>to'liq yopiladi</b>;
+        farq alohida avto yozuvga tushadi. Chegara <b>valyuta birligida</b> (masalan USD uchun 1 = bir dollar). Qoida: to'lov qoldiqni chegara bo'yicha pastga yoki yuqoriga yaxlitlangan qiymatga teng bo'lsagina (45,5 $ → 45 yoki 46). Eng ko'pi: UZS 100 000, boshqa valyuta 1 000.</div>
+      <div id="yaxList"></div>
+      <div class="addrow" style="margin-top:12px">
+        <input id="yaxNewVal" placeholder="Valyuta (masalan GBP)" autocomplete="off" maxlength="8" style="text-transform:uppercase">
+        <input id="yaxNewCh" inputmode="decimal" placeholder="Chegara" autocomplete="off">
+        <button id="yaxAddBtn" onclick="yaxSave('new')"><i data-lucide="plus"></i>Qo'shish</button>
+      </div>
+      <div id="yaxRes" class="res"></div>
     </div>
 
     <!-- V8 (7-ish): konvert koridori — admin sozlaydi (provodka_config.konvert_koridor_foiz) -->
@@ -1482,7 +1498,7 @@ async function loadRole(){
   $('korCard').style.display=isAdmin?'block':'none';
   $('filCard').style.display=isAdmin?'block':'none';
   $('kuzCard').style.display=isAdmin?'block':'none';
-  if(isAdmin){ loadKoridor(); kuzLoad(); }
+  if(isAdmin){ loadKoridor(); kuzLoad(); yaxLoad(); }
 }
 
 // ===== Xarajat filiallari (savdo qilmaydi, lekin xarajati bor) =====
@@ -1603,6 +1619,49 @@ function rpcMissing(error){
   return ['PGRST202','PGRST205','42883','42P01'].indexOf(code)>=0
     || /Could not find the function|does not exist|schema cache/i.test(msg);
 }
+
+// ===== Yaxlitlash chegarasi — PROVODKA_YAXLITLASH_20261120.sql: yaxlitlash_chegara_royxat() / yaxlitlash_chegara_yoz() =====
+// Yozish faqat admin (serverda is_admin()); RPC yo'q bo'lsa karta jimgina yashirinadi (rpcMissing naqshi).
+let yaxRows=[];
+async function yaxLoad(){
+  if(!isAdmin) return;
+  const {data,error}=await sb.rpc('yaxlitlash_chegara_royxat');
+  if(error){
+    if(rpcMissing(error)){ $('yaxCard').style.display='none'; return; }
+    $('yaxCard').style.display='block';
+    $('yaxRes').className='res err'; $('yaxRes').textContent="O'qib bo'lmadi: "+(window.permErr?window.permErr(error):error.message);
+    return;
+  }
+  yaxRows=Array.isArray(data)?data:[];
+  $('yaxCard').style.display='block';
+  $('yaxList').innerHTML=yaxRows.length?yaxRows.map((r,i)=>`<div class="item">
+      <div class="mid"><div class="t">${esc(r.valyuta)}</div><div class="c">${r.updated_at?esc(String(r.updated_at).slice(0,16).replace('T',' ')):''}</div></div>
+      <div class="addrow" style="flex:0 0 220px">
+        <input id="yaxCh${i}" inputmode="decimal" value="${esc(String(r.chegara))}" autocomplete="off" aria-label="${esc(r.valyuta)} chegarasi">
+        <button onclick="yaxSave(${i})" aria-label="Saqlash"><i data-lucide="save"></i></button>
+      </div></div>`).join(''):'<div class="empty">Chegara yo\'q</div>';
+  icons();
+  if(typeof sozNavRefresh==='function') sozNavRefresh();   // karta endi ko'rinadi — menyu bandi poygasi
+}
+window.yaxSave=async(i)=>{
+  if(!isAdmin){ alert('Faqat admin'); return; }
+  const isNew=(i==='new');
+  const val=isNew?($('yaxNewVal').value||'').trim().toUpperCase():yaxRows[i].valyuta;
+  const ch=Number(String(isNew?$('yaxNewCh').value:$('yaxCh'+i).value).replace(',','.').replace(/\s/g,''));
+  const res=$('yaxRes');
+  if(!/^[A-Z]{2,8}$/.test(val)){ res.className='res err'; res.textContent='Valyuta kodini yozing (2–8 harf)'; return; }
+  if(!isFinite(ch)||ch<=0){ res.className='res err'; res.textContent="Chegara musbat son bo'lishi kerak"; return; }
+  if(ch>(val==='UZS'?100000:1000)){ res.className='res err'; res.textContent='Chegara juda katta (UZS ≤ 100 000, boshqa valyuta ≤ 1 000)'; return; }
+  const {data,error}=await sb.rpc('yaxlitlash_chegara_yoz',{p_valyuta:val,p_chegara:ch});
+  if(error||!data||data.ok===false){
+    const msg=error?(window.permErr?window.permErr(error):error.message):((data&&data.error)||'Xato');
+    res.className='res err'; res.textContent='Xato: '+msg; toast('err','Xato: '+msg); return;
+  }
+  if(isNew){ $('yaxNewVal').value=''; $('yaxNewCh').value=''; }
+  res.className='res ok'; res.textContent=data.valyuta+' chegarasi saqlandi: '+data.chegara+' · '+hhmm();
+  toast('ok','Saqlandi ✓');
+  await yaxLoad();
+};
 
 // ===== Ovqat narxlari — PROVODKA_OVQAT.sql + PROVODKA_OVQAT_KECHKI.sql:
 //       ovqat_narxlar() / set_ovqat_narx() =====
@@ -3422,7 +3481,7 @@ window.rbSaveStaffRoles=async sid=>{
 //       Desktop: hash yo'q → «Kassalar». Telefon: hash yo'q → bo'limlar ro'yxati, bo'lim ichida «orqaga». =====
 const SOZ_SECTIONS={rollar:'Rollar va foydalanuvchilar',hodimfilial:'Hodim → Filial',telegram:'Hodim → Telegram',ovqat:'Ovqat narxlari',
   kassalar:'Kassalar',boshqa:'Boshqa hisoblar',filiallar:'Filiallar',boglash:"Filiallarni bog'lash",moslashtirish:'Filial moslashtirish',
-  koridor:'Konvert koridori',kuzatuv:'Kuzatuv'};
+  koridor:'Konvert koridori',yaxlitlash:'Yaxlitlash chegarasi',kuzatuv:'Kuzatuv'};
 const SOZ_DEFAULT='kassalar';
 let sozReady=false, sozQ='';
 const sozIsMobile=()=>window.matchMedia('(max-width:899px)').matches;
